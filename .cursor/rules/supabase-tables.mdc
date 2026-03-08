@@ -1,0 +1,23 @@
+---
+description: Usar o plugin Supabase (MCP) para configurar tabelas durante a criação do app
+alwaysApply: true
+---
+
+# Configurar tabelas no Supabase durante a criação do app
+
+Quando estiver criando ou evoluindo o app e for necessário **criar ou alterar tabelas** no Supabase:
+
+1. **Use o MCP Supabase** (servidor `plugin-supabase-supabase`) para aplicar mudanças no banco.
+2. **Descubra o project_id** com `list_projects` se ainda não souber qual projeto usar (o app usa a URL em `.env`; o ref do projeto está na URL, ex.: `hvxzloicztmwxmtnwfii`).
+3. **Para DDL (CREATE/ALTER TABLE, etc.)** use `apply_migration`: informe `project_id`, `name` (snake_case) e `query` (SQL). Assim o histórico de migrações fica consistente no Supabase.
+4. **Para consultas ou dados** use `execute_sql` (SELECT, INSERT, etc.).
+5. **Para conferir o schema** use `list_tables` com `verbose: true` quando precisar de colunas, PKs e FKs.
+
+Mantenha também os arquivos em `supabase/migrations/` alinhados com o que foi aplicado (ou crie a migration localmente e depois aplique com o MCP), para versionamento e deploy reproduzível.
+
+## Exemplo de fluxo
+
+- Usuário pede: "Adiciona uma tabela de clientes".
+- Obter `project_id` com `list_projects` se necessário.
+- Chamar `apply_migration` com `name: "create_customers_table"` e o SQL de `CREATE TABLE ...`.
+- Atualizar/criar o arquivo em `supabase/migrations/` com o mesmo SQL para manter o repo em sync.

@@ -1,0 +1,7 @@
+{
+  "name": "Sistema RDA PWA",
+  "description": "A sophisticated, Apple-style customer management system for auto workshops integrated with Trello.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

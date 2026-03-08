@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#000000"/>
+  
+  <!-- Crown -->
+  <path d="M156 160 L120 100 L190 140 L256 60 L322 140 L392 100 L356 160 Z" fill="#F5D00B" stroke="#F5D00B" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="120" cy="100" r="8" fill="#F5D00B"/>
+  <circle cx="190" cy="140" r="8" fill="#F5D00B"/>
+  <circle cx="256" cy="60" r="8" fill="#F5D00B"/>
+  <circle cx="322" cy="140" r="8" fill="#F5D00B"/>
+  <circle cx="392" cy="100" r="8" fill="#F5D00B"/>
+  
+  <!-- Main Circle -->
+  <circle cx="256" cy="300" r="100" fill="none" stroke="#F5D00B" stroke-width="15"/>
+  
+  <!-- Side Curves (Parentheses) -->
+  <path d="M110 240 Q 70 300 110 360" fill="none" stroke="#F5D00B" stroke-width="15" stroke-linecap="round"/>
+  <path d="M402 240 Q 442 300 402 360" fill="none" stroke="#F5D00B" stroke-width="15" stroke-linecap="round"/>
+  
+  <!-- Inner Text ABS -->
+  <text x="256" y="325" font-family="Arial, sans-serif" font-weight="900" font-size="70" fill="#F5D00B" text-anchor="middle">ABS</text>
+  <line x1="180" y1="270" x2="332" y2="270" stroke="#F5D00B" stroke-width="3"/>
+  <line x1="180" y1="335" x2="332" y2="335" stroke="#F5D00B" stroke-width="3"/>
+
+  <!-- Bottom Text REIDOABS -->
+  <text x="256" y="450" font-family="serif" font-weight="bold" font-size="40" fill="#F5D00B" text-anchor="middle" letter-spacing="4">REIDOABS</text>
+  <text x="256" y="480" font-family="sans-serif" font-size="12" fill="#888888" text-anchor="middle" letter-spacing="2">CAR COMPANY</text>
+</svg>

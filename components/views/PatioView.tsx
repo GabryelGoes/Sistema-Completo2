@@ -1,0 +1,3335 @@
+import React, { useEffect, useState, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, User, Wrench, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, Link, Upload, FilePlus, ArchiveRestore, Printer } from 'lucide-react';
+import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer } from '../../types';
+import {
+  getServiceOrders,
+  getServiceOrderById,
+  updateServiceOrderStatus,
+  updateServiceOrderDescription,
+  updateServiceOrderTechnician,
+  updateServiceOrderGarantiaTag,
+  updateServiceOrderMileage,
+  updateServiceOrderDeliveryDate,
+  updateServiceOrderVehicle,
+  getServiceOrderPhotos,
+  uploadServiceOrderPhoto,
+  getServiceOrderBudgets,
+  createServiceOrderBudget,
+  updateServiceOrderBudget,
+  getServiceOrderComments,
+  addServiceOrderComment,
+  getWorkshopServices,
+  getWorkshopTechnicians,
+  ServiceOrderListItem,
+  type WorkshopService,
+  type WorkshopTechnician,
+} from '../../services/apiService';
+import { SERVICE_ORDER_STAGES, getStageStyle, type ServiceOrderStatus } from '../../constants/serviceOrderStages';
+import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
+import { PatioCarIcon } from '../ui/PatioCarIcon';
+
+export type OpenServiceOrderSection = 'comments' | 'budgets' | 'description' | null;
+
+interface PatioViewProps {
+  onUseCustomerData?: (data: Customer) => void;
+  /** Se false, desativa efeitos (ex.: 3D nos cards). */
+  effectsEnabled?: boolean;
+  /** Nome exibido nos comentários: "Rei do ABS" (admin) ou nome do técnico. */
+  commentAuthorName?: string;
+  /** Se definido, abre o modal do veículo com esta OS (vindo ex.: da central de notificações). */
+  openServiceOrderId?: string | null;
+  /** Seção do modal para rolar após abrir (comentários, orçamentos, queixa). */
+  openServiceOrderSection?: OpenServiceOrderSection;
+  /** Chamado após abrir o modal e rolar à seção (para limpar o estado de navegação no pai). */
+  onOpenServiceOrderHandled?: () => void;
+}
+
+const BACKEND_LISTS: TrelloList[] = SERVICE_ORDER_STAGES.map((s) => ({
+  id: s.id,
+  name: s.name,
+  pos: s.pos,
+}));
+
+function capitalizeFirst(str: string): string {
+  if (!str || !str.trim()) return str;
+  return str.trim().split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
+function buildTechnicianNameMap(technicians: WorkshopTechnician[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  technicians.forEach((t) => { map[t.slug] = t.name; });
+  return map;
+}
+
+function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string, string>): TrelloCard {
+  const name = `${o.vehicle_model || 'Veículo'} - ${(o.plate || '---').toUpperCase()} - ${o.customers?.name || 'Cliente'}`;
+  const techId = o.assigned_technician ?? null;
+  const nameMap = technicianNameMap ?? {};
+  const techName = techId ? (nameMap[techId] ?? techId) : null;
+  return {
+    id: o.id,
+    name,
+    desc: o.issue_description || '',
+    idList: o.status,
+    url: '',
+    dateLastActivity: o.updated_at,
+    pos: 0,
+    members: techName ? [{ id: techId!, fullName: capitalizeFirst(techName), username: '' }] : [],
+    checklists: [],
+    garantiaTag: o.garantia_tag === true,
+    mileageKm: o.mileage_km ?? null,
+    deliveryDate: o.delivery_date ?? null,
+  };
+}
+
+// Interfaces separadas para Serviços (só descrição) e Peças (descrição + quantidade)
+interface BudgetServiceItem {
+  id: string;
+  description: string;
+}
+
+interface BudgetPartItem {
+  id: string;
+  description: string;
+  quantity: string;
+}
+
+/** Orçamento salvo: formato organizado e pronto para exportar em PDF */
+export interface SavedBudget {
+  id: string;
+  createdAt: string;
+  serviceOrderId: string;
+  cardName: string;
+  diagnosis: string;
+  services: { description: string }[];
+  parts: { description: string; quantity: string }[];
+  observations: string;
+}
+
+// --- Componente Lightbox com Zoom (Pinch) para Imagens ---
+const Lightbox = ({ src, onClose }: { src: string; onClose: () => void }) => {
+  const [scale, setScale] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Refs para cálculo de gestos sem re-render excessivo durante o movimento
+  const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
+  const lastDistRef = useRef<number | null>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+
+  // Resetar ao abrir
+  useEffect(() => {
+    setScale(1);
+    setTranslate({ x: 0, y: 0 });
+  }, [src]);
+
+  // Limpeza de Blob URL ao fechar para evitar memory leaks se for um blob
+  useEffect(() => {
+    return () => {
+        if (src.startsWith('blob:')) {
+            URL.revokeObjectURL(src);
+        }
+    };
+  }, [src]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      // Preparar para arrastar (apenas se estiver com zoom)
+      if (scale > 1) {
+        setIsDragging(true);
+        lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    } else if (e.touches.length === 2) {
+      // Preparar para pinçar (zoom)
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      lastDistRef.current = dist;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && isDragging && lastTouchRef.current) {
+      // Lógica de Pan (Arrastar)
+      const dx = e.touches[0].clientX - lastTouchRef.current.x;
+      const dy = e.touches[0].clientY - lastTouchRef.current.y;
+      
+      setTranslate(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+
+    } else if (e.touches.length === 2 && lastDistRef.current) {
+      // Lógica de Pinch (Zoom)
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      
+      const ratio = dist / lastDistRef.current;
+      const newScale = Math.min(Math.max(1, scale * ratio), 5); // Max zoom 5x
+      
+      setScale(newScale);
+      lastDistRef.current = dist;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    lastTouchRef.current = null;
+    lastDistRef.current = null;
+    
+    // Snap back se diminuir muito
+    if (scale < 1) {
+      setScale(1);
+      setTranslate({ x: 0, y: 0 });
+    }
+  };
+
+  // Double tap para zoom rápido
+  const handleDoubleTap = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (scale > 1) {
+      setScale(1);
+      setTranslate({ x: 0, y: 0 });
+    } else {
+      setScale(2.5);
+    }
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-modal-backdrop overflow-hidden"
+      onClick={onClose}
+    >
+      <button 
+        onClick={onClose}
+        className="absolute top-6 right-6 z-50 w-12 h-12 rounded-full bg-zinc-900/80 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors border border-zinc-700"
+      >
+        <X className="w-6 h-6" />
+      </button>
+
+      <div 
+        className="w-full h-full flex items-center justify-center touch-none" 
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <img 
+          ref={imageRef}
+          src={src} 
+          alt="Preview" 
+          onDoubleClick={handleDoubleTap}
+          style={{ 
+            transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
+            transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+          }}
+          className="max-w-full max-h-full object-contain select-none"
+          draggable={false}
+        />
+      </div>
+      
+      {/* Hint para usuário */}
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-zinc-400 text-xs pointer-events-none backdrop-blur-md border border-white/10">
+         Toque duplo para zoom ou use pinça
+      </div>
+    </div>
+  );
+};
+
+// --- Componente Visualizador de PDF ---
+const PdfViewer = ({ src, onClose }: { src: string; onClose: () => void }) => {
+  return (
+    <div className="fixed inset-0 z-[70] flex flex-col bg-black/95 backdrop-blur-xl animate-modal-backdrop">
+      {/* Header do PDF Viewer */}
+      <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/80">
+        <div className="flex items-center gap-3">
+          <FileText className="w-6 h-6 text-brand-yellow" />
+          <h3 className="text-white font-bold">Visualização de Documento</h3>
+        </div>
+        <div className="flex items-center gap-3">
+           <a 
+            href={src} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+            title="Abrir Externamente / Baixar"
+           >
+             <Download className="w-5 h-5" />
+           </a>
+           <button 
+            onClick={onClose}
+            className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors border border-zinc-700"
+           >
+            <X className="w-5 h-5" />
+           </button>
+        </div>
+      </div>
+      
+      {/* Área do PDF */}
+      <div className="flex-1 w-full h-full bg-[#1e1e1e] relative">
+         <iframe 
+           src={src} 
+           className="w-full h-full border-0"
+           title="PDF Preview"
+         />
+      </div>
+    </div>
+  );
+};
+
+/** Converte comentário da API para o formato TrelloAction (compatível com a UI). */
+function commentToAction(c: { id: string; author_display_name: string; text: string; created_at: string }): TrelloAction {
+  return {
+    id: c.id,
+    idMemberCreator: '',
+    data: { text: c.text },
+    type: 'commentCard',
+    date: c.created_at,
+    memberCreator: {
+      id: '',
+      fullName: c.author_display_name,
+      avatarUrl: null,
+    },
+  };
+}
+
+export const PatioView: React.FC<PatioViewProps> = ({
+  onUseCustomerData,
+  effectsEnabled = true,
+  commentAuthorName = 'Rei do ABS',
+  openServiceOrderId: openServiceOrderIdProp,
+  openServiceOrderSection,
+  onOpenServiceOrderHandled,
+}) => {
+  const [lists, setLists] = useState<TrelloList[]>([]);
+  const [cards, setCards] = useState<TrelloCard[]>([]);
+  const commentsSectionRef = useRef<HTMLDivElement>(null);
+  const commentsListRef = useRef<HTMLDivElement>(null);
+  const descriptionSectionRef = useRef<HTMLDivElement>(null);
+  const budgetsSectionRef = useRef<HTMLDivElement>(null);
+  const openServiceOrderHandledRef = useRef(false);
+  const [allMembers, setAllMembers] = useState<TrelloMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Card em Visualização DETALHADA (Full Screen Modal)
+  const [selectedCard, setSelectedCard] = useState<TrelloCard | null>(null);
+  const [cardDetails, setCardDetails] = useState<{ actions: TrelloAction[], attachments: TrelloAttachment[] } | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [sendingComment, setSendingComment] = useState(false);
+
+  // Estados para Edição de Comentário
+  const [editingActionId, setEditingActionId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState('');
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  // Estados para Edição da DESCRIÇÃO (Ficha Técnica)
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [descText, setDescText] = useState('');
+  const [isSavingDesc, setIsSavingDesc] = useState(false);
+
+  // Visualização de Imagem (Lightbox)
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [loadingAttachmentId, setLoadingAttachmentId] = useState<string | null>(null);
+  
+  // Visualização de PDF
+  const [previewPdf, setPreviewPdf] = useState<string | null>(null);
+
+  // Orçamento (Budget)
+  const [isBudgetOpen, setIsBudgetOpen] = useState(false);
+  const [budgetServices, setBudgetServices] = useState<BudgetServiceItem[]>([]);
+  const [budgetParts, setBudgetParts] = useState<BudgetPartItem[]>([]);
+  const [budgetDiagnosis, setBudgetDiagnosis] = useState('');
+  const [budgetObservations, setBudgetObservations] = useState('');
+  const [sendingBudget, setSendingBudget] = useState(false);
+  const [savedBudgets, setSavedBudgets] = useState<SavedBudget[]>([]);
+  const [viewingBudget, setViewingBudget] = useState<SavedBudget | null>(null);
+  const [editingBudget, setEditingBudget] = useState<SavedBudget | null>(null);
+  const [workshopServices, setWorkshopServices] = useState<WorkshopService[]>([]);
+  const [workshopTechnicians, setWorkshopTechnicians] = useState<WorkshopTechnician[]>([]);
+  const [isServiceListOpen, setIsServiceListOpen] = useState(false);
+  const [suggestionsForServiceId, setSuggestionsForServiceId] = useState<string | null>(null);
+  const suggestionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusedServiceInputRef = useRef<HTMLDivElement>(null);
+  const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  // Card em transição de COLUNA (Status)
+  const [cardInTransition, setCardInTransition] = useState<TrelloCard | null>(null);
+  const [isMoving, setIsMoving] = useState(false);
+
+  // Card em transição de MEMBRO (Mecânico)
+  const [cardForMemberAssignment, setCardForMemberAssignment] = useState<TrelloCard | null>(null);
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  // Card em Visualização de CHECKLIST (Entrada ou Finalização)
+  const [activeChecklistCardId, setActiveChecklistCardId] = useState<string | null>(null);
+  const [activeChecklistType, setActiveChecklistType] = useState<'Entrada' | 'Finalização' | null>(null);
+  
+  // Estado para indicar criação de checklist
+  const [isCreatingChecklist, setIsCreatingChecklist] = useState(false);
+
+  // Estado para arquivamento (Entregue)
+  const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [removingGarantiaId, setRemovingGarantiaId] = useState<string | null>(null);
+
+  // Estados para HISTÓRICO (Search & Use)
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [historySearchPlate, setHistorySearchPlate] = useState('');
+  const [archivedCards, setArchivedCards] = useState<TrelloCard[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [selectedHistoryCard, setSelectedHistoryCard] = useState<TrelloCard | null>(null);
+  const [loadingHistoryDetails, setLoadingHistoryDetails] = useState(false);
+  const [historyCardDetails, setHistoryCardDetails] = useState<{ actions: TrelloAction[], attachments: TrelloAttachment[] } | null>(null);
+
+  // --- Attachment States ---
+  const [isUploading, setIsUploading] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  
+  // Camera State
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Link State
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkName, setLinkName] = useState('');
+
+  // Quilometragem editável no modal do veículo
+  const [mileageEditValue, setMileageEditValue] = useState('');
+  const [lastSavedMileage, setLastSavedMileage] = useState('');
+  const [savingMileage, setSavingMileage] = useState(false);
+  const [mileageSavedMessage, setMileageSavedMessage] = useState(false);
+
+  // Data de entrega editável no modal do veículo
+  const [deliveryDateEditValue, setDeliveryDateEditValue] = useState('');
+  const [lastSavedDeliveryDate, setLastSavedDeliveryDate] = useState('');
+  const [savingDeliveryDate, setSavingDeliveryDate] = useState(false);
+  const [deliveryDateSavedMessage, setDeliveryDateSavedMessage] = useState(false);
+
+  // Modal editar nome do veículo / placa
+  const [isVehicleEditOpen, setIsVehicleEditOpen] = useState(false);
+  const [vehicleEditModel, setVehicleEditModel] = useState('');
+  const [vehicleEditPlate, setVehicleEditPlate] = useState('');
+  const [savingVehicleEdit, setSavingVehicleEdit] = useState(false);
+
+  // Efeito "folha boiando na água" nos cards do pátio (hover 3D)
+  const [cardFloat, setCardFloat] = useState<{ id: string; rotateX: number; rotateY: number } | null>(null);
+  const FLOAT_MAX_TILT = 6;
+  const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>, cardId: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relX = (e.clientX - rect.left) / rect.width;
+    const relY = (e.clientY - rect.top) / rect.height;
+    const rotateY = (relX - 0.5) * 2 * FLOAT_MAX_TILT;
+    const rotateX = (0.5 - relY) * 2 * FLOAT_MAX_TILT;
+    setCardFloat({ id: cardId, rotateX, rotateY });
+  };
+  const handleCardMouseLeave = () => setCardFloat(null);
+
+  // Helper para normalizar texto (remover acentos e lowercase) para comparações seguras
+  const normalizeText = (text: string) => {
+    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+  };
+
+  const fetchData = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
+    if (!isBackground) setError(null);
+
+    try {
+      const orders = await getServiceOrders();
+      let technicians: WorkshopTechnician[] = [];
+      try {
+        technicians = await getWorkshopTechnicians();
+      } catch (_) {
+        // Tabela workshop_technicians pode não existir ainda; usa fallback
+      }
+      setWorkshopTechnicians(technicians);
+      setLists(BACKEND_LISTS);
+      const nameMap = buildTechnicianNameMap(technicians);
+      const onlyActive = orders.filter((o) => o.status !== 'CANCELLED');
+      setCards(onlyActive.map((o) => orderToCard(o, nameMap)).sort((a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime()));
+      setAllMembers([]);
+      if (error) setError(null);
+    } catch (err: any) {
+      if (!isBackground) setError(err?.message ?? 'Erro ao carregar ordens.');
+      else console.error("Erro na sincronização:", err);
+    } finally {
+      if (!isBackground) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedCard) {
+      const km = selectedCard.mileageKm ?? '';
+      setMileageEditValue(km);
+      setLastSavedMileage(km);
+      setMileageSavedMessage(false);
+      const dd = selectedCard.deliveryDate ?? '';
+      setDeliveryDateEditValue(dd);
+      setLastSavedDeliveryDate(dd);
+      setDeliveryDateSavedMessage(false);
+    }
+  }, [selectedCard?.id, selectedCard?.mileageKm, selectedCard?.deliveryDate]);
+
+  // Abrir modal do veículo ao clicar em notificação (navegação da central de notificações)
+  useEffect(() => {
+    if (!openServiceOrderIdProp || openServiceOrderHandledRef.current) return;
+    if (cards.length === 0) return;
+    const card = cards.find((c) => c.id === openServiceOrderIdProp);
+    if (card) {
+      setSelectedCard(card);
+    } else {
+      openServiceOrderHandledRef.current = true;
+      onOpenServiceOrderHandled?.();
+    }
+  }, [openServiceOrderIdProp, cards, onOpenServiceOrderHandled]);
+
+  // Rolar à seção (comentários, orçamentos, queixa) após abrir o modal e carregar detalhes
+  useEffect(() => {
+    if (!selectedCard || !openServiceOrderSection || selectedCard.id !== openServiceOrderIdProp) return;
+    if (openServiceOrderHandledRef.current) return;
+    const scrollToSection = () => {
+      const ref = openServiceOrderSection === 'comments' ? commentsSectionRef : openServiceOrderSection === 'budgets' ? budgetsSectionRef : descriptionSectionRef;
+      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      openServiceOrderHandledRef.current = true;
+      onOpenServiceOrderHandled?.();
+    };
+    if (openServiceOrderSection === 'comments' || openServiceOrderSection === 'budgets') {
+      if (!loadingDetails) setTimeout(scrollToSection, 150);
+    } else {
+      setTimeout(scrollToSection, 300);
+    }
+  }, [selectedCard?.id, openServiceOrderSection, openServiceOrderIdProp, loadingDetails, onOpenServiceOrderHandled]);
+
+  useEffect(() => {
+    if (!openServiceOrderIdProp) openServiceOrderHandledRef.current = false;
+  }, [openServiceOrderIdProp]);
+
+  // Manter a última mensagem visível: rolar ao fim ao carregar comentários ou ao enviar novo
+  useEffect(() => {
+    if (!selectedCard || loadingDetails) return;
+    const actions = cardDetails?.actions;
+    if (!actions?.length) return;
+    const el = commentsListRef.current;
+    if (!el) return;
+    const scrollToBottom = () => {
+      el.scrollTop = el.scrollHeight;
+    };
+    requestAnimationFrame(() => requestAnimationFrame(scrollToBottom));
+  }, [selectedCard?.id, loadingDetails, cardDetails?.actions?.length]);
+
+  useEffect(() => {
+    if (selectedCard) {
+      setDescText(selectedCard.desc || "");
+      setIsEditingDesc(false);
+      setLoadingDetails(true);
+      setCardDetails(null);
+      Promise.all([
+        getServiceOrderById(selectedCard.id),
+        getServiceOrderPhotos(selectedCard.id),
+        getServiceOrderBudgets(selectedCard.id),
+        getServiceOrderComments(selectedCard.id),
+      ])
+        .then(([_order, photos, budgets, comments]) => {
+          setCardDetails({
+            actions: (comments ?? []).map(commentToAction),
+            attachments: photos.map((p, i) => ({
+              id: p.path || String(i),
+              name: p.name,
+              url: p.url,
+              mimeType: 'image/*',
+              previews: [{ url: p.url, width: 200, height: 200 }],
+            })),
+          });
+          setSavedBudgets(budgets);
+        })
+        .catch(err => console.error("Erro ao carregar detalhes", err))
+        .finally(() => setLoadingDetails(false));
+    } else {
+      setSavedBudgets([]);
+    }
+  }, [selectedCard]);
+
+  useEffect(() => {
+    fetchData(false);
+    const intervalId = setInterval(() => fetchData(true), 5000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Deriva o cartão ativo do estado principal de cards
+  const activeChecklistCard = cards.find(c => c.id === activeChecklistCardId);
+
+  const handleSearchHistory = async (termToSearch: string = historySearchPlate) => {
+    if (!termToSearch.trim()) return;
+    setIsLoadingHistory(true);
+    setArchivedCards([]);
+    try {
+      const orders = await getServiceOrders('CANCELLED');
+      const cancelled = orders.filter(
+        o =>
+          (o.plate && o.plate.toUpperCase().includes(termToSearch.toUpperCase())) ||
+          (o.customers?.name && o.customers.name.toLowerCase().includes(termToSearch.toLowerCase())) ||
+          (o.vehicle_model && o.vehicle_model.toLowerCase().includes(termToSearch.toLowerCase()))
+      );
+      setArchivedCards(cancelled.map((o) => orderToCard(o, buildTechnicianNameMap(workshopTechnicians))));
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao buscar histórico.");
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleOpenHistoryCardDetails = (card: TrelloCard) => {
+    setSelectedHistoryCard(card);
+    setLoadingHistoryDetails(true);
+    setHistoryCardDetails(null);
+    Promise.all([getServiceOrderById(card.id), getServiceOrderPhotos(card.id)])
+      .then(([, photos]) =>
+        setHistoryCardDetails({
+          actions: [],
+          attachments: photos.map((p, i) => ({
+            id: p.path || String(i),
+            name: p.name,
+            url: p.url,
+            mimeType: 'image/*',
+            previews: [{ url: p.url, width: 200, height: 200 }],
+          })),
+        })
+      )
+      .catch(err => console.error(err))
+      .finally(() => setLoadingHistoryDetails(false));
+  };
+
+  const handleUseRegistration = async (card: TrelloCard) => {
+    try {
+      const detail = await getServiceOrderById(card.id);
+      const c = detail.customers;
+      const customerData: Customer = {
+        name: c?.name ?? '',
+        cpf: c?.cpf ?? '',
+        phone: c?.phone ?? '',
+        email: c?.email ?? undefined,
+        cep: c?.cep ?? '',
+        address: c?.address ?? '',
+        addressNumber: c?.address_number ?? '',
+        vehicleModel: detail.vehicle_model,
+        plate: (detail.plate || '').toUpperCase(),
+        mileageKm: detail.mileage_km ?? '',
+        issueDescription: '',
+      };
+      setSelectedHistoryCard(null);
+      setIsHistoryOpen(false);
+      if (onUseCustomerData) onUseCustomerData(customerData);
+    } catch (e: any) {
+      alert(e?.message ?? "Erro ao carregar dados.");
+    }
+  };
+
+  const handleOpenMoveModal = (card: TrelloCard, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setCardInTransition(card);
+  };
+
+  const handleMoveCard = async (newListId: string) => {
+    if (!cardInTransition || !newListId) return;
+    const cardId = cardInTransition.id;
+    setIsMoving(true);
+    try {
+      await updateServiceOrderStatus(cardId, newListId as ServiceOrderStatus);
+      setCards(prev => prev.map(c => c.id === cardId ? { ...c, idList: newListId, garantiaTag: newListId === 'GARANTIA' || c.garantiaTag } : c));
+      if (selectedCard?.id === cardId) {
+        setSelectedCard(prev => prev && prev.id === cardId ? { ...prev, idList: newListId, garantiaTag: newListId === 'GARANTIA' || prev.garantiaTag } : prev);
+      }
+      setCardInTransition(null);
+    } catch (err: any) {
+      console.error("Failed to move", err);
+      alert(err?.message ?? "Erro ao mover.");
+    } finally {
+      setIsMoving(false);
+      fetchData(true);
+    }
+  };
+
+  const handleRemoveGarantia = async () => {
+    if (!selectedCard || !selectedCard.garantiaTag) return;
+    const cardId = selectedCard.id;
+    setRemovingGarantiaId(cardId);
+    try {
+      await updateServiceOrderGarantiaTag(cardId, false);
+      setCards(prev => prev.map(c => c.id === cardId ? { ...c, garantiaTag: false } : c));
+      setSelectedCard(prev => prev && prev.id === cardId ? { ...prev, garantiaTag: false } : prev);
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao remover etiqueta garantia.');
+    } finally {
+      setRemovingGarantiaId(null);
+    }
+  };
+
+  const handleSaveMileage = async () => {
+    if (!selectedCard) return;
+    const value = mileageEditValue.trim();
+    setSavingMileage(true);
+    setMileageSavedMessage(false);
+    try {
+      await updateServiceOrderMileage(selectedCard.id, value || null);
+      const updated = { ...selectedCard, mileageKm: value || null };
+      setSelectedCard(updated);
+      setCards(prev => prev.map(c => c.id === selectedCard.id ? updated : c));
+      setLastSavedMileage(value);
+      setMileageSavedMessage(true);
+      setTimeout(() => setMileageSavedMessage(false), 2500);
+    } catch (e: any) {
+      alert(e?.message ?? 'Erro ao salvar Km.');
+    } finally {
+      setSavingMileage(false);
+    }
+  };
+
+  const handleSaveDeliveryDate = async () => {
+    if (!selectedCard) return;
+    const value = deliveryDateEditValue.trim();
+    setSavingDeliveryDate(true);
+    setDeliveryDateSavedMessage(false);
+    try {
+      await updateServiceOrderDeliveryDate(selectedCard.id, value || null);
+      const updated = { ...selectedCard, deliveryDate: value || null };
+      setSelectedCard(updated);
+      setCards(prev => prev.map(c => c.id === selectedCard.id ? updated : c));
+      setLastSavedDeliveryDate(value);
+      setDeliveryDateSavedMessage(true);
+      setTimeout(() => setDeliveryDateSavedMessage(false), 2500);
+    } catch (e: any) {
+      alert(e?.message ?? 'Erro ao salvar data de entrega.');
+    } finally {
+      setSavingDeliveryDate(false);
+    }
+  };
+
+  const openVehicleEditModal = () => {
+    if (!selectedCard) return;
+    const parts = selectedCard.name.split('-').map((s) => s.trim());
+    setVehicleEditModel(parts[0] || '');
+    setVehicleEditPlate(parts[1] || '');
+    setIsVehicleEditOpen(true);
+  };
+
+  const handleSaveVehicleEdit = async () => {
+    if (!selectedCard) return;
+    const model = vehicleEditModel.trim();
+    const plate = vehicleEditPlate.trim().toUpperCase();
+    if (!model) {
+      alert('Informe o nome do veículo.');
+      return;
+    }
+    if (!plate) {
+      alert('Informe a placa.');
+      return;
+    }
+    setSavingVehicleEdit(true);
+    try {
+      await updateServiceOrderVehicle(selectedCard.id, { vehicleModel: model, plate });
+      const parts = selectedCard.name.split('-').map((s) => s.trim());
+      const customerPart = parts[2] ?? 'Cliente';
+      const newName = `${model} - ${plate} - ${customerPart}`;
+      setCards((prev) =>
+        prev.map((c) => (c.id === selectedCard.id ? { ...c, name: newName } : c))
+      );
+      setSelectedCard((prev) => (prev?.id === selectedCard.id ? { ...prev, name: newName } : prev));
+      setIsVehicleEditOpen(false);
+    } catch (e: any) {
+      alert(e?.message ?? 'Erro ao salvar.');
+    } finally {
+      setSavingVehicleEdit(false);
+    }
+  };
+
+  const handleAssignTechnician = async (technician: { id: string; name: string } | null) => {
+    if (!cardForMemberAssignment) return;
+    setIsAssigning(true);
+    try {
+      await updateServiceOrderTechnician(cardForMemberAssignment.id, technician?.id ?? null);
+      const newMembers = technician ? [{ id: technician.id, fullName: capitalizeFirst(technician.name), username: '' }] : [];
+      setCards(prev =>
+        prev.map(c =>
+          c.id === cardForMemberAssignment.id
+            ? { ...c, members: newMembers }
+            : c
+        )
+      );
+      if (selectedCard?.id === cardForMemberAssignment.id) {
+        setSelectedCard(prev => prev ? { ...prev, members: newMembers } : null);
+      }
+      setCardForMemberAssignment(null);
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao atribuir técnico.');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleToggleCheckItem = async (_cardId: string, _checklistId: string, _itemId: string, _currentState: 'complete' | 'incomplete') => {
+    // Backend: checklists em breve
+  };
+
+  const handleCreateChecklist = async (_type: 'Entrada' | 'Finalização') => {
+    if (!activeChecklistCardId) return;
+    setIsCreatingChecklist(false);
+    // Backend: checklists em breve
+  };
+
+  const handleSendComment = async () => {
+    if (!selectedCard || !newComment.trim()) return;
+    const text = newComment.trim();
+    setNewComment('');
+    setSendingComment(true);
+    try {
+      await addServiceOrderComment(selectedCard.id, text, commentAuthorName);
+      const comments = await getServiceOrderComments(selectedCard.id);
+      setCardDetails(prev => prev ? {
+        ...prev,
+        actions: comments.map(commentToAction),
+      } : null);
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao enviar comentário.');
+      setNewComment(text);
+    } finally {
+      setSendingComment(false);
+    }
+  };
+
+  // --- Funções de Edição/Exclusão de Comentários ---
+
+  const handleStartEdit = (actionId: string, text: string) => {
+    setEditingActionId(actionId);
+    setEditingText(text);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingActionId(null);
+    setEditingText('');
+  };
+
+  const handleUpdateComment = async (_actionId: string) => {
+    setEditingActionId(null);
+  };
+
+  const handleDeleteComment = async (_actionId: string) => {
+    // Backend: comentários em breve
+  };
+
+  const handleSaveDescription = async () => {
+    if (!selectedCard) return;
+    setIsSavingDesc(true);
+    try {
+      await updateServiceOrderDescription(selectedCard.id, descText);
+      const updatedCard = { ...selectedCard, desc: descText };
+      setSelectedCard(updatedCard);
+      setCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
+      setIsEditingDesc(false);
+    } catch (err: any) {
+      alert(err?.message ?? "Erro ao atualizar a descrição.");
+    } finally {
+      setIsSavingDesc(false);
+    }
+  };
+
+  // --- Budget Functions ---
+
+  const openBudgetModal = (budgetToEdit?: SavedBudget | null) => {
+    const isEdit = budgetToEdit && typeof budgetToEdit === 'object' && 'id' in budgetToEdit && 'services' in budgetToEdit && Array.isArray(budgetToEdit.services);
+    if (isEdit && budgetToEdit) {
+      setEditingBudget(budgetToEdit);
+      setBudgetDiagnosis(budgetToEdit.diagnosis ?? '');
+      setBudgetServices(budgetToEdit.services.length > 0
+        ? budgetToEdit.services.map((s, i) => ({ id: `s-${budgetToEdit.id}-${i}`, description: s.description }))
+        : [{ id: '1', description: '' }]);
+      setBudgetParts(budgetToEdit.parts.length > 0
+        ? budgetToEdit.parts.map((p, i) => ({ id: `p-${budgetToEdit.id}-${i}`, description: p.description, quantity: p.quantity || '1' }))
+        : [{ id: '1', description: '', quantity: '1' }]);
+      setBudgetObservations(budgetToEdit.observations ?? '');
+    } else {
+      setEditingBudget(null);
+      setBudgetServices([{ id: '1', description: '' }]);
+      setBudgetParts([{ id: '1', description: '', quantity: '1' }]);
+      setBudgetDiagnosis('');
+      setBudgetObservations('');
+    }
+    setIsBudgetOpen(true);
+    getWorkshopServices().then(setWorkshopServices).catch(() => setWorkshopServices([]));
+  };
+
+  const closeBudgetModal = () => {
+    setIsBudgetOpen(false);
+    setEditingBudget(null);
+    setBudgetDiagnosis('');
+    setBudgetServices([{ id: String(Date.now()), description: '' }]);
+    setBudgetParts([{ id: String(Date.now() + 1), description: '', quantity: '1' }]);
+    setBudgetObservations('');
+  };
+
+  const printBudget = (budget: SavedBudget, mileageKm?: string | null) => {
+    const esc = (s: string) => String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/\n/g, '<br>');
+    const dateStr = new Date(budget.createdAt).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const servicesHtml = budget.services.length > 0
+      ? `<h3 class="sec">Serviços</h3><ul>${budget.services.map((s) => `<li>${esc(s.description)}</li>`).join('')}</ul>`
+      : '';
+    const partsHtml = budget.parts.length > 0
+      ? `<h3 class="sec">Peças</h3><ul>${budget.parts.map((p) => `<li><strong>(${esc(p.quantity)}x)</strong> ${esc(p.description)}</li>`).join('')}</ul>`
+      : '';
+    const diagnosisHtml = budget.diagnosis ? `<h3 class="sec">Diagnóstico</h3><div class="block">${esc(budget.diagnosis)}</div>` : '';
+    const obsHtml = budget.observations ? `<h3 class="sec">Observações</h3><div class="block">${esc(budget.observations)}</div>` : '';
+    const kmHtml = mileageKm ? `<p class="meta">Km ${esc(mileageKm)}</p>` : '';
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Orçamento - ${esc(budget.cardName)}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Georgia, 'Times New Roman', serif; padding: 24px; color: #3d3932; font-size: 14px; line-height: 1.5; }
+    .header { border-bottom: 2px solid #c9c4b8; padding-bottom: 12px; margin-bottom: 20px; }
+    h1 { font-size: 18px; font-weight: bold; color: #3d3932; }
+    .meta { color: #6b6560; font-size: 13px; margin-top: 4px; }
+    .sec { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b6560; margin: 16px 0 8px; }
+    .block { white-space: pre-wrap; }
+    ul { list-style: disc; margin-left: 20px; }
+    li { margin: 4px 0; }
+    @media print { body { padding: 16px; } .no-print { display: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Orçamento</h1>
+    <p class="meta">${esc(budget.cardName)}</p>
+    <p class="meta">${esc(dateStr)}</p>
+    ${kmHtml}
+  </div>
+  ${diagnosisHtml}
+  ${servicesHtml}
+  ${partsHtml}
+  ${obsHtml}
+  <script>
+    window.onload = function() {
+      window.focus();
+      window.print();
+      window.onafterprint = function() { window.close(); };
+    };
+  </script>
+</body>
+</html>`;
+    const w = window.open('', '_blank', 'noopener,noreferrer');
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+    } else {
+      alert('Permita pop-ups para esta página para poder imprimir.');
+    }
+  };
+
+  const addServiceRow = () => {
+    setBudgetServices([...budgetServices, { id: Date.now().toString(), description: '' }]);
+  };
+
+  const addPartRow = () => {
+    setBudgetParts([...budgetParts, { id: Date.now().toString(), description: '', quantity: '1' }]);
+  };
+
+  const removeServiceRow = (id: string) => {
+    setBudgetServices(budgetServices.filter(i => i.id !== id));
+  };
+
+  const removePartRow = (id: string) => {
+    setBudgetParts(budgetParts.filter(i => i.id !== id));
+  };
+
+  const updateServiceDescription = (id: string, value: string) => {
+    setBudgetServices(budgetServices.map(item => item.id === id ? { ...item, description: value } : item));
+  };
+
+  const updatePartDescription = (id: string, value: string) => {
+    setBudgetParts(budgetParts.map(item => item.id === id ? { ...item, description: value } : item));
+  };
+
+  const updatePartQuantity = (id: string, delta: number) => {
+    setBudgetParts(budgetParts.map(item => {
+      if (item.id === id) {
+        const currentQty = parseInt(item.quantity) || 0;
+        const newQty = Math.max(1, currentQty + delta);
+        return { ...item, quantity: newQty.toString() };
+      }
+      return item;
+    }));
+  };
+
+  const addServiceFromList = (name: string) => {
+    setBudgetServices(prev => [...prev, { id: Date.now().toString(), description: name }]);
+    setIsServiceListOpen(false);
+  };
+
+  const getServiceSuggestions = (description: string) => {
+    const q = normalizeText(description.trim());
+    if (!q) return [];
+    return workshopServices.filter(s => normalizeText(s.name).includes(q)).slice(0, 6);
+  };
+
+  useEffect(() => {
+    if (suggestionsForServiceId && focusedServiceInputRef.current) {
+      const rect = focusedServiceInputRef.current.getBoundingClientRect();
+      setSuggestionBoxPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    } else {
+      setSuggestionBoxPosition(null);
+    }
+  }, [suggestionsForServiceId]);
+
+  const handleServiceInputFocus = (id: string) => {
+    if (suggestionCloseTimerRef.current) {
+      clearTimeout(suggestionCloseTimerRef.current);
+      suggestionCloseTimerRef.current = null;
+    }
+    setSuggestionsForServiceId(id);
+  };
+
+  const handleServiceInputBlur = () => {
+    suggestionCloseTimerRef.current = setTimeout(() => setSuggestionsForServiceId(null), 180);
+  };
+
+  const applySuggestion = (itemId: string, name: string) => {
+    updateServiceDescription(itemId, name);
+    setSuggestionsForServiceId(null);
+  };
+
+  const handleCreateBudget = async () => {
+    if (!selectedCard) return;
+
+    const validServices = budgetServices.filter(s => s.description.trim());
+    const validParts = budgetParts.filter(p => p.description.trim());
+
+    if (validServices.length === 0 && validParts.length === 0 && !budgetDiagnosis.trim()) {
+      alert("Adicione pelo menos um serviço, peça ou diagnóstico.");
+      return;
+    }
+
+    const payload = {
+      cardName: selectedCard.name,
+      diagnosis: budgetDiagnosis.trim(),
+      services: validServices.map(s => ({ description: s.description.trim() })),
+      parts: validParts.map(p => ({ description: p.description.trim(), quantity: (p.quantity || '1').trim() })),
+      observations: budgetObservations.trim(),
+    };
+
+    setSendingBudget(true);
+    try {
+      if (editingBudget) {
+        const updated = await updateServiceOrderBudget(selectedCard.id, editingBudget.id, payload);
+        setSavedBudgets(prev => prev.map(b => b.id === editingBudget.id ? updated : b));
+        closeBudgetModal();
+      } else {
+        const budget = await createServiceOrderBudget(selectedCard.id, payload);
+        setSavedBudgets(prev => [budget, ...prev]);
+        setBudgetDiagnosis('');
+        setBudgetServices([{ id: String(Date.now()), description: '' }]);
+        setBudgetParts([{ id: String(Date.now() + 1), description: '', quantity: '1' }]);
+        setBudgetObservations('');
+      }
+    } catch (err: any) {
+      alert(err?.message ?? "Erro ao salvar orçamento.");
+    } finally {
+      setSendingBudget(false);
+    }
+  };
+
+  const handleDeliverVehicle = async (cardId: string) => {
+    if (!confirm("Confirmar entrega do veículo? O registro será arquivado e ficará disponível no Histórico de veículos.")) return;
+    setArchivingId(cardId);
+    try {
+      await updateServiceOrderStatus(cardId, 'CANCELLED');
+      setCards((prev) => prev.filter((c) => c.id !== cardId));
+    } catch (error: any) {
+      alert(error?.message ?? "Erro ao arquivar.");
+    } finally {
+      setArchivingId(null);
+    }
+  };
+
+  const handleUnarchive = async (card: TrelloCard) => {
+    try {
+      await updateServiceOrderStatus(card.id, 'FINALIZADO');
+      setSelectedHistoryCard(null);
+      setArchivedCards((prev) => prev.filter((c) => c.id !== card.id));
+      fetchData(true);
+      if (historySearchPlate.trim()) handleSearchHistory(historySearchPlate);
+    } catch (e: any) {
+      alert(e?.message ?? "Erro ao desarquivar.");
+    }
+  };
+
+  const getStatusConfig = (listName: string, listId?: string) => {
+    const byName = SERVICE_ORDER_STAGES.find(
+      (s) => s.name.toLowerCase() === listName.toLowerCase()
+    );
+    if (byName) return { style: byName.style, label: byName.name };
+    if (listId === "CANCELLED")
+      return { style: "bg-zinc-600 text-zinc-300 border-zinc-600", label: "Arquivado" };
+    return { style: getStageStyle(listId || ""), label: listName };
+  };
+
+  // Mapa de color_style para classes Tailwind (badge e ícone)
+  const technicianColorToStyle = (colorStyle: string | null): string => {
+    const c = (colorStyle || 'zinc').toLowerCase();
+    const map: Record<string, string> = {
+      red: 'bg-red-600 text-white border-red-600',
+      blue: 'bg-blue-600 text-white border-blue-600',
+      green: 'bg-green-600 text-white border-green-600',
+      amber: 'bg-amber-500 text-white border-amber-500',
+      zinc: 'bg-zinc-600 text-white border-zinc-600',
+    };
+    return map[c] ?? map.zinc;
+  };
+
+  const technicianColorToIconClass = (colorStyle: string | null): string => {
+    const c = (colorStyle || 'zinc').toLowerCase();
+    const map: Record<string, string> = {
+      red: 'text-red-500',
+      blue: 'text-blue-500',
+      green: 'text-green-500',
+      amber: 'text-amber-500',
+      zinc: 'text-zinc-500',
+    };
+    return map[c] ?? map.zinc;
+  };
+
+  // Lista de técnicos para o modal: apenas os cadastrados na tela inicial
+  const TECHNICIANS = workshopTechnicians.map((t) => ({
+    id: t.slug,
+    name: capitalizeFirst(t.name),
+    style: technicianColorToStyle(t.color_style),
+    photo_url: t.photo_url ?? null,
+  }));
+
+  // Cor do ícone do mecânico no card: usa slug quando disponível para sempre acertar a cor
+  const getMechanicIconColor = (mechanicName: string | null, memberSlug?: string | null) => {
+    if (!mechanicName && !memberSlug) return 'text-zinc-500';
+    if (memberSlug) {
+      const tech = workshopTechnicians.find((t) => t.slug === memberSlug);
+      if (tech) return technicianColorToIconClass(tech.color_style);
+    }
+    const name = (mechanicName ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (name.includes('rei do abs')) return 'text-brand-yellow';
+    const tech = workshopTechnicians.find(
+      (t) => name.includes(t.slug.toLowerCase()) || name.includes(t.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+    );
+    return tech ? technicianColorToIconClass(tech.color_style) : 'text-zinc-500';
+  };
+
+  // Estilo do botão do técnico no modal de seleção: usa slug quando disponível
+  const getMechanicButtonStyle = (mechanicName: string, memberSlug?: string | null) => {
+    if (memberSlug) {
+      const tech = workshopTechnicians.find((t) => t.slug === memberSlug);
+      if (tech) return technicianColorToStyle(tech.color_style);
+    }
+    const name = mechanicName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const tech = workshopTechnicians.find(
+      (t) => name.includes(t.slug.toLowerCase()) || name.includes(t.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+    );
+    return tech ? technicianColorToStyle(tech.color_style) : 'bg-zinc-800 text-zinc-400 border-zinc-700';
+  };
+
+  // Avatar do autor do comentário: logo (admin), foto (técnico com foto) ou inicial + cor
+  const getCommentAuthorAvatar = (authorName: string): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
+    const name = (authorName ?? '').trim();
+    const initial = name ? name.charAt(0).toUpperCase() : '?';
+    const normalized = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (normalized.includes('rei do abs')) {
+      return { initial: '', avatarClass: '', useLogo: true };
+    }
+    const tech = workshopTechnicians.find(
+      (t) => normalized.includes(t.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')) || normalized.includes(t.slug.toLowerCase())
+    );
+    if (tech) {
+      return {
+        initial,
+        avatarClass: technicianColorToStyle(tech.color_style),
+        useLogo: false,
+        photoUrl: tech.photo_url ?? null,
+      };
+    }
+    return { initial, avatarClass: 'bg-zinc-600 text-white border-zinc-600', useLogo: false };
+  };
+
+  // Componentes de Estilo para Markdown
+  const MarkdownComponents = {
+    p: ({children}: any) => <p className="mb-2 last:mb-0 break-words">{children}</p>,
+    strong: ({children}: any) => <strong className="font-bold text-white">{children}</strong>,
+    em: ({children}: any) => <em className="italic text-zinc-400">{children}</em>,
+    ul: ({children}: any) => <ul className="list-disc list-inside ml-2 mb-2 space-y-1">{children}</ul>,
+    ol: ({children}: any) => <ol className="list-decimal list-inside ml-2 mb-2 space-y-1">{children}</ol>,
+    li: ({children}: any) => <li className="text-zinc-300">{children}</li>,
+    a: ({children, href}: any) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand-yellow hover:underline">{children}</a>,
+    blockquote: ({children}: any) => <blockquote className="border-l-4 border-zinc-600 pl-4 py-1 italic text-zinc-400 my-2">{children}</blockquote>,
+  };
+
+  // --- Attachment Functions ---
+
+  const handleGallerySelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !selectedCard) return;
+    const files = Array.from(e.target.files);
+    setIsUploading(true);
+    try {
+      for (const file of files) {
+        await uploadServiceOrderPhoto(selectedCard.id, file, file.name);
+      }
+      const photos = await getServiceOrderPhotos(selectedCard.id);
+      setCardDetails(prev => ({
+        actions: prev?.actions ?? [],
+        attachments: photos.map((p, i) => ({
+          id: p.path || String(i),
+          name: p.name,
+          url: p.url,
+          mimeType: 'image/*',
+          previews: [{ url: p.url, width: 200, height: 200 }],
+        })),
+      }));
+    } catch (err: any) {
+      alert(err?.message ?? "Erro ao enviar arquivo(s).");
+    } finally {
+      setIsUploading(false);
+      if (galleryInputRef.current) galleryInputRef.current.value = '';
+    }
+  };
+
+  const handleAttachLink = async () => {
+    setIsLinkModalOpen(false);
+    setLinkUrl('');
+    setLinkName('');
+    // Backend: anexar link em breve
+  };
+
+  // Camera Functions
+  const startCamera = () => {
+    setIsCameraOpen(true);
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraOpen(false);
+  };
+
+  useEffect(() => {
+    const initCamera = async () => {
+      if (isCameraOpen) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment' } 
+          });
+          streamRef.current = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        } catch (err) {
+          console.error("Error accessing camera:", err);
+          alert("Erro ao acessar a câmera. Verifique as permissões.");
+          setIsCameraOpen(false);
+        }
+      } else {
+        // Cleanup if closed
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
+      }
+    };
+
+    initCamera();
+
+    return () => {
+      // Cleanup on unmount or change
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [isCameraOpen]);
+
+  const takePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+
+      if (context) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            setPhotoBlob(blob);
+            setPhotoPreview(URL.createObjectURL(blob));
+            stopCamera();
+          }
+        }, 'image/jpeg', 0.8);
+      }
+    }
+  };
+
+  const uploadPhoto = async () => {
+    if (!selectedCard || !photoBlob) return;
+    setIsUploading(true);
+    try {
+      const fileName = `foto_patio_${new Date().getTime()}.jpg`;
+      await uploadServiceOrderPhoto(selectedCard.id, photoBlob, fileName);
+      const photos = await getServiceOrderPhotos(selectedCard.id);
+      setCardDetails(prev => ({
+        actions: prev?.actions ?? [],
+        attachments: photos.map((p, i) => ({
+          id: p.path || String(i),
+          name: p.name,
+          url: p.url,
+          mimeType: 'image/*',
+          previews: [{ url: p.url, width: 200, height: 200 }],
+        })),
+      }));
+      setPhotoBlob(null);
+      setPhotoPreview(null);
+    } catch (err: any) {
+      alert(err?.message ?? "Erro ao enviar foto.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const clearPhoto = () => {
+    setPhotoBlob(null);
+    setPhotoPreview(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[80vh] text-zinc-400 gap-4">
+        <RefreshCw className="w-8 h-8 animate-spin text-brand-yellow" />
+        <p className="animate-pulse tracking-wide font-light">Carregando oficina...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[80vh] text-zinc-400 gap-6 px-8 text-center">
+        <AlertCircle className="w-16 h-16 text-red-500/80" />
+        <p className="text-lg">{error}</p>
+        <button 
+          onClick={() => fetchData(false)}
+          className="px-8 py-3 bg-brand-surfaceHighlight rounded-full text-white font-medium hover:bg-zinc-800 transition-colors"
+        >
+          Tentar Novamente
+        </button>
+      </div>
+    );
+  }
+
+  // Membros permitidos: apenas técnicos cadastrados na tela inicial
+  const allowedMembers = allMembers.filter(m =>
+    workshopTechnicians.some(t => t.slug === m.id || m.fullName.toLowerCase().includes(t.name.toLowerCase()))
+  );
+
+  return (
+    <div className="w-full min-h-full pb-32 animate-in fade-in duration-700 relative">
+      {/* Sombra leve em amarelo (como na Recepção) */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
+      
+      {/* Header Fixo no Topo da Página */}
+      <div className="relative z-10 flex items-center justify-between mb-8 px-2">
+        <div className="flex items-center gap-4">
+          <img src="/logo.png" alt="Logo" className="h-20 w-auto object-contain bg-black rounded-xl p-2" />
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight text-brand-yellow leading-none">
+              PÁTIO
+            </h1>
+            <p className="text-zinc-500 text-sm mt-1">
+              {cards.length} Veículos na oficina
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Botão de Histórico */}
+          <button 
+            onClick={() => setIsHistoryOpen(true)}
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:border-brand-yellow hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all duration-300"
+            title="Consultar Histórico (Arquivados)"
+          >
+            <History className="w-5 h-5" />
+          </button>
+          
+          <button 
+            onClick={() => fetchData(false)}
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-white dark:bg-brand-surfaceHighlight border border-zinc-200 dark:border-brand-border text-zinc-400 hover:text-brand-yellow hover:border-brand-yellow/50 transition-all duration-300 active:scale-90"
+          >
+            <RefreshCw className="w-6 h-6" />
+          </button>
+        </div>
+      </div>
+
+      {/* Grid Unificado de Veículos — perspectiva para efeito 3D no hover */}
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-1" style={{ perspective: '1400px' }}>
+        {cards.map(card => {
+          const parts = card.name.split('-');
+          const model = parts[0]?.trim() || card.name;
+          const plate = parts[1]?.trim() || '---';
+          const customerName = parts[2]?.trim() || '';
+          
+          const currentList = lists.find(l => l.id === card.idList);
+          const listName = currentList ? currentList.name : 'Desconhecido';
+          const listNameLower = listName.toLowerCase();
+          
+          const member = card.members && card.members.length > 0 ? card.members[0] : null;
+          const mechanic = member ? member.fullName : null;
+          const mechanicColorClass = getMechanicIconColor(mechanic, member?.id);
+          const hasMechanic = !!mechanic;
+          
+          const statusConfig = getStatusConfig(listName, card.idList);
+
+          // AGORA PERMITE ATRIBUIÇÃO EM QUALQUER FASE (conforme solicitação)
+          const canAssignMember = true; 
+          
+          // Condição para botão de Checklist de Entrada: Apenas em 'avaliação técnica'
+          const showEntryButton = listNameLower.includes('avaliação técnica');
+          
+          // Condição para botão de Checklist de Finalização: Apenas em 'fase de teste'
+          const showFinalizationButton = listNameLower.includes('fase de teste');
+
+          // Condição para botão de ENTREGUE: Apenas em 'finalizado'
+          const showDeliverButton = listNameLower.includes('finalizado');
+
+          // Condição para botão de ENTREGUE em 'não aprovado'
+          const showNotApprovedDeliverButton = listNameLower.includes('não aprovado');
+
+          // Função helper para calcular progresso
+          const getChecklistProgress = (type: 'Entrada' | 'Finalização') => {
+             const target = normalizeText(type);
+             const cl = card.checklists?.find(c => normalizeText(c.name).includes(target));
+             
+             const total = cl ? cl.checkItems.length : 0;
+             const completed = cl ? cl.checkItems.filter(i => i.state === 'complete').length : 0;
+             const progress = total > 0 ? (completed / total) * 100 : 0;
+             return { total, completed, progress };
+          };
+
+          const entryStats = getChecklistProgress('Entrada');
+          const finalizationStats = getChecklistProgress('Finalização');
+
+          const isGarantia = card.garantiaTag === true;
+          const isFloating = effectsEnabled && cardFloat?.id === card.id;
+
+          return (
+            <div
+              key={card.id}
+              className="min-h-[180px]"
+              style={{ transformStyle: 'preserve-3d' }}
+              onMouseMove={(e) => handleCardMouseMove(e, card.id)}
+              onMouseLeave={handleCardMouseLeave}
+            >
+              <div
+                onClick={() => setSelectedCard(card)}
+                className={`
+                  group relative overflow-hidden
+                  bg-white/95 dark:bg-[#1C1C1E]/95
+                  backdrop-blur-xl
+                  border rounded-[1.5rem] p-5
+                  shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.02)]
+                  dark:shadow-[0_1px_2px_rgba(0,0,0,0.2),0_4px_16px_rgba(0,0,0,0.25),0_12px_32px_-8px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.04)]
+                  hover:shadow-[0_2px_4px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.08),0_16px_48px_-12px_rgba(0,0,0,0.12),0_24px_64px_-16px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.03)]
+                  dark:hover:shadow-[0_2px_4px_rgba(0,0,0,0.25),0_12px_32px_rgba(0,0,0,0.3),0_24px_56px_-12px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)]
+                  hover:border-zinc-300/80 dark:hover:border-white/[0.12]
+                  active:scale-[0.99]
+                  flex flex-col justify-between min-h-[180px] cursor-pointer h-full
+                  ${isGarantia ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-white dark:ring-offset-[#0a0a0a] border-red-500/30' : 'border border-zinc-200/60 dark:border-white/[0.08]'}
+                `}
+                style={{
+                  transform: isFloating
+                    ? `rotateX(${cardFloat.rotateX}deg) rotateY(${cardFloat.rotateY}deg) translateZ(6px)`
+                    : 'rotateX(0deg) rotateY(0deg) translateZ(0px)',
+                  transition: 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.35s ease, border-color 0.3s ease',
+                  transformStyle: 'preserve-3d',
+                }}
+              >
+              {/* Overlay de Loading (Geral para Card) */}
+              {(isMoving && cardInTransition?.id === card.id) || (isAssigning && cardForMemberAssignment?.id === card.id) || (archivingId === card.id) || (removingGarantiaId === card.id) ? (
+                <div className="absolute inset-0 z-30 bg-white/70 dark:bg-black/50 backdrop-blur-md rounded-[1.5rem] flex items-center justify-center overflow-hidden">
+                   <RefreshCw className="w-8 h-8 text-brand-yellow animate-spin" />
+                </div>
+              ) : null}
+
+              {/* Layout Superior */}
+              <div className="flex justify-between items-start mb-6">
+                
+                {/* Info Carro/Cliente */}
+                <div className="flex-1 pr-2">
+                  <h3 className="text-4xl font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic">
+                    {model}
+                  </h3>
+                  {customerName && (
+                    <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
+                      <User className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
+                      <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
+                        {customerName}
+                      </span>
+                    </div>
+                  )}
+                  {card.deliveryDate && (
+                    <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
+                      <Calendar className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
+                      <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
+                        Entrega: {new Date(card.deliveryDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Info Mecânico/Placa */}
+                <div className="flex flex-col items-end min-w-[120px] text-right pl-2">
+                   
+                   {/* Botão Técnico — estilo iOS */}
+                   <button 
+                     type="button"
+                     disabled={!canAssignMember}
+                     onClick={(e) => { e.stopPropagation(); canAssignMember && setCardForMemberAssignment(card); }}
+                     className={`
+                        flex items-center justify-end gap-1.5 mb-2 px-3 py-1.5 rounded-2xl border transition-all
+                        ${canAssignMember
+                          ? 'border-zinc-200/80 dark:border-white/10 bg-zinc-100/90 dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-200 cursor-pointer hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] active:scale-[0.97]'
+                          : 'border-zinc-200/60 dark:border-white/5 bg-zinc-50/80 dark:bg-white/[0.04] text-zinc-500 cursor-default'}
+                     `}
+                   >
+                      <span className={`text-sm font-bold truncate max-w-[120px] ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}>
+                        {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : 'Sem técnico')}
+                      </span>
+                      {member?.avatarUrl ? (
+                         <img 
+                            src={member.avatarUrl} 
+                            alt={capitalizeFirst(member.fullName)} 
+                            className="w-6 h-6 rounded-full object-cover border border-zinc-300/80 dark:border-white/10"
+                         />
+                      ) : (
+                         <Wrench className={`w-6 h-6 shrink-0 ${mechanicColorClass}`} />
+                      )}
+                   </button>
+                   
+                   {/* PLACA MERCOSUL — cantos mais suaves */}
+                   <div className="w-[120px] bg-white rounded-xl border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/15 mt-1 select-none">
+                      <div className="h-4 bg-[#003399] flex items-center justify-between px-2 relative">
+                         <span className="text-[6px] font-bold text-white tracking-wider">BRASIL</span>
+                         <BrazilFlagIcon width={12} height={8} className="rounded-sm flex-shrink-0 border border-white/30" />
+                      </div>
+                      <div className="h-8 flex items-center justify-center bg-white">
+                         <span className="text-black font-mono text-xl font-black tracking-widest leading-none">
+                            {plate.toUpperCase()}
+                         </span>
+                      </div>
+                   </div>
+
+                </div>
+              </div>
+
+              {/* Botões de Ação Inferiores — estilo iOS */}
+              <div className="relative w-full mt-auto space-y-3">
+                
+                {/* Botão Checklist Entrada */}
+                {showEntryButton && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setActiveChecklistCardId(card.id); setActiveChecklistType('Entrada'); }}
+                    className="
+                      w-full py-2.5 px-4 rounded-2xl
+                      bg-zinc-100/90 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08]
+                      flex items-center justify-between
+                      text-xs uppercase font-bold tracking-widest text-zinc-600 dark:text-zinc-300
+                      hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.99]
+                      group-checklist
+                    "
+                  >
+                    <div className="flex items-center gap-2">
+                      <ClipboardList className={`w-4 h-4 ${entryStats.completed === entryStats.total && entryStats.total > 0 ? 'text-green-500' : 'text-brand-yellow'}`} />
+                      ENTRADA
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${entryStats.completed === entryStats.total && entryStats.total > 0 ? 'bg-green-500' : 'bg-brand-yellow'}`}
+                          style={{ width: `${entryStats.progress}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px]">{Math.round(entryStats.progress)}%</span>
+                    </div>
+                  </button>
+                )}
+
+                 {/* Botão Checklist Finalização */}
+                 {showFinalizationButton && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setActiveChecklistCardId(card.id); setActiveChecklistType('Finalização'); }}
+                    className="
+                      w-full py-2.5 px-4 rounded-2xl
+                      bg-zinc-100/90 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08]
+                      flex items-center justify-between
+                      text-xs uppercase font-bold tracking-widest text-zinc-600 dark:text-zinc-300
+                      hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.99]
+                      group-checklist
+                    "
+                  >
+                    <div className="flex items-center gap-2">
+                      <ListChecks className={`w-4 h-4 ${finalizationStats.completed === finalizationStats.total && finalizationStats.total > 0 ? 'text-green-500' : 'text-blue-500'}`} />
+                      FINALIZAÇÃO
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${finalizationStats.completed === finalizationStats.total && finalizationStats.total > 0 ? 'bg-green-500' : 'bg-blue-500'}`}
+                          style={{ width: `${finalizationStats.progress}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px]">{Math.round(finalizationStats.progress)}%</span>
+                    </div>
+                  </button>
+                )}
+
+                {/* Botão ENTREGUE (Apenas se Finalizado) */}
+                {showDeliverButton && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleDeliverVehicle(card.id); }}
+                        disabled={archivingId === card.id}
+                        className="
+                            w-full py-3 px-4 rounded-2xl
+                            bg-zinc-100/90 dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400
+                            border border-zinc-200/60 dark:border-white/[0.08]
+                            font-bold uppercase tracking-widest
+                            hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white
+                            transition-all active:scale-[0.99]
+                            flex items-center justify-center gap-2
+                        "
+                    >
+                        {archivingId === card.id ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                        ENTREGUE
+                    </button>
+                )}
+
+                {/* Botão ENTREGUE (Se Não Aprovado) */}
+                {showNotApprovedDeliverButton && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleDeliverVehicle(card.id); }}
+                        disabled={archivingId === card.id}
+                        className="
+                            w-full py-3 px-4 rounded-2xl
+                            bg-zinc-100/90 dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400
+                            border border-zinc-200/60 dark:border-white/[0.08]
+                            font-bold uppercase tracking-widest
+                            hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white
+                            transition-all active:scale-[0.99]
+                            flex items-center justify-center gap-2
+                        "
+                    >
+                        {archivingId === card.id ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                        ENTREGUE
+                    </button>
+                )}
+
+                {/* Botão de Status (Mudar Etapa) — mesmo tamanho, visual iOS */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleOpenMoveModal(card, e);
+                  }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className={`
+                    flex items-center justify-between 
+                    w-full px-5 py-3.5 rounded-2xl 
+                    cursor-pointer transition-all duration-200 ease-out
+                    shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)]
+                    dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
+                    border border-black/10 dark:border-white/10
+                    ${statusConfig.style}
+                    hover:brightness-110 active:scale-[0.98]
+                  `}
+                >
+                  <span className="font-black text-sm uppercase tracking-wide truncate pr-2">
+                    {statusConfig.label}
+                  </span>
+                  <ChevronDown className="w-5 h-5 opacity-70" />
+                </button>
+              </div>
+
+            </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {cards.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-zinc-600">
+            <PatioCarIcon className="w-16 h-16 mb-4 opacity-20" strokeWidth={1.5} />
+            <p>Nenhum veículo no pátio</p>
+          </div>
+      )}
+
+      {/* --- MODAL DE HISTÓRICO (BUSCA) --- */}
+      {isHistoryOpen && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+            <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-4xl h-[85vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative">
+               
+               <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/50">
+                  <div className="flex items-center gap-3">
+                     <div className="bg-brand-yellow/10 p-2 rounded-xl">
+                        <History className="w-6 h-6 text-brand-yellow" />
+                     </div>
+                     <div>
+                        <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Histórico de Veículos</h2>
+                        <p className="text-zinc-500 text-xs mt-0.5">Buscar veículos arquivados</p>
+                     </div>
+                  </div>
+                  <button onClick={() => setIsHistoryOpen(false)} className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors">
+                     <X className="w-5 h-5" />
+                  </button>
+               </div>
+
+               <div className="p-6 bg-zinc-100 dark:bg-zinc-900/30 border-b border-zinc-200 dark:border-zinc-800">
+                  <div className="flex gap-3">
+                     <div className="flex-1 relative">
+                        <input 
+                           type="text" 
+                           placeholder="Digite placa, nome, cpf, telefone ou cep..." 
+                           value={historySearchPlate}
+                           onChange={(e) => setHistorySearchPlate(e.target.value)}
+                           onKeyDown={(e) => e.key === 'Enter' && handleSearchHistory()}
+                           className="w-full bg-white dark:bg-black border border-zinc-300 dark:border-zinc-700 rounded-xl py-3 pl-10 pr-4 text-zinc-900 dark:text-white focus:outline-none focus:border-brand-yellow/50 transition-colors"
+                        />
+                        <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                     </div>
+                     <button 
+                        onClick={() => handleSearchHistory()}
+                        disabled={isLoadingHistory}
+                        className="bg-brand-yellow text-black px-6 rounded-xl font-bold hover:bg-[#fcd61e] transition-colors disabled:opacity-50"
+                     >
+                        {isLoadingHistory ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'Buscar'}
+                     </button>
+                  </div>
+               </div>
+
+               <div className="flex-1 overflow-y-auto p-6 bg-zinc-50 dark:bg-[#0A0A0A] custom-scrollbar">
+                  {isLoadingHistory ? (
+                     <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4">
+                        <RefreshCw className="w-8 h-8 animate-spin text-brand-yellow" />
+                        <p>Buscando no arquivo morto...</p>
+                     </div>
+                  ) : archivedCards.length > 0 ? (
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {archivedCards.map(card => {
+                           const parts = card.name.split('-');
+                           const model = parts[0]?.trim() || card.name;
+                           const plate = parts[1]?.trim() || '---';
+                           const customerName = parts[2]?.trim() || '';
+
+                           return (
+                              <div 
+                                 key={card.id}
+                                 onClick={() => handleOpenHistoryCardDetails(card)}
+                                 className="group bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-[#2C2C2E] rounded-2xl p-5 hover:border-brand-yellow/30 transition-all cursor-pointer shadow-sm dark:shadow-lg hover:shadow-md dark:hover:shadow-xl flex flex-col justify-between min-h-[140px]"
+                              >
+                                 <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                       <h3 className="text-2xl font-black text-zinc-900 dark:text-white uppercase italic tracking-tighter truncate max-w-[200px]">{model}</h3>
+                                       <div className="flex items-center gap-2 mt-1">
+                                          <User className="w-3 h-3 text-brand-yellow" />
+                                          <p className="text-zinc-500 dark:text-zinc-400 text-sm font-bold truncate max-w-[150px]">{customerName}</p>
+                                       </div>
+                                    </div>
+                                    <div className="bg-zinc-100 dark:bg-white text-zinc-900 dark:text-black font-mono font-black text-sm px-2 py-1 rounded border-2 border-zinc-900 dark:border-black">
+                                       {plate.toUpperCase()}
+                                    </div>
+                                 </div>
+                                 
+                                 <div className="flex items-end justify-between mt-2 pt-3 border-t border-zinc-100 dark:border-zinc-800/50">
+                                    <div className="flex flex-col">
+                                         <span className="text-[10px] uppercase text-zinc-400 dark:text-zinc-600 font-bold tracking-wider">Arquivado em</span>
+                                         <span className="text-xl text-brand-yellow font-black tracking-tight leading-none">
+                                            {card.dateLastActivity ? new Date(card.dateLastActivity).toLocaleDateString('pt-BR') : 'N/A'}
+                                         </span>
+                                    </div>
+
+                                    <span className="flex items-center gap-1 text-xs text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
+                                       Ver Detalhes <ArrowRight className="w-3 h-3" />
+                                    </span>
+                                 </div>
+                              </div>
+                           );
+                        })}
+                     </div>
+                  ) : (
+                     <div className="flex flex-col items-center justify-center h-full text-zinc-600">
+                        <History className="w-16 h-16 mb-4 opacity-20" />
+                        <p>Nenhum registro encontrado.</p>
+                     </div>
+                  )}
+               </div>
+
+            </div>
+         </div>
+      )}
+
+      {/* --- DETALHES DO CARD ARQUIVADO (MODAL NO PÁTIO) --- */}
+      {selectedHistoryCard && (
+         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+            <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-4xl h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative">
+               
+               <div className="absolute top-6 right-6 z-10 flex gap-3">
+                  <button 
+                     onClick={() => handleUnarchive(selectedHistoryCard)}
+                     className="bg-green-600 hover:bg-green-500 text-white px-6 py-2.5 rounded-full font-bold shadow-lg shadow-green-600/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+                  >
+                     <ArchiveRestore className="w-4 h-4" />
+                     DESARQUIVAR
+                  </button>
+                  <button 
+                     onClick={() => handleUseRegistration(selectedHistoryCard)}
+                     className="bg-brand-yellow hover:bg-[#fcd61e] text-black px-6 py-2.5 rounded-full font-bold shadow-lg shadow-brand-yellow/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+                  >
+                     <Copy className="w-4 h-4" />
+                     USAR CADASTRO
+                  </button>
+                  <button 
+                     onClick={() => setSelectedHistoryCard(null)}
+                     className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
+                  >
+                     <X className="w-6 h-6" />
+                  </button>
+               </div>
+
+               <div className="flex-1 overflow-y-auto custom-scrollbar">
+                  <div className="p-8 md:p-12 pb-8">
+                     <div className="flex flex-col gap-3 mb-6">
+                        <span className="inline-flex self-start items-center gap-2 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest shadow-xl border-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700">
+                            ARQUIVADO
+                        </span>
+                        <h1 className="text-5xl md:text-7xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none">
+                          {selectedHistoryCard.name.split('-')[0]}
+                        </h1>
+                     </div>
+
+                     <div className="flex flex-wrap items-center gap-4 text-zinc-400">
+                         <div className="flex items-center">
+                            {/* PLACA MERCOSUL */}
+                            <div className="w-[140px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-xl shadow-black/20 select-none">
+                               <div className="h-5 bg-[#003399] flex items-center justify-between px-3 relative">
+                                  <span className="text-[8px] font-bold text-white tracking-wider">BRASIL</span>
+                                  <BrazilFlagIcon width={16} height={11} className="rounded-sm flex-shrink-0 border border-white/30" />
+                               </div>
+                               <div className="h-10 flex items-center justify-center bg-white">
+                                  <span className="text-black font-mono text-2xl font-black tracking-widest leading-none">
+                                     {(selectedHistoryCard.name.split('-')[1]?.trim() || '---').toUpperCase()}
+                                  </span>
+                               </div>
+                            </div>
+                         </div>
+                         <div className="flex items-center gap-2 px-4 py-2">
+                            <User className="w-5 h-5 text-brand-yellow" />
+                            <span className="text-lg font-medium text-zinc-700 dark:text-white">{selectedHistoryCard.name.split('-')[2]?.trim()}</span>
+                         </div>
+                         {selectedHistoryCard.due && (
+                           <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800/50 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700/50">
+                              <Calendar className="w-4 h-4 text-brand-yellow" />
+                              <span className="text-sm font-bold text-zinc-600 dark:text-zinc-300">
+                                Entrega: {new Date(selectedHistoryCard.due).toLocaleDateString('pt-BR')}
+                              </span>
+                           </div>
+                         )}
+                      </div>
+                  </div>
+
+                  <div className="w-full h-px bg-zinc-200 dark:bg-zinc-800/50 mx-auto max-w-[90%]"></div>
+
+                  <div className="p-8 md:p-12 pt-8 grid grid-cols-1 lg:grid-cols-3 gap-10">
+                      
+                      <div className="lg:col-span-2 space-y-10">
+                        <div>
+                           <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-4">
+                              <FileText className="w-4 h-4" />
+                              Queixa do cliente (Registro Antigo)
+                           </h3>
+                           <div className="bg-zinc-50 dark:bg-[#1C1C1E] rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 leading-relaxed font-light text-lg">
+                              <ReactMarkdown components={MarkdownComponents}>
+                                 {selectedHistoryCard.desc || "Nenhuma descrição disponível."}
+                              </ReactMarkdown>
+                           </div>
+                        </div>
+
+                        <div>
+                           <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                             <MessageSquare className="w-4 h-4" />
+                             Histórico de Atividades
+                          </h3>
+                          <div className="bg-zinc-50 dark:bg-[#1C1C1E] rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                             <div className="p-6 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar bg-white dark:bg-[#121212]">
+                                {loadingHistoryDetails ? (
+                                   <div className="flex justify-center py-8">
+                                      <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
+                                   </div>
+                                ) : historyCardDetails?.actions && historyCardDetails.actions.length > 0 ? (
+                                   historyCardDetails.actions.map(action => {
+                                      const avatar = getCommentAuthorAvatar(action.memberCreator.fullName);
+                                      return (
+                                      <div key={action.id} className="flex gap-4">
+                                         <div className={`flex-shrink-0 w-10 h-10 rounded-full overflow-hidden shrink-0 ${avatar.useLogo ? 'bg-brand-yellow' : avatar.photoUrl ? '' : ''}`}>
+                                            {avatar.useLogo ? (
+                                               <img src="/logo.png" alt="Rei do ABS" className="w-full h-full object-cover" />
+                                            ) : avatar.photoUrl ? (
+                                               <img src={avatar.photoUrl} alt={action.memberCreator.fullName} className="w-full h-full object-cover" />
+                                            ) : (
+                                               <div className={`w-full h-full rounded-full flex items-center justify-center text-sm font-bold ${avatar.avatarClass}`}>
+                                                  {avatar.initial}
+                                               </div>
+                                            )}
+                                         </div>
+                                         <div className="flex-1 space-y-1">
+                                            <div className="flex items-center justify-between">
+                                               <span className="font-bold text-zinc-900 dark:text-white text-sm">{action.memberCreator.fullName}</span>
+                                               <span className="text-xs text-zinc-500">{new Date(action.date).toLocaleString('pt-BR')}</span>
+                                            </div>
+                                            <div className="bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded-r-xl rounded-bl-xl text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed border border-zinc-200 dark:border-zinc-700/50">
+                                                <ReactMarkdown components={MarkdownComponents}>
+                                                   {action.data.text}
+                                                </ReactMarkdown>
+                                            </div>
+                                         </div>
+                                      </div>
+                                   ); })
+                                ) : (
+                                   <div className="text-center py-8 text-zinc-600 italic">
+                                      Nenhum comentário registrado no histórico.
+                                   </div>
+                                )}
+                             </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-8">
+                         <div>
+                            <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                               <Paperclip className="w-4 h-4" />
+                               Anexos Antigos
+                            </h3>
+                            <div className="space-y-3">
+                               {loadingHistoryDetails ? (
+                                  <div className="flex justify-center p-4">
+                                     <RefreshCw className="w-4 h-4 text-zinc-500 animate-spin" />
+                                  </div>
+                               ) : historyCardDetails?.attachments && historyCardDetails.attachments.length > 0 ? (
+                                  <div className="grid grid-cols-2 gap-2">
+                                     {historyCardDetails.attachments.map(att => {
+                                       const isImage = att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url);
+                                       const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
+                                       
+                                       return (
+                                        <a 
+                                          key={att.id} 
+                                          href={att.url} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="block bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden group hover:border-zinc-400 dark:hover:border-zinc-500 transition-all cursor-pointer"
+                                        >
+                                           <div className="h-24 bg-zinc-200 dark:bg-black flex items-center justify-center relative overflow-hidden">
+                                              {att.previews && att.previews.length > 0 ? (
+                                                 <img 
+                                                   src={att.previews[att.previews.length > 2 ? 2 : 0].url}
+                                                   alt={att.name} 
+                                                   className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity"
+                                                 />
+                                              ) : (
+                                                 <FileText className="w-8 h-8 text-zinc-400 dark:text-zinc-600" />
+                                              )}
+                                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                 <ExternalLink className="w-5 h-5 text-white" />
+                                              </div>
+                                           </div>
+                                           <div className="p-2 bg-zinc-50 dark:bg-zinc-900">
+                                              <p className="text-xs text-zinc-700 dark:text-zinc-300 font-medium truncate">{att.name}</p>
+                                           </div>
+                                        </a>
+                                     )})}
+                                  </div>
+                               ) : (
+                                  <div className="text-center py-6 border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl">
+                                     <p className="text-zinc-600 text-sm">Nenhum anexo encontrado.</p>
+                                  </div>
+                               )}
+                            </div>
+                         </div>
+                      </div>
+
+                  </div>
+               </div>
+
+            </div>
+         </div>
+      )}
+
+      {/* MODAL DETALHE DO VEÍCULO */}
+      {selectedCard && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+           <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-4xl h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative">
+              
+              <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={openVehicleEditModal}
+                  className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-amber-500/10 dark:hover:bg-amber-500/10 transition-all active:scale-95"
+                  title="Editar nome do veículo ou placa"
+                >
+                  <Pencil className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => setSelectedCard(null)}
+                  className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                  <div className="p-8 md:p-12 pb-8">
+                     <div className="flex flex-col gap-3 mb-6">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest shadow-xl border-2 ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name || '', selectedCard.idList).style}`}>
+                            {lists.find(l => l.id === selectedCard.idList)?.name}
+                          </span>
+                          {selectedCard.garantiaTag && (
+                            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 border-2 border-red-500/50">
+                              Garantia
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleRemoveGarantia(); }}
+                                disabled={removingGarantiaId === selectedCard.id}
+                                className="w-6 h-6 rounded-full flex items-center justify-center bg-red-500/30 hover:bg-red-500/50 text-red-700 dark:text-red-300 transition-colors disabled:opacity-50"
+                                title="Remover etiqueta Garantia"
+                              >
+                                {removingGarantiaId === selectedCard.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                              </button>
+                            </span>
+                          )}
+                        </div>
+                        <h1 className="text-5xl md:text-7xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none">
+                          {selectedCard.name.split('-')[0]}
+                        </h1>
+                        {/* Técnico + Data de entrega — duas colunas no mesmo bloco */}
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setCardForMemberAssignment(selectedCard)}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.99] transition-all duration-200 text-left hover:bg-zinc-200/80 dark:hover:bg-white/[0.09]"
+                          >
+                            {selectedCard.members && selectedCard.members.length > 0 ? (
+                              <>
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
+                                  <Wrench className="w-4 h-4 opacity-95" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                    Técnico responsável
+                                  </p>
+                                  <p className="text-sm font-bold text-zinc-900 dark:text-white truncate mt-0.5">
+                                    {capitalizeFirst(selectedCard.members[0].fullName)}
+                                  </p>
+                                </div>
+                                <ChevronRight className="w-4 h-4 shrink-0 text-brand-yellow" />
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-brand-yellow/20 border-2 border-dashed border-brand-yellow/50">
+                                  <Wrench className="w-4 h-4 text-brand-yellow" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                    Técnico responsável
+                                  </p>
+                                  <p className="text-sm font-semibold text-brand-yellow mt-0.5">
+                                    Toque para atribuir
+                                  </p>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                              </>
+                            )}
+                          </button>
+                          <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/10">
+                            <Calendar className="w-5 h-5 text-brand-yellow shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                Data de entrega
+                              </p>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                <input
+                                  type="date"
+                                  value={deliveryDateEditValue}
+                                  onChange={(e) => setDeliveryDateEditValue(e.target.value)}
+                                  className="px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 min-w-[120px]"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleSaveDeliveryDate}
+                                  disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
+                                  className={`px-2.5 py-1.5 rounded-lg text-white text-xs font-medium flex items-center gap-1 transition-colors disabled:opacity-50 ${
+                                    deliveryDateEditValue !== lastSavedDeliveryDate
+                                      ? 'bg-amber-500 hover:bg-amber-600'
+                                      : 'bg-zinc-600 dark:bg-zinc-700'
+                                  }`}
+                                >
+                                  {savingDeliveryDate ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                  Salvar
+                                </button>
+                                {deliveryDateSavedMessage && (
+                                  <span className="text-xs font-medium text-green-600 dark:text-green-400">Salvo!</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                     </div>
+
+                     <div className="flex flex-wrap items-center gap-6 text-zinc-400">
+                         <div className="flex items-center">
+                            <div className="w-[140px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-xl shadow-black/20 select-none">
+                               <div className="h-5 bg-[#003399] flex items-center justify-between px-3 relative">
+                                  <span className="text-[8px] font-bold text-white tracking-wider">BRASIL</span>
+                                  <BrazilFlagIcon width={16} height={11} className="rounded-sm flex-shrink-0 border border-white/30" />
+                               </div>
+                               <div className="h-10 flex items-center justify-center bg-white">
+                                  <span className="text-black font-mono text-2xl font-black tracking-widest leading-none">
+                                     {(selectedCard.name.split('-')[1]?.trim() || '---').toUpperCase()}
+                                  </span>
+                               </div>
+                            </div>
+                         </div>
+                         <div className="flex items-center gap-2 px-4 py-2">
+                            <User className="w-5 h-5 text-brand-yellow" />
+                            <span className="text-lg font-medium text-zinc-700 dark:text-white">{selectedCard.name.split('-')[2]?.trim()}</span>
+                         </div>
+                         <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-yellow">Km</span>
+                            <input
+                              type="text"
+                              value={mileageEditValue}
+                              onChange={(e) => setMileageEditValue(e.target.value)}
+                              placeholder="Ex: 45000"
+                              className="w-28 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleSaveMileage}
+                              disabled={savingMileage || mileageEditValue.trim() === lastSavedMileage}
+                              className={`px-3 py-2 rounded-lg text-white text-sm font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50 ${
+                                mileageEditValue.trim() !== lastSavedMileage
+                                  ? 'bg-amber-500 hover:bg-amber-600'
+                                  : 'bg-zinc-600 dark:bg-zinc-700'
+                              }`}
+                            >
+                              {savingMileage ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                              Salvar
+                            </button>
+                            {mileageSavedMessage && (
+                              <span className="text-sm font-medium text-green-600 dark:text-green-400 animate-in fade-in">
+                                Salvo!
+                              </span>
+                            )}
+                         </div>
+                     </div>
+                  </div>
+
+                  <div className="w-full h-px bg-zinc-200 dark:bg-zinc-800/50 mx-auto max-w-[90%]"></div>
+
+                  <div className="p-8 md:p-12 pt-8 grid grid-cols-1 lg:grid-cols-3 gap-10">
+                      
+                      <div className="lg:col-span-2 space-y-10">
+                        <div ref={descriptionSectionRef}>
+                          <div className="flex items-center justify-between mb-4">
+                             <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                                <FileText className="w-4 h-4" />
+                                Queixa do cliente
+                             </h3>
+                             {!isEditingDesc && (
+                               <button 
+                                 onClick={() => { setIsEditingDesc(true); setDescText(selectedCard.desc || ''); }}
+                                 className="text-xs font-bold text-brand-yellow hover:text-zinc-900 dark:hover:text-white transition-colors flex items-center gap-1"
+                               >
+                                 <Pencil className="w-3 h-3" /> Editar
+                               </button>
+                             )}
+                          </div>
+                          
+                          {isEditingDesc ? (
+                             <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl p-4 border border-brand-yellow/50 animate-in fade-in duration-200">
+                                <textarea 
+                                  value={descText}
+                                  onChange={(e) => setDescText(e.target.value)}
+                                  className="w-full bg-zinc-50 dark:bg-zinc-900/50 text-zinc-900 dark:text-zinc-300 text-lg font-light focus:outline-none resize-none min-h-[200px] p-2 rounded-lg"
+                                  placeholder="Digite a queixa do cliente..."
+                                />
+                                <div className="flex justify-end gap-3 mt-4">
+                                   <button 
+                                     onClick={() => setIsEditingDesc(false)}
+                                     disabled={isSavingDesc}
+                                     className="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white font-bold transition-colors"
+                                   >
+                                     Cancelar
+                                   </button>
+                                   <button 
+                                     onClick={handleSaveDescription}
+                                     disabled={isSavingDesc}
+                                     className="px-6 py-2 bg-brand-yellow text-black rounded-lg text-sm font-bold hover:bg-[#fcd61e] transition-colors flex items-center gap-2"
+                                   >
+                                     {isSavingDesc ? <RefreshCw className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4" />}
+                                     Salvar Alterações
+                                   </button>
+                                </div>
+                             </div>
+                          ) : (
+                            <div className="bg-zinc-50 dark:bg-[#1C1C1E] rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 leading-relaxed font-light text-lg">
+                               <ReactMarkdown components={MarkdownComponents}>
+                                 {selectedCard.desc || "Nenhuma descrição disponível para este veículo."}
+                               </ReactMarkdown>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div ref={commentsSectionRef}>
+                           <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                             <MessageSquare className="w-4 h-4" />
+                             Comentários
+                          </h3>
+
+                          <div className="bg-zinc-50 dark:bg-[#1C1C1E] rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                             <div ref={commentsListRef} className="p-6 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar bg-white dark:bg-[#121212]">
+                                {loadingDetails ? (
+                                   <div className="flex justify-center py-8">
+                                      <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
+                                   </div>
+                                ) : cardDetails?.actions && cardDetails.actions.length > 0 ? (
+                                   cardDetails.actions.map(action => {
+                                      const avatar = getCommentAuthorAvatar(action.memberCreator.fullName);
+                                      return (
+                                      <div key={action.id} className="flex gap-4 group/comment">
+                                         <div className={`flex-shrink-0 w-10 h-10 rounded-full overflow-hidden shrink-0 ${avatar.useLogo ? 'bg-brand-yellow' : ''}`}>
+                                            {avatar.useLogo ? (
+                                               <img src="/logo.png" alt="Rei do ABS" className="w-full h-full object-cover" />
+                                            ) : avatar.photoUrl ? (
+                                               <img src={avatar.photoUrl} alt={action.memberCreator.fullName} className="w-full h-full object-cover" />
+                                            ) : (
+                                               <div className={`w-full h-full rounded-full flex items-center justify-center text-sm font-bold ${avatar.avatarClass}`}>
+                                                  {avatar.initial}
+                                               </div>
+                                            )}
+                                         </div>
+                                         <div className="flex-1 space-y-1">
+                                            <div className="flex items-center justify-between">
+                                               <span className="font-bold text-zinc-900 dark:text-white text-sm">{action.memberCreator.fullName}</span>
+                                               <span className="text-xs text-zinc-500">{new Date(action.date).toLocaleString('pt-BR')}</span>
+                                            </div>
+                                            
+                                            {editingActionId === action.id ? (
+                                               <div className="animate-in fade-in duration-200">
+                                                  <textarea 
+                                                    className="w-full bg-zinc-100 dark:bg-zinc-900 border border-brand-yellow/50 rounded-xl p-3 text-sm text-zinc-900 dark:text-white focus:outline-none mb-2 min-h-[100px]"
+                                                    value={editingText}
+                                                    onChange={(e) => setEditingText(e.target.value)}
+                                                    autoFocus
+                                                  />
+                                                  <div className="flex items-center gap-2">
+                                                     <button 
+                                                        onClick={() => handleUpdateComment(action.id)}
+                                                        disabled={actionLoadingId === action.id}
+                                                        className="px-3 py-1.5 bg-brand-yellow text-black text-xs font-bold rounded-lg flex items-center gap-1 hover:bg-[#fcd61e]"
+                                                     >
+                                                        {actionLoadingId === action.id ? <RefreshCw className="w-3 h-3 animate-spin"/> : <Save className="w-3 h-3"/>}
+                                                        Salvar
+                                                     </button>
+                                                     <button 
+                                                        onClick={handleCancelEdit}
+                                                        disabled={actionLoadingId === action.id}
+                                                        className="px-3 py-1.5 text-zinc-400 text-xs font-medium hover:text-zinc-900 dark:hover:text-white"
+                                                     >
+                                                        Cancelar
+                                                     </button>
+                                                  </div>
+                                               </div>
+                                            ) : (
+                                              <>
+                                                <div className="bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded-r-xl rounded-bl-xl text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed border border-zinc-200 dark:border-zinc-700/50">
+                                                   <ReactMarkdown components={MarkdownComponents}>
+                                                      {action.data.text}
+                                                   </ReactMarkdown>
+                                                </div>
+                                                
+                                                {/* Edit/Delete Actions */}
+                                                <div className="flex items-center gap-3 mt-1 ml-1 opacity-0 group-hover/comment:opacity-100 transition-opacity duration-200">
+                                                   <button 
+                                                      onClick={() => handleStartEdit(action.id, action.data.text)}
+                                                      className="text-[10px] text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:underline flex items-center gap-1"
+                                                   >
+                                                      Editar
+                                                   </button>
+                                                   <span className="text-zinc-400 dark:text-zinc-700 text-[10px]">•</span>
+                                                   <button 
+                                                      onClick={() => handleDeleteComment(action.id)}
+                                                      className="text-[10px] text-zinc-500 hover:text-red-500 hover:underline flex items-center gap-1"
+                                                   >
+                                                      Excluir
+                                                   </button>
+                                                </div>
+                                              </>
+                                            )}
+                                         </div>
+                                      </div>
+                                   ); })
+                                ) : (
+                                   <div className="text-center py-8 text-zinc-600 italic">
+                                      Nenhum comentário registrado.
+                                   </div>
+                                )}
+                             </div>
+
+                             <div className="p-4 bg-zinc-50/80 dark:bg-white/[0.03] border-t border-zinc-200/60 dark:border-white/[0.06] flex gap-2.5 items-end">
+                                <input 
+                                   type="text" 
+                                   value={newComment}
+                                   onChange={(e) => setNewComment(e.target.value)}
+                                   placeholder="Escreva um comentário..."
+                                   className="flex-1 bg-white dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/[0.08] rounded-2xl px-4 py-3 text-[15px] text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-brand-yellow/50 focus:ring-2 focus:ring-brand-yellow/20 transition-all"
+                                   onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) handleSendComment() }}
+                                />
+                                <button 
+                                   type="button"
+                                   onClick={handleSendComment}
+                                   disabled={sendingComment || !newComment.trim()}
+                                   className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed bg-brand-yellow text-black hover:bg-[#fcd61e] active:scale-95 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.15)] disabled:shadow-none disabled:hover:bg-brand-yellow"
+                                >
+                                   {sendingComment ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" strokeWidth={2.2} />}
+                                </button>
+                             </div>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      <div className="space-y-8">
+                         
+                         <div>
+                            <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4">Ações Rápidas</h3>
+                            <div className="space-y-3">
+                              <button 
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleOpenMoveModal(selectedCard, e);
+                                  }}
+                                  className={`w-full p-4 border-2 rounded-xl flex items-center justify-between group transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).style}`}
+                                >
+                                  <span className="font-bold">Alterar Status</span>
+                                  <ChevronDown className="w-5 h-5 opacity-90" />
+                              </button>
+
+                              <button 
+                                  type="button"
+                                  onClick={() => openBudgetModal()}
+                                  className="w-full p-4 bg-[#f0ebe0] border border-[#e2dcd0] hover:bg-[#e8e2d5] rounded-xl flex items-center justify-between group transition-all shadow-sm"
+                                >
+                                  <span className="font-black text-zinc-800">CRIAR ORÇAMENTO</span>
+                                  <Calculator className="w-5 h-5 text-zinc-700 group-hover:scale-110 transition-transform" />
+                              </button>
+                            </div>
+                         </div>
+
+                         <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
+
+                         {/* Orçamentos criados */}
+                         <div ref={budgetsSectionRef}>
+                            <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4">Orçamentos criados</h3>
+                            <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-3 space-y-3 max-h-[280px] overflow-y-auto shadow-inner bg-zinc-100/50 dark:bg-zinc-900/30">
+                              {savedBudgets
+                                .filter((b) => b.serviceOrderId === selectedCard.id)
+                                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                .map((budget, index) => {
+                                  const preview =
+                                    budget.diagnosis?.split('\n')[0]?.slice(0, 42) ||
+                                    budget.services[0]?.description?.slice(0, 42) ||
+                                    (budget.parts[0] ? `${budget.parts[0].quantity}x ${budget.parts[0].description?.slice(0, 30)}` : '') ||
+                                    'Orçamento';
+                                  const dateStr = new Date(budget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                                  const numero = index + 1;
+                                  return (
+                                    <button
+                                      key={budget.id}
+                                      type="button"
+                                      onClick={() => setViewingBudget(budget)}
+                                      className="w-full text-left rounded-xl bg-[#f5f4f0] dark:bg-[#f5f4f0]/90 border border-zinc-200/90 dark:border-zinc-300/40 p-3.5 shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:border-zinc-300 dark:hover:border-zinc-400/60 transition-all duration-200"
+                                    >
+                                      <div className="flex items-center justify-between gap-2 mb-2">
+                                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-700">
+                                          Orçamento {numero}
+                                        </span>
+                                        <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-600 tabular-nums">
+                                          {dateStr}
+                                        </span>
+                                      </div>
+                                      <p className="text-[13px] font-medium text-zinc-800 dark:text-zinc-800 line-clamp-2 leading-snug mb-2">
+                                        {preview}
+                                      </p>
+                                      <div className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-600">
+                                        <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
+                                        <span className="text-zinc-400">·</span>
+                                        <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
+                                <div className="rounded-xl bg-[#f5f4f0] dark:bg-[#f5f4f0]/80 border border-dashed border-zinc-300 dark:border-zinc-400/50 p-5 text-center">
+                                  <FileText className="w-9 h-9 text-zinc-400 dark:text-zinc-500 mx-auto mb-2" />
+                                  <p className="text-sm font-medium text-zinc-600 dark:text-zinc-600">Nenhum orçamento</p>
+                                  <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-0.5">Use &quot;Criar orçamento&quot; acima</p>
+                                </div>
+                              )}
+                            </div>
+                         </div>
+
+                         <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
+
+                         <div>
+                             <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4">Checklists</h3>
+                             <div className="space-y-3">
+                                <button 
+                                    onClick={() => { setActiveChecklistCardId(selectedCard.id); setActiveChecklistType('Entrada'); }}
+                                    className="w-full p-4 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-brand-yellow hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl flex items-center gap-3 group transition-all"
+                                  >
+                                    <div className="w-10 h-10 rounded-full bg-brand-yellow/10 flex items-center justify-center text-brand-yellow group-hover:bg-brand-yellow group-hover:text-black transition-colors">
+                                        <ClipboardList className="w-5 h-5" />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="font-bold text-zinc-900 dark:text-white">Checklist Entrada</p>
+                                        <p className="text-xs text-zinc-500">Verificar avarias e scanner</p>
+                                    </div>
+                                </button>
+
+                                <button 
+                                    onClick={() => { setActiveChecklistCardId(selectedCard.id); setActiveChecklistType('Finalização'); }}
+                                    className="w-full p-4 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-blue-500 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl flex items-center gap-3 group transition-all"
+                                  >
+                                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                                        <ListChecks className="w-5 h-5" />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="font-bold text-zinc-900 dark:text-white">Checklist Finalização</p>
+                                        <p className="text-xs text-zinc-500">Limpeza e etiquetas</p>
+                                    </div>
+                                </button>
+                             </div>
+                         </div>
+
+                         <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
+
+                         <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                                   <Paperclip className="w-4 h-4" />
+                                   Anexos
+                                </h3>
+                                <div className="grid grid-cols-3 gap-3 w-full justify-items-center">
+                                    <input 
+                                        type="file" 
+                                        ref={galleryInputRef} 
+                                        className="hidden" 
+                                        accept="image/*,application/pdf"
+                                        multiple
+                                        onChange={handleGallerySelect}
+                                    />
+                                    <button 
+                                        type="button"
+                                        onClick={startCamera}
+                                        disabled={isUploading}
+                                        className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
+                                        title="Câmera"
+                                    >
+                                        <Camera className="w-6 h-6 shrink-0" strokeWidth={2} />
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => galleryInputRef.current?.click()}
+                                        disabled={isUploading}
+                                        className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
+                                        title="Galeria / Documentos"
+                                    >
+                                        <ImageIcon className="w-6 h-6 shrink-0" strokeWidth={2} />
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => setIsLinkModalOpen(true)}
+                                        disabled={isUploading}
+                                        className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
+                                        title="Link"
+                                    >
+                                        <Link className="w-6 h-6 shrink-0" strokeWidth={2} />
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-3">
+                               {isUploading && (
+                                  <div className="flex justify-center p-4">
+                                     <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
+                                  </div>
+                               )}
+                               {loadingDetails ? (
+                                  <div className="flex justify-center p-4">
+                                     <RefreshCw className="w-4 h-4 text-zinc-500 animate-spin" />
+                                  </div>
+                               ) : cardDetails?.attachments && cardDetails.attachments.length > 0 ? (
+                                  <div className="grid grid-cols-2 gap-2">
+                                     {cardDetails.attachments.map(att => {
+                                       // Verifica se é imagem para habilitar o Lightbox
+                                       const isImage = att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url);
+                                       const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
+                                       const isLoadingThis = loadingAttachmentId === att.id;
+
+                                       return (
+                                        <a 
+                                          key={att.id} 
+                                          href={att.url} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => {
+                                            if (isImage) {
+                                              e.preventDefault();
+                                              setPreviewImage(att.url);
+                                            } else if (isPdf) {
+                                              e.preventDefault();
+                                              setPreviewPdf(att.url);
+                                            }
+                                          }}
+                                          className="block bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden group hover:border-zinc-400 dark:hover:border-zinc-500 transition-all cursor-pointer relative"
+                                        >
+                                           {/* Thumbnail Preview */}
+                                           <div className="h-24 bg-zinc-200 dark:bg-black flex items-center justify-center relative overflow-hidden">
+                                              {isLoadingThis ? (
+                                                 <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
+                                              ) : att.previews && att.previews.length > 0 ? (
+                                                 <img 
+                                                   src={att.previews[att.previews.length > 2 ? 2 : 0].url} // Tenta pegar um tamanho médio
+                                                   alt={att.name} 
+                                                   className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity"
+                                                 />
+                                              ) : (
+                                                 <FileText className="w-8 h-8 text-zinc-400 dark:text-zinc-600" />
+                                              )}
+                                              
+                                              {!isLoadingThis && (
+                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                   {isImage && <ZoomIn className="w-5 h-5 text-white" />}
+                                                   {isPdf && <Eye className="w-5 h-5 text-white" />}
+                                                   {!isImage && !isPdf && <ExternalLink className="w-5 h-5 text-white" />}
+                                                </div>
+                                              )}
+                                           </div>
+                                        </a>
+                                     )})}
+                                  </div>
+                               ) : (
+                                  <div className="text-center py-6 border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl">
+                                     <p className="text-zinc-600 text-sm">Nenhum anexo encontrado.</p>
+                                  </div>
+                               )}
+                            </div>
+                         </div>
+
+                      </div>
+                  </div>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* MODAL EDITAR NOME DO VEÍCULO / PLACA */}
+      {isVehicleEditOpen && selectedCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+          <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md rounded-[1.5rem] shadow-xl overflow-hidden animate-modal-sheet">
+            <div className="p-6 border-b border-zinc-200/60 dark:border-white/[0.08]">
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-brand-yellow" />
+                Editar veículo
+              </h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Corrija o nome do veículo ou a placa, se estiver errado.</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">Nome do veículo</label>
+                <input
+                  type="text"
+                  value={vehicleEditModel}
+                  onChange={(e) => setVehicleEditModel(e.target.value)}
+                  placeholder="Ex: Gol 1.0"
+                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-yellow/40"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">Placa</label>
+                <input
+                  type="text"
+                  value={vehicleEditPlate}
+                  onChange={(e) => setVehicleEditPlate(e.target.value.toUpperCase())}
+                  placeholder="Ex: ABC1D23"
+                  maxLength={8}
+                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 uppercase"
+                />
+              </div>
+            </div>
+            <div className="p-6 pt-0 flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setIsVehicleEditOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveVehicleEdit}
+                disabled={savingVehicleEdit || !vehicleEditModel.trim() || !vehicleEditPlate.trim()}
+                className="px-4 py-2.5 rounded-xl bg-brand-yellow hover:bg-amber-500 disabled:opacity-50 text-black font-semibold flex items-center gap-2 transition-colors"
+              >
+                {savingVehicleEdit ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LIGHTBOX MODAL (IMAGE PREVIEW) WITH ZOOM */}
+      {previewImage && (
+        <Lightbox 
+          src={previewImage} 
+          onClose={() => setPreviewImage(null)} 
+        />
+      )}
+
+      {/* PDF VIEWER MODAL */}
+      {previewPdf && (
+        <PdfViewer 
+          src={previewPdf}
+          onClose={() => setPreviewPdf(null)}
+        />
+      )}
+
+      {/* MODAL VISUALIZAR ORÇAMENTO — folha de papel envelhecido */}
+      {viewingBudget && selectedCard && (
+        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/70 p-4 animate-modal-backdrop">
+          <div
+            className="relative w-full max-w-2xl max-h-[90vh] rounded-sm flex flex-col overflow-hidden animate-modal-sheet"
+            style={{
+              backgroundColor: '#e8e4d9',
+              border: '1px solid #c9c4b8',
+              boxShadow: '0 2px 2px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.15)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='0.04'/%3E%3C/svg%3E")`,
+            }}
+          >
+            {/* Textura de fibra sobreposta */}
+            <div
+              className="absolute inset-0 pointer-events-none rounded-sm opacity-[0.035]"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+              }}
+            />
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#d4cfc4] shrink-0 relative z-10">
+              <div>
+                <h2 className="text-lg font-bold text-[#3d3932]">Orçamento</h2>
+                <p className="text-sm text-[#6b6560] mt-0.5">
+                  {new Date(viewingBudget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </p>
+                {selectedCard?.mileageKm && (
+                  <p className="text-sm text-[#6b6560] mt-1">
+                    <span className="text-amber-600 font-medium">Km</span> {selectedCard.mileageKm}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => printBudget(viewingBudget, selectedCard?.mileageKm ?? null)}
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-[#6b6560] hover:text-[#3d3932] hover:bg-[#ddd8ce] transition-colors"
+                  title="Imprimir orçamento"
+                  aria-label="Imprimir"
+                >
+                  <Printer className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewingBudget(null)}
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-[#6b6560] hover:text-[#3d3932] hover:bg-[#ddd8ce] transition-colors"
+                  aria-label="Fechar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-[#3d3932] relative z-10">
+              {viewingBudget.diagnosis && (
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-2">Diagnóstico</h3>
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap text-[#4a4540]">{viewingBudget.diagnosis}</div>
+                </section>
+              )}
+              {viewingBudget.services.length > 0 && (
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-2">Serviços</h3>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-[#4a4540]">
+                    {viewingBudget.services.map((s, i) => (
+                      <li key={i}>{s.description}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {viewingBudget.parts.length > 0 && (
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-2">Peças</h3>
+                  <ul className="space-y-1 text-sm text-[#4a4540]">
+                    {viewingBudget.parts.map((p, i) => (
+                      <li key={i}><span className="font-medium text-[#3d3932]">({p.quantity}x)</span> {p.description}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {viewingBudget.observations && (
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-2">Observações</h3>
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap text-[#4a4540]">{viewingBudget.observations}</div>
+                </section>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#d4cfc4] shrink-0 relative z-10" style={{ backgroundColor: 'rgba(221,216,206,0.6)' }}>
+              <button
+                type="button"
+                onClick={() => { setViewingBudget(null); openBudgetModal(viewingBudget); }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-[#c9c4b8] text-[#4a4540] font-medium text-sm hover:bg-[#ddd8ce] transition-colors"
+              >
+                <Pencil className="w-4 h-4" /> Editar orçamento
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewingBudget(null)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-opacity text-[#e8e4d9] hover:opacity-90"
+                style={{ backgroundColor: '#5c564d' }}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BUDGET FULL-SCREEN — Off-white paper texture, criar/editar */}
+      {isBudgetOpen && selectedCard && (
+        <div
+          className="fixed inset-0 z-[60] overflow-auto animate-modal-backdrop"
+          style={{
+            backgroundColor: '#f5f4f0',
+            backgroundImage: `
+              linear-gradient(rgba(0,0,0,.018) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(0,0,0,.018) 1px, transparent 1px)
+            `,
+            backgroundSize: '24px 24px',
+          }}
+        >
+          <div className="min-h-full flex flex-col max-w-[1600px] mx-auto pb-[env(safe-area-inset-bottom)]">
+            {/* Header */}
+            <header className="sticky top-0 z-10 flex items-center justify-between px-6 lg:px-10 py-5 bg-[#f5f4f0]/95 backdrop-blur-md border-b border-zinc-300/50 shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-zinc-900 text-white flex items-center justify-center shadow-sm">
+                  <Calculator className="w-6 h-6" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-semibold tracking-tight text-zinc-900">{editingBudget ? 'Editar orçamento' : 'Orçamento'}</h1>
+                  <p className="text-sm text-zinc-600 mt-0.5">{selectedCard.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={closeBudgetModal}
+                className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-300/50 transition-colors"
+                aria-label="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </header>
+
+            <div className="flex-1 overflow-y-auto flex justify-center" style={{ paddingBottom: 'max(8rem, env(safe-area-inset-bottom, 0px))' }}>
+              <main className="w-full max-w-2xl p-6 lg:p-10">
+                  <div className="space-y-8">
+                    <section className="bg-white/80 rounded-2xl border border-zinc-200/80 shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 border-b border-zinc-100">
+                        <h3 className="font-semibold text-zinc-900 flex items-center gap-2">
+                          <ClipboardList className="w-5 h-5 text-zinc-400" />
+                          Descrição do diagnóstico
+                        </h3>
+                      </div>
+                      <textarea
+                        className="w-full px-6 py-4 bg-transparent border-0 text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-0 min-h-[120px] resize-y text-sm leading-relaxed"
+                        placeholder="Descreva o diagnóstico técnico..."
+                        value={budgetDiagnosis}
+                        onChange={(e) => setBudgetDiagnosis(e.target.value)}
+                      />
+                    </section>
+
+                    <section className="bg-white/80 rounded-2xl border border-zinc-200/80 shadow-sm overflow-visible">
+                      <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
+                        <h3 className="font-semibold text-zinc-900 flex items-center gap-2">
+                          <Users className="w-5 h-5 text-zinc-400" />
+                          Serviços
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          {workshopServices.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setIsServiceListOpen(true)}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-300 bg-white text-zinc-700 text-sm font-medium hover:bg-zinc-100 transition-colors shadow-sm"
+                            >
+                              Inserir da lista
+                              <ChevronDown className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button type="button" onClick={addServiceRow} className="text-sm font-medium text-zinc-600 hover:text-zinc-900 flex items-center gap-1.5">
+                            <Plus className="w-4 h-4" /> Adicionar
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-3">
+                        {budgetServices.map((item) => {
+                          const suggestions = getServiceSuggestions(item.description);
+                          const showSuggestions = suggestionsForServiceId === item.id && suggestions.length > 0;
+                          const isFocused = suggestionsForServiceId === item.id;
+                          return (
+                            <div
+                              key={item.id}
+                              ref={isFocused ? focusedServiceInputRef : undefined}
+                              className="relative"
+                            >
+                              <div className="flex gap-3 items-center">
+                                <div className="flex-1 min-w-0">
+                                  <input
+                                    type="text"
+                                    placeholder="Digite ou escolha um serviço..."
+                                    className="w-full px-4 py-2.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50 text-sm shadow-sm"
+                                    style={{ caretColor: '#18181b' }}
+                                    value={item.description}
+                                    onChange={(e) => updateServiceDescription(item.id, e.target.value)}
+                                    onFocus={() => handleServiceInputFocus(item.id)}
+                                    onBlur={handleServiceInputBlur}
+                                  />
+                                </div>
+                                <button type="button" onClick={() => removeServiceRow(item.id)} className="p-2 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
+                                  <Trash2 className="w-5 h-5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+
+                    {/* Modal: lista de serviços cadastrados (mesma largura do campo de serviços) */}
+                    {isServiceListOpen && (
+                      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40" onClick={() => setIsServiceListOpen(false)}>
+                        <div
+                          className="w-full max-w-2xl max-h-[70vh] overflow-hidden rounded-2xl bg-white shadow-xl border border-zinc-200"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="px-4 py-3 border-b border-zinc-200 flex items-center justify-between bg-zinc-50">
+                            <span className="font-semibold text-zinc-900">Serviços cadastrados</span>
+                            <button type="button" onClick={() => setIsServiceListOpen(false)} className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-200">
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+                          <div className="overflow-y-auto max-h-[calc(70vh-52px)] py-2">
+                            {workshopServices.map((s) => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => addServiceFromList(s.name)}
+                                className="w-full text-left px-4 py-3 text-zinc-900 hover:bg-amber-50 border-b border-zinc-100 last:border-0 transition-colors"
+                              >
+                                {s.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Modal: sugestões ao digitar (embaixo do campo) */}
+                    {suggestionBoxPosition && suggestionsForServiceId && (() => {
+                      const suggestions = budgetServices.find(i => i.id === suggestionsForServiceId)
+                        ? getServiceSuggestions(budgetServices.find(i => i.id === suggestionsForServiceId)!.description)
+                        : [];
+                      if (suggestions.length === 0) return null;
+                      return (
+                        <>
+                          <div className="fixed inset-0 z-[65] bg-black/25" onClick={() => setSuggestionsForServiceId(null)} />
+                          <div
+                            className="fixed z-[66] rounded-xl bg-white border border-zinc-200 shadow-xl overflow-hidden py-1 max-h-[200px] overflow-y-auto"
+                            style={{
+                              top: suggestionBoxPosition.top,
+                              left: suggestionBoxPosition.left,
+                              width: suggestionBoxPosition.width,
+                            }}
+                            onMouseDown={(e) => e.preventDefault()}
+                          >
+                            {suggestions.map((s) => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onMouseDown={() => suggestionsForServiceId && applySuggestion(suggestionsForServiceId, s.name)}
+                                className="w-full text-left px-4 py-2.5 text-sm text-zinc-900 hover:bg-amber-100 transition-colors"
+                              >
+                                {s.name}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      );
+                    })()}
+
+                    <section className="bg-white/80 rounded-2xl border border-zinc-200/80 shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
+                        <h3 className="font-semibold text-zinc-900 flex items-center gap-2">
+                          <Settings className="w-5 h-5 text-zinc-400" />
+                          Peças
+                        </h3>
+                        <button type="button" onClick={addPartRow} className="text-sm font-medium text-zinc-600 hover:text-zinc-900 flex items-center gap-1.5">
+                          <Plus className="w-4 h-4" /> Adicionar
+                        </button>
+                      </div>
+                      <div className="p-4 space-y-4">
+                        {budgetParts.map((item) => (
+                          <div key={item.id} className="flex flex-col sm:flex-row gap-3 sm:items-center bg-zinc-50/50 rounded-xl p-3 border border-zinc-100">
+                            <input
+                              type="text"
+                              placeholder="Nome da peça..."
+                              className="flex-1 px-4 py-2.5 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-300 text-sm"
+                              value={item.description}
+                              onChange={(e) => updatePartDescription(item.id, e.target.value)}
+                            />
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center rounded-lg border border-zinc-200 overflow-hidden bg-white">
+                                <button type="button" onClick={() => updatePartQuantity(item.id, -1)} className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:bg-zinc-100 transition-colors">
+                                  <Minus className="w-4 h-4" />
+                                </button>
+                                <span className="w-10 text-center font-medium text-zinc-900 text-sm">{item.quantity}</span>
+                                <button type="button" onClick={() => updatePartQuantity(item.id, 1)} className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:bg-zinc-100 transition-colors">
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                              </div>
+                              <button type="button" onClick={() => removePartRow(item.id)} className="w-10 h-10 flex items-center justify-center rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    <section className="bg-white/80 rounded-2xl border border-zinc-200/80 shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 border-b border-zinc-100">
+                        <h3 className="font-semibold text-zinc-900 flex items-center gap-2">
+                          <AlertCircle className="w-5 h-5 text-zinc-400" />
+                          Observações
+                        </h3>
+                      </div>
+                      <textarea
+                        className="w-full px-6 py-4 bg-transparent border-0 text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-0 min-h-[88px] resize-y text-sm leading-relaxed"
+                        placeholder="Prazos, condições, etc."
+                        value={budgetObservations}
+                        onChange={(e) => setBudgetObservations(e.target.value)}
+                      />
+                    </section>
+
+                    <div className="flex justify-end pt-6 pb-4">
+                      <button
+                        type="button"
+                        onClick={handleCreateBudget}
+                        disabled={sendingBudget}
+                        className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-xl bg-zinc-900 text-white font-semibold text-sm shadow-lg shadow-zinc-900/20 hover:bg-zinc-800 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
+                      >
+                        {sendingBudget ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                        {editingBudget ? 'Salvar alterações' : 'Criar orçamento'}
+                      </button>
+                    </div>
+                  </div>
+              </main>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE SELEÇÃO DE ETAPA (MOVE) — estilo iOS 26 */}
+      {cardInTransition && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+          <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md rounded-[1.5rem] shadow-[0_4px_32px_-4px_rgba(0,0,0,0.12),0_16px_48px_-12px_rgba(0,0,0,0.18)] dark:shadow-[0_4px_40px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh] animate-modal-sheet">
+            <div className="flex items-center justify-between p-6 pb-5 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/60 dark:bg-white/[0.03]">
+              <div className="flex-1 min-w-0 pr-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Alterar etapa</p>
+                <p className="text-xl font-bold text-zinc-900 dark:text-white truncate mt-1 tracking-tight">{cardInTransition.name.split('-')[0]}</p>
+              </div>
+              <button type="button" onClick={() => setCardInTransition(null)} className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-white/10 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-300/80 dark:hover:bg-white/15 transition-colors shrink-0">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto space-y-2">
+              {lists.map((list) => {
+                const config = getStatusConfig(list.name, list.id);
+                const isCurrent = list.id === cardInTransition.idList;
+                return (
+                  <button
+                    key={list.id}
+                    type="button"
+                    onClick={() => handleMoveCard(list.id)}
+                    disabled={isCurrent || isMoving}
+                    className={`
+                      w-full py-4 px-5 rounded-2xl flex items-center justify-between text-left transition-all duration-200 min-h-[52px]
+                      ${isCurrent 
+                        ? 'opacity-60 cursor-not-allowed border border-zinc-200/60 dark:border-white/[0.08] bg-zinc-100/80 dark:bg-white/[0.06] text-zinc-500 dark:text-zinc-400' 
+                        : `border border-transparent ${config.style} hover:brightness-110 active:scale-[0.99] shadow-[0_2px_12px_-2px_rgba(0,0,0,0.12)]`}
+                    `}
+                  >
+                    <span className="text-[15px] font-semibold uppercase tracking-wide">{list.name}</span>
+                    {isCurrent && <Check className="w-5 h-5 shrink-0 opacity-80" />}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="p-4 pt-3 bg-zinc-50/60 dark:bg-white/[0.03] border-t border-zinc-200/60 dark:border-white/[0.08]">
+              <button type="button" onClick={() => setCardInTransition(null)} className="w-full py-3 text-[15px] font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors rounded-xl hover:bg-zinc-200/50 dark:hover:bg-white/[0.06]">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE SELEÇÃO DE MECÂNICO */}
+      {cardForMemberAssignment && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+           <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh] animate-modal-sheet">
+            <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/80 dark:bg-white/[0.04]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-brand-yellow/10 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-brand-yellow" />
+                </div>
+                <div>
+                  <h3 className="text-zinc-900 dark:text-white font-bold text-lg">Selecionar Técnico</h3>
+                  <p className="text-zinc-500 text-xs mt-0.5">Responsável pelo veículo</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setCardForMemberAssignment(null)} className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-4 overflow-y-auto space-y-2.5">
+              <button
+                type="button"
+                onClick={() => handleAssignTechnician(null)}
+                disabled={isAssigning}
+                className="w-full p-3 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 bg-zinc-100/80 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400 text-sm font-medium hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 transition-all"
+              >
+                Nenhum / Remover técnico
+              </button>
+              {TECHNICIANS.map((tech) => (
+                <button
+                  key={tech.id}
+                  type="button"
+                  onClick={() => handleAssignTechnician(tech)}
+                  disabled={isAssigning}
+                  className={`w-full p-4 rounded-xl border-2 flex items-center gap-3 text-sm uppercase font-black tracking-wide transition-all duration-200 ${tech.style} hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] shadow-sm`}
+                >
+                  <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-black/20 flex items-center justify-center">
+                    {tech.photo_url ? (
+                      <img src={tech.photo_url} alt={tech.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Wrench className="w-5 h-5 opacity-90" />
+                    )}
+                  </div>
+                  <span>{tech.name}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="p-4 bg-zinc-50/80 dark:bg-white/[0.04] border-t border-zinc-200/60 dark:border-white/[0.08] text-center">
+                <button onClick={() => setCardForMemberAssignment(null)} className="text-zinc-500 text-sm hover:text-zinc-900 dark:hover:text-white transition-colors">Cancelar</button>
+            </div>
+           </div>
+        </div>
+      )}
+
+      {/* MODAL DE CHECKLIST (ENTRADA OU FINALIZAÇÃO) */}
+      {activeChecklistCard && activeChecklistType && (
+         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+           <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-lg rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh] animate-modal-sheet">
+             
+             {/* Header Checklist */}
+             <div className="relative p-8 pb-4 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-b from-zinc-50 to-white dark:from-[#242426] dark:to-[#1C1C1E]">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${activeChecklistType === 'Entrada' ? 'bg-brand-yellow shadow-brand-yellow/20' : 'bg-blue-600 shadow-blue-600/20'}`}>
+                        {activeChecklistType === 'Entrada' ? <ClipboardList className="w-6 h-6 text-black" /> : <ListChecks className="w-6 h-6 text-white" />}
+                     </div>
+                     <div>
+                       <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Checklist de {activeChecklistType}</h2>
+                       <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">{activeChecklistCard.name.split('-')[0]}</p>
+                     </div>
+                  </div>
+                  <button 
+                    onClick={() => { setActiveChecklistCardId(null); setActiveChecklistType(null); }} 
+                    className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                {/* Progress Bar Header */}
+                {(() => {
+                   const searchTerm = normalizeText(activeChecklistType || "");
+                   
+                   const cl = activeChecklistCard.checklists?.find(c => normalizeText(c.name).includes(searchTerm));
+
+                   if (!cl) return null;
+                   const total = cl.checkItems.length;
+                   const completed = cl.checkItems.filter(i => i.state === 'complete').length;
+                   const pct = total > 0 ? (completed / total) * 100 : 0;
+                   const barColor = activeChecklistType === 'Entrada' ? 'bg-brand-yellow' : 'bg-blue-600';
+                   
+                   return (
+                     <div className="mt-4">
+                        <div className="flex justify-between text-xs font-bold uppercase tracking-wider mb-2">
+                          <span className={pct === 100 ? 'text-green-500' : 'text-zinc-400'}>
+                             {pct === 100 ? 'Concluído' : 'Progresso'}
+                          </span>
+                          <span className="text-zinc-900 dark:text-white">{Math.round(pct)}%</span>
+                        </div>
+                        <div className="h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                           <div 
+                             className={`h-full transition-all duration-500 ease-out ${pct === 100 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : barColor}`}
+                             style={{ width: `${pct}%` }}
+                           />
+                        </div>
+                     </div>
+                   )
+                })()}
+             </div>
+
+             {/* Itens do Checklist */}
+             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-zinc-50 dark:bg-[#121212]">
+                {(() => {
+                   const searchTerm = normalizeText(activeChecklistType || "");
+                   
+                   const cl = activeChecklistCard.checklists?.find(c => normalizeText(c.name).includes(searchTerm));
+                   
+                   if (!cl || cl.checkItems.length === 0) {
+                     return (
+                       <div className="flex flex-col items-center justify-center py-12 text-zinc-500 gap-4">
+                          <AlertCircle className="w-10 h-10 opacity-50" />
+                          <p>Nenhum checklist de {activeChecklistType} encontrado.</p>
+                          <button 
+                             onClick={() => handleCreateChecklist(activeChecklistType)}
+                             disabled={isCreatingChecklist}
+                             className="px-6 py-2 bg-brand-surfaceHighlight border border-zinc-700 rounded-full text-white text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                          >
+                             {isCreatingChecklist ? <RefreshCw className="w-4 h-4 animate-spin"/> : <Plus className="w-4 h-4" />}
+                             Criar Checklist Padrão
+                          </button>
+                       </div>
+                     );
+                   }
+
+                   return cl.checkItems.map(item => {
+                     const isComplete = item.state === 'complete';
+
+                     return (
+                       <button
+                         key={item.id}
+                         onClick={() => handleToggleCheckItem(activeChecklistCard.id, cl.id, item.id, item.state)}
+                         className={`
+                            w-full p-4 rounded-xl border flex items-center justify-between transition-all duration-300 group
+                            ${isComplete 
+                              ? 'bg-[#1A251D] border-green-900/30 text-green-100' 
+                              : 'bg-white dark:bg-[#1C1C1E] border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-[#242426]'}
+                         `}
+                       >
+                          <span className={`text-sm font-bold text-left ${isComplete ? 'line-through opacity-70' : ''}`}>
+                             {item.name}
+                          </span>
+                          
+                          <div className={`
+                             w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300
+                             ${isComplete ? 'bg-green-500 text-black scale-110' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 group-hover:bg-zinc-300 dark:group-hover:bg-zinc-700'}
+                          `}>
+                             {isComplete ? <Check className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-current opacity-50" />}
+                          </div>
+                       </button>
+                     )
+                   })
+                })()}
+             </div>
+
+             {/* Footer Modal */}
+             <div className="p-4 bg-zinc-50/80 dark:bg-white/[0.04] border-t border-zinc-200/60 dark:border-white/[0.08] text-center">
+               <button 
+                 onClick={() => { setActiveChecklistCardId(null); setActiveChecklistType(null); }}
+                 className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors"
+               >
+                 Fechar Checklist
+               </button>
+             </div>
+
+           </div>
+         </div>
+      )}
+
+      {/* CAMERA MODAL */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-[80] bg-black flex flex-col animate-modal-backdrop">
+            <div className="relative flex-1 bg-black">
+                <video 
+                    ref={videoRef} 
+                    autoPlay 
+                    playsInline 
+                    className="w-full h-full object-cover"
+                />
+                <canvas ref={canvasRef} className="hidden" />
+                
+                <button 
+                    onClick={stopCamera}
+                    className="absolute top-6 right-6 z-50 w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center backdrop-blur-md"
+                >
+                    <X className="w-6 h-6" />
+                </button>
+
+                <div className="absolute bottom-10 left-0 right-0 flex justify-center items-center gap-8">
+                    <button 
+                        onClick={takePhoto}
+                        className="w-20 h-20 rounded-full bg-white border-4 border-zinc-300 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+                    >
+                        <div className="w-16 h-16 rounded-full bg-brand-yellow border-2 border-black" />
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* PHOTO PREVIEW MODAL */}
+      {photoPreview && (
+        <div className="fixed inset-0 z-[80] bg-black flex flex-col animate-modal-backdrop">
+            <div className="relative flex-1 bg-black flex items-center justify-center">
+                <img src={photoPreview} alt="Preview" className="max-w-full max-h-full object-contain" />
+                
+                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent flex justify-between items-end">
+                    <button 
+                        onClick={clearPhoto}
+                        className="px-6 py-3 rounded-xl bg-zinc-800 text-white font-bold hover:bg-zinc-700 transition-colors"
+                    >
+                        Descartar
+                    </button>
+                    <button 
+                        onClick={uploadPhoto}
+                        disabled={isUploading}
+                        className="px-6 py-3 rounded-xl bg-brand-yellow text-black font-bold hover:bg-[#fcd61e] transition-colors flex items-center gap-2"
+                    >
+                        {isUploading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                        Usar Foto
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* LINK MODAL */}
+      {isLinkModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+           <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col animate-modal-sheet">
+            <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/80 dark:bg-white/[0.04]">
+              <h3 className="text-zinc-900 dark:text-white font-bold text-lg">Anexar Link</h3>
+              <button onClick={() => setIsLinkModalOpen(false)} className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+               <div>
+                  <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">URL do Link</label>
+                  <input 
+                    type="url" 
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full bg-zinc-100 dark:bg-black border border-zinc-300 dark:border-zinc-700 rounded-xl p-3 text-zinc-900 dark:text-white focus:outline-none focus:border-brand-yellow"
+                    autoFocus
+                  />
+               </div>
+               <div>
+                  <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Nome (Opcional)</label>
+                  <input 
+                    type="text" 
+                    value={linkName}
+                    onChange={(e) => setLinkName(e.target.value)}
+                    placeholder="Ex: Documento Google Drive"
+                    className="w-full bg-zinc-100 dark:bg-black border border-zinc-300 dark:border-zinc-700 rounded-xl p-3 text-zinc-900 dark:text-white focus:outline-none focus:border-brand-yellow"
+                  />
+               </div>
+            </div>
+
+            <div className="p-4 bg-zinc-50/80 dark:bg-white/[0.04] border-t border-zinc-200/60 dark:border-white/[0.08] flex justify-end gap-3">
+                <button onClick={() => setIsLinkModalOpen(false)} className="px-4 py-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">Cancelar</button>
+                <button 
+                    onClick={handleAttachLink}
+                    disabled={isUploading || !linkUrl.trim()}
+                    className="px-6 py-2 bg-brand-yellow text-black rounded-lg font-bold hover:bg-[#fcd61e] transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                    {isUploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
+                    Anexar
+                </button>
+            </div>
+           </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
