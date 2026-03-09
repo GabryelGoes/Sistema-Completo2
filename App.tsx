@@ -201,48 +201,8 @@ export default function App() {
       });
   }, [authSession?.role]);
 
-  // Tela de login (antes de entrar no app)
-  if (!authSession) {
-    return (
-      <LoginView
-        onLogin={(session) => {
-          try {
-            setStoredAuth(session);
-          } catch (_) {}
-          setAuthSession(session);
-        }}
-      />
-    );
-  }
-
-  const handleNewCommentNotification = (n: Notification) => {
-    playNotificationSound();
-    setCommentPopUpNotification(n);
-  };
-
-  const handleNotificationClick = (n: Notification) => {
-    const id = n.payload?.service_order_id;
-    if (!id) return;
-    let section: 'comments' | 'budgets' | 'description' | null = null;
-    if (n.type === 'comment') section = 'comments';
-    else if (n.type === 'budget_created' || n.type === 'budget_edited') section = 'budgets';
-    else if (n.type === 'complaint_edited') section = 'description';
-    setNotificationNavigate({ serviceOrderId: id, section });
-    setCurrentTab('patio');
-  };
-
-  const handleTechnicianNotificationClick = (n: Notification) => {
-    const id = n.payload?.service_order_id;
-    if (!id) return;
-    let section: 'comments' | 'budgets' | 'description' | null = null;
-    if (n.type === 'comment') section = 'comments';
-    else if (n.type === 'budget_created' || n.type === 'budget_edited') section = 'budgets';
-    else if (n.type === 'complaint_edited') section = 'description';
-    setTechnicianNotificationNavigate({ serviceOrderId: id, section });
-    setTechnicianTab('patio');
-  };
-
   // Mostrar barra ao passar o mouse perto do topo (desktop) ou ao deslizar de cima para baixo (touch)
+  // Sempre declarado antes de qualquer return para não quebrar as regras de hooks (React #300)
   useEffect(() => {
     const HOVER_ZONE = 56;
     const SWIPE_THRESHOLD = 40;
@@ -306,6 +266,47 @@ export default function App() {
       window.removeEventListener('touchend', handleTouchEnd);
     };
   }, []);
+
+  // Tela de login (antes de entrar no app)
+  if (!authSession) {
+    return (
+      <LoginView
+        onLogin={(session) => {
+          try {
+            setStoredAuth(session);
+          } catch (_) {}
+          setAuthSession(session);
+        }}
+      />
+    );
+  }
+
+  const handleNewCommentNotification = (n: Notification) => {
+    playNotificationSound();
+    setCommentPopUpNotification(n);
+  };
+
+  const handleNotificationClick = (n: Notification) => {
+    const id = n.payload?.service_order_id;
+    if (!id) return;
+    let section: 'comments' | 'budgets' | 'description' | null = null;
+    if (n.type === 'comment') section = 'comments';
+    else if (n.type === 'budget_created' || n.type === 'budget_edited') section = 'budgets';
+    else if (n.type === 'complaint_edited') section = 'description';
+    setNotificationNavigate({ serviceOrderId: id, section });
+    setCurrentTab('patio');
+  };
+
+  const handleTechnicianNotificationClick = (n: Notification) => {
+    const id = n.payload?.service_order_id;
+    if (!id) return;
+    let section: 'comments' | 'budgets' | 'description' | null = null;
+    if (n.type === 'comment') section = 'comments';
+    else if (n.type === 'budget_created' || n.type === 'budget_edited') section = 'budgets';
+    else if (n.type === 'complaint_edited') section = 'description';
+    setTechnicianNotificationNavigate({ serviceOrderId: id, section });
+    setTechnicianTab('patio');
+  };
 
   // Modo técnico: abas configuráveis (Recepção, Agenda, Pátio) + botão Sair
   if (authSession.role === 'patio') {
