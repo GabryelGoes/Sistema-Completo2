@@ -9,19 +9,20 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  appKey: number;
 }
 
 /**
- * Captura erros não tratados (ex.: após login ou logout) e mostra uma tela
- * de recuperação em vez de tela preta.
+ * Captura erros não tratados e mostra tela de recuperação.
+ * "Voltar ao login" limpa a sessão e remonta o app (sem reload).
  */
 export class AppErrorBoundary extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, appKey: 0 };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
@@ -33,20 +34,22 @@ export class AppErrorBoundary extends React.Component<Props, State> {
     try {
       localStorage.removeItem(AUTH_STORAGE_KEY);
     } catch (_) {}
-    window.location.reload();
+    this.setState((s) => ({ ...s, hasError: false, error: null, appKey: s.appKey + 1 }));
   };
 
   render() {
     if (this.state.hasError) {
+      const msg = this.state.error?.message ?? '';
+      const shortMsg = msg.length > 200 ? msg.slice(0, 200) + '…' : msg;
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white p-6">
           <div className="max-w-sm w-full text-center space-y-6">
             <p className="text-zinc-400 text-sm">
               Algo deu errado ao carregar o app.
             </p>
-            {process.env.NODE_ENV === 'development' && this.state.error && (
-              <pre className="text-left text-xs text-red-400 bg-zinc-900 p-3 rounded-lg overflow-auto max-h-32">
-                {this.state.error.message}
+            {shortMsg && (
+              <pre className="text-left text-xs text-red-400 bg-zinc-900 p-3 rounded-lg overflow-auto max-h-24 w-full">
+                {shortMsg}
               </pre>
             )}
             <button
@@ -60,6 +63,6 @@ export class AppErrorBoundary extends React.Component<Props, State> {
         </div>
       );
     }
-    return this.props.children;
+    return <React.Fragment key={this.state.appKey}>{this.props.children}</React.Fragment>;
   }
 }

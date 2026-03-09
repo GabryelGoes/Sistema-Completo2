@@ -2,33 +2,40 @@ import { useState, useEffect } from 'react';
 
 export type Orientation = 'portrait' | 'landscape';
 
+function getInitialOrientation(): Orientation {
+  try {
+    if (typeof window === 'undefined' || !window.matchMedia) return 'portrait';
+    return window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape';
+  } catch {
+    return 'portrait';
+  }
+}
+
 export function useOrientation(): Orientation {
-  const [orientation, setOrientation] = useState<Orientation>(
-    window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape'
-  );
+  const [orientation, setOrientation] = useState<Orientation>(getInitialOrientation);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(orientation: portrait)');
-    
-    const handleChange = (e: MediaQueryListEvent) => {
-      setOrientation(e.matches ? 'portrait' : 'landscape');
-    };
-
-    // Modern browsers support addEventListener on MediaQueryList
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener('change', handleChange);
-    } else {
-      // Fallback for older browsers (though unlikely needed for this stack)
-      mediaQuery.addListener(handleChange);
-    }
-
-    return () => {
-      if (mediaQuery.removeEventListener) {
-        mediaQuery.removeEventListener('change', handleChange);
+    try {
+      if (typeof window === 'undefined' || !window.matchMedia) return;
+      const mediaQuery = window.matchMedia('(orientation: portrait)');
+      const handleChange = (e: MediaQueryListEvent) => {
+        setOrientation(e.matches ? 'portrait' : 'landscape');
+      };
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener('change', handleChange);
       } else {
-        mediaQuery.removeListener(handleChange);
+        mediaQuery.addListener(handleChange);
       }
-    };
+      return () => {
+        if (mediaQuery.removeEventListener) {
+          mediaQuery.removeEventListener('change', handleChange);
+        } else {
+          mediaQuery.removeListener(handleChange);
+        }
+      };
+    } catch {
+      // ignore
+    }
   }, []);
 
   return orientation;

@@ -26,7 +26,13 @@ const getTrelloEnv = () => ({
 });
 
 export default function App() {
-  const [authSession, setAuthSession] = useState<AuthSession | null>(() => getStoredAuth());
+  const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
+    try {
+      return getStoredAuth();
+    } catch {
+      return null;
+    }
+  });
   const [currentTab, setCurrentTab] = useState<TabId>('home');
 
   const trelloEnv = getTrelloEnv();
