@@ -1396,7 +1396,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           {/* Botão de Histórico */}
           <button 
             onClick={() => setIsHistoryOpen(true)}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:border-brand-yellow hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all duration-300"
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-light-card dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:border-brand-yellow hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all duration-300"
             title="Consultar Histórico (Arquivados)"
           >
             <History className="w-5 h-5" />
@@ -1538,8 +1538,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      className={`
                         flex items-center justify-end gap-1.5 mb-2 px-3 py-1.5 rounded-2xl border transition-all
                         ${canAssignMember
-                          ? 'border-zinc-200/80 dark:border-white/10 bg-zinc-100/90 dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-200 cursor-pointer hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] active:scale-[0.97]'
-                          : 'border-zinc-200/60 dark:border-white/5 bg-zinc-50/80 dark:bg-white/[0.04] text-zinc-500 cursor-default'}
+                          ? 'border-light-border dark:border-white/10 bg-light-card dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-200 cursor-pointer hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] active:scale-[0.97]'
+                          : 'border-zinc-200/60 dark:border-white/5 bg-light-card/80 dark:bg-white/[0.04] text-zinc-500 cursor-default'}
                      `}
                    >
                       <span className={`text-sm font-bold truncate max-w-[120px] ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}>
@@ -1581,7 +1581,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     onClick={(e) => { e.stopPropagation(); setActiveChecklistCardId(card.id); setActiveChecklistType('Entrada'); }}
                     className="
                       w-full py-2.5 px-4 rounded-2xl
-                      bg-zinc-100/90 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08]
+                      bg-light-card dark:bg-white/[0.06] border border-light-border dark:border-white/[0.08]
                       flex items-center justify-between
                       text-xs uppercase font-bold tracking-widest text-zinc-600 dark:text-zinc-300
                       hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.99]
@@ -1611,7 +1611,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     onClick={(e) => { e.stopPropagation(); setActiveChecklistCardId(card.id); setActiveChecklistType('Finalização'); }}
                     className="
                       w-full py-2.5 px-4 rounded-2xl
-                      bg-zinc-100/90 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08]
+                      bg-light-card dark:bg-white/[0.06] border border-light-border dark:border-white/[0.08]
                       flex items-center justify-between
                       text-xs uppercase font-bold tracking-widest text-zinc-600 dark:text-zinc-300
                       hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.99]
@@ -1642,7 +1642,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         disabled={archivingId === card.id}
                         className="
                             w-full py-3 px-4 rounded-2xl
-                            bg-zinc-100/90 dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400
+                            bg-light-card dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400
                             border border-zinc-200/60 dark:border-white/[0.08]
                             font-bold uppercase tracking-widest
                             hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white
@@ -1662,7 +1662,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         disabled={archivingId === card.id}
                         className="
                             w-full py-3 px-4 rounded-2xl
-                            bg-zinc-100/90 dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400
+                            bg-light-card dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400
                             border border-zinc-200/60 dark:border-white/[0.08]
                             font-bold uppercase tracking-widest
                             hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white
@@ -1722,7 +1722,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
             <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-4xl h-[85vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative">
                
-               <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/50">
+               <div className="p-6 border-b border-light-border dark:border-zinc-800 flex items-center justify-between bg-light-elevated dark:bg-zinc-900/50">
                   <div className="flex items-center gap-3">
                      <div className="bg-brand-yellow/10 p-2 rounded-xl">
                         <History className="w-6 h-6 text-brand-yellow" />
@@ -1737,7 +1737,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </button>
                </div>
 
-               <div className="p-6 bg-zinc-100 dark:bg-zinc-900/30 border-b border-zinc-200 dark:border-zinc-800">
+               <div className="p-6 bg-light-card dark:bg-zinc-900/30 border-b border-light-border dark:border-zinc-800">
                   <div className="flex gap-3">
                      <div className="flex-1 relative">
                         <input 
@@ -1760,7 +1760,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
                </div>
 
-               <div className="flex-1 overflow-y-auto p-6 bg-zinc-50 dark:bg-[#0A0A0A] custom-scrollbar">
+               <div className="flex-1 overflow-y-auto p-6 bg-light-page dark:bg-[#0A0A0A] custom-scrollbar">
                   {isLoadingHistory ? (
                      <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4">
                         <RefreshCw className="w-8 h-8 animate-spin text-brand-yellow" />
@@ -1843,7 +1843,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </button>
                   <button 
                      onClick={() => setSelectedHistoryCard(null)}
-                     className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
+                     className="w-10 h-10 rounded-full bg-light-card dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
                   >
                      <X className="w-6 h-6" />
                   </button>
@@ -1852,7 +1852,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                <div className="flex-1 overflow-y-auto custom-scrollbar">
                   <div className="p-8 md:p-12 pb-8">
                      <div className="flex flex-col gap-3 mb-6">
-                        <span className="inline-flex self-start items-center gap-2 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest shadow-xl border-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700">
+                        <span className="inline-flex self-start items-center gap-2 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest shadow-xl border-2 bg-light-card dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700">
                             ARQUIVADO
                         </span>
                         <h1 className="text-5xl md:text-7xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none">
@@ -1880,7 +1880,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <span className="text-lg font-medium text-zinc-700 dark:text-white">{selectedHistoryCard.name.split('-')[2]?.trim()}</span>
                          </div>
                          {selectedHistoryCard.due && (
-                           <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800/50 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700/50">
+                           <div className="flex items-center gap-2 bg-light-card dark:bg-zinc-800/50 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700/50">
                               <Calendar className="w-4 h-4 text-brand-yellow" />
                               <span className="text-sm font-bold text-zinc-600 dark:text-zinc-300">
                                 Entrega: {new Date(selectedHistoryCard.due).toLocaleDateString('pt-BR')}
@@ -1900,7 +1900,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <FileText className="w-4 h-4" />
                               Queixa do cliente (Registro Antigo)
                            </h3>
-                           <div className="bg-zinc-50 dark:bg-[#1C1C1E] rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 leading-relaxed font-light text-lg">
+                           <div className="bg-light-elevated dark:bg-[#1C1C1E] rounded-2xl p-6 border border-light-border dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 leading-relaxed font-light text-lg">
                               <ReactMarkdown components={MarkdownComponents}>
                                  {selectedHistoryCard.desc || "Nenhuma descrição disponível."}
                               </ReactMarkdown>
@@ -1912,7 +1912,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              <MessageSquare className="w-4 h-4" />
                              Histórico de Atividades
                           </h3>
-                          <div className="bg-zinc-50 dark:bg-[#1C1C1E] rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                          <div className="bg-light-elevated dark:bg-[#1C1C1E] rounded-2xl border border-light-border dark:border-zinc-800 overflow-hidden">
                              <div className="p-6 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar bg-white dark:bg-[#121212]">
                                 {loadingHistoryDetails ? (
                                    <div className="flex justify-center py-8">
@@ -1939,7 +1939,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                <span className="font-bold text-zinc-900 dark:text-white text-sm">{action.memberCreator.fullName}</span>
                                                <span className="text-xs text-zinc-500">{new Date(action.date).toLocaleString('pt-BR')}</span>
                                             </div>
-                                            <div className="bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded-r-xl rounded-bl-xl text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed border border-zinc-200 dark:border-zinc-700/50">
+                                            <div className="bg-light-card dark:bg-zinc-800/50 p-3 rounded-r-xl rounded-bl-xl text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed border border-zinc-200 dark:border-zinc-700/50">
                                                 <ReactMarkdown components={MarkdownComponents}>
                                                    {action.data.text}
                                                 </ReactMarkdown>
@@ -1980,7 +1980,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           href={att.url} 
                                           target="_blank" 
                                           rel="noopener noreferrer"
-                                          className="block bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden group hover:border-zinc-400 dark:hover:border-zinc-500 transition-all cursor-pointer"
+                                          className="block bg-light-card dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden group hover:border-zinc-400 dark:hover:border-zinc-500 transition-all cursor-pointer"
                                         >
                                            <div className="h-24 bg-zinc-200 dark:bg-black flex items-center justify-center relative overflow-hidden">
                                               {att.previews && att.previews.length > 0 ? (
@@ -2027,14 +2027,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <button
                   type="button"
                   onClick={openVehicleEditModal}
-                  className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-amber-500/10 dark:hover:bg-amber-500/10 transition-all active:scale-95"
+                  className="w-10 h-10 rounded-full bg-light-card dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-amber-500/10 dark:hover:bg-amber-500/10 transition-all active:scale-95"
                   title="Editar nome do veículo ou placa"
                 >
                   <Pencil className="w-5 h-5" />
                 </button>
                 <button 
                   onClick={() => setSelectedCard(null)}
-                  className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
+                  className="w-10 h-10 rounded-full bg-light-card dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -2070,7 +2070,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <button
                             type="button"
                             onClick={() => setCardForMemberAssignment(selectedCard)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.99] transition-all duration-200 text-left hover:bg-zinc-200/80 dark:hover:bg-white/[0.09]"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-light-card dark:bg-white/[0.06] border border-light-border dark:border-white/10 shadow-sm active:scale-[0.99] transition-all duration-200 text-left hover:bg-zinc-200/80 dark:hover:bg-white/[0.09]"
                           >
                             {selectedCard.members && selectedCard.members.length > 0 ? (
                               <>
@@ -2104,7 +2104,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </>
                             )}
                           </button>
-                          <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/10">
+                          <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-xl bg-light-card dark:bg-white/[0.06] border border-light-border dark:border-white/10">
                             <Calendar className="w-5 h-5 text-brand-yellow shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
@@ -2214,7 +2214,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <textarea 
                                   value={descText}
                                   onChange={(e) => setDescText(e.target.value)}
-                                  className="w-full bg-zinc-50 dark:bg-zinc-900/50 text-zinc-900 dark:text-zinc-300 text-lg font-light focus:outline-none resize-none min-h-[200px] p-2 rounded-lg"
+                                  className="w-full bg-light-elevated dark:bg-zinc-900/50 text-zinc-900 dark:text-zinc-300 text-lg font-light focus:outline-none resize-none min-h-[200px] p-2 rounded-lg"
                                   placeholder="Digite a queixa do cliente..."
                                 />
                                 <div className="flex justify-end gap-3 mt-4">
@@ -2236,7 +2236,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                              </div>
                           ) : (
-                            <div className="bg-zinc-50 dark:bg-[#1C1C1E] rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 leading-relaxed font-light text-lg">
+                            <div className="bg-light-elevated dark:bg-[#1C1C1E] rounded-2xl p-6 border border-light-border dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 leading-relaxed font-light text-lg">
                                <ReactMarkdown components={MarkdownComponents}>
                                  {selectedCard.desc || "Nenhuma descrição disponível para este veículo."}
                                </ReactMarkdown>
@@ -2250,7 +2250,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              Comentários
                           </h3>
 
-                          <div className="bg-zinc-50 dark:bg-[#1C1C1E] rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                          <div className="bg-light-elevated dark:bg-[#1C1C1E] rounded-2xl border border-light-border dark:border-zinc-800 overflow-hidden">
                              <div ref={commentsListRef} className="p-6 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar bg-white dark:bg-[#121212]">
                                 {loadingDetails ? (
                                    <div className="flex justify-center py-8">
@@ -2306,7 +2306,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                </div>
                                             ) : (
                                               <>
-                                                <div className="bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded-r-xl rounded-bl-xl text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed border border-zinc-200 dark:border-zinc-700/50">
+                                                <div className="bg-light-card dark:bg-zinc-800/50 p-3 rounded-r-xl rounded-bl-xl text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed border border-zinc-200 dark:border-zinc-700/50">
                                                    <ReactMarkdown components={MarkdownComponents}>
                                                       {action.data.text}
                                                    </ReactMarkdown>
@@ -2558,7 +2558,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               setPreviewPdf(att.url);
                                             }
                                           }}
-                                          className="block bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden group hover:border-zinc-400 dark:hover:border-zinc-500 transition-all cursor-pointer relative"
+                                          className="block bg-light-card dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden group hover:border-zinc-400 dark:hover:border-zinc-500 transition-all cursor-pointer relative"
                                         >
                                            {/* Thumbnail Preview */}
                                            <div className="h-24 bg-zinc-200 dark:bg-black flex items-center justify-center relative overflow-hidden">
@@ -3082,7 +3082,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {cardForMemberAssignment && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
            <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh] animate-modal-sheet">
-            <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/80 dark:bg-white/[0.04]">
+            <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-light-card/80 dark:bg-white/[0.04]">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-brand-yellow/10 flex items-center justify-center">
                   <Users className="w-5 h-5 text-brand-yellow" />
@@ -3126,7 +3126,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               ))}
             </div>
 
-            <div className="p-4 bg-zinc-50/80 dark:bg-white/[0.04] border-t border-zinc-200/60 dark:border-white/[0.08] text-center">
+            <div className="p-4 bg-light-card/80 dark:bg-white/[0.04] border-t border-zinc-200/60 dark:border-white/[0.08] text-center">
                 <button onClick={() => setCardForMemberAssignment(null)} className="text-zinc-500 text-sm hover:text-zinc-900 dark:hover:text-white transition-colors">Cancelar</button>
             </div>
            </div>
@@ -3190,7 +3190,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
              </div>
 
              {/* Itens do Checklist */}
-             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-zinc-50 dark:bg-[#121212]">
+             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-light-page dark:bg-[#121212]">
                 {(() => {
                    const searchTerm = normalizeText(activeChecklistType || "");
                    
@@ -3224,7 +3224,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             w-full p-4 rounded-xl border flex items-center justify-between transition-all duration-300 group
                             ${isComplete 
                               ? 'bg-[#1A251D] border-green-900/30 text-green-100' 
-                              : 'bg-white dark:bg-[#1C1C1E] border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-[#242426]'}
+                              : 'bg-light-elevated dark:bg-[#1C1C1E] border-light-border dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-700 hover:bg-light-card dark:hover:bg-[#242426]'}
                          `}
                        >
                           <span className={`text-sm font-bold text-left ${isComplete ? 'line-through opacity-70' : ''}`}>
@@ -3244,7 +3244,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
              </div>
 
              {/* Footer Modal */}
-             <div className="p-4 bg-zinc-50/80 dark:bg-white/[0.04] border-t border-zinc-200/60 dark:border-white/[0.08] text-center">
+             <div className="p-4 bg-light-card/80 dark:bg-white/[0.04] border-t border-zinc-200/60 dark:border-white/[0.08] text-center">
                <button 
                  onClick={() => { setActiveChecklistCardId(null); setActiveChecklistType(null); }}
                  className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors"
@@ -3318,7 +3318,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {isLinkModalOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
            <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col animate-modal-sheet">
-            <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/80 dark:bg-white/[0.04]">
+            <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-light-card/80 dark:bg-white/[0.04]">
               <h3 className="text-zinc-900 dark:text-white font-bold text-lg">Anexar Link</h3>
               <button onClick={() => setIsLinkModalOpen(false)} className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors">
                 <X className="w-5 h-5" />
@@ -3349,7 +3349,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                </div>
             </div>
 
-            <div className="p-4 bg-zinc-50/80 dark:bg-white/[0.04] border-t border-zinc-200/60 dark:border-white/[0.08] flex justify-end gap-3">
+            <div className="p-4 bg-light-card/80 dark:bg-white/[0.04] border-t border-zinc-200/60 dark:border-white/[0.08] flex justify-end gap-3">
                 <button onClick={() => setIsLinkModalOpen(false)} className="px-4 py-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">Cancelar</button>
                 <button 
                     onClick={handleAttachLink}

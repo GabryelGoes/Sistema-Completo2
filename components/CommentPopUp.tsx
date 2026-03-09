@@ -18,15 +18,15 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
   const [sending, setSending] = useState(false);
 
   const isDark = theme === 'dark';
-  const panelClass = isDark ? 'bg-[#0A0A0A] border-white/10' : 'bg-white border-zinc-200';
-  const headerClass = isDark ? 'bg-white/[0.06] border-white/10' : 'bg-zinc-100 border-zinc-200';
+  const panelClass = isDark ? 'bg-[#0A0A0A] border-white/10' : 'bg-light-elevated border-light-border';
+  const headerClass = isDark ? 'bg-white/[0.06] border-white/10' : 'bg-light-card border-light-border';
   const titleClass = isDark ? 'text-white' : 'text-zinc-900';
   const subtitleClass = isDark ? 'text-zinc-400' : 'text-zinc-500';
   const bodyClass = isDark ? 'text-zinc-300' : 'text-zinc-700';
-  const closeBtnClass = isDark ? 'bg-white/10 text-zinc-400 hover:text-white' : 'bg-zinc-200 text-zinc-500 hover:text-zinc-900';
+  const closeBtnClass = isDark ? 'bg-white/10 text-zinc-400 hover:text-white' : 'bg-light-border text-zinc-600 hover:text-zinc-900';
   const inputClass = isDark
     ? 'bg-white/5 border-white/10 text-white placeholder-zinc-500 focus:ring-brand-yellow/30'
-    : 'bg-zinc-100 border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:ring-brand-yellow/30';
+    : 'bg-light-card border-light-border text-zinc-900 placeholder-zinc-500 focus:ring-brand-yellow/30';
   const sendBtnClass = 'bg-brand-yellow hover:bg-amber-400 disabled:opacity-50 text-black flex items-center justify-center shrink-0';
 
   const p = notification.payload;

@@ -218,11 +218,11 @@ export default function App() {
   if (authSession.role === 'patio') {
     return (
       <div
-        className="min-h-screen flex flex-col bg-zinc-50 dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
+        className="min-h-screen flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
         data-effects={effectsEnabled ? 'on' : 'off'}
       >
         <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
-        <header className="relative z-20 flex items-center justify-between px-4 py-3 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-200/60 dark:border-white/10">
+        <header className="relative z-20 flex items-center justify-between px-4 py-3 bg-light-card/95 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-light-border dark:border-white/10">
           {technicianTab === 'home' ? (
             <>
               <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
@@ -325,7 +325,7 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen flex flex-col bg-zinc-50 dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
+      className="min-h-screen flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
       data-effects={effectsEnabled ? 'on' : 'off'}
     >
       {/* Background Ambience - Global */}

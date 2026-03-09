@@ -71,10 +71,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
     : QUICK_APPS;
 
   return (
-    <div className="min-h-screen flex flex-col bg-white dark:bg-black safe-area-pb relative">
+    <div className="min-h-screen flex flex-col bg-light-page dark:bg-black safe-area-pb relative">
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-[40%] left-1/2 -translate-x-1/2 w-[120%] h-[80%] rounded-full bg-zinc-100/80 dark:bg-zinc-900/40 blur-[100px]" />
+        <div className="absolute -top-[40%] left-1/2 -translate-x-1/2 w-[120%] h-[80%] rounded-full bg-light-card/80 dark:bg-zinc-900/40 blur-[100px]" />
       </div>
 
       <header className="relative z-10 flex flex-col items-center pt-[env(safe-area-inset-top)] pt-12 pb-8 px-6">
@@ -100,9 +100,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
               key={app.id}
               type="button"
               onClick={() => onOpenApp(app.id)}
-              className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/70 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08] shadow-sm hover:opacity-90 transition-all active:scale-[0.98]"
+              className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-light-elevated dark:bg-white/[0.06] border border-light-border dark:border-white/[0.08] shadow-sm hover:opacity-90 transition-all active:scale-[0.98]"
             >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-zinc-100 dark:bg-white/[0.08] ${app.accent}`}>
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-light-card dark:bg-white/[0.08] ${app.accent}`}>
                 {app.icon}
               </div>
               <span className="text-[13px] font-semibold text-zinc-900 dark:text-white text-center leading-tight">{app.label}</span>
@@ -113,7 +113,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* Lista: para técnico só Perfil + Sair; para admin lista completa + Perfil */}
       <div className="relative z-10 flex-1 px-4 sm:px-6 pb-24 max-w-lg mx-auto w-full">
-        <div className="rounded-2xl overflow-hidden bg-white/70 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08] shadow-sm dark:shadow-none">
+        <div className="rounded-2xl overflow-hidden bg-light-elevated dark:bg-white/[0.06] border border-light-border dark:border-white/[0.08] shadow-sm dark:shadow-none">
           {!isTechnician && (
             <>
               {APPS.map((app) => (
@@ -121,30 +121,30 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   key={app.id}
                   type="button"
                   onClick={() => onOpenApp(app.id)}
-                  className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-zinc-100/80 dark:hover:bg-white/[0.06] active:bg-zinc-200/80 dark:active:bg-white/[0.1] transition-colors min-h-[56px] border-b border-zinc-200/50 dark:border-white/[0.06]"
+                  className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-light-card/80 dark:hover:bg-white/[0.06] active:bg-light-border/50 dark:active:bg-white/[0.1] transition-colors min-h-[56px] border-b border-light-border/80 dark:border-white/[0.06]"
                 >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-zinc-100 dark:bg-white/[0.08] ${app.accent}`}>{app.icon}</div>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] ${app.accent}`}>{app.icon}</div>
                   <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">{app.label}</span>
                   <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
                 </button>
               ))}
-              <button type="button" onClick={() => setIsServicesModalOpen(true)} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-zinc-100/80 dark:hover:bg-white/[0.06] active:bg-zinc-200/80 min-h-[56px]">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-zinc-100 dark:bg-white/[0.08] text-amber-500"><Wrench className="w-6 h-6" strokeWidth={2} /></div>
+              <button type="button" onClick={() => setIsServicesModalOpen(true)} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-light-card/80 dark:hover:bg-white/[0.06] active:bg-light-border/50 min-h-[56px]">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] text-amber-500"><Wrench className="w-6 h-6" strokeWidth={2} /></div>
                 <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">Serviços da oficina</span>
                 <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
               </button>
-              <button type="button" onClick={() => setIsTechniciansModalOpen(true)} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-zinc-100/80 dark:hover:bg-white/[0.06] active:bg-zinc-200/80 min-h-[56px]">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-zinc-100 dark:bg-white/[0.08] text-violet-500"><Users className="w-6 h-6" strokeWidth={2} /></div>
+              <button type="button" onClick={() => setIsTechniciansModalOpen(true)} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-light-card/80 dark:hover:bg-white/[0.06] active:bg-light-border/50 min-h-[56px]">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] text-violet-500"><Users className="w-6 h-6" strokeWidth={2} /></div>
                 <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">Técnicos</span>
                 <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
               </button>
-              <button type="button" onClick={() => setIsTechnicianAccessModalOpen(true)} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-zinc-100/80 dark:hover:bg-white/[0.06] active:bg-zinc-200/80 min-h-[56px]">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-zinc-100 dark:bg-white/[0.08] text-brand-yellow"><ShieldCheck className="w-6 h-6" strokeWidth={2} /></div>
+              <button type="button" onClick={() => setIsTechnicianAccessModalOpen(true)} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-light-card/80 dark:hover:bg-white/[0.06] active:bg-light-border/50 min-h-[56px]">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] text-brand-yellow"><ShieldCheck className="w-6 h-6" strokeWidth={2} /></div>
                 <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">Controle dos Técnicos</span>
                 <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
               </button>
-              <button type="button" onClick={() => setIsChangePasswordsOpen(true)} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-zinc-100/80 dark:hover:bg-white/[0.06] active:bg-zinc-200/80 min-h-[56px]">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-zinc-100 dark:bg-white/[0.08] text-amber-500"><Lock className="w-6 h-6" strokeWidth={2} /></div>
+              <button type="button" onClick={() => setIsChangePasswordsOpen(true)} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-light-card/80 dark:hover:bg-white/[0.06] active:bg-light-border/50 min-h-[56px]">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] text-amber-500"><Lock className="w-6 h-6" strokeWidth={2} /></div>
                 <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">Alterar senhas</span>
                 <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
               </button>
@@ -157,7 +157,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             onClick={() => (isTechnician ? setIsTechnicianProfileOpen(true) : setIsAdminProfileOpen(true))}
             className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-zinc-100/80 dark:hover:bg-white/[0.06] active:bg-zinc-200/80 min-h-[56px] border-b border-zinc-200/50 dark:border-white/[0.06]"
           >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-zinc-100 dark:bg-white/[0.08] text-violet-500">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] text-violet-500">
               <User className="w-6 h-6" strokeWidth={2} />
             </div>
             <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">
@@ -168,7 +168,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           {onLogout && (
             <button type="button" onClick={onLogout} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-zinc-100/80 dark:hover:bg-white/[0.06] active:bg-zinc-200/80 min-h-[56px] border-t border-zinc-200/50 dark:border-white/[0.06]">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-zinc-100 dark:bg-white/[0.08] text-red-500"><LogOut className="w-6 h-6" strokeWidth={2} /></div>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] text-red-500"><LogOut className="w-6 h-6" strokeWidth={2} /></div>
               <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">Sair</span>
               <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
             </button>
