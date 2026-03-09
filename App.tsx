@@ -156,7 +156,9 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    clearStoredAuth();
+    try {
+      clearStoredAuth();
+    } catch (_) {}
     setAuthSession(null);
   };
 
@@ -198,7 +200,9 @@ export default function App() {
     return (
       <LoginView
         onLogin={(session) => {
-          setStoredAuth(session);
+          try {
+            setStoredAuth(session);
+          } catch (_) {}
           setAuthSession(session);
         }}
       />
