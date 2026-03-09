@@ -595,11 +595,11 @@ export function createApiApp() {
       }
 
       const { id: serviceOrderId } = req.params;
-      const { cardName, diagnosis, services, parts, observations } = req.body;
+      const { cardName, diagnosis, services, parts, observations, actor, actorTechnicianSlug, actorTechnicianName } = req.body;
 
       const { data: so, error: soError } = await supabaseAdmin
         .from("service_orders")
-        .select("id")
+        .select("id, plate, vehicle_model")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -629,6 +629,23 @@ export function createApiApp() {
         return res.status(500).json({ error: error.message });
       }
 
+      const isTechnicianActor = actor === "technician" && (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
+      if (isTechnicianActor) {
+        const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
+        await supabaseAdmin.from("notifications").insert({
+          workshop_id: WORKSHOP_ID,
+          type: "budget_created",
+          payload: {
+            service_order_id: serviceOrderId,
+            vehicle_plate: so?.plate ?? null,
+            vehicle_model: so?.vehicle_model ?? null,
+            technician_name: technicianLabel,
+          },
+          target_type: "admin",
+          target_slug: null,
+        }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_created:", e); });
+      }
+
       return res.status(201).json(data);
     } catch (err: any) {
       console.error("[API] Erro em POST /api/service-orders/:id/budgets:", err);
@@ -647,11 +664,11 @@ export function createApiApp() {
       }
 
       const { id: serviceOrderId, budgetId } = req.params;
-      const { cardName, diagnosis, services, parts, observations } = req.body;
+      const { cardName, diagnosis, services, parts, observations, actor, actorTechnicianSlug, actorTechnicianName } = req.body;
 
       const { data: so, error: soError } = await supabaseAdmin
         .from("service_orders")
-        .select("id")
+        .select("id, plate, vehicle_model")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -686,9 +703,57 @@ export function createApiApp() {
         return res.status(404).json({ error: "Orçamento não encontrado." });
       }
 
+      const isTechnicianActor = actor === "technician" && (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
+      if (isTechnicianActor) {
+        const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
+        await supabaseAdmin.from("notifications").insert({
+          workshop_id: WORKSHOP_ID,
+          type: "budget_edited",
+          payload: {
+            service_order_id: serviceOrderId,
+            vehicle_plate: so?.plate ?? null,
+            vehicle_model: so?.vehicle_model ?? null,
+            technician_name: technicianLabel,
+          },
+          target_type: "admin",
+          target_slug: null,
+        }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited:", e); });
+      }
+
       return res.json(data);
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/service-orders/:id/budgets/:budgetId:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Excluir orçamento
+  app.delete("/api/service-orders/:id/budgets/:budgetId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const { id: serviceOrderId, budgetId } = req.params;
+
+      const { error } = await supabaseAdmin
+        .from("budgets")
+        .delete()
+        .eq("id", budgetId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID);
+
+      if (error) {
+        console.error("[API] Erro ao excluir orçamento:", error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] Erro em DELETE /api/service-orders/:id/budgets/:budgetId:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });

@@ -17,6 +17,7 @@ import {
   getServiceOrderBudgets,
   createServiceOrderBudget,
   updateServiceOrderBudget,
+  deleteServiceOrderBudget,
   getServiceOrderComments,
   addServiceOrderComment,
   getWorkshopServices,
@@ -352,6 +353,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [savedBudgets, setSavedBudgets] = useState<SavedBudget[]>([]);
   const [viewingBudget, setViewingBudget] = useState<SavedBudget | null>(null);
   const [editingBudget, setEditingBudget] = useState<SavedBudget | null>(null);
+  const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
   const [workshopServices, setWorkshopServices] = useState<WorkshopService[]>([]);
   const [workshopTechnicians, setWorkshopTechnicians] = useState<WorkshopTechnician[]>([]);
   const [isServiceListOpen, setIsServiceListOpen] = useState(false);
@@ -878,6 +880,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setBudgetObservations('');
   };
 
+  const handleDeleteBudget = async () => {
+    if (!selectedCard || !viewingBudget) return;
+    if (!confirm('Tem certeza que deseja excluir este orçamento? Esta ação não pode ser desfeita.')) return;
+    setDeletingBudgetId(viewingBudget.id);
+    try {
+      await deleteServiceOrderBudget(selectedCard.id, viewingBudget.id);
+      setSavedBudgets((prev) => prev.filter((b) => b.id !== viewingBudget.id));
+      setViewingBudget(null);
+    } catch (err: unknown) {
+      alert((err as Error)?.message ?? 'Erro ao excluir orçamento.');
+    } finally {
+      setDeletingBudgetId(null);
+    }
+  };
+
   const printBudget = (budget: SavedBudget, mileageKm?: string | null) => {
     const esc = (s: string) => String(s ?? '')
       .replace(/&/g, '&amp;')
@@ -1042,11 +1059,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setSendingBudget(true);
     try {
       if (editingBudget) {
-        const updated = await updateServiceOrderBudget(selectedCard.id, editingBudget.id, payload);
+        const updated = await updateServiceOrderBudget(selectedCard.id, editingBudget.id, payload, actorOptions);
         setSavedBudgets(prev => prev.map(b => b.id === editingBudget.id ? updated : b));
         closeBudgetModal();
       } else {
-        const budget = await createServiceOrderBudget(selectedCard.id, payload);
+        const budget = await createServiceOrderBudget(selectedCard.id, payload, actorOptions);
         setSavedBudgets(prev => [budget, ...prev]);
         setBudgetDiagnosis('');
         setBudgetServices([{ id: String(Date.now()), description: '' }]);
@@ -2740,22 +2757,35 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </section>
               )}
             </div>
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#d4cfc4] shrink-0 relative z-10" style={{ backgroundColor: 'rgba(221,216,206,0.6)' }}>
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-[#d4cfc4] shrink-0 relative z-10" style={{ backgroundColor: 'rgba(221,216,206,0.6)' }}>
               <button
                 type="button"
-                onClick={() => { setViewingBudget(null); openBudgetModal(viewingBudget); }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-[#c9c4b8] text-[#4a4540] font-medium text-sm hover:bg-[#ddd8ce] transition-colors"
+                onClick={handleDeleteBudget}
+                disabled={!!deletingBudgetId}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-red-300 text-red-700 font-medium text-sm hover:bg-red-50 disabled:opacity-50 transition-colors"
               >
-                <Pencil className="w-4 h-4" /> Editar orçamento
+                {deletingBudgetId ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                {deletingBudgetId ? 'Excluindo…' : 'Excluir orçamento'}
               </button>
-              <button
-                type="button"
-                onClick={() => setViewingBudget(null)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-opacity text-[#e8e4d9] hover:opacity-90"
-                style={{ backgroundColor: '#5c564d' }}
-              >
-                Fechar
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setViewingBudget(null); openBudgetModal(viewingBudget); }}
+                  disabled={!!deletingBudgetId}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-[#c9c4b8] text-[#4a4540] font-medium text-sm hover:bg-[#ddd8ce] transition-colors disabled:opacity-50"
+                >
+                  <Pencil className="w-4 h-4" /> Editar orçamento
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewingBudget(null)}
+                  disabled={!!deletingBudgetId}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-opacity text-[#e8e4d9] hover:opacity-90 disabled:opacity-50"
+                  style={{ backgroundColor: '#5c564d' }}
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>

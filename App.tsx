@@ -416,6 +416,7 @@ export default function App() {
           <CommentPopUp
             theme={theme}
             notification={commentPopUpNotification}
+            replyAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.technicianName ?? 'Rei do ABS')}
             onClose={() => setCommentPopUpNotification(null)}
           />
         )}
@@ -519,6 +520,7 @@ export default function App() {
         <CommentPopUp
           theme={theme}
           notification={commentPopUpNotification}
+          replyAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.technicianName ?? 'Rei do ABS')}
           onClose={() => setCommentPopUpNotification(null)}
         />
       )}

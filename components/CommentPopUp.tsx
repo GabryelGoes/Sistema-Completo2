@@ -7,11 +7,13 @@ interface CommentPopUpProps {
   notification: Notification;
   onClose: () => void;
   onReplySent?: () => void;
+  /** Nome exibido como autor da resposta (admin = "Rei do ABS", técnico = nome do técnico) */
+  replyAuthorName: string;
   /** Tema do sistema (preto, amarelo, branco) */
   theme?: 'light' | 'dark';
 }
 
-export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClose, onReplySent, theme = 'dark' }) => {
+export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClose, onReplySent, replyAuthorName, theme = 'dark' }) => {
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -40,7 +42,7 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
     if (!orderId || !reply.trim() || sending) return;
     setSending(true);
     try {
-      await addServiceOrderComment(orderId, reply.trim(), 'Rei do ABS');
+      await addServiceOrderComment(orderId, reply.trim(), replyAuthorName.trim() || 'Rei do ABS');
       setReply('');
       onReplySent?.();
       onClose();

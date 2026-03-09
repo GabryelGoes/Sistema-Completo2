@@ -588,18 +588,20 @@ export async function createServiceOrderBudget(
     services: { description: string }[];
     parts: { description: string; quantity: string }[];
     observations: string;
-  }
+  },
+  options?: ServiceOrderUpdateActor
 ): Promise<SavedBudgetFromApi> {
+  const body = mergeActorIntoBody({
+    cardName: payload.cardName,
+    diagnosis: payload.diagnosis,
+    services: payload.services,
+    parts: payload.parts,
+    observations: payload.observations,
+  }, options);
   const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/budgets`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      cardName: payload.cardName,
-      diagnosis: payload.diagnosis,
-      services: payload.services,
-      parts: payload.parts,
-      observations: payload.observations,
-    }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -618,20 +620,22 @@ export async function updateServiceOrderBudget(
     services: { description: string }[];
     parts: { description: string; quantity: string }[];
     observations: string;
-  }
+  },
+  options?: ServiceOrderUpdateActor
 ): Promise<SavedBudgetFromApi> {
+  const body = mergeActorIntoBody({
+    cardName: payload.cardName,
+    diagnosis: payload.diagnosis,
+    services: payload.services,
+    parts: payload.parts,
+    observations: payload.observations,
+  }, options);
   const response = await fetch(
     `${API_BASE}/service-orders/${serviceOrderId}/budgets/${budgetId}`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        cardName: payload.cardName,
-        diagnosis: payload.diagnosis,
-        services: payload.services,
-        parts: payload.parts,
-        observations: payload.observations,
-      }),
+      body: JSON.stringify(body),
     }
   );
   if (!response.ok) {
@@ -640,6 +644,20 @@ export async function updateServiceOrderBudget(
   }
   const data: ApiBudget = await response.json();
   return mapApiBudgetToSaved(data);
+}
+
+export async function deleteServiceOrderBudget(
+  serviceOrderId: string,
+  budgetId: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/budgets/${budgetId}`,
+    { method: "DELETE" }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir orçamento (${response.status})`);
+  }
 }
 
 // ---------- Serviços da oficina (para orçamentos) ----------
