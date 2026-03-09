@@ -28,6 +28,21 @@ import { ptBR } from 'date-fns/locale';
 
 const ADMIN_DISPLAY_NAME = 'Rei do ABS';
 
+/** Primeiro nome do cliente a partir do nome completo. */
+function getFirstName(fullName: string | null | undefined): string | null {
+  const name = typeof fullName === 'string' ? fullName.trim() : '';
+  if (!name) return null;
+  const first = name.split(/\s+/)[0];
+  return first || null;
+}
+
+/** Identificação do veículo nas notificações: modelo - primeiro nome do cliente. */
+function formatVehicleLabel(p: Notification['payload']): string {
+  const model = (p.vehicle_model && p.vehicle_model.trim()) || 'Veículo';
+  const firstName = getFirstName(p.customer_name);
+  return firstName ? `${model} - ${firstName}` : model;
+}
+
 const TYPE_CONFIG: Record<
   NotificationType,
   { label: string; icon: React.ReactNode; accent: string }
@@ -46,7 +61,7 @@ const TYPE_CONFIG: Record<
 function formatNotificationTitle(n: Notification, forTechnician?: boolean): string {
   const cfg = TYPE_CONFIG[n.type] || { label: n.type };
   const p = n.payload;
-  const vehicle = p.vehicle_plate || p.vehicle_model || 'Veículo';
+  const vehicle = formatVehicleLabel(p);
   const who = p.author_display_name || p.technician_name || (forTechnician ? ADMIN_DISPLAY_NAME : 'Alguém');
   const adminLabel = ADMIN_DISPLAY_NAME;
   switch (n.type) {

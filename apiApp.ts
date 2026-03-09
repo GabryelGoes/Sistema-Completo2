@@ -599,7 +599,7 @@ export function createApiApp() {
 
       const { data: so, error: soError } = await supabaseAdmin
         .from("service_orders")
-        .select("id, plate, vehicle_model")
+        .select("id, plate, vehicle_model, customers(name)")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -607,6 +607,10 @@ export function createApiApp() {
       if (soError || !so) {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
+
+      const customerNameBudget = so.customers && typeof so.customers === "object" && "name" in so.customers
+        ? String((so.customers as { name: string }).name ?? "")
+        : "";
 
       const payload = {
         workshop_id: WORKSHOP_ID,
@@ -639,6 +643,7 @@ export function createApiApp() {
             service_order_id: serviceOrderId,
             vehicle_plate: so?.plate ?? null,
             vehicle_model: so?.vehicle_model ?? null,
+            customer_name: customerNameBudget || null,
             technician_name: technicianLabel,
           },
           target_type: "admin",
@@ -668,7 +673,7 @@ export function createApiApp() {
 
       const { data: so, error: soError } = await supabaseAdmin
         .from("service_orders")
-        .select("id, plate, vehicle_model")
+        .select("id, plate, vehicle_model, customers(name)")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -676,6 +681,10 @@ export function createApiApp() {
       if (soError || !so) {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
+
+      const customerNameBudgetEdit = so.customers && typeof so.customers === "object" && "name" in so.customers
+        ? String((so.customers as { name: string }).name ?? "")
+        : "";
 
       const updatePayload: Record<string, unknown> = {
         card_name: cardName ?? null,
@@ -713,6 +722,7 @@ export function createApiApp() {
             service_order_id: serviceOrderId,
             vehicle_plate: so?.plate ?? null,
             vehicle_model: so?.vehicle_model ?? null,
+            customer_name: customerNameBudgetEdit || null,
             technician_name: technicianLabel,
           },
           target_type: "admin",
@@ -1578,7 +1588,7 @@ export function createApiApp() {
 
       const { data: previous } = await supabaseAdmin
         .from("service_orders")
-        .select("status, issue_description, delivery_date, assigned_technician, plate, vehicle_model")
+        .select("status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, customers(name)")
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -1599,10 +1609,14 @@ export function createApiApp() {
       }
 
       const techSlug = data?.assigned_technician ?? null;
+      const customerNameSo = previous?.customers && typeof previous.customers === "object" && "name" in previous.customers
+        ? String((previous.customers as { name: string }).name ?? "")
+        : "";
       const payloadBase = {
         service_order_id: id,
         vehicle_plate: data?.plate ?? previous?.plate ?? null,
         vehicle_model: data?.vehicle_model ?? previous?.vehicle_model ?? null,
+        customer_name: customerNameSo || null,
       };
       if (previous) {
         if (isAdminActor && techSlug) {

@@ -55,9 +55,16 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
 
   return (
     <div
-      className={`fixed bottom-6 left-4 z-[90] w-[min(360px,calc(100vw-32px))] rounded-2xl border shadow-2xl overflow-hidden flex flex-col transition-all duration-300 ease-out animate-in fade-in slide-in-from-left-4 ${panelClass}`}
-      style={{ boxShadow: isDark ? '0 20px 60px -20px rgba(0,0,0,0.6)' : '0 20px 60px -20px rgba(0,0,0,0.25)' }}
+      className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      aria-modal="true"
+      role="dialog"
     >
+      <div
+        className={`w-full max-w-[min(400px,calc(100vw-32px))] rounded-2xl border shadow-2xl overflow-hidden flex flex-col animate-in fade-in duration-200 ${panelClass}`}
+        style={{ boxShadow: isDark ? '0 20px 60px -20px rgba(0,0,0,0.6)' : '0 20px 60px -20px rgba(0,0,0,0.25)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
       <div className={`flex items-center justify-between px-4 py-3 border-b ${headerClass}`}>
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-9 h-9 rounded-full bg-brand-yellow/20 flex items-center justify-center shrink-0">
@@ -97,6 +104,7 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
           {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
         </button>
       </form>
+      </div>
     </div>
   );
 }
