@@ -80,6 +80,23 @@ function formatNotificationSubtitle(n: Notification): string | null {
   return null;
 }
 
+/** Mostra a notificação na central do dispositivo (barra de notificações do sistema). Retorna true se exibiu. */
+function showNativeDeviceNotification(n: Notification, forTechnician?: boolean): boolean {
+  if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') return false;
+  try {
+    const title = formatNotificationTitle(n, forTechnician);
+    const body = formatNotificationSubtitle(n) || 'Rei do ABS';
+    const native = new Notification(title, { body, icon: '/logo.png' });
+    native.onclick = () => {
+      native.close();
+      window.focus();
+    };
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 interface NotificationCenterProps {
   /** Callback quando há novo comentário (para pop-up + som) */
   onNewCommentNotification?: (notification: Notification) => void;
@@ -145,9 +162,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       } else {
         list.forEach((n) => {
           if (!n.read_at && !prevUnreadIdsRef.current.has(n.id)) {
+            const shownNative = showNativeDeviceNotification(n, !!forTechnician);
             if (n.type === 'comment') {
               onNewCommentNotification?.(n);
-            } else {
+            } else if (!shownNative) {
               playOtherNotificationSound();
             }
           }
@@ -181,12 +199,13 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       setUnreadCount(count);
       list.forEach((n) => {
         if (!n.read_at && !prevUnreadIdsRef.current.has(n.id)) {
+          const shownNative = showNativeDeviceNotification(n, !!forTechnician);
           if (n.type === 'comment') {
             onNewCommentNotification?.(n);
-          } else {
+          } else if (!shownNative) {
             playOtherNotificationSound();
           }
-        });
+        }
       });
       list.forEach((n) => {
         if (!n.read_at) prevUnreadIdsRef.current.add(n.id);
@@ -209,6 +228,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   useEffect(() => {
     if (!open) return;
     fetchNotifications();
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
   }, [open]);
 
   useEffect(() => {
