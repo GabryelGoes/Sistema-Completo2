@@ -24,6 +24,7 @@ import {
   ServiceOrderListItem,
   type WorkshopService,
   type WorkshopTechnician,
+  type ServiceOrderUpdateActor,
 } from '../../services/apiService';
 import { SERVICE_ORDER_STAGES, getStageStyle, type ServiceOrderStatus } from '../../constants/serviceOrderStages';
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
@@ -43,6 +44,8 @@ interface PatioViewProps {
   openServiceOrderSection?: OpenServiceOrderSection;
   /** Chamado após abrir o modal e rolar à seção (para limpar o estado de navegação no pai). */
   onOpenServiceOrderHandled?: () => void;
+  /** Quem está agindo (admin vs técnico) para as notificações: admin só recebe de técnicos, técnicos só de admin. */
+  actorOptions?: ServiceOrderUpdateActor;
 }
 
 const BACKEND_LISTS: TrelloList[] = SERVICE_ORDER_STAGES.map((s) => ({
@@ -302,6 +305,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   openServiceOrderId: openServiceOrderIdProp,
   openServiceOrderSection,
   onOpenServiceOrderHandled,
+  actorOptions,
 }) => {
   const [lists, setLists] = useState<TrelloList[]>([]);
   const [cards, setCards] = useState<TrelloCard[]>([]);
@@ -642,7 +646,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const cardId = cardInTransition.id;
     setIsMoving(true);
     try {
-      await updateServiceOrderStatus(cardId, newListId as ServiceOrderStatus);
+      await updateServiceOrderStatus(cardId, newListId as ServiceOrderStatus, actorOptions);
       setCards(prev => prev.map(c => c.id === cardId ? { ...c, idList: newListId, garantiaTag: newListId === 'GARANTIA' || c.garantiaTag } : c));
       if (selectedCard?.id === cardId) {
         setSelectedCard(prev => prev && prev.id === cardId ? { ...prev, idList: newListId, garantiaTag: newListId === 'GARANTIA' || prev.garantiaTag } : prev);
@@ -662,7 +666,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const cardId = selectedCard.id;
     setRemovingGarantiaId(cardId);
     try {
-      await updateServiceOrderGarantiaTag(cardId, false);
+      await updateServiceOrderGarantiaTag(cardId, false, actorOptions);
       setCards(prev => prev.map(c => c.id === cardId ? { ...c, garantiaTag: false } : c));
       setSelectedCard(prev => prev && prev.id === cardId ? { ...prev, garantiaTag: false } : prev);
     } catch (err: any) {
@@ -678,7 +682,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setSavingMileage(true);
     setMileageSavedMessage(false);
     try {
-      await updateServiceOrderMileage(selectedCard.id, value || null);
+      await updateServiceOrderMileage(selectedCard.id, value || null, actorOptions);
       const updated = { ...selectedCard, mileageKm: value || null };
       setSelectedCard(updated);
       setCards(prev => prev.map(c => c.id === selectedCard.id ? updated : c));
@@ -698,7 +702,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setSavingDeliveryDate(true);
     setDeliveryDateSavedMessage(false);
     try {
-      await updateServiceOrderDeliveryDate(selectedCard.id, value || null);
+      await updateServiceOrderDeliveryDate(selectedCard.id, value || null, actorOptions);
       const updated = { ...selectedCard, deliveryDate: value || null };
       setSelectedCard(updated);
       setCards(prev => prev.map(c => c.id === selectedCard.id ? updated : c));
@@ -734,7 +738,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
     setSavingVehicleEdit(true);
     try {
-      await updateServiceOrderVehicle(selectedCard.id, { vehicleModel: model, plate });
+      await updateServiceOrderVehicle(selectedCard.id, { vehicleModel: model, plate }, actorOptions);
       const parts = selectedCard.name.split('-').map((s) => s.trim());
       const customerPart = parts[2] ?? 'Cliente';
       const newName = `${model} - ${plate} - ${customerPart}`;
@@ -754,7 +758,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!cardForMemberAssignment) return;
     setIsAssigning(true);
     try {
-      await updateServiceOrderTechnician(cardForMemberAssignment.id, technician?.id ?? null);
+      await updateServiceOrderTechnician(cardForMemberAssignment.id, technician?.id ?? null, actorOptions);
       const newMembers = technician ? [{ id: technician.id, fullName: capitalizeFirst(technician.name), username: '' }] : [];
       setCards(prev =>
         prev.map(c =>
@@ -828,7 +832,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!selectedCard) return;
     setIsSavingDesc(true);
     try {
-      await updateServiceOrderDescription(selectedCard.id, descText);
+      await updateServiceOrderDescription(selectedCard.id, descText, actorOptions);
       const updatedCard = { ...selectedCard, desc: descText };
       setSelectedCard(updatedCard);
       setCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
@@ -1060,7 +1064,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!confirm("Confirmar entrega do veículo? O registro será arquivado e ficará disponível no Histórico de veículos.")) return;
     setArchivingId(cardId);
     try {
-      await updateServiceOrderStatus(cardId, 'CANCELLED');
+      await updateServiceOrderStatus(cardId, 'CANCELLED', actorOptions);
       setCards((prev) => prev.filter((c) => c.id !== cardId));
     } catch (error: any) {
       alert(error?.message ?? "Erro ao arquivar.");
@@ -1071,7 +1075,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const handleUnarchive = async (card: TrelloCard) => {
     try {
-      await updateServiceOrderStatus(card.id, 'FINALIZADO');
+      await updateServiceOrderStatus(card.id, 'FINALIZADO', actorOptions);
       setSelectedHistoryCard(null);
       setArchivedCards((prev) => prev.filter((c) => c.id !== card.id));
       fetchData(true);

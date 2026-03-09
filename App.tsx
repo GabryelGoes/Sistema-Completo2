@@ -403,6 +403,7 @@ export default function App() {
               openServiceOrderId={technicianNotificationNavigate?.serviceOrderId ?? null}
               openServiceOrderSection={technicianNotificationNavigate?.section ?? null}
               onOpenServiceOrderHandled={() => setTechnicianNotificationNavigate(null)}
+              actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.technicianSlug, actorTechnicianName: authSession.technicianName }}
             />
           )}
         </main>
@@ -483,6 +484,7 @@ export default function App() {
             openServiceOrderId={notificationNavigate?.serviceOrderId ?? null}
             openServiceOrderSection={notificationNavigate?.section ?? null}
             onOpenServiceOrderHandled={() => setNotificationNavigate(null)}
+            actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.technicianSlug, actorTechnicianName: authSession?.technicianName }}
           />
         )}
 

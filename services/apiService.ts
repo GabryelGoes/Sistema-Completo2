@@ -165,14 +165,28 @@ export async function getServiceOrderById(id: string): Promise<ServiceOrderDetai
   return response.json();
 }
 
+/** Opções para identificar quem está fazendo a ação (admin vs técnico) — define quem recebe a notificação. */
+export interface ServiceOrderUpdateActor {
+  actor?: "admin" | "technician";
+  actorTechnicianSlug?: string;
+  actorTechnicianName?: string;
+}
+
+function mergeActorIntoBody<T extends Record<string, unknown>>(body: T, options?: ServiceOrderUpdateActor): T {
+  if (!options?.actor) return body;
+  return { ...body, actor: options.actor, actorTechnicianSlug: options.actorTechnicianSlug, actorTechnicianName: options.actorTechnicianName };
+}
+
 export async function updateServiceOrderStatus(
   id: string,
-  status: ServiceOrderStatus
+  status: ServiceOrderStatus,
+  options?: ServiceOrderUpdateActor
 ): Promise<ApiServiceOrder> {
+  const body = mergeActorIntoBody({ status }, options);
   const response = await fetch(`${API_BASE}/service-orders/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -183,12 +197,14 @@ export async function updateServiceOrderStatus(
 
 export async function updateServiceOrderDescription(
   id: string,
-  issueDescription: string
+  issueDescription: string,
+  options?: ServiceOrderUpdateActor
 ): Promise<ApiServiceOrder> {
+  const body = mergeActorIntoBody({ issueDescription }, options);
   const response = await fetch(`${API_BASE}/service-orders/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ issueDescription }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -200,12 +216,14 @@ export async function updateServiceOrderDescription(
 /** Atualiza o técnico responsável da OS (gabryel, jhow, fabio). */
 export async function updateServiceOrderTechnician(
   id: string,
-  assignedTechnician: string | null
+  assignedTechnician: string | null,
+  options?: ServiceOrderUpdateActor
 ): Promise<ApiServiceOrder> {
+  const body = mergeActorIntoBody({ assignedTechnician: assignedTechnician ?? null }, options);
   const response = await fetch(`${API_BASE}/service-orders/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ assignedTechnician: assignedTechnician ?? null }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -217,12 +235,14 @@ export async function updateServiceOrderTechnician(
 /** Remove a etiqueta de garantia da OS (persiste em qualquer etapa até remover pelo modal). */
 export async function updateServiceOrderGarantiaTag(
   id: string,
-  garantiaTag: boolean
+  garantiaTag: boolean,
+  options?: ServiceOrderUpdateActor
 ): Promise<ApiServiceOrder> {
+  const body = mergeActorIntoBody({ garantiaTag }, options);
   const response = await fetch(`${API_BASE}/service-orders/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ garantiaTag }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -234,12 +254,14 @@ export async function updateServiceOrderGarantiaTag(
 /** Atualiza a quilometragem do veículo da OS. */
 export async function updateServiceOrderMileage(
   id: string,
-  mileageKm: string | null
+  mileageKm: string | null,
+  options?: ServiceOrderUpdateActor
 ): Promise<ApiServiceOrder> {
+  const body = mergeActorIntoBody({ mileageKm: mileageKm == null || mileageKm.trim() === '' ? null : mileageKm.trim() }, options);
   const response = await fetch(`${API_BASE}/service-orders/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mileageKm: mileageKm == null || mileageKm.trim() === '' ? null : mileageKm.trim() }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -251,12 +273,14 @@ export async function updateServiceOrderMileage(
 /** Atualiza a data de entrega prevista do veículo (YYYY-MM-DD ou null). */
 export async function updateServiceOrderDeliveryDate(
   id: string,
-  deliveryDate: string | null
+  deliveryDate: string | null,
+  options?: ServiceOrderUpdateActor
 ): Promise<ApiServiceOrder> {
+  const body = mergeActorIntoBody({ deliveryDate: deliveryDate == null || deliveryDate.trim() === '' ? null : deliveryDate.trim() }, options);
   const response = await fetch(`${API_BASE}/service-orders/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ deliveryDate: deliveryDate == null || deliveryDate.trim() === '' ? null : deliveryDate.trim() }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -268,15 +292,17 @@ export async function updateServiceOrderDeliveryDate(
 /** Atualiza modelo do veículo e/ou placa da OS. */
 export async function updateServiceOrderVehicle(
   id: string,
-  data: { vehicleModel?: string; plate?: string }
+  data: { vehicleModel?: string; plate?: string },
+  options?: ServiceOrderUpdateActor
 ): Promise<ApiServiceOrder> {
-  const body: Record<string, string> = {};
+  const body: Record<string, unknown> = {};
   if (data.vehicleModel !== undefined) body.vehicleModel = data.vehicleModel.trim();
   if (data.plate !== undefined) body.plate = data.plate.trim().toUpperCase();
+  const merged = mergeActorIntoBody(body, options);
   const response = await fetch(`${API_BASE}/service-orders/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(merged),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));

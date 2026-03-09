@@ -109,6 +109,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const [clearing, setClearing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const lastFetchRef = useRef<string | null>(null);
+  const lastCreatedAtRef = useRef<string | null>(null);
   const prevUnreadIdsRef = useRef<Set<string>>(new Set());
   const firstFetchDoneRef = useRef(false);
 
@@ -117,17 +118,23 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       ? { for: "technician" as const, technicianSlug }
       : undefined;
 
-  const fetchNotifications = async (since?: string) => {
-    setLoading(true);
+  const POLL_QUICK_MS = 3000;   // poll para novas notificações (entrega rápida do pop-up)
+  const POLL_FULL_MS = 20000;  // atualização completa da lista
+
+  const fetchNotifications = async (since?: string, silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const list = await getNotifications({ limit: 80, since, ...notifParams });
+      let sorted: Notification[] = [];
       setNotifications((prev) => {
         const byId = new Map(prev.map((n) => [n.id, n]));
         list.forEach((n) => byId.set(n.id, n));
-        return Array.from(byId.values()).sort(
+        sorted = Array.from(byId.values()).sort(
           (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
+        return sorted;
       });
+      if (sorted.length > 0) lastCreatedAtRef.current = sorted[0].created_at;
       const count = await getUnreadNotificationsCount(notifParams);
       setUnreadCount(count);
       lastFetchRef.current = new Date().toISOString();
@@ -150,14 +157,53 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     } catch {
       // ignore
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+    }
+  };
+
+  const pollNewOnly = async () => {
+    const since = lastCreatedAtRef.current;
+    if (!since) return;
+    try {
+      const list = await getNotifications({ limit: 30, since, ...notifParams });
+      if (list.length === 0) return;
+      let sorted: Notification[] = [];
+      setNotifications((prev) => {
+        const byId = new Map(prev.map((n) => [n.id, n]));
+        list.forEach((n) => byId.set(n.id, n));
+        sorted = Array.from(byId.values()).sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        return sorted;
+      });
+      if (sorted.length > 0) lastCreatedAtRef.current = sorted[0].created_at;
+      const count = await getUnreadNotificationsCount(notifParams);
+      setUnreadCount(count);
+      list.forEach((n) => {
+        if (!n.read_at && !prevUnreadIdsRef.current.has(n.id)) {
+          if (n.type === 'comment') {
+            onNewCommentNotification?.(n);
+          } else {
+            playOtherNotificationSound();
+          }
+        });
+      });
+      list.forEach((n) => {
+        if (!n.read_at) prevUnreadIdsRef.current.add(n.id);
+      });
+    } catch {
+      // ignore
     }
   };
 
   useEffect(() => {
     fetchNotifications();
-    const t = setInterval(() => fetchNotifications(), 25000);
-    return () => clearInterval(t);
+    const quick = setInterval(pollNewOnly, POLL_QUICK_MS);
+    const full = setInterval(() => fetchNotifications(), POLL_FULL_MS);
+    return () => {
+      clearInterval(quick);
+      clearInterval(full);
+    };
   }, [forTechnician, technicianSlug]);
 
   useEffect(() => {

@@ -1459,7 +1459,8 @@ export function createApiApp() {
       }
 
       const { id } = req.params;
-      const { status, issueDescription, aiAnalysis, assignedTechnician, garantiaTag, mileageKm, deliveryDate, vehicleModel, plate } = req.body;
+      const { status, issueDescription, aiAnalysis, assignedTechnician, garantiaTag, mileageKm, deliveryDate, vehicleModel, plate, actor, actorTechnicianSlug, actorTechnicianName } = req.body;
+      const isAdminActor = actor !== "technician";
 
       const updatePayload: any = {};
       if (vehicleModel !== undefined) {
@@ -1533,38 +1534,71 @@ export function createApiApp() {
       }
 
       const techSlug = data?.assigned_technician ?? null;
-      if (techSlug && previous) {
-        const payloadBase = {
-          service_order_id: id,
-          vehicle_plate: data?.plate ?? previous?.plate ?? null,
-          vehicle_model: data?.vehicle_model ?? previous?.vehicle_model ?? null,
-        };
-        if (updatePayload.status !== undefined && previous.status !== data?.status) {
-          await supabaseAdmin.from("notifications").insert({
-            workshop_id: WORKSHOP_ID,
-            type: "stage_change",
-            payload: { ...payloadBase, new_status: data?.status },
-            target_type: "technician",
-            target_slug: techSlug,
-          }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change:", e); });
-        }
-        if (updatePayload.issue_description !== undefined && previous.issue_description !== data?.issue_description) {
-          await supabaseAdmin.from("notifications").insert({
-            workshop_id: WORKSHOP_ID,
-            type: "complaint_edited",
-            payload: payloadBase,
-            target_type: "technician",
-            target_slug: techSlug,
-          }).then(({ error: e }) => { if (e) console.error("[API] Notificação complaint_edited:", e); });
-        }
-        if (updatePayload.delivery_date !== undefined && String(previous?.delivery_date ?? "") !== String(data?.delivery_date ?? "")) {
-          await supabaseAdmin.from("notifications").insert({
-            workshop_id: WORKSHOP_ID,
-            type: "delivery_date_changed",
-            payload: { ...payloadBase, delivery_date: data?.delivery_date ?? null },
-            target_type: "technician",
-            target_slug: techSlug,
-          }).then(({ error: e }) => { if (e) console.error("[API] Notificação delivery_date_changed:", e); });
+      const payloadBase = {
+        service_order_id: id,
+        vehicle_plate: data?.plate ?? previous?.plate ?? null,
+        vehicle_model: data?.vehicle_model ?? previous?.vehicle_model ?? null,
+      };
+      if (previous) {
+        if (isAdminActor && techSlug) {
+          // Ações do admin: notificar apenas o técnico
+          if (updatePayload.status !== undefined && previous.status !== data?.status) {
+            await supabaseAdmin.from("notifications").insert({
+              workshop_id: WORKSHOP_ID,
+              type: "stage_change",
+              payload: { ...payloadBase, new_status: data?.status },
+              target_type: "technician",
+              target_slug: techSlug,
+            }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change:", e); });
+          }
+          if (updatePayload.issue_description !== undefined && previous.issue_description !== data?.issue_description) {
+            await supabaseAdmin.from("notifications").insert({
+              workshop_id: WORKSHOP_ID,
+              type: "complaint_edited",
+              payload: payloadBase,
+              target_type: "technician",
+              target_slug: techSlug,
+            }).then(({ error: e }) => { if (e) console.error("[API] Notificação complaint_edited:", e); });
+          }
+          if (updatePayload.delivery_date !== undefined && String(previous?.delivery_date ?? "") !== String(data?.delivery_date ?? "")) {
+            await supabaseAdmin.from("notifications").insert({
+              workshop_id: WORKSHOP_ID,
+              type: "delivery_date_changed",
+              payload: { ...payloadBase, delivery_date: data?.delivery_date ?? null },
+              target_type: "technician",
+              target_slug: techSlug,
+            }).then(({ error: e }) => { if (e) console.error("[API] Notificação delivery_date_changed:", e); });
+          }
+        } else if (!isAdminActor && (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string")) {
+          // Ações do técnico: notificar apenas o admin (Rei do ABS)
+          const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
+          if (updatePayload.status !== undefined && previous.status !== data?.status) {
+            await supabaseAdmin.from("notifications").insert({
+              workshop_id: WORKSHOP_ID,
+              type: "stage_change",
+              payload: { ...payloadBase, new_status: data?.status, technician_name: technicianLabel },
+              target_type: "admin",
+              target_slug: null,
+            }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change (admin):", e); });
+          }
+          if (updatePayload.issue_description !== undefined && previous.issue_description !== data?.issue_description) {
+            await supabaseAdmin.from("notifications").insert({
+              workshop_id: WORKSHOP_ID,
+              type: "complaint_edited",
+              payload: { ...payloadBase, technician_name: technicianLabel },
+              target_type: "admin",
+              target_slug: null,
+            }).then(({ error: e }) => { if (e) console.error("[API] Notificação complaint_edited (admin):", e); });
+          }
+          if (updatePayload.delivery_date !== undefined && String(previous?.delivery_date ?? "") !== String(data?.delivery_date ?? "")) {
+            await supabaseAdmin.from("notifications").insert({
+              workshop_id: WORKSHOP_ID,
+              type: "delivery_date_changed",
+              payload: { ...payloadBase, delivery_date: data?.delivery_date ?? null, technician_name: technicianLabel },
+              target_type: "admin",
+              target_slug: null,
+            }).then(({ error: e }) => { if (e) console.error("[API] Notificação delivery_date_changed (admin):", e); });
+          }
         }
       }
 

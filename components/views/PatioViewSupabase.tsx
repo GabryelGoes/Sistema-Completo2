@@ -14,10 +14,12 @@ import {
   getServiceOrderById,
   updateServiceOrderStatus,
   ServiceOrderListItem,
+  type ServiceOrderUpdateActor,
 } from "../../services/apiService";
 
 interface PatioViewSupabaseProps {
   onUseCustomerData?: (data: Customer) => void;
+  actorOptions?: ServiceOrderUpdateActor;
 }
 
 const STATUS_COLUMNS: {
@@ -43,6 +45,7 @@ function formatDate(iso: string) {
 
 export const PatioViewSupabase: React.FC<PatioViewSupabaseProps> = ({
   onUseCustomerData,
+  actorOptions,
 }) => {
   const [orders, setOrders] = useState<ServiceOrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +76,7 @@ export const PatioViewSupabase: React.FC<PatioViewSupabaseProps> = ({
   ) => {
     setMovingId(id);
     try {
-      await updateServiceOrderStatus(id, newStatus);
+      await updateServiceOrderStatus(id, newStatus, actorOptions);
       setOrders((prev) =>
         prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
       );
