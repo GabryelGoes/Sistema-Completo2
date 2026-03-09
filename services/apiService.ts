@@ -393,6 +393,7 @@ export interface NotificationPayload {
   service_order_id?: string;
   comment_id?: string;
   author_display_name?: string;
+  author_photo_url?: string | null;
   text?: string;
   vehicle_plate?: string | null;
   vehicle_model?: string | null;

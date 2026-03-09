@@ -858,17 +858,37 @@ export function createApiApp() {
       const customerName = so.customers && typeof so.customers === "object" && "name" in so.customers
         ? String((so.customers as { name: string }).name ?? "")
         : "";
+      const isAdminComment = /rei\s*do\s*abs/i.test(author);
+      let authorPhotoUrl: string | null = null;
+      if (isAdminComment) {
+        const { data: setting } = await supabaseAdmin
+          .from("workshop_settings")
+          .select("value")
+          .eq("workshop_id", WORKSHOP_ID)
+          .eq("key", "admin_photo_url")
+          .maybeSingle();
+        authorPhotoUrl = setting?.value?.trim() || null;
+      } else {
+        const authorTrim = author.trim();
+        const { data: techs } = await supabaseAdmin
+          .from("workshop_technicians")
+          .select("photo_url, name")
+          .eq("workshop_id", WORKSHOP_ID)
+          .limit(50);
+        const tech = (techs ?? []).find((t) => (t.name?.trim() === authorTrim) || (String(t.name).trim().toLowerCase() === authorTrim.toLowerCase()));
+        authorPhotoUrl = tech?.photo_url?.trim() || null;
+      }
       const commentPayload = {
         service_order_id: serviceOrderId,
         comment_id: data.id,
         author_display_name: author,
+        author_photo_url: authorPhotoUrl,
         text: text.trim(),
         vehicle_plate: so.plate ?? null,
         vehicle_model: so.vehicle_model ?? null,
         customer_name: customerName || null,
       };
 
-      const isAdminComment = /rei\s*do\s*abs/i.test(author);
       // Admin só recebe notificação de comentários feitos por técnicos (não dos seus próprios)
       if (!isAdminComment) {
         await supabaseAdmin.from("notifications").insert({

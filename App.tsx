@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LogOut } from 'lucide-react';
 import { TrelloConfig, Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
@@ -45,12 +45,11 @@ export default function App() {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [commentPopUpNotification, setCommentPopUpNotification] = useState<Notification | null>(null);
-  const [notificationNavigate, setNotificationNavigate] = useState<{ serviceOrderId: string; section: 'comments' | 'budgets' | 'description' | null } | null>(null);
-  const [technicianNotificationNavigate, setTechnicianNotificationNavigate] = useState<{ serviceOrderId: string; section: 'comments' | 'budgets' | 'description' | null } | null>(null);
-  const [adminHeaderVisible, setAdminHeaderVisible] = useState(false);
-  const adminHeaderRef = useRef<HTMLDivElement>(null);
-  const adminHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const touchStartYRef = useRef<number | null>(null);
+
+  const handleNewCommentNotification = (n: Notification) => {
+    playNotificationSound();
+    setCommentPopUpNotification(n);
+  };
 
   // Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -201,72 +200,6 @@ export default function App() {
       });
   }, [authSession?.role]);
 
-  // Mostrar barra ao passar o mouse perto do topo (desktop) ou ao deslizar de cima para baixo (touch)
-  // Sempre declarado antes de qualquer return para não quebrar as regras de hooks (React #300)
-  useEffect(() => {
-    const HOVER_ZONE = 56;
-    const SWIPE_THRESHOLD = 40;
-    const HIDE_DELAY = 400;
-
-    const clearHideTimeout = () => {
-      if (adminHideTimeoutRef.current) {
-        clearTimeout(adminHideTimeoutRef.current);
-        adminHideTimeoutRef.current = null;
-      }
-    };
-
-    const scheduleHide = () => {
-      clearHideTimeout();
-      adminHideTimeoutRef.current = setTimeout(() => setAdminHeaderVisible(false), HIDE_DELAY);
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (e.clientY <= HOVER_ZONE) {
-        clearHideTimeout();
-        setAdminHeaderVisible(true);
-      } else {
-        const header = adminHeaderRef.current;
-        const inHeader = header && e.target instanceof Node && header.contains(e.target as Node);
-        if (!inHeader) scheduleHide();
-      }
-    };
-
-    const handleTouchStart = (e: TouchEvent) => {
-      const y = e.touches[0]?.clientY ?? 0;
-      if (y < HOVER_ZONE) touchStartYRef.current = y;
-      else touchStartYRef.current = null;
-      if (y > 80 && adminHeaderRef.current && e.target instanceof Node && !adminHeaderRef.current.contains(e.target as Node)) {
-        scheduleHide();
-      }
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (touchStartYRef.current === null) return;
-      const y = e.touches[0]?.clientY ?? 0;
-      if (y - touchStartYRef.current > SWIPE_THRESHOLD) {
-        clearHideTimeout();
-        setAdminHeaderVisible(true);
-        touchStartYRef.current = null;
-      }
-    };
-
-    const handleTouchEnd = () => {
-      touchStartYRef.current = null;
-    };
-
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    window.addEventListener('touchstart', handleTouchStart, { passive: true });
-    window.addEventListener('touchmove', handleTouchMove, { passive: true });
-    window.addEventListener('touchend', handleTouchEnd, { passive: true });
-    return () => {
-      clearHideTimeout();
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, []);
-
   // Tela de login (antes de entrar no app)
   if (!authSession) {
     return (
@@ -280,33 +213,6 @@ export default function App() {
       />
     );
   }
-
-  const handleNewCommentNotification = (n: Notification) => {
-    playNotificationSound();
-    setCommentPopUpNotification(n);
-  };
-
-  const handleNotificationClick = (n: Notification) => {
-    const id = n.payload?.service_order_id;
-    if (!id) return;
-    let section: 'comments' | 'budgets' | 'description' | null = null;
-    if (n.type === 'comment') section = 'comments';
-    else if (n.type === 'budget_created' || n.type === 'budget_edited') section = 'budgets';
-    else if (n.type === 'complaint_edited') section = 'description';
-    setNotificationNavigate({ serviceOrderId: id, section });
-    setCurrentTab('patio');
-  };
-
-  const handleTechnicianNotificationClick = (n: Notification) => {
-    const id = n.payload?.service_order_id;
-    if (!id) return;
-    let section: 'comments' | 'budgets' | 'description' | null = null;
-    if (n.type === 'comment') section = 'comments';
-    else if (n.type === 'budget_created' || n.type === 'budget_edited') section = 'budgets';
-    else if (n.type === 'complaint_edited') section = 'description';
-    setTechnicianNotificationNavigate({ serviceOrderId: id, section });
-    setTechnicianTab('patio');
-  };
 
   // Modo técnico: abas configuráveis (Recepção, Agenda, Pátio) + botão Sair
   if (authSession.role === 'patio') {
@@ -323,15 +229,6 @@ export default function App() {
                 Logado como <strong className="text-zinc-900 dark:text-white">{authSession.technicianName ?? 'Pátio'}</strong>
               </span>
               <div className="flex items-center gap-2">
-                {authSession.technicianSlug && (
-                  <NotificationCenter
-                    theme={theme}
-                    forTechnician
-                    technicianSlug={authSession.technicianSlug}
-                    onNewCommentNotification={handleNewCommentNotification}
-                    onNotificationClick={handleTechnicianNotificationClick}
-                  />
-                )}
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -345,15 +242,6 @@ export default function App() {
           ) : (
             <>
               <span />
-              {authSession.technicianSlug && (
-                <NotificationCenter
-                  theme={theme}
-                  forTechnician
-                  technicianSlug={authSession.technicianSlug}
-                  onNewCommentNotification={handleNewCommentNotification}
-                  onNotificationClick={handleTechnicianNotificationClick}
-                />
-              )}
             </>
           )}
         </header>
@@ -400,9 +288,9 @@ export default function App() {
               onUseCustomerData={() => {}}
               effectsEnabled={effectsEnabled}
               commentAuthorName={authSession.technicianName ?? 'Pátio'}
-              openServiceOrderId={technicianNotificationNavigate?.serviceOrderId ?? null}
-              openServiceOrderSection={technicianNotificationNavigate?.section ?? null}
-              onOpenServiceOrderHandled={() => setTechnicianNotificationNavigate(null)}
+            openServiceOrderId={null}
+            openServiceOrderSection={null}
+            onOpenServiceOrderHandled={() => {}}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.technicianSlug, actorTechnicianName: authSession.technicianName }}
             />
           )}
@@ -412,11 +300,22 @@ export default function App() {
           onTabChange={setTechnicianTab}
           allowedTabs={technicianAllowedTabs}
         />
+        {/* Central de notificações oculta: mantém o polling e dispara o pop-up de comentário */}
+        {authSession.technicianSlug && (
+          <div className="sr-only" aria-hidden="true">
+            <NotificationCenter
+              theme={theme}
+              forTechnician
+              technicianSlug={authSession.technicianSlug}
+              onNewCommentNotification={handleNewCommentNotification}
+            />
+          </div>
+        )}
         {commentPopUpNotification && (
           <CommentPopUp
             theme={theme}
             notification={commentPopUpNotification}
-            replyAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.technicianName ?? 'Rei do ABS')}
+            replyAuthorName={authSession?.technicianName ?? 'Rei do ABS'}
             onClose={() => setCommentPopUpNotification(null)}
           />
         )}
@@ -429,29 +328,12 @@ export default function App() {
       className="min-h-screen flex flex-col bg-zinc-50 dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
       data-effects={effectsEnabled ? 'on' : 'off'}
     >
-      {/* Barra superior admin: aparece ao passar o mouse no topo ou deslizar de cima para baixo (touch) */}
-      <header
-        ref={adminHeaderRef}
-        className={`fixed top-0 left-0 right-0 z-30 flex items-center justify-end px-4 pt-[env(safe-area-inset-top)] pb-2 pt-4 h-14 safe-area-inset transition-transform duration-300 ease-out ${
-          adminHeaderVisible ? 'translate-y-0' : '-translate-y-full'
-        }`}
-      >
-        <div className="absolute inset-0 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border-b border-zinc-200/40 dark:border-white/5 pointer-events-none" />
-        <div className="relative flex items-center gap-2">
-          <NotificationCenter
-            theme={theme}
-            onNewCommentNotification={handleNewCommentNotification}
-            onNotificationClick={handleNotificationClick}
-          />
-        </div>
-      </header>
-
       {/* Background Ambience - Global */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
 
       {/* Main Content Area */}
       <main
-        className={`flex-1 overflow-y-auto z-10 pt-14 ${currentTab === 'home' ? 'p-0 pt-14' : 'p-4 md:p-8 pt-8'}`}
+        className={`flex-1 overflow-y-auto z-10 ${currentTab === 'home' ? 'p-0 pt-4' : 'p-4 md:p-8 pt-8'}`}
       >
         {currentTab === 'home' && (
           <HomeView onOpenApp={handleHomeOpenApp} onLogout={handleLogout} />
@@ -482,9 +364,9 @@ export default function App() {
             onUseCustomerData={handleUseCustomerData}
             effectsEnabled={effectsEnabled}
             commentAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.technicianName ?? 'Rei do ABS')}
-            openServiceOrderId={notificationNavigate?.serviceOrderId ?? null}
-            openServiceOrderSection={notificationNavigate?.section ?? null}
-            onOpenServiceOrderHandled={() => setNotificationNavigate(null)}
+            openServiceOrderId={null}
+            openServiceOrderSection={null}
+            onOpenServiceOrderHandled={() => {}}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.technicianSlug, actorTechnicianName: authSession?.technicianName }}
           />
         )}
@@ -515,7 +397,13 @@ export default function App() {
         showPatioAccess={authSession?.role === 'admin'}
       />
 
-      {/* Pop-up de comentário (estilo WhatsApp) — canto inferior esquerdo */}
+      {/* Central de notificações oculta: mantém o polling e dispara o pop-up de comentário */}
+      <div className="sr-only" aria-hidden="true">
+        <NotificationCenter
+          theme={theme}
+          onNewCommentNotification={handleNewCommentNotification}
+        />
+      </div>
       {commentPopUpNotification && (
         <CommentPopUp
           theme={theme}

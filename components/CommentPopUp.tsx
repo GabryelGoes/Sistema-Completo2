@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
+import { X, Send, Loader2 } from 'lucide-react';
 import type { Notification } from '../services/apiService';
 import { addServiceOrderComment } from '../services/apiService';
 
@@ -34,7 +34,9 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
   const customer = p.customer_name?.trim() || p.vehicle_plate || 'Cliente';
   const vehicleLabel = `${model} · ${customer}`;
   const author = p.author_display_name || 'Técnico';
+  const authorPhotoUrl = p.author_photo_url?.trim() || null;
   const text = p.text || '';
+  const authorInitial = author.slice(0, 1).toUpperCase();
 
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,11 +68,15 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
         onClick={(e) => e.stopPropagation()}
       >
       <div className={`flex items-center justify-between px-4 py-3 border-b ${headerClass}`}>
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-9 h-9 rounded-full bg-brand-yellow/20 flex items-center justify-center shrink-0">
-            <MessageCircle className="w-4 h-4 text-brand-yellow" />
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-brand-yellow/20 flex items-center justify-center border border-white/10">
+            {authorPhotoUrl ? (
+              <img src={authorPhotoUrl} alt={author} className="w-full h-full object-cover" />
+            ) : (
+              <span className={`text-sm font-bold ${isDark ? 'text-brand-yellow' : 'text-amber-600'}`}>{authorInitial}</span>
+            )}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className={`text-[13px] font-semibold truncate ${titleClass}`}>{vehicleLabel}</p>
             <p className={`text-[11px] ${subtitleClass}`}>{author} comentou</p>
           </div>
@@ -83,8 +89,15 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
           <X className="w-4 h-4" />
         </button>
       </div>
-      <div className="p-4 max-h-24 overflow-y-auto">
-        <p className={`text-[14px] leading-snug whitespace-pre-wrap break-words ${bodyClass}`}>
+      <div className="p-4 max-h-28 overflow-y-auto flex gap-3">
+        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-zinc-600/30 flex items-center justify-center mt-0.5">
+          {authorPhotoUrl ? (
+            <img src={authorPhotoUrl} alt={author} className="w-full h-full object-cover" />
+          ) : (
+            <span className={`text-xs font-bold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>{authorInitial}</span>
+          )}
+        </div>
+        <p className={`text-[14px] leading-snug whitespace-pre-wrap break-words flex-1 min-w-0 ${bodyClass}`}>
           {text}
         </p>
       </div>
