@@ -57,6 +57,9 @@ export default function App() {
   // Efeitos do app (animações, 3D nos cards, etc.) — chave liga/desliga
   const [effectsEnabled, setEffectsEnabled] = useState(true);
 
+  // Modo cinematográfico: embaçar placas em todo o app (para gravar tela / redes sociais)
+  const [cinematographicMode, setCinematographicMode] = useState(false);
+
   // Device Orientation
   const orientation = useOrientation();
 
@@ -127,6 +130,10 @@ export default function App() {
     if (savedEffects !== null) {
       setEffectsEnabled(savedEffects === 'true');
     }
+    const savedCinematographic = localStorage.getItem('app_cinematographic_mode');
+    if (savedCinematographic !== null) {
+      setCinematographicMode(savedCinematographic === 'true');
+    }
   }, []);
 
   // Apply theme to document
@@ -140,6 +147,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('app_effects_enabled', String(effectsEnabled));
   }, [effectsEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('app_cinematographic_mode', String(cinematographicMode));
+  }, [cinematographicMode]);
 
   const handleSaveSettings = (newConfig: TrelloConfig) => {
     setTrelloConfig(newConfig);
@@ -270,24 +281,27 @@ export default function App() {
               trelloConfig={trelloConfig}
               initialData={prefillData}
               onDataLoaded={() => setPrefillData(null)}
+              blurPlates={cinematographicMode}
               onAppointmentConverted={(cardId) => {
                 setAppointments((prev) => prev.filter((app) => app.trelloCardId !== cardId));
               }}
             />
           )}
           {technicianTab === 'agenda' && (
-            <AgendaView
-              trelloConfig={trelloConfig}
-              onChegouAoPatio={handleUseCustomerData}
-              appointments={appointments}
-              setAppointments={setAppointments}
-            />
+<AgendaView 
+            trelloConfig={trelloConfig}
+            onChegouAoPatio={handleUseCustomerData}
+            appointments={appointments}
+            setAppointments={setAppointments}
+            blurPlates={cinematographicMode}
+          />
           )}
           {technicianTab === 'patio' && (
             <PatioView
               onUseCustomerData={() => {}}
               effectsEnabled={effectsEnabled}
               commentAuthorName={authSession.technicianName ?? 'Pátio'}
+              blurPlates={cinematographicMode}
             openServiceOrderId={null}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={() => {}}
@@ -316,6 +330,7 @@ export default function App() {
             theme={theme}
             notification={commentPopUpNotification}
             replyAuthorName={authSession?.technicianName ?? 'Rei do ABS'}
+            blurPlates={cinematographicMode}
             onClose={() => setCommentPopUpNotification(null)}
           />
         )}
@@ -344,6 +359,7 @@ export default function App() {
             trelloConfig={trelloConfig} 
             initialData={prefillData}
             onDataLoaded={() => setPrefillData(null)}
+            blurPlates={cinematographicMode}
             onAppointmentConverted={(cardId) => {
               setAppointments(prev => prev.filter(app => app.trelloCardId !== cardId));
             }}
@@ -356,6 +372,7 @@ export default function App() {
             onChegouAoPatio={handleUseCustomerData}
             appointments={appointments}
             setAppointments={setAppointments}
+            blurPlates={cinematographicMode}
           />
         )}
         
@@ -364,6 +381,7 @@ export default function App() {
             onUseCustomerData={handleUseCustomerData}
             effectsEnabled={effectsEnabled}
             commentAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.technicianName ?? 'Rei do ABS')}
+            blurPlates={cinematographicMode}
             openServiceOrderId={null}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={() => {}}
@@ -393,6 +411,8 @@ export default function App() {
         onThemeChange={setTheme}
         effectsEnabled={effectsEnabled}
         onEffectsChange={setEffectsEnabled}
+        cinematographicMode={cinematographicMode}
+        onCinematographicModeChange={setCinematographicMode}
         orientation={orientation}
         showPatioAccess={authSession?.role === 'admin'}
       />
@@ -409,6 +429,7 @@ export default function App() {
           theme={theme}
           notification={commentPopUpNotification}
           replyAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.technicianName ?? 'Rei do ABS')}
+          blurPlates={cinematographicMode}
           onClose={() => setCommentPopUpNotification(null)}
         />
       )}

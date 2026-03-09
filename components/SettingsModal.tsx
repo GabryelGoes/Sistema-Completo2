@@ -11,6 +11,8 @@ interface SettingsModalProps {
   onThemeChange: (theme: 'dark' | 'light') => void;
   effectsEnabled: boolean;
   onEffectsChange: (enabled: boolean) => void;
+  cinematographicMode?: boolean;
+  onCinematographicModeChange?: (enabled: boolean) => void;
   orientation?: 'portrait' | 'landscape';
   showPatioAccess?: boolean;
 }
@@ -22,6 +24,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onThemeChange,
   effectsEnabled,
   onEffectsChange,
+  cinematographicMode = false,
+  onCinematographicModeChange,
 }) => {
   if (!isOpen) return null;
 
@@ -97,6 +101,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Modo cinematográfico — embaça placas para gravar tela / redes sociais */}
+          {typeof onCinematographicModeChange === 'function' && (
+            <div className="mt-6 bg-light-card dark:bg-white/[0.06] p-4 rounded-2xl border border-light-border dark:border-white/[0.08]">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <label className="text-[15px] font-medium text-zinc-900 dark:text-white block">
+                    Modo cinematográfico
+                  </label>
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    Embaralha as placas no app para gravar tela e postar em redes sociais
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={cinematographicMode}
+                  onClick={() => onCinematographicModeChange(!cinematographicMode)}
+                  className={`
+                    relative shrink-0 w-12 h-7 rounded-full transition-colors duration-200
+                    ${cinematographicMode ? 'bg-brand-yellow' : 'bg-zinc-300 dark:bg-zinc-600'}
+                  `}
+                >
+                  <span
+                    className={`
+                      absolute top-1 w-5 h-5 rounded-full bg-white shadow-md
+                      transition-transform duration-200 ease-out
+                      ${cinematographicMode ? 'translate-x-6 left-0.5' : 'translate-x-0 left-0.5'}
+                    `}
+                  />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

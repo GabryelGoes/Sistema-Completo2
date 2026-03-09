@@ -13,6 +13,8 @@ interface ReceptionViewProps {
   initialData?: Customer | null;
   onDataLoaded?: () => void;
   onAppointmentConverted?: (cardId: string) => void;
+  /** Modo cinematográfico: embaçar placas exibidas (para gravar tela / redes sociais). */
+  blurPlates?: boolean;
 }
 
 // Componentes de Estilo para Markdown (Reutilizado do PatioView para consistência)
@@ -31,7 +33,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   trelloConfig, 
   initialData, 
   onDataLoaded,
-  onAppointmentConverted
+  onAppointmentConverted,
+  blurPlates = false,
 }) => {
   const [customer, setCustomer] = useState<Customer>({
     name: '',
@@ -569,7 +572,7 @@ Gamma: ${cameraOrientation.gamma?.toFixed(2) || 'N/A'}`;
                                        </div>
                                     </div>
                                     <div className="bg-zinc-100 dark:bg-white text-zinc-900 dark:text-black font-mono font-black text-sm px-2 py-1 rounded border-2 border-zinc-900 dark:border-black">
-                                       {plate.toUpperCase()}
+                                       <span className={blurPlates ? 'blur-plate' : ''}>{plate.toUpperCase()}</span>
                                     </div>
                                  </div>
                                  

@@ -10,9 +10,11 @@ interface AgendaViewProps {
   onChegouAoPatio: (data: Customer) => void;
   appointments: Appointment[];
   setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
+  /** Modo cinematográfico: embaçar placas exibidas (para gravar tela / redes sociais). */
+  blurPlates?: boolean;
 }
 
-export const AgendaView: React.FC<AgendaViewProps> = ({ trelloConfig, onChegouAoPatio, appointments, setAppointments }) => {
+export const AgendaView: React.FC<AgendaViewProps> = ({ trelloConfig, onChegouAoPatio, appointments, setAppointments, blurPlates = false }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
@@ -433,7 +435,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ trelloConfig, onChegouAo
                                         {app.plate && (
                                             <div className="flex items-center gap-2">
                                                 <FileText className="w-4 h-4 text-zinc-400" />
-                                                <span className="font-mono uppercase">{app.plate ? app.plate.toUpperCase() : ''}</span>
+                                                <span className={`font-mono uppercase ${blurPlates ? 'blur-plate' : ''}`}>{app.plate ? app.plate.toUpperCase() : ''}</span>
                                             </div>
                                         )}
                                         {app.notes && (

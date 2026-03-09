@@ -47,6 +47,8 @@ interface PatioViewProps {
   onOpenServiceOrderHandled?: () => void;
   /** Quem está agindo (admin vs técnico) para as notificações: admin só recebe de técnicos, técnicos só de admin. */
   actorOptions?: ServiceOrderUpdateActor;
+  /** Modo cinematográfico: embaçar placas em todo o app (para gravar tela / redes sociais). */
+  blurPlates?: boolean;
 }
 
 const BACKEND_LISTS: TrelloList[] = SERVICE_ORDER_STAGES.map((s) => ({
@@ -307,6 +309,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   openServiceOrderSection,
   onOpenServiceOrderHandled,
   actorOptions,
+  blurPlates = false,
 }) => {
   const [lists, setLists] = useState<TrelloList[]>([]);
   const [cards, setCards] = useState<TrelloCard[]>([]);
@@ -1563,7 +1566,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          <BrazilFlagIcon width={12} height={8} className="rounded-sm flex-shrink-0 border border-white/30" />
                       </div>
                       <div className="h-8 flex items-center justify-center bg-white">
-                         <span className="text-black font-mono text-xl font-black tracking-widest leading-none">
+                         <span className={`text-black font-mono text-xl font-black tracking-widest leading-none ${blurPlates ? 'blur-plate' : ''}`}>
                             {plate.toUpperCase()}
                          </span>
                       </div>
@@ -1789,7 +1792,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                        </div>
                                     </div>
                                     <div className="bg-zinc-100 dark:bg-white text-zinc-900 dark:text-black font-mono font-black text-sm px-2 py-1 rounded border-2 border-zinc-900 dark:border-black">
-                                       {plate.toUpperCase()}
+                                       <span className={blurPlates ? 'blur-plate' : ''}>{plate.toUpperCase()}</span>
                                     </div>
                                  </div>
                                  
@@ -2147,7 +2150,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <BrazilFlagIcon width={16} height={11} className="rounded-sm flex-shrink-0 border border-white/30" />
                                </div>
                                <div className="h-10 flex items-center justify-center bg-white">
-                                  <span className="text-black font-mono text-2xl font-black tracking-widest leading-none">
+                                  <span className={`text-black font-mono text-2xl font-black tracking-widest leading-none ${blurPlates ? 'blur-plate' : ''}`}>
                                      {(selectedCard.name.split('-')[1]?.trim() || '---').toUpperCase()}
                                   </span>
                                </div>
@@ -2813,7 +2816,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
                 <div>
                   <h1 className="text-xl font-semibold tracking-tight text-zinc-900">{editingBudget ? 'Editar orçamento' : 'Orçamento'}</h1>
-                  <p className="text-sm text-zinc-600 mt-0.5">{selectedCard.name}</p>
+                  <p className="text-sm text-zinc-600 mt-0.5">
+                    {blurPlates ? (() => {
+                      const p = selectedCard.name.split(' - ');
+                      return p.length >= 3 ? <>{p[0]} <span className="blur-plate">{p[1]}</span> {p.slice(2).join(' - ')}</> : selectedCard.name;
+                    })() : selectedCard.name}
+                  </p>
                 </div>
               </div>
               <button

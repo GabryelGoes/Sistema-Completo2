@@ -11,9 +11,11 @@ interface CommentPopUpProps {
   replyAuthorName: string;
   /** Tema do sistema (preto, amarelo, branco) */
   theme?: 'light' | 'dark';
+  /** Modo cinematográfico: embaçar placa no rótulo do veículo */
+  blurPlates?: boolean;
 }
 
-export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClose, onReplySent, replyAuthorName, theme = 'dark' }) => {
+export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClose, onReplySent, replyAuthorName, theme = 'dark', blurPlates = false }) => {
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -32,7 +34,8 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
   const p = notification.payload;
   const model = p.vehicle_model?.trim() || 'Veículo';
   const customer = p.customer_name?.trim() || p.vehicle_plate || 'Cliente';
-  const vehicleLabel = `${model} · ${customer}`;
+  const showBlurredPlate = blurPlates && !!p.vehicle_plate && !p.customer_name?.trim();
+  const vehicleLabel = showBlurredPlate ? `${model} · ` : `${model} · ${customer}`;
   const author = p.author_display_name || 'Técnico';
   const authorPhotoUrl = p.author_photo_url?.trim() || null;
   const text = p.text || '';
@@ -77,7 +80,10 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className={`text-[13px] font-semibold truncate ${titleClass}`}>{vehicleLabel}</p>
+            <p className={`text-[13px] font-semibold truncate ${titleClass}`}>
+              {vehicleLabel}
+              {showBlurredPlate && <span className="blur-plate">{p.vehicle_plate}</span>}
+            </p>
             <p className={`text-[11px] ${subtitleClass}`}>{author} comentou</p>
           </div>
         </div>
