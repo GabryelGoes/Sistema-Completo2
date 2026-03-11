@@ -1575,6 +1575,86 @@ export function createApiApp() {
     }
   });
 
+  app.delete("/api/service-orders/:id/comments/:commentId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const { id: serviceOrderId, commentId } = req.params;
+      if (!serviceOrderId || !commentId) {
+        return res.status(400).json({ error: "ID da ordem de serviço e do comentário são obrigatórios." });
+      }
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (!so) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      const { error } = await supabaseAdmin
+        .from("service_order_comments")
+        .delete()
+        .eq("id", commentId)
+        .eq("service_order_id", serviceOrderId);
+      if (error) {
+        console.error("[API] Erro ao excluir comentário:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] Erro em DELETE /api/service-orders/:id/comments/:commentId:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.patch("/api/service-orders/:id/comments/:commentId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const { id: serviceOrderId, commentId } = req.params;
+      const { text } = req.body ?? {};
+      if (!serviceOrderId || !commentId) {
+        return res.status(400).json({ error: "ID da ordem de serviço e do comentário são obrigatórios." });
+      }
+      if (typeof text !== "string" || !text.trim()) {
+        return res.status(400).json({ error: "Campo text é obrigatório." });
+      }
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (!so) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("service_order_comments")
+        .update({ text: text.trim() })
+        .eq("id", commentId)
+        .eq("service_order_id", serviceOrderId)
+        .select("id, author_display_name, text, created_at, author_photo_url")
+        .single();
+      if (error) {
+        console.error("[API] Erro ao atualizar comentário:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em PATCH /api/service-orders/:id/comments/:commentId:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   // ----------------- CENTRAL DE NOTIFICAÇÕES (admin) -----------------
   app.post("/api/notifications", async (req, res) => {
     try {

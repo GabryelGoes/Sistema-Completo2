@@ -585,6 +585,40 @@ export async function addServiceOrderComment(
   return response.json();
 }
 
+export async function deleteServiceOrderComment(
+  serviceOrderId: string,
+  commentId: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/comments/${encodeURIComponent(commentId)}`,
+    { method: "DELETE" }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir comentário (${response.status})`);
+  }
+}
+
+export async function updateServiceOrderComment(
+  serviceOrderId: string,
+  commentId: string,
+  text: string
+): Promise<ServiceOrderComment> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/comments/${encodeURIComponent(commentId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text.trim() }),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar comentário (${response.status})`);
+  }
+  return response.json();
+}
+
 // ---------- Central de notificações ----------
 
 export type NotificationType =

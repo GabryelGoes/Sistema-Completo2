@@ -21,6 +21,8 @@ import {
   deleteServiceOrderBudget,
   getServiceOrderComments,
   addServiceOrderComment,
+  deleteServiceOrderComment,
+  updateServiceOrderComment,
   getWorkshopServices,
   getSystemUserTechnicians,
   updateCustomer,
@@ -962,12 +964,45 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setEditingText('');
   };
 
-  const handleUpdateComment = async (_actionId: string) => {
-    setEditingActionId(null);
+  const handleUpdateComment = async (actionId: string) => {
+    if (!selectedCard || !actionId || !editingText.trim()) {
+      setEditingActionId(null);
+      setEditingText('');
+      return;
+    }
+    setActionLoadingId(actionId);
+    try {
+      await updateServiceOrderComment(selectedCard.id, actionId, editingText.trim());
+      const comments = await getServiceOrderComments(selectedCard.id);
+      setCardDetails(prev => prev ? {
+        ...prev,
+        actions: comments.map(commentToAction),
+      } : null);
+      setEditingActionId(null);
+      setEditingText('');
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao atualizar comentário.');
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
-  const handleDeleteComment = async (_actionId: string) => {
-    // Backend: comentários em breve
+  const handleDeleteComment = async (actionId: string) => {
+    if (!selectedCard || !actionId) return;
+    if (!confirm('Excluir este comentário? Esta ação não pode ser desfeita.')) return;
+    setActionLoadingId(actionId);
+    try {
+      await deleteServiceOrderComment(selectedCard.id, actionId);
+      const comments = await getServiceOrderComments(selectedCard.id);
+      setCardDetails(prev => prev ? {
+        ...prev,
+        actions: comments.map(commentToAction),
+      } : null);
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao excluir comentário.');
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
   const handleSaveDescription = async () => {
@@ -2847,10 +2882,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                    </button>
                                                    <span className="text-zinc-400 dark:text-zinc-700 text-[10px]">•</span>
                                                    <button 
+                                                      type="button"
                                                       onClick={() => handleDeleteComment(action.id)}
-                                                      className="text-[10px] text-zinc-500 hover:text-red-500 hover:underline flex items-center gap-1"
+                                                      disabled={actionLoadingId === action.id}
+                                                      className="text-[10px] text-zinc-500 hover:text-red-500 hover:underline flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                                    >
-                                                      Excluir
+                                                      {actionLoadingId === action.id ? 'Excluindo…' : 'Excluir'}
                                                    </button>
                                                 </div>
                                               </>
