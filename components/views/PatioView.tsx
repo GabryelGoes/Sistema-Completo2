@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, User, Wrench, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, User, Wrench, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2 } from 'lucide-react';
 import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer } from '../../types';
 import {
   getServiceOrders,
@@ -1333,6 +1333,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (n.endsWith(".pdf")) return "application/pdf";
     if (/\.(jpg|jpeg|png|gif|webp)$/.test(n)) return "image/*";
     return "application/octet-stream";
+  };
+
+  /** Compartilha imagem via Web Share API (WhatsApp, etc.). Tenta enviar como arquivo; fallback para URL. */
+  const handleShareImage = async (e: React.MouseEvent, att: { url: string; name: string }) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!navigator.share) {
+      window.open(att.url, '_blank');
+      return;
+    }
+    try {
+      const res = await fetch(att.url, { mode: 'cors' });
+      const blob = await res.blob();
+      const ext = (att.name.split('.').pop() || 'jpg').toLowerCase().replace(/jpeg/, 'jpg');
+      const file = new File([blob], att.name || `image.${ext}`, { type: blob.type || 'image/jpeg' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: att.name });
+        return;
+      }
+    } catch (_) {
+      // CORS ou canShare não suportado: compartilhar URL
+    }
+    try {
+      await navigator.share({ title: att.name, url: att.url });
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') window.open(att.url, '_blank');
+    }
   };
 
   const handleGallerySelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2875,29 +2902,41 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               const isLoadingThis = loadingAttachmentId === att.id;
                                               const src = thumbUrl(att);
                                               return (
-                                                <button
+                                                <div
                                                   key={att.id}
-                                                  type="button"
-                                                  onClick={() => !isLoadingThis && setPreviewImage(att.url)}
-                                                  className="aspect-square rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-900 relative group focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
+                                                  className="aspect-square rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-900 relative group"
                                                 >
-                                                  {isLoadingThis ? (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-zinc-200/80 dark:bg-zinc-800/80">
-                                                      <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
-                                                    </div>
-                                                  ) : (
-                                                    <>
-                                                      <img
-                                                        src={src || att.url}
-                                                        alt={att.name}
-                                                        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                                                      />
-                                                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-2">
-                                                        <ZoomIn className="w-6 h-6 text-white drop-shadow-lg" />
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => !isLoadingThis && setPreviewImage(att.url)}
+                                                    className="absolute inset-0 w-full h-full focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 rounded-xl"
+                                                  >
+                                                    {isLoadingThis ? (
+                                                      <div className="absolute inset-0 flex items-center justify-center bg-zinc-200/80 dark:bg-zinc-800/80">
+                                                        <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
                                                       </div>
-                                                    </>
-                                                  )}
-                                                </button>
+                                                    ) : (
+                                                      <>
+                                                        <img
+                                                          src={src || att.url}
+                                                          alt={att.name}
+                                                          className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                                        />
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between pb-2 px-2">
+                                                          <button
+                                                            type="button"
+                                                            onClick={(e) => handleShareImage(e, { url: att.url, name: att.name })}
+                                                            className="p-1.5 rounded-lg bg-black/40 hover:bg-black/60 text-white drop-shadow-lg"
+                                                            title="Compartilhar (ex.: WhatsApp)"
+                                                          >
+                                                            <Share2 className="w-5 h-5" />
+                                                          </button>
+                                                          <ZoomIn className="w-6 h-6 text-white drop-shadow-lg" />
+                                                        </div>
+                                                      </>
+                                                    )}
+                                                  </button>
+                                                </div>
                                               );
                                             })}
                                           </div>
