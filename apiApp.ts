@@ -156,6 +156,7 @@ export function createApiApp() {
         technicianAccessPatio: map.technician_access_patio !== "false",
         adminDisplayName: map.admin_display_name || "Rei do ABS",
         adminPhotoUrl: map.admin_photo_url || null,
+        vehicleDeletePassword: map.vehicle_delete_password || "",
       });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop-settings:", err);
@@ -168,7 +169,7 @@ export function createApiApp() {
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
-      const { patioLoginEnabled, patioPin, adminPassword, adminDisplayName, adminPhotoUrl, technicianAccessReception, technicianAccessAgenda, technicianAccessPatio } = req.body || {};
+      const { patioLoginEnabled, patioPin, adminPassword, adminDisplayName, adminPhotoUrl, technicianAccessReception, technicianAccessAgenda, technicianAccessPatio, vehicleDeletePassword } = req.body || {};
       const updates: { key: string; value: string; updated_at: string }[] = [];
       if (typeof patioLoginEnabled === "boolean") {
         updates.push({ key: "patio_login_enabled", value: String(patioLoginEnabled), updated_at: new Date().toISOString() });
@@ -194,6 +195,9 @@ export function createApiApp() {
       if (typeof technicianAccessPatio === "boolean") {
         updates.push({ key: "technician_access_patio", value: String(technicianAccessPatio), updated_at: new Date().toISOString() });
       }
+      if (typeof vehicleDeletePassword === "string") {
+        updates.push({ key: "vehicle_delete_password", value: vehicleDeletePassword.trim(), updated_at: new Date().toISOString() });
+      }
       if (updates.length === 0) {
         return res.status(400).json({ error: "Nada para atualizar." });
       }
@@ -211,7 +215,7 @@ export function createApiApp() {
         .from("workshop_settings")
         .select("key, value")
         .eq("workshop_id", WORKSHOP_ID)
-        .in("key", ["patio_login_enabled", "patio_pin", "technician_access_reception", "technician_access_agenda", "technician_access_patio", "admin_display_name", "admin_photo_url"]);
+        .in("key", ["patio_login_enabled", "patio_pin", "technician_access_reception", "technician_access_agenda", "technician_access_patio", "admin_display_name", "admin_photo_url", "vehicle_delete_password"]);
       const map = (data || []).reduce((acc: Record<string, string>, r: { key: string; value: string | null }) => {
         acc[r.key] = r.value ?? "";
         return acc;
@@ -224,6 +228,7 @@ export function createApiApp() {
         technicianAccessPatio: map.technician_access_patio !== "false",
         adminDisplayName: map.admin_display_name || "Rei do ABS",
         adminPhotoUrl: map.admin_photo_url || null,
+        vehicleDeletePassword: map.vehicle_delete_password || "",
       });
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/workshop-settings:", err);
@@ -301,6 +306,210 @@ export function createApiApp() {
       return res.status(201).json(data);
     } catch (err: any) {
       console.error("[API] Erro inesperado em POST /api/customers:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.patch("/api/customers/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error: "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const { id } = req.params;
+      const { name, cpf, phone, email, cep, address, addressNumber } = req.body;
+      const updates: Record<string, unknown> = {};
+      if (name !== undefined) updates.name = String(name).trim();
+      if (cpf !== undefined) updates.cpf = cpf == null || String(cpf).trim() === "" ? null : String(cpf).trim();
+      if (phone !== undefined) updates.phone = String(phone).trim();
+      if (email !== undefined) updates.email = email == null || String(email).trim() === "" ? null : String(email).trim();
+      if (cep !== undefined) updates.cep = cep == null || String(cep).trim() === "" ? null : String(cep).trim();
+      if (address !== undefined) updates.address = address == null || String(address).trim() === "" ? null : String(address).trim();
+      if (addressNumber !== undefined) updates.address_number = addressNumber == null || String(addressNumber).trim() === "" ? null : String(addressNumber).trim();
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: "Nada para atualizar." });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("customers")
+        .update(updates)
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("*")
+        .single();
+      if (error) {
+        console.error("[API] Erro ao atualizar cliente:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      if (!data) return res.status(404).json({ error: "Cliente não encontrado." });
+      return res.json(data);
+    } catch (err: any) {
+      console.error("[API] Erro inesperado em PATCH /api/customers/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // ----------------- AGENDA (workshop_appointments) -----------------
+  app.get("/api/appointments", async (_req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error: "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("workshop_appointments")
+        .select("*")
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("scheduled_date", { ascending: true })
+        .order("scheduled_time", { ascending: true });
+
+      if (error) {
+        console.error("[API] Erro ao listar agendamentos:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json(data ?? []);
+    } catch (err: any) {
+      console.error("[API] Erro inesperado em GET /api/appointments:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/appointments", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error: "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const {
+        title,
+        customerName,
+        phone,
+        email,
+        vehicleModel,
+        plate,
+        notes,
+        date,
+        time,
+        status,
+        trelloCardId,
+      } = req.body;
+
+      const scheduledDate = typeof date === "string" ? date.slice(0, 10) : null;
+      if (!scheduledDate) {
+        return res.status(400).json({ error: "Campo obrigatório: date (YYYY-MM-DD)." });
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("workshop_appointments")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          title: title ?? "",
+          customer_name: customerName ?? "",
+          phone: phone ?? null,
+          email: email ?? null,
+          vehicle_model: vehicleModel ?? "",
+          plate: (plate ?? "").toString().toUpperCase(),
+          notes: notes ?? null,
+          scheduled_date: scheduledDate,
+          scheduled_time: (time ?? "09:00").toString(),
+          status: status ?? "scheduled",
+          trello_card_id: trelloCardId ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        console.error("[API] Erro ao criar agendamento:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(201).json(data);
+    } catch (err: any) {
+      console.error("[API] Erro inesperado em POST /api/appointments:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.patch("/api/appointments/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error: "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const { id } = req.params;
+      const {
+        title,
+        customerName,
+        phone,
+        email,
+        vehicleModel,
+        plate,
+        notes,
+        date,
+        time,
+        status,
+        trelloCardId,
+      } = req.body;
+
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (title !== undefined) updates.title = title;
+      if (customerName !== undefined) updates.customer_name = customerName;
+      if (phone !== undefined) updates.phone = phone;
+      if (email !== undefined) updates.email = email;
+      if (vehicleModel !== undefined) updates.vehicle_model = vehicleModel;
+      if (plate !== undefined) updates.plate = String(plate).toUpperCase();
+      if (notes !== undefined) updates.notes = notes;
+      if (date !== undefined) updates.scheduled_date = String(date).slice(0, 10);
+      if (time !== undefined) updates.scheduled_time = String(time);
+      if (status !== undefined) updates.status = status;
+      if (trelloCardId !== undefined) updates.trello_card_id = trelloCardId;
+
+      const { data, error } = await supabaseAdmin
+        .from("workshop_appointments")
+        .update(updates)
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("*")
+        .single();
+
+      if (error) {
+        console.error("[API] Erro ao atualizar agendamento:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      if (!data) {
+        return res.status(404).json({ error: "Agendamento não encontrado." });
+      }
+      return res.json(data);
+    } catch (err: any) {
+      console.error("[API] Erro inesperado em PATCH /api/appointments/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.delete("/api/appointments/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error: "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const { id } = req.params;
+      const { error } = await supabaseAdmin
+        .from("workshop_appointments")
+        .delete()
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID);
+
+      if (error) {
+        console.error("[API] Erro ao excluir agendamento:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] Erro inesperado em DELETE /api/appointments/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
@@ -1707,5 +1916,44 @@ export function createApiApp() {
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
+
+  // Excluir veículo do sistema (arquivar como CANCELLED) — exige senha configurada em "Alterar senhas"
+  app.post("/api/service-orders/:id/delete-with-password", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { id } = req.params;
+      const { password } = req.body || {};
+      const expected = await supabaseAdmin
+        .from("workshop_settings")
+        .select("value")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("key", "vehicle_delete_password")
+        .maybeSingle();
+      const expectedPassword = expected?.data?.value?.trim() ?? "";
+      if (!expectedPassword) {
+        return res.status(400).json({ error: "Configure a senha para excluir veículos em Alterar senhas (página inicial)." });
+      }
+      if (String(password).trim() !== expectedPassword) {
+        return res.status(401).json({ error: "Senha incorreta." });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("service_orders")
+        .update({ status: "CANCELLED", updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("id")
+        .single();
+      if (error || !data) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/service-orders/:id/delete-with-password:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   return app;
 }

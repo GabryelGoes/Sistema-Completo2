@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   ClipboardList,
   Calendar,
-  LayoutGrid,
   Settings,
   ChevronRight,
   Wrench,
@@ -20,7 +19,7 @@ import { ChangePasswordsModal } from '../ChangePasswordsModal';
 import { TechnicianProfileModal } from '../TechnicianProfileModal';
 import { AdminProfileModal } from '../AdminProfileModal';
 
-export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'external-patio' | 'settings';
+export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'settings';
 
 interface HomeViewProps {
   onOpenApp: (app: HomeAppId) => void;
@@ -40,7 +39,6 @@ const APPS: { id: HomeAppId; label: string; icon: React.ReactNode; accent: strin
   { id: 'reception', label: 'Recepção', icon: <ClipboardList className="w-6 h-6" strokeWidth={2} />, accent: 'text-amber-500' },
   { id: 'agenda', label: 'Agenda', icon: <Calendar className="w-6 h-6" strokeWidth={2} />, accent: 'text-blue-500' },
   { id: 'patio', label: 'Pátio', icon: <PatioCarIcon className="w-6 h-6" strokeWidth={2} />, accent: 'text-emerald-500' },
-  { id: 'external-patio', label: 'Visão do Pátio', icon: <LayoutGrid className="w-6 h-6" strokeWidth={2} />, accent: 'text-violet-500' },
   { id: 'settings', label: 'Configurações', icon: <Settings className="w-6 h-6" strokeWidth={2} />, accent: 'text-zinc-500 dark:text-zinc-400' },
 ];
 

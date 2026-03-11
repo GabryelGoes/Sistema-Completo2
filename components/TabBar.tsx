@@ -2,7 +2,7 @@ import React from 'react';
 import { Home, FileText, Calendar } from 'lucide-react';
 import { PatioCarIcon } from './ui/PatioCarIcon';
 
-export type TabId = 'home' | 'reception' | 'patio' | 'agenda' | 'external-patio';
+export type TabId = 'home' | 'reception' | 'patio' | 'agenda';
 
 interface TabBarProps {
   currentTab: TabId;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, KeyRound, Loader2, Check } from 'lucide-react';
+import { X, Lock, KeyRound, Loader2, Check, Trash2 } from 'lucide-react';
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
 
 interface ChangePasswordsModalProps {
@@ -15,6 +15,9 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [savingAdmin, setSavingAdmin] = useState(false);
   const [savingPin, setSavingPin] = useState(false);
+  const [vehicleDeletePassword, setVehicleDeletePassword] = useState('');
+  const [vehicleDeleteConfirm, setVehicleDeleteConfirm] = useState('');
+  const [savingVehicleDelete, setSavingVehicleDelete] = useState(false);
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   useEffect(() => {
@@ -69,6 +72,30 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
       setMessage({ type: 'err', text: e instanceof Error ? e.message : 'Erro ao salvar.' });
     } finally {
       setSavingPin(false);
+    }
+  };
+
+  const handleSaveVehicleDelete = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+    if (vehicleDeletePassword.trim().length < 4) {
+      setMessage({ type: 'err', text: 'A senha deve ter pelo menos 4 caracteres.' });
+      return;
+    }
+    if (vehicleDeletePassword !== vehicleDeleteConfirm) {
+      setMessage({ type: 'err', text: 'As senhas não coincidem.' });
+      return;
+    }
+    setSavingVehicleDelete(true);
+    try {
+      await updateWorkshopSettings({ vehicleDeletePassword: vehicleDeletePassword.trim() });
+      setMessage({ type: 'ok', text: 'Senha para excluir veículos salva!' });
+      setVehicleDeletePassword('');
+      setVehicleDeleteConfirm('');
+    } catch (e) {
+      setMessage({ type: 'err', text: e instanceof Error ? e.message : 'Erro ao salvar.' });
+    } finally {
+      setSavingVehicleDelete(false);
     }
   };
 
@@ -177,6 +204,43 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                 </button>
               </form>
             )}
+          </section>
+
+          {/* Senha para excluir veículos */}
+          <section className="bg-zinc-100/80 dark:bg-white/[0.06] p-4 rounded-2xl border border-zinc-200/60 dark:border-white/[0.08]">
+            <div className="flex items-center gap-2 mb-3">
+              <Trash2 className="w-5 h-5 text-red-500" />
+              <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Senha para excluir veículos
+              </h3>
+            </div>
+            <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
+              Exigida no modal do veículo (Pátio) ao excluir um carro do sistema (arquiva a OS como cancelada).
+            </p>
+            <form onSubmit={handleSaveVehicleDelete} className="space-y-3">
+              <input
+                type="password"
+                value={vehicleDeletePassword}
+                onChange={(e) => setVehicleDeletePassword(e.target.value)}
+                placeholder="Nova senha"
+                className="w-full px-4 py-3 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500/40 text-[15px]"
+              />
+              <input
+                type="password"
+                value={vehicleDeleteConfirm}
+                onChange={(e) => setVehicleDeleteConfirm(e.target.value)}
+                placeholder="Confirmar senha"
+                className="w-full px-4 py-3 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500/40 text-[15px]"
+              />
+              <button
+                type="submit"
+                disabled={savingVehicleDelete || !vehicleDeletePassword.trim() || vehicleDeletePassword !== vehicleDeleteConfirm}
+                className="w-full py-3 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-semibold text-[15px] flex items-center justify-center gap-2"
+              >
+                {savingVehicleDelete ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                Salvar senha para excluir veículos
+              </button>
+            </form>
           </section>
         </div>
       </div>

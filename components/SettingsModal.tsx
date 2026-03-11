@@ -1,12 +1,9 @@
 import React from 'react';
 import { X, Settings } from 'lucide-react';
-import { TrelloConfig } from '../types';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  config: TrelloConfig;
-  onSave: (config: TrelloConfig) => void;
   theme: 'dark' | 'light';
   onThemeChange: (theme: 'dark' | 'light') => void;
   effectsEnabled: boolean;

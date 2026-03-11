@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LogOut } from 'lucide-react';
-import { TrelloConfig, Customer, Appointment } from './types';
+import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { TabBar, type TabId } from './components/TabBar';
 import { NotificationCenter } from './components/NotificationCenter';
@@ -10,20 +10,11 @@ import type { Notification } from './services/apiService';
 import { ReceptionView } from './components/views/ReceptionView';
 import { PatioView } from './components/views/PatioView';
 import { AgendaView } from './components/views/AgendaView';
-import { ExternalPatioView } from './components/views/ExternalPatioView';
 import { HomeView, type HomeAppId } from './components/views/HomeView';
 import { LoginView, getStoredAuth, setStoredAuth, clearStoredAuth } from './components/views/LoginView';
 import { useOrientation } from './components/views/useOrientation';
 import type { AuthSession } from './services/apiService';
 import { getWorkshopSettings, getWorkshopTechnicians } from './services/apiService';
-
-// --- Trello: use variáveis de ambiente (arquivo .env) — nunca coloque token no código ---
-const getTrelloEnv = () => ({
-  apiKey: import.meta.env.VITE_TRELLO_API_KEY ?? '',
-  token: import.meta.env.VITE_TRELLO_TOKEN ?? '',
-  listId: import.meta.env.VITE_TRELLO_LIST_ID ?? '',
-  agendamentoListId: import.meta.env.VITE_TRELLO_AGENDAMENTO_LIST_ID ?? '',
-});
 
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
@@ -34,14 +25,6 @@ export default function App() {
     }
   });
   const [currentTab, setCurrentTab] = useState<TabId>('home');
-
-  const trelloEnv = getTrelloEnv();
-  const [trelloConfig, setTrelloConfig] = useState<TrelloConfig>({
-    apiKey: trelloEnv.apiKey,
-    token: trelloEnv.token,
-    listId: trelloEnv.listId,
-    agendamentoListId: trelloEnv.agendamentoListId || undefined,
-  });
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [commentPopUpNotification, setCommentPopUpNotification] = useState<Notification | null>(null);
@@ -73,53 +56,11 @@ export default function App() {
   const [technicianAllowedTabs, setTechnicianAllowedTabs] = useState<TabId[]>(['patio']);
   const [technicianTab, setTechnicianTab] = useState<TabId>('patio');
   
-  // Load appointments from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('rei_do_abs_agenda');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        const withDates = parsed.map((app: any) => ({
-          ...app,
-          date: new Date(app.date)
-        }));
-        setAppointments(withDates);
-      } catch (e) {
-        console.error("Failed to load appointments", e);
-      }
-    }
-  }, []);
+  // Agenda é carregada pela AgendaView via API (Supabase); não usa mais localStorage.
 
-  // Save appointments to localStorage
+  // Load theme and preferences on mount
   useEffect(() => {
-    localStorage.setItem('rei_do_abs_agenda', JSON.stringify(appointments));
-  }, [appointments]);
-
-  // Load config and theme on mount
-  useEffect(() => {
-    const savedConfig = localStorage.getItem('trello_config');
     const savedTheme = localStorage.getItem('app_theme') as 'dark' | 'light';
-    
-    if (savedConfig) {
-      const parsed = JSON.parse(savedConfig);
-      setTrelloConfig(prev => ({ 
-        ...prev, 
-        ...parsed,
-        // Garante que o ID fixo de agendamento seja usado se não houver um salvo
-        agendamentoListId: parsed.agendamentoListId || trelloEnv.agendamentoListId
-      }));
-    } else if (trelloEnv.apiKey && trelloEnv.token && trelloEnv.listId) {
-      setTrelloConfig(prev => ({
-        ...prev,
-        apiKey: trelloEnv.apiKey,
-        token: trelloEnv.token,
-        listId: trelloEnv.listId,
-        agendamentoListId: trelloEnv.agendamentoListId || undefined,
-      }));
-    } else {
-      setIsSettingsOpen(true);
-    }
-
     if (savedTheme) {
       setTheme(savedTheme);
     } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
@@ -152,12 +93,7 @@ export default function App() {
     localStorage.setItem('app_cinematographic_mode', String(cinematographicMode));
   }, [cinematographicMode]);
 
-  const handleSaveSettings = (newConfig: TrelloConfig) => {
-    setTrelloConfig(newConfig);
-    localStorage.setItem('trello_config', JSON.stringify(newConfig));
-  };
-
-  // Função chamada pelo Pátio (ou Recepção) para usar dados de um card arquivado
+  // Função chamada pelo Pátio para preencher a Recepção com dados de um veículo
   const handleUseCustomerData = (data: Customer) => {
     setPrefillData(data);
     setCurrentTab('reception');
@@ -278,23 +214,17 @@ export default function App() {
           )}
           {technicianTab === 'reception' && (
             <ReceptionView
-              trelloConfig={trelloConfig}
               initialData={prefillData}
               onDataLoaded={() => setPrefillData(null)}
               blurPlates={cinematographicMode}
-              onAppointmentConverted={(cardId) => {
-                setAppointments((prev) => prev.filter((app) => app.trelloCardId !== cardId));
-              }}
             />
           )}
           {technicianTab === 'agenda' && (
-<AgendaView 
-            trelloConfig={trelloConfig}
-            onChegouAoPatio={handleUseCustomerData}
-            appointments={appointments}
-            setAppointments={setAppointments}
-            blurPlates={cinematographicMode}
-          />
+            <AgendaView
+              appointments={appointments}
+              setAppointments={setAppointments}
+              blurPlates={cinematographicMode}
+            />
           )}
           {technicianTab === 'patio' && (
             <PatioView
@@ -355,21 +285,15 @@ export default function App() {
         )}
 
         {currentTab === 'reception' && (
-          <ReceptionView 
-            trelloConfig={trelloConfig} 
+          <ReceptionView
             initialData={prefillData}
             onDataLoaded={() => setPrefillData(null)}
             blurPlates={cinematographicMode}
-            onAppointmentConverted={(cardId) => {
-              setAppointments(prev => prev.filter(app => app.trelloCardId !== cardId));
-            }}
           />
         )}
 
         {currentTab === 'agenda' && (
-          <AgendaView 
-            trelloConfig={trelloConfig}
-            onChegouAoPatio={handleUseCustomerData}
+          <AgendaView
             appointments={appointments}
             setAppointments={setAppointments}
             blurPlates={cinematographicMode}
@@ -389,24 +313,17 @@ export default function App() {
           />
         )}
 
-        {/* External View is rendered conditionally, overlaying everything if active via its own z-index, 
-            but logically we can just render it here. */}
-        {currentTab === 'external-patio' && (
-          <ExternalPatioView onClose={() => setCurrentTab('patio')} />
-        )}
       </main>
 
-      {/* Navigation - Oculta na home e na visão externa (tela cheia) */}
-      {currentTab !== 'home' && currentTab !== 'external-patio' && (
+      {/* Navigation - Oculta na home */}
+      {currentTab !== 'home' && (
         <TabBar currentTab={currentTab} onTabChange={setCurrentTab} />
       )}
 
       {/* Global Modals */}
-      <SettingsModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
-        config={trelloConfig}
-        onSave={handleSaveSettings}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
         theme={theme}
         onThemeChange={setTheme}
         effectsEnabled={effectsEnabled}

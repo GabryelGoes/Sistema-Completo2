@@ -1,4 +1,5 @@
 import { Customer } from "../types";
+import type { Appointment } from "../types";
 import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
 
 const API_BASE = "/api";
@@ -63,6 +64,142 @@ export interface ServiceOrderDetail {
   customers: ApiCustomer | null;
 }
 
+/** Linha da tabela workshop_appointments (API) */
+interface ApiAppointmentRow {
+  id: string;
+  workshop_id: string;
+  title: string;
+  customer_name: string;
+  phone: string | null;
+  email: string | null;
+  vehicle_model: string;
+  plate: string;
+  notes: string | null;
+  scheduled_date: string;
+  scheduled_time: string;
+  status: string;
+  trello_card_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function mapAppointmentRowToAppointment(row: ApiAppointmentRow): Appointment {
+  const date = new Date(row.scheduled_date + "T00:00:00");
+  return {
+    id: row.id,
+    title: row.title,
+    customerName: row.customer_name,
+    phone: row.phone ?? undefined,
+    email: row.email ?? undefined,
+    vehicleModel: row.vehicle_model,
+    plate: row.plate,
+    date,
+    time: row.scheduled_time,
+    notes: row.notes ?? undefined,
+    status: row.status as Appointment["status"],
+    trelloCardId: row.trello_card_id ?? undefined,
+  };
+}
+
+export async function getAppointments(): Promise<Appointment[]> {
+  const response = await fetch(`${API_BASE}/appointments`);
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Falha ao listar agendamentos (status ${response.status})`);
+  }
+  const rows: ApiAppointmentRow[] = await response.json();
+  return rows.map(mapAppointmentRowToAppointment);
+}
+
+export async function createAppointment(appointment: {
+  title: string;
+  customerName: string;
+  phone?: string;
+  email?: string;
+  vehicleModel: string;
+  plate: string;
+  notes?: string;
+  date: Date;
+  time: string;
+  status?: Appointment["status"];
+  trelloCardId?: string;
+}): Promise<Appointment> {
+  const dateStr = appointment.date.toISOString().slice(0, 10);
+  const response = await fetch(`${API_BASE}/appointments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: appointment.title,
+      customerName: appointment.customerName,
+      phone: appointment.phone ?? null,
+      email: appointment.email ?? null,
+      vehicleModel: appointment.vehicleModel,
+      plate: appointment.plate,
+      notes: appointment.notes ?? null,
+      date: dateStr,
+      time: appointment.time,
+      status: appointment.status ?? "scheduled",
+      trelloCardId: appointment.trelloCardId ?? null,
+    }),
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Falha ao criar agendamento (status ${response.status})`);
+  }
+  const row: ApiAppointmentRow = await response.json();
+  return mapAppointmentRowToAppointment(row);
+}
+
+export async function updateAppointment(
+  id: string,
+  appointment: {
+    title?: string;
+    customerName?: string;
+    phone?: string;
+    email?: string;
+    vehicleModel?: string;
+    plate?: string;
+    notes?: string;
+    date?: Date;
+    time?: string;
+    status?: Appointment["status"];
+    trelloCardId?: string;
+  }
+): Promise<Appointment> {
+  const body: Record<string, unknown> = {};
+  if (appointment.title !== undefined) body.title = appointment.title;
+  if (appointment.customerName !== undefined) body.customerName = appointment.customerName;
+  if (appointment.phone !== undefined) body.phone = appointment.phone;
+  if (appointment.email !== undefined) body.email = appointment.email;
+  if (appointment.vehicleModel !== undefined) body.vehicleModel = appointment.vehicleModel;
+  if (appointment.plate !== undefined) body.plate = appointment.plate;
+  if (appointment.notes !== undefined) body.notes = appointment.notes;
+  if (appointment.date !== undefined) body.date = appointment.date.toISOString().slice(0, 10);
+  if (appointment.time !== undefined) body.time = appointment.time;
+  if (appointment.status !== undefined) body.status = appointment.status;
+  if (appointment.trelloCardId !== undefined) body.trelloCardId = appointment.trelloCardId;
+
+  const response = await fetch(`${API_BASE}/appointments/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Falha ao atualizar agendamento (status ${response.status})`);
+  }
+  const row: ApiAppointmentRow = await response.json();
+  return mapAppointmentRowToAppointment(row);
+}
+
+export async function deleteAppointment(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/appointments/${id}`, { method: "DELETE" });
+  if (!response.ok && response.status !== 204) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Falha ao excluir agendamento (status ${response.status})`);
+  }
+}
+
 export async function createCustomer(customer: Customer): Promise<ApiCustomer> {
   const response = await fetch(`${API_BASE}/customers`, {
     method: "POST",
@@ -87,6 +224,30 @@ export async function createCustomer(customer: Customer): Promise<ApiCustomer> {
     );
   }
 
+  return response.json();
+}
+
+export async function updateCustomer(
+  id: string,
+  data: { name?: string; cpf?: string | null; phone?: string; email?: string | null; cep?: string | null; address?: string | null; addressNumber?: string | null }
+): Promise<ApiCustomer> {
+  const body: Record<string, unknown> = {};
+  if (data.name !== undefined) body.name = data.name;
+  if (data.cpf !== undefined) body.cpf = data.cpf;
+  if (data.phone !== undefined) body.phone = data.phone;
+  if (data.email !== undefined) body.email = data.email;
+  if (data.cep !== undefined) body.cep = data.cep;
+  if (data.address !== undefined) body.address = data.address;
+  if (data.addressNumber !== undefined) body.addressNumber = data.addressNumber;
+  const response = await fetch(`${API_BASE}/customers/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar cliente (${response.status})`);
+  }
   return response.json();
 }
 
@@ -867,6 +1028,7 @@ export interface WorkshopSettings {
   technicianAccessPatio: boolean;
   adminDisplayName?: string;
   adminPhotoUrl?: string | null;
+  vehicleDeletePassword?: string;
 }
 
 export async function getWorkshopSettings(): Promise<WorkshopSettings> {
@@ -879,7 +1041,7 @@ export async function getWorkshopSettings(): Promise<WorkshopSettings> {
 }
 
 export async function updateWorkshopSettings(
-  updates: Partial<WorkshopSettings> & { adminPassword?: string; adminDisplayName?: string; adminPhotoUrl?: string | null }
+  updates: Partial<WorkshopSettings> & { adminPassword?: string; adminDisplayName?: string; adminPhotoUrl?: string | null; vehicleDeletePassword?: string }
 ): Promise<WorkshopSettings> {
   const response = await fetch(`${API_BASE}/workshop-settings`, {
     method: "PUT",
@@ -891,5 +1053,18 @@ export async function updateWorkshopSettings(
     throw new Error(err.error || "Falha ao salvar configurações.");
   }
   return response.json();
+}
+
+/** Exclui o veículo do sistema (marca OS como CANCELLED). Exige a senha configurada em Alterar senhas. */
+export async function deleteServiceOrderWithPassword(serviceOrderId: string, password: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/delete-with-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: String(password).trim() }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao excluir veículo.");
+  }
 }
 

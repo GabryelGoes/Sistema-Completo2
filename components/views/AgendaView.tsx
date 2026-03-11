@@ -2,23 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { format, startOfWeek, addDays, startOfMonth, endOfMonth, endOfWeek, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin, User, Car, CheckCircle2, AlertCircle, X, CalendarDays, List, RefreshCw, ArrowRight, FileText, Edit2, ExternalLink, Trash2, Phone, Mail } from 'lucide-react';
-import { TrelloConfig, Customer, Appointment } from '../../types';
-import { createCard, archiveCard, getCardsFromList, parseAppointmentFromCard, updateCardFull } from '../../services/trelloService';
+import { Customer, Appointment } from '../../types';
+import { getAppointments, createAppointment, updateAppointment, deleteAppointment } from '../../services/apiService';
+import { ReceptionModal } from '../ReceptionModal';
 
 interface AgendaViewProps {
-  trelloConfig: TrelloConfig;
-  onChegouAoPatio: (data: Customer) => void;
   appointments: Appointment[];
   setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
-  /** Modo cinematográfico: embaçar placas exibidas (para gravar tela / redes sociais). */
   blurPlates?: boolean;
 }
 
-export const AgendaView: React.FC<AgendaViewProps> = ({ trelloConfig, onChegouAoPatio, appointments, setAppointments, blurPlates = false }) => {
+export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppointments, blurPlates = false }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [receptionModalData, setReceptionModalData] = useState<Customer | null>(null);
+  /** Id do agendamento que abriu o modal "Chegou ao Pátio"; ao criar a ficha, este agendamento é removido da agenda. */
+  const [receptionSourceAppointmentId, setReceptionSourceAppointmentId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [newAppointment, setNewAppointment] = useState<Partial<Appointment>>({
     date: new Date(),
@@ -59,14 +60,13 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ trelloConfig, onChegouAo
   };
 
   const fetchAppointments = async () => {
-    if (!trelloConfig.agendamentoListId) return;
     setIsLoading(true);
     try {
-      const cards = await getCardsFromList(trelloConfig, trelloConfig.agendamentoListId);
-      const mapped = cards.map(parseAppointmentFromCard);
-      setAppointments(mapped);
+      const list = await getAppointments();
+      setAppointments(list);
     } catch (err) {
-      console.error("Failed to fetch appointments from Trello", err);
+      console.error("Falha ao carregar agendamentos da API", err);
+      setAppointments([]);
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +74,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ trelloConfig, onChegouAo
 
   useEffect(() => {
     fetchAppointments();
-  }, [trelloConfig.agendamentoListId]);
+  }, []);
 
   // Load appointments from localStorage on mount (Removed as it's now in App.tsx)
   // Save appointments to localStorage whenever they change (Removed as it's now in App.tsx)
@@ -101,66 +101,47 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ trelloConfig, onChegouAo
 
   const handleAddAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Removed strict required checks to allow creating appointments with missing data
-    // Validation removed as per user request to allow saving with empty fields
-    
-    const appointment: Appointment = {
-      id: isEditing ? (newAppointment.id || Date.now().toString()) : Date.now().toString(),
-      title: newAppointment.title || 'Sem título',
-      customerName: newAppointment.customerName || 'Cliente não informado',
-      phone: newAppointment.phone || '',
-      email: newAppointment.email || '',
-      vehicleModel: newAppointment.vehicleModel || '',
-      plate: newAppointment.plate || '',
-      date: newAppointment.date || selectedDate,
-      time: newAppointment.time || '09:00',
-      notes: newAppointment.notes || '',
-      status: 'scheduled',
-      trelloCardId: newAppointment.trelloCardId
-    };
+    const date = newAppointment.date || selectedDate;
+    const time = newAppointment.time || '09:00';
 
-    // Trello Integration
-    if (trelloConfig.agendamentoListId) {
-      try {
-        const [hours, minutes] = appointment.time.split(':').map(Number);
-        const due = new Date(appointment.date);
-        due.setHours(hours, minutes, 0, 0);
-
-        if (isEditing && appointment.trelloCardId) {
-          // Update existing card
-          await updateCardFull(trelloConfig, appointment.trelloCardId, {
-            name: appointment.customerName,
-            phone: appointment.phone || '',
-            email: appointment.email || '',
-            cpf: '',
-            cep: '',
-            address: '',
-            addressNumber: '',
-            vehicleModel: appointment.vehicleModel,
-            plate: appointment.plate,
-            issueDescription: `Agendamento: ${appointment.title}\nNotas: ${appointment.notes}`
-          }, trelloConfig.agendamentoListId, due.toISOString());
-        } else {
-          // Create new card
-          await createCard(trelloConfig, {
-            name: appointment.customerName,
-            phone: appointment.phone || '',
-            email: appointment.email || '',
-            cpf: '',
-            cep: '',
-            address: '',
-            addressNumber: '',
-            vehicleModel: appointment.vehicleModel,
-            plate: appointment.plate,
-            issueDescription: `Agendamento: ${appointment.title}\nNotas: ${appointment.notes}`
-          }, trelloConfig.agendamentoListId, due.toISOString());
-        }
-        
-        await fetchAppointments();
-      } catch (err) {
-        console.error("Failed to sync with Trello", err);
-        alert("Erro ao sincronizar com o Trello.");
+    setIsLoading(true);
+    try {
+      if (isEditing && newAppointment.id) {
+        await updateAppointment(newAppointment.id, {
+          title: newAppointment.title || 'Sem título',
+          customerName: newAppointment.customerName || 'Cliente não informado',
+          phone: newAppointment.phone || undefined,
+          email: newAppointment.email || undefined,
+          vehicleModel: newAppointment.vehicleModel || '',
+          plate: newAppointment.plate || '',
+          notes: newAppointment.notes || undefined,
+          date,
+          time,
+          status: 'scheduled',
+          trelloCardId: newAppointment.trelloCardId,
+        });
+      } else {
+        await createAppointment({
+          title: newAppointment.title || 'Sem título',
+          customerName: newAppointment.customerName || 'Cliente não informado',
+          phone: newAppointment.phone || undefined,
+          email: newAppointment.email || undefined,
+          vehicleModel: newAppointment.vehicleModel || '',
+          plate: newAppointment.plate || '',
+          notes: newAppointment.notes || undefined,
+          date,
+          time,
+          status: 'scheduled',
+          trelloCardId: newAppointment.trelloCardId,
+        });
       }
+
+      await fetchAppointments();
+    } catch (err) {
+      console.error("Erro ao salvar agendamento", err);
+      alert(err instanceof Error ? err.message : "Erro ao salvar agendamento.");
+    } finally {
+      setIsLoading(false);
     }
 
     setIsModalOpen(false);
@@ -180,38 +161,33 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ trelloConfig, onChegouAo
   };
 
   const handleDeleteAppointment = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este agendamento?')) {
-      const appToDelete = appointments.find(app => app.id === id);
-      if (appToDelete?.trelloCardId) {
-        try {
-          await archiveCard(trelloConfig, appToDelete.trelloCardId);
-          await fetchAppointments(); // Sync after delete
-        } catch (err) {
-          console.error("Failed to archive Trello card", err);
-          alert("Erro ao excluir agendamento no Trello.");
-        }
-      } else {
-        // If no trelloCardId, just remove locally (shouldn't happen with full sync)
-        setAppointments(prev => prev.filter(app => app.id !== id));
-      }
+    if (!window.confirm('Tem certeza que deseja excluir este agendamento?')) return;
+    try {
+      await deleteAppointment(id);
+      await fetchAppointments();
+    } catch (err) {
+      console.error("Erro ao excluir agendamento", err);
+      alert(err instanceof Error ? err.message : "Erro ao excluir agendamento.");
     }
   };
 
   const handleChegouAoPatio = (app: Appointment) => {
     const customerData: Customer = {
-      name: app.customerName,
-      phone: '',
+      name: app.customerName ?? '',
+      phone: app.phone ?? '',
+      email: app.email ?? '',
       cpf: '',
       cep: '',
       address: '',
       addressNumber: '',
-      vehicleModel: app.vehicleModel,
-      plate: app.plate,
-      issueDescription: `Agendamento: ${app.title}\nNotas: ${app.notes}`,
-      trelloCardId: app.trelloCardId
+      vehicleModel: app.vehicleModel ?? '',
+      plate: app.plate ?? '',
+      mileageKm: '',
+      issueDescription: [app.title, app.notes].filter(Boolean).join('\n') || 'Agendamento',
+      trelloCardId: app.trelloCardId,
     };
-    
-    onChegouAoPatio(customerData);
+    setReceptionModalData(customerData);
+    setReceptionSourceAppointmentId(app.id);
   };
 
   const handleNewAppointment = (date?: Date) => {
@@ -272,7 +248,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ trelloConfig, onChegouAo
             onClick={fetchAppointments}
             disabled={isLoading}
             className="p-2 bg-zinc-100 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-brand-yellow transition-colors"
-            title="Sincronizar com Trello"
+            title="Atualizar lista"
           >
             <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
@@ -402,7 +378,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ trelloConfig, onChegouAo
                 <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
                         <CalendarDays className="w-5 h-5 text-brand-yellow" />
-                        Agendamentos Locais
+                        Agendamentos
                     </h3>
                     <span className="text-zinc-500 dark:text-zinc-400 text-sm font-mono">
                         {dayAppointments.length} compromissos
@@ -504,6 +480,25 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ trelloConfig, onChegouAo
       {renderDays()}
       {renderCells()}
       {renderSelectedDayDetails()}
+
+      {/* Modal Chegou ao Pátio — recepção preenchida com dados do agendamento */}
+      <ReceptionModal
+        isOpen={receptionModalData !== null}
+        initialData={receptionModalData}
+        blurPlates={blurPlates}
+        onClose={() => { setReceptionModalData(null); setReceptionSourceAppointmentId(null); }}
+        onSuccess={async () => {
+          if (receptionSourceAppointmentId) {
+            try {
+              await deleteAppointment(receptionSourceAppointmentId);
+            } catch (err) {
+              console.error("Erro ao remover agendamento após criar ficha", err);
+            }
+            setReceptionSourceAppointmentId(null);
+          }
+          await fetchAppointments();
+        }}
+      />
 
       {/* Modal Novo Agendamento */}
       {isModalOpen && (

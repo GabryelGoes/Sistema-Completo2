@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, User, Wrench, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, Link, Upload, FilePlus, ArchiveRestore, Printer } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, User, Wrench, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, Link, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin } from 'lucide-react';
 import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer } from '../../types';
 import {
   getServiceOrders,
@@ -22,11 +22,14 @@ import {
   addServiceOrderComment,
   getWorkshopServices,
   getWorkshopTechnicians,
+  updateCustomer,
+  deleteServiceOrderWithPassword,
   ServiceOrderListItem,
   type WorkshopService,
   type WorkshopTechnician,
   type ServiceOrderUpdateActor,
 } from '../../services/apiService';
+import type { ServiceOrderDetail } from '../../services/apiService';
 import { SERVICE_ORDER_STAGES, getStageStyle, type ServiceOrderStatus } from '../../constants/serviceOrderStages';
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
 import { PatioCarIcon } from '../ui/PatioCarIcon';
@@ -315,6 +318,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [cards, setCards] = useState<TrelloCard[]>([]);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const commentsListRef = useRef<HTMLDivElement>(null);
+  const customerDataSectionRef = useRef<HTMLDivElement>(null);
   const descriptionSectionRef = useRef<HTMLDivElement>(null);
   const budgetsSectionRef = useRef<HTMLDivElement>(null);
   const openServiceOrderHandledRef = useRef(false);
@@ -324,8 +328,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
   
   // Card em Visualização DETALHADA (Full Screen Modal)
   const [selectedCard, setSelectedCard] = useState<TrelloCard | null>(null);
+  const [serviceOrderDetail, setServiceOrderDetail] = useState<ServiceOrderDetail | null>(null);
   const [cardDetails, setCardDetails] = useState<{ actions: TrelloAction[], attachments: TrelloAttachment[] } | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [isEditFichaOpen, setIsEditFichaOpen] = useState(false);
+  const [editFichaSaving, setEditFichaSaving] = useState(false);
+  const [editFichaForm, setEditFichaForm] = useState<{
+    name: string; cpf: string; phone: string; email: string; cep: string; address: string; addressNumber: string;
+    vehicleModel: string; plate: string; mileageKm: string;
+  }>({ name: '', cpf: '', phone: '', email: '', cep: '', address: '', addressNumber: '', vehicleModel: '', plate: '', mileageKm: '' });
   const [newComment, setNewComment] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
 
@@ -388,6 +399,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historySearchPlate, setHistorySearchPlate] = useState('');
   const [archivedCards, setArchivedCards] = useState<TrelloCard[]>([]);
+  /** Últimos veículos arquivados (carregados ao abrir o modal); usados quando a busca não retorna resultados. */
+  const [recentArchivedCards, setRecentArchivedCards] = useState<TrelloCard[]>([]);
+  const [historyShowingFallback, setHistoryShowingFallback] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [selectedHistoryCard, setSelectedHistoryCard] = useState<TrelloCard | null>(null);
   const [loadingHistoryDetails, setLoadingHistoryDetails] = useState(false);
@@ -424,6 +438,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   // Modal editar nome do veículo / placa
   const [isVehicleEditOpen, setIsVehicleEditOpen] = useState(false);
+  const [isDeleteVehicleOpen, setIsDeleteVehicleOpen] = useState(false);
+  const [deleteVehiclePassword, setDeleteVehiclePassword] = useState('');
+  const [deleteVehicleSaving, setDeleteVehicleSaving] = useState(false);
+  const [deleteVehicleError, setDeleteVehicleError] = useState<string | null>(null);
   const [vehicleEditModel, setVehicleEditModel] = useState('');
   const [vehicleEditPlate, setVehicleEditPlate] = useState('');
   const [savingVehicleEdit, setSavingVehicleEdit] = useState(false);
@@ -539,13 +557,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setIsEditingDesc(false);
       setLoadingDetails(true);
       setCardDetails(null);
+      setServiceOrderDetail(null);
       Promise.all([
         getServiceOrderById(selectedCard.id),
         getServiceOrderPhotos(selectedCard.id),
         getServiceOrderBudgets(selectedCard.id),
         getServiceOrderComments(selectedCard.id),
       ])
-        .then(([_order, photos, budgets, comments]) => {
+        .then(([order, photos, budgets, comments]) => {
+          setServiceOrderDetail(order);
           setCardDetails({
             actions: (comments ?? []).map(commentToAction),
             attachments: photos.map((p, i) => ({
@@ -561,6 +581,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         .catch(err => console.error("Erro ao carregar detalhes", err))
         .finally(() => setLoadingDetails(false));
     } else {
+      setServiceOrderDetail(null);
       setSavedBudgets([]);
     }
   }, [selectedCard]);
@@ -574,26 +595,70 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // Deriva o cartão ativo do estado principal de cards
   const activeChecklistCard = cards.find(c => c.id === activeChecklistCardId);
 
-  const handleSearchHistory = async (termToSearch: string = historySearchPlate) => {
-    if (!termToSearch.trim()) return;
+  /** Carrega os últimos veículos arquivados (sem filtro de busca). */
+  const loadRecentArchived = async () => {
     setIsLoadingHistory(true);
-    setArchivedCards([]);
+    setHistoryShowingFallback(false);
     try {
       const orders = await getServiceOrders('CANCELLED');
-      const cancelled = orders.filter(
-        o =>
-          (o.plate && o.plate.toUpperCase().includes(termToSearch.toUpperCase())) ||
-          (o.customers?.name && o.customers.name.toLowerCase().includes(termToSearch.toLowerCase())) ||
-          (o.vehicle_model && o.vehicle_model.toLowerCase().includes(termToSearch.toLowerCase()))
-      );
-      setArchivedCards(cancelled.map((o) => orderToCard(o, buildTechnicianNameMap(workshopTechnicians))));
+      const nameMap = buildTechnicianNameMap(workshopTechnicians);
+      const list = orders.map((o) => orderToCard(o, nameMap));
+      setRecentArchivedCards(list);
+      setArchivedCards(list);
     } catch (err) {
       console.error(err);
+      setArchivedCards([]);
+      alert("Erro ao carregar histórico.");
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleSearchHistory = async (termToSearch: string = historySearchPlate) => {
+    const term = (termToSearch ?? historySearchPlate).trim();
+    setIsLoadingHistory(true);
+    setHistoryShowingFallback(false);
+    try {
+      const orders = await getServiceOrders('CANCELLED');
+      const nameMap = buildTechnicianNameMap(workshopTechnicians);
+      if (!term) {
+        const list = orders.map((o) => orderToCard(o, nameMap));
+        setRecentArchivedCards(list);
+        setArchivedCards(list);
+        return;
+      }
+      const cancelled = orders.filter(
+        o =>
+          (o.plate && o.plate.toUpperCase().includes(term.toUpperCase())) ||
+          (o.customers?.name && o.customers.name.toLowerCase().includes(term.toLowerCase())) ||
+          (o.vehicle_model && o.vehicle_model.toLowerCase().includes(term.toLowerCase()))
+      );
+      const cards = cancelled.map((o) => orderToCard(o, nameMap));
+      if (cards.length === 0) {
+        const list = orders.map((o) => orderToCard(o, nameMap));
+        setRecentArchivedCards(list);
+        setArchivedCards(list);
+        setHistoryShowingFallback(list.length > 0);
+      } else {
+        setArchivedCards(cards);
+      }
+    } catch (err) {
+      console.error(err);
+      setArchivedCards(recentArchivedCards);
+      setHistoryShowingFallback(recentArchivedCards.length > 0);
       alert("Erro ao buscar histórico.");
     } finally {
       setIsLoadingHistory(false);
     }
   };
+
+  // Ao abrir o modal de histórico, carregar os últimos veículos arquivados
+  useEffect(() => {
+    if (isHistoryOpen) {
+      setHistoryShowingFallback(false);
+      loadRecentArchived();
+    }
+  }, [isHistoryOpen]);
 
   const handleOpenHistoryCardDetails = (card: TrelloCard) => {
     setSelectedHistoryCard(card);
@@ -759,6 +824,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
+  const handleConfirmDeleteVehicle = async () => {
+    if (!selectedCard || !deleteVehiclePassword.trim()) return;
+    setDeleteVehicleError(null);
+    setDeleteVehicleSaving(true);
+    try {
+      await deleteServiceOrderWithPassword(selectedCard.id, deleteVehiclePassword.trim());
+      setCards((prev) => prev.filter((c) => c.id !== selectedCard.id));
+      setSelectedCard(null);
+      setIsDeleteVehicleOpen(false);
+      setDeleteVehiclePassword('');
+    } catch (e: any) {
+      setDeleteVehicleError(e?.message ?? 'Erro ao excluir.');
+    } finally {
+      setDeleteVehicleSaving(false);
+    }
+  };
+
   const handleAssignTechnician = async (technician: { id: string; name: string } | null) => {
     if (!cardForMemberAssignment) return;
     setIsAssigning(true);
@@ -846,6 +928,56 @@ export const PatioView: React.FC<PatioViewProps> = ({
       alert(err?.message ?? "Erro ao atualizar a descrição.");
     } finally {
       setIsSavingDesc(false);
+    }
+  };
+
+  const openEditFichaModal = () => {
+    if (!serviceOrderDetail) return;
+    const c = serviceOrderDetail.customers;
+    setEditFichaForm({
+      name: c?.name ?? '',
+      cpf: c?.cpf ?? '',
+      phone: c?.phone ?? '',
+      email: c?.email ?? '',
+      cep: c?.cep ?? '',
+      address: c?.address ?? '',
+      addressNumber: c?.address_number ?? '',
+      vehicleModel: serviceOrderDetail.vehicle_model ?? '',
+      plate: (serviceOrderDetail.plate ?? '').toUpperCase(),
+      mileageKm: serviceOrderDetail.mileage_km ?? '',
+    });
+    setIsEditFichaOpen(true);
+  };
+
+  const handleSaveEditFicha = async () => {
+    if (!selectedCard || !serviceOrderDetail?.customers?.id) return;
+    setEditFichaSaving(true);
+    try {
+      await updateCustomer(serviceOrderDetail.customers.id, {
+        name: editFichaForm.name.trim(),
+        cpf: editFichaForm.cpf.trim() || null,
+        phone: editFichaForm.phone.trim(),
+        email: editFichaForm.email.trim() || null,
+        cep: editFichaForm.cep.trim() || null,
+        address: editFichaForm.address.trim() || null,
+        addressNumber: editFichaForm.addressNumber.trim() || null,
+      });
+      await updateServiceOrderVehicle(selectedCard.id, {
+        vehicleModel: editFichaForm.vehicleModel.trim(),
+        plate: editFichaForm.plate.trim().toUpperCase(),
+      }, actorOptions);
+      await updateServiceOrderMileage(selectedCard.id, editFichaForm.mileageKm.trim() || null, actorOptions);
+      const updated = await getServiceOrderById(selectedCard.id);
+      setServiceOrderDetail(updated);
+      const newName = `${updated.vehicle_model || 'Veículo'} - ${(updated.plate || '---').toUpperCase()} - ${updated.customers?.name || 'Cliente'}`;
+      const updatedCard = { ...selectedCard, name: newName };
+      setSelectedCard(updatedCard);
+      setCards(prev => prev.map(c => c.id === selectedCard.id ? { ...c, name: newName } : c));
+      setIsEditFichaOpen(false);
+    } catch (err: any) {
+      alert(err?.message ?? "Erro ao salvar alterações.");
+    } finally {
+      setEditFichaSaving(false);
     }
   };
 
@@ -1770,7 +1902,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <p>Buscando no arquivo morto...</p>
                      </div>
                   ) : archivedCards.length > 0 ? (
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                        {historyShowingFallback && (
+                           <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                              Nenhum resultado para a busca. Exibindo últimos veículos arquivados:
+                           </p>
+                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {archivedCards.map(card => {
                            const parts = card.name.split('-');
                            const model = parts[0]?.trim() || card.name;
@@ -1811,6 +1949,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                            );
                         })}
+                        </div>
                      </div>
                   ) : (
                      <div className="flex flex-col items-center justify-center h-full text-zinc-600">
@@ -2029,11 +2168,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={openVehicleEditModal}
-                  className="w-10 h-10 rounded-full bg-light-card dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-amber-500/10 dark:hover:bg-amber-500/10 transition-all active:scale-95"
-                  title="Editar nome do veículo ou placa"
+                  onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setIsDeleteVehicleOpen(true); }}
+                  className="w-10 h-10 rounded-full bg-light-card dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-red-600 hover:bg-red-500/10 dark:hover:bg-red-500/10 transition-all active:scale-95"
+                  title="Excluir veículo do sistema"
                 >
-                  <Pencil className="w-5 h-5" />
+                  <Trash2 className="w-5 h-5" />
                 </button>
                 <button 
                   onClick={() => setSelectedCard(null)}
@@ -2042,6 +2181,49 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <X className="w-6 h-6" />
                 </button>
               </div>
+
+              {isDeleteVehicleOpen && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 rounded-[1.5rem] p-4">
+                  <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 p-6 rounded-2xl shadow-xl max-w-sm w-full">
+                    <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-2">
+                      <Trash2 className="w-5 h-5 text-red-500" />
+                      Excluir veículo do sistema
+                    </h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                      Este veículo será arquivado (OS cancelada). Digite a senha configurada em &quot;Alterar senhas&quot; para confirmar.
+                    </p>
+                    <input
+                      type="password"
+                      value={deleteVehiclePassword}
+                      onChange={(e) => setDeleteVehiclePassword(e.target.value)}
+                      placeholder="Senha"
+                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500/40 mb-3"
+                      autoFocus
+                    />
+                    {deleteVehicleError && (
+                      <p className="text-sm text-red-600 dark:text-red-400 mb-3">{deleteVehicleError}</p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setIsDeleteVehicleOpen(false); setDeleteVehiclePassword(''); setDeleteVehicleError(null); }}
+                        className="flex-1 py-2.5 rounded-xl border border-zinc-300 dark:border-white/20 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmDeleteVehicle}
+                        disabled={deleteVehicleSaving || !deleteVehiclePassword.trim()}
+                        className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-semibold flex items-center justify-center gap-2"
+                      >
+                        {deleteVehicleSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        Excluir
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                   <div className="p-8 md:p-12 pb-8">
@@ -2192,6 +2374,92 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
 
                   <div className="w-full h-px bg-zinc-200 dark:bg-zinc-800/50 mx-auto max-w-[90%]"></div>
+
+                  {/* Dados da ficha (recepção) — agrupados antes da queixa */}
+                  {serviceOrderDetail && (
+                    <div ref={customerDataSectionRef} className="p-8 md:p-12 pt-8">
+                      <div className="bg-gradient-to-br from-light-elevated to-white dark:from-zinc-900/80 dark:to-[#1C1C1E] rounded-2xl border border-light-border dark:border-zinc-800 overflow-hidden shadow-sm">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-light-border dark:border-zinc-800 bg-brand-yellow/5 dark:bg-brand-yellow/10">
+                          <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                            <User className="w-4 h-4" />
+                            Dados da ficha (recepção)
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={openEditFichaModal}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-yellow/20 dark:bg-brand-yellow/20 text-brand-yellow hover:bg-brand-yellow/30 dark:hover:bg-brand-yellow/30 font-bold text-xs uppercase tracking-wider transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            Editar
+                          </button>
+                        </div>
+                        <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {serviceOrderDetail.customers && (
+                            <>
+                              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                <User className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Nome</p>
+                                  <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.customers.name || '—'}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                <Smartphone className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Telefone</p>
+                                  <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.customers.phone || '—'}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                <Mail className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">E-mail</p>
+                                  <p className="text-zinc-900 dark:text-white font-medium truncate">{serviceOrderDetail.customers.email || '—'}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">CPF</p>
+                                  <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.customers.cpf || '—'}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20 sm:col-span-2">
+                                <MapPin className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Endereço</p>
+                                  <p className="text-zinc-900 dark:text-white font-medium">
+                                    {[serviceOrderDetail.customers.address, serviceOrderDetail.customers.address_number, serviceOrderDetail.customers.cep].filter(Boolean).join(' · ') || '—'}
+                                  </p>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                          <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                            <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Veículo</p>
+                              <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.vehicle_model || '—'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                            <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Placa</p>
+                              <p className="text-zinc-900 dark:text-white font-mono font-bold uppercase">{(serviceOrderDetail.plate || '—').toUpperCase()}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                            <Hash className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Km</p>
+                              <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.mileage_km || '—'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="p-8 md:p-12 pt-8 grid grid-cols-1 lg:grid-cols-3 gap-10">
                       
@@ -2600,6 +2868,79 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
               </div>
            </div>
+        </div>
+      )}
+
+      {/* MODAL EDITAR DADOS DA FICHA (cliente + veículo) */}
+      {isEditFichaOpen && selectedCard && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+          <div className="bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-white/10 w-full max-w-lg max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-modal-sheet">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-white/10 bg-brand-yellow/10">
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-brand-yellow" />
+                Editar dados da ficha
+              </h3>
+              <button type="button" onClick={() => setIsEditFichaOpen(false)} className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-6 space-y-4 custom-scrollbar">
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Nome</label>
+                <input value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Nome do cliente" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Telefone</label>
+                  <input value={editFichaForm.phone} onChange={(e) => setEditFichaForm(f => ({ ...f, phone: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="(11) 99999-9999" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">E-mail</label>
+                  <input type="email" value={editFichaForm.email} onChange={(e) => setEditFichaForm(f => ({ ...f, email: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="email@exemplo.com" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">CPF</label>
+                <input value={editFichaForm.cpf} onChange={(e) => setEditFichaForm(f => ({ ...f, cpf: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="000.000.000-00" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Endereço</label>
+                <input value={editFichaForm.address} onChange={(e) => setEditFichaForm(f => ({ ...f, address: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Rua, bairro..." />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Nº</label>
+                  <input value={editFichaForm.addressNumber} onChange={(e) => setEditFichaForm(f => ({ ...f, addressNumber: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="123" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">CEP</label>
+                  <input value={editFichaForm.cep} onChange={(e) => setEditFichaForm(f => ({ ...f, cep: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="00000-000" />
+                </div>
+              </div>
+              <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-2" />
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Modelo do veículo</label>
+                <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Ex: Gol 1.0" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Placa</label>
+                  <input value={editFichaForm.plate} onChange={(e) => setEditFichaForm(f => ({ ...f, plate: e.target.value.toUpperCase() }))} maxLength={8} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white font-mono uppercase focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="ABC1D23" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Km</label>
+                  <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="45000" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 p-6 border-t border-zinc-200 dark:border-white/10 bg-zinc-50/50 dark:bg-white/[0.03]">
+              <button type="button" onClick={() => setIsEditFichaOpen(false)} className="flex-1 py-3 rounded-xl border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">Cancelar</button>
+              <button type="button" onClick={handleSaveEditFicha} disabled={editFichaSaving} className="flex-1 py-3 rounded-xl bg-brand-yellow text-black font-bold hover:bg-[#fcd61e] transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                {editFichaSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Salvar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
