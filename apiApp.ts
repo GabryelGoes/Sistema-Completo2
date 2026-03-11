@@ -113,7 +113,7 @@ export function createApiApp() {
       }
       const { data: users, error } = await supabaseAdmin
         .from("workshop_system_users")
-        .select("id, username, display_name, permissions, password_hash")
+        .select("id, username, display_name, permissions, password_hash, photo_url")
         .eq("workshop_id", WORKSHOP_ID);
       if (error) {
         return res.status(401).json({ error: "Usuário ou senha incorretos." });
@@ -130,7 +130,9 @@ export function createApiApp() {
       return res.json({
         role: "user",
         userId: user.id,
+        username: user.username,
         displayName: user.display_name || user.username,
+        photoUrl: user.photo_url || null,
         permissions,
       });
     } catch (err: any) {
@@ -138,6 +140,144 @@ export function createApiApp() {
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
+
+  // Retorna o usuário do sistema se username+password forem válidos (para endpoints "meu perfil").
+  async function verifySystemUser(username: string, password: string): Promise<{ id: string; username: string; display_name: string | null; photo_url: string | null } | null> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return null;
+    const u = typeof username === "string" ? username.trim() : "";
+    const p = typeof password === "string" ? password : "";
+    if (!u || !p) return null;
+    const { data: users, error } = await supabaseAdmin
+      .from("workshop_system_users")
+      .select("id, username, display_name, photo_url, password_hash")
+      .eq("workshop_id", WORKSHOP_ID);
+    if (error) return null;
+    const uLower = u.toLowerCase();
+    const user = (users || []).find((r: { username: string; password_hash: string }) => String(r.username).trim().toLowerCase() === uLower);
+    if (!user || !verifyPassword(p, user.password_hash)) return null;
+    return {
+      id: user.id,
+      username: user.username,
+      display_name: user.display_name ?? null,
+      photo_url: user.photo_url ?? null,
+    };
+  }
+
+  app.post("/api/auth/change-my-password", async (req, res) => {
+    try {
+      const { username, currentPassword, newPassword } = req.body || {};
+      const user = await verifySystemUser(username, currentPassword);
+      if (!user) {
+        return res.status(401).json({ error: "Usuário ou senha atual incorretos." });
+      }
+      const np = typeof newPassword === "string" ? newPassword : "";
+      if (!np || np.length < 4) {
+        return res.status(400).json({ error: "A nova senha deve ter no mínimo 4 caracteres." });
+      }
+      const { error } = await supabaseAdmin
+        .from("workshop_system_users")
+        .update({ password_hash: hashPassword(np), updated_at: new Date().toISOString() })
+        .eq("id", user.id)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/auth/change-my-password:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.get("/api/auth/my-profile", async (req, res) => {
+    try {
+      const username = (typeof req.query.username === "string" ? req.query.username : "").trim();
+      const password = typeof req.query.password === "string" ? req.query.password : "";
+      const user = await verifySystemUser(username, password);
+      if (!user) {
+        return res.status(401).json({ error: "Usuário ou senha incorretos." });
+      }
+      return res.json({
+        username: user.username,
+        displayName: user.display_name || user.username,
+        photoUrl: user.photo_url,
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/auth/my-profile:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.patch("/api/auth/my-profile", async (req, res) => {
+    try {
+      const { username, password, displayName } = req.body || {};
+      const user = await verifySystemUser(username, password);
+      if (!user) {
+        return res.status(401).json({ error: "Usuário ou senha incorretos." });
+      }
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (typeof displayName === "string") updates.display_name = displayName.trim() || null;
+      const { error } = await supabaseAdmin
+        .from("workshop_system_users")
+        .update(updates)
+        .eq("id", user.id)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({
+        username: user.username,
+        displayName: updates.display_name ?? user.display_name ?? user.username,
+        photoUrl: user.photo_url,
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em PATCH /api/auth/my-profile:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post(
+    "/api/auth/my-profile/photo",
+    upload.single("file"),
+    async (req, res) => {
+      try {
+        if (!supabaseAdmin || !WORKSHOP_ID) {
+          return res.status(500).json({ error: "Servidor não configurado." });
+        }
+        const username = (req.body?.username && String(req.body.username).trim()) || "";
+        const password = typeof req.body?.password === "string" ? req.body.password : "";
+        const user = await verifySystemUser(username, password);
+        if (!user) {
+          return res.status(401).json({ error: "Usuário ou senha incorretos." });
+        }
+        const file = req.file;
+        if (!file) {
+          return res.status(400).json({ error: "Arquivo de imagem não enviado." });
+        }
+        const bucket = VEHICLE_PHOTOS_BUCKET;
+        const ext = (file.mimetype === "image/jpeg" || file.mimetype === "image/jpg") ? "jpg" : file.mimetype === "image/png" ? "png" : "webp";
+        const pathInBucket = `${WORKSHOP_ID}/system-users/${user.id}/photo.${ext}`;
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from(bucket)
+          .upload(pathInBucket, file.buffer, { contentType: file.mimetype, upsert: true });
+        if (uploadError) {
+          console.error("[API] Erro ao enviar foto do usuário:", uploadError);
+          return res.status(500).json({ error: uploadError.message });
+        }
+        const { data: { publicUrl } } = supabaseAdmin.storage.from(bucket).getPublicUrl(pathInBucket);
+        const photoUrlWithCacheBust = `${publicUrl}${publicUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
+        const { error: updateErr } = await supabaseAdmin
+          .from("workshop_system_users")
+          .update({ photo_url: photoUrlWithCacheBust, updated_at: new Date().toISOString() })
+          .eq("id", user.id)
+          .eq("workshop_id", WORKSHOP_ID);
+        if (updateErr) {
+          console.error("[API] Erro ao atualizar photo_url do usuário:", updateErr);
+          return res.status(500).json({ error: updateErr.message });
+        }
+        return res.json({ photoUrl: photoUrlWithCacheBust });
+      } catch (err: any) {
+        console.error("[API] Erro em POST /api/auth/my-profile/photo:", err);
+        return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+      }
+    }
+  );
 
   app.get("/api/system-users", async (req, res) => {
     try {
@@ -872,6 +1012,71 @@ export function createApiApp() {
       return res.json(photos);
     } catch (err: any) {
       console.error("[API] Erro em GET /api/service-orders/:id/photos:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Renomear um anexo (foto/documento) da OS no Storage (move no mesmo bucket)
+  app.patch("/api/service-orders/:id/photos/rename", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const { id: serviceOrderId } = req.params;
+      const { path: currentPath, newName } = req.body as { path?: string; newName?: string };
+
+      if (!currentPath || typeof currentPath !== "string" || !newName || typeof newName !== "string") {
+        return res.status(400).json({ error: "Corpo inválido: envie path e newName." });
+      }
+
+      const trimmedNewName = newName.trim().replace(/\s+/g, "_");
+      if (!trimmedNewName) {
+        return res.status(400).json({ error: "Novo nome não pode ser vazio." });
+      }
+
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+
+      if (!so) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      const folderPath = `${WORKSHOP_ID}/${serviceOrderId}`;
+      if (!currentPath.startsWith(folderPath + "/")) {
+        return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
+      }
+
+      const newPath = `${folderPath}/${trimmedNewName}`;
+      const bucket = VEHICLE_PHOTOS_BUCKET;
+
+      const { error: moveError } = await supabaseAdmin.storage
+        .from(bucket)
+        .move(currentPath, newPath);
+
+      if (moveError) {
+        console.error("[API] Erro ao renomear anexo no Storage:", moveError);
+        return res.status(500).json({ error: moveError.message });
+      }
+
+      const { data: { publicUrl } } = supabaseAdmin.storage
+        .from(bucket)
+        .getPublicUrl(newPath);
+
+      return res.json({
+        url: publicUrl,
+        name: trimmedNewName,
+        path: newPath,
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em PATCH /api/service-orders/:id/photos/rename:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });

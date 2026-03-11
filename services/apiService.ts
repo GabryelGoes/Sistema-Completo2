@@ -529,6 +529,26 @@ export async function uploadServiceOrderPhoto(
   return response.json();
 }
 
+export async function renameServiceOrderPhoto(
+  serviceOrderId: string,
+  path: string,
+  newName: string
+): Promise<ServiceOrderPhoto> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/photos/rename`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, newName: newName.trim() }),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao renomear anexo (${response.status})`);
+  }
+  return response.json();
+}
+
 // ---------- Comentários do modal do veículo ----------
 
 export interface ServiceOrderComment {
@@ -1033,7 +1053,9 @@ export type AuthRole = "admin" | "user";
 export interface AuthSession {
   role: AuthRole;
   userId?: string;
+  username?: string;
   displayName?: string;
+  photoUrl?: string | null;
   permissions?: SystemUserPermissions;
 }
 
@@ -1052,7 +1074,9 @@ export async function login(username: string, password: string): Promise<AuthSes
   return {
     role: "user",
     userId: data.userId,
+    username: data.username,
     displayName: data.displayName || data.username,
+    photoUrl: data.photoUrl ?? null,
     permissions: data.permissions || {},
   };
 }
@@ -1127,6 +1151,97 @@ export async function deleteSystemUser(id: string, adminPassword: string): Promi
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || "Falha ao excluir usuário.");
   }
+}
+
+// ---------- Meu perfil (usuário do sistema, não-admin) ----------
+
+export interface MyProfile {
+  username: string;
+  displayName: string;
+  photoUrl: string | null;
+}
+
+export async function getMyProfile(username: string, password: string): Promise<MyProfile> {
+  const url = `${API_BASE}/auth/my-profile?username=${encodeURIComponent(username.trim())}&password=${encodeURIComponent(password)}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Usuário ou senha incorretos.");
+  }
+  const data = await response.json();
+  return {
+    username: data.username,
+    displayName: data.displayName ?? data.username,
+    photoUrl: data.photoUrl ?? null,
+  };
+}
+
+export async function updateMyProfile(
+  username: string,
+  password: string,
+  data: { displayName?: string }
+): Promise<MyProfile> {
+  const response = await fetch(`${API_BASE}/auth/my-profile`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: username.trim(),
+      password,
+      displayName: data.displayName?.trim(),
+    }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao atualizar perfil.");
+  }
+  const res = await response.json();
+  return {
+    username: res.username,
+    displayName: res.displayName ?? res.username,
+    photoUrl: res.photoUrl ?? null,
+  };
+}
+
+export async function changeMyPassword(
+  username: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/auth/change-my-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: username.trim(),
+      currentPassword,
+      newPassword,
+    }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao alterar senha.");
+  }
+}
+
+export async function uploadMyProfilePhoto(
+  username: string,
+  password: string,
+  file: Blob,
+  fileName?: string
+): Promise<{ photoUrl: string }> {
+  const form = new FormData();
+  form.append("file", file, fileName || "photo.jpg");
+  form.append("username", username.trim());
+  form.append("password", password);
+  const response = await fetch(`${API_BASE}/auth/my-profile/photo`, {
+    method: "POST",
+    body: form,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao enviar foto.");
+  }
+  const data = await response.json();
+  return { photoUrl: data.photoUrl };
 }
 
 // ---------- Configurações da oficina (acesso pátio) ----------

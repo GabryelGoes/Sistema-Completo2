@@ -187,9 +187,26 @@ export default function App() {
           {userTab === 'home' && (
             <HomeView
               isTechnician
+              technicianName={authSession.displayName ?? 'Usuário'}
               allowedTabs={userAllowedTabs}
               onOpenApp={(app) => setUserTab(app as TabId)}
               onLogout={handleLogout}
+              isSystemUser
+              systemUserUsername={authSession.username ?? ''}
+              systemUserDisplayName={authSession.displayName ?? ''}
+              systemUserPhotoUrl={authSession.photoUrl ?? null}
+              onSystemUserProfileUpdated={(data) => {
+                if (authSession?.role !== 'user') return;
+                const next = {
+                  ...authSession,
+                  ...(data.displayName !== undefined && { displayName: data.displayName }),
+                  ...(data.photoUrl !== undefined && { photoUrl: data.photoUrl }),
+                };
+                setAuthSession(next);
+                try {
+                  setStoredAuth(next);
+                } catch (_) {}
+              }}
             />
           )}
           {userTab === 'reception' && (

@@ -5,21 +5,18 @@ import {
   Settings,
   ChevronRight,
   Wrench,
-  Users,
   Lock,
   LogOut,
-  ShieldCheck,
   User,
   FlaskConical,
 } from 'lucide-react';
 import { PatioCarIcon } from '../ui/PatioCarIcon';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
-import { WorkshopTechniciansModal } from '../WorkshopTechniciansModal';
-import { TechnicianAccessModal } from '../TechnicianAccessModal';
 import { ChangePasswordsModal } from '../ChangePasswordsModal';
 import { TechnicianProfileModal } from '../TechnicianProfileModal';
 import { AdminProfileModal } from '../AdminProfileModal';
 import { SystemUsersModal } from '../SystemUsersModal';
+import { UserProfileModal } from '../UserProfileModal';
 
 export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'settings';
 
@@ -35,6 +32,13 @@ interface HomeViewProps {
   allowedTabs?: string[];
   /** Após salvar o perfil do técnico (nome atualizado) */
   onProfileUpdated?: (newName: string) => void;
+  /** Usuário do sistema (perfil criado pelo admin): mostra Configurações de perfil na página inicial */
+  isSystemUser?: boolean;
+  systemUserUsername?: string;
+  systemUserDisplayName?: string;
+  systemUserPhotoUrl?: string | null;
+  /** Após salvar perfil do usuário do sistema (nome/foto) */
+  onSystemUserProfileUpdated?: (data: { displayName?: string; photoUrl?: string | null }) => void;
 }
 
 /** Módulos operacionais: atendimento e fluxo de serviço */
@@ -60,14 +64,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
   technicianName = 'Pátio',
   allowedTabs = [],
   onProfileUpdated,
+  isSystemUser = false,
+  systemUserUsername = '',
+  systemUserDisplayName = '',
+  systemUserPhotoUrl = null,
+  onSystemUserProfileUpdated,
 }) => {
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
-  const [isTechniciansModalOpen, setIsTechniciansModalOpen] = useState(false);
-  const [isTechnicianAccessModalOpen, setIsTechnicianAccessModalOpen] = useState(false);
   const [isChangePasswordsOpen, setIsChangePasswordsOpen] = useState(false);
   const [isTechnicianProfileOpen, setIsTechnicianProfileOpen] = useState(false);
   const [isAdminProfileOpen, setIsAdminProfileOpen] = useState(false);
   const [isSystemUsersOpen, setIsSystemUsersOpen] = useState(false);
+  const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
 
   const quickApps = isTechnician
     ? QUICK_APPS.filter((a) => allowedTabs.includes(a.id))
@@ -162,16 +170,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Serviços da oficina</span>
                 <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
               </button>
-              <button type="button" onClick={() => setIsTechniciansModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-violet-500/15 text-violet-600 dark:text-violet-400"><Users className="w-5 h-5" strokeWidth={2} /></div>
-                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Técnicos</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
-              </button>
-              <button type="button" onClick={() => setIsTechnicianAccessModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-brand-yellow/20 text-amber-700 dark:text-brand-yellow"><ShieldCheck className="w-5 h-5" strokeWidth={2} /></div>
-                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Controle de acesso</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
-              </button>
               <button type="button" onClick={() => setIsChangePasswordsOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-zinc-200/80 dark:bg-white/10 text-zinc-600 dark:text-zinc-400"><Lock className="w-5 h-5" strokeWidth={2} /></div>
                 <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Alterar senhas</span>
@@ -181,13 +179,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </section>
         )}
 
-        {/* Conta: perfil (admin ou técnico com perfil) e sair */}
+        {/* Conta: perfil (admin, técnico ou usuário do sistema) e sair */}
         <section className="pt-2 pb-4">
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3">
             Conta
           </h2>
           <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900/50 shadow-sm">
-            {(!isTechnician || technicianId) && (
+            {isSystemUser && (
+            <button
+              type="button"
+              onClick={() => setIsUserProfileOpen(true)}
+              className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors"
+            >
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-violet-500/15 text-violet-600 dark:text-violet-400"><User className="w-5 h-5" strokeWidth={2} /></div>
+              <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Configurações de perfil</span>
+              <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+            </button>
+            )}
+            {(!isTechnician || technicianId) && !isSystemUser && (
             <button
               type="button"
               onClick={() => (isTechnician ? setIsTechnicianProfileOpen(true) : setIsAdminProfileOpen(true))}
@@ -213,8 +222,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <>
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} />
           <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
-          <WorkshopTechniciansModal isOpen={isTechniciansModalOpen} onClose={() => setIsTechniciansModalOpen(false)} />
-          <TechnicianAccessModal isOpen={isTechnicianAccessModalOpen} onClose={() => setIsTechnicianAccessModalOpen(false)} />
           <ChangePasswordsModal isOpen={isChangePasswordsOpen} onClose={() => setIsChangePasswordsOpen(false)} />
         </>
       )}
@@ -229,6 +236,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
         />
       )}
       <AdminProfileModal isOpen={isAdminProfileOpen} onClose={() => setIsAdminProfileOpen(false)} />
+      {isSystemUser && (
+        <UserProfileModal
+          isOpen={isUserProfileOpen}
+          username={systemUserUsername}
+          initialDisplayName={systemUserDisplayName}
+          initialPhotoUrl={systemUserPhotoUrl}
+          onClose={() => setIsUserProfileOpen(false)}
+          onProfileUpdated={onSystemUserProfileUpdated}
+        />
+      )}
     </div>
   );
 };
