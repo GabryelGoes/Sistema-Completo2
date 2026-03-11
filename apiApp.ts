@@ -1167,7 +1167,7 @@ export function createApiApp() {
 
       const { data: so, error: soError } = await supabaseAdmin
         .from("service_orders")
-        .select("id, plate, vehicle_model, customers(name)")
+        .select("id, plate, vehicle_model, assigned_technician, customers(name)")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -1201,22 +1201,30 @@ export function createApiApp() {
         return res.status(500).json({ error: error.message });
       }
 
+      const budgetPayload = {
+        service_order_id: serviceOrderId,
+        vehicle_plate: so?.plate ?? null,
+        vehicle_model: so?.vehicle_model ?? null,
+        customer_name: customerNameBudget || null,
+      };
       const isTechnicianActor = actor === "technician" && (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
       if (isTechnicianActor) {
         const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
         await supabaseAdmin.from("notifications").insert({
           workshop_id: WORKSHOP_ID,
           type: "budget_created",
-          payload: {
-            service_order_id: serviceOrderId,
-            vehicle_plate: so?.plate ?? null,
-            vehicle_model: so?.vehicle_model ?? null,
-            customer_name: customerNameBudget || null,
-            technician_name: technicianLabel,
-          },
+          payload: { ...budgetPayload, technician_name: technicianLabel },
           target_type: "admin",
           target_slug: null,
         }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_created:", e); });
+      } else if (so?.assigned_technician) {
+        await supabaseAdmin.from("notifications").insert({
+          workshop_id: WORKSHOP_ID,
+          type: "budget_created",
+          payload: budgetPayload,
+          target_type: "technician",
+          target_slug: so.assigned_technician,
+        }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_created (técnico):", e); });
       }
 
       return res.status(201).json(data);
@@ -1241,7 +1249,7 @@ export function createApiApp() {
 
       const { data: so, error: soError } = await supabaseAdmin
         .from("service_orders")
-        .select("id, plate, vehicle_model, customers(name)")
+        .select("id, plate, vehicle_model, assigned_technician, customers(name)")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -1280,22 +1288,30 @@ export function createApiApp() {
         return res.status(404).json({ error: "Orçamento não encontrado." });
       }
 
+      const budgetEditPayload = {
+        service_order_id: serviceOrderId,
+        vehicle_plate: so?.plate ?? null,
+        vehicle_model: so?.vehicle_model ?? null,
+        customer_name: customerNameBudgetEdit || null,
+      };
       const isTechnicianActor = actor === "technician" && (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
       if (isTechnicianActor) {
         const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
         await supabaseAdmin.from("notifications").insert({
           workshop_id: WORKSHOP_ID,
           type: "budget_edited",
-          payload: {
-            service_order_id: serviceOrderId,
-            vehicle_plate: so?.plate ?? null,
-            vehicle_model: so?.vehicle_model ?? null,
-            customer_name: customerNameBudgetEdit || null,
-            technician_name: technicianLabel,
-          },
+          payload: { ...budgetEditPayload, technician_name: technicianLabel },
           target_type: "admin",
           target_slug: null,
         }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited:", e); });
+      } else if (so?.assigned_technician) {
+        await supabaseAdmin.from("notifications").insert({
+          workshop_id: WORKSHOP_ID,
+          type: "budget_edited",
+          payload: budgetEditPayload,
+          target_type: "technician",
+          target_slug: so.assigned_technician,
+        }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited (técnico):", e); });
       }
 
       return res.json(data);
@@ -1437,14 +1453,17 @@ export function createApiApp() {
           .maybeSingle();
         authorPhotoUrl = setting?.value?.trim() || null;
       } else {
-        const authorTrim = author.trim();
-        const { data: techs } = await supabaseAdmin
-          .from("workshop_technicians")
-          .select("photo_url, name")
-          .eq("workshop_id", WORKSHOP_ID)
-          .limit(50);
-        const tech = (techs ?? []).find((t) => (t.name?.trim() === authorTrim) || (String(t.name).trim().toLowerCase() === authorTrim.toLowerCase()));
-        authorPhotoUrl = tech?.photo_url?.trim() || null;
+        const authorTrim = author.trim().toLowerCase();
+        const { data: systemUsers } = await supabaseAdmin
+          .from("workshop_system_users")
+          .select("photo_url, display_name, username")
+          .eq("workshop_id", WORKSHOP_ID);
+        const u = (systemUsers ?? []).find(
+          (t) =>
+            (t.display_name && String(t.display_name).trim().toLowerCase() === authorTrim) ||
+            (String(t.username).trim().toLowerCase() === authorTrim)
+        );
+        authorPhotoUrl = u?.photo_url?.trim() || null;
       }
       const commentPayload = {
         service_order_id: serviceOrderId,

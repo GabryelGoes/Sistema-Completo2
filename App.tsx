@@ -232,7 +232,7 @@ export default function App() {
               openServiceOrderId={null}
               openServiceOrderSection={null}
               onOpenServiceOrderHandled={() => {}}
-              actorOptions={{ actor: 'admin' }}
+              actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
           )}
@@ -246,7 +246,7 @@ export default function App() {
               openServiceOrderId={null}
               openServiceOrderSection={null}
               onOpenServiceOrderHandled={() => {}}
-              actorOptions={{ actor: 'admin' }}
+              actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
           )}
@@ -256,6 +256,14 @@ export default function App() {
           onTabChange={setUserTab}
           allowedTabs={userAllowedTabs}
         />
+        <div className="sr-only" aria-hidden="true">
+          <NotificationCenter
+            theme={theme}
+            onNewCommentNotification={handleNewCommentNotification}
+            forTechnician
+            technicianSlug={authSession.userId}
+          />
+        </div>
         {commentPopUpNotification && (
           <CommentPopUp
             theme={theme}
@@ -305,12 +313,12 @@ export default function App() {
           <PatioView
             onUseCustomerData={handleUseCustomerData}
             effectsEnabled={effectsEnabled}
-            commentAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.technicianName ?? 'Rei do ABS')}
+            commentAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
             openServiceOrderId={null}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={() => {}}
-            actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.technicianSlug, actorTechnicianName: authSession?.technicianName }}
+            actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         )}
 
@@ -319,12 +327,12 @@ export default function App() {
             orderType="module"
             onUseCustomerData={() => {}}
             effectsEnabled={effectsEnabled}
-            commentAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.technicianName ?? 'Rei do ABS')}
+            commentAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
             openServiceOrderId={null}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={() => {}}
-            actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.technicianSlug, actorTechnicianName: authSession?.technicianName }}
+            actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         )}
 
@@ -349,18 +357,20 @@ export default function App() {
         showPatioAccess={authSession?.role === 'admin'}
       />
 
-      {/* Central de notificações oculta: mantém o polling e dispara o pop-up de comentário */}
+      {/* Central de notificações: admin vê notificações do admin; usuário do sistema vê as dele (target_slug = userId) */}
       <div className="sr-only" aria-hidden="true">
         <NotificationCenter
           theme={theme}
           onNewCommentNotification={handleNewCommentNotification}
+          forTechnician={authSession?.role === 'user'}
+          technicianSlug={authSession?.role === 'user' ? authSession.userId : undefined}
         />
       </div>
       {commentPopUpNotification && (
         <CommentPopUp
           theme={theme}
           notification={commentPopUpNotification}
-          replyAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.technicianName ?? 'Rei do ABS')}
+          replyAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
           blurPlates={cinematographicMode}
           onClose={() => setCommentPopUpNotification(null)}
         />
