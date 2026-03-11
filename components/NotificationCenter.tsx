@@ -150,8 +150,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       ? { for: "technician" as const, technicianSlug }
       : undefined;
 
-  const POLL_QUICK_MS = 3000;   // poll para novas notificações (entrega rápida do pop-up)
-  const POLL_FULL_MS = 20000;  // atualização completa da lista
+  const POLL_QUICK_MS = 1000;   // poll para novas notificações (quase instantâneo, tipo WhatsApp)
+  const POLL_FULL_MS = 10000;  // atualização completa da lista
 
   const fetchNotifications = async (since?: string, silent = false) => {
     if (!silent) setLoading(true);
