@@ -290,6 +290,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                               className={`pointer-events-none inline-block h-6 w-6 shrink-0 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ${
                                 formPermissions[key] ? 'translate-x-6' : 'translate-x-0.5'
                               }`}
+                            />
                           </button>
                         </div>
                       ))}
