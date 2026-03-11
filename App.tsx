@@ -14,7 +14,7 @@ import { HomeView, type HomeAppId } from './components/views/HomeView';
 import { LoginView, getStoredAuth, setStoredAuth, clearStoredAuth } from './components/views/LoginView';
 import { useOrientation } from './components/views/useOrientation';
 import type { AuthSession, SystemUserPermissions } from './services/apiService';
-import { getWorkshopSettings, getWorkshopTechnicians } from './services/apiService';
+import { getWorkshopSettings } from './services/apiService';
 
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {

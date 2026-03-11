@@ -22,12 +22,12 @@ import {
   getServiceOrderComments,
   addServiceOrderComment,
   getWorkshopServices,
-  getWorkshopTechnicians,
+  getSystemUserTechnicians,
   updateCustomer,
   deleteServiceOrderWithPassword,
   ServiceOrderListItem,
   type WorkshopService,
-  type WorkshopTechnician,
+  type SystemUserTechnician,
   type ServiceOrderUpdateActor,
   type ServiceOrderType,
 } from '../../services/apiService';
@@ -81,9 +81,11 @@ function capitalizeFirst(str: string): string {
   return str.trim().split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
 
-function buildTechnicianNameMap(technicians: WorkshopTechnician[]): Record<string, string> {
+function buildTechnicianNameMap(technicians: SystemUserTechnician[]): Record<string, string> {
   const map: Record<string, string> = {};
-  technicians.forEach((t) => { map[t.slug] = t.name; });
+  technicians.forEach((t) => {
+    map[t.id] = (t.display_name || t.username || '').trim() || t.username;
+  });
   return map;
 }
 
@@ -400,7 +402,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [editingBudget, setEditingBudget] = useState<SavedBudget | null>(null);
   const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
   const [workshopServices, setWorkshopServices] = useState<WorkshopService[]>([]);
-  const [workshopTechnicians, setWorkshopTechnicians] = useState<WorkshopTechnician[]>([]);
+  const [systemTechnicians, setSystemTechnicians] = useState<SystemUserTechnician[]>([]);
   const [isServiceListOpen, setIsServiceListOpen] = useState(false);
   const [suggestionsForServiceId, setSuggestionsForServiceId] = useState<string | null>(null);
   const suggestionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -499,13 +501,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
     try {
       const orders = await getServiceOrders(undefined, orderType);
-      let technicians: WorkshopTechnician[] = [];
+      let technicians: SystemUserTechnician[] = [];
       try {
-        technicians = await getWorkshopTechnicians();
+        technicians = await getSystemUserTechnicians();
       } catch (_) {
-        // Tabela workshop_technicians pode não existir ainda; usa fallback
+        // Nenhum usuário marcado como técnico ainda
       }
-      setWorkshopTechnicians(technicians);
+      setSystemTechnicians(technicians);
       setLists(BACKEND_LISTS);
       const nameMap = buildTechnicianNameMap(technicians);
       const onlyActive = orders.filter((o) => o.status !== 'CANCELLED');
@@ -1286,85 +1288,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return { style: getStageStyle(listId || ""), label: listName };
   };
 
-  // Mapa de color_style para classes Tailwind (badge e ícone)
-  const technicianColorToStyle = (colorStyle: string | null): string => {
-    const c = (colorStyle || 'zinc').toLowerCase();
-    const map: Record<string, string> = {
-      red: 'bg-red-600 text-white border-red-600',
-      blue: 'bg-blue-600 text-white border-blue-600',
-      green: 'bg-green-600 text-white border-green-600',
-      amber: 'bg-amber-500 text-white border-amber-500',
-      zinc: 'bg-zinc-600 text-white border-zinc-600',
-    };
-    return map[c] ?? map.zinc;
-  };
-
-  const technicianColorToIconClass = (colorStyle: string | null): string => {
-    const c = (colorStyle || 'zinc').toLowerCase();
-    const map: Record<string, string> = {
-      red: 'text-red-500',
-      blue: 'text-blue-500',
-      green: 'text-green-500',
-      amber: 'text-amber-500',
-      zinc: 'text-zinc-500',
-    };
-    return map[c] ?? map.zinc;
-  };
-
-  // Lista de técnicos para o modal: apenas os cadastrados na tela inicial
-  const TECHNICIANS = workshopTechnicians.map((t) => ({
-    id: t.slug,
-    name: capitalizeFirst(t.name),
-    style: technicianColorToStyle(t.color_style),
-    photo_url: t.photo_url ?? null,
+  // Lista de técnicos para o modal: usuários do sistema marcados como técnico
+  const defaultTechStyle = 'bg-zinc-600 text-white border-zinc-600';
+  const TECHNICIANS = systemTechnicians.map((t) => ({
+    id: t.id,
+    name: capitalizeFirst((t.display_name || t.username || '').trim() || t.username),
+    style: defaultTechStyle,
+    photo_url: null,
   }));
 
-  // Cor do ícone do mecânico no card: usa slug quando disponível para sempre acertar a cor
-  const getMechanicIconColor = (mechanicName: string | null, memberSlug?: string | null) => {
-    if (!mechanicName && !memberSlug) return 'text-zinc-500';
-    if (memberSlug) {
-      const tech = workshopTechnicians.find((t) => t.slug === memberSlug);
-      if (tech) return technicianColorToIconClass(tech.color_style);
-    }
-    const name = (mechanicName ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (name.includes('rei do abs')) return 'text-brand-yellow';
-    const tech = workshopTechnicians.find(
-      (t) => name.includes(t.slug.toLowerCase()) || name.includes(t.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
-    );
-    return tech ? technicianColorToIconClass(tech.color_style) : 'text-zinc-500';
-  };
+  // Cor do ícone do mecânico no card (técnicos = usuários do sistema; estilo único)
+  const getMechanicIconColor = (_mechanicName: string | null, _memberSlug?: string | null) => 'text-zinc-500';
 
-  // Estilo do botão do técnico no modal de seleção: usa slug quando disponível
-  const getMechanicButtonStyle = (mechanicName: string, memberSlug?: string | null) => {
-    if (memberSlug) {
-      const tech = workshopTechnicians.find((t) => t.slug === memberSlug);
-      if (tech) return technicianColorToStyle(tech.color_style);
-    }
-    const name = mechanicName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const tech = workshopTechnicians.find(
-      (t) => name.includes(t.slug.toLowerCase()) || name.includes(t.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
-    );
-    return tech ? technicianColorToStyle(tech.color_style) : 'bg-zinc-800 text-zinc-400 border-zinc-700';
-  };
+  // Estilo do botão do técnico no modal de seleção
+  const getMechanicButtonStyle = (_mechanicName: string, _memberSlug?: string | null) => defaultTechStyle;
 
-  // Avatar do autor do comentário: logo (admin), foto (técnico com foto) ou inicial + cor
+  // Avatar do autor do comentário: logo (admin) ou inicial + cor padrão
   const getCommentAuthorAvatar = (authorName: string): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
     const name = (authorName ?? '').trim();
     const initial = name ? name.charAt(0).toUpperCase() : '?';
     const normalized = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     if (normalized.includes('rei do abs')) {
       return { initial: '', avatarClass: '', useLogo: true };
-    }
-    const tech = workshopTechnicians.find(
-      (t) => normalized.includes(t.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')) || normalized.includes(t.slug.toLowerCase())
-    );
-    if (tech) {
-      return {
-        initial,
-        avatarClass: technicianColorToStyle(tech.color_style),
-        useLogo: false,
-        photoUrl: tech.photo_url ?? null,
-      };
     }
     return { initial, avatarClass: 'bg-zinc-600 text-white border-zinc-600', useLogo: false };
   };

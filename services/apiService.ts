@@ -1086,8 +1086,18 @@ export interface SystemUser {
   username: string;
   display_name: string | null;
   permissions: SystemUserPermissions;
+  is_technician?: boolean;
+  job_title?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Usuário do sistema marcado como técnico (para atribuição nos cards). */
+export interface SystemUserTechnician {
+  id: string;
+  username: string;
+  display_name: string | null;
+  job_title: string | null;
 }
 
 export async function getSystemUsers(adminPassword: string): Promise<SystemUser[]> {
@@ -1100,9 +1110,25 @@ export async function getSystemUsers(adminPassword: string): Promise<SystemUser[
   return response.json();
 }
 
+export async function getSystemUserTechnicians(): Promise<SystemUserTechnician[]> {
+  const response = await fetch(`${API_BASE}/system-users/technicians`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao listar técnicos.");
+  }
+  return response.json();
+}
+
 export async function createSystemUser(
   adminPassword: string,
-  data: { username: string; password: string; displayName?: string; permissions: SystemUserPermissions }
+  data: {
+    username: string;
+    password: string;
+    displayName?: string;
+    permissions: SystemUserPermissions;
+    isTechnician?: boolean;
+    jobTitle?: string | null;
+  }
 ): Promise<SystemUser> {
   const response = await fetch(`${API_BASE}/system-users`, {
     method: "POST",
@@ -1113,6 +1139,8 @@ export async function createSystemUser(
       password: data.password,
       displayName: data.displayName?.trim() || null,
       permissions: data.permissions,
+      isTechnician: data.isTechnician ?? false,
+      jobTitle: data.jobTitle?.trim() || null,
     }),
   });
   if (!response.ok) {
@@ -1125,7 +1153,13 @@ export async function createSystemUser(
 export async function updateSystemUser(
   id: string,
   adminPassword: string,
-  data: { password?: string; displayName?: string; permissions: SystemUserPermissions }
+  data: {
+    password?: string;
+    displayName?: string;
+    permissions: SystemUserPermissions;
+    isTechnician?: boolean;
+    jobTitle?: string | null;
+  }
 ): Promise<SystemUser> {
   const response = await fetch(`${API_BASE}/system-users/${id}`, {
     method: "PUT",
@@ -1135,6 +1169,8 @@ export async function updateSystemUser(
       password: data.password,
       displayName: data.displayName?.trim() ?? null,
       permissions: data.permissions,
+      isTechnician: data.isTechnician,
+      jobTitle: data.jobTitle?.trim() || null,
     }),
   });
   if (!response.ok) {

@@ -287,7 +287,7 @@ export function createApiApp() {
       }
       const { data, error } = await supabaseAdmin
         .from("workshop_system_users")
-        .select("id, username, display_name, permissions, created_at, updated_at")
+        .select("id, username, display_name, permissions, is_technician, job_title, created_at, updated_at")
         .eq("workshop_id", WORKSHOP_ID)
         .order("username");
       if (error) {
@@ -302,7 +302,7 @@ export function createApiApp() {
 
   app.post("/api/system-users", async (req, res) => {
     try {
-      const { adminPassword, username, password, displayName, permissions } = req.body || {};
+      const { adminPassword, username, password, displayName, permissions, isTechnician, jobTitle } = req.body || {};
       if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
         return res.status(403).json({ error: "Acesso negado." });
       }
@@ -311,6 +311,8 @@ export function createApiApp() {
       if (!u) return res.status(400).json({ error: "Nome de usuário é obrigatório." });
       if (!p || p.length < 4) return res.status(400).json({ error: "Senha deve ter no mínimo 4 caracteres." });
       const perms = typeof permissions === "object" && permissions !== null ? permissions : {};
+      const isTech = isTechnician === true || isTechnician === "true";
+      const job = typeof jobTitle === "string" ? jobTitle.trim() || null : null;
       const { data, error } = await supabaseAdmin
         .from("workshop_system_users")
         .insert({
@@ -319,9 +321,11 @@ export function createApiApp() {
           password_hash: hashPassword(p),
           display_name: typeof displayName === "string" ? displayName.trim() || null : null,
           permissions: perms,
+          is_technician: isTech,
+          job_title: job,
           updated_at: new Date().toISOString(),
         })
-        .select("id, username, display_name, permissions, created_at, updated_at")
+        .select("id, username, display_name, permissions, is_technician, job_title, created_at, updated_at")
         .single();
       if (error) {
         if (error.code === "23505") return res.status(400).json({ error: "Este nome de usuário já existe." });
@@ -336,7 +340,7 @@ export function createApiApp() {
 
   app.put("/api/system-users/:id", async (req, res) => {
     try {
-      const { adminPassword, password, displayName, permissions } = req.body || {};
+      const { adminPassword, password, displayName, permissions, isTechnician, jobTitle } = req.body || {};
       if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
         return res.status(403).json({ error: "Acesso negado." });
       }
@@ -345,12 +349,14 @@ export function createApiApp() {
       if (typeof permissions === "object" && permissions !== null) updates.permissions = permissions;
       if (typeof displayName === "string") updates.display_name = displayName.trim() || null;
       if (typeof password === "string" && password.length >= 4) updates.password_hash = hashPassword(password);
+      if (isTechnician !== undefined) updates.is_technician = isTechnician === true || isTechnician === "true";
+      if (jobTitle !== undefined) updates.job_title = typeof jobTitle === "string" ? jobTitle.trim() || null : null;
       const { data, error } = await supabaseAdmin
         .from("workshop_system_users")
         .update(updates)
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
-        .select("id, username, display_name, permissions, created_at, updated_at")
+        .select("id, username, display_name, permissions, is_technician, job_title, created_at, updated_at")
         .single();
       if (error) return res.status(500).json({ error: error.message });
       if (!data) return res.status(404).json({ error: "Usuário não encontrado." });
@@ -376,6 +382,29 @@ export function createApiApp() {
       return res.status(204).send();
     } catch (err: any) {
       console.error("[API] Erro em DELETE /api/system-users/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Lista de técnicos para atribuição nos cards: usuários do sistema com is_technician = true
+  app.get("/api/system-users/technicians", async (_req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("id, username, display_name, job_title")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("is_technician", true)
+        .order("display_name")
+        .order("username");
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json(data ?? []);
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/system-users/technicians:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
@@ -2128,15 +2157,18 @@ export function createApiApp() {
         if (assignedTechnician === null || assignedTechnician === "") {
           updatePayload.assigned_technician = null;
         } else {
-          const { data: techList } = await supabaseAdmin
-            .from("workshop_technicians")
-            .select("slug")
-            .eq("workshop_id", WORKSHOP_ID);
-          const allowed = (techList ?? []).map((t: { slug: string }) => t.slug);
-          if (allowed.includes(assignedTechnician)) {
-            updatePayload.assigned_technician = assignedTechnician;
+          const techId = typeof assignedTechnician === "string" ? assignedTechnician.trim() : "";
+          const { data: techUser } = await supabaseAdmin
+            .from("workshop_system_users")
+            .select("id")
+            .eq("workshop_id", WORKSHOP_ID)
+            .eq("id", techId)
+            .eq("is_technician", true)
+            .maybeSingle();
+          if (techUser) {
+            updatePayload.assigned_technician = techId;
           } else {
-            return res.status(400).json({ error: "Técnico inválido. Cadastre o técnico em Técnicos na tela inicial." });
+            return res.status(400).json({ error: "Técnico inválido. Marque o usuário como técnico da oficina em Usuários do sistema." });
           }
         }
       }

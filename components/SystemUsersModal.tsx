@@ -48,6 +48,8 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
   const [formUsername, setFormUsername] = useState('');
   const [formPassword, setFormPassword] = useState('');
   const [formDisplayName, setFormDisplayName] = useState('');
+  const [formJobTitle, setFormJobTitle] = useState('');
+  const [formIsTechnician, setFormIsTechnician] = useState(false);
   const [formPermissions, setFormPermissions] = useState<SystemUserPermissions>({ ...DEFAULT_PERMISSIONS });
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -90,6 +92,8 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
     setFormUsername('');
     setFormPassword('');
     setFormDisplayName('');
+    setFormJobTitle('');
+    setFormIsTechnician(false);
     setFormPermissions({ ...DEFAULT_PERMISSIONS });
     setError(null);
   };
@@ -99,6 +103,8 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
     setFormUsername(u.username);
     setFormPassword('');
     setFormDisplayName(u.display_name || '');
+    setFormJobTitle(u.job_title ?? '');
+    setFormIsTechnician(u.is_technician ?? false);
     setFormPermissions({ ...DEFAULT_PERMISSIONS, ...u.permissions });
     setError(null);
   };
@@ -134,12 +140,16 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
           password: formPassword,
           displayName: formDisplayName.trim() || undefined,
           permissions: formPermissions,
+          isTechnician: formIsTechnician,
+          jobTitle: formJobTitle.trim() || null,
         });
       } else {
         await updateSystemUser(editingId, adminPassword, {
           password: formPassword.length >= 4 ? formPassword : undefined,
           displayName: formDisplayName.trim() || undefined,
           permissions: formPermissions,
+          isTechnician: formIsTechnician,
+          jobTitle: formJobTitle.trim() || null,
         });
       }
       await loadUsers();
@@ -240,6 +250,37 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                       className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white"
                     />
                   </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Cargo (opcional)</label>
+                    <input
+                      type="text"
+                      value={formJobTitle}
+                      onChange={(e) => setFormJobTitle(e.target.value)}
+                      placeholder="Ex: Mecânico, Recepcionista"
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3 py-1">
+                    <div>
+                      <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 block">Técnico da oficina</span>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">Aparece como mecânico nos cards do Pátio/Laboratório</span>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={formIsTechnician}
+                      onClick={() => setFormIsTechnician((v) => !v)}
+                      className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-0 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/50 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900 ${
+                        formIsTechnician ? 'bg-[#34C759] dark:bg-[#30D158]' : 'bg-zinc-300 dark:bg-zinc-600'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-6 w-6 shrink-0 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ${
+                          formIsTechnician ? 'translate-x-6' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
 
                   <div>
                     <p className="text-xs font-bold text-zinc-600 dark:text-zinc-300 uppercase tracking-wider mb-2">Acesso às telas</p>
@@ -330,7 +371,14 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                         >
                           <div className="min-w-0">
                             <p className="font-medium text-zinc-900 dark:text-white truncate">{u.username}</p>
-                            {u.display_name && <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{u.display_name}</p>}
+                            {(u.display_name || u.job_title) && (
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                                {[u.display_name, u.job_title].filter(Boolean).join(' · ')}
+                              </p>
+                            )}
+                            {u.is_technician && (
+                              <span className="inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">Técnico</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <button type="button" onClick={() => startEdit(u)} className="p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400" title="Editar">
