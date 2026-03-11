@@ -10,6 +10,7 @@ import {
   LogOut,
   ShieldCheck,
   User,
+  FlaskConical,
 } from 'lucide-react';
 import { PatioCarIcon } from '../ui/PatioCarIcon';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
@@ -19,7 +20,7 @@ import { ChangePasswordsModal } from '../ChangePasswordsModal';
 import { TechnicianProfileModal } from '../TechnicianProfileModal';
 import { AdminProfileModal } from '../AdminProfileModal';
 
-export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'settings';
+export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'settings';
 
 interface HomeViewProps {
   onOpenApp: (app: HomeAppId) => void;
@@ -39,6 +40,7 @@ const APPS: { id: HomeAppId; label: string; icon: React.ReactNode; accent: strin
   { id: 'reception', label: 'Recepção', icon: <ClipboardList className="w-6 h-6" strokeWidth={2} />, accent: 'text-amber-500' },
   { id: 'agenda', label: 'Agenda', icon: <Calendar className="w-6 h-6" strokeWidth={2} />, accent: 'text-blue-500' },
   { id: 'patio', label: 'Pátio', icon: <PatioCarIcon className="w-6 h-6" strokeWidth={2} />, accent: 'text-emerald-500' },
+  { id: 'laboratorio', label: 'Laboratório', icon: <FlaskConical className="w-6 h-6" strokeWidth={2} />, accent: 'text-violet-500' },
   { id: 'settings', label: 'Configurações', icon: <Settings className="w-6 h-6" strokeWidth={2} />, accent: 'text-zinc-500 dark:text-zinc-400' },
 ];
 
@@ -46,6 +48,7 @@ const QUICK_APPS: { id: HomeAppId; label: string; icon: React.ReactNode; accent:
   { id: 'reception', label: 'Recepção', icon: <ClipboardList className="w-6 h-6" strokeWidth={2} />, accent: 'text-amber-500' },
   { id: 'agenda', label: 'Agenda', icon: <Calendar className="w-6 h-6" strokeWidth={2} />, accent: 'text-blue-500' },
   { id: 'patio', label: 'Pátio', icon: <PatioCarIcon className="w-6 h-6" strokeWidth={2} />, accent: 'text-emerald-500' },
+  { id: 'laboratorio', label: 'Laboratório', icon: <FlaskConical className="w-6 h-6" strokeWidth={2} />, accent: 'text-violet-500' },
 ];
 
 export const HomeView: React.FC<HomeViewProps> = ({

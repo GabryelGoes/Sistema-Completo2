@@ -28,6 +28,7 @@ import {
   type WorkshopService,
   type WorkshopTechnician,
   type ServiceOrderUpdateActor,
+  type ServiceOrderType,
 } from '../../services/apiService';
 import type { ServiceOrderDetail } from '../../services/apiService';
 import { SERVICE_ORDER_STAGES, getStageStyle, type ServiceOrderStatus } from '../../constants/serviceOrderStages';
@@ -52,6 +53,8 @@ interface PatioViewProps {
   actorOptions?: ServiceOrderUpdateActor;
   /** Modo cinematográfico: embaçar placas em todo o app (para gravar tela / redes sociais). */
   blurPlates?: boolean;
+  /** Exibir apenas veículos (Pátio) ou apenas módulos (Laboratório). */
+  orderType?: ServiceOrderType;
 }
 
 const BACKEND_LISTS: TrelloList[] = SERVICE_ORDER_STAGES.map((s) => ({
@@ -71,8 +74,10 @@ function buildTechnicianNameMap(technicians: WorkshopTechnician[]): Record<strin
   return map;
 }
 
-function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string, string>): TrelloCard {
-  const name = `${o.vehicle_model || 'Veículo'} - ${(o.plate || '---').toUpperCase()} - ${o.customers?.name || 'Cliente'}`;
+function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string, string>, orderType: ServiceOrderType = 'vehicle'): TrelloCard {
+  const name = orderType === 'module'
+    ? `${o.vehicle_model || 'Módulo'} - ${o.customers?.name || 'Cliente'}`
+    : `${o.vehicle_model || 'Veículo'} - ${(o.plate || '---').toUpperCase()} - ${o.customers?.name || 'Cliente'}`;
   const techId = o.assigned_technician ?? null;
   const nameMap = technicianNameMap ?? {};
   const techName = techId ? (nameMap[techId] ?? techId) : null;
@@ -313,6 +318,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   onOpenServiceOrderHandled,
   actorOptions,
   blurPlates = false,
+  orderType = 'vehicle',
 }) => {
   const [lists, setLists] = useState<TrelloList[]>([]);
   const [cards, setCards] = useState<TrelloCard[]>([]);
@@ -472,7 +478,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!isBackground) setError(null);
 
     try {
-      const orders = await getServiceOrders();
+      const orders = await getServiceOrders(undefined, orderType);
       let technicians: WorkshopTechnician[] = [];
       try {
         technicians = await getWorkshopTechnicians();
@@ -483,7 +489,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setLists(BACKEND_LISTS);
       const nameMap = buildTechnicianNameMap(technicians);
       const onlyActive = orders.filter((o) => o.status !== 'CANCELLED');
-      setCards(onlyActive.map((o) => orderToCard(o, nameMap)).sort((a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime()));
+      setCards(onlyActive.map((o) => orderToCard(o, nameMap, orderType)).sort((a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime()));
       setAllMembers([]);
       if (error) setError(null);
     } catch (err: any) {
@@ -603,9 +609,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsLoadingHistory(true);
     setHistoryShowingFallback(false);
     try {
-      const orders = await getServiceOrders('CANCELLED');
+      const orders = await getServiceOrders('CANCELLED', orderType);
       const nameMap = buildTechnicianNameMap(workshopTechnicians);
-      const list = orders.map((o) => orderToCard(o, nameMap));
+      const list = orders.map((o) => orderToCard(o, nameMap, orderType));
       setRecentArchivedCards(list);
       setArchivedCards(list);
     } catch (err) {
@@ -622,10 +628,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsLoadingHistory(true);
     setHistoryShowingFallback(false);
     try {
-      const orders = await getServiceOrders('CANCELLED');
+      const orders = await getServiceOrders('CANCELLED', orderType);
       const nameMap = buildTechnicianNameMap(workshopTechnicians);
       if (!term) {
-        const list = orders.map((o) => orderToCard(o, nameMap));
+        const list = orders.map((o) => orderToCard(o, nameMap, orderType));
         setRecentArchivedCards(list);
         setArchivedCards(list);
         return;
@@ -636,9 +642,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
           (o.customers?.name && o.customers.name.toLowerCase().includes(term.toLowerCase())) ||
           (o.vehicle_model && o.vehicle_model.toLowerCase().includes(term.toLowerCase()))
       );
-      const cards = cancelled.map((o) => orderToCard(o, nameMap));
+      const cards = cancelled.map((o) => orderToCard(o, nameMap, orderType));
       if (cards.length === 0) {
-        const list = orders.map((o) => orderToCard(o, nameMap));
+        const list = orders.map((o) => orderToCard(o, nameMap, orderType));
         setRecentArchivedCards(list);
         setArchivedCards(list);
         setHistoryShowingFallback(list.length > 0);
@@ -654,6 +660,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setIsLoadingHistory(false);
     }
   };
+
+  const isModuleMode = orderType === 'module';
 
   // Ao abrir o modal de histórico, carregar os últimos veículos arquivados
   useEffect(() => {
@@ -967,12 +975,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
       });
       await updateServiceOrderVehicle(selectedCard.id, {
         vehicleModel: editFichaForm.vehicleModel.trim(),
-        plate: editFichaForm.plate.trim().toUpperCase(),
+        plate: isModuleMode ? undefined : editFichaForm.plate.trim().toUpperCase(),
       }, actorOptions);
-      await updateServiceOrderMileage(selectedCard.id, editFichaForm.mileageKm.trim() || null, actorOptions);
+      if (!isModuleMode) {
+        await updateServiceOrderMileage(selectedCard.id, editFichaForm.mileageKm.trim() || null, actorOptions);
+      }
       const updated = await getServiceOrderById(selectedCard.id);
       setServiceOrderDetail(updated);
-      const newName = `${updated.vehicle_model || 'Veículo'} - ${(updated.plate || '---').toUpperCase()} - ${updated.customers?.name || 'Cliente'}`;
+      const newName = isModuleMode
+        ? `${updated.vehicle_model || 'Módulo'} - ${updated.customers?.name || 'Cliente'}`
+        : `${updated.vehicle_model || 'Veículo'} - ${(updated.plate || '---').toUpperCase()} - ${updated.customers?.name || 'Cliente'}`;
       const updatedCard = { ...selectedCard, name: newName };
       setSelectedCard(updatedCard);
       setCards(prev => prev.map(c => c.id === selectedCard.id ? { ...c, name: newName } : c));
@@ -1543,10 +1555,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
           <img src="/logo.png" alt="Logo" className="h-20 w-auto object-contain bg-black rounded-xl p-2" />
           <div>
             <h1 className="text-4xl font-bold tracking-tight text-brand-yellow leading-none">
-              PÁTIO
+              {isModuleMode ? 'LABORATÓRIO' : 'PÁTIO'}
             </h1>
             <p className="text-zinc-500 text-sm mt-1">
-              {cards.length} Veículos na oficina
+              {cards.length} {isModuleMode ? 'Módulos' : 'Veículos'} na oficina
             </p>
           </div>
         </div>
@@ -1573,10 +1585,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* Grid Unificado de Veículos — perspectiva para efeito 3D no hover */}
       <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-1" style={{ perspective: '1400px' }}>
         {cards.map(card => {
-          const parts = card.name.split('-');
-          const model = parts[0]?.trim() || card.name;
-          const plate = parts[1]?.trim() || '---';
-          const customerName = parts[2]?.trim() || '';
+          const parts = card.name.split('-').map(s => s.trim());
+          const model = parts[0] || card.name;
+          const plate = isModuleMode ? '' : (parts[1] || '---');
+          const customerName = isModuleMode ? (parts[1] || '') : (parts[2] || '');
           
           const currentList = lists.find(l => l.id === card.idList);
           const listName = currentList ? currentList.name : 'Desconhecido';
@@ -1688,8 +1700,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                 {/* Info Mecânico/Placa */}
                 <div className="flex flex-col items-end min-w-[120px] text-right pl-2">
-                   
-                   {/* Botão Técnico — estilo iOS */}
                    <button 
                      type="button"
                      disabled={!canAssignMember}
@@ -1714,8 +1724,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          <Wrench className={`w-6 h-6 shrink-0 ${mechanicColorClass}`} />
                       )}
                    </button>
-                   
-                   {/* PLACA MERCOSUL — cantos mais suaves */}
+                   {!isModuleMode && (
                    <div className="w-[120px] bg-white rounded-xl border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/15 mt-1 select-none">
                       <div className="h-4 bg-[#003399] flex items-center justify-between px-2 relative">
                          <span className="text-[6px] font-bold text-white tracking-wider">BRASIL</span>
@@ -1727,7 +1736,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          </span>
                       </div>
                    </div>
-
+                   )}
                 </div>
               </div>
 
@@ -1872,7 +1881,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {cards.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-zinc-600">
             <PatioCarIcon className="w-16 h-16 mb-4 opacity-20" strokeWidth={1.5} />
-            <p>Nenhum veículo no pátio</p>
+            <p>{isModuleMode ? 'Nenhum módulo no laboratório' : 'Nenhum veículo no pátio'}</p>
           </div>
       )}
 
@@ -2349,6 +2358,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      </div>
 
                      <div className="flex flex-wrap items-center gap-6 text-zinc-400">
+                         {!isModuleMode && (
                          <div className="flex items-center">
                             <div className="w-[140px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-xl shadow-black/20 select-none">
                                <div className="h-5 bg-[#003399] flex items-center justify-between px-3 relative">
@@ -2362,10 +2372,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                </div>
                             </div>
                          </div>
+                         )}
                          <div className="flex items-center gap-2 px-4 py-2">
                             <User className="w-5 h-5 text-brand-yellow" />
-                            <span className="text-lg font-medium text-zinc-700 dark:text-white">{selectedCard.name.split('-')[2]?.trim()}</span>
+                            <span className="text-lg font-medium text-zinc-700 dark:text-white">
+                              {isModuleMode ? selectedCard.name.split('-')[1]?.trim() : selectedCard.name.split('-')[2]?.trim()}
+                            </span>
                          </div>
+                         {!isModuleMode && (
                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-yellow">Km</span>
                             <input
@@ -2394,6 +2408,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </span>
                             )}
                          </div>
+                         )}
                      </div>
                   </div>
 
@@ -2468,10 +2483,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
                             <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
                             <div>
-                              <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Veículo</p>
+                              <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">{isModuleMode ? 'Módulo' : 'Veículo'}</p>
                               <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.vehicle_model || '—'}</p>
                             </div>
                           </div>
+                          {!isModuleMode && (
+                          <>
                           <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
                             <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
                             <div>
@@ -2486,6 +2503,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.mileage_km || '—'}</p>
                             </div>
                           </div>
+                          </>
+                          )}
                         </div>
                         )}
                       </div>
@@ -2985,9 +3004,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
               <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-2" />
               <div>
-                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Modelo do veículo</label>
-                <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Ex: Gol 1.0" />
+                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">{isModuleMode ? 'Nome / Identificação do módulo' : 'Modelo do veículo'}</label>
+                <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder={isModuleMode ? 'Ex: Módulo ABS XYZ' : 'Ex: Gol 1.0'} />
               </div>
+              {!isModuleMode && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Placa</label>
@@ -2998,6 +3018,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="45000" />
                 </div>
               </div>
+              )}
             </div>
             <div className="flex gap-3 p-6 border-t border-zinc-200 dark:border-white/10 bg-zinc-50/50 dark:bg-white/[0.03]">
               <button type="button" onClick={() => setIsEditFichaOpen(false)} className="flex-1 py-3 rounded-xl border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">Cancelar</button>

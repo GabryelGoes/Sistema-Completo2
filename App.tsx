@@ -313,6 +313,20 @@ export default function App() {
           />
         )}
 
+        {currentTab === 'laboratorio' && (
+          <PatioView
+            orderType="module"
+            onUseCustomerData={() => {}}
+            effectsEnabled={effectsEnabled}
+            commentAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.technicianName ?? 'Rei do ABS')}
+            blurPlates={cinematographicMode}
+            openServiceOrderId={null}
+            openServiceOrderSection={null}
+            onOpenServiceOrderHandled={() => {}}
+            actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.technicianSlug, actorTechnicianName: authSession?.technicianName }}
+          />
+        )}
+
       </main>
 
       {/* Navigation - Oculta na home */}

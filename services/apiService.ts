@@ -30,12 +30,15 @@ interface ApiServiceOrder {
   updated_at: string;
 }
 
+/** Tipo da OS: veículo (Pátio) ou módulo (Laboratório). */
+export type ServiceOrderType = "vehicle" | "module";
+
 /** OS na listagem (com customer resumido) */
 export interface ServiceOrderListItem {
   id: string;
   customer_id: string;
-  vehicle_model: string;
-  plate: string;
+  vehicle_model: string | null;
+  plate: string | null;
   mileage_km: string | null;
   delivery_date: string | null;
   issue_description: string | null;
@@ -43,6 +46,7 @@ export interface ServiceOrderListItem {
   status: ServiceOrderStatus;
   assigned_technician: string | null;
   garantia_tag?: boolean;
+  order_type?: ServiceOrderType;
   created_at: string;
   updated_at: string;
   customers: { id: string; name: string; phone: string | null } | null;
@@ -254,24 +258,33 @@ export async function updateCustomer(
 export async function createServiceOrder(params: {
   customerId: string;
   vehicleModel: string;
-  plate: string;
+  plate?: string | null;
   mileageKm?: string | null;
   issueDescription?: string;
   aiAnalysis?: string;
+  orderType?: ServiceOrderType;
 }): Promise<ApiServiceOrder> {
+  const orderType = params.orderType === "module" ? "module" : "vehicle";
+  const body: Record<string, unknown> = {
+    customerId: params.customerId,
+    vehicleModel: params.vehicleModel,
+    issueDescription: params.issueDescription ?? null,
+    aiAnalysis: params.aiAnalysis ?? null,
+    orderType,
+  };
+  if (orderType === "vehicle") {
+    body.plate = (params.plate || '').toUpperCase();
+    body.mileageKm = params.mileageKm ?? null;
+  } else {
+    body.plate = null;
+    body.mileageKm = null;
+  }
   const response = await fetch(`${API_BASE}/service-orders`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      customerId: params.customerId,
-      vehicleModel: params.vehicleModel,
-      plate: (params.plate || '').toUpperCase(),
-      mileageKm: params.mileageKm ?? null,
-      issueDescription: params.issueDescription ?? null,
-      aiAnalysis: params.aiAnalysis ?? null,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -285,16 +298,20 @@ export async function createServiceOrder(params: {
   return response.json();
 }
 
-export async function saveReceptionIntake(customer: Customer) {
+export async function saveReceptionIntake(
+  customer: Customer,
+  orderType: ServiceOrderType = "vehicle"
+) {
   const createdCustomer = await createCustomer(customer);
 
   const createdServiceOrder = await createServiceOrder({
     customerId: createdCustomer.id,
-    vehicleModel: customer.vehicleModel,
-    plate: (customer.plate || '').toUpperCase(),
-    mileageKm: customer.mileageKm ?? null,
+    vehicleModel: customer.vehicleModel || '',
+    plate: orderType === "vehicle" ? (customer.plate || '').toUpperCase() : undefined,
+    mileageKm: orderType === "vehicle" ? (customer.mileageKm ?? null) : undefined,
     issueDescription: customer.issueDescription,
     aiAnalysis: customer.aiAnalysis,
+    orderType,
   });
 
   return {
@@ -305,10 +322,14 @@ export async function saveReceptionIntake(customer: Customer) {
 
 // ---------- Pátio (listagem e movimentação) ----------
 
-export async function getServiceOrders(status?: string): Promise<ServiceOrderListItem[]> {
-  const url = status
-    ? `${API_BASE}/service-orders?status=${encodeURIComponent(status)}`
-    : `${API_BASE}/service-orders`;
+export async function getServiceOrders(
+  status?: string,
+  orderType?: ServiceOrderType
+): Promise<ServiceOrderListItem[]> {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (orderType === "vehicle" || orderType === "module") params.set("orderType", orderType);
+  const url = `${API_BASE}/service-orders${params.toString() ? `?${params.toString()}` : ""}`;
   const response = await fetch(url);
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));

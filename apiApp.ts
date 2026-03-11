@@ -525,17 +525,21 @@ export function createApiApp() {
       }
 
       const status = req.query.status as string | undefined;
+      const orderType = req.query.orderType as string | undefined;
 
       let query = supabaseAdmin
         .from("service_orders")
         .select(
-          "id, customer_id, vehicle_model, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, created_at, updated_at, customers(id, name, phone)"
+          "id, customer_id, vehicle_model, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, created_at, updated_at, customers(id, name, phone)"
         )
         .eq("workshop_id", WORKSHOP_ID)
         .order("created_at", { ascending: false });
 
       if (status) {
         query = query.eq("status", status);
+      }
+      if (orderType === "vehicle" || orderType === "module") {
+        query = query.eq("order_type", orderType);
       }
 
       const { data, error } = await query;
@@ -568,11 +572,22 @@ export function createApiApp() {
         mileageKm,
         issueDescription,
         aiAnalysis,
+        orderType: bodyOrderType,
       } = req.body;
 
-      if (!customerId || !vehicleModel || !plate) {
+      const orderType = bodyOrderType === "module" ? "module" : "vehicle";
+
+      if (!customerId) {
+        return res.status(400).json({ error: "customerId é obrigatório." });
+      }
+      if (orderType === "vehicle" && (!vehicleModel || !plate)) {
         return res.status(400).json({
-          error: "Campos obrigatórios: customerId, vehicleModel, plate.",
+          error: "Para veículos: vehicleModel e plate são obrigatórios.",
+        });
+      }
+      if (orderType === "module" && !vehicleModel) {
+        return res.status(400).json({
+          error: "Para módulos: vehicleModel (nome/identificação) é obrigatório.",
         });
       }
 
@@ -581,12 +596,13 @@ export function createApiApp() {
         .insert({
           workshop_id: WORKSHOP_ID,
           customer_id: customerId,
-          vehicle_model: vehicleModel,
-          plate: String(plate || '').toUpperCase(),
-          mileage_km: mileageKm != null && String(mileageKm).trim() !== '' ? String(mileageKm).trim() : null,
+          vehicle_model: vehicleModel ?? null,
+          plate: orderType === "vehicle" ? String(plate || '').toUpperCase() : null,
+          mileage_km: orderType === "vehicle" && mileageKm != null && String(mileageKm).trim() !== '' ? String(mileageKm).trim() : null,
           issue_description: issueDescription ?? null,
           ai_analysis: aiAnalysis ?? null,
           status: FIRST_STAGE,
+          order_type: orderType,
         })
         .select("*")
         .single();

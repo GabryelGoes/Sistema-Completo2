@@ -1,8 +1,8 @@
 import React from 'react';
-import { Home, FileText, Calendar } from 'lucide-react';
+import { Home, FileText, Calendar, FlaskConical } from 'lucide-react';
 import { PatioCarIcon } from './ui/PatioCarIcon';
 
-export type TabId = 'home' | 'reception' | 'patio' | 'agenda';
+export type TabId = 'home' | 'reception' | 'patio' | 'agenda' | 'laboratorio';
 
 interface TabBarProps {
   currentTab: TabId;
@@ -16,6 +16,7 @@ const TAB_ITEMS: { id: TabId; label: string }[] = [
   { id: 'reception', label: 'Recepção' },
   { id: 'agenda', label: 'Agenda' },
   { id: 'patio', label: 'Pátio' },
+  { id: 'laboratorio', label: 'Laboratório' },
 ];
 
 export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowedTabs }) => {
@@ -28,6 +29,7 @@ export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowed
     if (id === 'reception') return <FileText className={`w-6 h-6 ${selected ? 'fill-zinc-200 dark:fill-brand-yellow/20' : ''}`} />;
     if (id === 'agenda') return <Calendar className={`w-6 h-6 ${selected ? 'fill-zinc-200 dark:fill-brand-yellow/20' : ''}`} />;
     if (id === 'patio') return <PatioCarIcon className="w-6 h-6" />;
+    if (id === 'laboratorio') return <FlaskConical className="w-6 h-6" />;
     return null;
   };
 

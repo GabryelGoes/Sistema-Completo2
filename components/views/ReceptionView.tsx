@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, X, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, X, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package } from 'lucide-react';
 import { Customer, ProcessingStatus } from '../../types';
 import { Input, TextArea } from '../ui/Input';
 import { ProcessingOverlay } from '../ProcessingOverlay';
 import { saveReceptionIntake } from '../../services/apiService';
+import type { ServiceOrderType } from '../../services/apiService';
+
+const RECEPTION_MODE_KEY = 'app_reception_mode';
 
 interface ReceptionViewProps {
   initialData?: Customer | null;
@@ -30,6 +33,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   onDataLoaded,
   blurPlates = false,
 }) => {
+  const [receptionMode, setReceptionMode] = useState<ServiceOrderType>(() => {
+    try {
+      const v = localStorage.getItem(RECEPTION_MODE_KEY);
+      return (v === 'module' ? 'module' : 'vehicle') as ServiceOrderType;
+    } catch {
+      return 'vehicle';
+    }
+  });
+
   const [customer, setCustomer] = useState<Customer>({
     name: '',
     cpf: '',
@@ -45,6 +57,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   });
 
   const [status, setStatus] = useState<ProcessingStatus>({ step: 'idle' });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(RECEPTION_MODE_KEY, receptionMode);
+    } catch (_) {}
+  }, [receptionMode]);
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,20 +110,29 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validação mínima (mantendo flexibilidade anterior)
-    if (!customer.name && !customer.phone && !customer.vehicleModel && !customer.plate) {
-      setStatus({
-        step: 'error',
-        message: 'Preencha pelo menos algum dado de identificação (nome, telefone, veículo ou placa).',
-      });
-      return;
+    const isModule = receptionMode === 'module';
+    if (isModule) {
+      if (!customer.name && !customer.phone && !customer.vehicleModel) {
+        setStatus({
+          step: 'error',
+          message: 'Preencha pelo menos nome, telefone ou nome/identificação do módulo.',
+        });
+        return;
+      }
+    } else {
+      if (!customer.name && !customer.phone && !customer.vehicleModel && !customer.plate) {
+        setStatus({
+          step: 'error',
+          message: 'Preencha pelo menos algum dado de identificação (nome, telefone, veículo ou placa).',
+        });
+        return;
+      }
     }
 
     try {
       setStatus({ step: 'creating', message: 'Criando cadastro' });
 
-      // 1) Salvar no banco (Supabase)
-      const { customer: savedCustomer, serviceOrder } = await saveReceptionIntake(customer);
+      const { customer: savedCustomer, serviceOrder } = await saveReceptionIntake(customer, receptionMode);
 
       // 2) Se houver foto, enviar para o Storage vinculado à OS
       if (photoBlob && serviceOrder?.id) {
@@ -175,7 +202,33 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Recepção & Cadastro</p>
           </div>
         </div>
-        
+
+        <div className="flex bg-zinc-200 dark:bg-black/40 p-1 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setReceptionMode('vehicle')}
+            className={`flex items-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+              receptionMode === 'vehicle'
+                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+            }`}
+          >
+            <Car className="w-4 h-4" />
+            Veículos
+          </button>
+          <button
+            type="button"
+            onClick={() => setReceptionMode('module')}
+            className={`flex items-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+              receptionMode === 'module'
+                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+            }`}
+          >
+            <Package className="w-4 h-4" />
+            Módulos
+          </button>
+        </div>
       </header>
 
       {/* Main Card */}
@@ -268,34 +321,47 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
           <div className="w-full h-px bg-zinc-200 dark:bg-brand-border/50 my-2"></div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input 
-              label="Modelo do Veículo"
-              name="vehicleModel"
-              placeholder="Ex: BMW 320i"
-              value={customer.vehicleModel}
-              onChange={handleInputChange}
-              icon={<Car className="w-4 h-4" />}
-            />
-            <Input
-              label="Placa"
-              name="plate"
-              placeholder="ABC-1D23"
-              value={customer.plate ? String(customer.plate).toUpperCase() : ''}
-              onChange={(e) => setCustomer((prev) => ({ ...prev, plate: e.target.value.toUpperCase() }))}
-              className="uppercase"
-              maxLength={8}
-              icon={<FileText className="w-4 h-4" />}
-            />
-            <Input 
-              label="Km"
-              name="mileageKm"
-              placeholder="Ex: 45000"
-              value={customer.mileageKm ?? ''}
-              onChange={handleInputChange}
-              icon={<Hash className="w-4 h-4" />}
-            />
-          </div>
+          {receptionMode === 'vehicle' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input 
+                label="Modelo do Veículo"
+                name="vehicleModel"
+                placeholder="Ex: BMW 320i"
+                value={customer.vehicleModel}
+                onChange={handleInputChange}
+                icon={<Car className="w-4 h-4" />}
+              />
+              <Input
+                label="Placa"
+                name="plate"
+                placeholder="ABC-1D23"
+                value={customer.plate ? String(customer.plate).toUpperCase() : ''}
+                onChange={(e) => setCustomer((prev) => ({ ...prev, plate: e.target.value.toUpperCase() }))}
+                className="uppercase"
+                maxLength={8}
+                icon={<FileText className="w-4 h-4" />}
+              />
+              <Input 
+                label="Km"
+                name="mileageKm"
+                placeholder="Ex: 45000"
+                value={customer.mileageKm ?? ''}
+                onChange={handleInputChange}
+                icon={<Hash className="w-4 h-4" />}
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input 
+                label="Nome / Identificação do módulo"
+                name="vehicleModel"
+                placeholder="Ex: Módulo ABS XYZ"
+                value={customer.vehicleModel}
+                onChange={handleInputChange}
+                icon={<Package className="w-4 h-4" />}
+              />
+            </div>
+          )}
 
           <div className="relative">
             <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-300 uppercase tracking-wider ml-1 mb-1">
@@ -313,7 +379,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           {/* Camera Section */}
           <div className="space-y-2">
             <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-300 uppercase tracking-wider ml-1">
-                Foto do Veículo (Opcional)
+                {receptionMode === 'vehicle' ? 'Foto do Veículo (Opcional)' : 'Foto (Opcional)'}
             </label>
             
             <input 
