@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, User, Wrench, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, Link, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, User, Wrench, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin } from 'lucide-react';
 import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer } from '../../types';
 import {
   getServiceOrders,
@@ -426,11 +426,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-
-  // Link State
-  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-  const [linkUrl, setLinkUrl] = useState('');
-  const [linkName, setLinkName] = useState('');
 
   // Quilometragem editável no modal do veículo
   const [mileageEditValue, setMileageEditValue] = useState('');
@@ -1405,13 +1400,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setIsUploading(false);
       if (cameraInputRef.current) cameraInputRef.current.value = '';
     }
-  };
-
-  const handleAttachLink = async () => {
-    setIsLinkModalOpen(false);
-    setLinkUrl('');
-    setLinkName('');
-    // Backend: anexar link em breve
   };
 
   // Camera Functions
@@ -2836,12 +2824,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     </button>
                                     <button 
                                         type="button"
-                                        onClick={() => setIsLinkModalOpen(true)}
+                                        onClick={() => galleryInputRef.current?.click()}
                                         disabled={isUploading}
                                         className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Link"
+                                        title="Arquivos do dispositivo"
                                     >
-                                        <Link className="w-6 h-6 shrink-0" strokeWidth={2} />
+                                        <FolderOpen className="w-6 h-6 shrink-0" strokeWidth={2} />
                                     </button>
                                 </div>
                             </div>
@@ -2857,55 +2845,83 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                      <RefreshCw className="w-4 h-4 text-zinc-500 animate-spin" />
                                   </div>
                                ) : cardDetails?.attachments && cardDetails.attachments.length > 0 ? (
-                                  <div className="grid grid-cols-2 gap-2">
-                                     {cardDetails.attachments.map(att => {
-                                       // Verifica se é imagem para habilitar o Lightbox
-                                       const isImage = att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url);
-                                       const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
-                                       const isLoadingThis = loadingAttachmentId === att.id;
-
-                                       return (
-                                        <a 
-                                          key={att.id} 
-                                          href={att.url} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer"
-                                          onClick={(e) => {
-                                            if (isImage) {
-                                              e.preventDefault();
-                                              setPreviewImage(att.url);
-                                            } else if (isPdf) {
-                                              e.preventDefault();
-                                              setPreviewPdf(att.url);
-                                            }
-                                          }}
-                                          className="block bg-light-card dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden group hover:border-zinc-400 dark:hover:border-zinc-500 transition-all cursor-pointer relative"
-                                        >
-                                           {/* Thumbnail Preview */}
-                                           <div className="h-24 bg-zinc-200 dark:bg-black flex items-center justify-center relative overflow-hidden">
-                                              {isLoadingThis ? (
-                                                 <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
-                                              ) : att.previews && att.previews.length > 0 ? (
-                                                 <img 
-                                                   src={att.previews[att.previews.length > 2 ? 2 : 0].url} // Tenta pegar um tamanho médio
-                                                   alt={att.name} 
-                                                   className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity"
-                                                 />
-                                              ) : (
-                                                 <FileText className="w-8 h-8 text-zinc-400 dark:text-zinc-600" />
-                                              )}
-                                              
-                                              {!isLoadingThis && (
-                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                   {isImage && <ZoomIn className="w-5 h-5 text-white" />}
-                                                   {isPdf && <Eye className="w-5 h-5 text-white" />}
-                                                   {!isImage && !isPdf && <ExternalLink className="w-5 h-5 text-white" />}
-                                                </div>
-                                              )}
-                                           </div>
-                                        </a>
-                                     )})}
-                                  </div>
+                                  (() => {
+                                    const attachments = cardDetails.attachments;
+                                    const images = attachments.filter(att => att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url));
+                                    const others = attachments.filter(att => !(att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url)));
+                                    const thumbUrl = (att: typeof attachments[0]) => (att.previews && att.previews.length > 0 ? att.previews[att.previews.length > 2 ? 2 : 0].url : att.url);
+                                    return (
+                                      <div className="space-y-5">
+                                        {images.length > 0 && (
+                                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                                            {images.map(att => {
+                                              const isLoadingThis = loadingAttachmentId === att.id;
+                                              const src = thumbUrl(att);
+                                              return (
+                                                <button
+                                                  key={att.id}
+                                                  type="button"
+                                                  onClick={() => !isLoadingThis && setPreviewImage(att.url)}
+                                                  className="aspect-square rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-900 relative group focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
+                                                >
+                                                  {isLoadingThis ? (
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-zinc-200/80 dark:bg-zinc-800/80">
+                                                      <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
+                                                    </div>
+                                                  ) : (
+                                                    <>
+                                                      <img
+                                                        src={src || att.url}
+                                                        alt={att.name}
+                                                        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                                      />
+                                                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-2">
+                                                        <ZoomIn className="w-6 h-6 text-white drop-shadow-lg" />
+                                                      </div>
+                                                    </>
+                                                  )}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+                                        {others.length > 0 && (
+                                          <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Documentos</p>
+                                            <div className="flex flex-wrap gap-2">
+                                              {others.map(att => {
+                                                const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
+                                                const isLoadingThis = loadingAttachmentId === att.id;
+                                                return (
+                                                  <a
+                                                    key={att.id}
+                                                    href={att.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    onClick={(e) => {
+                                                      if (isPdf) {
+                                                        e.preventDefault();
+                                                        setPreviewPdf(att.url);
+                                                      }
+                                                    }}
+                                                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors min-w-0 max-w-full"
+                                                  >
+                                                    {isLoadingThis ? (
+                                                      <RefreshCw className="w-5 h-5 text-brand-yellow animate-spin shrink-0" />
+                                                    ) : (
+                                                      <FileText className="w-5 h-5 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                                                    )}
+                                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 truncate">{att.name}</span>
+                                                    {(isPdf || !att.mimeType?.startsWith('image/')) && <ExternalLink className="w-4 h-4 text-zinc-400 shrink-0" />}
+                                                  </a>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()
                                ) : (
                                   <div className="text-center py-6 border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl">
                                      <p className="text-zinc-600 text-sm">Nenhum anexo encontrado.</p>
@@ -3710,56 +3726,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </button>
                 </div>
             </div>
-        </div>
-      )}
-
-      {/* LINK MODAL */}
-      {isLinkModalOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-           <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col animate-modal-sheet">
-            <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-light-card/80 dark:bg-white/[0.04]">
-              <h3 className="text-zinc-900 dark:text-white font-bold text-lg">Anexar Link</h3>
-              <button onClick={() => setIsLinkModalOpen(false)} className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-4">
-               <div>
-                  <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">URL do Link</label>
-                  <input 
-                    type="url" 
-                    value={linkUrl}
-                    onChange={(e) => setLinkUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full bg-zinc-100 dark:bg-black border border-zinc-300 dark:border-zinc-700 rounded-xl p-3 text-zinc-900 dark:text-white focus:outline-none focus:border-brand-yellow"
-                    autoFocus
-                  />
-               </div>
-               <div>
-                  <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Nome (Opcional)</label>
-                  <input 
-                    type="text" 
-                    value={linkName}
-                    onChange={(e) => setLinkName(e.target.value)}
-                    placeholder="Ex: Documento Google Drive"
-                    className="w-full bg-zinc-100 dark:bg-black border border-zinc-300 dark:border-zinc-700 rounded-xl p-3 text-zinc-900 dark:text-white focus:outline-none focus:border-brand-yellow"
-                  />
-               </div>
-            </div>
-
-            <div className="p-4 bg-light-card/80 dark:bg-white/[0.04] border-t border-zinc-200/60 dark:border-white/[0.08] flex justify-end gap-3">
-                <button onClick={() => setIsLinkModalOpen(false)} className="px-4 py-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">Cancelar</button>
-                <button 
-                    onClick={handleAttachLink}
-                    disabled={isUploading || !linkUrl.trim()}
-                    className="px-6 py-2 bg-brand-yellow text-black rounded-lg font-bold hover:bg-[#fcd61e] transition-colors disabled:opacity-50 flex items-center gap-2"
-                >
-                    {isUploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
-                    Anexar
-                </button>
-            </div>
-           </div>
         </div>
       )}
 
