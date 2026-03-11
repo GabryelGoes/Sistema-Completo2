@@ -14,6 +14,7 @@ import {
   updateServiceOrderVehicle,
   getServiceOrderPhotos,
   uploadServiceOrderPhoto,
+  renameServiceOrderPhoto,
   getServiceOrderBudgets,
   createServiceOrderBudget,
   updateServiceOrderBudget,
@@ -380,6 +381,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // Visualização de Imagem (Lightbox)
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [loadingAttachmentId, setLoadingAttachmentId] = useState<string | null>(null);
+  const [renameAttachmentId, setRenameAttachmentId] = useState<string | null>(null);
+  const [renameAttachmentNewName, setRenameAttachmentNewName] = useState('');
+  const [renamingAttachmentId, setRenamingAttachmentId] = useState<string | null>(null);
   
   // Visualização de PDF
   const [previewPdf, setPreviewPdf] = useState<string | null>(null);
@@ -1916,24 +1920,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* --- MODAL DE HISTÓRICO (BUSCA) --- */}
       {isHistoryOpen && (
          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-            <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-4xl h-[85vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative">
+            <div className="bg-emerald-50/98 dark:bg-emerald-950/30 backdrop-blur-xl border-2 border-emerald-200/80 dark:border-emerald-800/50 w-full max-w-[90rem] w-full h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(6,95,70,0.2)] flex flex-col overflow-hidden animate-modal-sheet relative">
                
-               <div className="p-6 border-b border-light-border dark:border-zinc-800 flex items-center justify-between bg-light-elevated dark:bg-zinc-900/50">
+               <div className="p-6 border-b border-emerald-200/80 dark:border-emerald-800/50 flex items-center justify-between bg-emerald-100/60 dark:bg-emerald-900/30">
                   <div className="flex items-center gap-3">
-                     <div className="bg-brand-yellow/10 p-2 rounded-xl">
-                        <History className="w-6 h-6 text-brand-yellow" />
+                     <div className="bg-emerald-500/20 p-2 rounded-xl">
+                        <History className="w-6 h-6 text-emerald-700 dark:text-emerald-400" />
                      </div>
                      <div>
-                        <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Histórico de Veículos</h2>
-                        <p className="text-zinc-500 text-xs mt-0.5">Buscar veículos arquivados</p>
+                        <h2 className="text-xl font-bold text-emerald-900 dark:text-emerald-100">Histórico de Veículos</h2>
+                        <p className="text-emerald-600 dark:text-emerald-400 text-xs mt-0.5">Buscar veículos arquivados</p>
                      </div>
                   </div>
-                  <button onClick={() => setIsHistoryOpen(false)} className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors">
+                  <button onClick={() => setIsHistoryOpen(false)} className="w-10 h-10 rounded-full bg-emerald-200/80 dark:bg-emerald-800/50 flex items-center justify-center text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-white hover:bg-emerald-300 dark:hover:bg-emerald-700 transition-colors">
                      <X className="w-5 h-5" />
                   </button>
                </div>
 
-               <div className="p-6 bg-light-card dark:bg-zinc-900/30 border-b border-light-border dark:border-zinc-800">
+               <div className="p-6 bg-emerald-100/40 dark:bg-emerald-900/20 border-b border-emerald-200/80 dark:border-emerald-800/50">
                   <div className="flex gap-3">
                      <div className="flex-1 relative">
                         <input 
@@ -1942,34 +1946,34 @@ export const PatioView: React.FC<PatioViewProps> = ({
                            value={historySearchPlate}
                            onChange={(e) => setHistorySearchPlate(e.target.value)}
                            onKeyDown={(e) => e.key === 'Enter' && handleSearchHistory()}
-                           className="w-full bg-white dark:bg-black border border-zinc-300 dark:border-zinc-700 rounded-xl py-3 pl-10 pr-4 text-zinc-900 dark:text-white focus:outline-none focus:border-brand-yellow/50 transition-colors"
+                           className="w-full bg-white dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 rounded-xl py-3 pl-10 pr-4 text-emerald-900 dark:text-emerald-100 placeholder:text-emerald-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors"
                         />
-                        <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <Search className="w-4 h-4 text-emerald-500 absolute left-3 top-1/2 -translate-y-1/2" />
                      </div>
                      <button 
                         onClick={() => handleSearchHistory()}
                         disabled={isLoadingHistory}
-                        className="bg-brand-yellow text-black px-6 rounded-xl font-bold hover:bg-[#fcd61e] transition-colors disabled:opacity-50"
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 rounded-xl font-bold transition-colors disabled:opacity-50"
                      >
                         {isLoadingHistory ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'Buscar'}
                      </button>
                   </div>
                </div>
 
-               <div className="flex-1 overflow-y-auto p-6 bg-light-page dark:bg-[#0A0A0A] custom-scrollbar">
+               <div className="flex-1 overflow-y-auto p-6 bg-emerald-50/80 dark:bg-emerald-950/20 custom-scrollbar">
                   {isLoadingHistory ? (
-                     <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4">
-                        <RefreshCw className="w-8 h-8 animate-spin text-brand-yellow" />
+                     <div className="flex flex-col items-center justify-center h-full text-emerald-600 dark:text-emerald-400 gap-4">
+                        <RefreshCw className="w-8 h-8 animate-spin text-emerald-600" />
                         <p>Buscando no arquivo morto...</p>
                      </div>
                   ) : archivedCards.length > 0 ? (
                      <div>
                         {historyShowingFallback && (
-                           <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                           <p className="text-sm text-emerald-700 dark:text-emerald-300 mb-4">
                               Nenhum resultado para a busca. Exibindo últimos veículos arquivados:
                            </p>
                         )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {archivedCards.map(card => {
                            const parts = card.name.split('-');
                            const model = parts[0]?.trim() || card.name;
@@ -1980,30 +1984,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <div 
                                  key={card.id}
                                  onClick={() => handleOpenHistoryCardDetails(card)}
-                                 className="group bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-[#2C2C2E] rounded-2xl p-5 hover:border-brand-yellow/30 transition-all cursor-pointer shadow-sm dark:shadow-lg hover:shadow-md dark:hover:shadow-xl flex flex-col justify-between min-h-[140px]"
+                                 className="group bg-white dark:bg-emerald-900/40 border-2 border-emerald-200/80 dark:border-emerald-700/50 rounded-2xl p-5 hover:border-emerald-400 dark:hover:border-emerald-500 transition-all cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-between min-h-[140px]"
                               >
                                  <div className="flex justify-between items-start mb-4">
                                     <div>
-                                       <h3 className="text-2xl font-black text-zinc-900 dark:text-white uppercase italic tracking-tighter truncate max-w-[200px]">{model}</h3>
+                                       <h3 className="text-2xl font-black text-emerald-900 dark:text-emerald-100 uppercase italic tracking-tighter truncate max-w-[200px]">{model}</h3>
                                        <div className="flex items-center gap-2 mt-1">
-                                          <User className="w-3 h-3 text-brand-yellow" />
-                                          <p className="text-zinc-500 dark:text-zinc-400 text-sm font-bold truncate max-w-[150px]">{customerName}</p>
+                                          <User className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                          <p className="text-emerald-700 dark:text-emerald-300 text-sm font-bold truncate max-w-[150px]">{customerName}</p>
                                        </div>
                                     </div>
-                                    <div className="bg-zinc-100 dark:bg-white text-zinc-900 dark:text-black font-mono font-black text-sm px-2 py-1 rounded border-2 border-zinc-900 dark:border-black">
+                                    <div className="bg-emerald-100 dark:bg-emerald-800/80 text-emerald-900 dark:text-emerald-100 font-mono font-black text-sm px-2 py-1 rounded border-2 border-emerald-700 dark:border-emerald-500">
                                        <span className={blurPlates ? 'blur-plate' : ''}>{plate.toUpperCase()}</span>
                                     </div>
                                  </div>
                                  
-                                 <div className="flex items-end justify-between mt-2 pt-3 border-t border-zinc-100 dark:border-zinc-800/50">
+                                 <div className="flex items-end justify-between mt-2 pt-3 border-t border-emerald-200/80 dark:border-emerald-700/50">
                                     <div className="flex flex-col">
-                                         <span className="text-[10px] uppercase text-zinc-400 dark:text-zinc-600 font-bold tracking-wider">Arquivado em</span>
-                                         <span className="text-xl text-brand-yellow font-black tracking-tight leading-none">
+                                         <span className="text-[10px] uppercase text-emerald-600 dark:text-emerald-400 font-bold tracking-wider">Arquivado em</span>
+                                         <span className="text-xl text-emerald-700 dark:text-emerald-300 font-black tracking-tight leading-none">
                                             {card.dateLastActivity ? new Date(card.dateLastActivity).toLocaleDateString('pt-BR') : 'N/A'}
                                          </span>
                                     </div>
 
-                                    <span className="flex items-center gap-1 text-xs text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
+                                    <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-900 dark:group-hover:text-white transition-colors">
                                        Ver Detalhes <ArrowRight className="w-3 h-3" />
                                     </span>
                                  </div>
@@ -2013,7 +2017,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </div>
                      </div>
                   ) : (
-                     <div className="flex flex-col items-center justify-center h-full text-zinc-600">
+                     <div className="flex flex-col items-center justify-center h-full text-emerald-600 dark:text-emerald-400">
                         <History className="w-16 h-16 mb-4 opacity-20" />
                         <p>Nenhum registro encontrado.</p>
                      </div>
@@ -2027,26 +2031,26 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* --- DETALHES DO CARD ARQUIVADO (MODAL NO PÁTIO) --- */}
       {selectedHistoryCard && (
          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-            <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-4xl h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative">
+            <div className="bg-emerald-50/98 dark:bg-emerald-950/30 backdrop-blur-xl border-2 border-emerald-200/80 dark:border-emerald-800/50 w-full max-w-[90rem] h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(6,95,70,0.2)] flex flex-col overflow-hidden animate-modal-sheet relative">
                
                <div className="absolute top-6 right-6 z-10 flex gap-3">
                   <button 
                      onClick={() => handleUnarchive(selectedHistoryCard)}
-                     className="bg-green-600 hover:bg-green-500 text-white px-6 py-2.5 rounded-full font-bold shadow-lg shadow-green-600/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+                     className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-full font-bold shadow-lg shadow-emerald-600/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
                   >
                      <ArchiveRestore className="w-4 h-4" />
                      DESARQUIVAR
                   </button>
                   <button 
                      onClick={() => handleUseRegistration(selectedHistoryCard)}
-                     className="bg-brand-yellow hover:bg-[#fcd61e] text-black px-6 py-2.5 rounded-full font-bold shadow-lg shadow-brand-yellow/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+                     className="bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-2.5 rounded-full font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
                   >
                      <Copy className="w-4 h-4" />
                      USAR CADASTRO
                   </button>
                   <button 
                      onClick={() => setSelectedHistoryCard(null)}
-                     className="w-10 h-10 rounded-full bg-light-card dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
+                     className="w-10 h-10 rounded-full bg-emerald-200/80 dark:bg-emerald-800/80 backdrop-blur-md flex items-center justify-center text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-white hover:bg-emerald-300 dark:hover:bg-emerald-700 transition-all active:scale-95"
                   >
                      <X className="w-6 h-6" />
                   </button>
@@ -2055,15 +2059,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                <div className="flex-1 overflow-y-auto custom-scrollbar">
                   <div className="p-8 md:p-12 pb-8">
                      <div className="flex flex-col gap-3 mb-6">
-                        <span className="inline-flex self-start items-center gap-2 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest shadow-xl border-2 bg-light-card dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700">
+                        <span className="inline-flex self-start items-center gap-2 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest shadow-xl border-2 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700">
                             ARQUIVADO
                         </span>
-                        <h1 className="text-5xl md:text-7xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none">
+                        <h1 className="text-5xl md:text-7xl font-black text-emerald-900 dark:text-emerald-100 tracking-tighter uppercase italic leading-none">
                           {selectedHistoryCard.name.split('-')[0]}
                         </h1>
                      </div>
 
-                     <div className="flex flex-wrap items-center gap-4 text-zinc-400">
+                     <div className="flex flex-wrap items-center gap-4 text-emerald-700 dark:text-emerald-300">
                          <div className="flex items-center">
                             {/* PLACA MERCOSUL */}
                             <div className="w-[140px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-xl shadow-black/20 select-none">
@@ -2079,13 +2083,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                          </div>
                          <div className="flex items-center gap-2 px-4 py-2">
-                            <User className="w-5 h-5 text-brand-yellow" />
-                            <span className="text-lg font-medium text-zinc-700 dark:text-white">{selectedHistoryCard.name.split('-')[2]?.trim()}</span>
+                            <User className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                            <span className="text-lg font-medium text-emerald-900 dark:text-emerald-100">{selectedHistoryCard.name.split('-')[2]?.trim()}</span>
                          </div>
                          {selectedHistoryCard.due && (
-                           <div className="flex items-center gap-2 bg-light-card dark:bg-zinc-800/50 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700/50">
-                              <Calendar className="w-4 h-4 text-brand-yellow" />
-                              <span className="text-sm font-bold text-zinc-600 dark:text-zinc-300">
+                           <div className="flex items-center gap-2 bg-emerald-100/80 dark:bg-emerald-900/40 px-4 py-2 rounded-xl border border-emerald-300 dark:border-emerald-700/50">
+                              <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                              <span className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
                                 Entrega: {new Date(selectedHistoryCard.due).toLocaleDateString('pt-BR')}
                               </span>
                            </div>
@@ -2093,17 +2097,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
                   </div>
 
-                  <div className="w-full h-px bg-zinc-200 dark:bg-zinc-800/50 mx-auto max-w-[90%]"></div>
+                  <div className="w-full h-px bg-emerald-200 dark:bg-emerald-800/50 mx-auto max-w-[90%]"></div>
 
                   <div className="p-8 md:p-12 pt-8 grid grid-cols-1 lg:grid-cols-3 gap-10">
                       
                       <div className="lg:col-span-2 space-y-10">
                         <div>
-                           <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-4">
+                           <h3 className="text-emerald-700 dark:text-emerald-400 text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-4">
                               <FileText className="w-4 h-4" />
                               Queixa do cliente (Registro Antigo)
                            </h3>
-                           <div className="bg-light-elevated dark:bg-[#1C1C1E] rounded-2xl p-6 border border-light-border dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 leading-relaxed font-light text-lg">
+                           <div className="bg-white dark:bg-emerald-900/30 rounded-2xl p-6 border border-emerald-200/80 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 leading-relaxed font-light text-lg">
                               <ReactMarkdown components={MarkdownComponents}>
                                  {selectedHistoryCard.desc || "Nenhuma descrição disponível."}
                               </ReactMarkdown>
@@ -2111,22 +2115,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </div>
 
                         <div>
-                           <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                           <h3 className="text-emerald-700 dark:text-emerald-400 text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
                              <MessageSquare className="w-4 h-4" />
                              Histórico de Atividades
                           </h3>
-                          <div className="bg-light-elevated dark:bg-[#1C1C1E] rounded-2xl border border-light-border dark:border-zinc-800 overflow-hidden">
-                             <div className="p-6 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar bg-white dark:bg-[#121212]">
+                          <div className="bg-white dark:bg-emerald-900/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-800 overflow-hidden">
+                             <div className="p-6 space-y-6 max-h-[500px] overflow-y-auto custom-scrollbar bg-emerald-50/50 dark:bg-emerald-950/30">
                                 {loadingHistoryDetails ? (
                                    <div className="flex justify-center py-8">
-                                      <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
+                                      <RefreshCw className="w-6 h-6 text-emerald-600 dark:text-emerald-400 animate-spin" />
                                    </div>
                                 ) : historyCardDetails?.actions && historyCardDetails.actions.length > 0 ? (
                                    historyCardDetails.actions.map(action => {
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName);
                                       return (
                                       <div key={action.id} className="flex gap-4">
-                                         <div className={`flex-shrink-0 w-10 h-10 rounded-full overflow-hidden shrink-0 ${avatar.useLogo ? 'bg-brand-yellow' : avatar.photoUrl ? '' : ''}`}>
+                                         <div className={`flex-shrink-0 w-10 h-10 rounded-full overflow-hidden shrink-0 ${avatar.useLogo ? 'bg-emerald-500' : avatar.photoUrl ? '' : ''}`}>
                                             {avatar.useLogo ? (
                                                <img src="/logo.png" alt="Rei do ABS" className="w-full h-full object-cover" />
                                             ) : avatar.photoUrl ? (
@@ -2139,10 +2143,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                          </div>
                                          <div className="flex-1 space-y-1">
                                             <div className="flex items-center justify-between">
-                                               <span className="font-bold text-zinc-900 dark:text-white text-sm">{action.memberCreator.fullName}</span>
-                                               <span className="text-xs text-zinc-500">{new Date(action.date).toLocaleString('pt-BR')}</span>
+                                               <span className="font-bold text-emerald-900 dark:text-emerald-100 text-sm">{action.memberCreator.fullName}</span>
+                                               <span className="text-xs text-emerald-600 dark:text-emerald-400">{new Date(action.date).toLocaleString('pt-BR')}</span>
                                             </div>
-                                            <div className="bg-light-card dark:bg-zinc-800/50 p-3 rounded-r-xl rounded-bl-xl text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed border border-zinc-200 dark:border-zinc-700/50">
+                                            <div className="bg-emerald-100/80 dark:bg-emerald-800/50 p-3 rounded-r-xl rounded-bl-xl text-emerald-800 dark:text-emerald-200 text-sm leading-relaxed border border-emerald-200 dark:border-emerald-700/50">
                                                 <ReactMarkdown components={MarkdownComponents}>
                                                    {action.data.text}
                                                 </ReactMarkdown>
@@ -2151,7 +2155,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                    ); })
                                 ) : (
-                                   <div className="text-center py-8 text-zinc-600 italic">
+                                   <div className="text-center py-8 text-emerald-600 dark:text-emerald-400 italic">
                                       Nenhum comentário registrado no histórico.
                                    </div>
                                 )}
@@ -2162,14 +2166,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                       <div className="space-y-8">
                          <div>
-                            <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <h3 className="text-emerald-700 dark:text-emerald-400 text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
                                <Paperclip className="w-4 h-4" />
                                Anexos Antigos
                             </h3>
                             <div className="space-y-3">
                                {loadingHistoryDetails ? (
                                   <div className="flex justify-center p-4">
-                                     <RefreshCw className="w-4 h-4 text-zinc-500 animate-spin" />
+                                     <RefreshCw className="w-4 h-4 text-emerald-500 animate-spin" />
                                   </div>
                                ) : historyCardDetails?.attachments && historyCardDetails.attachments.length > 0 ? (
                                   <div className="grid grid-cols-2 gap-2">
@@ -2183,9 +2187,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           href={att.url} 
                                           target="_blank" 
                                           rel="noopener noreferrer"
-                                          className="block bg-light-card dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden group hover:border-zinc-400 dark:hover:border-zinc-500 transition-all cursor-pointer"
+                                          className="block bg-white dark:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-700 rounded-lg overflow-hidden group hover:border-emerald-400 dark:hover:border-emerald-500 transition-all cursor-pointer"
                                         >
-                                           <div className="h-24 bg-zinc-200 dark:bg-black flex items-center justify-center relative overflow-hidden">
+                                           <div className="h-24 bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center relative overflow-hidden">
                                               {att.previews && att.previews.length > 0 ? (
                                                  <img 
                                                    src={att.previews[att.previews.length > 2 ? 2 : 0].url}
@@ -2193,21 +2197,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                    className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity"
                                                  />
                                               ) : (
-                                                 <FileText className="w-8 h-8 text-zinc-400 dark:text-zinc-600" />
+                                                 <FileText className="w-8 h-8 text-emerald-500 dark:text-emerald-600" />
                                               )}
                                               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                                  <ExternalLink className="w-5 h-5 text-white" />
                                               </div>
                                            </div>
-                                           <div className="p-2 bg-zinc-50 dark:bg-zinc-900">
-                                              <p className="text-xs text-zinc-700 dark:text-zinc-300 font-medium truncate">{att.name}</p>
+                                           <div className="p-2 bg-emerald-50 dark:bg-emerald-900/50">
+                                              <p className="text-xs text-emerald-800 dark:text-emerald-200 font-medium truncate">{att.name}</p>
                                            </div>
                                         </a>
                                      )})}
                                   </div>
                                ) : (
-                                  <div className="text-center py-6 border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl">
-                                     <p className="text-zinc-600 text-sm">Nenhum anexo encontrado.</p>
+                                  <div className="text-center py-6 border border-dashed border-emerald-300 dark:border-emerald-700 rounded-xl">
+                                     <p className="text-emerald-600 dark:text-emerald-400 text-sm">Nenhum anexo encontrado.</p>
                                   </div>
                                )}
                             </div>
@@ -2960,28 +2964,126 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               {others.map(att => {
                                                 const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
                                                 const isLoadingThis = loadingAttachmentId === att.id;
+                                                const isRenamingThis = renamingAttachmentId === att.id;
+                                                const isEditingName = renameAttachmentId === att.id;
+                                                const attachmentPath = att.id;
+                                                const canRename = attachmentPath.includes('/');
                                                 return (
-                                                  <a
-                                                    key={att.id}
-                                                    href={att.url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    onClick={(e) => {
-                                                      if (isPdf) {
-                                                        e.preventDefault();
-                                                        setPreviewPdf(att.url);
-                                                      }
-                                                    }}
-                                                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors min-w-0 max-w-full"
-                                                  >
-                                                    {isLoadingThis ? (
-                                                      <RefreshCw className="w-5 h-5 text-brand-yellow animate-spin shrink-0" />
+                                                  <div key={att.id} className="flex items-center gap-2 min-w-0 max-w-full">
+                                                    {isEditingName ? (
+                                                      <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                                                        <FileText className="w-5 h-5 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                                                        <input
+                                                          type="text"
+                                                          value={renameAttachmentNewName}
+                                                          onChange={(e) => setRenameAttachmentNewName(e.target.value)}
+                                                          onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                              e.preventDefault();
+                                                              if (selectedCard && renameAttachmentNewName.trim()) {
+                                                                setRenamingAttachmentId(att.id);
+                                                                renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
+                                                                  .then(() => getServiceOrderPhotos(selectedCard.id))
+                                                                  .then(photos => {
+                                                                    setCardDetails(prev => prev ? {
+                                                                      ...prev,
+                                                                      attachments: photos.map((p, i) => ({
+                                                                        id: p.path || String(i),
+                                                                        name: p.name,
+                                                                        url: p.url,
+                                                                        mimeType: attachmentMimeType(p.name),
+                                                                        previews: [{ url: p.url, width: 200, height: 200 }],
+                                                                      })),
+                                                                    } : null);
+                                                                  })
+                                                                  .catch(err => alert(err?.message ?? 'Erro ao renomear.'))
+                                                                  .finally(() => { setRenameAttachmentId(null); setRenamingAttachmentId(null); });
+                                                              }
+                                                            }
+                                                            if (e.key === 'Escape') {
+                                                              setRenameAttachmentId(null);
+                                                              setRenameAttachmentNewName('');
+                                                            }
+                                                          }}
+                                                          className="flex-1 min-w-0 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-transparent border-0 focus:ring-0 focus:outline-none p-0"
+                                                          placeholder="Novo nome do arquivo"
+                                                          autoFocus
+                                                        />
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => {
+                                                            if (!selectedCard || !renameAttachmentNewName.trim()) return;
+                                                            setRenamingAttachmentId(att.id);
+                                                            renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
+                                                              .then(() => getServiceOrderPhotos(selectedCard.id))
+                                                              .then(photos => {
+                                                                setCardDetails(prev => prev ? {
+                                                                  ...prev,
+                                                                  attachments: photos.map((p, i) => ({
+                                                                    id: p.path || String(i),
+                                                                    name: p.name,
+                                                                    url: p.url,
+                                                                    mimeType: attachmentMimeType(p.name),
+                                                                    previews: [{ url: p.url, width: 200, height: 200 }],
+                                                                  })),
+                                                                } : null);
+                                                              })
+                                                              .catch(err => alert(err?.message ?? 'Erro ao renomear.'))
+                                                              .finally(() => { setRenameAttachmentId(null); setRenamingAttachmentId(null); });
+                                                          }}
+                                                          disabled={isRenamingThis || !renameAttachmentNewName.trim()}
+                                                          className="shrink-0 p-1 rounded text-brand-yellow hover:bg-brand-yellow/20 disabled:opacity-50"
+                                                          title="Confirmar"
+                                                        >
+                                                          <Check className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => { setRenameAttachmentId(null); setRenameAttachmentNewName(''); }}
+                                                          className="shrink-0 p-1 rounded text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                                          title="Cancelar"
+                                                        >
+                                                          <X className="w-4 h-4" />
+                                                        </button>
+                                                      </div>
                                                     ) : (
-                                                      <FileText className="w-5 h-5 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                                                      <>
+                                                        <a
+                                                          href={att.url}
+                                                          target="_blank"
+                                                          rel="noopener noreferrer"
+                                                          onClick={(e) => {
+                                                            if (isPdf) {
+                                                              e.preventDefault();
+                                                              setPreviewPdf(att.url);
+                                                            }
+                                                          }}
+                                                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors min-w-0 flex-1"
+                                                        >
+                                                          {isLoadingThis ? (
+                                                            <RefreshCw className="w-5 h-5 text-brand-yellow animate-spin shrink-0" />
+                                                          ) : (
+                                                            <FileText className="w-5 h-5 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                                                          )}
+                                                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 truncate">{att.name}</span>
+                                                          {(isPdf || !att.mimeType?.startsWith('image/')) && <ExternalLink className="w-4 h-4 text-zinc-400 shrink-0" />}
+                                                        </a>
+                                                        {canRename && (
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                              setRenameAttachmentId(att.id);
+                                                              setRenameAttachmentNewName(att.name);
+                                                            }}
+                                                            className="shrink-0 p-2 rounded-lg text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                                            title="Renomear arquivo"
+                                                          >
+                                                            <Pencil className="w-4 h-4" />
+                                                          </button>
+                                                        )}
+                                                      </>
                                                     )}
-                                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 truncate">{att.name}</span>
-                                                    {(isPdf || !att.mimeType?.startsWith('image/')) && <ExternalLink className="w-4 h-4 text-zinc-400 shrink-0" />}
-                                                  </a>
+                                                  </div>
                                                 );
                                               })}
                                             </div>

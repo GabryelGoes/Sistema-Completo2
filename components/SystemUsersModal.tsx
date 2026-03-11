@@ -243,34 +243,55 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
 
                   <div>
                     <p className="text-xs font-bold text-zinc-600 dark:text-zinc-300 uppercase tracking-wider mb-2">Acesso às telas</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {ACCESS_LABELS.map(({ key, label }) => (
-                        <label key={key} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={!!formPermissions[key]}
-                            onChange={(e) => setPerm(key, e.target.checked)}
-                            className="rounded border-zinc-300 text-brand-yellow focus:ring-brand-yellow/50"
-                          />
+                        <div key={key} className="flex items-center justify-between gap-3 py-1">
                           <span className="text-sm text-zinc-800 dark:text-zinc-200">{label}</span>
-                        </label>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={!!formPermissions[key]}
+                            onClick={() => setPerm(key, !formPermissions[key])}
+                            className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-0 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/50 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900 ${
+                              formPermissions[key]
+                                ? 'bg-[#34C759] dark:bg-[#30D158]'
+                                : 'bg-zinc-300 dark:bg-zinc-600'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-6 w-6 shrink-0 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ${
+                                formPermissions[key] ? 'translate-x-6' : 'translate-x-0.5'
+                              }`}
+                            />
+                          </button>
+                        </div>
                       ))}
                     </div>
                   </div>
 
                   <div>
                     <p className="text-xs font-bold text-zinc-600 dark:text-zinc-300 uppercase tracking-wider mb-2">Permissões no Pátio / Laboratório</p>
-                    <div className="grid grid-cols-1 gap-2">
+                    <div className="grid grid-cols-1 gap-3">
                       {PATIO_LABELS.map(({ key, label }) => (
-                        <label key={key} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={!!formPermissions[key]}
-                            onChange={(e) => setPerm(key, e.target.checked)}
-                            className="rounded border-zinc-300 text-brand-yellow focus:ring-brand-yellow/50"
-                          />
+                        <div key={key} className="flex items-center justify-between gap-3 py-1">
                           <span className="text-sm text-zinc-800 dark:text-zinc-200">{label}</span>
-                        </label>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={!!formPermissions[key]}
+                            onClick={() => setPerm(key, !formPermissions[key])}
+                            className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-0 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/50 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900 ${
+                              formPermissions[key]
+                                ? 'bg-[#34C759] dark:bg-[#30D158]'
+                                : 'bg-zinc-300 dark:bg-zinc-600'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-6 w-6 shrink-0 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ${
+                                formPermissions[key] ? 'translate-x-6' : 'translate-x-0.5'
+                              }`}
+                          </button>
+                        </div>
                       ))}
                     </div>
                   </div>
