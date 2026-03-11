@@ -329,7 +329,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const budgetsSectionRef = useRef<HTMLDivElement>(null);
   const openServiceOrderHandledRef = useRef(false);
   const [allMembers, setAllMembers] = useState<TrelloMember[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   // Card em Visualização DETALHADA (Full Screen Modal)
@@ -474,7 +473,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const fetchData = async (isBackground = false) => {
-    if (!isBackground) setLoading(true);
     if (!isBackground) setError(null);
 
     try {
@@ -495,8 +493,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     } catch (err: any) {
       if (!isBackground) setError(err?.message ?? 'Erro ao carregar ordens.');
       else console.error("Erro na sincronização:", err);
-    } finally {
-      if (!isBackground) setLoading(false);
     }
   };
 
@@ -1518,15 +1514,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setPhotoBlob(null);
     setPhotoPreview(null);
   };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[80vh] text-zinc-400 gap-4">
-        <RefreshCw className="w-8 h-8 animate-spin text-brand-yellow" />
-        <p className="animate-pulse tracking-wide font-light">Carregando oficina...</p>
-      </div>
-    );
-  }
 
   if (error) {
     return (

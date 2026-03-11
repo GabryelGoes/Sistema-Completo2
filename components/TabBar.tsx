@@ -12,9 +12,9 @@ interface TabBarProps {
 }
 
 const TAB_ITEMS: { id: TabId; label: string }[] = [
-  { id: 'home', label: 'Início' },
   { id: 'reception', label: 'Recepção' },
   { id: 'agenda', label: 'Agenda' },
+  { id: 'home', label: 'Início' },
   { id: 'patio', label: 'Pátio' },
   { id: 'laboratorio', label: 'Laboratório' },
 ];
