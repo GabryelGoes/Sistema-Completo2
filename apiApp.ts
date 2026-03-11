@@ -113,7 +113,7 @@ export function createApiApp() {
       }
       const { data: users, error } = await supabaseAdmin
         .from("workshop_system_users")
-        .select("id, username, display_name, permissions, password_hash, photo_url")
+        .select("id, username, display_name, permissions, password_hash, photo_url, is_technician, accent_color")
         .eq("workshop_id", WORKSHOP_ID);
       if (error) {
         return res.status(401).json({ error: "Usuário ou senha incorretos." });
@@ -126,6 +126,13 @@ export function createApiApp() {
       if (!verifyPassword(p, user.password_hash)) {
         return res.status(401).json({ error: "Usuário ou senha incorretos." });
       }
+      const profileToken = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      await supabaseAdmin
+        .from("workshop_system_users")
+        .update({ profile_token: profileToken, profile_token_expires_at: expiresAt, updated_at: new Date().toISOString() })
+        .eq("id", user.id)
+        .eq("workshop_id", WORKSHOP_ID);
       const permissions = (user.permissions as Record<string, boolean>) || {};
       return res.json({
         role: "user",
@@ -133,6 +140,9 @@ export function createApiApp() {
         username: user.username,
         displayName: user.display_name || user.username,
         photoUrl: user.photo_url || null,
+        profileToken,
+        isTechnician: !!(user as { is_technician?: boolean }).is_technician,
+        accentColor: (user as { accent_color?: string | null }).accent_color || null,
         permissions,
       });
     } catch (err: any) {
@@ -161,6 +171,27 @@ export function createApiApp() {
       display_name: user.display_name ?? null,
       photo_url: user.photo_url ?? null,
     };
+  }
+
+  // Verifica usuário por profileToken (para alterar foto sem senha).
+  async function verifySystemUserByToken(username: string, token: string): Promise<{ id: string; username: string } | null> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return null;
+    const u = typeof username === "string" ? username.trim() : "";
+    const t = typeof token === "string" ? token.trim() : "";
+    if (!u || !t) return null;
+    const now = new Date().toISOString();
+    const { data: users, error } = await supabaseAdmin
+      .from("workshop_system_users")
+      .select("id, username, profile_token, profile_token_expires_at")
+      .eq("workshop_id", WORKSHOP_ID);
+    if (error) return null;
+    const uLower = u.toLowerCase();
+    const user = (users || []).find(
+      (r: { username: string; profile_token: string | null; profile_token_expires_at: string | null }) =>
+        String(r.username).trim().toLowerCase() === uLower && r.profile_token === t && r.profile_token_expires_at && r.profile_token_expires_at > now
+    );
+    if (!user) return null;
+    return { id: user.id, username: user.username };
   }
 
   app.post("/api/auth/change-my-password", async (req, res) => {
@@ -195,10 +226,17 @@ export function createApiApp() {
       if (!user) {
         return res.status(401).json({ error: "Usuário ou senha incorretos." });
       }
+      const { data: row } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("display_name, photo_url, accent_color")
+        .eq("id", user.id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
       return res.json({
         username: user.username,
-        displayName: user.display_name || user.username,
-        photoUrl: user.photo_url,
+        displayName: (row?.display_name ?? user.display_name ?? user.username) || user.username,
+        photoUrl: row?.photo_url ?? user.photo_url,
+        accentColor: row?.accent_color ?? null,
       });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/auth/my-profile:", err);
@@ -208,23 +246,47 @@ export function createApiApp() {
 
   app.patch("/api/auth/my-profile", async (req, res) => {
     try {
-      const { username, password, displayName } = req.body || {};
-      const user = await verifySystemUser(username, password);
+      const { username, password, profileToken, displayName, accentColor } = req.body || {};
+      const usernameTrim = (typeof username === "string" ? username : "").trim();
+      let user: { id: string; username: string; display_name?: string | null; photo_url?: string | null } | null = null;
+      if (typeof profileToken === "string" && profileToken.trim()) {
+        const byToken = await verifySystemUserByToken(usernameTrim, profileToken.trim());
+        if (byToken) {
+          const { data: full } = await supabaseAdmin
+            .from("workshop_system_users")
+            .select("id, username, display_name, photo_url")
+            .eq("id", byToken.id)
+            .eq("workshop_id", WORKSHOP_ID)
+            .single();
+          user = full ?? byToken;
+        }
+      }
+      if (!user && typeof password === "string") {
+        user = await verifySystemUser(usernameTrim, password);
+      }
       if (!user) {
         return res.status(401).json({ error: "Usuário ou senha incorretos." });
       }
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if (typeof displayName === "string") updates.display_name = displayName.trim() || null;
+      if (accentColor !== undefined) updates.accent_color = typeof accentColor === "string" && accentColor.trim() ? accentColor.trim() : null;
       const { error } = await supabaseAdmin
         .from("workshop_system_users")
         .update(updates)
         .eq("id", user.id)
         .eq("workshop_id", WORKSHOP_ID);
       if (error) return res.status(500).json({ error: error.message });
+      const { data: row } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("display_name, photo_url, accent_color")
+        .eq("id", user.id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
       return res.json({
         username: user.username,
-        displayName: updates.display_name ?? user.display_name ?? user.username,
-        photoUrl: user.photo_url,
+        displayName: row?.display_name ?? user.display_name ?? user.username,
+        photoUrl: row?.photo_url ?? user.photo_url,
+        accentColor: row?.accent_color ?? null,
       });
     } catch (err: any) {
       console.error("[API] Erro em PATCH /api/auth/my-profile:", err);
@@ -242,9 +304,16 @@ export function createApiApp() {
         }
         const username = (req.body?.username && String(req.body.username).trim()) || "";
         const password = typeof req.body?.password === "string" ? req.body.password : "";
-        const user = await verifySystemUser(username, password);
+        const profileToken = typeof req.body?.profileToken === "string" ? req.body.profileToken.trim() : "";
+        let user: { id: string; username: string } | null = null;
+        if (profileToken) {
+          user = await verifySystemUserByToken(username, profileToken);
+        }
+        if (!user && password) {
+          user = await verifySystemUser(username, password);
+        }
         if (!user) {
-          return res.status(401).json({ error: "Usuário ou senha incorretos." });
+          return res.status(401).json({ error: "Use a senha atual ou faça login novamente para alterar a foto." });
         }
         const file = req.file;
         if (!file) {
@@ -394,7 +463,7 @@ export function createApiApp() {
       }
       const { data, error } = await supabaseAdmin
         .from("workshop_system_users")
-        .select("id, username, display_name, job_title")
+        .select("id, username, display_name, job_title, accent_color, photo_url")
         .eq("workshop_id", WORKSHOP_ID)
         .eq("is_technician", true)
         .order("display_name")
@@ -1377,7 +1446,7 @@ export function createApiApp() {
 
       const { data, error } = await supabaseAdmin
         .from("service_order_comments")
-        .select("id, author_display_name, text, created_at")
+        .select("id, author_display_name, text, created_at, author_photo_url")
         .eq("service_order_id", serviceOrderId)
         .order("created_at", { ascending: true });
 
@@ -1424,24 +1493,6 @@ export function createApiApp() {
         ? authorDisplayName.trim()
         : "Usuário";
 
-      const { data, error } = await supabaseAdmin
-        .from("service_order_comments")
-        .insert({
-          service_order_id: serviceOrderId,
-          author_display_name: author,
-          text: text.trim(),
-        })
-        .select("id, author_display_name, text, created_at")
-        .single();
-
-      if (error) {
-        console.error("[API] Erro ao criar comentário:", error);
-        return res.status(500).json({ error: error.message });
-      }
-
-      const customerName = so.customers && typeof so.customers === "object" && "name" in so.customers
-        ? String((so.customers as { name: string }).name ?? "")
-        : "";
       const isAdminComment = /rei\s*do\s*abs/i.test(author);
       let authorPhotoUrl: string | null = null;
       if (isAdminComment) {
@@ -1465,11 +1516,32 @@ export function createApiApp() {
         );
         authorPhotoUrl = u?.photo_url?.trim() || null;
       }
+
+      const { data, error } = await supabaseAdmin
+        .from("service_order_comments")
+        .insert({
+          service_order_id: serviceOrderId,
+          author_display_name: author,
+          text: text.trim(),
+          author_photo_url: authorPhotoUrl,
+        })
+        .select("id, author_display_name, text, created_at, author_photo_url")
+        .single();
+
+      if (error) {
+        console.error("[API] Erro ao criar comentário:", error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      const customerName = so.customers && typeof so.customers === "object" && "name" in so.customers
+        ? String((so.customers as { name: string }).name ?? "")
+        : "";
+      const authorPhotoUrlForPayload = data?.author_photo_url ?? authorPhotoUrl;
       const commentPayload = {
         service_order_id: serviceOrderId,
         comment_id: data.id,
         author_display_name: author,
-        author_photo_url: authorPhotoUrl,
+        author_photo_url: authorPhotoUrlForPayload,
         text: text.trim(),
         vehicle_plate: so.plate ?? null,
         vehicle_model: so.vehicle_model ?? null,

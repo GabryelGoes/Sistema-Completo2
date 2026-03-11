@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut } from 'lucide-react';
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { TabBar, type TabId } from './components/TabBar';
@@ -164,25 +163,11 @@ export default function App() {
         data-effects={effectsEnabled ? 'on' : 'off'}
       >
         <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
-        <header className="relative z-20 flex items-center justify-between px-4 py-3 bg-light-card/95 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-light-border dark:border-white/10">
-          {userTab === 'home' ? (
-            <>
-              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                Logado como <strong className="text-zinc-900 dark:text-white">{authSession.displayName ?? 'Usuário'}</strong>
-              </span>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/80 dark:hover:bg-white/10 transition-colors text-sm font-medium"
-              >
-                <LogOut className="w-4 h-4" />
-                Sair
-              </button>
-            </>
-          ) : (
+        {userTab !== 'home' && (
+          <header className="relative z-20 flex items-center justify-between px-4 py-3 bg-light-card/95 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-light-border dark:border-white/10">
             <span />
-          )}
-        </header>
+          </header>
+        )}
         <main className={`flex-1 overflow-y-auto z-10 ${userTab === 'home' ? 'p-0' : 'p-4 md:p-8 pt-8'}`}>
           {userTab === 'home' && (
             <HomeView
@@ -195,12 +180,16 @@ export default function App() {
               systemUserUsername={authSession.username ?? ''}
               systemUserDisplayName={authSession.displayName ?? ''}
               systemUserPhotoUrl={authSession.photoUrl ?? null}
+              systemUserAccentColor={authSession.accentColor ?? null}
+              systemUserProfileToken={authSession.profileToken}
+              systemUserIsTechnician={authSession.isTechnician ?? false}
               onSystemUserProfileUpdated={(data) => {
                 if (authSession?.role !== 'user') return;
                 const next = {
                   ...authSession,
                   ...(data.displayName !== undefined && { displayName: data.displayName }),
                   ...(data.photoUrl !== undefined && { photoUrl: data.photoUrl }),
+                  ...(data.accentColor !== undefined && { accentColor: data.accentColor }),
                 };
                 setAuthSession(next);
                 try {

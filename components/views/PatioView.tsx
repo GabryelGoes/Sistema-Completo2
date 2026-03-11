@@ -309,7 +309,7 @@ const PdfViewer = ({ src, onClose }: { src: string; onClose: () => void }) => {
 };
 
 /** Converte comentário da API para o formato TrelloAction (compatível com a UI). */
-function commentToAction(c: { id: string; author_display_name: string; text: string; created_at: string }): TrelloAction {
+function commentToAction(c: { id: string; author_display_name: string; text: string; created_at: string; author_photo_url?: string | null }): TrelloAction {
   return {
     id: c.id,
     idMemberCreator: '',
@@ -319,7 +319,7 @@ function commentToAction(c: { id: string; author_display_name: string; text: str
     memberCreator: {
       id: '',
       fullName: c.author_display_name,
-      avatarUrl: null,
+      avatarUrl: c.author_photo_url ?? null,
     },
   };
 }
@@ -1288,28 +1288,76 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return { style: getStageStyle(listId || ""), label: listName };
   };
 
-  // Lista de técnicos para o modal: usuários do sistema marcados como técnico
+  // Mapa de accent_color (perfil do técnico) para classes Tailwind
+  const accentColorToStyle = (accent: string | null | undefined): string => {
+    const c = (accent || 'zinc').toLowerCase();
+    const map: Record<string, string> = {
+      blue: 'bg-blue-600 text-white border-blue-600',
+      emerald: 'bg-emerald-600 text-white border-emerald-600',
+      violet: 'bg-violet-600 text-white border-violet-600',
+      amber: 'bg-amber-500 text-white border-amber-500',
+      rose: 'bg-rose-600 text-white border-rose-600',
+      cyan: 'bg-cyan-600 text-white border-cyan-600',
+      orange: 'bg-orange-500 text-white border-orange-500',
+      zinc: 'bg-zinc-600 text-white border-zinc-600',
+    };
+    return map[c] ?? map.zinc;
+  };
+  const accentColorToText = (accent: string | null | undefined): string => {
+    const c = (accent || 'zinc').toLowerCase();
+    const map: Record<string, string> = {
+      blue: 'text-blue-500', emerald: 'text-emerald-500', violet: 'text-violet-500',
+      amber: 'text-amber-500', rose: 'text-rose-500', cyan: 'text-cyan-500',
+      orange: 'text-orange-500', zinc: 'text-zinc-500',
+    };
+    return map[c] ?? map.zinc;
+  };
+
+  // Lista de técnicos para o modal: usuários do sistema (com cor e foto do perfil)
   const defaultTechStyle = 'bg-zinc-600 text-white border-zinc-600';
   const TECHNICIANS = systemTechnicians.map((t) => ({
     id: t.id,
     name: capitalizeFirst((t.display_name || t.username || '').trim() || t.username),
-    style: defaultTechStyle,
-    photo_url: null,
+    style: accentColorToStyle(t.accent_color) || defaultTechStyle,
+    photo_url: t.photo_url ?? null,
   }));
 
-  // Cor do ícone do mecânico no card (técnicos = usuários do sistema; estilo único)
-  const getMechanicIconColor = (_mechanicName: string | null, _memberSlug?: string | null) => 'text-zinc-500';
+  const getTechById = (id: string | null | undefined) => id ? systemTechnicians.find((t) => t.id === id) : undefined;
 
-  // Estilo do botão do técnico no modal de seleção
-  const getMechanicButtonStyle = (_mechanicName: string, _memberSlug?: string | null) => defaultTechStyle;
+  const getMechanicIconColor = (mechanicName: string | null, memberId?: string | null) => {
+    const tech = memberId ? getTechById(memberId) : undefined;
+    if (tech) return accentColorToText(tech.accent_color);
+    return 'text-zinc-500';
+  };
 
-  // Avatar do autor do comentário: logo (admin) ou inicial + cor padrão
-  const getCommentAuthorAvatar = (authorName: string): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
+  const getMechanicButtonStyle = (mechanicName: string, memberId?: string | null) => {
+    const tech = memberId ? getTechById(memberId) : undefined;
+    if (tech) return accentColorToStyle(tech.accent_color);
+    return defaultTechStyle;
+  };
+
+  const getCommentAuthorAvatar = (authorName: string, photoUrlFromComment?: string | null): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
     const name = (authorName ?? '').trim();
     const initial = name ? name.charAt(0).toUpperCase() : '?';
     const normalized = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     if (normalized.includes('rei do abs')) {
       return { initial: '', avatarClass: '', useLogo: true };
+    }
+    if (photoUrlFromComment?.trim()) {
+      return { initial, avatarClass: 'bg-zinc-600 text-white border-zinc-600', useLogo: false, photoUrl: photoUrlFromComment.trim() };
+    }
+    const tech = systemTechnicians.find(
+      (t) =>
+        (t.display_name && normalized.includes(String(t.display_name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))) ||
+        normalized.includes(String(t.username).toLowerCase())
+    );
+    if (tech) {
+      return {
+        initial,
+        avatarClass: accentColorToStyle(tech.accent_color),
+        useLogo: false,
+        photoUrl: tech.photo_url ?? null,
+      };
     }
     return { initial, avatarClass: 'bg-zinc-600 text-white border-zinc-600', useLogo: false };
   };
@@ -2099,7 +2147,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                    </div>
                                 ) : historyCardDetails?.actions && historyCardDetails.actions.length > 0 ? (
                                    historyCardDetails.actions.map(action => {
-                                      const avatar = getCommentAuthorAvatar(action.memberCreator.fullName);
+                                      const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
                                       return (
                                       <div key={action.id} className="flex gap-4">
                                          <div className={`flex-shrink-0 w-10 h-10 rounded-full overflow-hidden shrink-0 ${avatar.useLogo ? 'bg-emerald-500' : avatar.photoUrl ? '' : ''}`}>
@@ -2600,7 +2648,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                    </div>
                                 ) : cardDetails?.actions && cardDetails.actions.length > 0 ? (
                                    cardDetails.actions.map(action => {
-                                      const avatar = getCommentAuthorAvatar(action.memberCreator.fullName);
+                                      const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
                                       return (
                                       <div key={action.id} className="flex gap-4 group/comment">
                                          <div className={`flex-shrink-0 w-10 h-10 rounded-full overflow-hidden shrink-0 ${avatar.useLogo ? 'bg-brand-yellow' : ''}`}>

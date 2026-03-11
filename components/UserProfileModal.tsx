@@ -1,20 +1,33 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Camera, Loader2, Check, User, Lock } from 'lucide-react';
 import {
-  getMyProfile,
   updateMyProfile,
   changeMyPassword,
   uploadMyProfilePhoto,
 } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 
+const ACCENT_COLORS = [
+  { id: 'blue', label: 'Azul', bg: 'bg-blue-500', ring: 'ring-blue-500' },
+  { id: 'emerald', label: 'Verde', bg: 'bg-emerald-500', ring: 'ring-emerald-500' },
+  { id: 'violet', label: 'Violeta', bg: 'bg-violet-500', ring: 'ring-violet-500' },
+  { id: 'amber', label: 'Âmbar', bg: 'bg-amber-500', ring: 'ring-amber-500' },
+  { id: 'rose', label: 'Rosa', bg: 'bg-rose-500', ring: 'ring-rose-500' },
+  { id: 'cyan', label: 'Ciano', bg: 'bg-cyan-500', ring: 'ring-cyan-500' },
+  { id: 'orange', label: 'Laranja', bg: 'bg-orange-500', ring: 'ring-orange-500' },
+  { id: 'zinc', label: 'Neutro', bg: 'bg-zinc-500', ring: 'ring-zinc-500' },
+] as const;
+
 interface UserProfileModalProps {
   isOpen: boolean;
   username: string;
   initialDisplayName: string;
   initialPhotoUrl: string | null;
+  initialAccentColor?: string | null;
+  profileToken?: string;
+  isTechnician?: boolean;
   onClose: () => void;
-  onProfileUpdated?: (data: { displayName?: string; photoUrl?: string | null }) => void;
+  onProfileUpdated?: (data: { displayName?: string; photoUrl?: string | null; accentColor?: string | null }) => void;
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
@@ -22,25 +35,38 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   username,
   initialDisplayName,
   initialPhotoUrl,
+  initialAccentColor = null,
+  profileToken,
+  isTechnician = false,
   onClose,
   onProfileUpdated,
 }) => {
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [photoUrl, setPhotoUrl] = useState<string | null>(initialPhotoUrl);
+  const [accentColor, setAccentColor] = useState<string | null>(initialAccentColor);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [savingPhoto, setSavingPhoto] = useState(false);
+  const [savingColor, setSavingColor] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [photoEditorFile, setPhotoEditorFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (isOpen) {
+      setDisplayName(initialDisplayName);
+      setPhotoUrl(initialPhotoUrl);
+      setAccentColor(initialAccentColor ?? null);
+    }
+  }, [isOpen, initialDisplayName, initialPhotoUrl, initialAccentColor]);
+
   const handleSaveName = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentPassword.trim()) {
+    if (!profileToken && !currentPassword.trim()) {
       setError('Informe a senha atual para salvar o nome.');
       return;
     }
@@ -48,9 +74,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     setMessage(null);
     setSavingName(true);
     try {
-      const updated = await updateMyProfile(username, currentPassword, {
-        displayName: displayName.trim() || username,
-      });
+      const updated = await updateMyProfile(
+        username,
+        currentPassword || '',
+        { displayName: displayName.trim() || username },
+        profileToken ? { profileToken } : undefined
+      );
       setDisplayName(updated.displayName);
       onProfileUpdated?.({ displayName: updated.displayName });
       setMessage('Nome salvo.');
@@ -72,15 +101,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handlePhotoEditorSave = async (blob: Blob) => {
     setPhotoEditorFile(null);
-    if (!currentPassword.trim()) {
-      setError('Informe a senha atual para alterar a foto.');
+    if (!profileToken && !currentPassword.trim()) {
+      setError('Faça login novamente para alterar a foto, ou informe a senha atual.');
       return;
     }
     setError(null);
     setSavingPhoto(true);
     try {
       const file = new File([blob], 'foto.jpg', { type: 'image/jpeg' });
-      const res = await uploadMyProfilePhoto(username, currentPassword, file, file.name);
+      const res = await uploadMyProfilePhoto(username, file, file.name, profileToken ? { profileToken } : { password: currentPassword });
       setPhotoUrl(res.photoUrl);
       onProfileUpdated?.({ photoUrl: res.photoUrl });
       setMessage('Foto atualizada.');
@@ -88,6 +117,32 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       setError(e instanceof Error ? e.message : 'Erro ao enviar foto.');
     } finally {
       setSavingPhoto(false);
+    }
+  };
+
+  const handleSaveColor = async (colorId: string | null) => {
+    setAccentColor(colorId);
+    if (!profileToken && !currentPassword.trim()) {
+      setError('Informe a senha atual para salvar a cor.');
+      return;
+    }
+    setError(null);
+    setMessage(null);
+    setSavingColor(true);
+    try {
+      const updated = await updateMyProfile(
+        username,
+        currentPassword || '',
+        { accentColor: colorId },
+        profileToken ? { profileToken } : undefined
+      );
+      setAccentColor(updated.accentColor ?? null);
+      onProfileUpdated?.({ accentColor: updated.accentColor ?? null });
+      setMessage('Cor salva.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao salvar cor.');
+    } finally {
+      setSavingColor(false);
     }
   };
 
@@ -154,7 +209,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
           )}
 
-          {/* Foto de perfil */}
+          {/* Foto de perfil — sem exigência de senha quando há profileToken */}
           <div className="flex flex-col items-center gap-2">
             <button
               type="button"
@@ -169,6 +224,28 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </button>
             <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Toque para alterar a foto</span>
           </div>
+
+          {/* Cor de destaque (técnicos) — exibida em todo o sistema */}
+          {isTechnician && (
+            <div>
+              <label className="block text-[13px] font-medium text-zinc-600 dark:text-zinc-400 mb-2">Sua cor no sistema</label>
+              <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">Usada no seu avatar e em badges no Pátio, comentários e notificações.</p>
+              <div className="flex flex-wrap gap-2">
+                {ACCENT_COLORS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => handleSaveColor(accentColor === c.id ? null : c.id)}
+                    disabled={savingColor}
+                    className={`w-10 h-10 rounded-full ${c.bg} focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-[#1C1C1E] focus:ring-white/50 transition-all ${
+                      accentColor === c.id ? 'ring-2 ring-offset-2 dark:ring-offset-[#1C1C1E] ring-zinc-900 dark:ring-white scale-110' : 'hover:scale-105'
+                    }`}
+                    title={c.label}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Nome exibido */}
           <form onSubmit={handleSaveName} className="space-y-2">
@@ -198,7 +275,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">Usado para entrar no sistema. Não pode ser alterado aqui.</p>
           </div>
 
-          {/* Senha atual (para salvar nome/foto) */}
+          {/* Senha atual — só obrigatória para "Alterar senha" e para nome/cor quando não há token */}
           <div>
             <label className="block text-[13px] font-medium text-zinc-600 dark:text-zinc-400 mb-2">Senha atual</label>
             <div className="relative">
@@ -210,7 +287,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 className="w-full pl-11 pr-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-violet-500/30"
-                placeholder="Necessária para salvar alterações"
+                placeholder={profileToken ? 'Opcional (só para alterar senha)' : 'Necessária para salvar nome/cor e alterar senha'}
                 autoComplete="current-password"
               />
             </div>

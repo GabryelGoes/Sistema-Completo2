@@ -37,8 +37,11 @@ interface HomeViewProps {
   systemUserUsername?: string;
   systemUserDisplayName?: string;
   systemUserPhotoUrl?: string | null;
-  /** Após salvar perfil do usuário do sistema (nome/foto) */
-  onSystemUserProfileUpdated?: (data: { displayName?: string; photoUrl?: string | null }) => void;
+  systemUserAccentColor?: string | null;
+  systemUserProfileToken?: string;
+  systemUserIsTechnician?: boolean;
+  /** Após salvar perfil do usuário do sistema (nome/foto/cor) */
+  onSystemUserProfileUpdated?: (data: { displayName?: string; photoUrl?: string | null; accentColor?: string | null }) => void;
 }
 
 /** Módulos operacionais: atendimento e fluxo de serviço */
@@ -68,6 +71,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   systemUserUsername = '',
   systemUserDisplayName = '',
   systemUserPhotoUrl = null,
+  systemUserAccentColor = null,
+  systemUserProfileToken,
+  systemUserIsTechnician = false,
   onSystemUserProfileUpdated,
 }) => {
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
@@ -242,6 +248,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           username={systemUserUsername}
           initialDisplayName={systemUserDisplayName}
           initialPhotoUrl={systemUserPhotoUrl}
+          initialAccentColor={systemUserAccentColor}
+          profileToken={systemUserProfileToken}
+          isTechnician={systemUserIsTechnician}
           onClose={() => setIsUserProfileOpen(false)}
           onProfileUpdated={onSystemUserProfileUpdated}
         />

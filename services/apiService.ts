@@ -556,6 +556,7 @@ export interface ServiceOrderComment {
   author_display_name: string;
   text: string;
   created_at: string;
+  author_photo_url?: string | null;
 }
 
 export async function getServiceOrderComments(serviceOrderId: string): Promise<ServiceOrderComment[]> {
@@ -1056,6 +1057,9 @@ export interface AuthSession {
   username?: string;
   displayName?: string;
   photoUrl?: string | null;
+  profileToken?: string;
+  isTechnician?: boolean;
+  accentColor?: string | null;
   permissions?: SystemUserPermissions;
 }
 
@@ -1077,6 +1081,9 @@ export async function login(username: string, password: string): Promise<AuthSes
     username: data.username,
     displayName: data.displayName || data.username,
     photoUrl: data.photoUrl ?? null,
+    profileToken: data.profileToken ?? undefined,
+    isTechnician: data.isTechnician ?? false,
+    accentColor: data.accentColor ?? null,
     permissions: data.permissions || {},
   };
 }
@@ -1098,6 +1105,8 @@ export interface SystemUserTechnician {
   username: string;
   display_name: string | null;
   job_title: string | null;
+  accent_color?: string | null;
+  photo_url?: string | null;
 }
 
 export async function getSystemUsers(adminPassword: string): Promise<SystemUser[]> {
@@ -1195,6 +1204,7 @@ export interface MyProfile {
   username: string;
   displayName: string;
   photoUrl: string | null;
+  accentColor?: string | null;
 }
 
 export async function getMyProfile(username: string, password: string): Promise<MyProfile> {
@@ -1209,22 +1219,27 @@ export async function getMyProfile(username: string, password: string): Promise<
     username: data.username,
     displayName: data.displayName ?? data.username,
     photoUrl: data.photoUrl ?? null,
+    accentColor: data.accentColor ?? null,
   };
 }
 
 export async function updateMyProfile(
   username: string,
   password: string,
-  data: { displayName?: string }
+  data: { displayName?: string; accentColor?: string | null },
+  options?: { profileToken?: string }
 ): Promise<MyProfile> {
+  const body: Record<string, unknown> = {
+    username: username.trim(),
+    displayName: data.displayName?.trim(),
+    accentColor: data.accentColor !== undefined ? (data.accentColor?.trim() || null) : undefined,
+  };
+  if (options?.profileToken) body.profileToken = options.profileToken;
+  else body.password = password;
   const response = await fetch(`${API_BASE}/auth/my-profile`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      username: username.trim(),
-      password,
-      displayName: data.displayName?.trim(),
-    }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -1235,6 +1250,7 @@ export async function updateMyProfile(
     username: res.username,
     displayName: res.displayName ?? res.username,
     photoUrl: res.photoUrl ?? null,
+    accentColor: res.accentColor ?? null,
   };
 }
 
@@ -1260,14 +1276,15 @@ export async function changeMyPassword(
 
 export async function uploadMyProfilePhoto(
   username: string,
-  password: string,
   file: Blob,
-  fileName?: string
+  fileName?: string,
+  auth?: { password?: string; profileToken?: string }
 ): Promise<{ photoUrl: string }> {
   const form = new FormData();
   form.append("file", file, fileName || "photo.jpg");
   form.append("username", username.trim());
-  form.append("password", password);
+  if (auth?.profileToken) form.append("profileToken", auth.profileToken);
+  else if (auth?.password) form.append("password", auth.password);
   const response = await fetch(`${API_BASE}/auth/my-profile/photo`, {
     method: "POST",
     body: form,
