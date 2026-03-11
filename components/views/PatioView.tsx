@@ -311,11 +311,11 @@ const PdfViewer = ({ src, onClose }: { src: string; onClose: () => void }) => {
 };
 
 /** Converte comentário da API para o formato TrelloAction (compatível com a UI). */
-function commentToAction(c: { id: string; author_display_name: string; text: string; created_at: string; author_photo_url?: string | null }): TrelloAction {
+function commentToAction(c: { id: string; author_display_name: string; text: string; created_at: string; author_photo_url?: string | null; updated_at?: string | null }): TrelloAction {
   return {
     id: c.id,
     idMemberCreator: '',
-    data: { text: c.text },
+    data: { text: c.text, edited_at: c.updated_at ?? null },
     type: 'commentCard',
     date: c.created_at,
     memberCreator: {
@@ -639,6 +639,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [selectedCard]);
 
+  /** Atualiza os detalhes da OS no modal (serviceOrderDetail) sem fechar o modal nem mostrar loading. */
+  const refreshModalDetails = React.useCallback(async () => {
+    if (!selectedCard) return;
+    try {
+      const order = await getServiceOrderById(selectedCard.id);
+      setServiceOrderDetail(order);
+    } catch (e) {
+      console.error('Erro ao atualizar detalhes do modal', e);
+    }
+  }, [selectedCard?.id]);
+
   useEffect(() => {
     fetchData(false);
     const intervalId = setInterval(() => fetchData(true), 5000);
@@ -816,6 +827,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setLastSavedMileage(value);
       setMileageSavedMessage(true);
       setTimeout(() => setMileageSavedMessage(false), 2500);
+      refreshModalDetails();
     } catch (e: any) {
       alert(e?.message ?? 'Erro ao salvar Km.');
     } finally {
@@ -836,6 +848,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setLastSavedDeliveryDate(value);
       setDeliveryDateSavedMessage(true);
       setTimeout(() => setDeliveryDateSavedMessage(false), 2500);
+      refreshModalDetails();
     } catch (e: any) {
       alert(e?.message ?? 'Erro ao salvar data de entrega.');
     } finally {
@@ -874,6 +887,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       );
       setSelectedCard((prev) => (prev?.id === selectedCard.id ? { ...prev, name: newName } : prev));
       setIsVehicleEditOpen(false);
+      refreshModalDetails();
     } catch (e: any) {
       alert(e?.message ?? 'Erro ao salvar.');
     } finally {
@@ -913,6 +927,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       );
       if (selectedCard?.id === cardForMemberAssignment.id) {
         setSelectedCard(prev => prev ? { ...prev, members: newMembers } : null);
+        refreshModalDetails();
       }
       setCardForMemberAssignment(null);
     } catch (err: any) {
@@ -962,6 +977,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const handleCancelEdit = () => {
     setEditingActionId(null);
     setEditingText('');
+  };
+
+  /** Verifica se o usuário atual é o autor do comentário (para exibir Editar/Excluir só ao autor). */
+  const isAuthorOfComment = (authorDisplayName: string): boolean => {
+    const norm = (s: string) => (s ?? '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return norm(authorDisplayName) === norm(commentAuthorName ?? '');
   };
 
   const handleUpdateComment = async (actionId: string) => {
@@ -1014,6 +1035,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setSelectedCard(updatedCard);
       setCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
       setIsEditingDesc(false);
+      refreshModalDetails();
     } catch (err: any) {
       alert(err?.message ?? "Erro ao atualizar a descrição.");
     } finally {
@@ -2219,7 +2241,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                          <div className="flex-1 space-y-1">
                                             <div className="flex items-center justify-between">
                                                <span className="font-bold text-emerald-900 dark:text-emerald-100 text-sm">{action.memberCreator.fullName}</span>
-                                               <span className="text-xs text-emerald-600 dark:text-emerald-400">{new Date(action.date).toLocaleString('pt-BR')}</span>
+                                               <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                                                  {new Date(action.date).toLocaleString('pt-BR')}
+                                                  {action.data.edited_at && (
+                                                    <span className="ml-1.5 text-emerald-500/80 italic">editada</span>
+                                                  )}
+                                               </span>
                                             </div>
                                             <div className="bg-emerald-100/80 dark:bg-emerald-800/50 p-3 rounded-r-xl rounded-bl-xl text-emerald-800 dark:text-emerald-200 text-sm leading-relaxed border border-emerald-200 dark:border-emerald-700/50">
                                                 <ReactMarkdown components={MarkdownComponents}>
@@ -2835,7 +2862,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                          <div className="flex-1 space-y-1">
                                             <div className="flex items-center justify-between">
                                                <span className="font-bold text-zinc-900 dark:text-white text-sm">{action.memberCreator.fullName}</span>
-                                               <span className="text-xs text-zinc-500">{new Date(action.date).toLocaleString('pt-BR')}</span>
+                                               <span className="text-xs text-zinc-500">
+                                                  {new Date(action.date).toLocaleString('pt-BR')}
+                                                  {action.data.edited_at && (
+                                                    <span className="ml-1.5 text-zinc-400 dark:text-zinc-500 italic">editada</span>
+                                                  )}
+                                               </span>
                                             </div>
                                             
                                             {editingActionId === action.id ? (
@@ -2872,9 +2904,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                    </ReactMarkdown>
                                                 </div>
                                                 
-                                                {/* Edit/Delete Actions */}
+                                                {/* Editar/Excluir: apenas o autor da mensagem */}
+                                                {isAuthorOfComment(action.memberCreator.fullName) && (
                                                 <div className="flex items-center gap-3 mt-1 ml-1 opacity-0 group-hover/comment:opacity-100 transition-opacity duration-200">
                                                    <button 
+                                                      type="button"
                                                       onClick={() => handleStartEdit(action.id, action.data.text)}
                                                       className="text-[10px] text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:underline flex items-center gap-1"
                                                    >
@@ -2890,6 +2924,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                       {actionLoadingId === action.id ? 'Excluindo…' : 'Excluir'}
                                                    </button>
                                                 </div>
+                                                )}
                                               </>
                                             )}
                                          </div>

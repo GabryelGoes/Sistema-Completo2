@@ -63,6 +63,7 @@ export interface TrelloAction {
   idMemberCreator: string;
   data: {
     text: string;
+    edited_at?: string | null; // Preenchido quando o comentário foi editado (exibe "editada")
   };
   type: string;
   date: string;

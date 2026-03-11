@@ -557,6 +557,7 @@ export interface ServiceOrderComment {
   text: string;
   created_at: string;
   author_photo_url?: string | null;
+  updated_at?: string | null;
 }
 
 export async function getServiceOrderComments(serviceOrderId: string): Promise<ServiceOrderComment[]> {

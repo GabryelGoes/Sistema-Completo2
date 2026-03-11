@@ -1446,7 +1446,7 @@ export function createApiApp() {
 
       const { data, error } = await supabaseAdmin
         .from("service_order_comments")
-        .select("id, author_display_name, text, created_at, author_photo_url")
+        .select("id, author_display_name, text, created_at, author_photo_url, updated_at")
         .eq("service_order_id", serviceOrderId)
         .order("created_at", { ascending: true });
 
@@ -1639,10 +1639,10 @@ export function createApiApp() {
       }
       const { data, error } = await supabaseAdmin
         .from("service_order_comments")
-        .update({ text: text.trim() })
+        .update({ text: text.trim(), updated_at: new Date().toISOString() })
         .eq("id", commentId)
         .eq("service_order_id", serviceOrderId)
-        .select("id, author_display_name, text, created_at, author_photo_url")
+        .select("id, author_display_name, text, created_at, author_photo_url, updated_at")
         .single();
       if (error) {
         console.error("[API] Erro ao atualizar comentário:", error);
