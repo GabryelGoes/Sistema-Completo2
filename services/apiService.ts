@@ -1007,42 +1007,126 @@ export async function uploadWorkshopAdminPhoto(file: Blob, fileName?: string): P
 
 // ---------- Autenticação ----------
 
-export type AuthRole = "admin" | "patio";
+/** Permissões de um usuário do sistema (não-admin). */
+export interface SystemUserPermissions {
+  access_home?: boolean;
+  access_reception?: boolean;
+  access_agenda?: boolean;
+  access_patio?: boolean;
+  access_laboratorio?: boolean;
+  access_settings?: boolean;
+  access_change_passwords?: boolean;
+  access_technicians?: boolean;
+  patio_delete_cards?: boolean;
+  patio_assign_technician?: boolean;
+  patio_edit_ficha?: boolean;
+  patio_edit_queixa?: boolean;
+  patio_edit_delivery_date?: boolean;
+  patio_edit_mileage?: boolean;
+  patio_edit_budgets?: boolean;
+  patio_add_comments?: boolean;
+  patio_archive_card?: boolean;
+}
+
+export type AuthRole = "admin" | "user";
 
 export interface AuthSession {
   role: AuthRole;
-  technicianId?: string;
-  technicianSlug?: string;
-  technicianName?: string;
+  userId?: string;
+  displayName?: string;
+  permissions?: SystemUserPermissions;
 }
 
-export async function loginAdmin(password: string): Promise<{ role: "admin" }> {
-  const response = await fetch(`${API_BASE}/auth/admin`, {
+export async function login(username: string, password: string): Promise<AuthSession> {
+  const response = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password }),
+    body: JSON.stringify({ username: username.trim(), password }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Senha incorreta.");
+    throw new Error(err.error || "Usuário ou senha incorretos.");
+  }
+  const data = await response.json();
+  if (data.role === "admin") return { role: "admin" };
+  return {
+    role: "user",
+    userId: data.userId,
+    displayName: data.displayName || data.username,
+    permissions: data.permissions || {},
+  };
+}
+
+export interface SystemUser {
+  id: string;
+  username: string;
+  display_name: string | null;
+  permissions: SystemUserPermissions;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getSystemUsers(adminPassword: string): Promise<SystemUser[]> {
+  const url = `${API_BASE}/system-users?adminPassword=${encodeURIComponent(adminPassword)}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao listar usuários.");
   }
   return response.json();
 }
 
-export async function loginPatio(
-  technicianSlug: string,
-  pin: string
-): Promise<{ role: "patio"; technician: { id: string; slug: string; name: string } }> {
-  const response = await fetch(`${API_BASE}/auth/patio`, {
+export async function createSystemUser(
+  adminPassword: string,
+  data: { username: string; password: string; displayName?: string; permissions: SystemUserPermissions }
+): Promise<SystemUser> {
+  const response = await fetch(`${API_BASE}/system-users`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ technicianSlug, pin }),
+    body: JSON.stringify({
+      adminPassword,
+      username: data.username.trim(),
+      password: data.password,
+      displayName: data.displayName?.trim() || null,
+      permissions: data.permissions,
+    }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Falha no login do pátio.");
+    throw new Error(err.error || "Falha ao criar usuário.");
   }
   return response.json();
+}
+
+export async function updateSystemUser(
+  id: string,
+  adminPassword: string,
+  data: { password?: string; displayName?: string; permissions: SystemUserPermissions }
+): Promise<SystemUser> {
+  const response = await fetch(`${API_BASE}/system-users/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      adminPassword,
+      password: data.password,
+      displayName: data.displayName?.trim() ?? null,
+      permissions: data.permissions,
+    }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao atualizar usuário.");
+  }
+  return response.json();
+}
+
+export async function deleteSystemUser(id: string, adminPassword: string): Promise<void> {
+  const url = `${API_BASE}/system-users/${id}?adminPassword=${encodeURIComponent(adminPassword)}`;
+  const response = await fetch(url, { method: "DELETE" });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao excluir usuário.");
+  }
 }
 
 // ---------- Configurações da oficina (acesso pátio) ----------

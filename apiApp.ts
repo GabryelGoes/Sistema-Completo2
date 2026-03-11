@@ -1,8 +1,27 @@
 import "dotenv/config";
+import crypto from "crypto";
 import express from "express";
 import multer from "multer";
 import { supabaseAdmin, VEHICLE_PHOTOS_BUCKET } from "./supabaseClient.js";
 import { FIRST_STAGE, ALL_STATUSES } from "./constants/serviceOrderStages.js";
+
+const PBKDF2_ITERATIONS = 100000;
+const SALT_LEN = 16;
+const KEY_LEN = 64;
+const DIGEST = "sha256";
+
+function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(SALT_LEN).toString("hex");
+  const hash = crypto.pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, KEY_LEN, DIGEST).toString("hex");
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password: string, stored: string): boolean {
+  const [salt, hash] = stored.split(":");
+  if (!salt || !hash) return false;
+  const computed = crypto.pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, KEY_LEN, DIGEST).toString("hex");
+  return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(computed, "hex"));
+}
 
 export function createApiApp() {
   const app = express();
@@ -56,79 +75,167 @@ export function createApiApp() {
   });
 
   // ----------------- AUTENTICAÇÃO -----------------
-  const DEFAULT_ADMIN_PASSWORD = "Re1do@bs";
-  const DEFAULT_PATIO_PIN = "4366";
+  const DEFAULT_ADMIN_PASSWORD = "admin";
+  const ADMIN_USERNAME = "Gerência";
 
-  app.post("/api/auth/admin", async (req, res) => {
+  async function getAdminPassword(): Promise<string> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
+    const { data: row } = await supabaseAdmin
+      .from("workshop_settings")
+      .select("value")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("key", "admin_password")
+      .maybeSingle();
+    const db = row?.value != null && String(row.value).trim() !== "" ? String(row.value).trim() : "";
+    return db || process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
+  }
+
+  async function verifyAdmin(username: string, password: string): Promise<boolean> {
+    const normalized = String(username).trim();
+    if (normalized.toLowerCase() !== ADMIN_USERNAME.toLowerCase()) return false;
+    const expected = await getAdminPassword();
+    return String(password).trim() === expected;
+  }
+
+  app.post("/api/auth/login", async (req, res) => {
     try {
-      const { password } = req.body || {};
-      let expectedAdmin = "";
-      if (supabaseAdmin && WORKSHOP_ID) {
-        const { data: row, error } = await supabaseAdmin
-          .from("workshop_settings")
-          .select("value")
-          .eq("workshop_id", WORKSHOP_ID)
-          .eq("key", "admin_password")
-          .maybeSingle();
-        const dbPassword = row?.value != null && String(row.value).trim() !== "" ? String(row.value).trim() : "";
-        if (dbPassword) expectedAdmin = dbPassword;
+      const { username, password } = req.body || {};
+      const u = typeof username === "string" ? username.trim() : "";
+      const p = typeof password === "string" ? password : "";
+      if (!u) {
+        return res.status(400).json({ error: "Informe o usuário." });
       }
-      if (!expectedAdmin) expectedAdmin = process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
-      if (String(password).trim() === expectedAdmin) {
-        return res.json({ ok: true, role: "admin" });
+      if (await verifyAdmin(u, p)) {
+        return res.json({ role: "admin" });
       }
-      return res.status(401).json({ error: "Senha incorreta." });
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(401).json({ error: "Usuário ou senha incorretos." });
+      }
+      const { data: users, error } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("id, username, display_name, permissions, password_hash")
+        .eq("workshop_id", WORKSHOP_ID);
+      if (error) {
+        return res.status(401).json({ error: "Usuário ou senha incorretos." });
+      }
+      const uLower = u.toLowerCase();
+      const user = (users || []).find((r) => String(r.username).trim().toLowerCase() === uLower);
+      if (!user) {
+        return res.status(401).json({ error: "Usuário ou senha incorretos." });
+      }
+      if (!verifyPassword(p, user.password_hash)) {
+        return res.status(401).json({ error: "Usuário ou senha incorretos." });
+      }
+      const permissions = (user.permissions as Record<string, boolean>) || {};
+      return res.json({
+        role: "user",
+        userId: user.id,
+        displayName: user.display_name || user.username,
+        permissions,
+      });
     } catch (err: any) {
-      console.error("[API] Erro em POST /api/auth/admin:", err);
+      console.error("[API] Erro em POST /api/auth/login:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
 
-  app.post("/api/auth/patio", async (req, res) => {
+  app.get("/api/system-users", async (req, res) => {
     try {
-      if (!supabaseAdmin || !WORKSHOP_ID) {
-        return res.status(500).json({ error: "Servidor não configurado." });
+      const adminPassword = typeof req.query.adminPassword === "string" ? req.query.adminPassword : "";
+      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+        return res.status(403).json({ error: "Acesso negado." });
       }
-      const { technicianSlug, pin } = req.body || {};
-      const slug = typeof technicianSlug === "string" ? technicianSlug.trim().toLowerCase() : "";
-      if (!slug) {
-        return res.status(400).json({ error: "Selecione o mecânico." });
-      }
-
-      const { data: settingsRows } = await supabaseAdmin
-        .from("workshop_settings")
-        .select("key, value")
+      const { data, error } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("id, username, display_name, permissions, created_at, updated_at")
         .eq("workshop_id", WORKSHOP_ID)
-        .in("key", ["patio_login_enabled", "patio_pin"]);
-
-      const map = (settingsRows || []).reduce((acc: Record<string, string>, r: { key: string; value: string | null }) => {
-        acc[r.key] = r.value ?? "";
-        return acc;
-      }, {});
-      const enabled = map.patio_login_enabled !== "false";
-      const expectedPin = map.patio_pin || DEFAULT_PATIO_PIN;
-
-      if (!enabled) {
-        return res.status(403).json({ error: "Login do pátio está desativado. Contate o administrador." });
+        .order("username");
+      if (error) {
+        return res.status(500).json({ error: error.message });
       }
-      if (expectedPin && String(pin || "") !== expectedPin) {
-        return res.status(401).json({ error: "PIN incorreto." });
-      }
-
-      const { data: tech } = await supabaseAdmin
-        .from("workshop_technicians")
-        .select("id, slug, name")
-        .eq("workshop_id", WORKSHOP_ID)
-        .eq("slug", slug)
-        .single();
-
-      if (!tech) {
-        return res.status(404).json({ error: "Mecânico não encontrado." });
-      }
-
-      return res.json({ ok: true, role: "patio", technician: { id: tech.id, slug: tech.slug, name: tech.name } });
+      return res.json(data || []);
     } catch (err: any) {
-      console.error("[API] Erro em POST /api/auth/patio:", err);
+      console.error("[API] Erro em GET /api/system-users:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/system-users", async (req, res) => {
+    try {
+      const { adminPassword, username, password, displayName, permissions } = req.body || {};
+      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+        return res.status(403).json({ error: "Acesso negado." });
+      }
+      const u = typeof username === "string" ? username.trim() : "";
+      const p = typeof password === "string" ? password : "";
+      if (!u) return res.status(400).json({ error: "Nome de usuário é obrigatório." });
+      if (!p || p.length < 4) return res.status(400).json({ error: "Senha deve ter no mínimo 4 caracteres." });
+      const perms = typeof permissions === "object" && permissions !== null ? permissions : {};
+      const { data, error } = await supabaseAdmin
+        .from("workshop_system_users")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          username: u,
+          password_hash: hashPassword(p),
+          display_name: typeof displayName === "string" ? displayName.trim() || null : null,
+          permissions: perms,
+          updated_at: new Date().toISOString(),
+        })
+        .select("id, username, display_name, permissions, created_at, updated_at")
+        .single();
+      if (error) {
+        if (error.code === "23505") return res.status(400).json({ error: "Este nome de usuário já existe." });
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(201).json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/system-users:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.put("/api/system-users/:id", async (req, res) => {
+    try {
+      const { adminPassword, password, displayName, permissions } = req.body || {};
+      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+        return res.status(403).json({ error: "Acesso negado." });
+      }
+      const id = req.params.id;
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (typeof permissions === "object" && permissions !== null) updates.permissions = permissions;
+      if (typeof displayName === "string") updates.display_name = displayName.trim() || null;
+      if (typeof password === "string" && password.length >= 4) updates.password_hash = hashPassword(password);
+      const { data, error } = await supabaseAdmin
+        .from("workshop_system_users")
+        .update(updates)
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("id, username, display_name, permissions, created_at, updated_at")
+        .single();
+      if (error) return res.status(500).json({ error: error.message });
+      if (!data) return res.status(404).json({ error: "Usuário não encontrado." });
+      return res.json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em PUT /api/system-users/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.delete("/api/system-users/:id", async (req, res) => {
+    try {
+      const adminPassword = typeof req.query.adminPassword === "string" ? req.query.adminPassword : "";
+      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+        return res.status(403).json({ error: "Acesso negado." });
+      }
+      const { error } = await supabaseAdmin
+        .from("workshop_system_users")
+        .delete()
+        .eq("id", req.params.id)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] Erro em DELETE /api/system-users/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });

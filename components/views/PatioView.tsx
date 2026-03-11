@@ -55,6 +55,18 @@ interface PatioViewProps {
   blurPlates?: boolean;
   /** Exibir apenas veículos (Pátio) ou apenas módulos (Laboratório). */
   orderType?: ServiceOrderType;
+  /** Permissões do pátio para usuários limitados. Se não passado (admin), tudo permitido. */
+  patioPermissions?: {
+    canDeleteCards?: boolean;
+    canAssignTechnician?: boolean;
+    canEditFicha?: boolean;
+    canEditQueixa?: boolean;
+    canEditDeliveryDate?: boolean;
+    canEditMileage?: boolean;
+    canEditBudgets?: boolean;
+    canAddComments?: boolean;
+    canArchiveCard?: boolean;
+  };
 }
 
 const BACKEND_LISTS: TrelloList[] = SERVICE_ORDER_STAGES.map((s) => ({
@@ -319,7 +331,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   actorOptions,
   blurPlates = false,
   orderType = 'vehicle',
+  patioPermissions,
 }) => {
+  const can = (key: keyof NonNullable<PatioViewProps['patioPermissions']>) =>
+    patioPermissions?.[key] !== false;
   const [lists, setLists] = useState<TrelloList[]>([]);
   const [cards, setCards] = useState<TrelloCard[]>([]);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
@@ -582,7 +597,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               id: p.path || String(i),
               name: p.name,
               url: p.url,
-              mimeType: 'image/*',
+              mimeType: attachmentMimeType(p.name),
               previews: [{ url: p.url, width: 200, height: 200 }],
             })),
           });
@@ -685,7 +700,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             id: p.path || String(i),
             name: p.name,
             url: p.url,
-            mimeType: 'image/*',
+            mimeType: attachmentMimeType(p.name),
             previews: [{ url: p.url, width: 200, height: 200 }],
           })),
         })
@@ -1363,6 +1378,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   // --- Attachment Functions ---
+  /** Infere mimeType pelo nome do arquivo para exibir PDFs na seção Documentos. */
+  const attachmentMimeType = (name: string): string => {
+    const n = (name || "").toLowerCase();
+    if (n.endsWith(".pdf")) return "application/pdf";
+    if (/\.(jpg|jpeg|png|gif|webp)$/.test(n)) return "image/*";
+    return "application/octet-stream";
+  };
 
   const handleGallerySelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0 || !selectedCard) return;
@@ -1379,7 +1401,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           id: p.path || String(i),
           name: p.name,
           url: p.url,
-          mimeType: 'image/*',
+          mimeType: attachmentMimeType(p.name),
           previews: [{ url: p.url, width: 200, height: 200 }],
         })),
       }));
@@ -1407,7 +1429,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           id: p.path || String(i),
           name: p.name,
           url: p.url,
-          mimeType: 'image/*',
+          mimeType: attachmentMimeType(p.name),
           previews: [{ url: p.url, width: 200, height: 200 }],
         })),
       }));
@@ -1502,7 +1524,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           id: p.path || String(i),
           name: p.name,
           url: p.url,
-          mimeType: 'image/*',
+          mimeType: attachmentMimeType(p.name),
           previews: [{ url: p.url, width: 200, height: 200 }],
         })),
       }));
@@ -1608,8 +1630,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           
           const statusConfig = getStatusConfig(listName, card.idList);
 
-          // AGORA PERMITE ATRIBUIÇÃO EM QUALQUER FASE (conforme solicitação)
-          const canAssignMember = true; 
+          const canAssignMember = can('canAssignTechnician'); 
           
           // Condição para botão de Checklist de Entrada: Apenas em 'avaliação técnica'
           const showEntryButton = listNameLower.includes('avaliação técnica');
@@ -1811,7 +1832,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 )}
 
                 {/* Botão ENTREGUE (Apenas se Finalizado) */}
-                {showDeliverButton && (
+                {can('canArchiveCard') && showDeliverButton && (
                     <button
                         onClick={(e) => { e.stopPropagation(); handleDeliverVehicle(card.id); }}
                         disabled={archivingId === card.id}
@@ -1831,7 +1852,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 )}
 
                 {/* Botão ENTREGUE (Se Não Aprovado) */}
-                {showNotApprovedDeliverButton && (
+                {can('canArchiveCard') && showNotApprovedDeliverButton && (
                     <button
                         onClick={(e) => { e.stopPropagation(); handleDeliverVehicle(card.id); }}
                         disabled={archivingId === card.id}
@@ -2206,6 +2227,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
            <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-4xl h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative">
               
               <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
+                {can('canDeleteCards') && (
                 <button
                   type="button"
                   onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setIsDeleteVehicleOpen(true); }}
@@ -2214,6 +2236,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
+                )}
                 <button 
                   onClick={() => setSelectedCard(null)}
                   className="w-10 h-10 rounded-full bg-light-card dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
@@ -2222,7 +2245,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </button>
               </div>
 
-              {isDeleteVehicleOpen && (
+              {can('canDeleteCards') && isDeleteVehicleOpen && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 rounded-[1.5rem] p-4">
                   <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 p-6 rounded-2xl shadow-xl max-w-sm w-full">
                     <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-2">
@@ -2292,6 +2315,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </h1>
                         {/* Técnico + Data de entrega — duas colunas no mesmo bloco */}
                         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {can('canAssignTechnician') && (
                           <button
                             type="button"
                             onClick={() => setCardForMemberAssignment(selectedCard)}
@@ -2329,6 +2353,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </>
                             )}
                           </button>
+                          )}
+                          {can('canEditDeliveryDate') && (
                           <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-xl bg-light-card dark:bg-white/[0.06] border border-light-border dark:border-white/10">
                             <Calendar className="w-5 h-5 text-brand-yellow shrink-0" />
                             <div className="flex-1 min-w-0">
@@ -2361,6 +2387,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                             </div>
                           </div>
+                          )}
                         </div>
                      </div>
 
@@ -2386,7 +2413,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               {selectedCard.name.split('-').map((s) => s.trim())[2] ?? '—'}
                             </span>
                          </div>
-                         {!isModuleMode && (
+                         {!isModuleMode && can('canEditMileage') && (
                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-yellow">Km</span>
                             <input
@@ -2435,6 +2462,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <User className="w-4 h-4" />
                             Dados da ficha
                           </h3>
+                          {can('canEditFicha') && (
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); openEditFichaModal(); setIsDadosFichaExpanded(true); }}
@@ -2443,6 +2471,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <Pencil className="w-3.5 h-3.5" />
                             Editar
                           </button>
+                          )}
                         </button>
                         {isDadosFichaExpanded && (
                         <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2536,7 +2565,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <FileText className="w-4 h-4" />
                                 Queixa do cliente
                              </h3>
-                             {!isEditingDesc && (
+                             {can('canEditQueixa') && !isEditingDesc && (
                                <button 
                                  onClick={() => { setIsEditingDesc(true); setDescText(selectedCard.desc || ''); }}
                                  className="text-xs font-bold text-brand-yellow hover:text-zinc-900 dark:hover:text-white transition-colors flex items-center gap-1"
@@ -2677,6 +2706,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 )}
                              </div>
 
+                             {can('canAddComments') && (
                              <div className="p-4 bg-zinc-50/80 dark:bg-white/[0.03] border-t border-zinc-200/60 dark:border-white/[0.06] flex gap-2.5 items-end">
                                 <input 
                                    type="text" 
@@ -2695,6 +2725,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                    {sendingComment ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" strokeWidth={2.2} />}
                                 </button>
                              </div>
+                             )}
                           </div>
                         </div>
 
@@ -2721,6 +2752,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
 
                          {/* Orçamentos: criar + lista */}
+                         {can('canEditBudgets') && (
                          <div ref={budgetsSectionRef}>
                             <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4">Orçamentos</h3>
                             <div className="space-y-3">
@@ -2780,6 +2812,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                             </div>
                          </div>
+                         )}
 
                          <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
 
@@ -2835,7 +2868,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         type="file" 
                                         ref={cameraInputRef} 
                                         className="hidden" 
-                                        accept="image/*"
+                                        accept="image/*,application/pdf"
                                         capture="environment"
                                         onChange={handleCameraFileSelect}
                                     />

@@ -19,6 +19,7 @@ import { TechnicianAccessModal } from '../TechnicianAccessModal';
 import { ChangePasswordsModal } from '../ChangePasswordsModal';
 import { TechnicianProfileModal } from '../TechnicianProfileModal';
 import { AdminProfileModal } from '../AdminProfileModal';
+import { SystemUsersModal } from '../SystemUsersModal';
 
 export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'settings';
 
@@ -66,6 +67,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isChangePasswordsOpen, setIsChangePasswordsOpen] = useState(false);
   const [isTechnicianProfileOpen, setIsTechnicianProfileOpen] = useState(false);
   const [isAdminProfileOpen, setIsAdminProfileOpen] = useState(false);
+  const [isSystemUsersOpen, setIsSystemUsersOpen] = useState(false);
 
   const quickApps = isTechnician
     ? QUICK_APPS.filter((a) => allowedTabs.includes(a.id))
@@ -145,6 +147,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
               Administração
             </h2>
             <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900/50 shadow-sm">
+              <button type="button" onClick={() => setIsSystemUsersOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-violet-500/15 text-violet-600 dark:text-violet-400"><User className="w-5 h-5" strokeWidth={2} /></div>
+                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Usuários do sistema</span>
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+              </button>
               <button type="button" onClick={() => onOpenApp('settings')} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-400"><Settings className="w-5 h-5" strokeWidth={2} /></div>
                 <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Configurações</span>
@@ -174,12 +181,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </section>
         )}
 
-        {/* Conta: perfil e sair */}
+        {/* Conta: perfil (admin ou técnico com perfil) e sair */}
         <section className="pt-2 pb-4">
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3">
             Conta
           </h2>
           <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900/50 shadow-sm">
+            {(!isTechnician || technicianId) && (
             <button
               type="button"
               onClick={() => (isTechnician ? setIsTechnicianProfileOpen(true) : setIsAdminProfileOpen(true))}
@@ -189,6 +197,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">{isTechnician ? 'Meu perfil' : 'Perfil do administrador'}</span>
               <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
             </button>
+            )}
             {onLogout && (
               <button type="button" onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50/80 dark:hover:bg-red-950/30 active:bg-red-100 dark:active:bg-red-950/50 transition-colors">
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-red-500/15 text-red-600 dark:text-red-400"><LogOut className="w-5 h-5" strokeWidth={2} /></div>
@@ -202,6 +211,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {!isTechnician && (
         <>
+          <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} />
           <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
           <WorkshopTechniciansModal isOpen={isTechniciansModalOpen} onClose={() => setIsTechniciansModalOpen(false)} />
           <TechnicianAccessModal isOpen={isTechnicianAccessModalOpen} onClose={() => setIsTechnicianAccessModalOpen(false)} />

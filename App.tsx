@@ -13,7 +13,7 @@ import { AgendaView } from './components/views/AgendaView';
 import { HomeView, type HomeAppId } from './components/views/HomeView';
 import { LoginView, getStoredAuth, setStoredAuth, clearStoredAuth } from './components/views/LoginView';
 import { useOrientation } from './components/views/useOrientation';
-import type { AuthSession } from './services/apiService';
+import type { AuthSession, SystemUserPermissions } from './services/apiService';
 import { getWorkshopSettings, getWorkshopTechnicians } from './services/apiService';
 
 export default function App() {
@@ -52,10 +52,20 @@ export default function App() {
   // Estado para transferir dados do Histórico (Pátio) para a Recepção
   const [prefillData, setPrefillData] = useState<Customer | null>(null);
 
-  // Modo técnico: abas permitidas (carregadas das configurações)
-  const [technicianAllowedTabs, setTechnicianAllowedTabs] = useState<TabId[]>(['patio']);
-  const [technicianTab, setTechnicianTab] = useState<TabId>('patio');
-  
+  // Usuário limitado: abas conforme permissões
+  function permissionsToTabs(perms: SystemUserPermissions | undefined): TabId[] {
+    if (!perms) return ['home'];
+    const t: TabId[] = [];
+    if (perms.access_home) t.push('home');
+    if (perms.access_reception) t.push('reception');
+    if (perms.access_agenda) t.push('agenda');
+    if (perms.access_patio) t.push('patio');
+    if (perms.access_laboratorio) t.push('laboratorio');
+    return t.length ? t : ['home'];
+  }
+  const userAllowedTabs = authSession?.role === 'user' ? permissionsToTabs(authSession.permissions) : [];
+  const [userTab, setUserTab] = useState<TabId>('home');
+
   // Agenda é carregada pela AgendaView via API (Supabase); não usa mais localStorage.
 
   // Load theme and preferences on mount
@@ -114,38 +124,11 @@ export default function App() {
     setAuthSession(null);
   };
 
-  // Completar sessão do técnico se tiver slug mas não id (ex.: login antigo antes de retornar id)
+  // Quando for usuário limitado, garantir que a aba atual está na lista permitida
   useEffect(() => {
-    if (authSession?.role !== 'patio' || authSession.technicianId || !authSession.technicianSlug) return;
-    getWorkshopTechnicians()
-      .then((list) => {
-        const tech = list.find((t) => t.slug === authSession.technicianSlug);
-        if (tech) {
-          const next: AuthSession = { ...authSession, technicianId: tech.id };
-          setStoredAuth(next);
-          setAuthSession(next);
-        }
-      })
-      .catch(() => {});
-  }, [authSession?.role, authSession?.technicianId, authSession?.technicianSlug]);
-
-  // Carregar configuração de acesso dos técnicos quando logado como técnico (home + abas permitidas)
-  useEffect(() => {
-    if (authSession?.role !== 'patio') return;
-    getWorkshopSettings()
-      .then((s) => {
-        const tabs: TabId[] = ['home'];
-        if (s.technicianAccessReception) tabs.push('reception');
-        if (s.technicianAccessAgenda) tabs.push('agenda');
-        if (s.technicianAccessPatio !== false) tabs.push('patio');
-        setTechnicianAllowedTabs(tabs);
-        setTechnicianTab((current) => (tabs.includes(current) ? current : 'home'));
-      })
-      .catch(() => {
-        setTechnicianAllowedTabs(['home', 'patio']);
-        setTechnicianTab('home');
-      });
-  }, [authSession?.role]);
+    if (authSession?.role !== 'user' || userAllowedTabs.length === 0) return;
+    setUserTab((current) => (userAllowedTabs.includes(current) ? current : userAllowedTabs[0]));
+  }, [authSession?.role, userAllowedTabs.join(',')]);
 
   // Tela de login (antes de entrar no app)
   if (!authSession) {
@@ -161,8 +144,20 @@ export default function App() {
     );
   }
 
-  // Modo técnico: abas configuráveis (Recepção, Agenda, Pátio) + botão Sair
-  if (authSession.role === 'patio') {
+  // Usuário limitado (logins criados pelo admin): abas e ações conforme permissões
+  if (authSession.role === 'user') {
+    const perms = authSession.permissions || {};
+    const patioPerms = {
+      canDeleteCards: perms.patio_delete_cards,
+      canAssignTechnician: perms.patio_assign_technician,
+      canEditFicha: perms.patio_edit_ficha,
+      canEditQueixa: perms.patio_edit_queixa,
+      canEditDeliveryDate: perms.patio_edit_delivery_date,
+      canEditMileage: perms.patio_edit_mileage,
+      canEditBudgets: perms.patio_edit_budgets,
+      canAddComments: perms.patio_add_comments,
+      canArchiveCard: perms.patio_archive_card,
+    };
     return (
       <div
         className="min-h-screen flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
@@ -170,96 +165,85 @@ export default function App() {
       >
         <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
         <header className="relative z-20 flex items-center justify-between px-4 py-3 bg-light-card/95 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-light-border dark:border-white/10">
-          {technicianTab === 'home' ? (
+          {userTab === 'home' ? (
             <>
               <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                Logado como <strong className="text-zinc-900 dark:text-white">{authSession.technicianName ?? 'Pátio'}</strong>
+                Logado como <strong className="text-zinc-900 dark:text-white">{authSession.displayName ?? 'Usuário'}</strong>
               </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/80 dark:hover:bg-white/10 transition-colors text-sm font-medium"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sair
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/80 dark:hover:bg-white/10 transition-colors text-sm font-medium"
+              >
+                <LogOut className="w-4 h-4" />
+                Sair
+              </button>
             </>
           ) : (
-            <>
-              <span />
-            </>
+            <span />
           )}
         </header>
-        <main className={`flex-1 overflow-y-auto z-10 ${technicianTab === 'home' ? 'p-0' : 'p-4 md:p-8 pt-8'}`}>
-          {technicianTab === 'home' && (
+        <main className={`flex-1 overflow-y-auto z-10 ${userTab === 'home' ? 'p-0' : 'p-4 md:p-8 pt-8'}`}>
+          {userTab === 'home' && (
             <HomeView
               isTechnician
-              technicianId={authSession.technicianId}
-              technicianName={authSession.technicianName ?? 'Pátio'}
-              technicianSlug={authSession.technicianSlug}
-              allowedTabs={technicianAllowedTabs}
-              onOpenApp={(app) => setTechnicianTab(app)}
+              allowedTabs={userAllowedTabs}
+              onOpenApp={(app) => setUserTab(app as TabId)}
               onLogout={handleLogout}
-              onProfileUpdated={(name) => {
-                setAuthSession((prev) => {
-                  if (!prev || prev.role !== 'patio') return prev;
-                  const next = { ...prev, technicianName: name };
-                  setStoredAuth(next);
-                  return next;
-                });
-              }}
             />
           )}
-          {technicianTab === 'reception' && (
+          {userTab === 'reception' && (
             <ReceptionView
               initialData={prefillData}
               onDataLoaded={() => setPrefillData(null)}
               blurPlates={cinematographicMode}
             />
           )}
-          {technicianTab === 'agenda' && (
+          {userTab === 'agenda' && (
             <AgendaView
               appointments={appointments}
               setAppointments={setAppointments}
               blurPlates={cinematographicMode}
             />
           )}
-          {technicianTab === 'patio' && (
+          {userTab === 'patio' && (
             <PatioView
+              onUseCustomerData={handleUseCustomerData}
+              effectsEnabled={effectsEnabled}
+              commentAuthorName={authSession.displayName ?? 'Usuário'}
+              blurPlates={cinematographicMode}
+              openServiceOrderId={null}
+              openServiceOrderSection={null}
+              onOpenServiceOrderHandled={() => {}}
+              actorOptions={{ actor: 'admin' }}
+              patioPermissions={patioPerms}
+            />
+          )}
+          {userTab === 'laboratorio' && (
+            <PatioView
+              orderType="module"
               onUseCustomerData={() => {}}
               effectsEnabled={effectsEnabled}
-              commentAuthorName={authSession.technicianName ?? 'Pátio'}
+              commentAuthorName={authSession.displayName ?? 'Usuário'}
               blurPlates={cinematographicMode}
-            openServiceOrderId={null}
-            openServiceOrderSection={null}
-            onOpenServiceOrderHandled={() => {}}
-              actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.technicianSlug, actorTechnicianName: authSession.technicianName }}
+              openServiceOrderId={null}
+              openServiceOrderSection={null}
+              onOpenServiceOrderHandled={() => {}}
+              actorOptions={{ actor: 'admin' }}
+              patioPermissions={patioPerms}
             />
           )}
         </main>
         <TabBar
-          currentTab={technicianTab}
-          onTabChange={setTechnicianTab}
-          allowedTabs={technicianAllowedTabs}
+          currentTab={userTab}
+          onTabChange={setUserTab}
+          allowedTabs={userAllowedTabs}
         />
-        {/* Central de notificações oculta: mantém o polling e dispara o pop-up de comentário */}
-        {authSession.technicianSlug && (
-          <div className="sr-only" aria-hidden="true">
-            <NotificationCenter
-              theme={theme}
-              forTechnician
-              technicianSlug={authSession.technicianSlug}
-              onNewCommentNotification={handleNewCommentNotification}
-            />
-          </div>
-        )}
         {commentPopUpNotification && (
           <CommentPopUp
             theme={theme}
             notification={commentPopUpNotification}
-            replyAuthorName={authSession?.technicianName ?? 'Rei do ABS'}
+            replyAuthorName={authSession.displayName ?? 'Rei do ABS'}
             blurPlates={cinematographicMode}
             onClose={() => setCommentPopUpNotification(null)}
           />
