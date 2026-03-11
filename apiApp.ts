@@ -530,7 +530,7 @@ export function createApiApp() {
       let query = supabaseAdmin
         .from("service_orders")
         .select(
-          "id, customer_id, vehicle_model, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, created_at, updated_at, customers(id, name, phone)"
+          "id, customer_id, vehicle_model, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, created_at, updated_at, customers(id, name, phone)"
         )
         .eq("workshop_id", WORKSHOP_ID)
         .order("created_at", { ascending: false });
@@ -568,6 +568,7 @@ export function createApiApp() {
       const {
         customerId,
         vehicleModel,
+        moduleIdentification,
         plate,
         mileageKm,
         issueDescription,
@@ -585,9 +586,9 @@ export function createApiApp() {
           error: "Para veículos: vehicleModel e plate são obrigatórios.",
         });
       }
-      if (orderType === "module" && !vehicleModel) {
+      if (orderType === "module" && !vehicleModel && !moduleIdentification) {
         return res.status(400).json({
-          error: "Para módulos: vehicleModel (nome/identificação) é obrigatório.",
+          error: "Para módulos: preencha ao menos Veículo ou Identificação do módulo.",
         });
       }
 
@@ -597,6 +598,7 @@ export function createApiApp() {
           workshop_id: WORKSHOP_ID,
           customer_id: customerId,
           vehicle_model: vehicleModel ?? null,
+          module_identification: orderType === "module" ? (moduleIdentification ?? null) : null,
           plate: orderType === "vehicle" ? String(plate || '').toUpperCase() : null,
           mileage_km: orderType === "vehicle" && mileageKm != null && String(mileageKm).trim() !== '' ? String(mileageKm).trim() : null,
           issue_description: issueDescription ?? null,
@@ -1779,12 +1781,15 @@ export function createApiApp() {
       }
 
       const { id } = req.params;
-      const { status, issueDescription, aiAnalysis, assignedTechnician, garantiaTag, mileageKm, deliveryDate, vehicleModel, plate, actor, actorTechnicianSlug, actorTechnicianName } = req.body;
+      const { status, issueDescription, aiAnalysis, assignedTechnician, garantiaTag, mileageKm, deliveryDate, vehicleModel, moduleIdentification, plate, actor, actorTechnicianSlug, actorTechnicianName } = req.body;
       const isAdminActor = actor !== "technician";
 
       const updatePayload: any = {};
       if (vehicleModel !== undefined) {
         updatePayload.vehicle_model = typeof vehicleModel === "string" ? vehicleModel.trim() : "";
+      }
+      if (moduleIdentification !== undefined) {
+        updatePayload.module_identification = typeof moduleIdentification === "string" ? moduleIdentification.trim() : null;
       }
       if (plate !== undefined) {
         updatePayload.plate = typeof plate === "string" ? String(plate).trim().toUpperCase() : "";

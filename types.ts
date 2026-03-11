@@ -8,6 +8,8 @@ export interface Customer {
   address: string;
   addressNumber: string;
   vehicleModel: string;
+  /** Apenas modo módulo (Laboratório): identificação do módulo */
+  moduleIdentification?: string;
   plate: string;
   /** Quilometragem do veículo (Km) */
   mileageKm?: string;

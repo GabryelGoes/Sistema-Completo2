@@ -76,7 +76,7 @@ function buildTechnicianNameMap(technicians: WorkshopTechnician[]): Record<strin
 
 function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string, string>, orderType: ServiceOrderType = 'vehicle'): TrelloCard {
   const name = orderType === 'module'
-    ? `${o.vehicle_model || 'Módulo'} - ${o.customers?.name || 'Cliente'}`
+    ? `${o.vehicle_model || '—'} - ${o.module_identification || '—'} - ${o.customers?.name || 'Cliente'}`
     : `${o.vehicle_model || 'Veículo'} - ${(o.plate || '---').toUpperCase()} - ${o.customers?.name || 'Cliente'}`;
   const techId = o.assigned_technician ?? null;
   const nameMap = technicianNameMap ?? {};
@@ -347,8 +347,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [selectedCard?.id]);
   const [editFichaForm, setEditFichaForm] = useState<{
     name: string; cpf: string; phone: string; email: string; cep: string; address: string; addressNumber: string;
-    vehicleModel: string; plate: string; mileageKm: string;
-  }>({ name: '', cpf: '', phone: '', email: '', cep: '', address: '', addressNumber: '', vehicleModel: '', plate: '', mileageKm: '' });
+    vehicleModel: string; moduleIdentification: string; plate: string; mileageKm: string;
+  }>({ name: '', cpf: '', phone: '', email: '', cep: '', address: '', addressNumber: '', vehicleModel: '', moduleIdentification: '', plate: '', mileageKm: '' });
   const [newComment, setNewComment] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
 
@@ -640,7 +640,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
         o =>
           (o.plate && o.plate.toUpperCase().includes(term.toUpperCase())) ||
           (o.customers?.name && o.customers.name.toLowerCase().includes(term.toLowerCase())) ||
-          (o.vehicle_model && o.vehicle_model.toLowerCase().includes(term.toLowerCase()))
+          (o.vehicle_model && o.vehicle_model.toLowerCase().includes(term.toLowerCase())) ||
+          (o.module_identification && o.module_identification.toLowerCase().includes(term.toLowerCase()))
       );
       const cards = cancelled.map((o) => orderToCard(o, nameMap, orderType));
       if (cards.length === 0) {
@@ -704,7 +705,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
         cep: c?.cep ?? '',
         address: c?.address ?? '',
         addressNumber: c?.address_number ?? '',
-        vehicleModel: detail.vehicle_model,
+        vehicleModel: detail.vehicle_model ?? '',
+        moduleIdentification: detail.module_identification ?? undefined,
         plate: (detail.plate || '').toUpperCase(),
         mileageKm: detail.mileage_km ?? '',
         issueDescription: '',
@@ -954,6 +956,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       address: c?.address ?? '',
       addressNumber: c?.address_number ?? '',
       vehicleModel: serviceOrderDetail.vehicle_model ?? '',
+      moduleIdentification: serviceOrderDetail.module_identification ?? '',
       plate: (serviceOrderDetail.plate ?? '').toUpperCase(),
       mileageKm: serviceOrderDetail.mileage_km ?? '',
     });
@@ -975,6 +978,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       });
       await updateServiceOrderVehicle(selectedCard.id, {
         vehicleModel: editFichaForm.vehicleModel.trim(),
+        moduleIdentification: isModuleMode ? (editFichaForm.moduleIdentification.trim() || null) : undefined,
         plate: isModuleMode ? undefined : editFichaForm.plate.trim().toUpperCase(),
       }, actorOptions);
       if (!isModuleMode) {
@@ -983,7 +987,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const updated = await getServiceOrderById(selectedCard.id);
       setServiceOrderDetail(updated);
       const newName = isModuleMode
-        ? `${updated.vehicle_model || 'Módulo'} - ${updated.customers?.name || 'Cliente'}`
+        ? `${updated.vehicle_model || '—'} - ${updated.module_identification || '—'} - ${updated.customers?.name || 'Cliente'}`
         : `${updated.vehicle_model || 'Veículo'} - ${(updated.plate || '---').toUpperCase()} - ${updated.customers?.name || 'Cliente'}`;
       const updatedCard = { ...selectedCard, name: newName };
       setSelectedCard(updatedCard);
@@ -2376,7 +2380,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          <div className="flex items-center gap-2 px-4 py-2">
                             <User className="w-5 h-5 text-brand-yellow" />
                             <span className="text-lg font-medium text-zinc-700 dark:text-white">
-                              {isModuleMode ? selectedCard.name.split('-')[1]?.trim() : selectedCard.name.split('-')[2]?.trim()}
+                              {selectedCard.name.split('-').map((s) => s.trim())[2] ?? '—'}
                             </span>
                          </div>
                          {!isModuleMode && (
@@ -2483,10 +2487,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
                             <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
                             <div>
-                              <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">{isModuleMode ? 'Módulo' : 'Veículo'}</p>
+                              <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Veículo</p>
                               <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.vehicle_model || '—'}</p>
                             </div>
                           </div>
+                          {isModuleMode && (
+                          <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                            <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Identificação do módulo</p>
+                              <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.module_identification || '—'}</p>
+                            </div>
+                          </div>
+                          )}
                           {!isModuleMode && (
                           <>
                           <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
@@ -3004,9 +3017,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
               <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-2" />
               <div>
-                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">{isModuleMode ? 'Nome / Identificação do módulo' : 'Modelo do veículo'}</label>
-                <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder={isModuleMode ? 'Ex: Módulo ABS XYZ' : 'Ex: Gol 1.0'} />
+                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">{isModuleMode ? 'Veículo' : 'Modelo do veículo'}</label>
+                <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder={isModuleMode ? 'Ex: BMW 320i' : 'Ex: Gol 1.0'} />
               </div>
+              {isModuleMode && (
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Identificação do módulo</label>
+                <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Ex: Módulo ABS XYZ" />
+              </div>
+              )}
               {!isModuleMode && (
               <div className="grid grid-cols-2 gap-3">
                 <div>

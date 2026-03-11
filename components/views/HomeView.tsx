@@ -36,12 +36,12 @@ interface HomeViewProps {
   onProfileUpdated?: (newName: string) => void;
 }
 
-const APPS: { id: HomeAppId; label: string; icon: React.ReactNode; accent: string }[] = [
-  { id: 'reception', label: 'Recepção', icon: <ClipboardList className="w-6 h-6" strokeWidth={2} />, accent: 'text-amber-500' },
-  { id: 'agenda', label: 'Agenda', icon: <Calendar className="w-6 h-6" strokeWidth={2} />, accent: 'text-blue-500' },
-  { id: 'patio', label: 'Pátio', icon: <PatioCarIcon className="w-6 h-6" strokeWidth={2} />, accent: 'text-emerald-500' },
-  { id: 'laboratorio', label: 'Laboratório', icon: <FlaskConical className="w-6 h-6" strokeWidth={2} />, accent: 'text-violet-500' },
-  { id: 'settings', label: 'Configurações', icon: <Settings className="w-6 h-6" strokeWidth={2} />, accent: 'text-zinc-500 dark:text-zinc-400' },
+/** Módulos operacionais: atendimento e fluxo de serviço */
+const OPERATIONAL_APPS: { id: HomeAppId; label: string; description: string; icon: React.ReactNode; accent: string; bg: string }[] = [
+  { id: 'reception', label: 'Recepção', description: 'Cadastro de clientes e veículos', icon: <ClipboardList className="w-7 h-7" strokeWidth={2} />, accent: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 dark:bg-amber-500/20 border-amber-500/20' },
+  { id: 'agenda', label: 'Agenda', description: 'Agendamentos e compromissos', icon: <Calendar className="w-7 h-7" strokeWidth={2} />, accent: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-500/20 border-blue-500/20' },
+  { id: 'patio', label: 'Pátio', description: 'Veículos em atendimento', icon: <PatioCarIcon className="w-7 h-7" strokeWidth={2} />, accent: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 dark:bg-emerald-500/20 border-emerald-500/20' },
+  { id: 'laboratorio', label: 'Laboratório', description: 'Módulos e eletrônica', icon: <FlaskConical className="w-7 h-7" strokeWidth={2} />, accent: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-500/10 dark:bg-violet-500/20 border-violet-500/20' },
 ];
 
 const QUICK_APPS: { id: HomeAppId; label: string; icon: React.ReactNode; accent: string }[] = [
@@ -71,112 +71,134 @@ export const HomeView: React.FC<HomeViewProps> = ({
     ? QUICK_APPS.filter((a) => allowedTabs.includes(a.id))
     : QUICK_APPS;
 
-  return (
-    <div className="min-h-screen flex flex-col bg-light-page dark:bg-black safe-area-pb relative">
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-[40%] left-1/2 -translate-x-1/2 w-[120%] h-[80%] rounded-full bg-light-card/80 dark:bg-zinc-900/40 blur-[100px]" />
-      </div>
+  const operationalForView = isTechnician
+    ? OPERATIONAL_APPS.filter((a) => allowedTabs.includes(a.id))
+    : OPERATIONAL_APPS;
 
-      <header className="relative z-10 flex flex-col items-center pt-[env(safe-area-inset-top)] pt-12 pb-8 px-6">
-        <img
-          src="/logo.png"
-          alt="Rei do ABS"
-          className="w-20 h-20 sm:w-24 sm:h-24 object-contain flex-shrink-0 rounded-2xl shadow-sm dark:shadow-none"
-        />
-        <h1 className="mt-5 text-2xl sm:text-3xl font-semibold text-zinc-900 dark:text-white tracking-tight text-center">
-          Rei do ABS
-        </h1>
-        <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400 font-medium">
-          {isTechnician ? `Olá, ${technicianName}` : 'Oficina'}
-        </p>
+  return (
+    <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 safe-area-pb relative">
+      {/* Fundo sutil */}
+      <div className="fixed inset-0 pointer-events-none z-0 bg-[linear-gradient(180deg,var(--tw-gradient-from)_0%,transparent_50%)] from-amber-500/5 dark:from-amber-500/[0.07] to-transparent" />
+      <div className="fixed bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-zinc-100/80 dark:from-zinc-900/80 to-transparent pointer-events-none z-0" />
+
+      {/* Header: identidade da oficina */}
+      <header className="relative z-10 pt-[env(safe-area-inset-top)] pb-6 px-4 sm:px-6 border-b border-zinc-200/80 dark:border-white/[0.06] bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md">
+        <div className="max-w-xl mx-auto flex items-center gap-4">
+          <img
+            src="/logo.png"
+            alt="Rei do ABS"
+            className="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-xl border border-zinc-200/80 dark:border-white/10 shadow-sm"
+          />
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight truncate">
+              Rei do ABS
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+              {isTechnician ? `Olá, ${technicianName}` : 'Sistema de gestão da oficina'}
+            </p>
+          </div>
+        </div>
       </header>
 
-      {/* Acesso rápido */}
-      <div className="relative z-10 px-4 sm:px-6 pb-6 max-w-lg mx-auto w-full">
-        <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 mb-3">Acesso rápido</p>
-        <div className={`grid gap-3 ${quickApps.length === 3 ? 'grid-cols-3' : quickApps.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          {quickApps.map((app) => (
-            <button
-              key={app.id}
-              type="button"
-              onClick={() => onOpenApp(app.id)}
-              className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-light-elevated dark:bg-white/[0.06] border border-light-border dark:border-white/[0.08] shadow-sm hover:opacity-90 transition-all active:scale-[0.98]"
-            >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-light-card dark:bg-white/[0.08] ${app.accent}`}>
-                {app.icon}
-              </div>
-              <span className="text-[13px] font-semibold text-zinc-900 dark:text-white text-center leading-tight">{app.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Lista: para técnico só Perfil + Sair; para admin lista completa + Perfil */}
-      <div className="relative z-10 flex-1 px-4 sm:px-6 pb-24 max-w-lg mx-auto w-full">
-        <div className="rounded-2xl overflow-hidden bg-light-elevated dark:bg-white/[0.06] border border-light-border dark:border-white/[0.08] shadow-sm dark:shadow-none">
-          {!isTechnician && (
-            <>
-              {APPS.map((app) => (
+      <main className="relative z-10 flex-1 px-4 sm:px-6 pb-28 max-w-xl mx-auto w-full">
+        {/* Operação: módulos principais */}
+        <section className="pt-6 pb-6">
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3">
+            Operação
+          </h2>
+          {isTechnician && operationalForView.length <= 2 ? (
+            <div className={`grid gap-3 ${operationalForView.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+              {operationalForView.map((app) => (
                 <button
                   key={app.id}
                   type="button"
                   onClick={() => onOpenApp(app.id)}
-                  className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-light-card/80 dark:hover:bg-white/[0.06] active:bg-light-border/50 dark:active:bg-white/[0.1] transition-colors min-h-[56px] border-b border-light-border/80 dark:border-white/[0.06]"
+                  className={`flex flex-col items-center gap-2 p-5 rounded-xl border ${app.bg} hover:opacity-95 active:scale-[0.99] transition-all`}
                 >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] ${app.accent}`}>{app.icon}</div>
-                  <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">{app.label}</span>
-                  <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
+                  <div className={app.accent}>{app.icon}</div>
+                  <span className="text-sm font-semibold text-zinc-900 dark:text-white text-center">{app.label}</span>
                 </button>
               ))}
-              <button type="button" onClick={() => setIsServicesModalOpen(true)} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-light-card/80 dark:hover:bg-white/[0.06] active:bg-light-border/50 min-h-[56px]">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] text-amber-500"><Wrench className="w-6 h-6" strokeWidth={2} /></div>
-                <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">Serviços da oficina</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
-              </button>
-              <button type="button" onClick={() => setIsTechniciansModalOpen(true)} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-light-card/80 dark:hover:bg-white/[0.06] active:bg-light-border/50 min-h-[56px]">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] text-violet-500"><Users className="w-6 h-6" strokeWidth={2} /></div>
-                <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">Técnicos</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
-              </button>
-              <button type="button" onClick={() => setIsTechnicianAccessModalOpen(true)} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-light-card/80 dark:hover:bg-white/[0.06] active:bg-light-border/50 min-h-[56px]">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] text-brand-yellow"><ShieldCheck className="w-6 h-6" strokeWidth={2} /></div>
-                <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">Controle dos Técnicos</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
-              </button>
-              <button type="button" onClick={() => setIsChangePasswordsOpen(true)} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-light-card/80 dark:hover:bg-white/[0.06] active:bg-light-border/50 min-h-[56px]">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] text-amber-500"><Lock className="w-6 h-6" strokeWidth={2} /></div>
-                <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">Alterar senhas</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
-              </button>
-            </>
-          )}
-
-          {/* Perfil (admin ou técnico) */}
-          <button
-            type="button"
-            onClick={() => (isTechnician ? setIsTechnicianProfileOpen(true) : setIsAdminProfileOpen(true))}
-            className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-zinc-100/80 dark:hover:bg-white/[0.06] active:bg-zinc-200/80 min-h-[56px] border-b border-zinc-200/50 dark:border-white/[0.06]"
-          >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] text-violet-500">
-              <User className="w-6 h-6" strokeWidth={2} />
             </div>
-            <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">
-              {isTechnician ? 'Meu perfil' : 'Perfil do administrador'}
-            </span>
-            <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
-          </button>
-
-          {onLogout && (
-            <button type="button" onClick={onLogout} className="w-full flex items-center gap-4 px-4 py-4 sm:py-5 bg-transparent hover:bg-zinc-100/80 dark:hover:bg-white/[0.06] active:bg-zinc-200/80 min-h-[56px] border-t border-zinc-200/50 dark:border-white/[0.06]">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-light-card dark:bg-white/[0.08] text-red-500"><LogOut className="w-6 h-6" strokeWidth={2} /></div>
-              <span className="flex-1 text-left text-[17px] font-medium text-zinc-900 dark:text-white">Sair</span>
-              <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
-            </button>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {operationalForView.map((app) => (
+                <button
+                  key={app.id}
+                  type="button"
+                  onClick={() => onOpenApp(app.id)}
+                  className={`flex flex-col items-start gap-2 p-4 rounded-xl border ${app.bg} hover:opacity-95 active:scale-[0.99] transition-all text-left`}
+                >
+                  <div className={app.accent}>{app.icon}</div>
+                  <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">{app.label}</span>
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">{app.description}</span>
+                </button>
+              ))}
+            </div>
           )}
-        </div>
-        <p className="mt-6 text-center text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">Toque para abrir</p>
-      </div>
+        </section>
+
+        {/* Administração (só admin) */}
+        {!isTechnician && (
+          <section className="pt-2 pb-4">
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3">
+              Administração
+            </h2>
+            <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900/50 shadow-sm">
+              <button type="button" onClick={() => onOpenApp('settings')} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-400"><Settings className="w-5 h-5" strokeWidth={2} /></div>
+                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Configurações</span>
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+              </button>
+              <button type="button" onClick={() => setIsServicesModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-amber-500/15 text-amber-600 dark:text-amber-400"><Wrench className="w-5 h-5" strokeWidth={2} /></div>
+                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Serviços da oficina</span>
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+              </button>
+              <button type="button" onClick={() => setIsTechniciansModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-violet-500/15 text-violet-600 dark:text-violet-400"><Users className="w-5 h-5" strokeWidth={2} /></div>
+                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Técnicos</span>
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+              </button>
+              <button type="button" onClick={() => setIsTechnicianAccessModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-brand-yellow/20 text-amber-700 dark:text-brand-yellow"><ShieldCheck className="w-5 h-5" strokeWidth={2} /></div>
+                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Controle de acesso</span>
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+              </button>
+              <button type="button" onClick={() => setIsChangePasswordsOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-zinc-200/80 dark:bg-white/10 text-zinc-600 dark:text-zinc-400"><Lock className="w-5 h-5" strokeWidth={2} /></div>
+                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Alterar senhas</span>
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Conta: perfil e sair */}
+        <section className="pt-2 pb-4">
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3">
+            Conta
+          </h2>
+          <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900/50 shadow-sm">
+            <button
+              type="button"
+              onClick={() => (isTechnician ? setIsTechnicianProfileOpen(true) : setIsAdminProfileOpen(true))}
+              className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors"
+            >
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-violet-500/15 text-violet-600 dark:text-violet-400"><User className="w-5 h-5" strokeWidth={2} /></div>
+              <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">{isTechnician ? 'Meu perfil' : 'Perfil do administrador'}</span>
+              <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+            </button>
+            {onLogout && (
+              <button type="button" onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50/80 dark:hover:bg-red-950/30 active:bg-red-100 dark:active:bg-red-950/50 transition-colors">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-red-500/15 text-red-600 dark:text-red-400"><LogOut className="w-5 h-5" strokeWidth={2} /></div>
+                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Sair</span>
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+              </button>
+            )}
+          </div>
+        </section>
+      </main>
 
       {!isTechnician && (
         <>

@@ -38,6 +38,7 @@ export interface ServiceOrderListItem {
   id: string;
   customer_id: string;
   vehicle_model: string | null;
+  module_identification: string | null;
   plate: string | null;
   mileage_km: string | null;
   delivery_date: string | null;
@@ -57,6 +58,7 @@ export interface ServiceOrderDetail {
   id: string;
   customer_id: string;
   vehicle_model: string;
+  module_identification: string | null;
   plate: string;
   mileage_km: string | null;
   delivery_date: string | null;
@@ -258,6 +260,7 @@ export async function updateCustomer(
 export async function createServiceOrder(params: {
   customerId: string;
   vehicleModel: string;
+  moduleIdentification?: string | null;
   plate?: string | null;
   mileageKm?: string | null;
   issueDescription?: string;
@@ -267,7 +270,7 @@ export async function createServiceOrder(params: {
   const orderType = params.orderType === "module" ? "module" : "vehicle";
   const body: Record<string, unknown> = {
     customerId: params.customerId,
-    vehicleModel: params.vehicleModel,
+    vehicleModel: params.vehicleModel ?? (orderType === "module" ? "" : undefined),
     issueDescription: params.issueDescription ?? null,
     aiAnalysis: params.aiAnalysis ?? null,
     orderType,
@@ -278,6 +281,7 @@ export async function createServiceOrder(params: {
   } else {
     body.plate = null;
     body.mileageKm = null;
+    body.moduleIdentification = params.moduleIdentification ?? null;
   }
   const response = await fetch(`${API_BASE}/service-orders`, {
     method: "POST",
@@ -307,6 +311,7 @@ export async function saveReceptionIntake(
   const createdServiceOrder = await createServiceOrder({
     customerId: createdCustomer.id,
     vehicleModel: customer.vehicleModel || '',
+    moduleIdentification: orderType === "module" ? (customer.moduleIdentification ?? null) : undefined,
     plate: orderType === "vehicle" ? (customer.plate || '').toUpperCase() : undefined,
     mileageKm: orderType === "vehicle" ? (customer.mileageKm ?? null) : undefined,
     issueDescription: customer.issueDescription,
@@ -471,14 +476,15 @@ export async function updateServiceOrderDeliveryDate(
   return response.json();
 }
 
-/** Atualiza modelo do veículo e/ou placa da OS. */
+/** Atualiza modelo do veículo, identificação do módulo e/ou placa da OS. */
 export async function updateServiceOrderVehicle(
   id: string,
-  data: { vehicleModel?: string; plate?: string },
+  data: { vehicleModel?: string; moduleIdentification?: string | null; plate?: string },
   options?: ServiceOrderUpdateActor
 ): Promise<ApiServiceOrder> {
   const body: Record<string, unknown> = {};
   if (data.vehicleModel !== undefined) body.vehicleModel = data.vehicleModel.trim();
+  if (data.moduleIdentification !== undefined) body.moduleIdentification = data.moduleIdentification === null || data.moduleIdentification === "" ? null : String(data.moduleIdentification).trim();
   if (data.plate !== undefined) body.plate = data.plate.trim().toUpperCase();
   const merged = mergeActorIntoBody(body, options);
   const response = await fetch(`${API_BASE}/service-orders/${id}`, {

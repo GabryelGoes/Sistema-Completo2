@@ -51,6 +51,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     address: '',
     addressNumber: '',
     vehicleModel: '',
+    moduleIdentification: '',
     plate: '',
     mileageKm: '',
     issueDescription: ''
@@ -85,6 +86,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         address: initialData.address ?? prev.address,
         addressNumber: initialData.addressNumber ?? prev.addressNumber,
         vehicleModel: initialData.vehicleModel ?? prev.vehicleModel,
+        moduleIdentification: initialData.moduleIdentification ?? prev.moduleIdentification,
         plate: initialData.plate ?? prev.plate,
         mileageKm: initialData.mileageKm ?? prev.mileageKm,
         issueDescription: initialData.issueDescription ?? prev.issueDescription,
@@ -112,10 +114,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
     const isModule = receptionMode === 'module';
     if (isModule) {
-      if (!customer.name && !customer.phone && !customer.vehicleModel) {
+      if (!customer.name && !customer.phone && !customer.vehicleModel && !customer.moduleIdentification) {
         setStatus({
           step: 'error',
-          message: 'Preencha pelo menos nome, telefone ou nome/identificação do módulo.',
+          message: 'Preencha pelo menos nome, telefone, veículo ou identificação do módulo.',
         });
         return;
       }
@@ -169,6 +171,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       address: '',
       addressNumber: '',
       vehicleModel: '',
+      moduleIdentification: '',
       plate: '',
       mileageKm: '',
       issueDescription: '',
@@ -353,10 +356,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input 
-                label="Nome / Identificação do módulo"
+                label="Veículo"
                 name="vehicleModel"
-                placeholder="Ex: Módulo ABS XYZ"
+                placeholder="Ex: BMW 320i"
                 value={customer.vehicleModel}
+                onChange={handleInputChange}
+                icon={<Package className="w-4 h-4" />}
+              />
+              <Input 
+                label="Identificação do módulo"
+                name="moduleIdentification"
+                placeholder="Ex: Módulo ABS XYZ"
+                value={customer.moduleIdentification ?? ''}
                 onChange={handleInputChange}
                 icon={<Package className="w-4 h-4" />}
               />
