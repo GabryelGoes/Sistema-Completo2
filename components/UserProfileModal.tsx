@@ -66,8 +66,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handleSaveName = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profileToken && !currentPassword.trim()) {
-      setError('Informe a senha atual para salvar o nome.');
+    if (!profileToken) {
+      setError('Faça login novamente para salvar o nome.');
       return;
     }
     setError(null);
@@ -76,9 +76,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     try {
       const updated = await updateMyProfile(
         username,
-        currentPassword || '',
+        '',
         { displayName: displayName.trim() || username },
-        profileToken ? { profileToken } : undefined
+        { profileToken }
       );
       setDisplayName(updated.displayName);
       onProfileUpdated?.({ displayName: updated.displayName });
@@ -101,15 +101,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handlePhotoEditorSave = async (blob: Blob) => {
     setPhotoEditorFile(null);
-    if (!profileToken && !currentPassword.trim()) {
-      setError('Faça login novamente para alterar a foto, ou informe a senha atual.');
+    if (!profileToken) {
+      setError('Faça login novamente para alterar a foto.');
       return;
     }
     setError(null);
     setSavingPhoto(true);
     try {
       const file = new File([blob], 'foto.jpg', { type: 'image/jpeg' });
-      const res = await uploadMyProfilePhoto(username, file, file.name, profileToken ? { profileToken } : { password: currentPassword });
+      const res = await uploadMyProfilePhoto(username, file, file.name, { profileToken });
       setPhotoUrl(res.photoUrl);
       onProfileUpdated?.({ photoUrl: res.photoUrl });
       setMessage('Foto atualizada.');
@@ -122,8 +122,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handleSaveColor = async (colorId: string | null) => {
     setAccentColor(colorId);
-    if (!profileToken && !currentPassword.trim()) {
-      setError('Informe a senha atual para salvar a cor.');
+    if (!profileToken) {
+      setError('Faça login novamente para salvar a cor.');
       return;
     }
     setError(null);
@@ -132,9 +132,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     try {
       const updated = await updateMyProfile(
         username,
-        currentPassword || '',
+        '',
         { accentColor: colorId },
-        profileToken ? { profileToken } : undefined
+        { profileToken }
       );
       setAccentColor(updated.accentColor ?? null);
       onProfileUpdated?.({ accentColor: updated.accentColor ?? null });
@@ -275,7 +275,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">Usado para entrar no sistema. Não pode ser alterado aqui.</p>
           </div>
 
-          {/* Senha atual — só obrigatória para "Alterar senha" e para nome/cor quando não há token */}
+          {/* Senha atual — só obrigatória para "Alterar senha" */}
           <div>
             <label className="block text-[13px] font-medium text-zinc-600 dark:text-zinc-400 mb-2">Senha atual</label>
             <div className="relative">
@@ -287,7 +287,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 className="w-full pl-11 pr-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-violet-500/30"
-                placeholder={profileToken ? 'Opcional (só para alterar senha)' : 'Necessária para salvar nome/cor e alterar senha'}
+                placeholder="Só necessária para alterar senha abaixo"
                 autoComplete="current-password"
               />
             </div>

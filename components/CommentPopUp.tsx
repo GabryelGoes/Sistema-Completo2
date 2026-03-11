@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Send, Loader2 } from 'lucide-react';
 import type { Notification } from '../services/apiService';
-import { addServiceOrderComment } from '../services/apiService';
+import { addServiceOrderComment, getServiceOrderComments, getWorkshopSettings, type ServiceOrderComment } from '../services/apiService';
 
 interface CommentPopUpProps {
   notification: Notification;
@@ -15,9 +15,16 @@ interface CommentPopUpProps {
   blurPlates?: boolean;
 }
 
+function isReiDoAbs(name: string): boolean {
+  return /rei\s*do\s*abs/i.test((name ?? '').trim());
+}
+
 export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClose, onReplySent, replyAuthorName, theme = 'dark', blurPlates = false }) => {
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
+  const [conversation, setConversation] = useState<ServiceOrderComment[]>([]);
+  const [loadingConversation, setLoadingConversation] = useState(true);
+  const [adminPhotoUrlFallback, setAdminPhotoUrlFallback] = useState<string | null>(null);
 
   const isDark = theme === 'dark';
   const panelClass = isDark
@@ -38,25 +45,50 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
   const sendBtnClass = 'bg-brand-yellow hover:bg-amber-400 active:scale-[0.98] disabled:opacity-50 text-black flex items-center justify-center shrink-0 transition-transform';
 
   const p = notification.payload;
+  const orderId = p.service_order_id;
   const model = p.vehicle_model?.trim() || 'Veículo';
   const customer = p.customer_name?.trim() || p.vehicle_plate || 'Cliente';
   const showBlurredPlate = blurPlates && !!p.vehicle_plate && !p.customer_name?.trim();
   const vehicleLabel = showBlurredPlate ? `${model} · ` : `${model} · ${customer}`;
-  const author = p.author_display_name || 'Técnico';
-  const authorPhotoUrl = p.author_photo_url?.trim() || null;
-  const text = p.text || '';
-  const authorInitial = author.slice(0, 1).toUpperCase();
+
+  useEffect(() => {
+    if (!orderId) {
+      setConversation([]);
+      setLoadingConversation(false);
+      return;
+    }
+    setLoadingConversation(true);
+    Promise.all([
+      getServiceOrderComments(orderId),
+      getWorkshopSettings().then((s) => s.adminPhotoUrl ?? null).catch(() => null),
+    ]).then(([comments, adminPhoto]) => {
+      setConversation(comments ?? []);
+      setAdminPhotoUrlFallback(adminPhoto?.trim() || null);
+    }).catch(() => setConversation([])).finally(() => setLoadingConversation(false));
+  }, [orderId]);
+
+  const getPhotoForAuthor = (c: ServiceOrderComment): string | null => {
+    const url = c.author_photo_url?.trim() || null;
+    if (url) return url;
+    if (isReiDoAbs(c.author_display_name)) return adminPhotoUrlFallback;
+    return null;
+  };
+
+  const lastComment = conversation.length > 0 ? conversation[conversation.length - 1] : null;
+  const headerAuthor = lastComment?.author_display_name || p.author_display_name || 'Técnico';
+  const headerPhotoUrl = lastComment ? getPhotoForAuthor(lastComment) : (p.author_photo_url?.trim() || (isReiDoAbs(p.author_display_name ?? '') ? adminPhotoUrlFallback : null));
+  const headerInitial = headerAuthor.slice(0, 1).toUpperCase();
 
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
-    const orderId = p.service_order_id;
     if (!orderId || !reply.trim() || sending) return;
     setSending(true);
     try {
       await addServiceOrderComment(orderId, reply.trim(), replyAuthorName.trim() || 'Rei do ABS');
       setReply('');
       onReplySent?.();
-      onClose();
+      const updated = await getServiceOrderComments(orderId);
+      setConversation(updated ?? []);
     } catch {
       // keep open on error
     } finally {
@@ -84,10 +116,10 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
         <div className={`flex items-center justify-between px-5 py-4 border-b ${headerClass}`}>
           <div className="flex items-center gap-4 min-w-0 flex-1">
             <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-zinc-600/30 flex items-center justify-center ring-2 ring-white/10">
-              {authorPhotoUrl ? (
-                <img src={authorPhotoUrl} alt={author} className="w-full h-full object-cover" />
+              {headerPhotoUrl ? (
+                <img src={headerPhotoUrl} alt={headerAuthor} className="w-full h-full object-cover" />
               ) : (
-                <span className={`text-lg font-semibold ${isDark ? 'text-brand-yellow' : 'text-amber-600'}`}>{authorInitial}</span>
+                <span className={`text-lg font-semibold ${isDark ? 'text-brand-yellow' : 'text-amber-600'}`}>{headerInitial}</span>
               )}
             </div>
             <div className="min-w-0 flex-1">
@@ -95,7 +127,9 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
                 {vehicleLabel}
                 {showBlurredPlate && <span className="blur-plate">{p.vehicle_plate}</span>}
               </p>
-              <p className={`text-[13px] mt-0.5 ${subtitleClass}`}>{author} comentou</p>
+              <p className={`text-[13px] mt-0.5 ${subtitleClass}`}>
+                {conversation.length > 0 ? `Conversa (${conversation.length} mensagem${conversation.length !== 1 ? 'ns' : ''})` : `${headerAuthor} comentou`}
+              </p>
             </div>
           </div>
           <button
@@ -107,22 +141,56 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
           </button>
         </div>
 
-        {/* Área de mensagem: bubble estilo iMessage */}
-        <div className="flex-1 overflow-y-auto px-5 py-5 min-h-[140px]">
-          <div className="flex gap-3 items-start">
-            <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-zinc-600/20 flex items-center justify-center mt-0.5">
-              {authorPhotoUrl ? (
-                <img src={authorPhotoUrl} alt={author} className="w-full h-full object-cover" />
-              ) : (
-                <span className={`text-sm font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>{authorInitial}</span>
-              )}
+        {/* Área da conversa inteira */}
+        <div className="flex-1 overflow-y-auto px-5 py-5 min-h-[140px] space-y-4">
+          {loadingConversation ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`} />
             </div>
-            <div className={`flex-1 min-w-0 rounded-2xl rounded-tl-md px-4 py-3.5 max-w-[85%] ${bubbleClass}`}>
-              <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
-                {text}
-              </p>
+          ) : conversation.length > 0 ? (
+            conversation.map((c) => {
+              const photoUrl = getPhotoForAuthor(c);
+              const name = c.author_display_name || 'Usuário';
+              const initial = name.slice(0, 1).toUpperCase();
+              return (
+                <div key={c.id} className="flex gap-3 items-start">
+                  <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-zinc-600/20 flex items-center justify-center mt-0.5">
+                    {photoUrl ? (
+                      <img src={photoUrl} alt={name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className={`text-sm font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>{initial}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className={`text-sm font-semibold ${titleClass}`}>{name}</span>
+                      <span className={`text-xs ${subtitleClass}`}>{new Date(c.created_at).toLocaleString('pt-BR')}</span>
+                    </div>
+                    <div className={`rounded-2xl rounded-tl-md px-4 py-3.5 max-w-[85%] ${bubbleClass}`}>
+                      <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+                        {c.text}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="flex gap-3 items-start">
+              <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-zinc-600/20 flex items-center justify-center mt-0.5">
+                {headerPhotoUrl ? (
+                  <img src={headerPhotoUrl} alt={headerAuthor} className="w-full h-full object-cover" />
+                ) : (
+                  <span className={`text-sm font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>{headerInitial}</span>
+                )}
+              </div>
+              <div className={`flex-1 min-w-0 rounded-2xl rounded-tl-md px-4 py-3.5 max-w-[85%] ${bubbleClass}`}>
+                <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+                  {p.text || '—'}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Campo de resposta estilo iOS Messages */}

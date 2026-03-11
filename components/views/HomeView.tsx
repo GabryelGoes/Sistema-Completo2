@@ -98,7 +98,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <div className="fixed bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-zinc-100/80 dark:from-zinc-900/80 to-transparent pointer-events-none z-0" />
 
       {/* Header: identidade da oficina */}
-      <header className="relative z-10 pt-[env(safe-area-inset-top)] pb-6 px-4 sm:px-6 border-b border-zinc-200/80 dark:border-white/[0.06] bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md">
+      <header className="relative z-10 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-6 px-4 sm:px-6 border-b border-zinc-200/80 dark:border-white/[0.06] bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md">
         <div className="max-w-xl mx-auto flex items-center gap-4">
           <img
             src="/logo.png"

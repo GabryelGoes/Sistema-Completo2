@@ -363,6 +363,26 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useEffect(() => {
     if (selectedCard?.id) setIsDadosFichaExpanded(false);
   }, [selectedCard?.id]);
+
+  /** Sincroniza o formulário de edição da ficha quando a seção é expandida (para edição inline). */
+  useEffect(() => {
+    if (!isDadosFichaExpanded || !serviceOrderDetail) return;
+    const c = serviceOrderDetail.customers;
+    setEditFichaForm({
+      name: c?.name ?? '',
+      cpf: c?.cpf ?? '',
+      phone: c?.phone ?? '',
+      email: c?.email ?? '',
+      cep: c?.cep ?? '',
+      address: c?.address ?? '',
+      addressNumber: c?.address_number ?? '',
+      vehicleModel: serviceOrderDetail.vehicle_model ?? '',
+      moduleIdentification: serviceOrderDetail.module_identification ?? '',
+      plate: (serviceOrderDetail.plate ?? '').toUpperCase(),
+      mileageKm: serviceOrderDetail.mileage_km ?? '',
+    });
+  }, [isDadosFichaExpanded, serviceOrderDetail]);
+
   const [editFichaForm, setEditFichaForm] = useState<{
     name: string; cpf: string; phone: string; email: string; cep: string; address: string; addressNumber: string;
     vehicleModel: string; moduleIdentification: string; plate: string; mileageKm: string;
@@ -2493,86 +2513,201 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-yellow/20 dark:bg-brand-yellow/20 text-brand-yellow hover:bg-brand-yellow/30 dark:hover:bg-brand-yellow/30 font-bold text-xs uppercase tracking-wider transition-colors"
                           >
                             <Pencil className="w-3.5 h-3.5" />
-                            Editar
+                            Editar em janela
                           </button>
                           )}
                         </button>
                         {isDadosFichaExpanded && (
-                        <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {serviceOrderDetail.customers && (
-                            <>
-                              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                <User className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                <div>
-                                  <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Nome</p>
-                                  <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.customers.name || '—'}</p>
+                        <div className="p-6 space-y-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {can('canEditFicha') ? (
+                              <>
+                                {serviceOrderDetail.customers && (
+                                  <>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                      <User className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div className="min-w-0 flex-1">
+                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">Nome</label>
+                                        <input value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Nome do cliente" />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                      <Smartphone className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div className="min-w-0 flex-1">
+                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">Telefone</label>
+                                        <input value={editFichaForm.phone} onChange={(e) => setEditFichaForm(f => ({ ...f, phone: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="(11) 99999-9999" />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                      <Mail className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div className="min-w-0 flex-1">
+                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">E-mail</label>
+                                        <input type="email" value={editFichaForm.email} onChange={(e) => setEditFichaForm(f => ({ ...f, email: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="email@exemplo.com" />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                      <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div className="min-w-0 flex-1">
+                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">CPF</label>
+                                        <input value={editFichaForm.cpf} onChange={(e) => setEditFichaForm(f => ({ ...f, cpf: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="000.000.000-00" />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20 sm:col-span-2">
+                                      <MapPin className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div className="min-w-0 flex-1 space-y-2">
+                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Endereço</label>
+                                        <input value={editFichaForm.address} onChange={(e) => setEditFichaForm(f => ({ ...f, address: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Rua, bairro..." />
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <input value={editFichaForm.addressNumber} onChange={(e) => setEditFichaForm(f => ({ ...f, addressNumber: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Nº" />
+                                          <input value={editFichaForm.cep} onChange={(e) => setEditFichaForm(f => ({ ...f, cep: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="CEP" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+                                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                  <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                  <div className="min-w-0 flex-1">
+                                    <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">{isModuleMode ? 'Veículo' : 'Modelo do veículo'}</label>
+                                    <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder={isModuleMode ? 'Ex: BMW 320i' : 'Ex: Gol 1.0'} />
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                <Smartphone className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                <div>
-                                  <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Telefone</p>
-                                  <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.customers.phone || '—'}</p>
+                                {isModuleMode && (
+                                  <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                    <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                    <div className="min-w-0 flex-1">
+                                      <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">Identificação do módulo</label>
+                                      <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Ex: Módulo ABS XYZ" />
+                                    </div>
+                                  </div>
+                                )}
+                                {!isModuleMode && (
+                                  <>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                      <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div className="min-w-0 flex-1">
+                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">Placa</label>
+                                        <input value={editFichaForm.plate} onChange={(e) => setEditFichaForm(f => ({ ...f, plate: e.target.value.toUpperCase() }))} maxLength={8} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="ABC1D23" />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                      <Hash className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div className="min-w-0 flex-1">
+                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">Km</label>
+                                        <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="45000" />
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {serviceOrderDetail.customers && (
+                                  <>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                      <User className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div>
+                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Nome</p>
+                                        <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.customers.name || '—'}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                      <Smartphone className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div>
+                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Telefone</p>
+                                        <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.customers.phone || '—'}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                      <Mail className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div>
+                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">E-mail</p>
+                                        <p className="text-zinc-900 dark:text-white font-medium truncate">{serviceOrderDetail.customers.email || '—'}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                      <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div>
+                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">CPF</p>
+                                        <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.customers.cpf || '—'}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20 sm:col-span-2">
+                                      <MapPin className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div className="min-w-0">
+                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Endereço</p>
+                                        <p className="text-zinc-900 dark:text-white font-medium">
+                                          {[serviceOrderDetail.customers.address, serviceOrderDetail.customers.address_number, serviceOrderDetail.customers.cep].filter(Boolean).join(' · ') || '—'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+                                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                  <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Veículo</p>
+                                    <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.vehicle_model || '—'}</p>
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                <Mail className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                <div>
-                                  <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">E-mail</p>
-                                  <p className="text-zinc-900 dark:text-white font-medium truncate">{serviceOrderDetail.customers.email || '—'}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                <div>
-                                  <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">CPF</p>
-                                  <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.customers.cpf || '—'}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20 sm:col-span-2">
-                                <MapPin className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                <div className="min-w-0">
-                                  <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Endereço</p>
-                                  <p className="text-zinc-900 dark:text-white font-medium">
-                                    {[serviceOrderDetail.customers.address, serviceOrderDetail.customers.address_number, serviceOrderDetail.customers.cep].filter(Boolean).join(' · ') || '—'}
-                                  </p>
-                                </div>
-                              </div>
-                            </>
-                          )}
-                          <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                            <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Veículo</p>
-                              <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.vehicle_model || '—'}</p>
-                            </div>
+                                {isModuleMode && (
+                                  <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                    <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                    <div>
+                                      <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Identificação do módulo</p>
+                                      <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.module_identification || '—'}</p>
+                                    </div>
+                                  </div>
+                                )}
+                                {!isModuleMode && (
+                                  <>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                      <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div>
+                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Placa</p>
+                                        <p className="text-zinc-900 dark:text-white font-mono font-bold uppercase">{(serviceOrderDetail.plate || '—').toUpperCase()}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
+                                      <Hash className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
+                                      <div>
+                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Km</p>
+                                        <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.mileage_km || '—'}</p>
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+                              </>
+                            )}
                           </div>
-                          {isModuleMode && (
-                          <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                            <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Identificação do módulo</p>
-                              <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.module_identification || '—'}</p>
+                          {can('canEditFicha') && (
+                            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-light-border dark:border-zinc-800">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!serviceOrderDetail) return;
+                                  const c = serviceOrderDetail.customers;
+                                  setEditFichaForm({
+                                    name: c?.name ?? '', cpf: c?.cpf ?? '', phone: c?.phone ?? '', email: c?.email ?? '',
+                                    cep: c?.cep ?? '', address: c?.address ?? '', addressNumber: c?.address_number ?? '',
+                                    vehicleModel: serviceOrderDetail.vehicle_model ?? '', moduleIdentification: serviceOrderDetail.module_identification ?? '',
+                                    plate: (serviceOrderDetail.plate ?? '').toUpperCase(), mileageKm: serviceOrderDetail.mileage_km ?? '',
+                                  });
+                                }}
+                                className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleSaveEditFicha}
+                                disabled={editFichaSaving}
+                                className="px-5 py-2 rounded-xl bg-brand-yellow text-black text-sm font-bold hover:bg-[#fcd61e] transition-colors flex items-center gap-2 disabled:opacity-50"
+                              >
+                                {editFichaSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                Salvar alterações
+                              </button>
                             </div>
-                          </div>
-                          )}
-                          {!isModuleMode && (
-                          <>
-                          <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                            <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Placa</p>
-                              <p className="text-zinc-900 dark:text-white font-mono font-bold uppercase">{(serviceOrderDetail.plate || '—').toUpperCase()}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                            <Hash className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Km</p>
-                              <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.mileage_km || '—'}</p>
-                            </div>
-                          </div>
-                          </>
                           )}
                         </div>
                         )}
