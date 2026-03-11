@@ -333,6 +333,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [isEditFichaOpen, setIsEditFichaOpen] = useState(false);
   const [editFichaSaving, setEditFichaSaving] = useState(false);
+  /** Seção "Dados da ficha" no modal: começa minimizada. */
+  const [isDadosFichaExpanded, setIsDadosFichaExpanded] = useState(false);
+
+  useEffect(() => {
+    if (selectedCard?.id) setIsDadosFichaExpanded(false);
+  }, [selectedCard?.id]);
   const [editFichaForm, setEditFichaForm] = useState<{
     name: string; cpf: string; phone: string; email: string; cep: string; address: string; addressNumber: string;
     vehicleModel: string; plate: string; mileageKm: string;
@@ -410,7 +416,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // --- Attachment States ---
   const [isUploading, setIsUploading] = useState(false);
   const galleryInputRef = useRef<HTMLInputElement>(null);
-  
+  /** Input para "Foto do veículo" (mesmo comportamento da recepção: câmera ou galeria). */
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
   // Camera State
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
@@ -1368,6 +1376,34 @@ export const PatioView: React.FC<PatioViewProps> = ({
     } finally {
       setIsUploading(false);
       if (galleryInputRef.current) galleryInputRef.current.value = '';
+    }
+  };
+
+  /** Mesmo comportamento do botão "Foto do veículo" da recepção: abre câmera (mobile) ou seletor de arquivo. */
+  const handleCameraFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !selectedCard) return;
+    const files = Array.from(e.target.files);
+    setIsUploading(true);
+    try {
+      for (const file of files) {
+        await uploadServiceOrderPhoto(selectedCard.id, file, file.name);
+      }
+      const photos = await getServiceOrderPhotos(selectedCard.id);
+      setCardDetails(prev => ({
+        actions: prev?.actions ?? [],
+        attachments: photos.map((p, i) => ({
+          id: p.path || String(i),
+          name: p.name,
+          url: p.url,
+          mimeType: 'image/*',
+          previews: [{ url: p.url, width: 200, height: 200 }],
+        })),
+      }));
+    } catch (err: any) {
+      alert(err?.message ?? "Erro ao enviar foto.");
+    } finally {
+      setIsUploading(false);
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
     }
   };
 
@@ -2375,24 +2411,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                   <div className="w-full h-px bg-zinc-200 dark:bg-zinc-800/50 mx-auto max-w-[90%]"></div>
 
-                  {/* Dados da ficha (recepção) — agrupados antes da queixa */}
+                  {/* Dados da ficha — agrupados antes da queixa (minimizado por padrão) */}
                   {serviceOrderDetail && (
                     <div ref={customerDataSectionRef} className="p-8 md:p-12 pt-8">
                       <div className="bg-gradient-to-br from-light-elevated to-white dark:from-zinc-900/80 dark:to-[#1C1C1E] rounded-2xl border border-light-border dark:border-zinc-800 overflow-hidden shadow-sm">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-light-border dark:border-zinc-800 bg-brand-yellow/5 dark:bg-brand-yellow/10">
+                        <button
+                          type="button"
+                          onClick={() => setIsDadosFichaExpanded((v) => !v)}
+                          className="flex w-full items-center justify-between px-6 py-4 border-b border-light-border dark:border-zinc-800 bg-brand-yellow/5 dark:bg-brand-yellow/10 hover:bg-brand-yellow/10 dark:hover:bg-brand-yellow/15 transition-colors text-left"
+                        >
                           <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                            {isDadosFichaExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                             <User className="w-4 h-4" />
-                            Dados da ficha (recepção)
+                            Dados da ficha
                           </h3>
                           <button
                             type="button"
-                            onClick={openEditFichaModal}
+                            onClick={(e) => { e.stopPropagation(); openEditFichaModal(); setIsDadosFichaExpanded(true); }}
                             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-yellow/20 dark:bg-brand-yellow/20 text-brand-yellow hover:bg-brand-yellow/30 dark:hover:bg-brand-yellow/30 font-bold text-xs uppercase tracking-wider transition-colors"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                             Editar
                           </button>
-                        </div>
+                        </button>
+                        {isDadosFichaExpanded && (
                         <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                           {serviceOrderDetail.customers && (
                             <>
@@ -2457,6 +2499,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           </div>
                         </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -2637,38 +2680,36 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className="space-y-8">
                          
                          <div>
-                            <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4">Ações Rápidas</h3>
-                            <div className="space-y-3">
-                              <button 
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleOpenMoveModal(selectedCard, e);
-                                  }}
-                                  className={`w-full p-4 border-2 rounded-xl flex items-center justify-between group transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).style}`}
-                                >
-                                  <span className="font-bold">Alterar Status</span>
-                                  <ChevronDown className="w-5 h-5 opacity-90" />
-                              </button>
+                            <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4">Alterar status</h3>
+                            <button 
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleOpenMoveModal(selectedCard, e);
+                                }}
+                                className={`w-full p-4 border-2 rounded-xl flex items-center justify-between group transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).style}`}
+                              >
+                                <span className="font-bold">{getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).label}</span>
+                                <ChevronDown className="w-5 h-5 opacity-90" />
+                            </button>
+                         </div>
 
+                         <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
+
+                         {/* Orçamentos: criar + lista */}
+                         <div ref={budgetsSectionRef}>
+                            <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4">Orçamentos</h3>
+                            <div className="space-y-3">
                               <button 
                                   type="button"
                                   onClick={() => openBudgetModal()}
                                   className="w-full p-4 bg-[#f0ebe0] border border-[#e2dcd0] hover:bg-[#e8e2d5] rounded-xl flex items-center justify-between group transition-all shadow-sm"
                                 >
-                                  <span className="font-black text-zinc-800">CRIAR ORÇAMENTO</span>
+                                  <span className="font-black text-zinc-800">Criar orçamento</span>
                                   <Calculator className="w-5 h-5 text-zinc-700 group-hover:scale-110 transition-transform" />
                               </button>
-                            </div>
-                         </div>
-
-                         <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
-
-                         {/* Orçamentos criados */}
-                         <div ref={budgetsSectionRef}>
-                            <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4">Orçamentos criados</h3>
-                            <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-3 space-y-3 max-h-[280px] overflow-y-auto shadow-inner bg-zinc-100/50 dark:bg-zinc-900/30">
+                              <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-3 space-y-3 max-h-[280px] overflow-y-auto shadow-inner bg-zinc-100/50 dark:bg-zinc-900/30">
                               {savedBudgets
                                 .filter((b) => b.serviceOrderId === selectedCard.id)
                                 .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -2710,9 +2751,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <div className="rounded-xl bg-[#f5f4f0] dark:bg-[#f5f4f0]/80 border border-dashed border-zinc-300 dark:border-zinc-400/50 p-5 text-center">
                                   <FileText className="w-9 h-9 text-zinc-400 dark:text-zinc-500 mx-auto mb-2" />
                                   <p className="text-sm font-medium text-zinc-600 dark:text-zinc-600">Nenhum orçamento</p>
-                                  <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-0.5">Use &quot;Criar orçamento&quot; acima</p>
+                                  <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-0.5">Crie um orçamento pelo botão acima</p>
                                 </div>
                               )}
+                              </div>
                             </div>
                          </div>
 
@@ -2766,12 +2808,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         multiple
                                         onChange={handleGallerySelect}
                                     />
+                                    <input 
+                                        type="file" 
+                                        ref={cameraInputRef} 
+                                        className="hidden" 
+                                        accept="image/*"
+                                        capture="environment"
+                                        onChange={handleCameraFileSelect}
+                                    />
                                     <button 
                                         type="button"
-                                        onClick={startCamera}
+                                        onClick={() => cameraInputRef.current?.click()}
                                         disabled={isUploading}
                                         className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Câmera"
+                                        title="Foto do veículo (câmera ou arquivo)"
                                     >
                                         <Camera className="w-6 h-6 shrink-0" strokeWidth={2} />
                                     </button>
