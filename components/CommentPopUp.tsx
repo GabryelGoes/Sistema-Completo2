@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Loader2 } from 'lucide-react';
 import type { Notification } from '../services/apiService';
 import { addServiceOrderComment, getServiceOrderComments, getWorkshopSettings, type ServiceOrderComment } from '../services/apiService';
@@ -25,6 +25,7 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
   const [conversation, setConversation] = useState<ServiceOrderComment[]>([]);
   const [loadingConversation, setLoadingConversation] = useState(true);
   const [adminPhotoUrlFallback, setAdminPhotoUrlFallback] = useState<string | null>(null);
+  const conversationEndRef = useRef<HTMLDivElement>(null);
 
   const isDark = theme === 'dark';
   const panelClass = isDark
@@ -67,6 +68,12 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
     }).catch(() => setConversation([])).finally(() => setLoadingConversation(false));
   }, [orderId]);
 
+  // Sempre exibir a última mensagem: rolar para o fim quando a conversa carrega ou atualiza
+  useEffect(() => {
+    if (loadingConversation || conversation.length === 0) return;
+    conversationEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [loadingConversation, conversation.length]);
+
   const getPhotoForAuthor = (c: ServiceOrderComment): string | null => {
     const url = c.author_photo_url?.trim() || null;
     if (url) return url;
@@ -104,7 +111,7 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
       role="dialog"
     >
       <div
-        className={`w-full max-w-[min(560px,calc(100vw-2rem))] min-h-[320px] max-h-[85vh] rounded-[1.75rem] overflow-hidden flex flex-col animate-in zoom-in-95 fade-in duration-200 ${panelClass}`}
+        className={`w-full max-w-[min(640px,calc(100vw-2rem))] min-h-[480px] max-h-[85vh] rounded-[1.75rem] overflow-hidden flex flex-col animate-in zoom-in-95 fade-in duration-200 ${panelClass}`}
         style={{
           boxShadow: isDark
             ? '0 0 0 1px rgba(255,255,255,0.06), 0 25px 80px -20px rgba(0,0,0,0.7), 0 20px 40px -20px rgba(0,0,0,0.4)'
@@ -141,8 +148,8 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
           </button>
         </div>
 
-        {/* Área da conversa inteira */}
-        <div className="flex-1 overflow-y-auto px-5 py-5 min-h-[140px] space-y-4">
+        {/* Área da conversa: histórico visível ao rolar; abre com a última mensagem em vista */}
+        <div className="flex-1 overflow-y-auto px-5 py-5 min-h-[240px] space-y-4">
           {loadingConversation ? (
             <div className="flex justify-center py-8">
               <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`} />
@@ -191,6 +198,7 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
               </div>
             </div>
           )}
+          <div ref={conversationEndRef} />
         </div>
 
         {/* Campo de resposta estilo iOS Messages */}
