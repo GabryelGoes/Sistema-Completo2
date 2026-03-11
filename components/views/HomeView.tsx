@@ -40,14 +40,14 @@ interface HomeViewProps {
 const OPERATIONAL_APPS: { id: HomeAppId; label: string; description: string; icon: React.ReactNode; accent: string; bg: string }[] = [
   { id: 'reception', label: 'Recepção', description: 'Cadastro de clientes e veículos', icon: <ClipboardList className="w-7 h-7" strokeWidth={2} />, accent: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 dark:bg-amber-500/20 border-amber-500/20' },
   { id: 'agenda', label: 'Agenda', description: 'Agendamentos e compromissos', icon: <Calendar className="w-7 h-7" strokeWidth={2} />, accent: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-500/20 border-blue-500/20' },
-  { id: 'patio', label: 'Pátio', description: 'Veículos em atendimento', icon: <PatioCarIcon className="w-7 h-7" strokeWidth={2} />, accent: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 dark:bg-emerald-500/20 border-emerald-500/20' },
+  { id: 'patio', label: 'Pátio', description: 'Veículos em atendimento', icon: <PatioCarIcon className="w-7 h-7" strokeWidth={3} />, accent: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 dark:bg-emerald-500/20 border-emerald-500/20' },
   { id: 'laboratorio', label: 'Laboratório', description: 'Módulos e eletrônica', icon: <FlaskConical className="w-7 h-7" strokeWidth={2} />, accent: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-500/10 dark:bg-violet-500/20 border-violet-500/20' },
 ];
 
 const QUICK_APPS: { id: HomeAppId; label: string; icon: React.ReactNode; accent: string }[] = [
   { id: 'reception', label: 'Recepção', icon: <ClipboardList className="w-6 h-6" strokeWidth={2} />, accent: 'text-amber-500' },
   { id: 'agenda', label: 'Agenda', icon: <Calendar className="w-6 h-6" strokeWidth={2} />, accent: 'text-blue-500' },
-  { id: 'patio', label: 'Pátio', icon: <PatioCarIcon className="w-6 h-6" strokeWidth={2} />, accent: 'text-emerald-500' },
+  { id: 'patio', label: 'Pátio', icon: <PatioCarIcon className="w-6 h-6" strokeWidth={3} />, accent: 'text-emerald-500' },
   { id: 'laboratorio', label: 'Laboratório', icon: <FlaskConical className="w-6 h-6" strokeWidth={2} />, accent: 'text-violet-500' },
 ];
 

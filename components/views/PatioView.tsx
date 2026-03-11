@@ -329,6 +329,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const budgetsSectionRef = useRef<HTMLDivElement>(null);
   const openServiceOrderHandledRef = useRef(false);
   const [allMembers, setAllMembers] = useState<TrelloMember[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   // Card em Visualização DETALHADA (Full Screen Modal)
@@ -473,8 +474,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const fetchData = async (isBackground = false) => {
-    if (!isBackground) setError(null);
-
+    if (!isBackground) {
+      setError(null);
+      setInitialLoading(true);
+    }
     try {
       const orders = await getServiceOrders(undefined, orderType);
       let technicians: WorkshopTechnician[] = [];
@@ -493,6 +496,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
     } catch (err: any) {
       if (!isBackground) setError(err?.message ?? 'Erro ao carregar ordens.');
       else console.error("Erro na sincronização:", err);
+    } finally {
+      if (!isBackground) setInitialLoading(false);
     }
   };
 
@@ -1515,6 +1520,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setPhotoPreview(null);
   };
 
+  if (initialLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] w-full" aria-hidden="true">
+        <div className="relative w-14 h-14">
+          <div className="absolute inset-0 rounded-full border-2 border-brand-yellow/30" />
+          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-brand-yellow animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-[80vh] text-zinc-400 gap-6 px-8 text-center">
@@ -1871,7 +1887,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {cards.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-zinc-600">
-            <PatioCarIcon className="w-16 h-16 mb-4 opacity-20" strokeWidth={1.5} />
+            <PatioCarIcon className="w-16 h-16 mb-4 opacity-20" strokeWidth={2.5} />
             <p>{isModuleMode ? 'Nenhum módulo no laboratório' : 'Nenhum veículo no pátio'}</p>
           </div>
       )}

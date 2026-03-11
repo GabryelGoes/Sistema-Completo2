@@ -409,7 +409,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     className="w-full py-4 border border-zinc-300 dark:border-zinc-700 rounded-xl flex items-center justify-center gap-3 text-zinc-500 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:border-brand-yellow hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
                 >
                     <Camera className="w-5 h-5" />
-                    <span className="font-medium text-sm">Foto do veículo</span>
+                    <span className="font-medium text-sm">{receptionMode === 'module' ? 'Foto do módulo' : 'Foto do veículo'}</span>
                 </button>
             ) : (
                 <div className="relative rounded-2xl overflow-hidden border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-black">

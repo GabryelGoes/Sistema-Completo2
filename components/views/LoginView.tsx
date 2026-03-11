@@ -186,7 +186,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
                       patioEnabled ? 'bg-brand-yellow/20' : 'bg-zinc-500/20'
                     }`}>
-                      <PatioCarIcon className={`w-5 h-5 ${patioEnabled ? 'text-brand-yellow' : 'text-zinc-500'}`} strokeWidth={2} />
+                      <PatioCarIcon className={`w-5 h-5 ${patioEnabled ? 'text-brand-yellow' : 'text-zinc-500'}`} strokeWidth={3} />
                     </div>
                     <span className="text-[16px] font-semibold">Técnicos</span>
                     {patioEnabled && <ChevronLeft className="w-5 h-5 text-white/50 ml-auto -scale-x-100 shrink-0" />}

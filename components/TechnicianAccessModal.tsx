@@ -115,7 +115,7 @@ export const TechnicianAccessModal: React.FC<TechnicianAccessModalProps> = ({ is
               </div>
               <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08]">
                 <div className="flex items-center gap-3">
-                  <PatioCarIcon className="w-5 h-5 text-emerald-500 shrink-0" strokeWidth={2} />
+                  <PatioCarIcon className="w-5 h-5 text-emerald-500 shrink-0" strokeWidth={3} />
                   <span className="text-[15px] font-medium text-zinc-900 dark:text-white">Pátio</span>
                 </div>
                 <button
@@ -135,7 +135,7 @@ export const TechnicianAccessModal: React.FC<TechnicianAccessModalProps> = ({ is
           {!loading && (
             <div className="mt-6 pt-6 border-t border-zinc-200/60 dark:border-white/[0.08]">
               <div className="flex items-center gap-2 mb-2">
-                <PatioCarIcon className="w-5 h-5 text-emerald-500" strokeWidth={2} />
+                <PatioCarIcon className="w-5 h-5 text-emerald-500" strokeWidth={3} />
                 <span className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Acesso ao login do pátio</span>
               </div>
               <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">

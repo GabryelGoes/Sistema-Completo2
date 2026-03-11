@@ -2,18 +2,21 @@ import React from 'react';
 
 /**
  * Ícone Porsche para o Pátio (SVG do arquivo porsche.svg).
+ * strokeWidth aplicado ao path para traços mais visíveis.
  */
 interface PatioCarIconProps {
   className?: string;
   strokeWidth?: number;
 }
 
-export const PatioCarIcon: React.FC<PatioCarIconProps> = ({ className = '' }) => {
+export const PatioCarIcon: React.FC<PatioCarIconProps> = ({ className = '', strokeWidth = 3 }) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 381.678 381.678"
       fill="currentColor"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
       className={className}
       aria-hidden
     >
