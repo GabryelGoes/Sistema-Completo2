@@ -919,26 +919,48 @@ export function createApiApp() {
       }
 
       const rows = data ?? [];
-      const techIds = [...new Set(rows.map((r: { assigned_technician?: string | null }) => r.assigned_technician).filter(Boolean))] as string[];
-      let technicianNameMap: Record<string, string> = {};
-      if (techIds.length > 0) {
-        const { data: techUsers } = await supabaseAdmin
-          .from("workshop_system_users")
-          .select("id, display_name, username")
-          .eq("workshop_id", WORKSHOP_ID)
-          .in("id", techIds);
-        technicianNameMap = (techUsers ?? []).reduce(
-          (acc: Record<string, string>, u: { id: string; display_name?: string | null; username?: string | null }) => {
-            acc[u.id] = (u.display_name || u.username || "").trim() || "Técnico";
-            return acc;
-          },
-          {}
-        );
+      const techValues = [...new Set(rows.map((r: { assigned_technician?: string | null }) => r.assigned_technician).filter(Boolean))] as string[];
+      const technicianNameMap: Record<string, string> = {};
+
+      if (techValues.length > 0) {
+        const looksLikeUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+        const uuids = techValues.filter(looksLikeUuid);
+        const slugs = techValues.filter((v) => !looksLikeUuid(v));
+
+        if (uuids.length > 0) {
+          const { data: techUsers } = await supabaseAdmin
+            .from("workshop_system_users")
+            .select("id, display_name, username")
+            .eq("workshop_id", WORKSHOP_ID)
+            .in("id", uuids);
+          (techUsers ?? []).forEach((u: { id: string; display_name?: string | null; username?: string | null }) => {
+            technicianNameMap[u.id] = (u.display_name || u.username || "").trim() || "Técnico";
+          });
+        }
+        if (slugs.length > 0) {
+          const { data: workshopTechs } = await supabaseAdmin
+            .from("workshop_technicians")
+            .select("slug, name")
+            .eq("workshop_id", WORKSHOP_ID);
+          (workshopTechs ?? []).forEach((t: { slug: string; name?: string | null }) => {
+            const name = (t.name || "").trim();
+            if (!name) return;
+            const raw = (t.slug || "").trim();
+            const lower = raw.toLowerCase();
+            if (raw) technicianNameMap[raw] = name;
+            if (lower && lower !== raw) technicianNameMap[lower] = name;
+          });
+        }
       }
-      const enriched = rows.map((r: Record<string, unknown> & { assigned_technician?: string | null }) => ({
-        ...r,
-        assigned_technician_name: r.assigned_technician ? technicianNameMap[r.assigned_technician] ?? null : null,
-      }));
+
+      const enriched = rows.map((r: Record<string, unknown> & { assigned_technician?: string | null }) => {
+        const tech = r.assigned_technician;
+        const name =
+          tech == null
+            ? null
+            : technicianNameMap[tech as string] ?? technicianNameMap[(tech as string).trim().toLowerCase()] ?? null;
+        return { ...r, assigned_technician_name: name };
+      });
 
       return res.json(enriched);
     } catch (err: any) {
