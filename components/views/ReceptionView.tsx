@@ -4,7 +4,7 @@ import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, Shield
 import { Customer, ProcessingStatus } from '../../types';
 import { Input, TextArea } from '../ui/Input';
 import { ProcessingOverlay } from '../ProcessingOverlay';
-import { saveReceptionIntake } from '../../services/apiService';
+import { saveReceptionIntake, uploadServiceOrderPhoto } from '../../services/apiService';
 import type { ServiceOrderType } from '../../services/apiService';
 
 const RECEPTION_MODE_KEY = 'app_reception_mode';
@@ -136,19 +136,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
       const { customer: savedCustomer, serviceOrder } = await saveReceptionIntake(customer, receptionMode);
 
-      // 2) Se houver foto, enviar para o Storage vinculado à OS
+      // 2) Se houver foto, enviar (com compressão automática para evitar 413 no Vercel)
       if (photoBlob && serviceOrder?.id) {
-        const formData = new FormData();
-        formData.append(
-          'file',
+        await uploadServiceOrderPhoto(
+          serviceOrder.id,
           photoBlob,
           `entrada_${serviceOrder.id}_${Date.now()}.jpg`
         );
-
-        await fetch(`/api/service-orders/${serviceOrder.id}/photos`, {
-          method: 'POST',
-          body: formData,
-        });
       }
 
       const osLabel = serviceOrder?.os_number != null ? ` OS #${serviceOrder.os_number}.` : '';

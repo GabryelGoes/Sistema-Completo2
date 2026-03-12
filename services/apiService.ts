@@ -518,8 +518,11 @@ export async function uploadServiceOrderPhoto(
   file: Blob,
   fileName: string
 ): Promise<ServiceOrderPhoto> {
+  const { compressImageForUpload } = await import("../utils/imageUpload");
+  const toSend = await compressImageForUpload(file);
+  const name = toSend === file ? fileName : (fileName.replace(/\.\w+$/i, ".jpg") || "photo.jpg");
   const formData = new FormData();
-  formData.append("file", file, fileName);
+  formData.append("file", toSend, name);
   const response = await fetch(`${API_BASE}/service-orders/${id}/photos`, {
     method: "POST",
     body: formData,

@@ -3,7 +3,7 @@ import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, Shield
 import { Customer, ProcessingStatus } from '../types';
 import { Input, TextArea } from './ui/Input';
 import { ProcessingOverlay } from './ProcessingOverlay';
-import { saveReceptionIntake } from '../services/apiService';
+import { saveReceptionIntake, uploadServiceOrderPhoto } from '../services/apiService';
 
 const emptyCustomer: Customer = {
   name: '',
@@ -90,9 +90,7 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
       const { serviceOrder } = await saveReceptionIntake(customer);
 
       if (photoBlob && serviceOrder?.id) {
-        const formData = new FormData();
-        formData.append('file', photoBlob, `entrada_${serviceOrder.id}_${Date.now()}.jpg`);
-        await fetch(`/api/service-orders/${serviceOrder.id}/photos`, { method: 'POST', body: formData });
+        await uploadServiceOrderPhoto(serviceOrder.id, photoBlob, `entrada_${serviceOrder.id}_${Date.now()}.jpg`);
       }
 
       setStatus({ step: 'success', message: 'Cadastro criado com sucesso' });
