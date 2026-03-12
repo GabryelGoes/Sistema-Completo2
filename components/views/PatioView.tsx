@@ -2265,7 +2265,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                </div>
 
                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                  <div className="p-8 md:p-12 pb-8">
+                  <div className="p-8 md:p-12 pb-24">
                      <div className="flex flex-col gap-3 mb-6">
                         <span className="inline-flex self-start items-center gap-2 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest shadow-xl border-2 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700">
                             ARQUIVADO
@@ -2506,7 +2506,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
 
               <div className="flex-1 overflow-y-auto custom-scrollbar">
-                  <div className="p-8 md:p-12 pb-8">
+                  <div className="p-8 md:p-12 pb-24">
                      <div className="flex flex-col gap-3 mb-6">
                         <div className="flex flex-wrap items-center gap-2">
                           {(serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null && (
