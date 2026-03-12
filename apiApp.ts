@@ -918,7 +918,29 @@ export function createApiApp() {
         return res.status(500).json({ error: error.message });
       }
 
-      return res.json(data);
+      const rows = data ?? [];
+      const techIds = [...new Set(rows.map((r: { assigned_technician?: string | null }) => r.assigned_technician).filter(Boolean))] as string[];
+      let technicianNameMap: Record<string, string> = {};
+      if (techIds.length > 0) {
+        const { data: techUsers } = await supabaseAdmin
+          .from("workshop_system_users")
+          .select("id, display_name, username")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("id", techIds);
+        technicianNameMap = (techUsers ?? []).reduce(
+          (acc: Record<string, string>, u: { id: string; display_name?: string | null; username?: string | null }) => {
+            acc[u.id] = (u.display_name || u.username || "").trim() || "Técnico";
+            return acc;
+          },
+          {}
+        );
+      }
+      const enriched = rows.map((r: Record<string, unknown> & { assigned_technician?: string | null }) => ({
+        ...r,
+        assigned_technician_name: r.assigned_technician ? technicianNameMap[r.assigned_technician] ?? null : null,
+      }));
+
+      return res.json(enriched);
     } catch (err: any) {
       console.error("[API] Erro inesperado em GET /api/service-orders:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
