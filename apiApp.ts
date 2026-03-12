@@ -23,10 +23,22 @@ function verifyPassword(password: string, stored: string): boolean {
   return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(computed, "hex"));
 }
 
+/** Origin do painel do pátio (TV) para CORS. Use variável ou padrão. */
+const PATIO_VIEW_ORIGIN = process.env.PATIO_VIEW_ORIGIN || "https://patio-view.vercel.app";
+
 export function createApiApp() {
   const app = express();
   const WORKSHOP_ID = process.env.WORKSHOP_ID;
   app.use(express.json());
+
+  // CORS: permitir requisições do painel do pátio (outro domínio)
+  app.use((_req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", PATIO_VIEW_ORIGIN);
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    if (_req.method === "OPTIONS") return res.sendStatus(204);
+    next();
+  });
 
   /** Retorna os IDs (workshop_system_users.id) de todos os técnicos da oficina para notificá-los quando o admin age. */
   async function getTechnicianUserIds(): Promise<string[]> {
