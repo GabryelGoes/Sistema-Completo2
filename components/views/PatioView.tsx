@@ -92,10 +92,9 @@ function buildTechnicianNameMap(technicians: SystemUserTechnician[]): Record<str
 }
 
 function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string, string>, orderType: ServiceOrderType = 'vehicle'): TrelloCard {
-  const baseName = orderType === 'module'
+  const name = orderType === 'module'
     ? `${o.vehicle_model || '—'} - ${o.module_identification || '—'} - ${o.customers?.name || 'Cliente'}`
     : `${o.vehicle_model || 'Veículo'} - ${(o.plate || '---').toUpperCase()} - ${o.customers?.name || 'Cliente'}`;
-  const name = o.os_number != null ? `OS #${o.os_number} - ${baseName}` : baseName;
   const techId = o.assigned_technician ?? null;
   const nameMap = technicianNameMap ?? {};
   const techName = techId ? (nameMap[techId] ?? techId) : null;
@@ -1092,10 +1091,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
       }
       const updated = await getServiceOrderById(selectedCard.id);
       setServiceOrderDetail(updated);
-      const baseName = isModuleMode
+      const newName = isModuleMode
         ? `${updated.vehicle_model || '—'} - ${updated.module_identification || '—'} - ${updated.customers?.name || 'Cliente'}`
         : `${updated.vehicle_model || 'Veículo'} - ${(updated.plate || '---').toUpperCase()} - ${updated.customers?.name || 'Cliente'}`;
-      const newName = updated.os_number != null ? `OS #${updated.os_number} - ${baseName}` : baseName;
       const updatedCard = { ...selectedCard, name: newName, osNumber: updated.os_number ?? selectedCard.osNumber };
       setSelectedCard(updatedCard);
       setCards(prev => prev.map(c => c.id === selectedCard.id ? { ...c, name: newName } : c));
@@ -2456,6 +2454,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className="p-8 md:p-12 pb-8">
                      <div className="flex flex-col gap-3 mb-6">
                         <div className="flex flex-wrap items-center gap-2">
+                          {(serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null && (
+                            <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-600/60">
+                              OS #{(serviceOrderDetail?.os_number ?? selectedCard.osNumber)}
+                            </span>
+                          )}
                           <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest shadow-xl border-2 ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name || '', selectedCard.idList).style}`}>
                             {lists.find(l => l.id === selectedCard.idList)?.name}
                           </span>
