@@ -151,7 +151,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         });
       }
 
-      setStatus({ step: 'success', message: 'Cadastro criado com sucesso' });
+      const osLabel = serviceOrder?.os_number != null ? ` OS #${serviceOrder.os_number}.` : '';
+      setStatus({ step: 'success', message: `Cadastro criado com sucesso.${osLabel}` });
 
       // Futuro: podemos usar savedCustomer / serviceOrder (ex: redirecionar, imprimir, etc.)
     } catch (error: any) {
@@ -468,7 +469,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
       <ProcessingOverlay 
         status={status}
-        onClose={resetForm}
+        onClose={() => {
+          if (status.step === 'success') {
+            resetForm();
+          } else {
+            setStatus({ step: 'idle' });
+          }
+        }}
       />
 
     </div>

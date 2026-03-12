@@ -51,6 +51,9 @@ export default function App() {
   // Estado para transferir dados do Histórico (Pátio) para a Recepção
   const [prefillData, setPrefillData] = useState<Customer | null>(null);
 
+  // Nome do admin (vem das configurações da oficina; atualizado ao salvar no Perfil do administrador)
+  const [adminDisplayName, setAdminDisplayName] = useState<string>('Rei do ABS');
+
   // Usuário limitado: abas conforme permissões
   function permissionsToTabs(perms: SystemUserPermissions | undefined): TabId[] {
     if (!perms) return ['home'];
@@ -101,6 +104,20 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('app_cinematographic_mode', String(cinematographicMode));
   }, [cinematographicMode]);
+
+  // Carregar nome do admin das configurações quando estiver logado como admin
+  useEffect(() => {
+    if (authSession?.role !== 'admin') return;
+    getWorkshopSettings()
+      .then((s) => setAdminDisplayName(s.adminDisplayName ?? 'Rei do ABS'))
+      .catch(() => {});
+  }, [authSession?.role]);
+
+  const handleAdminProfileSaved = () => {
+    getWorkshopSettings()
+      .then((s) => setAdminDisplayName(s.adminDisplayName ?? 'Rei do ABS'))
+      .catch(() => {});
+  };
 
   // Função chamada pelo Pátio para preencher a Recepção com dados de um veículo
   const handleUseCustomerData = (data: Customer) => {
@@ -279,7 +296,12 @@ export default function App() {
         className={`flex-1 overflow-y-auto z-10 ${currentTab === 'home' ? 'p-0 pt-4' : 'p-4 md:p-8 pt-8'}`}
       >
         {currentTab === 'home' && (
-          <HomeView onOpenApp={handleHomeOpenApp} onLogout={handleLogout} />
+          <HomeView
+            onOpenApp={handleHomeOpenApp}
+            onLogout={handleLogout}
+            adminDisplayName={authSession?.role === 'admin' ? adminDisplayName : undefined}
+            onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
+          />
         )}
 
         {currentTab === 'reception' && (
@@ -302,7 +324,7 @@ export default function App() {
           <PatioView
             onUseCustomerData={handleUseCustomerData}
             effectsEnabled={effectsEnabled}
-            commentAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
+            commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
             openServiceOrderId={null}
             openServiceOrderSection={null}
@@ -316,7 +338,7 @@ export default function App() {
             orderType="module"
             onUseCustomerData={() => {}}
             effectsEnabled={effectsEnabled}
-            commentAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
+            commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
             openServiceOrderId={null}
             openServiceOrderSection={null}
@@ -359,7 +381,7 @@ export default function App() {
         <CommentPopUp
           theme={theme}
           notification={commentPopUpNotification}
-          replyAuthorName={authSession?.role === 'admin' ? 'Rei do ABS' : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
+          replyAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
           blurPlates={cinematographicMode}
           onClose={() => setCommentPopUpNotification(null)}
         />

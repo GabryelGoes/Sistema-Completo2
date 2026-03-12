@@ -15,6 +15,8 @@ Quando estiver criando ou evoluindo o app e for necessário **criar ou alterar t
 
 Mantenha também os arquivos em `supabase/migrations/` alinhados com o que foi aplicado (ou crie a migration localmente e depois aplique com o MCP), para versionamento e deploy reproduzível.
 
+**Ao criar uma migration:** sempre inclua o SQL completo na resposta (em bloco de código), para o usuário poder copiar e rodar no SQL Editor do Supabase ou via CLI.
+
 ## Exemplo de fluxo
 
 - Usuário pede: "Adiciona uma tabela de clientes".

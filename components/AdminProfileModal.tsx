@@ -6,9 +6,11 @@ import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 interface AdminProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Chamado após salvar o nome/foto com sucesso (para o App atualizar o nome exibido). */
+  onSaved?: () => void;
 }
 
-export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, onClose }) => {
+export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, onClose, onSaved }) => {
   const [displayName, setDisplayName] = useState('Rei do ABS');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,6 +37,7 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
     setSaving(true);
     try {
       await updateWorkshopSettings({ adminDisplayName: displayName.trim() || 'Rei do ABS' });
+      onSaved?.();
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao salvar.');
@@ -60,6 +63,7 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
       const file = new File([blob], 'foto.jpg', { type: 'image/jpeg' });
       const res = await uploadWorkshopAdminPhoto(file, file.name);
       setPhotoUrl(res.adminPhotoUrl);
+      onSaved?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao enviar foto.');
     } finally {

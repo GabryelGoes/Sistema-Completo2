@@ -42,6 +42,10 @@ interface HomeViewProps {
   systemUserIsTechnician?: boolean;
   /** Após salvar perfil do usuário do sistema (nome/foto/cor) */
   onSystemUserProfileUpdated?: (data: { displayName?: string; photoUrl?: string | null; accentColor?: string | null }) => void;
+  /** Nome do admin (configurações); usado quando for admin */
+  adminDisplayName?: string;
+  /** Chamado após salvar o perfil do administrador (nome/foto) para o App atualizar o nome exibido */
+  onAdminProfileSaved?: () => void;
 }
 
 /** Módulos operacionais: atendimento e fluxo de serviço */
@@ -75,6 +79,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   systemUserProfileToken,
   systemUserIsTechnician = false,
   onSystemUserProfileUpdated,
+  adminDisplayName,
+  onAdminProfileSaved,
 }) => {
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
   const [isChangePasswordsOpen, setIsChangePasswordsOpen] = useState(false);
@@ -241,7 +247,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           onSaved={(newName) => onProfileUpdated?.(newName)}
         />
       )}
-      <AdminProfileModal isOpen={isAdminProfileOpen} onClose={() => setIsAdminProfileOpen(false)} />
+      <AdminProfileModal isOpen={isAdminProfileOpen} onClose={() => setIsAdminProfileOpen(false)} onSaved={onAdminProfileSaved} />
       {isSystemUser && (
         <UserProfileModal
           isOpen={isUserProfileOpen}

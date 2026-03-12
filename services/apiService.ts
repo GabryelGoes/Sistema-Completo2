@@ -36,6 +36,7 @@ export type ServiceOrderType = "vehicle" | "module";
 /** OS na listagem (com customer resumido) */
 export interface ServiceOrderListItem {
   id: string;
+  os_number?: number | null;
   customer_id: string;
   vehicle_model: string | null;
   module_identification: string | null;
@@ -56,6 +57,7 @@ export interface ServiceOrderListItem {
 /** OS em detalhe (com cliente completo para Recepção) */
 export interface ServiceOrderDetail {
   id: string;
+  os_number?: number | null;
   customer_id: string;
   vehicle_model: string;
   module_identification: string | null;
@@ -776,27 +778,27 @@ export async function createNotification(
 
 // ---------- Orçamentos ----------
 
-/** Orçamento no formato da API (snake_case) */
+/** Orçamento no formato da API (snake_case). approved = decisão do admin por item. */
 interface ApiBudget {
   id: string;
   service_order_id: string;
   card_name: string | null;
   diagnosis: string;
-  services: { description: string }[];
-  parts: { description: string; quantity: string }[];
+  services: { description: string; approved?: boolean }[];
+  parts: { description: string; quantity: string; approved?: boolean }[];
   observations: string;
   created_at: string;
 }
 
-/** Orçamento no formato do frontend (SavedBudget) */
+/** Orçamento no formato do frontend (SavedBudget). approved = aprovado (true) ou reprovado (false) pelo admin. */
 export interface SavedBudgetFromApi {
   id: string;
   createdAt: string;
   serviceOrderId: string;
   cardName: string;
   diagnosis: string;
-  services: { description: string }[];
-  parts: { description: string; quantity: string }[];
+  services: { description: string; approved?: boolean }[];
+  parts: { description: string; quantity: string; approved?: boolean }[];
   observations: string;
 }
 
@@ -862,8 +864,8 @@ export async function updateServiceOrderBudget(
   payload: {
     cardName: string;
     diagnosis: string;
-    services: { description: string }[];
-    parts: { description: string; quantity: string }[];
+    services: { description: string; approved?: boolean }[];
+    parts: { description: string; quantity: string; approved?: boolean }[];
     observations: string;
   },
   options?: ServiceOrderUpdateActor

@@ -875,7 +875,7 @@ export function createApiApp() {
       let query = supabaseAdmin
         .from("service_orders")
         .select(
-          "id, customer_id, vehicle_model, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, created_at, updated_at, customers(id, name, phone)"
+          "id, os_number, customer_id, vehicle_model, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, created_at, updated_at, customers(id, name, phone)"
         )
         .eq("workshop_id", WORKSHOP_ID)
         .order("created_at", { ascending: false });
@@ -937,10 +937,20 @@ export function createApiApp() {
         });
       }
 
+      const { data: maxRow } = await supabaseAdmin
+        .from("service_orders")
+        .select("os_number")
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("os_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const nextOsNumber = (maxRow?.os_number ?? 0) + 1;
+
       const { data, error } = await supabaseAdmin
         .from("service_orders")
         .insert({
           workshop_id: WORKSHOP_ID,
+          os_number: nextOsNumber,
           customer_id: customerId,
           vehicle_model: vehicleModel ?? null,
           module_identification: orderType === "module" ? (moduleIdentification ?? null) : null,

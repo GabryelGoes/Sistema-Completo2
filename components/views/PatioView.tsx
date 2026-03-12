@@ -92,15 +92,17 @@ function buildTechnicianNameMap(technicians: SystemUserTechnician[]): Record<str
 }
 
 function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string, string>, orderType: ServiceOrderType = 'vehicle'): TrelloCard {
-  const name = orderType === 'module'
+  const baseName = orderType === 'module'
     ? `${o.vehicle_model || '—'} - ${o.module_identification || '—'} - ${o.customers?.name || 'Cliente'}`
     : `${o.vehicle_model || 'Veículo'} - ${(o.plate || '---').toUpperCase()} - ${o.customers?.name || 'Cliente'}`;
+  const name = o.os_number != null ? `OS #${o.os_number} - ${baseName}` : baseName;
   const techId = o.assigned_technician ?? null;
   const nameMap = technicianNameMap ?? {};
   const techName = techId ? (nameMap[techId] ?? techId) : null;
   return {
     id: o.id,
     name,
+    osNumber: o.os_number ?? null,
     desc: o.issue_description || '',
     idList: o.status,
     url: '',
@@ -126,15 +128,15 @@ interface BudgetPartItem {
   quantity: string;
 }
 
-/** Orçamento salvo: formato organizado e pronto para exportar em PDF */
+/** Orçamento salvo. approved = true (aprovado) / false (reprovado) pelo admin; undefined = pendente. */
 export interface SavedBudget {
   id: string;
   createdAt: string;
   serviceOrderId: string;
   cardName: string;
   diagnosis: string;
-  services: { description: string }[];
-  parts: { description: string; quantity: string }[];
+  services: { description: string; approved?: boolean }[];
+  parts: { description: string; quantity: string; approved?: boolean }[];
   observations: string;
 }
 
@@ -423,6 +425,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [viewingBudget, setViewingBudget] = useState<SavedBudget | null>(null);
   const [editingBudget, setEditingBudget] = useState<SavedBudget | null>(null);
   const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
+  /** Admin: orçamento em aprovação (modal com toggles por serviço/peça). */
+  const [budgetApprovalTarget, setBudgetApprovalTarget] = useState<SavedBudget | null>(null);
+  const [approvalServices, setApprovalServices] = useState<boolean[]>([]);
+  const [approvalParts, setApprovalParts] = useState<boolean[]>([]);
+  const [savingApproval, setSavingApproval] = useState(false);
   const [workshopServices, setWorkshopServices] = useState<WorkshopService[]>([]);
   const [systemTechnicians, setSystemTechnicians] = useState<SystemUserTechnician[]>([]);
   const [isServiceListOpen, setIsServiceListOpen] = useState(false);
@@ -1085,10 +1092,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       }
       const updated = await getServiceOrderById(selectedCard.id);
       setServiceOrderDetail(updated);
-      const newName = isModuleMode
+      const baseName = isModuleMode
         ? `${updated.vehicle_model || '—'} - ${updated.module_identification || '—'} - ${updated.customers?.name || 'Cliente'}`
         : `${updated.vehicle_model || 'Veículo'} - ${(updated.plate || '---').toUpperCase()} - ${updated.customers?.name || 'Cliente'}`;
-      const updatedCard = { ...selectedCard, name: newName };
+      const newName = updated.os_number != null ? `OS #${updated.os_number} - ${baseName}` : baseName;
+      const updatedCard = { ...selectedCard, name: newName, osNumber: updated.os_number ?? selectedCard.osNumber };
       setSelectedCard(updatedCard);
       setCards(prev => prev.map(c => c.id === selectedCard.id ? { ...c, name: newName } : c));
       setIsEditFichaOpen(false);
@@ -1148,6 +1156,54 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
+  /** Abre o modal de aprovação do orçamento (só admin). */
+  const openBudgetApproval = (budget: SavedBudget) => {
+    setBudgetApprovalTarget(budget);
+    setApprovalServices(budget.services.map((s) => s.approved === true));
+    setApprovalParts(budget.parts.map((p) => p.approved === true));
+  };
+
+  const closeBudgetApproval = () => {
+    setBudgetApprovalTarget(null);
+    setApprovalServices([]);
+    setApprovalParts([]);
+  };
+
+  const handleSaveApproval = async () => {
+    if (!selectedCard || !budgetApprovalTarget) return;
+    setSavingApproval(true);
+    try {
+      const services = budgetApprovalTarget.services.map((s, i) => ({
+        description: s.description,
+        approved: approvalServices[i] ?? false,
+      }));
+      const parts = budgetApprovalTarget.parts.map((p, i) => ({
+        description: p.description,
+        quantity: p.quantity,
+        approved: approvalParts[i] ?? false,
+      }));
+      const updated = await updateServiceOrderBudget(
+        selectedCard.id,
+        budgetApprovalTarget.id,
+        {
+          cardName: budgetApprovalTarget.cardName,
+          diagnosis: budgetApprovalTarget.diagnosis,
+          services,
+          parts,
+          observations: budgetApprovalTarget.observations,
+        },
+        actorOptions
+      );
+      setSavedBudgets((prev) => prev.map((b) => (b.id === updated.id ? { ...updated, createdAt: b.createdAt } : b)));
+      if (viewingBudget?.id === updated.id) setViewingBudget(updated);
+      closeBudgetApproval();
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao salvar aprovação.');
+    } finally {
+      setSavingApproval(false);
+    }
+  };
+
   const printBudget = (budget: SavedBudget, mileageKm?: string | null) => {
     const esc = (s: string) => String(s ?? '')
       .replace(/&/g, '&amp;')
@@ -1162,11 +1218,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
       hour: '2-digit',
       minute: '2-digit',
     });
+    const sym = (approved: boolean | undefined) => approved === true ? '✓ ' : approved === false ? '✗ ' : '— ';
     const servicesHtml = budget.services.length > 0
-      ? `<h3 class="sec">Serviços</h3><ul>${budget.services.map((s) => `<li>${esc(s.description)}</li>`).join('')}</ul>`
+      ? `<h3 class="sec">Serviços</h3><ul>${budget.services.map((s) => `<li>${sym(s.approved)}${esc(s.description)}</li>`).join('')}</ul>`
       : '';
     const partsHtml = budget.parts.length > 0
-      ? `<h3 class="sec">Peças</h3><ul>${budget.parts.map((p) => `<li><strong>(${esc(p.quantity)}x)</strong> ${esc(p.description)}</li>`).join('')}</ul>`
+      ? `<h3 class="sec">Peças</h3><ul>${budget.parts.map((p) => `<li>${sym(p.approved)}<strong>(${esc(p.quantity)}x)</strong> ${esc(p.description)}</li>`).join('')}</ul>`
       : '';
     const diagnosisHtml = budget.diagnosis ? `<h3 class="sec">Diagnóstico</h3><div class="block">${esc(budget.diagnosis)}</div>` : '';
     const obsHtml = budget.observations ? `<h3 class="sec">Observações</h3><div class="block">${esc(budget.observations)}</div>` : '';
@@ -1304,8 +1361,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const payload = {
       cardName: selectedCard.name,
       diagnosis: budgetDiagnosis.trim(),
-      services: validServices.map(s => ({ description: s.description.trim() })),
-      parts: validParts.map(p => ({ description: p.description.trim(), quantity: (p.quantity || '1').trim() })),
+      services: editingBudget
+        ? validServices.map((s, i) => ({ description: s.description.trim(), approved: editingBudget.services[i]?.approved }))
+        : validServices.map(s => ({ description: s.description.trim() })),
+      parts: editingBudget
+        ? validParts.map((p, i) => ({ description: p.description.trim(), quantity: (p.quantity || '1').trim(), approved: editingBudget.parts[i]?.approved }))
+        : validParts.map(p => ({ description: p.description.trim(), quantity: (p.quantity || '1').trim() })),
       observations: budgetObservations.trim(),
     };
 
@@ -3041,6 +3102,31 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                               )}
                               </div>
+
+                              {/* Aprovar orçamento (somente admin): separado da exibição, dentro de Orçamentos */}
+                              {actorOptions?.actor === 'admin' && savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length > 0 && (
+                                <div className="mt-4 pt-4 border-t border-zinc-200/80 dark:border-zinc-700/80">
+                                  <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Aprovar orçamento</p>
+                                  <p className="text-[11px] text-zinc-500 dark:text-zinc-500 mb-3">Selecione um orçamento para marcar cada serviço e peça como aprovado ou reprovado.</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {savedBudgets
+                                      .filter((b) => b.serviceOrderId === selectedCard.id)
+                                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                      .map((budget, idx) => (
+                                        <button
+                                          key={budget.id}
+                                          type="button"
+                                          onClick={() => openBudgetApproval(budget)}
+                                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-500/50 bg-amber-500/10 text-amber-800 dark:text-amber-200 text-sm font-medium hover:bg-amber-500/20 transition-colors"
+                                        >
+                                          <CheckCircle2 className="w-4 h-4" />
+                                          Aprovar orçamento {idx + 1}
+                                        </button>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
+                              </div>
                             </div>
                          </div>
                          )}
@@ -3560,9 +3646,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
               {viewingBudget.services.length > 0 && (
                 <section>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-2">Serviços</h3>
-                  <ul className="list-disc list-inside space-y-1 text-sm text-[#4a4540]">
+                  <ul className="list-none space-y-1.5 text-sm text-[#4a4540]">
                     {viewingBudget.services.map((s, i) => (
-                      <li key={i}>{s.description}</li>
+                      <li key={i} className="flex items-center gap-2">
+                        {s.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600" aria-label="Aprovado" />}
+                        {s.approved === false && <X className="w-4 h-4 shrink-0 text-red-600" aria-label="Reprovado" />}
+                        {s.approved !== true && s.approved !== false && <span className="w-4 h-4 shrink-0 text-[#6b6560] font-bold" aria-label="Pendente">—</span>}
+                        <span>{s.description}</span>
+                      </li>
                     ))}
                   </ul>
                 </section>
@@ -3570,9 +3661,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
               {viewingBudget.parts.length > 0 && (
                 <section>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-2">Peças</h3>
-                  <ul className="space-y-1 text-sm text-[#4a4540]">
+                  <ul className="space-y-1.5 text-sm text-[#4a4540]">
                     {viewingBudget.parts.map((p, i) => (
-                      <li key={i}><span className="font-medium text-[#3d3932]">({p.quantity}x)</span> {p.description}</li>
+                      <li key={i} className="flex items-center gap-2">
+                        {p.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600" aria-label="Aprovado" />}
+                        {p.approved === false && <X className="w-4 h-4 shrink-0 text-red-600" aria-label="Reprovado" />}
+                        {p.approved !== true && p.approved !== false && <span className="w-4 h-4 shrink-0 text-[#6b6560] font-bold" aria-label="Pendente">—</span>}
+                        <span><span className="font-medium text-[#3d3932]">({p.quantity}x)</span> {p.description}</span>
+                      </li>
                     ))}
                   </ul>
                 </section>
@@ -3613,6 +3709,88 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   Fechar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Aprovar orçamento (admin) — toggles por serviço e peça */}
+      {budgetApprovalTarget && selectedCard && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-lg max-h-[90vh] flex flex-col shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-700">
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Aprovar orçamento</h2>
+              <button type="button" onClick={closeBudgetApproval} className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">Ligue = aprovado, desligue = reprovado. O técnico verá ✓ ou ✗ em cada item.</p>
+              {budgetApprovalTarget.services.length > 0 && (
+                <section>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Serviços</h3>
+                  <ul className="space-y-2">
+                    {budgetApprovalTarget.services.map((s, i) => (
+                      <li key={i} className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={approvalServices[i]}
+                          onClick={() => setApprovalServices((prev) => {
+                            const next = [...prev];
+                            next[i] = !next[i];
+                            return next;
+                          })}
+                          className={`relative w-12 h-7 rounded-full shrink-0 transition-colors ${approvalServices[i] ? 'bg-emerald-500' : 'bg-zinc-400 dark:bg-zinc-600'}`}
+                        >
+                          <span className="absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 left-0.5" style={{ transform: approvalServices[i] ? 'translateX(20px)' : 'translateX(0)' }} />
+                        </button>
+                        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 flex-1">{s.description}</span>
+                        <span className={`text-xs font-semibold ${approvalServices[i] ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {approvalServices[i] ? 'Aprovado' : 'Reprovado'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {budgetApprovalTarget.parts.length > 0 && (
+                <section>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Peças</h3>
+                  <ul className="space-y-2">
+                    {budgetApprovalTarget.parts.map((p, i) => (
+                      <li key={i} className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={approvalParts[i]}
+                          onClick={() => setApprovalParts((prev) => {
+                            const next = [...prev];
+                            next[i] = !next[i];
+                            return next;
+                          })}
+                          className={`relative w-12 h-7 rounded-full shrink-0 transition-colors ${approvalParts[i] ? 'bg-emerald-500' : 'bg-zinc-400 dark:bg-zinc-600'}`}
+                        >
+                          <span className="absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 left-0.5" style={{ transform: approvalParts[i] ? 'translateX(20px)' : 'translateX(0)' }} />
+                        </button>
+                        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 flex-1">({p.quantity}x) {p.description}</span>
+                        <span className={`text-xs font-semibold shrink-0 ${approvalParts[i] ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {approvalParts[i] ? 'Aprovado' : 'Reprovado'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
+            <div className="flex items-center gap-3 p-4 border-t border-zinc-200 dark:border-zinc-700">
+              <button type="button" onClick={closeBudgetApproval} className="flex-1 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 font-medium">
+                Cancelar
+              </button>
+              <button type="button" onClick={handleSaveApproval} disabled={savingApproval} className="flex-1 py-2.5 rounded-xl bg-brand-yellow text-black font-bold flex items-center justify-center gap-2 disabled:opacity-50">
+                {savingApproval ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                {savingApproval ? 'Salvando…' : 'Salvar aprovação'}
+              </button>
             </div>
           </div>
         </div>

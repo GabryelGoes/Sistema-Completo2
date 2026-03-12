@@ -102,6 +102,8 @@ export interface TrelloCard {
   mileageKm?: string | null;
   /** Data de entrega prevista (YYYY-MM-DD, vinda da OS). */
   deliveryDate?: string | null;
+  /** Número da OS na oficina (ex: 1, 2, 3). */
+  osNumber?: number | null;
 }
 
 export interface Appointment {
