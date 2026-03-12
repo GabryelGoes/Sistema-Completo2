@@ -49,19 +49,19 @@ interface HomeViewProps {
   onAdminProfileSaved?: () => void;
 }
 
-/** Módulos operacionais: atendimento e fluxo de serviço */
-const OPERATIONAL_APPS: { id: HomeAppId; label: string; description: string; icon: React.ReactNode; accent: string; bg: string }[] = [
-  { id: 'reception', label: 'Recepção', description: 'Cadastro de clientes e veículos', icon: <ClipboardList className="w-7 h-7" strokeWidth={2} />, accent: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 dark:bg-amber-500/20 border-amber-500/20' },
-  { id: 'agenda', label: 'Agenda', description: 'Agendamentos e compromissos', icon: <Calendar className="w-7 h-7" strokeWidth={2} />, accent: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-500/20 border-blue-500/20' },
-  { id: 'patio', label: 'Pátio', description: 'Veículos em atendimento', icon: <PatioCarIcon className="w-7 h-7" strokeWidth={3} />, accent: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 dark:bg-emerald-500/20 border-emerald-500/20' },
-  { id: 'laboratorio', label: 'Laboratório', description: 'Módulos e eletrônica', icon: <FlaskConical className="w-7 h-7" strokeWidth={2} />, accent: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-500/10 dark:bg-violet-500/20 border-violet-500/20' },
+/** Módulos operacionais: ícones com fundo sólido e ícone branco */
+const OPERATIONAL_APPS: { id: HomeAppId; label: string; description: string; icon: React.ReactNode; iconBg: string; bg: string; border: string }[] = [
+  { id: 'reception', label: 'Recepção', description: 'Cadastro de clientes e veículos', icon: <ClipboardList className="w-7 h-7 text-white" strokeWidth={2.5} />, iconBg: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/90 border-amber-200 dark:border-amber-800', border: 'border-amber-200 dark:border-amber-800' },
+  { id: 'agenda', label: 'Agenda', description: 'Agendamentos e compromissos', icon: <Calendar className="w-7 h-7 text-white" strokeWidth={2.5} />, iconBg: 'bg-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/90 border-blue-200 dark:border-blue-800', border: 'border-blue-200 dark:border-blue-800' },
+  { id: 'patio', label: 'Pátio', description: 'Veículos em atendimento', icon: <PatioCarIcon className="w-7 h-7 text-white" strokeWidth={2.5} />, iconBg: 'bg-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/90 border-emerald-200 dark:border-emerald-800', border: 'border-emerald-200 dark:border-emerald-800' },
+  { id: 'laboratorio', label: 'Laboratório', description: 'Módulos e eletrônica', icon: <FlaskConical className="w-7 h-7 text-white" strokeWidth={2.5} />, iconBg: 'bg-violet-500', bg: 'bg-violet-50 dark:bg-violet-950/90 border-violet-200 dark:border-violet-800', border: 'border-violet-200 dark:border-violet-800' },
 ];
 
-const QUICK_APPS: { id: HomeAppId; label: string; icon: React.ReactNode; accent: string }[] = [
-  { id: 'reception', label: 'Recepção', icon: <ClipboardList className="w-6 h-6" strokeWidth={2} />, accent: 'text-amber-500' },
-  { id: 'agenda', label: 'Agenda', icon: <Calendar className="w-6 h-6" strokeWidth={2} />, accent: 'text-blue-500' },
-  { id: 'patio', label: 'Pátio', icon: <PatioCarIcon className="w-6 h-6" strokeWidth={3} />, accent: 'text-emerald-500' },
-  { id: 'laboratorio', label: 'Laboratório', icon: <FlaskConical className="w-6 h-6" strokeWidth={2} />, accent: 'text-violet-500' },
+const QUICK_APPS: { id: HomeAppId; label: string; icon: React.ReactNode; iconBg: string }[] = [
+  { id: 'reception', label: 'Recepção', icon: <ClipboardList className="w-6 h-6 text-white" strokeWidth={2.5} />, iconBg: 'bg-amber-500' },
+  { id: 'agenda', label: 'Agenda', icon: <Calendar className="w-6 h-6 text-white" strokeWidth={2.5} />, iconBg: 'bg-blue-500' },
+  { id: 'patio', label: 'Pátio', icon: <PatioCarIcon className="w-6 h-6 text-white" strokeWidth={2.5} />, iconBg: 'bg-emerald-500' },
+  { id: 'laboratorio', label: 'Laboratório', icon: <FlaskConical className="w-6 h-6 text-white" strokeWidth={2.5} />, iconBg: 'bg-violet-500' },
 ];
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -99,24 +99,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
     : OPERATIONAL_APPS;
 
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 safe-area-pb relative">
+    <div className="min-h-screen flex flex-col bg-zinc-100 dark:bg-zinc-950 safe-area-pb relative">
       {/* Fundo sutil */}
-      <div className="fixed inset-0 pointer-events-none z-0 bg-[linear-gradient(180deg,var(--tw-gradient-from)_0%,transparent_50%)] from-amber-500/5 dark:from-amber-500/[0.07] to-transparent" />
-      <div className="fixed bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-zinc-100/80 dark:from-zinc-900/80 to-transparent pointer-events-none z-0" />
+      <div className="fixed inset-0 pointer-events-none z-0 bg-gradient-to-b from-amber-50/80 dark:from-amber-950/30 to-transparent" />
+      <div className="fixed bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-zinc-200/90 dark:from-zinc-900/90 to-transparent pointer-events-none z-0" />
 
       {/* Header: identidade da oficina */}
-      <header className="relative z-10 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-6 px-4 sm:px-6 border-b border-zinc-200/80 dark:border-white/[0.06] bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md">
+      <header className="relative z-10 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-5 px-4 sm:px-6 border-b-2 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
         <div className="max-w-xl mx-auto flex items-center gap-4">
           <img
             src="/logo.png"
             alt="Rei do ABS"
-            className="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-xl border border-zinc-200/80 dark:border-white/10 shadow-sm"
+            className="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-xl border-2 border-zinc-200 dark:border-zinc-700 shadow-md"
           />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight truncate">
               Rei do ABS
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">
               {isTechnician ? `Olá, ${technicianName}` : 'Sistema de gestão da oficina'}
             </p>
           </div>
@@ -125,10 +125,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       <main className="relative z-10 flex-1 px-4 sm:px-6 pb-28 max-w-xl mx-auto w-full">
         {/* Operação: módulos principais */}
-        <section className="pt-6 pb-6">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3">
-            Operação
-          </h2>
+        <section className="pt-6 pb-4">
+          <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Operação</h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Acesso rápido aos módulos do dia a dia</p>
           {isTechnician && operationalForView.length <= 2 ? (
             <div className={`grid gap-3 ${operationalForView.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
               {operationalForView.map((app) => (
@@ -136,9 +135,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   key={app.id}
                   type="button"
                   onClick={() => onOpenApp(app.id)}
-                  className={`flex flex-col items-center gap-2 p-5 rounded-xl border ${app.bg} hover:opacity-95 active:scale-[0.99] transition-all`}
+                  className={`flex flex-col items-center gap-2 p-5 rounded-xl border-2 ${app.bg} ${app.border} hover:shadow-md active:scale-[0.99] transition-all`}
                 >
-                  <div className={app.accent}>{app.icon}</div>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${app.iconBg}`}>{app.icon}</div>
                   <span className="text-sm font-semibold text-zinc-900 dark:text-white text-center">{app.label}</span>
                 </button>
               ))}
@@ -150,11 +149,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   key={app.id}
                   type="button"
                   onClick={() => onOpenApp(app.id)}
-                  className={`flex flex-col items-start gap-2 p-4 rounded-xl border ${app.bg} hover:opacity-95 active:scale-[0.99] transition-all text-left`}
+                  className={`flex flex-col items-start gap-2 p-4 rounded-xl border-2 ${app.bg} ${app.border} hover:shadow-md active:scale-[0.99] transition-all text-left`}
                 >
-                  <div className={app.accent}>{app.icon}</div>
+                  <div className={`w-11 h-11 rounded-lg flex items-center justify-center ${app.iconBg}`}>{app.icon}</div>
                   <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">{app.label}</span>
-                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">{app.description}</span>
+                  <span className="text-xs text-zinc-600 dark:text-zinc-400 leading-tight">{app.description}</span>
                 </button>
               ))}
             </div>
@@ -165,83 +164,81 @@ export const HomeView: React.FC<HomeViewProps> = ({
             href="https://patio-view.vercel.app/"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 flex items-center gap-3 p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 dark:bg-emerald-500/20 hover:opacity-95 active:scale-[0.99] transition-all text-left"
+            className="mt-4 flex items-center gap-3 p-4 rounded-xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/90 hover:shadow-md active:scale-[0.99] transition-all text-left"
           >
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-              <PatioCarIcon className="w-5 h-5" strokeWidth={3} />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-emerald-500">
+              <PatioCarIcon className="w-5 h-5 text-white" strokeWidth={2.5} />
             </div>
             <div className="flex-1 min-w-0">
               <span className="text-[15px] font-semibold text-zinc-900 dark:text-white block">Painel do Pátio (TV)</span>
-              <span className="text-[11px] text-zinc-500 dark:text-zinc-400">Abrir em nova aba</span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">Abrir em nova aba</span>
             </div>
-            <ExternalLink className="w-5 h-5 shrink-0 text-zinc-400" />
+            <ExternalLink className="w-5 h-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
           </a>
         </section>
 
         {/* Administração (só admin) */}
         {!isTechnician && (
-          <section className="pt-2 pb-4">
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3">
-              Administração
-            </h2>
-            <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900/50 shadow-sm">
-              <button type="button" onClick={() => setIsSystemUsersOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-violet-500/15 text-violet-600 dark:text-violet-400"><User className="w-5 h-5" strokeWidth={2} /></div>
+          <section className="pt-4 pb-4">
+            <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Administração</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Usuários, configurações e senhas</p>
+            <div className="rounded-xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+              <button type="button" onClick={() => setIsSystemUsersOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-violet-500"><User className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
                 <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Usuários do sistema</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
               </button>
-              <button type="button" onClick={() => onOpenApp('settings')} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-400"><Settings className="w-5 h-5" strokeWidth={2} /></div>
+              <button type="button" onClick={() => onOpenApp('settings')} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-500"><Settings className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
                 <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Configurações</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
               </button>
-              <button type="button" onClick={() => setIsServicesModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-amber-500/15 text-amber-600 dark:text-amber-400"><Wrench className="w-5 h-5" strokeWidth={2} /></div>
+              <button type="button" onClick={() => setIsServicesModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-amber-500"><Wrench className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
                 <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Serviços da oficina</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
               </button>
-              <button type="button" onClick={() => setIsChangePasswordsOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-zinc-200/80 dark:bg-white/10 text-zinc-600 dark:text-zinc-400"><Lock className="w-5 h-5" strokeWidth={2} /></div>
+              <button type="button" onClick={() => setIsChangePasswordsOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-600"><Lock className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
                 <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Alterar senhas</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
               </button>
             </div>
           </section>
         )}
 
-        {/* Conta: perfil (admin, técnico ou usuário do sistema) e sair */}
-        <section className="pt-2 pb-4">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3">
-            Conta
-          </h2>
-          <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-900/50 shadow-sm">
+        {/* Conta: perfil e sair */}
+        <section className="pt-4 pb-4">
+          <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Conta</h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Perfil e encerrar sessão</p>
+          <div className="rounded-xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
             {isSystemUser && (
             <button
               type="button"
               onClick={() => setIsUserProfileOpen(true)}
-              className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors"
             >
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-violet-500/15 text-violet-600 dark:text-violet-400"><User className="w-5 h-5" strokeWidth={2} /></div>
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-violet-500"><User className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
               <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Configurações de perfil</span>
-              <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+              <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
             </button>
             )}
             {(!isTechnician || technicianId) && !isSystemUser && (
             <button
               type="button"
               onClick={() => (isTechnician ? setIsTechnicianProfileOpen(true) : setIsAdminProfileOpen(true))}
-              className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-50 dark:hover:bg-white/[0.04] active:bg-zinc-100 dark:active:bg-white/[0.06] transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors"
             >
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-violet-500/15 text-violet-600 dark:text-violet-400"><User className="w-5 h-5" strokeWidth={2} /></div>
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-violet-500"><User className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
               <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">{isTechnician ? 'Meu perfil' : 'Perfil do administrador'}</span>
-              <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+              <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
             </button>
             )}
             {onLogout && (
-              <button type="button" onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50/80 dark:hover:bg-red-950/30 active:bg-red-100 dark:active:bg-red-950/50 transition-colors">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-red-500/15 text-red-600 dark:text-red-400"><LogOut className="w-5 h-5" strokeWidth={2} /></div>
+              <button type="button" onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50 dark:hover:bg-red-950/50 active:bg-red-100 dark:active:bg-red-900/30 transition-colors">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-red-500"><LogOut className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
                 <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Sair</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
               </button>
             )}
           </div>
