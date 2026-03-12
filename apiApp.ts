@@ -937,39 +937,49 @@ export function createApiApp() {
         });
       }
 
-      const { data: maxRow } = await supabaseAdmin
-        .from("service_orders")
-        .select("os_number")
-        .eq("workshop_id", WORKSHOP_ID)
-        .order("os_number", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const nextOsNumber = (maxRow?.os_number ?? 0) + 1;
+      const payload = {
+        workshop_id: WORKSHOP_ID,
+        customer_id: customerId,
+        vehicle_model: vehicleModel ?? null,
+        module_identification: orderType === "module" ? (moduleIdentification ?? null) : null,
+        plate: orderType === "vehicle" ? String(plate || '').toUpperCase() : null,
+        mileage_km: orderType === "vehicle" && mileageKm != null && String(mileageKm).trim() !== '' ? String(mileageKm).trim() : null,
+        issue_description: issueDescription ?? null,
+        ai_analysis: aiAnalysis ?? null,
+        status: FIRST_STAGE,
+        order_type: orderType,
+      };
 
-      const { data, error } = await supabaseAdmin
-        .from("service_orders")
-        .insert({
-          workshop_id: WORKSHOP_ID,
-          os_number: nextOsNumber,
-          customer_id: customerId,
-          vehicle_model: vehicleModel ?? null,
-          module_identification: orderType === "module" ? (moduleIdentification ?? null) : null,
-          plate: orderType === "vehicle" ? String(plate || '').toUpperCase() : null,
-          mileage_km: orderType === "vehicle" && mileageKm != null && String(mileageKm).trim() !== '' ? String(mileageKm).trim() : null,
-          issue_description: issueDescription ?? null,
-          ai_analysis: aiAnalysis ?? null,
-          status: FIRST_STAGE,
-          order_type: orderType,
-        })
-        .select("*")
-        .single();
+      let lastError: unknown = null;
+      const maxRetries = 3;
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const { data: maxRow } = await supabaseAdmin
+          .from("service_orders")
+          .select("os_number")
+          .eq("workshop_id", WORKSHOP_ID)
+          .order("os_number", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const nextOsNumber = (maxRow?.os_number ?? 0) + 1;
 
-      if (error) {
-        console.error("[API] Erro ao criar service_order:", error);
-        return res.status(500).json({ error: error.message });
+        const { data, error } = await supabaseAdmin
+          .from("service_orders")
+          .insert({ ...payload, os_number: nextOsNumber })
+          .select("*")
+          .single();
+
+        if (!error) {
+          return res.status(201).json(data);
+        }
+        lastError = error;
+        const isDuplicate = (error as { code?: string }).code === "23505";
+        if (!isDuplicate) break;
       }
 
-      return res.status(201).json(data);
+      console.error("[API] Erro ao criar service_order:", lastError);
+      return res.status(500).json({
+        error: (lastError as { message?: string })?.message ?? "Erro ao criar ordem de serviço.",
+      });
     } catch (err: any) {
       console.error("[API] Erro inesperado em POST /api/service-orders:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });

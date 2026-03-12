@@ -1379,10 +1379,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       } else {
         const budget = await createServiceOrderBudget(selectedCard.id, payload, actorOptions);
         setSavedBudgets(prev => [budget, ...prev]);
-        setBudgetDiagnosis('');
-        setBudgetServices([{ id: String(Date.now()), description: '' }]);
-        setBudgetParts([{ id: String(Date.now() + 1), description: '', quantity: '1' }]);
-        setBudgetObservations('');
+        closeBudgetModal();
       }
     } catch (err: any) {
       alert(err?.message ?? "Erro ao salvar orçamento.");
