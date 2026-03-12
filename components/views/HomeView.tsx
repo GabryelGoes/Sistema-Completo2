@@ -9,6 +9,7 @@ import {
   LogOut,
   User,
   FlaskConical,
+  ExternalLink,
 } from 'lucide-react';
 import { PatioCarIcon } from '../ui/PatioCarIcon';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
@@ -158,6 +159,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
               ))}
             </div>
           )}
+
+          {/* Link para o Painel do Pátio (TV) */}
+          <a
+            href="https://patio-view.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 flex items-center gap-3 p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 dark:bg-emerald-500/20 hover:opacity-95 active:scale-[0.99] transition-all text-left"
+          >
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+              <PatioCarIcon className="w-5 h-5" strokeWidth={3} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-[15px] font-semibold text-zinc-900 dark:text-white block">Painel do Pátio (TV)</span>
+              <span className="text-[11px] text-zinc-500 dark:text-zinc-400">Abrir em nova aba</span>
+            </div>
+            <ExternalLink className="w-5 h-5 shrink-0 text-zinc-400" />
+          </a>
         </section>
 
         {/* Administração (só admin) */}
