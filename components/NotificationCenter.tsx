@@ -243,10 +243,13 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   useEffect(() => {
     if (!open) return;
     fetchNotifications();
+  }, [open]);
+
+  const requestNotificationPermission = () => {
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       Notification.requestPermission().catch(() => {});
     }
-  }, [open]);
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -326,7 +329,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     <div className="relative" ref={panelRef}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          requestNotificationPermission();
+          setOpen((o) => !o);
+        }}
         className={`relative w-11 h-11 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all shadow-sm ${btnClass}`}
         aria-label="Central de notificações"
       >
@@ -368,6 +374,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               )}
             </div>
           </div>
+          {typeof Notification !== 'undefined' && Notification.permission === 'denied' && (
+            <div className={`px-4 py-2 text-[12px] ${isDark ? 'bg-amber-900/30 text-amber-300' : 'bg-amber-50 text-amber-800'}`}>
+              Notificações no dispositivo desativadas. Ative nas configurações do site no navegador.
+            </div>
+          )}
           <div className="overflow-y-auto overscroll-contain flex-1">
             {loading && notifications.length === 0 ? (
               <div className={`flex justify-center py-12 ${loadingClass}`}>
