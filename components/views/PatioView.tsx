@@ -1202,6 +1202,61 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
+  /** Compartilha orçamento via Web Share API (igual às fotos dos anexos). */
+  const shareBudget = async (budget: SavedBudget, mileageKm?: string | null) => {
+    const dateStr = new Date(budget.createdAt).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const sym = (approved: boolean | undefined) => approved === true ? '✓ ' : approved === false ? '✗ ' : '— ';
+    const lines: string[] = [
+      `Orçamento - ${budget.cardName ?? 'Veículo'}`,
+      dateStr,
+      ...(mileageKm ? [`Km ${mileageKm}`] : []),
+      '',
+    ];
+    if (budget.diagnosis) {
+      lines.push('Diagnóstico:', budget.diagnosis.trim(), '');
+    }
+    if (budget.services.length > 0) {
+      lines.push('Serviços:', ...budget.services.map((s) => `  ${sym(s.approved)}${s.description}`), '');
+    }
+    if (budget.parts.length > 0) {
+      lines.push('Peças:', ...budget.parts.map((p) => `  ${sym(p.approved)}(${p.quantity || 1}x) ${p.description}`), '');
+    }
+    if (budget.observations) {
+      lines.push('Observações:', budget.observations.trim());
+    }
+    const text = lines.join('\n');
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Orçamento - ${budget.cardName ?? 'Veículo'}`,
+          text,
+        });
+      } catch (err: unknown) {
+        if ((err as { name?: string })?.name !== 'AbortError') {
+          try {
+            await navigator.clipboard.writeText(text);
+            alert('Orçamento copiado para a área de transferência.');
+          } catch {
+            alert('Não foi possível compartilhar. Tente imprimir.');
+          }
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        alert('Orçamento copiado para a área de transferência.');
+      } catch {
+        alert('Seu navegador não suporta compartilhar. Use Ctrl+C após abrir para imprimir.');
+      }
+    }
+  };
+
   const printBudget = (budget: SavedBudget, mileageKm?: string | null) => {
     const esc = (s: string) => String(s ?? '')
       .replace(/&/g, '&amp;')
@@ -3618,12 +3673,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => printBudget(viewingBudget, selectedCard?.mileageKm ?? null)}
+                  onClick={() => shareBudget(viewingBudget, selectedCard?.mileageKm ?? null)}
                   className="w-10 h-10 rounded-full flex items-center justify-center text-[#6b6560] hover:text-[#3d3932] hover:bg-[#ddd8ce] transition-colors"
-                  title="Imprimir orçamento"
-                  aria-label="Imprimir"
+                  title="Compartilhar orçamento"
+                  aria-label="Compartilhar"
                 >
-                  <Printer className="w-5 h-5" />
+                  <Share2 className="w-5 h-5" />
                 </button>
                 <button
                   type="button"
