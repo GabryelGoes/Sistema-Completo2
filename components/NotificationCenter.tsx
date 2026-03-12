@@ -95,21 +95,32 @@ function formatNotificationSubtitle(n: Notification): string | null {
   return null;
 }
 
-/** Mostra a notificação na central do dispositivo (barra de notificações do sistema). Retorna true se exibiu. */
+/** Mostra a notificação na central do dispositivo (barra do sistema). Usa Service Worker quando disponível (mais confiável em tablet/segundo plano). Retorna true se a permissão está concedida (evita som duplicado). */
 function showNativeDeviceNotification(n: Notification, forTechnician?: boolean): boolean {
   if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') return false;
-  try {
-    const title = formatNotificationTitle(n, forTechnician);
-    const body = formatNotificationSubtitle(n) || 'Rei do ABS';
-    const native = new Notification(title, { body, icon: '/logo.png' });
-    native.onclick = () => {
-      native.close();
-      window.focus();
-    };
-    return true;
-  } catch {
-    return false;
-  }
+  const title = formatNotificationTitle(n, forTechnician);
+  const body = formatNotificationSubtitle(n) || 'Rei do ABS';
+  const icon = '/logo.png';
+
+  const show = () => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready
+        .then((reg) => reg.showNotification(title, { body, icon }))
+        .catch(() => {
+          try {
+            const native = new Notification(title, { body, icon });
+            native.onclick = () => { native.close(); window.focus(); };
+          } catch {}
+        });
+    } else {
+      try {
+        const native = new Notification(title, { body, icon });
+        native.onclick = () => { native.close(); window.focus(); };
+      } catch {}
+    }
+  };
+  show();
+  return true;
 }
 
 interface NotificationCenterProps {
@@ -134,6 +145,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 }) => {
   const isDark = theme === 'dark';
   const [open, setOpen] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(() =>
+    typeof Notification !== 'undefined' ? Notification.permission : null
+  );
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -243,13 +257,21 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   useEffect(() => {
     if (!open) return;
     fetchNotifications();
+    if (typeof Notification !== 'undefined') setNotifPermission(Notification.permission);
   }, [open]);
 
   const requestNotificationPermission = () => {
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {});
+      Notification.requestPermission().then((p) => setNotifPermission(p)).catch(() => {});
     }
   };
+
+  // Pedir permissão ao montar (após um breve delay) para que notificações apareçam no dispositivo sem depender do clique no sino
+  useEffect(() => {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'default') return;
+    const t = setTimeout(requestNotificationPermission, 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -374,7 +396,15 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               )}
             </div>
           </div>
-          {typeof Notification !== 'undefined' && Notification.permission === 'denied' && (
+          {typeof Notification !== 'undefined' && (notifPermission ?? Notification.permission) === 'default' && (
+            <div className={`px-4 py-3 text-[12px] flex items-center justify-between gap-2 ${isDark ? 'bg-brand-yellow/15 text-brand-yellow' : 'bg-brand-yellow/20 text-black'}`}>
+              <span>Receba notificações no dispositivo (tablet/PC).</span>
+              <button type="button" onClick={requestNotificationPermission} className="shrink-0 px-3 py-1.5 rounded-lg bg-brand-yellow text-black font-semibold text-[12px]">
+                Ativar
+              </button>
+            </div>
+          )}
+          {typeof Notification !== 'undefined' && (notifPermission ?? Notification.permission) === 'denied' && (
             <div className={`px-4 py-2 text-[12px] ${isDark ? 'bg-amber-900/30 text-amber-300' : 'bg-amber-50 text-amber-800'}`}>
               Notificações no dispositivo desativadas. Ative nas configurações do site no navegador.
             </div>
