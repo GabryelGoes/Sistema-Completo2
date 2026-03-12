@@ -28,6 +28,18 @@ export function createApiApp() {
   const WORKSHOP_ID = process.env.WORKSHOP_ID;
   app.use(express.json());
 
+  /** Retorna os IDs (workshop_system_users.id) de todos os técnicos da oficina para notificá-los quando o admin age. */
+  async function getTechnicianUserIds(): Promise<string[]> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return [];
+    const { data, error } = await supabaseAdmin
+      .from("workshop_system_users")
+      .select("id")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("is_technician", true);
+    if (error) return [];
+    return (data || []).map((r: { id: string }) => r.id);
+  }
+
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
@@ -1301,14 +1313,17 @@ export function createApiApp() {
           target_type: "admin",
           target_slug: null,
         }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_created:", e); });
-      } else if (so?.assigned_technician) {
-        await supabaseAdmin.from("notifications").insert({
-          workshop_id: WORKSHOP_ID,
-          type: "budget_created",
-          payload: budgetPayload,
-          target_type: "technician",
-          target_slug: so.assigned_technician,
-        }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_created (técnico):", e); });
+      } else {
+        const technicianIds = await getTechnicianUserIds();
+        for (const techId of technicianIds) {
+          await supabaseAdmin.from("notifications").insert({
+            workshop_id: WORKSHOP_ID,
+            type: "budget_created",
+            payload: budgetPayload,
+            target_type: "technician",
+            target_slug: techId,
+          }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_created (técnico):", e); });
+        }
       }
 
       return res.status(201).json(data);
@@ -1388,14 +1403,17 @@ export function createApiApp() {
           target_type: "admin",
           target_slug: null,
         }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited:", e); });
-      } else if (so?.assigned_technician) {
-        await supabaseAdmin.from("notifications").insert({
-          workshop_id: WORKSHOP_ID,
-          type: "budget_edited",
-          payload: budgetEditPayload,
-          target_type: "technician",
-          target_slug: so.assigned_technician,
-        }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited (técnico):", e); });
+      } else {
+        const technicianIds = await getTechnicianUserIds();
+        for (const techId of technicianIds) {
+          await supabaseAdmin.from("notifications").insert({
+            workshop_id: WORKSHOP_ID,
+            type: "budget_edited",
+            payload: budgetEditPayload,
+            target_type: "technician",
+            target_slug: techId,
+          }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited (técnico):", e); });
+        }
       }
 
       return res.json(data);
@@ -1573,14 +1591,18 @@ export function createApiApp() {
           target_slug: null,
         }).then(({ error: notifErr }) => { if (notifErr) console.error("[API] Erro ao criar notificação de comentário (admin):", notifErr); });
       }
-      if (isAdminComment && so.assigned_technician) {
-        await supabaseAdmin.from("notifications").insert({
-          workshop_id: WORKSHOP_ID,
-          type: "comment",
-          payload: commentPayload,
-          target_type: "technician",
-          target_slug: so.assigned_technician,
-        }).then(({ error: notifErr }) => { if (notifErr) console.error("[API] Erro ao criar notificação de comentário (técnico):", notifErr); });
+      // Comentário do admin: notificar todos os técnicos
+      if (isAdminComment) {
+        const technicianIds = await getTechnicianUserIds();
+        for (const techId of technicianIds) {
+          await supabaseAdmin.from("notifications").insert({
+            workshop_id: WORKSHOP_ID,
+            type: "comment",
+            payload: commentPayload,
+            target_type: "technician",
+            target_slug: techId,
+          }).then(({ error: notifErr }) => { if (notifErr) console.error("[API] Erro ao criar notificação de comentário (técnico):", notifErr); });
+        }
       }
 
       return res.status(201).json(data);
@@ -2399,34 +2421,41 @@ export function createApiApp() {
         customer_name: customerNameSo || null,
       };
       if (previous) {
-        if (isAdminActor && techSlug) {
-          // Ações do admin: notificar apenas o técnico
+        if (isAdminActor) {
+          // Ações do admin: notificar todos os técnicos
+          const technicianIds = await getTechnicianUserIds();
           if (updatePayload.status !== undefined && previous.status !== data?.status) {
-            await supabaseAdmin.from("notifications").insert({
-              workshop_id: WORKSHOP_ID,
-              type: "stage_change",
-              payload: { ...payloadBase, new_status: data?.status },
-              target_type: "technician",
-              target_slug: techSlug,
-            }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change:", e); });
+            for (const techId of technicianIds) {
+              await supabaseAdmin.from("notifications").insert({
+                workshop_id: WORKSHOP_ID,
+                type: "stage_change",
+                payload: { ...payloadBase, new_status: data?.status },
+                target_type: "technician",
+                target_slug: techId,
+              }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change:", e); });
+            }
           }
           if (updatePayload.issue_description !== undefined && previous.issue_description !== data?.issue_description) {
-            await supabaseAdmin.from("notifications").insert({
-              workshop_id: WORKSHOP_ID,
-              type: "complaint_edited",
-              payload: payloadBase,
-              target_type: "technician",
-              target_slug: techSlug,
-            }).then(({ error: e }) => { if (e) console.error("[API] Notificação complaint_edited:", e); });
+            for (const techId of technicianIds) {
+              await supabaseAdmin.from("notifications").insert({
+                workshop_id: WORKSHOP_ID,
+                type: "complaint_edited",
+                payload: payloadBase,
+                target_type: "technician",
+                target_slug: techId,
+              }).then(({ error: e }) => { if (e) console.error("[API] Notificação complaint_edited:", e); });
+            }
           }
           if (updatePayload.delivery_date !== undefined && String(previous?.delivery_date ?? "") !== String(data?.delivery_date ?? "")) {
-            await supabaseAdmin.from("notifications").insert({
-              workshop_id: WORKSHOP_ID,
-              type: "delivery_date_changed",
-              payload: { ...payloadBase, delivery_date: data?.delivery_date ?? null },
-              target_type: "technician",
-              target_slug: techSlug,
-            }).then(({ error: e }) => { if (e) console.error("[API] Notificação delivery_date_changed:", e); });
+            for (const techId of technicianIds) {
+              await supabaseAdmin.from("notifications").insert({
+                workshop_id: WORKSHOP_ID,
+                type: "delivery_date_changed",
+                payload: { ...payloadBase, delivery_date: data?.delivery_date ?? null },
+                target_type: "technician",
+                target_slug: techId,
+              }).then(({ error: e }) => { if (e) console.error("[API] Notificação delivery_date_changed:", e); });
+            }
           }
         } else if (!isAdminActor && (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string")) {
           // Ações do técnico: notificar apenas o admin (Rei do ABS)

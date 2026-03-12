@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, User, Wrench, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2 } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, Wrench, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2 } from 'lucide-react';
 import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer } from '../../types';
 import {
   getServiceOrders,
@@ -139,41 +139,67 @@ export interface SavedBudget {
   observations: string;
 }
 
-// --- Componente Lightbox com Zoom (Pinch) para Imagens ---
-const Lightbox = ({ src, onClose }: { src: string; onClose: () => void }) => {
+// --- Componente Lightbox com Zoom (Pinch) e Navegação entre Fotos ---
+const SWIPE_THRESHOLD = 60;
+
+const Lightbox = ({
+  src: singleSrc,
+  images: imagesProp,
+  initialIndex = 0,
+  onClose,
+}: {
+  src?: string;
+  images?: string[];
+  initialIndex?: number;
+  onClose: () => void;
+}) => {
+  const images = imagesProp && imagesProp.length > 0 ? imagesProp : (singleSrc ? [singleSrc] : []);
+  const [currentIndex, setCurrentIndex] = useState(initialIndex >= 0 && initialIndex < images.length ? initialIndex : 0);
+  const src = images[currentIndex] ?? singleSrc ?? "";
+
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
 
-  // Refs para cálculo de gestos sem re-render excessivo durante o movimento
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
   const lastDistRef = useRef<number | null>(null);
+  const dragStartXRef = useRef<number>(0);
   const imageRef = useRef<HTMLImageElement>(null);
 
-  // Resetar ao abrir
+  const hasMultiple = images.length > 1;
+  const canGoPrev = hasMultiple && currentIndex > 0;
+  const canGoNext = hasMultiple && currentIndex < images.length - 1;
+
+  useEffect(() => {
+    setScale(1);
+    setTranslate({ x: 0, y: 0 });
+    setCurrentIndex(initialIndex >= 0 && initialIndex < images.length ? initialIndex : 0);
+  }, [initialIndex, images.length]);
+
   useEffect(() => {
     setScale(1);
     setTranslate({ x: 0, y: 0 });
   }, [src]);
 
-  // Limpeza de Blob URL ao fechar para evitar memory leaks se for um blob
   useEffect(() => {
     return () => {
-        if (src.startsWith('blob:')) {
-            URL.revokeObjectURL(src);
-        }
+      if (src.startsWith("blob:")) URL.revokeObjectURL(src);
     };
   }, [src]);
 
+  const goPrev = () => {
+    if (canGoPrev) setCurrentIndex((i) => i - 1);
+  };
+  const goNext = () => {
+    if (canGoNext) setCurrentIndex((i) => i + 1);
+  };
+
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
-      // Preparar para arrastar (apenas se estiver com zoom)
-      if (scale > 1) {
-        setIsDragging(true);
-        lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      }
+      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      dragStartXRef.current = e.touches[0].clientX;
+      if (scale > 1) setIsDragging(true);
     } else if (e.touches.length === 2) {
-      // Preparar para pinçar (zoom)
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
@@ -183,42 +209,41 @@ const Lightbox = ({ src, onClose }: { src: string; onClose: () => void }) => {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 1 && isDragging && lastTouchRef.current) {
-      // Lógica de Pan (Arrastar)
+    if (e.touches.length === 1 && lastTouchRef.current) {
       const dx = e.touches[0].clientX - lastTouchRef.current.x;
       const dy = e.touches[0].clientY - lastTouchRef.current.y;
-      
-      setTranslate(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      if (scale > 1) {
+        setIsDragging(true);
+        setTranslate((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+      } else if (hasMultiple && Math.abs(dx) > Math.abs(dy)) {
+        setTranslate((prev) => ({ ...prev, x: prev.x + dx }));
+      }
       lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-
     } else if (e.touches.length === 2 && lastDistRef.current) {
-      // Lógica de Pinch (Zoom)
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      
       const ratio = dist / lastDistRef.current;
-      const newScale = Math.min(Math.max(1, scale * ratio), 5); // Max zoom 5x
-      
-      setScale(newScale);
+      setScale((s) => Math.min(Math.max(1, s * ratio), 5));
       lastDistRef.current = dist;
     }
   };
 
   const handleTouchEnd = () => {
-    setIsDragging(false);
+    if (scale > 1) {
+      setIsDragging(false);
+    } else if (hasMultiple && lastTouchRef.current !== null) {
+      const deltaX = lastTouchRef.current.x - dragStartXRef.current;
+      if (deltaX > SWIPE_THRESHOLD && canGoPrev) goPrev();
+      else if (deltaX < -SWIPE_THRESHOLD && canGoNext) goNext();
+    }
+    setTranslate({ x: 0, y: 0 });
     lastTouchRef.current = null;
     lastDistRef.current = null;
-    
-    // Snap back se diminuir muito
-    if (scale < 1) {
-      setScale(1);
-      setTranslate({ x: 0, y: 0 });
-    }
+    if (scale < 1) setScale(1);
   };
 
-  // Double tap para zoom rápido
   const handleDoubleTap = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (scale > 1) {
@@ -229,43 +254,77 @@ const Lightbox = ({ src, onClose }: { src: string; onClose: () => void }) => {
     }
   };
 
+  if (!src) return null;
+
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-modal-backdrop overflow-hidden"
       onClick={onClose}
     >
-      <button 
+      <button
         onClick={onClose}
         className="absolute top-6 right-6 z-50 w-12 h-12 rounded-full bg-zinc-900/80 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors border border-zinc-700"
       >
         <X className="w-6 h-6" />
       </button>
 
-      <div 
-        className="w-full h-full flex items-center justify-center touch-none" 
+      {hasMultiple && canGoPrev && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); goPrev(); }}
+          className="absolute left-2 md:left-6 top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-zinc-900/80 flex items-center justify-center text-white hover:bg-zinc-800 transition-colors border border-zinc-700"
+          aria-label="Foto anterior"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+      )}
+      {hasMultiple && canGoNext && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); goNext(); }}
+          className="absolute right-2 md:right-14 top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-zinc-900/80 flex items-center justify-center text-white hover:bg-zinc-800 transition-colors border border-zinc-700"
+          aria-label="Próxima foto"
+        >
+          <ChevronRight className="w-6 h-6" />
+        </button>
+      )}
+
+      <div
+        className="w-full h-full flex items-center justify-center touch-none"
         onClick={(e) => e.stopPropagation()}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <img 
+        <img
           ref={imageRef}
-          src={src} 
-          alt="Preview" 
+          src={src}
+          alt="Preview"
           onDoubleClick={handleDoubleTap}
-          style={{ 
+          style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-            transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+            transition: isDragging ? "none" : "transform 0.2s ease-out",
           }}
           className="max-w-full max-h-full object-contain select-none"
           draggable={false}
         />
       </div>
-      
-      {/* Hint para usuário */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-zinc-400 text-xs pointer-events-none backdrop-blur-md border border-white/10">
-         Toque duplo para zoom ou use pinça
-      </div>
+
+      {hasMultiple && (
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
+          {images.map((_, i) => (
+            <div
+              key={i}
+              className={`w-2 h-2 rounded-full transition-colors ${i === currentIndex ? "bg-brand-yellow" : "bg-zinc-500/60"}`}
+            />
+          ))}
+        </div>
+      )}
+      {!hasMultiple && (
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-zinc-400 text-xs pointer-events-none backdrop-blur-md border border-white/10">
+          Toque duplo para zoom ou use pinça
+        </div>
+      )}
     </div>
   );
 };
@@ -403,8 +462,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [descText, setDescText] = useState('');
   const [isSavingDesc, setIsSavingDesc] = useState(false);
 
-  // Visualização de Imagem (Lightbox)
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  // Visualização de Imagem (Lightbox) — lista de URLs e índice para navegar entre fotos
+  const [previewImages, setPreviewImages] = useState<{ urls: string[]; currentIndex: number } | null>(null);
   const [loadingAttachmentId, setLoadingAttachmentId] = useState<string | null>(null);
   const [renameAttachmentId, setRenameAttachmentId] = useState<string | null>(null);
   const [renameAttachmentNewName, setRenameAttachmentNewName] = useState('');
@@ -3303,7 +3362,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                 >
                                                   <button
                                                     type="button"
-                                                    onClick={() => !isLoadingThis && setPreviewImage(att.url)}
+                                                    onClick={() => !isLoadingThis && setPreviewImages({ urls: images.map(a => a.url), currentIndex: images.findIndex(a => a.url === att.url) })}
                                                     className="absolute inset-0 w-full h-full focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 rounded-xl"
                                                   >
                                                     {isLoadingThis ? (
@@ -3623,11 +3682,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
       )}
 
-      {/* LIGHTBOX MODAL (IMAGE PREVIEW) WITH ZOOM */}
-      {previewImage && (
-        <Lightbox 
-          src={previewImage} 
-          onClose={() => setPreviewImage(null)} 
+      {/* LIGHTBOX MODAL (IMAGE PREVIEW) WITH ZOOM E NAVEGAÇÃO */}
+      {previewImages && (
+        <Lightbox
+          images={previewImages.urls}
+          initialIndex={previewImages.currentIndex}
+          onClose={() => setPreviewImages(null)}
         />
       )}
 
