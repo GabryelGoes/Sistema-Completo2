@@ -519,7 +519,7 @@ export function createApiApp() {
       }, {});
       return res.json({
         patioLoginEnabled: map.patio_login_enabled !== "false",
-        patioPin: map.patio_pin || DEFAULT_PATIO_PIN,
+        patioPin: map.patio_pin ?? "",
         technicianAccessReception: map.technician_access_reception === "true",
         technicianAccessAgenda: map.technician_access_agenda === "true",
         technicianAccessPatio: map.technician_access_patio !== "false",
