@@ -2329,18 +2329,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <div 
                                  key={card.id}
                                  onClick={() => handleOpenHistoryCardDetails(card)}
-                                 className="group bg-white dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-brand-border rounded-2xl p-5 hover:border-brand-yellow/80 dark:hover:border-brand-yellow transition-all cursor-pointer shadow-sm hover:shadow-lg flex flex-col justify-between min-h-[140px]"
+                                 className="group bg-white dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-brand-border rounded-2xl p-5 hover:border-brand-yellow/80 dark:hover:border-brand-yellow transition-all cursor-pointer shadow-sm hover:shadow-lg flex flex-col justify-between min-h-[160px]"
                               >
-                                 <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                       <h3 className="text-2xl font-black text-zinc-900 dark:text-white uppercase italic tracking-tighter truncate max-w-[200px]">{model}</h3>
-                                       <div className="flex items-center gap-2 mt-1">
-                                          <User className="w-3 h-3 text-zinc-500 dark:text-zinc-400" />
-                                          <p className="text-zinc-700 dark:text-zinc-300 text-sm font-bold truncate max-w-[150px]">{customerName}</p>
+                                 <div className="flex justify-between items-start mb-4 gap-4">
+                                    <div className="min-w-0 flex-1">
+                                       <h3 className="text-2xl font-black text-zinc-900 dark:text-white uppercase italic tracking-tighter break-words">
+                                         {model}
+                                       </h3>
+                                       <div className="flex items-center gap-2 mt-1 min-w-0">
+                                          <User className="w-3 h-3 text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
+                                          <p className="text-zinc-700 dark:text-zinc-300 text-sm font-bold truncate">
+                                            {customerName}
+                                          </p>
                                        </div>
                                     </div>
-                                    <div className="bg-zinc-100 dark:bg-black/60 text-zinc-900 dark:text-white font-mono font-black text-sm px-2 py-1 rounded border border-zinc-400 dark:border-zinc-500">
-                                       <span className={blurPlates ? 'blur-plate' : ''}>{plate.toUpperCase()}</span>
+                                    {/* Placa Mercosul compacta */}
+                                    <div className="flex-shrink-0">
+                                      <div className="w-[120px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/20 select-none">
+                                        <div className="h-4 bg-[#003399] flex items-center justify-between px-2">
+                                          <span className="text-[7px] font-bold text-white tracking-wider">BRASIL</span>
+                                          <BrazilFlagIcon width={12} height={8} className="rounded-[2px] flex-shrink-0 border border-white/30" />
+                                        </div>
+                                        <div className="h-9 flex items-center justify-center bg-white">
+                                          <span className={`text-black font-mono text-xl font-black tracking-[0.2em] leading-none ${blurPlates ? 'blur-plate' : ''}`}>
+                                            {plate.toUpperCase()}
+                                          </span>
+                                        </div>
+                                      </div>
                                     </div>
                                  </div>
                                  

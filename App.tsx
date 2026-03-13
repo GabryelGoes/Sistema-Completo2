@@ -256,7 +256,7 @@ export default function App() {
           {userTab === 'laboratorio' && (
             <PatioView
               orderType="module"
-              onUseCustomerData={() => {}}
+              onUseCustomerData={handleUseCustomerData}
               effectsEnabled={effectsEnabled}
               commentAuthorName={authSession.displayName ?? 'Usuário'}
               blurPlates={cinematographicMode}
@@ -363,7 +363,7 @@ export default function App() {
         {currentTab === 'laboratorio' && (
           <PatioView
             orderType="module"
-            onUseCustomerData={() => {}}
+            onUseCustomerData={handleUseCustomerData}
             effectsEnabled={effectsEnabled}
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
