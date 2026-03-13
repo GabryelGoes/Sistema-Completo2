@@ -159,6 +159,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const prevUnreadIdsRef = useRef<Set<string>>(new Set());
   const firstFetchDoneRef = useRef(false);
 
+  /** Só busca notificações do técnico quando slug (userId) estiver definido; senão a API retornaria a lista do admin e o pop-up não apareceria para o técnico. */
   const notifParams =
     forTechnician && technicianSlug
       ? { for: "technician" as const, technicianSlug }
@@ -168,6 +169,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const POLL_FULL_MS = 10000;  // atualização completa da lista
 
   const fetchNotifications = async (since?: string, silent = false) => {
+    if (forTechnician && !technicianSlug) return;
     if (!silent) setLoading(true);
     try {
       const list = await getNotifications({ limit: 80, since, ...notifParams });
@@ -209,6 +211,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   };
 
   const pollNewOnly = async () => {
+    if (forTechnician && !technicianSlug) return;
     const since = lastCreatedAtRef.current;
     if (!since) return;
     try {

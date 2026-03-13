@@ -277,7 +277,7 @@ export default function App() {
           <NotificationCenter
             theme={theme}
             onNewCommentNotification={handleNewCommentNotification}
-            forTechnician
+            forTechnician={!!authSession.userId}
             technicianSlug={authSession.userId}
           />
         </div>
@@ -394,12 +394,12 @@ export default function App() {
         showPatioAccess={authSession?.role === 'admin'}
       />
 
-      {/* Central de notificações: admin vê notificações do admin; usuário do sistema vê as dele (target_slug = userId) */}
+      {/* Central de notificações: admin vê notificações do admin; técnicos veem as deles (target_slug = userId). Só ativa modo técnico quando userId existe para o pop-up de comentários aparecer. */}
       <div className="sr-only" aria-hidden="true">
         <NotificationCenter
           theme={theme}
           onNewCommentNotification={handleNewCommentNotification}
-          forTechnician={authSession?.role === 'user'}
+          forTechnician={authSession?.role === 'user' && !!authSession?.userId}
           technicianSlug={authSession?.role === 'user' ? authSession.userId : undefined}
         />
       </div>

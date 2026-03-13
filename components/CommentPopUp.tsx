@@ -19,6 +19,15 @@ function isReiDoAbs(name: string): boolean {
   return /rei\s*do\s*abs/i.test((name ?? '').trim());
 }
 
+/** Normaliza nome para comparação (quem enviou vs usuário atual). */
+function normalizeAuthorName(name: string | null | undefined): string {
+  return (name ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\u0300-\u036f/g, '');
+}
+
 export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClose, onReplySent, replyAuthorName, theme = 'dark', blurPlates = false }) => {
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
@@ -159,8 +168,12 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
               const photoUrl = getPhotoForAuthor(c);
               const name = c.author_display_name || 'Usuário';
               const initial = name.slice(0, 1).toUpperCase();
+              const isFromCurrentUser = normalizeAuthorName(c.author_display_name) === normalizeAuthorName(replyAuthorName);
               return (
-                <div key={c.id} className="flex gap-3 items-start">
+                <div
+                  key={c.id}
+                  className={`flex gap-3 items-start ${isFromCurrentUser ? 'flex-row-reverse' : ''}`}
+                >
                   <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-zinc-600/20 flex items-center justify-center mt-0.5">
                     {photoUrl ? (
                       <img src={photoUrl} alt={name} className="w-full h-full object-cover" />
@@ -168,12 +181,12 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
                       <span className={`text-sm font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>{initial}</span>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                  <div className={`flex-1 min-w-0 max-w-[85%] ${isFromCurrentUser ? 'flex flex-col items-end' : ''}`}>
+                    <div className={`flex items-center gap-2 flex-wrap mb-0.5 ${isFromCurrentUser ? 'flex-row-reverse' : ''}`}>
                       <span className={`text-sm font-semibold ${titleClass}`}>{name}</span>
                       <span className={`text-xs ${subtitleClass}`}>{new Date(c.created_at).toLocaleString('pt-BR')}</span>
                     </div>
-                    <div className={`rounded-2xl rounded-tl-md px-4 py-3.5 max-w-[85%] ${bubbleClass}`}>
+                    <div className={`rounded-2xl px-4 py-3.5 ${isFromCurrentUser ? 'rounded-tr-md' : 'rounded-tl-md'} ${bubbleClass}`}>
                       <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
                         {c.text}
                       </p>
@@ -183,20 +196,25 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
               );
             })
           ) : (
-            <div className="flex gap-3 items-start">
-              <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-zinc-600/20 flex items-center justify-center mt-0.5">
-                {headerPhotoUrl ? (
-                  <img src={headerPhotoUrl} alt={headerAuthor} className="w-full h-full object-cover" />
-                ) : (
-                  <span className={`text-sm font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>{headerInitial}</span>
-                )}
-              </div>
-              <div className={`flex-1 min-w-0 rounded-2xl rounded-tl-md px-4 py-3.5 max-w-[85%] ${bubbleClass}`}>
-                <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
-                  {p.text || '—'}
-                </p>
-              </div>
-            </div>
+            (() => {
+              const isFromCurrentUser = normalizeAuthorName(p.author_display_name) === normalizeAuthorName(replyAuthorName);
+              return (
+                <div className={`flex gap-3 items-start ${isFromCurrentUser ? 'flex-row-reverse' : ''}`}>
+                  <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-zinc-600/20 flex items-center justify-center mt-0.5">
+                    {headerPhotoUrl ? (
+                      <img src={headerPhotoUrl} alt={headerAuthor} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className={`text-sm font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>{headerInitial}</span>
+                    )}
+                  </div>
+                  <div className={`flex-1 min-w-0 max-w-[85%] rounded-2xl px-4 py-3.5 ${isFromCurrentUser ? 'rounded-tr-md' : 'rounded-tl-md'} ${bubbleClass}`}>
+                    <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+                      {p.text || '—'}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()
           )}
           <div ref={conversationEndRef} />
         </div>
