@@ -58,8 +58,8 @@ export const TechnicianAccessModal: React.FC<TechnicianAccessModalProps> = ({ is
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-      <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] rounded-[1.5rem] w-full max-w-md shadow-xl overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/80 dark:bg-white/[0.04]">
+      <div className="bg-zinc-50/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] rounded-[1.5rem] w-full max-w-md shadow-xl overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-100/80 dark:bg-white/[0.04]">
           <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
             Controle dos Técnicos
           </h2>

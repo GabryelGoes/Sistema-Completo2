@@ -41,8 +41,8 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
   const isDark = theme === 'dark';
   const panelClass = isDark
     ? 'bg-zinc-900/95 border border-white/[0.08] backdrop-blur-xl'
-    : 'bg-white/95 border border-zinc-200/80 backdrop-blur-xl';
-  const headerClass = isDark ? 'bg-white/[0.04] border-white/[0.06]' : 'bg-zinc-50/80 border-zinc-200/80';
+    : 'bg-zinc-50/95 border border-zinc-200/80 backdrop-blur-xl';
+  const headerClass = isDark ? 'bg-white/[0.04] border-white/[0.06]' : 'bg-zinc-100/80 border-zinc-200/80';
   const titleClass = isDark ? 'text-white' : 'text-zinc-900';
   const subtitleClass = isDark ? 'text-zinc-400' : 'text-zinc-500';
   const bubbleClass = isDark

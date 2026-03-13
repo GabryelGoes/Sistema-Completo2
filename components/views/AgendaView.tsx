@@ -503,8 +503,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
       {/* Modal Novo Agendamento */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-            <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md max-h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col animate-modal-sheet">
-                <div className="p-6 border-b border-zinc-200/60 dark:border-white/[0.08] flex justify-between items-center bg-zinc-50/80 dark:bg-white/[0.04] shrink-0">
+            <div className="bg-zinc-50/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md max-h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08),0_12px_40px_-8px_rgba(0,0,0,0.12)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col animate-modal-sheet">
+                <div className="p-6 border-b border-zinc-200/60 dark:border-white/[0.08] flex justify-between items-center bg-zinc-100/80 dark:bg-white/[0.04] shrink-0">
                     <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
                         {isEditing ? 'Editar Agendamento' : 'Novo Agendamento'}
                     </h2>
