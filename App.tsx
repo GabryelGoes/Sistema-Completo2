@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
+import { ChangePasswordsModal } from './components/ChangePasswordsModal';
+import { WorkshopTechniciansModal } from './components/WorkshopTechniciansModal';
 import { TabBar, type TabId } from './components/TabBar';
 import { NotificationCenter } from './components/NotificationCenter';
 import { CommentPopUp } from './components/CommentPopUp';
@@ -26,6 +28,8 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<TabId>('home');
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isUserChangePasswordsOpen, setIsUserChangePasswordsOpen] = useState(false);
+  const [isUserTechniciansOpen, setIsUserTechniciansOpen] = useState(false);
   const [commentPopUpNotification, setCommentPopUpNotification] = useState<Notification | null>(null);
 
   const handleNewCommentNotification = (n: Notification) => {
@@ -213,6 +217,10 @@ export default function App() {
                   setStoredAuth(next);
                 } catch (_) {}
               }}
+              systemUserPermissions={authSession.permissions}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
+              onOpenTechnicians={() => setIsUserTechniciansOpen(true)}
             />
           )}
           {userTab === 'reception' && (
@@ -279,6 +287,20 @@ export default function App() {
             onClose={() => setCommentPopUpNotification(null)}
           />
         )}
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          theme={theme}
+          onThemeChange={setTheme}
+          effectsEnabled={effectsEnabled}
+          onEffectsChange={setEffectsEnabled}
+          cinematographicMode={cinematographicMode}
+          onCinematographicModeChange={setCinematographicMode}
+          orientation={orientation}
+          showPatioAccess={false}
+        />
+        <ChangePasswordsModal isOpen={isUserChangePasswordsOpen} onClose={() => setIsUserChangePasswordsOpen(false)} />
+        <WorkshopTechniciansModal isOpen={isUserTechniciansOpen} onClose={() => setIsUserTechniciansOpen(false)} />
       </div>
     );
   }

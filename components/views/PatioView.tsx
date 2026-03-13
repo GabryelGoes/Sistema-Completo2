@@ -398,8 +398,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   orderType = 'vehicle',
   patioPermissions,
 }) => {
+  /** Admin: sem patioPermissions = tudo permitido. Usuário do sistema: só o que for explicitamente true. */
   const can = (key: keyof NonNullable<PatioViewProps['patioPermissions']>) =>
-    patioPermissions?.[key] !== false;
+    patioPermissions === undefined ? true : patioPermissions[key] === true;
   const [lists, setLists] = useState<TrelloList[]>([]);
   const [cards, setCards] = useState<TrelloCard[]>([]);
   const commentsSectionRef = useRef<HTMLDivElement>(null);

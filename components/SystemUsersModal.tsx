@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Pencil, Trash2, Loader2, Lock, User } from 'lucide-react';
+import { X, Plus, Pencil, Trash2, Loader2, LayoutGrid, Settings, Car, User } from 'lucide-react';
 import type { SystemUserPermissions, SystemUser } from '../services/apiService';
 import {
   getSystemUsers,
@@ -8,27 +8,73 @@ import {
   deleteSystemUser,
 } from '../services/apiService';
 
-const ACCESS_LABELS: { key: keyof SystemUserPermissions; label: string }[] = [
-  { key: 'access_home', label: 'Tela inicial' },
-  { key: 'access_reception', label: 'Recepção' },
-  { key: 'access_agenda', label: 'Agenda' },
-  { key: 'access_patio', label: 'Pátio' },
-  { key: 'access_laboratorio', label: 'Laboratório' },
-  { key: 'access_settings', label: 'Configurações' },
-  { key: 'access_change_passwords', label: 'Alterar senhas' },
-  { key: 'access_technicians', label: 'Técnicos' },
+/** Switch reutilizável para permissões */
+function PermSwitch({
+  checked,
+  onChange,
+  label,
+  description,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  description?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2">
+      <div className="min-w-0">
+        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 block">{label}</span>
+        {description && <span className="text-xs text-zinc-500 dark:text-zinc-400 block mt-0.5">{description}</span>}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-0 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/50 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900 ${
+          checked ? 'bg-[#34C759] dark:bg-[#30D158]' : 'bg-zinc-300 dark:bg-zinc-600'
+        }`}
+      >
+        <span
+          className={`pointer-events-none inline-block h-6 w-6 shrink-0 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ${
+            checked ? 'translate-x-6' : 'translate-x-0.5'
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
+/** Telas que o usuário pode acessar (abas e início) */
+const NAV_LABELS: { key: keyof SystemUserPermissions; label: string; description?: string }[] = [
+  { key: 'access_home', label: 'Tela inicial', description: 'Ver a página inicial' },
+  { key: 'access_reception', label: 'Recepção', description: 'Cadastro de clientes e veículos' },
+  { key: 'access_agenda', label: 'Agenda', description: 'Agendamentos' },
+  { key: 'access_patio', label: 'Pátio', description: 'Veículos em atendimento' },
+  { key: 'access_laboratorio', label: 'Laboratório', description: 'Módulos e eletrônica' },
 ];
 
-const PATIO_LABELS: { key: keyof SystemUserPermissions; label: string }[] = [
-  { key: 'patio_delete_cards', label: 'Excluir cards (veículos/módulos)' },
-  { key: 'patio_assign_technician', label: 'Alterar técnico responsável' },
+/** Ferramentas administrativas (configurações, senhas, técnicos) */
+const TOOLS_LABELS: { key: keyof SystemUserPermissions; label: string; description?: string }[] = [
+  { key: 'access_settings', label: 'Configurações', description: 'Tema, efeitos e opções do app' },
+  { key: 'access_change_passwords', label: 'Alterar senhas', description: 'Senha de gerência e exclusão de veículos' },
+  { key: 'access_technicians', label: 'Técnicos', description: 'Lista de técnicos da oficina (atribuição nos cards)' },
+];
+
+/** Permissões dentro do Pátio/Laboratório */
+const PATIO_DATA_LABELS: { key: keyof SystemUserPermissions; label: string }[] = [
   { key: 'patio_edit_ficha', label: 'Editar dados da ficha' },
   { key: 'patio_edit_queixa', label: 'Editar queixa do cliente' },
   { key: 'patio_edit_delivery_date', label: 'Editar data de entrega' },
   { key: 'patio_edit_mileage', label: 'Editar quilometragem' },
+  { key: 'patio_assign_technician', label: 'Alterar técnico responsável' },
+];
+
+const PATIO_OTHER_LABELS: { key: keyof SystemUserPermissions; label: string }[] = [
   { key: 'patio_edit_budgets', label: 'Criar e editar orçamentos' },
   { key: 'patio_add_comments', label: 'Adicionar comentários' },
   { key: 'patio_archive_card', label: 'Arquivar card (Entregue)' },
+  { key: 'patio_delete_cards', label: 'Excluir cards (veículos/módulos)' },
 ];
 
 const DEFAULT_PERMISSIONS: SystemUserPermissions = {};
@@ -179,10 +225,10 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-zinc-200 dark:border-white/10">
-        <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-white/10">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-zinc-200 dark:border-zinc-700">
+        <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-700 shrink-0">
           <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Usuários do sistema</h2>
-          <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-500">
+          <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -199,7 +245,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
                   placeholder="Senha do admin"
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
                 />
                 <button
                   type="submit"
@@ -214,132 +260,115 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
           ) : (
             <>
               {editingId ? (
-                <form onSubmit={handleSave} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <form onSubmit={handleSave} className="space-y-5">
+                  {/* Dados do usuário */}
+                  <section className="space-y-3">
+                    <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      Dados do usuário
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Usuário (login)</label>
+                        <input
+                          type="text"
+                          value={formUsername}
+                          onChange={(e) => setFormUsername(e.target.value)}
+                          placeholder="Ex: joao"
+                          disabled={editingId !== 'new'}
+                          className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white disabled:opacity-60"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                          {editingId === 'new' ? 'Senha (mín. 4 caracteres)' : 'Nova senha (deixe em branco para manter)'}
+                        </label>
+                        <input
+                          type="password"
+                          value={formPassword}
+                          onChange={(e) => setFormPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
                     <div>
-                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Usuário (login)</label>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Nome de exibição (opcional)</label>
                       <input
                         type="text"
-                        value={formUsername}
-                        onChange={(e) => setFormUsername(e.target.value)}
-                        placeholder="Ex: joao"
-                        disabled={editingId !== 'new'}
-                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white disabled:opacity-60"
+                        value={formDisplayName}
+                        onChange={(e) => setFormDisplayName(e.target.value)}
+                        placeholder="Ex: João Silva"
+                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
-                        {editingId === 'new' ? 'Senha (mín. 4 caracteres)' : 'Nova senha (deixe em branco para manter)'}
-                      </label>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Cargo (opcional)</label>
                       <input
-                        type="password"
-                        value={formPassword}
-                        onChange={(e) => setFormPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                        type="text"
+                        value={formJobTitle}
+                        onChange={(e) => setFormJobTitle(e.target.value)}
+                        placeholder="Ex: Mecânico, Recepcionista"
+                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white"
                       />
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Nome de exibição (opcional)</label>
-                    <input
-                      type="text"
-                      value={formDisplayName}
-                      onChange={(e) => setFormDisplayName(e.target.value)}
-                      placeholder="Ex: João Silva"
-                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                    <PermSwitch
+                      label="Técnico da oficina"
+                      description="Aparece como mecânico nos cards do Pátio/Laboratório"
+                      checked={formIsTechnician}
+                      onChange={setFormIsTechnician}
                     />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Cargo (opcional)</label>
-                    <input
-                      type="text"
-                      value={formJobTitle}
-                      onChange={(e) => setFormJobTitle(e.target.value)}
-                      placeholder="Ex: Mecânico, Recepcionista"
-                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between gap-3 py-1">
-                    <div>
-                      <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 block">Técnico da oficina</span>
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400">Aparece como mecânico nos cards do Pátio/Laboratório</span>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={formIsTechnician}
-                      onClick={() => setFormIsTechnician((v) => !v)}
-                      className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-0 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/50 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900 ${
-                        formIsTechnician ? 'bg-[#34C759] dark:bg-[#30D158]' : 'bg-zinc-300 dark:bg-zinc-600'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-6 w-6 shrink-0 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ${
-                          formIsTechnician ? 'translate-x-6' : 'translate-x-0.5'
-                        }`}
-                      />
-                    </button>
-                  </div>
+                  </section>
 
-                  <div>
-                    <p className="text-xs font-bold text-zinc-600 dark:text-zinc-300 uppercase tracking-wider mb-2">Acesso às telas</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {ACCESS_LABELS.map(({ key, label }) => (
-                        <div key={key} className="flex items-center justify-between gap-3 py-1">
-                          <span className="text-sm text-zinc-800 dark:text-zinc-200">{label}</span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={!!formPermissions[key]}
-                            onClick={() => setPerm(key, !formPermissions[key])}
-                            className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-0 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/50 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900 ${
-                              formPermissions[key]
-                                ? 'bg-[#34C759] dark:bg-[#30D158]'
-                                : 'bg-zinc-300 dark:bg-zinc-600'
-                            }`}
-                          >
-                            <span
-                              className={`pointer-events-none inline-block h-6 w-6 shrink-0 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ${
-                                formPermissions[key] ? 'translate-x-6' : 'translate-x-0.5'
-                              }`}
-                            />
-                          </button>
-                        </div>
+                  {/* Acesso às telas */}
+                  <section className="space-y-3">
+                    <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                      <LayoutGrid className="w-4 h-4" />
+                      Telas e navegação
+                    </h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Quais abas e a tela inicial o usuário pode acessar.</p>
+                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/30 p-3 space-y-0">
+                      {NAV_LABELS.map(({ key, label, description }) => (
+                        <PermSwitch key={key} label={label} description={description} checked={!!formPermissions[key]} onChange={(v) => setPerm(key, v)} />
                       ))}
                     </div>
-                  </div>
+                  </section>
 
-                  <div>
-                    <p className="text-xs font-bold text-zinc-600 dark:text-zinc-300 uppercase tracking-wider mb-2">Permissões no Pátio / Laboratório</p>
-                    <div className="grid grid-cols-1 gap-3">
-                      {PATIO_LABELS.map(({ key, label }) => (
-                        <div key={key} className="flex items-center justify-between gap-3 py-1">
-                          <span className="text-sm text-zinc-800 dark:text-zinc-200">{label}</span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={!!formPermissions[key]}
-                            onClick={() => setPerm(key, !formPermissions[key])}
-                            className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-0 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/50 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900 ${
-                              formPermissions[key]
-                                ? 'bg-[#34C759] dark:bg-[#30D158]'
-                                : 'bg-zinc-300 dark:bg-zinc-600'
-                            }`}
-                          >
-                            <span
-                              className={`pointer-events-none inline-block h-6 w-6 shrink-0 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ${
-                                formPermissions[key] ? 'translate-x-6' : 'translate-x-0.5'
-                              }`}
-                            />
-                          </button>
-                        </div>
+                  {/* Ferramentas (configurações, senhas, técnicos) */}
+                  <section className="space-y-3">
+                    <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                      <Settings className="w-4 h-4" />
+                      Ferramentas da oficina
+                    </h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Acesso a configurações, alterar senhas e lista de técnicos.</p>
+                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/30 p-3 space-y-0">
+                      {TOOLS_LABELS.map(({ key, label, description }) => (
+                        <PermSwitch key={key} label={label} description={description} checked={!!formPermissions[key]} onChange={(v) => setPerm(key, v)} />
                       ))}
                     </div>
-                  </div>
+                  </section>
+
+                  {/* Permissões no Pátio / Laboratório */}
+                  <section className="space-y-3">
+                    <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                      <Car className="w-4 h-4" />
+                      Permissões no Pátio e Laboratório
+                    </h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">O que o usuário pode fazer dentro dos cards (quando tiver acesso às telas Pátio/Laboratório).</p>
+                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/30 p-3 space-y-0">
+                      <p className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pt-1 pb-2">Dados do card</p>
+                      {PATIO_DATA_LABELS.map(({ key, label }) => (
+                        <PermSwitch key={key} label={label} checked={!!formPermissions[key]} onChange={(v) => setPerm(key, v)} />
+                      ))}
+                      <p className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pt-3 pb-2">Orçamentos, comentários e ações</p>
+                      {PATIO_OTHER_LABELS.map(({ key, label }) => (
+                        <PermSwitch key={key} label={label} checked={!!formPermissions[key]} onChange={(v) => setPerm(key, v)} />
+                      ))}
+                    </div>
+                  </section>
 
                   {error && <p className="text-sm text-red-500">{error}</p>}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pt-2">
                     <button type="button" onClick={cancelEdit} className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300">
                       Cancelar
                     </button>
@@ -362,12 +391,14 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                   </div>
                   <ul className="space-y-2">
                     {users.length === 0 ? (
-                      <li className="text-sm text-zinc-500 dark:text-zinc-400 py-4 text-center">Nenhum usuário cadastrado. Crie um para permitir login com usuário e senha.</li>
+                      <li className="text-sm text-zinc-500 dark:text-zinc-400 py-6 text-center rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+                        Nenhum usuário cadastrado. Crie um para permitir login com usuário e senha.
+                      </li>
                     ) : (
                       users.map((u) => (
                         <li
                           key={u.id}
-                          className="flex items-center justify-between gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-white/5"
+                          className="flex items-center justify-between gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700"
                         >
                           <div className="min-w-0">
                             <p className="font-medium text-zinc-900 dark:text-white truncate">{u.username}</p>
@@ -381,7 +412,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                             )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
-                            <button type="button" onClick={() => startEdit(u)} className="p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-400" title="Editar">
+                            <button type="button" onClick={() => startEdit(u)} className="p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400" title="Editar">
                               <Pencil className="w-4 h-4" />
                             </button>
                             <button

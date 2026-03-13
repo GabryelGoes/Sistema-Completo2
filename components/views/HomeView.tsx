@@ -8,16 +8,19 @@ import {
   Lock,
   LogOut,
   User,
+  Users,
   FlaskConical,
   ExternalLink,
 } from 'lucide-react';
 import { PatioCarIcon } from '../ui/PatioCarIcon';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
+import { WorkshopTechniciansModal } from '../WorkshopTechniciansModal';
 import { ChangePasswordsModal } from '../ChangePasswordsModal';
 import { TechnicianProfileModal } from '../TechnicianProfileModal';
 import { AdminProfileModal } from '../AdminProfileModal';
 import { SystemUsersModal } from '../SystemUsersModal';
 import { UserProfileModal } from '../UserProfileModal';
+import type { SystemUserPermissions } from '../../services/apiService';
 
 export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'settings';
 
@@ -47,6 +50,12 @@ interface HomeViewProps {
   adminDisplayName?: string;
   /** Chamado após salvar o perfil do administrador (nome/foto) para o App atualizar o nome exibido */
   onAdminProfileSaved?: () => void;
+  /** Permissões do usuário do sistema (para exibir Ferramentas conforme acesso) */
+  systemUserPermissions?: SystemUserPermissions;
+  /** Callbacks para abrir modais (usuário do sistema com permissão) */
+  onOpenSettings?: () => void;
+  onOpenChangePasswords?: () => void;
+  onOpenTechnicians?: () => void;
 }
 
 /** Módulos operacionais: ícones com fundo sólido e ícone branco */
@@ -82,13 +91,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSystemUserProfileUpdated,
   adminDisplayName,
   onAdminProfileSaved,
+  systemUserPermissions,
+  onOpenSettings,
+  onOpenChangePasswords,
+  onOpenTechnicians,
 }) => {
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
   const [isChangePasswordsOpen, setIsChangePasswordsOpen] = useState(false);
+  const [isTechniciansOpen, setIsTechniciansOpen] = useState(false);
   const [isTechnicianProfileOpen, setIsTechnicianProfileOpen] = useState(false);
   const [isAdminProfileOpen, setIsAdminProfileOpen] = useState(false);
   const [isSystemUsersOpen, setIsSystemUsersOpen] = useState(false);
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
+
+  const perms = systemUserPermissions || {};
+  const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
 
   const quickApps = isTechnician
     ? QUICK_APPS.filter((a) => allowedTabs.includes(a.id))
@@ -177,6 +194,37 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </a>
         </section>
 
+        {/* Ferramentas (usuário do sistema com permissão) */}
+        {hasToolsAccess && (
+          <section className="pt-4 pb-4">
+            <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Ferramentas</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Configurações e recursos liberados para você</p>
+            <div className="rounded-xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+              {perms.access_settings && onOpenSettings && (
+                <button type="button" onClick={onOpenSettings} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Settings className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                  <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Configurações</span>
+                  <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                </button>
+              )}
+              {perms.access_change_passwords && onOpenChangePasswords && (
+                <button type="button" onClick={onOpenChangePasswords} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-600 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Lock className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                  <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Alterar senhas</span>
+                  <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                </button>
+              )}
+              {perms.access_technicians && onOpenTechnicians && (
+                <button type="button" onClick={onOpenTechnicians} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-teal-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Users className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                  <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Técnicos</span>
+                  <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Administração (só admin) */}
         {!isTechnician && (
           <section className="pt-4 pb-4">
@@ -196,6 +244,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <button type="button" onClick={() => setIsServicesModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors">
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-amber-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Wrench className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
                 <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Serviços da oficina</span>
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+              </button>
+              <button type="button" onClick={() => setIsTechniciansOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-teal-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Users className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Técnicos</span>
                 <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
               </button>
               <button type="button" onClick={() => setIsChangePasswordsOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors">
@@ -249,6 +302,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <>
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} />
           <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
+          <WorkshopTechniciansModal isOpen={isTechniciansOpen} onClose={() => setIsTechniciansOpen(false)} />
           <ChangePasswordsModal isOpen={isChangePasswordsOpen} onClose={() => setIsChangePasswordsOpen(false)} />
         </>
       )}
