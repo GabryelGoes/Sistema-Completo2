@@ -1887,9 +1887,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
       </div>
 
-      {/* Grid Unificado de Veículos — perspectiva para efeito 3D no hover */}
+      {/* Grid Unificado de Veículos — ordenado pela ordem dos estágios (Garantia → … → Orçamento não aprovado), depois por data */}
+      {(() => {
+        const stageOrder = SERVICE_ORDER_STAGES.map((s) => s.id);
+        const byStage = (a: TrelloCard, b: TrelloCard) => {
+          const ia = stageOrder.indexOf(a.idList);
+          const ib = stageOrder.indexOf(b.idList);
+          if (ia !== ib) return ia - ib;
+          return new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime();
+        };
+        const sortedCards = [...cards].sort(byStage);
+        return (
       <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-1" style={{ perspective: '1400px' }}>
-        {cards.map(card => {
+        {sortedCards.map(card => {
           const parts = card.name.split('-').map(s => s.trim());
           const model = parts[0] || card.name;
           const plate = isModuleMode ? '' : (parts[1] || '---');
@@ -2181,6 +2191,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
           );
         })}
       </div>
+        );
+      })()}
 
       {cards.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-zinc-600">
