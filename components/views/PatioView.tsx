@@ -2505,7 +2505,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* MODAL DETALHE DO VEÍCULO */}
       {selectedCard && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-           <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-4xl h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative">
+           <div className={`bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl w-full max-w-4xl h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative ${selectedCard.garantiaTag ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-white dark:ring-offset-[#0a0a0a] border-2 border-red-500/30' : 'border border-zinc-200/60 dark:border-white/[0.08]'}`}>
               
               <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
                 {can('canDeleteCards') && (
