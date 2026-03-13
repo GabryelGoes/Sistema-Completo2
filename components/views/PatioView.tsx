@@ -872,6 +872,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
         mileageKm: detail.mileage_km ?? '',
         issueDescription: '',
       };
+      // Garantir que a Recepção abra já no modo correto (veículo ou módulo)
+      try {
+        localStorage.setItem('app_reception_mode', isModuleMode ? 'module' : 'vehicle');
+      } catch (_) {}
       setSelectedHistoryCard(null);
       setIsHistoryOpen(false);
       if (onUseCustomerData) onUseCustomerData(customerData);
@@ -2343,20 +2347,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           </p>
                                        </div>
                                     </div>
-                                    {/* Placa Mercosul compacta */}
-                                    <div className="flex-shrink-0">
-                                      <div className="w-[120px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/20 select-none">
-                                        <div className="h-4 bg-[#003399] flex items-center justify-between px-2">
-                                          <span className="text-[7px] font-bold text-white tracking-wider">BRASIL</span>
-                                          <BrazilFlagIcon width={12} height={8} className="rounded-[2px] flex-shrink-0 border border-white/30" />
-                                        </div>
-                                        <div className="h-9 flex items-center justify-center bg-white">
-                                          <span className={`text-black font-mono text-xl font-black tracking-[0.2em] leading-none ${blurPlates ? 'blur-plate' : ''}`}>
-                                            {plate.toUpperCase()}
-                                          </span>
+                                    {/* Placa Mercosul compacta (apenas para veículos) */}
+                                    {!isModuleMode && (
+                                      <div className="flex-shrink-0">
+                                        <div className="w-[120px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/20 select-none">
+                                          <div className="h-4 bg-[#003399] flex items-center justify-between px-2">
+                                            <span className="text-[7px] font-bold text-white tracking-wider">BRASIL</span>
+                                            <BrazilFlagIcon width={12} height={8} className="rounded-[2px] flex-shrink-0 border border-white/30" />
+                                          </div>
+                                          <div className="h-9 flex items-center justify-center bg-white">
+                                            <span className={`text-black font-mono text-xl font-black tracking-[0.2em] leading-none ${blurPlates ? 'blur-plate' : ''}`}>
+                                              {plate.toUpperCase()}
+                                            </span>
+                                          </div>
                                         </div>
                                       </div>
-                                    </div>
+                                    )}
                                  </div>
                                  
                                  <div className="flex items-end justify-between mt-2 pt-3 border-t border-zinc-200/80 dark:border-zinc-800/70">
@@ -2428,20 +2434,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      </div>
 
                      <div className="flex flex-wrap items-center gap-4 text-zinc-700 dark:text-zinc-300">
-                         <div className="flex items-center">
-                            {/* PLACA MERCOSUL */}
-                            <div className="w-[140px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-xl shadow-black/20 select-none">
-                               <div className="h-5 bg-[#003399] flex items-center justify-between px-3 relative">
-                                  <span className="text-[8px] font-bold text-white tracking-wider">BRASIL</span>
-                                  <BrazilFlagIcon width={16} height={11} className="rounded-sm flex-shrink-0 border border-white/30" />
-                               </div>
-                               <div className="h-10 flex items-center justify-center bg-white">
-                                  <span className="text-black font-mono text-2xl font-black tracking-widest leading-none">
-                                     {(selectedHistoryCard.name.split('-')[1]?.trim() || '---').toUpperCase()}
-                                  </span>
-                               </div>
-                            </div>
-                         </div>
+                         {!isModuleMode && (
+                           <div className="flex items-center">
+                              {/* PLACA MERCOSUL */}
+                              <div className="w-[140px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-xl shadow-black/20 select-none">
+                                 <div className="h-5 bg-[#003399] flex items-center justify-between px-3 relative">
+                                    <span className="text-[8px] font-bold text-white tracking-wider">BRASIL</span>
+                                    <BrazilFlagIcon width={16} height={11} className="rounded-sm flex-shrink-0 border border-white/30" />
+                                 </div>
+                                 <div className="h-10 flex items-center justify-center bg-white">
+                                    <span className="text-black font-mono text-2xl font-black tracking-widest leading-none">
+                                       {(selectedHistoryCard.name.split('-')[1]?.trim() || '---').toUpperCase()}
+                                    </span>
+                                 </div>
+                              </div>
+                           </div>
+                         )}
                          <div className="flex items-center gap-2 px-4 py-2">
                             <User className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
                             <span className="text-lg font-medium text-zinc-900 dark:text-white">{selectedHistoryCard.name.split('-')[2]?.trim()}</span>
