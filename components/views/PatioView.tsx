@@ -93,9 +93,10 @@ function buildTechnicianNameMap(technicians: SystemUserTechnician[]): Record<str
 }
 
 function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string, string>, orderType: ServiceOrderType = 'vehicle'): TrelloCard {
+  const clientName = (o.customer_name ?? o.customers?.name ?? '').trim() || 'Cliente';
   const name = orderType === 'module'
-    ? `${o.vehicle_model || '—'} - ${o.module_identification || '—'} - ${o.customers?.name || 'Cliente'}`
-    : `${o.vehicle_model || 'Veículo'} - ${(o.plate || '---').toUpperCase()} - ${o.customers?.name || 'Cliente'}`;
+    ? `${o.vehicle_model || '—'} - ${o.module_identification || '—'} - ${clientName}`
+    : `${o.vehicle_model || 'Veículo'} - ${(o.plate || '---').toUpperCase()} - ${clientName}`;
   const techId = o.assigned_technician ?? null;
   const nameMap = technicianNameMap ?? {};
   const techName = techId ? (nameMap[techId] ?? techId) : null;

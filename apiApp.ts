@@ -953,13 +953,16 @@ export function createApiApp() {
         }
       }
 
-      const enriched = rows.map((r: Record<string, unknown> & { assigned_technician?: string | null }) => {
+      const enriched = rows.map((r: Record<string, unknown> & { assigned_technician?: string | null; customers?: { name?: string | null } | null } }) => {
         const tech = r.assigned_technician;
         const name =
           tech == null
             ? null
             : technicianNameMap[tech as string] ?? technicianNameMap[(tech as string).trim().toLowerCase()] ?? null;
-        return { ...r, assigned_technician_name: name };
+        const customerName = r.customers && typeof r.customers === "object" && "name" in r.customers
+          ? String((r.customers as { name?: string | null }).name ?? "").trim() || null
+          : null;
+        return { ...r, assigned_technician_name: name, customer_name: customerName };
       });
 
       return res.json(enriched);

@@ -52,6 +52,8 @@ export interface ServiceOrderListItem {
   created_at: string;
   updated_at: string;
   customers: { id: string; name: string; phone: string | null } | null;
+  /** Nome do cliente (preenchido pelo backend para garantir exibição no Pátio/Laboratório) */
+  customer_name?: string | null;
 }
 
 /** OS em detalhe (com cliente completo para Recepção) */
