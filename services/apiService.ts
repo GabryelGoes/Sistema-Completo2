@@ -599,12 +599,18 @@ export async function getServiceOrderComments(serviceOrderId: string): Promise<S
 export async function addServiceOrderComment(
   serviceOrderId: string,
   text: string,
-  authorDisplayName: string
+  authorDisplayName: string,
+  actor?: "admin" | "technician"
 ): Promise<ServiceOrderComment> {
+  const body: { text: string; authorDisplayName: string; actor?: "admin" | "technician" } = {
+    text: text.trim(),
+    authorDisplayName: authorDisplayName.trim(),
+  };
+  if (actor) body.actor = actor;
   const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/comments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: text.trim(), authorDisplayName: authorDisplayName.trim() }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));

@@ -1575,7 +1575,7 @@ export function createApiApp() {
       }
 
       const { id: serviceOrderId } = req.params;
-      const { text, authorDisplayName } = req.body;
+      const { text, authorDisplayName, actor } = req.body;
 
       if (typeof text !== "string" || !text.trim()) {
         return res.status(400).json({ error: "Campo text é obrigatório." });
@@ -1596,7 +1596,9 @@ export function createApiApp() {
         ? authorDisplayName.trim()
         : "Usuário";
 
-      const isAdminComment = /rei\s*do\s*abs/i.test(author);
+      // actor explícito evita bug: admin com nome diferente de "Rei do ABS" não receber notificação do próprio comentário
+      const isAdminComment =
+        actor === "admin" ? true : actor === "technician" ? false : /rei\s*do\s*abs/i.test(author);
       let authorPhotoUrl: string | null = null;
       if (isAdminComment) {
         const { data: setting } = await supabaseAdmin
@@ -1651,7 +1653,7 @@ export function createApiApp() {
         customer_name: customerName || null,
       };
 
-      // Admin só recebe notificação de comentários feitos por técnicos (não dos seus próprios)
+      // Comentário de técnico → notificar só o admin (admin não recebe notificação do próprio comentário)
       if (!isAdminComment) {
         await supabaseAdmin.from("notifications").insert({
           workshop_id: WORKSHOP_ID,
@@ -1661,9 +1663,21 @@ export function createApiApp() {
           target_slug: null,
         }).then(({ error: notifErr }) => { if (notifErr) console.error("[API] Erro ao criar notificação de comentário (admin):", notifErr); });
       }
-      // Comentário do admin: notificar todos os técnicos
+      // Comentário do admin → notificar o mecânico responsável do veículo; se não houver, notificar todos os técnicos
       if (isAdminComment) {
-        const technicianIds = await getTechnicianUserIds();
+        let technicianIds: string[] = [];
+        const assignedId = (so as { assigned_technician?: string | null }).assigned_technician;
+        if (assignedId && typeof assignedId === "string" && assignedId.trim()) {
+          const { data: techUser } = await supabaseAdmin
+            .from("workshop_system_users")
+            .select("id")
+            .eq("workshop_id", WORKSHOP_ID)
+            .eq("id", assignedId.trim())
+            .eq("is_technician", true)
+            .maybeSingle();
+          if (techUser) technicianIds = [techUser.id];
+        }
+        if (technicianIds.length === 0) technicianIds = await getTechnicianUserIds();
         for (const techId of technicianIds) {
           await supabaseAdmin.from("notifications").insert({
             workshop_id: WORKSHOP_ID,

@@ -84,6 +84,14 @@ function capitalizeFirst(str: string): string {
   return str.trim().split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
 
+/** Retorna apenas os dois primeiros nomes do cliente (ex.: "João Silva" a partir de "João Silva Santos"). */
+function firstTwoNames(fullName: string): string {
+  if (!fullName || !fullName.trim()) return fullName;
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 2) return fullName.trim();
+  return parts.slice(0, 2).join(' ');
+}
+
 function buildTechnicianNameMap(technicians: SystemUserTechnician[]): Record<string, string> {
   const map: Record<string, string> = {};
   technicians.forEach((t) => {
@@ -1023,7 +1031,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setNewComment('');
     setSendingComment(true);
     try {
-      await addServiceOrderComment(selectedCard.id, text, commentAuthorName);
+      await addServiceOrderComment(selectedCard.id, text, commentAuthorName, actorOptions?.actor);
       const comments = await getServiceOrderComments(selectedCard.id);
       setCardDetails(prev => prev ? {
         ...prev,
@@ -1998,7 +2006,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
                       <User className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
                       <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
-                        {customerName}
+                        {firstTwoNames(customerName)}
                       </span>
                     </div>
                   )}
