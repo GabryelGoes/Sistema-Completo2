@@ -541,7 +541,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [historyCardDetails, setHistoryCardDetails] = useState<{ actions: TrelloAction[], attachments: TrelloAttachment[] } | null>(null);
 
   // Área de lembretes (Pátio / Laboratório) — armazenados por tipo no navegador
-  type Reminder = { id: string; text: string; createdAt: string; done: boolean };
+  type Reminder = { id: string; text: string; createdAt: string; done: boolean; createdBy?: string };
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [newReminder, setNewReminder] = useState('');
@@ -552,7 +552,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const raw = localStorage.getItem(remindersStorageKey);
       if (raw) {
         const parsed = JSON.parse(raw) as Reminder[];
-        if (Array.isArray(parsed)) setReminders(parsed);
+        if (Array.isArray(parsed)) {
+          setReminders(
+            parsed.map((r) => ({
+              ...r,
+              // Para lembretes antigos que não tinham autor salvo
+              createdBy: r.createdBy || commentAuthorName || (isModuleMode ? 'Laboratório' : 'Pátio'),
+            }))
+          );
+        }
       }
     } catch {
       // ignore parse errors
@@ -3736,8 +3744,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   const trimmed = newReminder.trim();
                   if (!trimmed) return;
                   const now = new Date().toISOString();
+                  const createdBy = (commentAuthorName && commentAuthorName.trim()) || (isModuleMode ? 'Laboratório' : 'Pátio');
                   setReminders((prev) => [
-                    { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, text: trimmed, createdAt: now, done: false },
+                    {
+                      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                      text: trimmed,
+                      createdAt: now,
+                      done: false,
+                      createdBy,
+                    },
                     ...prev,
                   ]);
                   setNewReminder('');
@@ -3750,7 +3765,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     value={newReminder}
                     onChange={(e) => setNewReminder(e.target.value)}
                     placeholder={isModuleMode ? 'Adicionar lembrete para os módulos...' : 'Adicionar lembrete para o pátio...'}
-                    className="w-full px-4 py-3 rounded-2xl bg-white/90 dark:bg-white/6 border border-white/15 text-sm text-black dark:text-white placeholder:text-zinc-500 outline-none focus:border-brand-yellow/80 focus:ring-2 focus:ring-brand-yellow/40 transition-all"
+                    className="w-full px-4 py-3 rounded-2xl bg-white/90 dark:bg-white/6 border border-white/15 text-sm text-black placeholder:text-zinc-500 outline-none focus:border-brand-yellow/80 focus:ring-2 focus:ring-brand-yellow/40 transition-all"
                   />
                 </div>
                 <button
@@ -3803,12 +3818,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {r.text}
                           </p>
                           <p className="text-[10px] text-zinc-500 mt-0.5">
-                            {new Date(r.createdAt).toLocaleString('pt-BR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
+                            <span className="font-medium text-zinc-300">
+                              {r.createdBy || (isModuleMode ? 'Laboratório' : 'Pátio')}
+                            </span>
+                            <span className="mx-1.5 text-zinc-600">•</span>
+                            <span>
+                              {new Date(r.createdAt).toLocaleString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
                           </p>
                         </div>
                         <button
