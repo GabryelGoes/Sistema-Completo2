@@ -899,7 +899,7 @@ export function createApiApp() {
       let query = supabaseAdmin
         .from("service_orders")
         .select(
-          "id, os_number, customer_id, vehicle_model, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, created_at, updated_at, customers(id, name, phone)"
+          "id, os_number, customer_id, vehicle_model, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, created_at, updated_at"
         )
         .eq("workshop_id", WORKSHOP_ID)
         .order("created_at", { ascending: false });
@@ -919,6 +919,19 @@ export function createApiApp() {
       }
 
       const rows = data ?? [];
+      const customerIds = [...new Set((rows as { customer_id?: string }[]).map((r) => r.customer_id).filter(Boolean))] as string[];
+      const customerNameMap: Record<string, string> = {};
+      if (customerIds.length > 0) {
+        const { data: customersData } = await supabaseAdmin
+          .from("customers")
+          .select("id, name")
+          .in("id", customerIds);
+        (customersData ?? []).forEach((c: { id: string; name?: string | null }) => {
+          const n = (c.name ?? "").trim();
+          if (c.id && n) customerNameMap[c.id] = n;
+        });
+      }
+
       const techValues = [...new Set(rows.map((r: { assigned_technician?: string | null }) => r.assigned_technician).filter(Boolean))] as string[];
       const technicianNameMap: Record<string, string> = {};
 
@@ -953,15 +966,13 @@ export function createApiApp() {
         }
       }
 
-      const enriched = rows.map((r: Record<string, unknown> & { assigned_technician?: string | null; customers?: { name?: string | null } | null } }) => {
+      const enriched = rows.map((r: Record<string, unknown> & { assigned_technician?: string | null; customer_id?: string }) => {
         const tech = r.assigned_technician;
         const name =
           tech == null
             ? null
             : technicianNameMap[tech as string] ?? technicianNameMap[(tech as string).trim().toLowerCase()] ?? null;
-        const customerName = r.customers && typeof r.customers === "object" && "name" in r.customers
-          ? String((r.customers as { name?: string | null }).name ?? "").trim() || null
-          : null;
+        const customerName = (r.customer_id && customerNameMap[r.customer_id]) ? customerNameMap[r.customer_id] : null;
         return { ...r, assigned_technician_name: name, customer_name: customerName };
       });
 
