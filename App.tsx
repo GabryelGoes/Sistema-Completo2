@@ -376,10 +376,8 @@ export default function App() {
 
       </main>
 
-      {/* Navigation - Oculta na home */}
-      {currentTab !== 'home' && (
-        <TabBar currentTab={currentTab} onTabChange={setCurrentTab} />
-      )}
+      {/* Navigation - sempre visível, inclusive na home */}
+      <TabBar currentTab={currentTab} onTabChange={setCurrentTab} />
 
       {/* Global Modals */}
       <SettingsModal
