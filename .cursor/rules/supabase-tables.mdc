@@ -7,7 +7,7 @@ alwaysApply: true
 
 Quando estiver criando ou evoluindo o app e for necessário **criar ou alterar tabelas** no Supabase:
 
-1. **Use o MCP Supabase** (servidor `plugin-supabase-supabase`) para aplicar mudanças no banco.
+1. **Use o MCP Supabase** (servidor `supabase` em `.cursor/mcp.json`; veja `.cursor/MCP_SETUP.md` para configurar) para aplicar mudanças no banco.
 2. **Descubra o project_id** com `list_projects` se ainda não souber qual projeto usar (o app usa a URL em `.env`; o ref do projeto está na URL, ex.: `hvxzloicztmwxmtnwfii`).
 3. **Para DDL (CREATE/ALTER TABLE, etc.)** use `apply_migration`: informe `project_id`, `name` (snake_case) e `query` (SQL). Assim o histórico de migrações fica consistente no Supabase.
 4. **Para consultas ou dados** use `execute_sql` (SELECT, INSERT, etc.).
