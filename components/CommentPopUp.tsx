@@ -35,15 +35,15 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
   const titleClass = isDark ? 'text-white' : 'text-zinc-900';
   const subtitleClass = isDark ? 'text-zinc-400' : 'text-zinc-500';
   const bubbleClass = isDark
-    ? 'bg-white/10 text-zinc-100 border border-white/[0.06]'
-    : 'bg-zinc-100 text-zinc-800 border border-zinc-200/80';
+    ? 'bg-emerald-900/35 text-emerald-100 border border-emerald-700/40'
+    : 'bg-emerald-100/90 text-emerald-900 border border-emerald-200/80';
   const closeBtnClass = isDark
     ? 'text-zinc-400 hover:text-white hover:bg-white/10'
     : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100';
   const inputClass = isDark
     ? 'bg-white/5 border-white/10 text-white placeholder-zinc-500 focus:border-white/20 focus:ring-0'
     : 'bg-zinc-100/80 border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-brand-yellow/40 focus:ring-2 focus:ring-brand-yellow/20';
-  const sendBtnClass = 'bg-brand-yellow hover:bg-amber-400 active:scale-[0.98] disabled:opacity-50 text-black flex items-center justify-center shrink-0 transition-transform';
+  const sendBtnClass = 'bg-emerald-300 hover:bg-emerald-400 active:scale-[0.98] disabled:opacity-50 text-emerald-900 flex items-center justify-center shrink-0 transition-transform rounded-full';
 
   const p = notification.payload;
   const orderId = p.service_order_id;
@@ -214,7 +214,7 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
             <button
               type="submit"
               disabled={sending || !reply.trim()}
-              className={`w-12 h-12 rounded-2xl ${sendBtnClass}`}
+              className={`w-12 h-12 ${sendBtnClass}`}
             >
               {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" strokeWidth={2.2} />}
             </button>
