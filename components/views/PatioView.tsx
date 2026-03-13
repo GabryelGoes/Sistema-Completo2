@@ -540,6 +540,34 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [loadingHistoryDetails, setLoadingHistoryDetails] = useState(false);
   const [historyCardDetails, setHistoryCardDetails] = useState<{ actions: TrelloAction[], attachments: TrelloAttachment[] } | null>(null);
 
+  // Área de lembretes (Pátio / Laboratório) — armazenados por tipo no navegador
+  type Reminder = { id: string; text: string; createdAt: string; done: boolean };
+  const [isRemindersOpen, setIsRemindersOpen] = useState(false);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [newReminder, setNewReminder] = useState('');
+  const remindersStorageKey = orderType === 'module' ? 'patio-reminders-module' : 'patio-reminders-vehicle';
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(remindersStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Reminder[];
+        if (Array.isArray(parsed)) setReminders(parsed);
+      }
+    } catch {
+      // ignore parse errors
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remindersStorageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(remindersStorageKey, JSON.stringify(reminders));
+    } catch {
+      // ignore quota errors
+    }
+  }, [reminders, remindersStorageKey]);
+
   // --- Attachment States ---
   const [isUploading, setIsUploading] = useState(false);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -743,7 +771,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setHistoryShowingFallback(false);
     try {
       const orders = await getServiceOrders('CANCELLED', orderType);
-      const nameMap = buildTechnicianNameMap(workshopTechnicians);
+      const nameMap = buildTechnicianNameMap(systemTechnicians);
       const list = orders.map((o) => orderToCard(o, nameMap, orderType));
       setRecentArchivedCards(list);
       setArchivedCards(list);
@@ -762,7 +790,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setHistoryShowingFallback(false);
     try {
       const orders = await getServiceOrders('CANCELLED', orderType);
-      const nameMap = buildTechnicianNameMap(workshopTechnicians);
+      const nameMap = buildTechnicianNameMap(systemTechnicians);
       if (!term) {
         const list = orders.map((o) => orderToCard(o, nameMap, orderType));
         setRecentArchivedCards(list);
@@ -1854,7 +1882,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   // Membros permitidos: apenas técnicos cadastrados na tela inicial
   const allowedMembers = allMembers.filter(m =>
-    workshopTechnicians.some(t => t.slug === m.id || m.fullName.toLowerCase().includes(t.name.toLowerCase()))
+    systemTechnicians.some(t => t.id === m.id || m.fullName.toLowerCase().includes(t.display_name?.toLowerCase() ?? ""))
   );
 
   return (
@@ -1863,7 +1891,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
       
       {/* Header Fixo no Topo da Página */}
-      <div className="relative z-10 flex items-center justify-between mb-8 px-2">
+      <div className="relative z-10 flex items-center justify-between gap-4 mb-8 px-2">
         <div className="flex items-center gap-4">
           <img src="/logo.png" alt="Logo" className="h-20 w-auto object-contain bg-black rounded-xl p-2" />
           <div>
@@ -1874,6 +1902,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
               {cards.length} {isModuleMode ? 'Módulos' : 'Veículos'} na oficina
             </p>
           </div>
+        </div>
+
+        {/* Botão central de Lembretes (agora também visível no mobile) */}
+        <div className="flex flex-1 justify-center">
+          <button
+            type="button"
+            onClick={() => setIsRemindersOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white/80 dark:bg-white/10 border border-zinc-200/80 dark:border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.6)] backdrop-blur-xl text-sm font-semibold text-zinc-700 dark:text-zinc-100 hover:bg-white hover:border-brand-yellow/60 hover:text-zinc-900 dark:hover:bg-white/15 dark:hover:border-brand-yellow/70 transition-all duration-300 active:scale-[0.97]"
+          >
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand-yellow text-black text-xs font-bold shadow-[0_0_0_1px_rgba(0,0,0,0.15)]">
+              !
+            </span>
+            <span className="tracking-tight">
+              {isModuleMode ? 'Lembretes do laboratório' : 'Lembretes do pátio'}
+            </span>
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -3614,6 +3658,140 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
               </div>
            </div>
+        </div>
+      )}
+
+      {/* --- MODAL DE LEMBRETES (PÁTIO / LABORATÓRIO) --- */}
+      {isRemindersOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xl p-4 animate-modal-backdrop">
+          <div className="relative w-full max-w-xl rounded-[1.75rem] bg-gradient-to-b from-zinc-900/95 via-black/95 to-zinc-950/95 border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.7)] overflow-hidden animate-modal-sheet">
+            {/* Top handle + título */}
+            <div className="pt-4 px-6 pb-3 border-b border-white/10 bg-white/5 backdrop-blur-2xl">
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-brand-yellow to-amber-400 flex items-center justify-center shadow-[0_8px_20px_rgba(251,191,36,0.65)]">
+                    <ClipboardList className="w-5 h-5 text-black" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
+                      {isModuleMode ? 'Laboratório' : 'Pátio'} · Lembretes
+                    </p>
+                    <h2 className="text-xl font-semibold text-white tracking-tight">
+                      Centro de Lembretes
+                    </h2>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsRemindersOpen(false)}
+                  className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-300 hover:bg-white/15 hover:text-white active:scale-95 transition-all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Conteúdo */}
+            <div className="px-6 pt-4 pb-5 space-y-4 bg-gradient-to-b from-white/5 to-transparent">
+              {/* Campo novo lembrete */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const trimmed = newReminder.trim();
+                  if (!trimmed) return;
+                  const now = new Date().toISOString();
+                  setReminders((prev) => [
+                    { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, text: trimmed, createdAt: now, done: false },
+                    ...prev,
+                  ]);
+                  setNewReminder('');
+                }}
+                className="flex items-center gap-3"
+              >
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={newReminder}
+                    onChange={(e) => setNewReminder(e.target.value)}
+                    placeholder={isModuleMode ? 'Adicionar lembrete para os módulos...' : 'Adicionar lembrete para o pátio...'}
+                    className="w-full px-4 py-3 rounded-2xl bg-white/6 border border-white/15 text-sm text-white placeholder:text-zinc-500 outline-none focus:border-brand-yellow/80 focus:ring-2 focus:ring-brand-yellow/40 transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={!newReminder.trim()}
+                  className="w-10 h-10 rounded-full bg-brand-yellow text-black flex items-center justify-center font-bold text-xl shadow-[0_10px_25px_rgba(250,204,21,0.8)] disabled:opacity-50 disabled:shadow-none active:scale-95 transition-transform"
+                >
+                  +
+                </button>
+              </form>
+
+              {/* Lista de lembretes */}
+              <div className="max-h-[320px] overflow-y-auto custom-scrollbar pr-1">
+                {reminders.length === 0 ? (
+                  <div className="py-10 text-center text-zinc-500 text-sm">
+                    Nenhum lembrete por aqui. Comece adicionando algo para o time não esquecer.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {reminders.map((r) => (
+                      <div
+                        key={r.id}
+                        className={`group flex items-center gap-3 px-3 py-2.5 rounded-2xl border backdrop-blur-xl bg-white/[0.03] hover:bg-white/[0.06] transition-colors ${
+                          r.done ? 'opacity-60 border-zinc-700' : 'border-zinc-700/70'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReminders((prev) =>
+                              prev.map((item) =>
+                                item.id === r.id ? { ...item, done: !item.done } : item
+                              )
+                            )
+                          }
+                          className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all ${
+                            r.done
+                              ? 'bg-emerald-400 border-emerald-300 text-emerald-900'
+                              : 'border-zinc-500 text-zinc-400 group-hover:border-brand-yellow/80 group-hover:text-brand-yellow'
+                          }`}
+                        >
+                          {r.done && <Check className="w-3 h-3" />}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={`text-sm text-zinc-100 break-words ${
+                              r.done ? 'line-through decoration-zinc-500/70' : ''
+                            }`}
+                          >
+                            {r.text}
+                          </p>
+                          <p className="text-[10px] text-zinc-500 mt-0.5">
+                            {new Date(r.createdAt).toLocaleString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReminders((prev) => prev.filter((item) => item.id !== r.id))
+                          }
+                          className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-red-400 hover:border-red-500/60 hover:bg-red-500/10 active:scale-95 transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
