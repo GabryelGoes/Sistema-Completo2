@@ -57,6 +57,8 @@ export default function App() {
 
   // Nome do admin (vem das configurações da oficina; atualizado ao salvar no Perfil do administrador)
   const [adminDisplayName, setAdminDisplayName] = useState<string>('Rei do ABS');
+  // Dispara refresh da lista em "Usuários do sistema" quando o admin salva o perfil
+  const [systemUsersRefreshTrigger, setSystemUsersRefreshTrigger] = useState(0);
 
   // Usuário limitado: abas conforme permissões
   function permissionsToTabs(perms: SystemUserPermissions | undefined): TabId[] {
@@ -121,6 +123,7 @@ export default function App() {
     getWorkshopSettings()
       .then((s) => setAdminDisplayName(s.adminDisplayName ?? 'Rei do ABS'))
       .catch(() => {});
+    setSystemUsersRefreshTrigger((t) => t + 1);
   };
 
   // Função chamada pelo Pátio para preencher a Recepção com dados de um veículo
@@ -323,6 +326,7 @@ export default function App() {
             onLogout={handleLogout}
             adminDisplayName={authSession?.role === 'admin' ? adminDisplayName : undefined}
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
+            systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
           />
         )}
 

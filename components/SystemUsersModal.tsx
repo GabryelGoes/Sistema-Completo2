@@ -82,9 +82,11 @@ const DEFAULT_PERMISSIONS: SystemUserPermissions = {};
 interface SystemUsersModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Quando mudar (ex.: após admin salvar perfil), recarrega a lista se o modal estiver desbloqueado */
+  refreshTrigger?: number;
 }
 
-export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onClose }) => {
+export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onClose, refreshTrigger }) => {
   const [adminPassword, setAdminPassword] = useState('');
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -109,6 +111,12 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
       setError(null);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && unlocked && adminPassword && refreshTrigger != null && refreshTrigger > 0) {
+      loadUsers();
+    }
+  }, [refreshTrigger]);
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,7 +189,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
           setSaving(false);
           return;
         }
-        await createSystemUser(adminPassword, {
+        const created = await createSystemUser(adminPassword, {
           username: formUsername.trim(),
           password: formPassword,
           displayName: formDisplayName.trim() || undefined,
@@ -189,17 +197,19 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
           isTechnician: formIsTechnician,
           jobTitle: formJobTitle.trim() || null,
         });
+        setUsers((prev) => [...prev, created]);
       } else {
-        await updateSystemUser(editingId, adminPassword, {
+        const updated = await updateSystemUser(editingId, adminPassword, {
           password: formPassword.length >= 4 ? formPassword : undefined,
           displayName: formDisplayName.trim() || undefined,
           permissions: formPermissions,
           isTechnician: formIsTechnician,
           jobTitle: formJobTitle.trim() || null,
         });
+        setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       }
-      await loadUsers();
       cancelEdit();
+      await loadUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao salvar.');
     } finally {
@@ -212,8 +222,9 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
     setDeletingId(id);
     try {
       await deleteSystemUser(id, adminPassword);
-      await loadUsers();
+      setUsers((prev) => prev.filter((u) => u.id !== id));
       if (editingId === id) cancelEdit();
+      await loadUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao excluir.');
     } finally {

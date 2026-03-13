@@ -50,6 +50,8 @@ interface HomeViewProps {
   adminDisplayName?: string;
   /** Chamado após salvar o perfil do administrador (nome/foto) para o App atualizar o nome exibido */
   onAdminProfileSaved?: () => void;
+  /** Quando mudar, o modal Usuários do sistema recarrega a lista (ex.: após admin salvar perfil) */
+  systemUsersRefreshTrigger?: number;
   /** Permissões do usuário do sistema (para exibir Ferramentas conforme acesso) */
   systemUserPermissions?: SystemUserPermissions;
   /** Callbacks para abrir modais (usuário do sistema com permissão) */
@@ -91,6 +93,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSystemUserProfileUpdated,
   adminDisplayName,
   onAdminProfileSaved,
+  systemUsersRefreshTrigger,
   systemUserPermissions,
   onOpenSettings,
   onOpenChangePasswords,
@@ -300,7 +303,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {!isTechnician && (
         <>
-          <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} />
+          <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />
           <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
           <WorkshopTechniciansModal isOpen={isTechniciansOpen} onClose={() => setIsTechniciansOpen(false)} />
           <ChangePasswordsModal isOpen={isChangePasswordsOpen} onClose={() => setIsChangePasswordsOpen(false)} />
