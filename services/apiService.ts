@@ -67,6 +67,7 @@ export interface ServiceOrderDetail {
   issue_description: string | null;
   ai_analysis: string | null;
   status: string;
+  order_type?: ServiceOrderType;
   created_at: string;
   updated_at: string;
   customers: ApiCustomer | null;
@@ -497,6 +498,25 @@ export async function updateServiceOrderVehicle(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao atualizar veículo/placa (${response.status})`);
+  }
+  return response.json();
+}
+
+/** Altera o tipo do cadastro: veículo (Pátio) ↔ módulo (Laboratório). */
+export async function updateServiceOrderType(
+  id: string,
+  orderType: ServiceOrderType,
+  options?: ServiceOrderUpdateActor
+): Promise<ApiServiceOrder> {
+  const body = mergeActorIntoBody({ orderType }, options);
+  const response = await fetch(`${API_BASE}/service-orders/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao alterar tipo (${response.status})`);
   }
   return response.json();
 }

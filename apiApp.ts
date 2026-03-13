@@ -2386,7 +2386,7 @@ export function createApiApp() {
       }
 
       const { id } = req.params;
-      const { status, issueDescription, aiAnalysis, assignedTechnician, garantiaTag, mileageKm, deliveryDate, vehicleModel, moduleIdentification, plate, actor, actorTechnicianSlug, actorTechnicianName } = req.body;
+      const { status, issueDescription, aiAnalysis, assignedTechnician, garantiaTag, mileageKm, deliveryDate, vehicleModel, moduleIdentification, plate, orderType: bodyOrderType, actor, actorTechnicianSlug, actorTechnicianName } = req.body;
       const isAdminActor = actor !== "technician";
 
       const updatePayload: any = {};
@@ -2438,6 +2438,13 @@ export function createApiApp() {
       }
       if (garantiaTag === false) {
         updatePayload.garantia_tag = false;
+      }
+      if (bodyOrderType === "vehicle" || bodyOrderType === "module") {
+        updatePayload.order_type = bodyOrderType;
+        if (bodyOrderType === "module") {
+          updatePayload.plate = null;
+          updatePayload.mileage_km = null;
+        }
       }
 
       if (Object.keys(updatePayload).length === 0) {

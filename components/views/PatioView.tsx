@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, Wrench, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2 } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, Wrench, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2 } from 'lucide-react';
 import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer } from '../../types';
 import {
   getServiceOrders,
@@ -12,6 +12,7 @@ import {
   updateServiceOrderMileage,
   updateServiceOrderDeliveryDate,
   updateServiceOrderVehicle,
+  updateServiceOrderType,
   getServiceOrderPhotos,
   uploadServiceOrderPhoto,
   renameServiceOrderPhoto,
@@ -422,6 +423,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [editFichaSaving, setEditFichaSaving] = useState(false);
   /** Seção "Dados da ficha" no modal: começa minimizada. */
   const [isDadosFichaExpanded, setIsDadosFichaExpanded] = useState(false);
+  /** Portabilidade Pátio ↔ Laboratório: em progresso */
+  const [isConvertingType, setIsConvertingType] = useState(false);
 
   useEffect(() => {
     if (selectedCard?.id) setIsDadosFichaExpanded(false);
@@ -3537,6 +3540,53 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   </div>
                                )}
                             </div>
+                         </div>
+
+                         {/* Portabilidade: transferir cadastro entre Pátio (veículo) e Laboratório (módulo) */}
+                         <div className="h-px bg-zinc-200 dark:bg-zinc-800 mt-6"></div>
+                         <div className="pt-6">
+                            <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-2">
+                               <ArrowRightLeft className="w-4 h-4" />
+                               Portabilidade
+                            </h3>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+                               Este cadastro foi registrado como {(serviceOrderDetail?.order_type ?? orderType) === 'module' ? 'módulo (Laboratório)' : 'veículo (Pátio)'}. 
+                               Se estiver errado, transfira para a outra área.
+                            </p>
+                            {selectedCard && (() => {
+                               const currentType = (serviceOrderDetail?.order_type ?? orderType) as ServiceOrderType;
+                               const targetType: ServiceOrderType = currentType === 'vehicle' ? 'module' : 'vehicle';
+                               const targetLabel = targetType === 'vehicle' ? 'Pátio (veículo)' : 'Laboratório (módulo)';
+                               return (
+                                  <button
+                                     type="button"
+                                     disabled={isConvertingType}
+                                     onClick={async () => {
+                                        if (!selectedCard || !confirm(`Transferir este cadastro para o ${targetLabel}? Ele sairá da lista atual e aparecerá na outra área.`)) return;
+                                        setIsConvertingType(true);
+                                        try {
+                                           await updateServiceOrderType(selectedCard.id, targetType, actorOptions);
+                                           await fetchData(true);
+                                           setServiceOrderDetail(prev => prev ? { ...prev, order_type: targetType } : null);
+                                           setSelectedCard(null);
+                                           setCardDetails(null);
+                                        } catch (err: any) {
+                                           alert(err?.message ?? 'Erro ao transferir.');
+                                        } finally {
+                                           setIsConvertingType(false);
+                                        }
+                                     }}
+                                     className="flex items-center gap-3 w-full px-4 py-3 rounded-xl border-2 border-amber-500/50 dark:border-amber-500/50 bg-amber-500/10 dark:bg-amber-500/10 hover:bg-amber-500/20 dark:hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                  >
+                                     {isConvertingType ? (
+                                        <RefreshCw className="w-5 h-5 shrink-0 animate-spin" />
+                                     ) : (
+                                        <ArrowRightLeft className="w-5 h-5 shrink-0" />
+                                     )}
+                                     <span>Transferir para o {targetLabel}</span>
+                                  </button>
+                               );
+                            })()}
                          </div>
 
                       </div>
