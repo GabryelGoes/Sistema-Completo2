@@ -1893,7 +1893,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           const parts = card.name.split('-').map(s => s.trim());
           const model = parts[0] || card.name;
           const plate = isModuleMode ? '' : (parts[1] || '---');
-          const customerName = isModuleMode ? (parts[1] || '') : (parts[2] || '');
+          const customerName = parts[2] || '';
           
           const currentList = lists.find(l => l.id === card.idList);
           const listName = currentList ? currentList.name : 'Desconhecido';
