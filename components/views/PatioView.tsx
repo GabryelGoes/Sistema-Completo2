@@ -3750,7 +3750,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     value={newReminder}
                     onChange={(e) => setNewReminder(e.target.value)}
                     placeholder={isModuleMode ? 'Adicionar lembrete para os módulos...' : 'Adicionar lembrete para o pátio...'}
-                    className="w-full px-4 py-3 rounded-2xl bg-white/90 dark:bg-white/6 border border-white/15 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-500 outline-none focus:border-brand-yellow/80 focus:ring-2 focus:ring-brand-yellow/40 transition-all"
+                    className="w-full px-4 py-3 rounded-2xl bg-white/90 dark:bg-white/6 border border-white/15 text-sm text-black dark:text-white placeholder:text-zinc-500 outline-none focus:border-brand-yellow/80 focus:ring-2 focus:ring-brand-yellow/40 transition-all"
                   />
                 </div>
                 <button
