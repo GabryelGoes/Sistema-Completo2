@@ -256,7 +256,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <h2 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider border-b border-zinc-200 dark:border-brand-border pb-2">
                 Dados do cliente
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
                 <Input 
                   label="Nome Completo"
                   name="name"
@@ -265,6 +265,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   onChange={handleInputChange}
                   icon={<User className="w-4 h-4" />}
                 />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input 
                   label="CPF"
                   name="cpf"
@@ -273,8 +275,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   onChange={handleInputChange}
                   icon={<ShieldCheck className="w-4 h-4" />}
                 />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input 
                   label="Telefone"
                   name="phone"
