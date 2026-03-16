@@ -1,0 +1,18 @@
+---
+description: Fazer commit e push automaticamente após alterações solicitadas pelo usuário
+alwaysApply: true
+---
+
+# Commit e push automático
+
+Quando o usuário pedir para você **alterar** algo no projeto (código, config, etc.):
+
+1. **Depois de aplicar as alterações**, execute commit e push no repositório correto:
+   - Se as alterações forem em arquivos dentro de **Patio-View/** → fazer commit e push no repositório **Patio-View** (`d:\RDA-Trello\Patio-View`).
+   - Se as alterações forem em outros arquivos do workspace → fazer commit e push no repositório **raiz** (`d:\RDA-Trello`).
+
+2. **Mensagem de commit**: use uma mensagem curta e descritiva em português do que foi alterado.
+
+3. **Não** fazer commit/push de pastas temporárias (ex.: `supabase/.temp/`) nem de arquivos que o usuário não pediu para versionar.
+
+Não é necessário o usuário pedir explicitamente "faça commit e push" — faça-o automaticamente ao final da tarefa de alteração.
