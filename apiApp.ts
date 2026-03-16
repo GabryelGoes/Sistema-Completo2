@@ -1230,7 +1230,7 @@ export function createApiApp() {
         return res.status(400).json({ error: "Corpo inválido: envie path e newName." });
       }
 
-      const trimmedNewName = newName.trim().replace(/\s+/g, "_");
+      let trimmedNewName = newName.trim().replace(/\s+/g, "_");
       if (!trimmedNewName) {
         return res.status(400).json({ error: "Novo nome não pode ser vazio." });
       }
@@ -1251,7 +1251,23 @@ export function createApiApp() {
         return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
       }
 
-      const newPath = `${folderPath}/${trimmedNewName}`;
+      // Preservar extensão do arquivo original (Storage exige key válida)
+      const currentFileName = currentPath.slice(folderPath.length + 1);
+      const lastDot = currentFileName.lastIndexOf(".");
+      const ext = lastDot > 0 ? currentFileName.slice(lastDot) : "";
+      if (ext && !trimmedNewName.toLowerCase().endsWith(ext.toLowerCase())) {
+        trimmedNewName = trimmedNewName + ext;
+      }
+
+      // Normalizar nome para ASCII (evitar "Invalid key" no Supabase Storage com acentos)
+      const safeName = trimmedNewName
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "")
+        .replace(/[^\w\s.-]/g, "_")
+        .replace(/\s+/g, "_")
+        .trim() || trimmedNewName;
+
+      const newPath = `${folderPath}/${safeName}`;
       const bucket = VEHICLE_PHOTOS_BUCKET;
 
       const { error: moveError } = await supabaseAdmin.storage
@@ -1269,7 +1285,7 @@ export function createApiApp() {
 
       return res.json({
         url: publicUrl,
-        name: trimmedNewName,
+        name: safeName,
         path: newPath,
       });
     } catch (err: any) {
