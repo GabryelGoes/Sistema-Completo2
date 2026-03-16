@@ -60,9 +60,10 @@ export default function App() {
   // Dispara refresh da lista em "Usuários do sistema" quando o admin salva o perfil
   const [systemUsersRefreshTrigger, setSystemUsersRefreshTrigger] = useState(0);
 
-  // Usuário limitado: abas conforme permissões
+  // Usuário limitado: abas conforme permissões (full_access = todas as abas)
   function permissionsToTabs(perms: SystemUserPermissions | undefined): TabId[] {
     if (!perms) return ['home'];
+    if (perms.full_access) return ['home', 'reception', 'agenda', 'patio', 'laboratorio'];
     const t: TabId[] = [];
     if (perms.access_home) t.push('home');
     if (perms.access_reception) t.push('reception');
@@ -72,6 +73,7 @@ export default function App() {
     return t.length ? t : ['home'];
   }
   const userAllowedTabs = authSession?.role === 'user' ? permissionsToTabs(authSession.permissions) : [];
+  const hasFullAccess = authSession?.role === 'user' && !!authSession?.permissions?.full_access;
   const [userTab, setUserTab] = useState<TabId>('home');
 
   // Agenda é carregada pela AgendaView via API (Supabase); não usa mais localStorage.
@@ -167,8 +169,8 @@ export default function App() {
     );
   }
 
-  // Usuário limitado (logins criados pelo admin): abas e ações conforme permissões
-  if (authSession.role === 'user') {
+  // Usuário limitado (logins criados pelo admin): abas e ações conforme permissões (full_access usa o app completo abaixo)
+  if (authSession.role === 'user' && !hasFullAccess) {
     const perms = authSession.permissions || {};
     const patioPerms = {
       canDeleteCards: perms.patio_delete_cards,
@@ -325,6 +327,21 @@ export default function App() {
           <HomeView
             onOpenApp={handleHomeOpenApp}
             onLogout={handleLogout}
+            isTechnician={false}
+            isSystemUser={authSession?.role === 'user'}
+            systemUserUsername={authSession?.role === 'user' ? (authSession.username ?? '') : ''}
+            systemUserDisplayName={authSession?.role === 'user' ? (authSession.displayName ?? '') : ''}
+            systemUserPhotoUrl={authSession?.role === 'user' ? authSession.photoUrl ?? null : null}
+            systemUserAccentColor={authSession?.role === 'user' ? authSession.accentColor ?? null : null}
+            systemUserProfileToken={authSession?.role === 'user' ? authSession.profileToken : undefined}
+            systemUserIsTechnician={authSession?.role === 'user' ? (authSession.isTechnician ?? false) : false}
+            systemUserPermissions={authSession?.role === 'user' ? authSession.permissions : undefined}
+            onSystemUserProfileUpdated={authSession?.role === 'user' ? (data) => {
+              if (authSession?.role !== 'user') return;
+              const next = { ...authSession, ...(data.displayName !== undefined && { displayName: data.displayName }), ...(data.photoUrl !== undefined && { photoUrl: data.photoUrl }), ...(data.accentColor !== undefined && { accentColor: data.accentColor }) };
+              setAuthSession(next);
+              try { setStoredAuth(next); } catch (_) {}
+            } : undefined}
             adminDisplayName={authSession?.role === 'admin' ? adminDisplayName : undefined}
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
@@ -390,7 +407,7 @@ export default function App() {
         cinematographicMode={cinematographicMode}
         onCinematographicModeChange={setCinematographicMode}
         orientation={orientation}
-        showPatioAccess={authSession?.role === 'admin'}
+        showPatioAccess={authSession?.role === 'admin' || hasFullAccess}
       />
 
       {/* Central de notificações: admin vê notificações do admin; técnicos veem as deles (target_slug = userId). Só ativa modo técnico quando userId existe para o pop-up de comentários aparecer. */}

@@ -2147,30 +2147,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               </div>
 
-              {/* Botões de Ação Inferiores — estilo iOS */}
+              {/* Botões de Ação Inferiores — estilo iOS (checklists só no modal do veículo) */}
               <div className="relative w-full mt-auto space-y-3">
-                {/* Botões de checklist (templates criados pelo admin) */}
-                {checklistTemplates.map((tpl) => (
-                  <button
-                    key={tpl.id}
-                    onClick={(e) => { e.stopPropagation(); setActiveChecklistCardId(card.id); setActiveChecklistTemplateId(tpl.id); }}
-                    className="
-                      w-full py-2.5 px-4 rounded-2xl
-                      bg-light-card dark:bg-white/[0.06] border border-light-border dark:border-white/[0.08]
-                      flex items-center justify-between
-                      text-xs uppercase font-bold tracking-widest text-zinc-600 dark:text-zinc-300
-                      hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.99]
-                      group-checklist
-                    "
-                  >
-                    <div className="flex items-center gap-2">
-                      <ClipboardList className="w-4 h-4 text-brand-yellow" />
-                      {tpl.name.toUpperCase()}
-                    </div>
-                    <span className="text-[10px]">{tpl.items.length} itens</span>
-                  </button>
-                ))}
-
                 {/* Botão ENTREGUE (Apenas se Finalizado) */}
                 {can('canArchiveCard') && showDeliverButton && (
                     <button

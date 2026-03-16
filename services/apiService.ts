@@ -1189,6 +1189,8 @@ export async function uploadWorkshopAdminPhoto(file: Blob, fileName?: string): P
 
 /** Permissões de um usuário do sistema (não-admin). */
 export interface SystemUserPermissions {
+  /** Acesso completo igual ao administrador (todas as telas, Administração e ações no Pátio). */
+  full_access?: boolean;
   access_home?: boolean;
   access_reception?: boolean;
   access_agenda?: boolean;

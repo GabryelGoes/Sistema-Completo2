@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Pencil, Trash2, Loader2, LayoutGrid, Settings, Car, User } from 'lucide-react';
+import { X, Plus, Pencil, Trash2, Loader2, LayoutGrid, Settings, Car, User, ShieldCheck } from 'lucide-react';
 import type { SystemUserPermissions, SystemUser } from '../services/apiService';
 import {
   getSystemUsers,
@@ -329,6 +329,24 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                       checked={formIsTechnician}
                       onChange={setFormIsTechnician}
                     />
+                  </section>
+
+                  {/* Acesso completo (igual ao admin) */}
+                  <section className="space-y-3">
+                    <div className="rounded-xl border-2 border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/50 p-4">
+                      <PermSwitch
+                        label="Acesso completo ao sistema"
+                        description="Igual ao administrador: todas as telas, seção Administração (usuários, configurações, serviços, checklists, técnicos, senhas) e todas as ações no Pátio/Laboratório."
+                        checked={!!formPermissions.full_access}
+                        onChange={(v) => setPerm('full_access', v)}
+                      />
+                      {formPermissions.full_access && (
+                        <p className="text-xs text-amber-700 dark:text-amber-300 mt-2 flex items-center gap-1.5">
+                          <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                          As permissões detalhadas abaixo são ignoradas quando o acesso completo está ativo.
+                        </p>
+                      )}
+                    </div>
                   </section>
 
                   {/* Acesso às telas */}

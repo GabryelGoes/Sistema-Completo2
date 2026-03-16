@@ -111,6 +111,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   const perms = systemUserPermissions || {};
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
+  /** Administração: admin ou usuário com acesso completo. Ferramentas: só usuário limitado (sem full_access). */
+  const showAdminSection = (!isTechnician && !isSystemUser) || (isSystemUser && !!perms.full_access);
+  const showToolsSection = hasToolsAccess && !perms.full_access;
 
   const quickApps = isTechnician
     ? QUICK_APPS.filter((a) => allowedTabs.includes(a.id))
@@ -205,8 +208,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           {/* Coluna direita: Ferramentas, Administração, Conta */}
           <div className="lg:space-y-6 lg:pt-6">
-            {/* Ferramentas (usuário do sistema com permissão) */}
-            {hasToolsAccess && (
+            {/* Ferramentas (usuário do sistema com permissão, sem acesso completo) */}
+            {showToolsSection && (
               <section className="pt-4 pb-4 lg:pt-0">
                 <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Ferramentas</h2>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Configurações e recursos liberados para você</p>
@@ -236,8 +239,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </section>
             )}
 
-            {/* Administração (só admin) */}
-            {!isTechnician && (
+        {/* Administração (admin ou usuário com acesso completo) */}
+        {showAdminSection && (
               <section className="pt-4 pb-4 lg:pt-0">
                 <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Administração</h2>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Usuários, configurações e senhas</p>
