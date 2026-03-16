@@ -292,7 +292,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   icon={<Mail className="w-4 h-4" />}
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
                 <Input 
                   label="Endereço"
                   name="address"
@@ -301,6 +301,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   onChange={handleInputChange}
                   icon={<Map className="w-4 h-4" />}
                 />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input 
                   label="CEP"
                   name="cep"
@@ -309,8 +311,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   onChange={handleInputChange}
                   icon={<MapPin className="w-4 h-4" />}
                 />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input 
                   label="Nº"
                   name="addressNumber"
