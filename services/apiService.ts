@@ -357,6 +357,97 @@ export async function getServiceOrderById(id: string): Promise<ServiceOrderDetai
   return response.json();
 }
 
+// ---------- Checklists do Pátio (templates criados pelo admin) ----------
+
+export interface ChecklistTemplateItem {
+  id: string;
+  text: string;
+  sort_order: number;
+}
+
+export interface ChecklistTemplate {
+  id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+  items: ChecklistTemplateItem[];
+}
+
+export async function getChecklistTemplates(): Promise<ChecklistTemplate[]> {
+  const response = await fetch(`${API_BASE}/workshop/checklist-templates`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar checklists (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function createChecklistTemplate(name: string, items: string[]): Promise<ChecklistTemplate> {
+  const response = await fetch(`${API_BASE}/workshop/checklist-templates`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name.trim(), items }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao criar checklist (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function updateChecklistTemplate(
+  id: string,
+  name: string,
+  items: string[]
+): Promise<ChecklistTemplate> {
+  const response = await fetch(`${API_BASE}/workshop/checklist-templates/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name.trim(), items }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar checklist (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteChecklistTemplate(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/workshop/checklist-templates/${id}`, { method: "DELETE" });
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir checklist (${response.status})`);
+  }
+}
+
+/** Estado dos itens por OS: template_item_id -> 'complete' | 'incomplete' */
+export async function getServiceOrderChecklistState(
+  serviceOrderId: string
+): Promise<Record<string, "complete" | "incomplete">> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/checklist-state`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar estado do checklist (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function updateServiceOrderChecklistItem(
+  serviceOrderId: string,
+  templateItemId: string,
+  state: "complete" | "incomplete"
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/checklist-state`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ templateItemId, state }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar item (${response.status})`);
+  }
+}
+
 /** Opções para identificar quem está fazendo a ação (admin vs técnico) — define quem recebe a notificação. */
 export interface ServiceOrderUpdateActor {
   actor?: "admin" | "technician";

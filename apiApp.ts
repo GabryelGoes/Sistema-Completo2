@@ -2626,5 +2626,278 @@ export function createApiApp() {
     }
   });
 
+  // ----------------- CHECKLIST TEMPLATES (PÁTIO) -----------------
+  // Listar templates com itens (admin na página inicial e modal do veículo no Pátio)
+  app.get("/api/workshop/checklist-templates", async (_req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { data: templates, error: tErr } = await supabaseAdmin
+        .from("workshop_checklist_templates")
+        .select("id, name, sort_order, created_at")
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (tErr) {
+        console.error("[API] Erro ao listar checklist templates:", tErr);
+        return res.status(500).json({ error: tErr.message });
+      }
+      const list = (templates ?? []) as { id: string; name: string; sort_order: number; created_at: string }[];
+      if (list.length === 0) {
+        return res.json([]);
+      }
+      const templateIds = list.map((t) => t.id);
+      const { data: items, error: iErr } = await supabaseAdmin
+        .from("workshop_checklist_template_items")
+        .select("id, template_id, text, sort_order")
+        .in("template_id", templateIds)
+        .order("sort_order", { ascending: true });
+      if (iErr) {
+        console.error("[API] Erro ao listar checklist template items:", iErr);
+        return res.status(500).json({ error: iErr.message });
+      }
+      const itemsList = (items ?? []) as { id: string; template_id: string; text: string; sort_order: number }[];
+      const byTemplate: Record<string, typeof itemsList> = {};
+      itemsList.forEach((i) => {
+        if (!byTemplate[i.template_id]) byTemplate[i.template_id] = [];
+        byTemplate[i.template_id].push(i);
+      });
+      const result = list.map((t) => ({
+        id: t.id,
+        name: t.name,
+        sort_order: t.sort_order,
+        created_at: t.created_at,
+        items: (byTemplate[t.id] ?? []).map((it) => ({ id: it.id, text: it.text, sort_order: it.sort_order })),
+      }));
+      return res.json(result);
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/workshop/checklist-templates:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Criar template com itens (admin)
+  app.post("/api/workshop/checklist-templates", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { name, items } = req.body ?? {};
+      const trimmedName = typeof name === "string" ? name.trim() : "";
+      if (!trimmedName) {
+        return res.status(400).json({ error: "Nome do checklist é obrigatório." });
+      }
+      const itemTexts = Array.isArray(items)
+        ? items.map((x: unknown) => (typeof x === "string" ? x.trim() : String(x).trim())).filter(Boolean)
+        : [];
+      const { data: template, error: tErr } = await supabaseAdmin
+        .from("workshop_checklist_templates")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          name: trimmedName,
+          sort_order: 0,
+        })
+        .select("id")
+        .single();
+      if (tErr || !template) {
+        console.error("[API] Erro ao criar checklist template:", tErr);
+        return res.status(500).json({ error: tErr?.message ?? "Erro ao criar checklist." });
+      }
+      const templateId = (template as { id: string }).id;
+      if (itemTexts.length > 0) {
+        const rows = itemTexts.map((text, i) => ({
+          template_id: templateId,
+          text,
+          sort_order: i,
+        }));
+        const { error: iErr } = await supabaseAdmin.from("workshop_checklist_template_items").insert(rows);
+        if (iErr) {
+          console.error("[API] Erro ao criar itens do checklist:", iErr);
+          // template já criado; podemos continuar
+        }
+      }
+      const { data: created } = await supabaseAdmin
+        .from("workshop_checklist_templates")
+        .select("id, name, sort_order, created_at")
+        .eq("id", templateId)
+        .single();
+      const { data: createdItems } = await supabaseAdmin
+        .from("workshop_checklist_template_items")
+        .select("id, text, sort_order")
+        .eq("template_id", templateId)
+        .order("sort_order", { ascending: true });
+      return res.status(201).json({
+        ...(created ?? { id: templateId, name: trimmedName, sort_order: 0, created_at: new Date().toISOString() }),
+        items: (createdItems ?? []).map((it: { id: string; text: string; sort_order: number }) => ({
+          id: it.id,
+          text: it.text,
+          sort_order: it.sort_order,
+        })),
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/workshop/checklist-templates:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Atualizar template (nome e itens)
+  app.put("/api/workshop/checklist-templates/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { id } = req.params;
+      const { name, items } = req.body ?? {};
+      const trimmedName = typeof name === "string" ? name.trim() : "";
+      if (!trimmedName) {
+        return res.status(400).json({ error: "Nome do checklist é obrigatório." });
+      }
+      const { data: existing, error: exErr } = await supabaseAdmin
+        .from("workshop_checklist_templates")
+        .select("id")
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (exErr || !existing) {
+        return res.status(404).json({ error: "Checklist não encontrado." });
+      }
+      await supabaseAdmin
+        .from("workshop_checklist_templates")
+        .update({ name: trimmedName })
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID);
+      const itemTexts = Array.isArray(items)
+        ? items.map((x: unknown) => (typeof x === "string" ? x.trim() : String(x).trim())).filter(Boolean)
+        : [];
+      // Substituir itens: remover antigos e inserir novos
+      await supabaseAdmin.from("workshop_checklist_template_items").delete().eq("template_id", id);
+      if (itemTexts.length > 0) {
+        const rows = itemTexts.map((text, i) => ({ template_id: id, text, sort_order: i }));
+        await supabaseAdmin.from("workshop_checklist_template_items").insert(rows);
+      }
+      const { data: updated } = await supabaseAdmin
+        .from("workshop_checklist_templates")
+        .select("id, name, sort_order, created_at")
+        .eq("id", id)
+        .single();
+      const { data: updatedItems } = await supabaseAdmin
+        .from("workshop_checklist_template_items")
+        .select("id, text, sort_order")
+        .eq("template_id", id)
+        .order("sort_order", { ascending: true });
+      return res.json({
+        ...updated,
+        items: (updatedItems ?? []).map((it: { id: string; text: string; sort_order: number }) => ({
+          id: it.id,
+          text: it.text,
+          sort_order: it.sort_order,
+        })),
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em PUT /api/workshop/checklist-templates/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Excluir template
+  app.delete("/api/workshop/checklist-templates/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { id } = req.params;
+      const { error } = await supabaseAdmin
+        .from("workshop_checklist_templates")
+        .delete()
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (error) {
+        if (error.code === "23503") return res.status(404).json({ error: "Checklist não encontrado." });
+        console.error("[API] Erro ao excluir checklist template:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] Erro em DELETE /api/workshop/checklist-templates/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Estado dos itens de checklist por OS (para exibir no modal do veículo)
+  app.get("/api/service-orders/:id/checklist-state", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { id } = req.params;
+      const { data: order } = await supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (!order) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      const { data: checks } = await supabaseAdmin
+        .from("service_order_checklist_checks")
+        .select("template_item_id, state")
+        .eq("service_order_id", id);
+      const state: Record<string, "complete" | "incomplete"> = {};
+      (checks ?? []).forEach((c: { template_item_id: string; state: string }) => {
+        state[c.template_item_id] = c.state === "complete" ? "complete" : "incomplete";
+      });
+      return res.json(state);
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/service-orders/:id/checklist-state:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Marcar/desmarcar item de checklist para uma OS
+  app.patch("/api/service-orders/:id/checklist-state", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { id } = req.params;
+      const { templateItemId, state } = req.body ?? {};
+      const templateItemIdStr = typeof templateItemId === "string" ? templateItemId.trim() : "";
+      const stateStr = state === "complete" ? "complete" : "incomplete";
+      if (!templateItemIdStr) {
+        return res.status(400).json({ error: "templateItemId é obrigatório." });
+      }
+      const { data: order } = await supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (!order) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      const { error } = await supabaseAdmin
+        .from("service_order_checklist_checks")
+        .upsert(
+          {
+            service_order_id: id,
+            template_item_id: templateItemIdStr,
+            state: stateStr,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "service_order_id,template_item_id" }
+        );
+      if (error) {
+        console.error("[API] Erro ao atualizar checklist state:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] Erro em PATCH /api/service-orders/:id/checklist-state:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   return app;
 }
