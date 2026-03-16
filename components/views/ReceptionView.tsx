@@ -286,6 +286,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   onChange={handleInputChange}
                   icon={<Smartphone className="w-4 h-4" />}
                 />
+              </div>
+              <div>
                 <Input 
                   label="E-mail"
                   name="email"
