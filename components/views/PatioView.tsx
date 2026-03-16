@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, Wrench, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2 } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2 } from 'lucide-react';
+import { MechanicIcon } from '../ui/MechanicIcon';
+import { ReminderIcon } from '../ui/ReminderIcon';
 import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer } from '../../types';
 import {
   getServiceOrders,
@@ -1962,8 +1964,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
             onClick={() => setIsRemindersOpen(true)}
             className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white/80 dark:bg-white/10 border border-zinc-200/80 dark:border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.6)] backdrop-blur-xl text-sm font-semibold text-zinc-700 dark:text-zinc-100 hover:bg-white hover:border-brand-yellow/60 hover:text-zinc-900 dark:hover:bg-white/15 dark:hover:border-brand-yellow/70 transition-all duration-300 active:scale-[0.97]"
           >
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand-yellow text-black text-xs font-bold shadow-[0_0_0_1px_rgba(0,0,0,0.15)]">
-              !
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand-yellow text-black shadow-[0_0_0_1px_rgba(0,0,0,0.15)]">
+              <ReminderIcon className="w-3.5 h-3.5" strokeWidth={2} />
             </span>
             <span className="tracking-tight">
               {isModuleMode ? 'Lembretes do laboratório' : 'Lembretes do pátio'}
@@ -2118,7 +2120,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             className="w-6 h-6 rounded-full object-cover border border-zinc-300/80 dark:border-white/10"
                          />
                       ) : (
-                         <Wrench className={`w-6 h-6 shrink-0 ${mechanicColorClass}`} />
+                         <MechanicIcon className={`w-6 h-6 shrink-0 ${mechanicColorClass}`} />
                       )}
                    </button>
                    {!isModuleMode && (
@@ -2694,7 +2696,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {selectedCard.members && selectedCard.members.length > 0 ? (
                               <>
                                 <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
-                                  <Wrench className="w-4 h-4 opacity-95" />
+                                  <MechanicIcon className="w-4 h-4 opacity-95" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
@@ -2709,7 +2711,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             ) : (
                               <>
                                 <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-brand-yellow/20 border-2 border-dashed border-brand-yellow/50">
-                                  <Wrench className="w-4 h-4 text-brand-yellow" />
+                                  <MechanicIcon className="w-4 h-4 text-brand-yellow" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
@@ -3686,7 +3688,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-brand-yellow to-amber-400 flex items-center justify-center shadow-[0_8px_20px_rgba(251,191,36,0.65)]">
-                    <ClipboardList className="w-5 h-5 text-black" />
+                    <ReminderIcon className="w-5 h-5 text-black" strokeWidth={2} />
                   </div>
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
@@ -4520,7 +4522,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     {tech.photo_url ? (
                       <img src={tech.photo_url} alt={tech.name} className="w-full h-full object-cover" />
                     ) : (
-                      <Wrench className="w-5 h-5 opacity-90" />
+                      <MechanicIcon className="w-5 h-5 opacity-90" />
                     )}
                   </div>
                   <span>{tech.name}</span>
