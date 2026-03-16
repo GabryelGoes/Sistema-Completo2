@@ -28,11 +28,15 @@ import {
   getSystemUserTechnicians,
   updateCustomer,
   deleteServiceOrderWithPassword,
+  getChecklistTemplates,
+  getServiceOrderChecklistState,
+  updateServiceOrderChecklistItem,
   ServiceOrderListItem,
   type WorkshopService,
   type SystemUserTechnician,
   type ServiceOrderUpdateActor,
   type ServiceOrderType,
+  type ChecklistTemplate,
 } from '../../services/apiService';
 import type { ServiceOrderDetail } from '../../services/apiService';
 import { SERVICE_ORDER_STAGES, getStageStyle, type ServiceOrderStatus } from '../../constants/serviceOrderStages';
@@ -517,12 +521,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [cardForMemberAssignment, setCardForMemberAssignment] = useState<TrelloCard | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
 
-  // Card em Visualização de CHECKLIST (Entrada ou Finalização)
+  // Checklists do Pátio (templates criados pelo admin)
+  const [checklistTemplates, setChecklistTemplates] = useState<ChecklistTemplate[]>([]);
   const [activeChecklistCardId, setActiveChecklistCardId] = useState<string | null>(null);
-  const [activeChecklistType, setActiveChecklistType] = useState<'Entrada' | 'Finalização' | null>(null);
-  
-  // Estado para indicar criação de checklist
-  const [isCreatingChecklist, setIsCreatingChecklist] = useState(false);
+  const [activeChecklistTemplateId, setActiveChecklistTemplateId] = useState<string | null>(null);
+  /** Estado dos itens (template_item_id -> complete|incomplete) para o card do modal de checklist */
+  const [checklistState, setChecklistState] = useState<Record<string, 'complete' | 'incomplete'>>({});
+  const [checklistStateLoading, setChecklistStateLoading] = useState(false);
 
   // Estado para arquivamento (Entregue)
   const [archivingId, setArchivingId] = useState<string | null>(null);
@@ -770,8 +775,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return () => clearInterval(intervalId);
   }, []);
 
-  // Deriva o cartão ativo do estado principal de cards
+  // Carregar templates de checklist do Pátio (criados pelo admin)
+  useEffect(() => {
+    let cancelled = false;
+    getChecklistTemplates()
+      .then((list) => { if (!cancelled) setChecklistTemplates(list); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // Ao abrir o modal de checklist, carregar estado da OS
+  useEffect(() => {
+    if (!activeChecklistCardId || !activeChecklistTemplateId) {
+      setChecklistState({});
+      return;
+    }
+    let cancelled = false;
+    setChecklistStateLoading(true);
+    getServiceOrderChecklistState(activeChecklistCardId)
+      .then((state) => { if (!cancelled) setChecklistState(state); })
+      .catch(() => { if (!cancelled) setChecklistState({}); })
+      .finally(() => { if (!cancelled) setChecklistStateLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeChecklistCardId, activeChecklistTemplateId]);
+
+  // Deriva o cartão ativo e o template ativo
   const activeChecklistCard = cards.find(c => c.id === activeChecklistCardId);
+  const activeChecklistTemplate = checklistTemplates.find(t => t.id === activeChecklistTemplateId);
 
   /** Carrega os últimos veículos arquivados (sem filtro de busca). */
   const loadRecentArchived = async () => {
@@ -1055,14 +1085,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  const handleToggleCheckItem = async (_cardId: string, _checklistId: string, _itemId: string, _currentState: 'complete' | 'incomplete') => {
-    // Backend: checklists em breve
+  const handleToggleChecklistItem = async (templateItemId: string, currentState: 'complete' | 'incomplete') => {
+    if (!activeChecklistCardId) return;
+    const nextState = currentState === 'complete' ? 'incomplete' as const : 'complete' as const;
+    setChecklistState((prev) => ({ ...prev, [templateItemId]: nextState }));
+    try {
+      await updateServiceOrderChecklistItem(activeChecklistCardId, templateItemId, nextState);
+    } catch {
+      setChecklistState((prev) => ({ ...prev, [templateItemId]: currentState }));
+    }
   };
 
-  const handleCreateChecklist = async (_type: 'Entrada' | 'Finalização') => {
-    if (!activeChecklistCardId) return;
-    setIsCreatingChecklist(false);
-    // Backend: checklists em breve
+  const closeChecklistModal = () => {
+    setActiveChecklistCardId(null);
+    setActiveChecklistTemplateId(null);
   };
 
   const handleSendComment = async () => {
@@ -1985,31 +2021,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
           const canAssignMember = can('canAssignTechnician'); 
           
-          // Condição para botão de Checklist de Entrada: Apenas em 'avaliação técnica'
-          const showEntryButton = listNameLower.includes('avaliação técnica');
-          
-          // Condição para botão de Checklist de Finalização: Apenas em 'fase de teste'
-          const showFinalizationButton = listNameLower.includes('fase de teste');
-
           // Condição para botão de ENTREGUE: Apenas em 'finalizado'
           const showDeliverButton = listNameLower.includes('finalizado');
 
           // Condição para botão de ENTREGUE em 'não aprovado'
           const showNotApprovedDeliverButton = listNameLower.includes('não aprovado');
-
-          // Função helper para calcular progresso
-          const getChecklistProgress = (type: 'Entrada' | 'Finalização') => {
-             const target = normalizeText(type);
-             const cl = card.checklists?.find(c => normalizeText(c.name).includes(target));
-             
-             const total = cl ? cl.checkItems.length : 0;
-             const completed = cl ? cl.checkItems.filter(i => i.state === 'complete').length : 0;
-             const progress = total > 0 ? (completed / total) * 100 : 0;
-             return { total, completed, progress };
-          };
-
-          const entryStats = getChecklistProgress('Entrada');
-          const finalizationStats = getChecklistProgress('Finalização');
 
           const isGarantia = card.garantiaTag === true;
           const isFloating = effectsEnabled && cardFloat?.id === card.id;
@@ -2123,11 +2139,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
               {/* Botões de Ação Inferiores — estilo iOS */}
               <div className="relative w-full mt-auto space-y-3">
-                
-                {/* Botão Checklist Entrada */}
-                {showEntryButton && (
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setActiveChecklistCardId(card.id); setActiveChecklistType('Entrada'); }}
+                {/* Botões de checklist (templates criados pelo admin) */}
+                {checklistTemplates.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    onClick={(e) => { e.stopPropagation(); setActiveChecklistCardId(card.id); setActiveChecklistTemplateId(tpl.id); }}
                     className="
                       w-full py-2.5 px-4 rounded-2xl
                       bg-light-card dark:bg-white/[0.06] border border-light-border dark:border-white/[0.08]
@@ -2138,51 +2154,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     "
                   >
                     <div className="flex items-center gap-2">
-                      <ClipboardList className={`w-4 h-4 ${entryStats.completed === entryStats.total && entryStats.total > 0 ? 'text-green-500' : 'text-brand-yellow'}`} />
-                      ENTRADA
+                      <ClipboardList className="w-4 h-4 text-brand-yellow" />
+                      {tpl.name.toUpperCase()}
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full transition-all duration-500 ${entryStats.completed === entryStats.total && entryStats.total > 0 ? 'bg-green-500' : 'bg-brand-yellow'}`}
-                          style={{ width: `${entryStats.progress}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px]">{Math.round(entryStats.progress)}%</span>
-                    </div>
+                    <span className="text-[10px]">{tpl.items.length} itens</span>
                   </button>
-                )}
-
-                 {/* Botão Checklist Finalização */}
-                 {showFinalizationButton && (
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setActiveChecklistCardId(card.id); setActiveChecklistType('Finalização'); }}
-                    className="
-                      w-full py-2.5 px-4 rounded-2xl
-                      bg-light-card dark:bg-white/[0.06] border border-light-border dark:border-white/[0.08]
-                      flex items-center justify-between
-                      text-xs uppercase font-bold tracking-widest text-zinc-600 dark:text-zinc-300
-                      hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.99]
-                      group-checklist
-                    "
-                  >
-                    <div className="flex items-center gap-2">
-                      <ListChecks className={`w-4 h-4 ${finalizationStats.completed === finalizationStats.total && finalizationStats.total > 0 ? 'text-green-500' : 'text-blue-500'}`} />
-                      FINALIZAÇÃO
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full transition-all duration-500 ${finalizationStats.completed === finalizationStats.total && finalizationStats.total > 0 ? 'bg-green-500' : 'bg-blue-500'}`}
-                          style={{ width: `${finalizationStats.progress}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px]">{Math.round(finalizationStats.progress)}%</span>
-                    </div>
-                  </button>
-                )}
+                ))}
 
                 {/* Botão ENTREGUE (Apenas se Finalizado) */}
                 {can('canArchiveCard') && showDeliverButton && (
@@ -3360,33 +3337,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                          <div>
                              <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4">Checklists</h3>
-                             <div className="space-y-3">
-                                <button 
-                                    onClick={() => { setActiveChecklistCardId(selectedCard.id); setActiveChecklistType('Entrada'); }}
-                                    className="w-full p-4 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-brand-yellow hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl flex items-center gap-3 group transition-all"
-                                  >
-                                    <div className="w-10 h-10 rounded-full bg-brand-yellow/10 flex items-center justify-center text-brand-yellow group-hover:bg-brand-yellow group-hover:text-black transition-colors">
-                                        <ClipboardList className="w-5 h-5" />
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="font-bold text-zinc-900 dark:text-white">Checklist Entrada</p>
-                                        <p className="text-xs text-zinc-500">Verificar avarias e scanner</p>
-                                    </div>
-                                </button>
-
-                                <button 
-                                    onClick={() => { setActiveChecklistCardId(selectedCard.id); setActiveChecklistType('Finalização'); }}
-                                    className="w-full p-4 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-blue-500 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl flex items-center gap-3 group transition-all"
-                                  >
-                                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                                        <ListChecks className="w-5 h-5" />
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="font-bold text-zinc-900 dark:text-white">Checklist Finalização</p>
-                                        <p className="text-xs text-zinc-500">Limpeza e etiquetas</p>
-                                    </div>
-                                </button>
-                             </div>
+                             {checklistTemplates.length === 0 ? (
+                               <p className="text-sm text-zinc-500 dark:text-zinc-400">Nenhum checklist configurado. Crie na página inicial em Administração → Checklists do Pátio.</p>
+                             ) : (
+                               <div className="space-y-3">
+                                 {checklistTemplates.map((tpl) => (
+                                   <button
+                                     key={tpl.id}
+                                     type="button"
+                                     onClick={() => { setActiveChecklistCardId(selectedCard.id); setActiveChecklistTemplateId(tpl.id); }}
+                                     className="w-full p-4 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-brand-yellow hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl flex items-center gap-3 group transition-all text-left"
+                                   >
+                                     <div className="w-10 h-10 rounded-full bg-brand-yellow/10 flex items-center justify-center text-brand-yellow group-hover:bg-brand-yellow group-hover:text-black transition-colors">
+                                       <ClipboardList className="w-5 h-5" />
+                                     </div>
+                                     <div>
+                                       <p className="font-bold text-zinc-900 dark:text-white">Checklist {tpl.name}</p>
+                                       <p className="text-xs text-zinc-500">{tpl.items.length} {tpl.items.length === 1 ? 'item' : 'itens'}</p>
+                                     </div>
+                                   </button>
+                                 ))}
+                               </div>
+                             )}
                          </div>
 
                          <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
@@ -3397,7 +3369,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                    <Paperclip className="w-4 h-4" />
                                    Anexos
                                 </h3>
-                                <div className="grid grid-cols-3 gap-3 w-full justify-items-center">
+                                <div className="grid grid-cols-3 gap-3 md:gap-2 w-full justify-items-center">
                                     <input 
                                         type="file" 
                                         ref={galleryInputRef} 
@@ -3418,28 +3390,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         type="button"
                                         onClick={() => cameraInputRef.current?.click()}
                                         disabled={isUploading}
-                                        className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
+                                        className="flex items-center justify-center w-14 h-14 md:w-10 md:h-10 rounded-2xl md:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
                                         title="Foto do veículo (câmera ou arquivo)"
                                     >
-                                        <Camera className="w-6 h-6 shrink-0" strokeWidth={2} />
+                                        <Camera className="w-6 h-6 md:w-5 md:h-5 shrink-0" strokeWidth={2} />
                                     </button>
                                     <button 
                                         type="button"
                                         onClick={() => galleryInputRef.current?.click()}
                                         disabled={isUploading}
-                                        className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
+                                        className="flex items-center justify-center w-14 h-14 md:w-10 md:h-10 rounded-2xl md:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
                                         title="Galeria / Documentos"
                                     >
-                                        <ImageIcon className="w-6 h-6 shrink-0" strokeWidth={2} />
+                                        <ImageIcon className="w-6 h-6 md:w-5 md:h-5 shrink-0" strokeWidth={2} />
                                     </button>
                                     <button 
                                         type="button"
                                         onClick={() => galleryInputRef.current?.click()}
                                         disabled={isUploading}
-                                        className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
+                                        className="flex items-center justify-center w-14 h-14 md:w-10 md:h-10 rounded-2xl md:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
                                         title="Arquivos do dispositivo"
                                     >
-                                        <FolderOpen className="w-6 h-6 shrink-0" strokeWidth={2} />
+                                        <FolderOpen className="w-6 h-6 md:w-5 md:h-5 shrink-0" strokeWidth={2} />
                                     </button>
                                 </div>
                             </div>
@@ -4563,25 +4535,26 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
       )}
 
-      {/* MODAL DE CHECKLIST (ENTRADA OU FINALIZAÇÃO) */}
-      {activeChecklistCard && activeChecklistType && (
+      {/* MODAL DE CHECKLIST (templates criados pelo admin) */}
+      {activeChecklistCard && activeChecklistTemplate && (
          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-           <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-lg rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh] animate-modal-sheet">
+           <div className="bg-[#FAFAF9] dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-lg rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh] animate-modal-sheet">
              
              {/* Header Checklist */}
              <div className="relative p-8 pb-4 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-b from-zinc-50 to-white dark:from-[#242426] dark:to-[#1C1C1E]">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${activeChecklistType === 'Entrada' ? 'bg-brand-yellow shadow-brand-yellow/20' : 'bg-blue-600 shadow-blue-600/20'}`}>
-                        {activeChecklistType === 'Entrada' ? <ClipboardList className="w-6 h-6 text-black" /> : <ListChecks className="w-6 h-6 text-white" />}
+                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg bg-brand-yellow shadow-brand-yellow/20">
+                        <ClipboardList className="w-6 h-6 text-black" />
                      </div>
                      <div>
-                       <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Checklist de {activeChecklistType}</h2>
+                       <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Checklist {activeChecklistTemplate.name}</h2>
                        <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">{activeChecklistCard.name.split('-')[0]}</p>
                      </div>
                   </div>
                   <button 
-                    onClick={() => { setActiveChecklistCardId(null); setActiveChecklistType(null); }} 
+                    type="button"
+                    onClick={closeChecklistModal} 
                     className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
                   >
                     <X className="w-5 h-5" />
@@ -4590,16 +4563,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 
                 {/* Progress Bar Header */}
                 {(() => {
-                   const searchTerm = normalizeText(activeChecklistType || "");
-                   
-                   const cl = activeChecklistCard.checklists?.find(c => normalizeText(c.name).includes(searchTerm));
-
-                   if (!cl) return null;
-                   const total = cl.checkItems.length;
-                   const completed = cl.checkItems.filter(i => i.state === 'complete').length;
+                   const items = activeChecklistTemplate.items;
+                   const total = items.length;
+                   const completed = total === 0 ? 0 : items.filter((i) => (checklistState[i.id] ?? 'incomplete') === 'complete').length;
                    const pct = total > 0 ? (completed / total) * 100 : 0;
-                   const barColor = activeChecklistType === 'Entrada' ? 'bg-brand-yellow' : 'bg-blue-600';
-                   
                    return (
                      <div className="mt-4">
                         <div className="flex justify-between text-xs font-bold uppercase tracking-wider mb-2">
@@ -4610,73 +4577,62 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </div>
                         <div className="h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                            <div 
-                             className={`h-full transition-all duration-500 ease-out ${pct === 100 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : barColor}`}
+                             className={`h-full transition-all duration-500 ease-out ${pct === 100 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-brand-yellow'}`}
                              style={{ width: `${pct}%` }}
                            />
                         </div>
                      </div>
-                   )
+                   );
                 })()}
              </div>
 
              {/* Itens do Checklist */}
              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-light-page dark:bg-[#121212]">
-                {(() => {
-                   const searchTerm = normalizeText(activeChecklistType || "");
-                   
-                   const cl = activeChecklistCard.checklists?.find(c => normalizeText(c.name).includes(searchTerm));
-                   
-                   if (!cl || cl.checkItems.length === 0) {
-                     return (
-                       <div className="flex flex-col items-center justify-center py-12 text-zinc-500 gap-4">
-                          <AlertCircle className="w-10 h-10 opacity-50" />
-                          <p>Nenhum checklist de {activeChecklistType} encontrado.</p>
-                          <button 
-                             onClick={() => handleCreateChecklist(activeChecklistType)}
-                             disabled={isCreatingChecklist}
-                             className="px-6 py-2 bg-brand-surfaceHighlight border border-zinc-700 rounded-full text-white text-sm hover:bg-zinc-800 transition-colors flex items-center gap-2"
-                          >
-                             {isCreatingChecklist ? <RefreshCw className="w-4 h-4 animate-spin"/> : <Plus className="w-4 h-4" />}
-                             Criar Checklist Padrão
-                          </button>
-                       </div>
-                     );
-                   }
-
-                   return cl.checkItems.map(item => {
-                     const isComplete = item.state === 'complete';
-
-                     return (
-                       <button
-                         key={item.id}
-                         onClick={() => handleToggleCheckItem(activeChecklistCard.id, cl.id, item.id, item.state)}
-                         className={`
-                            w-full p-4 rounded-xl border flex items-center justify-between transition-all duration-300 group
-                            ${isComplete 
-                              ? 'bg-[#1A251D] border-green-900/30 text-green-100' 
-                              : 'bg-light-elevated dark:bg-[#1C1C1E] border-light-border dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-700 hover:bg-light-card dark:hover:bg-[#242426]'}
-                         `}
-                       >
-                          <span className={`text-sm font-bold text-left ${isComplete ? 'line-through opacity-70' : ''}`}>
-                             {item.name}
-                          </span>
-                          
-                          <div className={`
-                             w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300
-                             ${isComplete ? 'bg-green-500 text-black scale-110' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 group-hover:bg-zinc-300 dark:group-hover:bg-zinc-700'}
-                          `}>
-                             {isComplete ? <Check className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-current opacity-50" />}
-                          </div>
-                       </button>
-                     )
-                   })
-                })()}
+                {checklistStateLoading ? (
+                  <div className="flex justify-center py-12">
+                    <RefreshCw className="w-8 h-8 text-brand-yellow animate-spin" />
+                  </div>
+                ) : activeChecklistTemplate.items.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-zinc-500 gap-4">
+                    <AlertCircle className="w-10 h-10 opacity-50" />
+                    <p>Este checklist não tem itens. Edite-o na página inicial (Administração → Checklists do Pátio).</p>
+                  </div>
+                ) : (
+                  activeChecklistTemplate.items.map((item) => {
+                    const isComplete = (checklistState[item.id] ?? 'incomplete') === 'complete';
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleToggleChecklistItem(item.id, isComplete ? 'complete' : 'incomplete')}
+                        className={`
+                           w-full p-4 rounded-xl border flex items-center justify-between transition-all duration-300 group
+                           ${isComplete 
+                             ? 'bg-[#1A251D] border-green-900/30 text-green-100' 
+                             : 'bg-light-elevated dark:bg-[#1C1C1E] border-light-border dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-700 hover:bg-light-card dark:hover:bg-[#242426]'}
+                        `}
+                      >
+                         <span className={`text-sm font-bold text-left ${isComplete ? 'line-through opacity-70' : ''}`}>
+                            {item.text}
+                         </span>
+                         
+                         <div className={`
+                            w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300
+                            ${isComplete ? 'bg-green-500 text-black scale-110' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 group-hover:bg-zinc-300 dark:group-hover:bg-zinc-700'}
+                         `}>
+                            {isComplete ? <Check className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-current opacity-50" />}
+                         </div>
+                      </button>
+                    );
+                  })
+                )}
              </div>
 
              {/* Footer Modal */}
              <div className="p-4 bg-light-card/80 dark:bg-white/[0.04] border-t border-zinc-200/60 dark:border-white/[0.08] text-center">
                <button 
-                 onClick={() => { setActiveChecklistCardId(null); setActiveChecklistType(null); }}
+                 type="button"
+                 onClick={closeChecklistModal}
                  className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors"
                >
                  Fechar Checklist
