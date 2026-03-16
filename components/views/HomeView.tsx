@@ -128,7 +128,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* Header: identidade da oficina */}
       <header className="relative z-10 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-5 px-4 sm:px-6 border-b-2 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-        <div className="max-w-xl mx-auto flex items-center gap-4">
+        <div className="max-w-xl lg:max-w-5xl mx-auto flex items-center gap-4">
           <img
             src="/logo.png"
             alt="Rei do ABS"
@@ -145,167 +145,175 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </header>
 
-      <main className="relative z-10 flex-1 px-4 sm:px-6 pb-28 max-w-xl mx-auto w-full">
-        {/* Operação: módulos principais */}
-        <section className="pt-6 pb-4">
-          <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Operação</h2>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Acesso rápido aos módulos do dia a dia</p>
-          {isTechnician && operationalForView.length <= 2 ? (
-            <div className={`grid gap-3 ${operationalForView.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-              {operationalForView.map((app) => (
-                <button
-                  key={app.id}
-                  type="button"
-                  onClick={() => onOpenApp(app.id)}
-                  className={`flex flex-col items-center gap-2 p-5 rounded-xl border-2 ${app.bg} ${app.border} hover:shadow-md active:scale-[0.99] transition-all`}
-                >
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${app.iconBg} shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]`}>{app.icon}</div>
-                  <span className="text-sm font-semibold text-zinc-900 dark:text-white text-center">{app.label}</span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {operationalForView.map((app) => (
-                <button
-                  key={app.id}
-                  type="button"
-                  onClick={() => onOpenApp(app.id)}
-                  className={`flex flex-col items-start gap-2 p-4 rounded-xl border-2 ${app.bg} ${app.border} hover:shadow-md active:scale-[0.99] transition-all text-left`}
-                >
-                  <div className={`w-11 h-11 rounded-lg flex items-center justify-center ${app.iconBg} shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]`}>{app.icon}</div>
-                  <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">{app.label}</span>
-                  <span className="text-xs text-zinc-600 dark:text-zinc-400 leading-tight">{app.description}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Link para o Painel do Pátio (TV) */}
-          <a
-            href="https://patio-view.vercel.app/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 flex items-center gap-3 p-4 rounded-xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/90 hover:shadow-md active:scale-[0.99] transition-all text-left"
-          >
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-emerald-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]">
-              <PatioCarIcon className="w-5 h-5 text-white" strokeWidth={2.5} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="text-[15px] font-semibold text-zinc-900 dark:text-white block">Painel do Pátio (TV)</span>
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">Abrir em nova aba</span>
-            </div>
-            <ExternalLink className="w-5 h-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
-          </a>
-        </section>
-
-        {/* Ferramentas (usuário do sistema com permissão) */}
-        {hasToolsAccess && (
-          <section className="pt-4 pb-4">
-            <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Ferramentas</h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Configurações e recursos liberados para você</p>
-            <div className="rounded-xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
-              {perms.access_settings && onOpenSettings && (
-                <button type="button" onClick={onOpenSettings} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Settings className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
-                  <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Configurações</span>
-                  <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
-                </button>
+      <main className="relative z-10 flex-1 px-4 sm:px-6 pb-28 max-w-xl lg:max-w-5xl mx-auto w-full">
+        <div className="lg:grid lg:grid-cols-2 lg:gap-8 lg:items-start">
+          {/* Coluna esquerda: Operação + Painel TV */}
+          <div className="lg:space-y-6">
+            {/* Operação: módulos principais */}
+            <section className="pt-6 pb-4 lg:pt-6 lg:pb-0">
+              <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Operação</h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Acesso rápido aos módulos do dia a dia</p>
+              {isTechnician && operationalForView.length <= 2 ? (
+                <div className={`grid gap-3 ${operationalForView.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} lg:grid-cols-2`}>
+                  {operationalForView.map((app) => (
+                    <button
+                      key={app.id}
+                      type="button"
+                      onClick={() => onOpenApp(app.id)}
+                      className={`flex flex-col items-center gap-2 p-5 rounded-xl border-2 ${app.bg} ${app.border} hover:shadow-md active:scale-[0.99] transition-all`}
+                    >
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${app.iconBg} shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]`}>{app.icon}</div>
+                      <span className="text-sm font-semibold text-zinc-900 dark:text-white text-center">{app.label}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {operationalForView.map((app) => (
+                    <button
+                      key={app.id}
+                      type="button"
+                      onClick={() => onOpenApp(app.id)}
+                      className={`flex flex-col items-start gap-2 p-4 rounded-xl border-2 ${app.bg} ${app.border} hover:shadow-md active:scale-[0.99] transition-all text-left`}
+                    >
+                      <div className={`w-11 h-11 rounded-lg flex items-center justify-center ${app.iconBg} shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]`}>{app.icon}</div>
+                      <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">{app.label}</span>
+                      <span className="text-xs text-zinc-600 dark:text-zinc-400 leading-tight">{app.description}</span>
+                    </button>
+                  ))}
+                </div>
               )}
-              {perms.access_change_passwords && onOpenChangePasswords && (
-                <button type="button" onClick={onOpenChangePasswords} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-600 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Lock className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
-                  <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Alterar senhas</span>
-                  <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
-                </button>
-              )}
-              {perms.access_technicians && onOpenTechnicians && (
-                <button type="button" onClick={onOpenTechnicians} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-teal-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Users className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
-                  <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Técnicos</span>
-                  <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
-                </button>
-              )}
-            </div>
-          </section>
-        )}
 
-        {/* Administração (só admin) */}
-        {!isTechnician && (
-          <section className="pt-4 pb-4">
-            <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Administração</h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Usuários, configurações e senhas</p>
-            <div className="rounded-xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
-              <button type="button" onClick={() => setIsSystemUsersOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-violet-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><User className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
-                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Usuários do sistema</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
-              </button>
-              <button type="button" onClick={() => onOpenApp('settings')} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Settings className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
-                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Configurações</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
-              </button>
-              <button type="button" onClick={() => setIsServicesModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-amber-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Wrench className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
-                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Serviços da oficina</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
-              </button>
-              <button type="button" onClick={() => setIsPatioChecklistsOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-emerald-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><ClipboardList className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
-                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Checklists do Pátio</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
-              </button>
-              <button type="button" onClick={() => setIsTechniciansOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-teal-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Users className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
-                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Técnicos</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
-              </button>
-              <button type="button" onClick={() => setIsChangePasswordsOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-600 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Lock className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
-                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Alterar senhas</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* Conta: perfil e sair */}
-        <section className="pt-4 pb-4">
-          <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Conta</h2>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Perfil e encerrar sessão</p>
-          <div className="rounded-xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
-            {isSystemUser && (
-            <button
-              type="button"
-              onClick={() => setIsUserProfileOpen(true)}
-              className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors"
-            >
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-violet-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><User className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
-              <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Configurações de perfil</span>
-              <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
-            </button>
-            )}
-            {(!isTechnician || technicianId) && !isSystemUser && (
-            <button
-              type="button"
-              onClick={() => (isTechnician ? setIsTechnicianProfileOpen(true) : setIsAdminProfileOpen(true))}
-              className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors"
-            >
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-violet-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><User className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
-              <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">{isTechnician ? 'Meu perfil' : 'Perfil do administrador'}</span>
-              <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
-            </button>
-            )}
-            {onLogout && (
-              <button type="button" onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50 dark:hover:bg-red-950/50 active:bg-red-100 dark:active:bg-red-900/30 transition-colors">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-red-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><LogOut className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
-                <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Sair</span>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
-              </button>
-            )}
+              {/* Link para o Painel do Pátio (TV) */}
+              <a
+                href="https://patio-view.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 flex items-center gap-3 p-4 rounded-xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/90 hover:shadow-md active:scale-[0.99] transition-all text-left"
+              >
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-emerald-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]">
+                  <PatioCarIcon className="w-5 h-5 text-white" strokeWidth={2.5} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[15px] font-semibold text-zinc-900 dark:text-white block">Painel do Pátio (TV)</span>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Abrir em nova aba</span>
+                </div>
+                <ExternalLink className="w-5 h-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
+              </a>
+            </section>
           </div>
-        </section>
+
+          {/* Coluna direita: Ferramentas, Administração, Conta */}
+          <div className="lg:space-y-6 lg:pt-6">
+            {/* Ferramentas (usuário do sistema com permissão) */}
+            {hasToolsAccess && (
+              <section className="pt-4 pb-4 lg:pt-0">
+                <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Ferramentas</h2>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Configurações e recursos liberados para você</p>
+                <div className="rounded-xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+                  {perms.access_settings && onOpenSettings && (
+                    <button type="button" onClick={onOpenSettings} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Settings className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                      <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Configurações</span>
+                      <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                    </button>
+                  )}
+                  {perms.access_change_passwords && onOpenChangePasswords && (
+                    <button type="button" onClick={onOpenChangePasswords} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-600 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Lock className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                      <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Alterar senhas</span>
+                      <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                    </button>
+                  )}
+                  {perms.access_technicians && onOpenTechnicians && (
+                    <button type="button" onClick={onOpenTechnicians} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-teal-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Users className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                      <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Técnicos</span>
+                      <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                    </button>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Administração (só admin) */}
+            {!isTechnician && (
+              <section className="pt-4 pb-4 lg:pt-0">
+                <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Administração</h2>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Usuários, configurações e senhas</p>
+                <div className="rounded-xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm lg:grid lg:grid-cols-2">
+                  <button type="button" onClick={() => setIsSystemUsersOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors lg:border-b-0 lg:border-r border-r-0 lg:border-zinc-100 dark:lg:border-zinc-700">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-violet-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><User className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                    <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Usuários do sistema</span>
+                    <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                  </button>
+                  <button type="button" onClick={() => onOpenApp('settings')} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors lg:border-b">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Settings className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                    <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Configurações</span>
+                    <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                  </button>
+                  <button type="button" onClick={() => setIsServicesModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors lg:border-b-0 lg:border-r border-r-0 lg:border-zinc-100 dark:lg:border-zinc-700">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-amber-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Wrench className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                    <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Serviços da oficina</span>
+                    <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                  </button>
+                  <button type="button" onClick={() => setIsPatioChecklistsOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors lg:border-b">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-emerald-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><ClipboardList className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                    <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Checklists do Pátio</span>
+                    <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                  </button>
+                  <button type="button" onClick={() => setIsTechniciansOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors lg:border-b-0 lg:border-r border-r-0 lg:border-zinc-100 dark:lg:border-zinc-700">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-teal-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Users className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                    <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Técnicos</span>
+                    <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                  </button>
+                  <button type="button" onClick={() => setIsChangePasswordsOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors lg:col-span-2">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-600 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Lock className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                    <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Alterar senhas</span>
+                    <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* Conta: perfil e sair */}
+            <section className="pt-4 pb-4 lg:pt-0">
+              <h2 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Conta</h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Perfil e encerrar sessão</p>
+              <div className="rounded-xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+                {isSystemUser && (
+                <button
+                  type="button"
+                  onClick={() => setIsUserProfileOpen(true)}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors"
+                >
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-violet-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><User className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                  <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Configurações de perfil</span>
+                  <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                </button>
+                )}
+                {(!isTechnician || technicianId) && !isSystemUser && (
+                <button
+                  type="button"
+                  onClick={() => (isTechnician ? setIsTechnicianProfileOpen(true) : setIsAdminProfileOpen(true))}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors"
+                >
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-violet-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><User className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                  <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">{isTechnician ? 'Meu perfil' : 'Perfil do administrador'}</span>
+                  <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                </button>
+                )}
+                {onLogout && (
+                  <button type="button" onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50 dark:hover:bg-red-950/50 active:bg-red-100 dark:active:bg-red-900/30 transition-colors">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-red-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><LogOut className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                    <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Sair</span>
+                    <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                  </button>
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
       </main>
 
       {!isTechnician && (
