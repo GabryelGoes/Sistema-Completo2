@@ -1322,7 +1322,7 @@ export function createApiApp() {
         .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at")
         .eq("service_order_id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: true });
 
       if (error) {
         console.error("[API] Erro ao listar orçamentos:", error);

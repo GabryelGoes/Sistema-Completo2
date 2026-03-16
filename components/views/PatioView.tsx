@@ -3257,7 +3257,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-3 space-y-3 max-h-[280px] overflow-y-auto shadow-inner bg-zinc-100/50 dark:bg-zinc-900/30">
                               {savedBudgets
                                 .filter((b) => b.serviceOrderId === selectedCard.id)
-                                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                                 .map((budget, index) => {
                                   const preview =
                                     budget.diagnosis?.split('\n')[0]?.slice(0, 42) ||
@@ -3309,7 +3309,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <div className="flex flex-wrap gap-2">
                                     {savedBudgets
                                       .filter((b) => b.serviceOrderId === selectedCard.id)
-                                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                                       .map((budget, idx) => (
                                         <button
                                           key={budget.id}
@@ -3995,7 +3995,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
             />
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#d4cfc4] shrink-0 relative z-10">
               <div>
-                <h2 className="text-lg font-bold text-[#3d3932]">Orçamento</h2>
+                <h2 className="text-lg font-bold text-[#3d3932]">
+                  {(() => {
+                    const sorted = savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                    const num = sorted.findIndex((b) => b.id === viewingBudget.id) + 1;
+                    return `Orçamento ${num}`;
+                  })()}
+                </h2>
                 <p className="text-sm text-[#6b6560] mt-0.5">
                   {new Date(viewingBudget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </p>
