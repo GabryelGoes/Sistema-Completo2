@@ -3484,7 +3484,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                 const isRenamingThis = renamingAttachmentId === att.id;
                                                 const isEditingName = renameAttachmentId === att.id;
                                                 const attachmentPath = att.id;
-                                                const canRename = attachmentPath.includes('/');
+                                                // Permite renomear quando temos um path real (vindo da API); id numérico é fallback do índice
+                                                const canRename = attachmentPath && !/^\d+$/.test(String(attachmentPath));
                                                 return (
                                                   <div key={att.id} className="flex items-center gap-2 min-w-0 max-w-full">
                                                     {isEditingName ? (
