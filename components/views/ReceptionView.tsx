@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, X, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package } from 'lucide-react';
 import { Customer, ProcessingStatus } from '../../types';
 import { Input, TextArea } from '../ui/Input';
 import { ProcessingOverlay } from '../ProcessingOverlay';
@@ -49,6 +49,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     email: '',
     cep: '',
     address: '',
+    city: '',
     addressNumber: '',
     vehicleModel: '',
     moduleIdentification: '',
@@ -84,6 +85,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         cpf: initialData.cpf ?? prev.cpf,
         cep: initialData.cep ?? prev.cep,
         address: initialData.address ?? prev.address,
+        city: initialData.city ?? prev.city ?? '',
         addressNumber: initialData.addressNumber ?? prev.addressNumber,
         vehicleModel: initialData.vehicleModel ?? prev.vehicleModel,
         moduleIdentification: initialData.moduleIdentification ?? prev.moduleIdentification,
@@ -164,6 +166,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       email: '',
       cep: '',
       address: '',
+      city: '',
       addressNumber: '',
       vehicleModel: '',
       moduleIdentification: '',
@@ -300,6 +303,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   value={customer.address}
                   onChange={handleInputChange}
                   icon={<Map className="w-4 h-4" />}
+                />
+              </div>
+              <div>
+                <Input 
+                  label="Cidade"
+                  name="city"
+                  placeholder="Ex: São Paulo"
+                  value={customer.city ?? ''}
+                  onChange={handleInputChange}
+                  icon={<Building2 className="w-4 h-4" />}
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

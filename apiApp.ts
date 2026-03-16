@@ -644,7 +644,7 @@ export function createApiApp() {
         });
       }
 
-      const { name, cpf, phone, email, cep, address, addressNumber } = req.body;
+      const { name, cpf, phone, email, cep, address, city, addressNumber } = req.body;
 
       if (!name || !phone) {
         return res
@@ -662,6 +662,7 @@ export function createApiApp() {
           email: email ?? null,
           cep: cep ?? null,
           address: address ?? null,
+          city: city ?? null,
           address_number: addressNumber ?? null,
         })
         .select("*")
@@ -687,7 +688,7 @@ export function createApiApp() {
         });
       }
       const { id } = req.params;
-      const { name, cpf, phone, email, cep, address, addressNumber } = req.body;
+      const { name, cpf, phone, email, cep, address, city, addressNumber } = req.body;
       const updates: Record<string, unknown> = {};
       if (name !== undefined) updates.name = String(name).trim();
       if (cpf !== undefined) updates.cpf = cpf == null || String(cpf).trim() === "" ? null : String(cpf).trim();
@@ -695,6 +696,7 @@ export function createApiApp() {
       if (email !== undefined) updates.email = email == null || String(email).trim() === "" ? null : String(email).trim();
       if (cep !== undefined) updates.cep = cep == null || String(cep).trim() === "" ? null : String(cep).trim();
       if (address !== undefined) updates.address = address == null || String(address).trim() === "" ? null : String(address).trim();
+      if (city !== undefined) updates.city = city == null || String(city).trim() === "" ? null : String(city).trim();
       if (addressNumber !== undefined) updates.address_number = addressNumber == null || String(addressNumber).trim() === "" ? null : String(addressNumber).trim();
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ error: "Nada para atualizar." });

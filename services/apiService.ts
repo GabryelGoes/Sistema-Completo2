@@ -12,6 +12,7 @@ interface ApiCustomer {
   email: string | null;
   cep: string | null;
   address: string | null;
+  city: string | null;
   address_number: string | null;
   created_at: string;
 }
@@ -224,6 +225,7 @@ export async function createCustomer(customer: Customer): Promise<ApiCustomer> {
       email: customer.email || null,
       cep: customer.cep || null,
       address: customer.address || null,
+      city: customer.city || null,
       addressNumber: customer.addressNumber || null,
     }),
   });
@@ -240,7 +242,7 @@ export async function createCustomer(customer: Customer): Promise<ApiCustomer> {
 
 export async function updateCustomer(
   id: string,
-  data: { name?: string; cpf?: string | null; phone?: string; email?: string | null; cep?: string | null; address?: string | null; addressNumber?: string | null }
+  data: { name?: string; cpf?: string | null; phone?: string; email?: string | null; cep?: string | null; address?: string | null; city?: string | null; addressNumber?: string | null }
 ): Promise<ApiCustomer> {
   const body: Record<string, unknown> = {};
   if (data.name !== undefined) body.name = data.name;
@@ -249,6 +251,7 @@ export async function updateCustomer(
   if (data.email !== undefined) body.email = data.email;
   if (data.cep !== undefined) body.cep = data.cep;
   if (data.address !== undefined) body.address = data.address;
+  if (data.city !== undefined) body.city = data.city;
   if (data.addressNumber !== undefined) body.addressNumber = data.addressNumber;
   const response = await fetch(`${API_BASE}/customers/${id}`, {
     method: "PATCH",

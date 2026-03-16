@@ -6,6 +6,7 @@ export interface Customer {
   cpf: string;
   cep: string;
   address: string;
+  city?: string;
   addressNumber: string;
   vehicleModel: string;
   /** Apenas modo módulo (Laboratório): identificação do módulo */
