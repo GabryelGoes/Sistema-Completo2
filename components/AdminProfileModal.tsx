@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Camera, Loader2, Check } from 'lucide-react';
+import { X, Camera, Loader2, Check, Lock } from 'lucide-react';
 import { getWorkshopSettings, updateWorkshopSettings, uploadWorkshopAdminPhoto } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 
@@ -18,6 +18,11 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
   const [error, setError] = useState<string | null>(null);
   const [photoEditorFile, setPhotoEditorFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Senha do administrador (alterar senha)
+  const [adminNewPassword, setAdminNewPassword] = useState('');
+  const [adminConfirm, setAdminConfirm] = useState('');
+  const [savingAdmin, setSavingAdmin] = useState(false);
+  const [adminPasswordMessage, setAdminPasswordMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -68,6 +73,30 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
       setError(e instanceof Error ? e.message : 'Erro ao enviar foto.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveAdminPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminPasswordMessage(null);
+    if (adminNewPassword.trim().length < 4) {
+      setAdminPasswordMessage({ type: 'err', text: 'A senha deve ter pelo menos 4 caracteres.' });
+      return;
+    }
+    if (adminNewPassword !== adminConfirm) {
+      setAdminPasswordMessage({ type: 'err', text: 'As senhas não coincidem.' });
+      return;
+    }
+    setSavingAdmin(true);
+    try {
+      await updateWorkshopSettings({ adminPassword: adminNewPassword.trim() });
+      setAdminPasswordMessage({ type: 'ok', text: 'Senha do administrador alterada!' });
+      setAdminNewPassword('');
+      setAdminConfirm('');
+    } catch (e) {
+      setAdminPasswordMessage({ type: 'err', text: e instanceof Error ? e.message : 'Erro ao salvar.' });
+    } finally {
+      setSavingAdmin(false);
     }
   };
 
@@ -131,6 +160,54 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
                   placeholder="Ex.: Rei do ABS"
                 />
               </div>
+
+              {/* Senha do administrador */}
+              <section className="bg-zinc-100/80 dark:bg-white/[0.06] p-4 rounded-2xl border border-zinc-200/60 dark:border-white/[0.08]">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lock className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Senha do administrador
+                  </h3>
+                </div>
+                <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
+                  Define a senha usada no login &quot;Acesso total&quot;.
+                </p>
+                {adminPasswordMessage && (
+                  <div
+                    className={`mb-3 px-4 py-3 rounded-xl text-sm ${
+                      adminPasswordMessage.type === 'ok'
+                        ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/50 text-green-700 dark:text-green-300'
+                        : 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300'
+                    }`}
+                  >
+                    {adminPasswordMessage.text}
+                  </div>
+                )}
+                <form onSubmit={handleSaveAdminPassword} className="space-y-3">
+                  <input
+                    type="password"
+                    value={adminNewPassword}
+                    onChange={(e) => setAdminNewPassword(e.target.value)}
+                    placeholder="Nova senha"
+                    className="w-full px-4 py-3 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 text-[15px]"
+                  />
+                  <input
+                    type="password"
+                    value={adminConfirm}
+                    onChange={(e) => setAdminConfirm(e.target.value)}
+                    placeholder="Confirmar nova senha"
+                    className="w-full px-4 py-3 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 text-[15px]"
+                  />
+                  <button
+                    type="submit"
+                    disabled={savingAdmin || !adminNewPassword.trim() || adminNewPassword !== adminConfirm}
+                    className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold text-[15px] flex items-center justify-center gap-2"
+                  >
+                    {savingAdmin ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                    Salvar senha do admin
+                  </button>
+                </form>
+              </section>
 
               <div className="flex gap-3">
                 <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl bg-zinc-200 dark:bg-white/10 text-zinc-700 dark:text-zinc-300 font-medium">

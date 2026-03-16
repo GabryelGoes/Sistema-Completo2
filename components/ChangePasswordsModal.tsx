@@ -8,12 +8,9 @@ interface ChangePasswordsModalProps {
 }
 
 export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOpen, onClose }) => {
-  const [adminNewPassword, setAdminNewPassword] = useState('');
-  const [adminConfirm, setAdminConfirm] = useState('');
   const [patioPin, setPatioPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(false);
-  const [savingAdmin, setSavingAdmin] = useState(false);
   const [savingPin, setSavingPin] = useState(false);
   const [vehicleDeletePassword, setVehicleDeletePassword] = useState('');
   const [vehicleDeleteConfirm, setVehicleDeleteConfirm] = useState('');
@@ -22,8 +19,6 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
 
   useEffect(() => {
     if (isOpen) {
-      setAdminNewPassword('');
-      setAdminConfirm('');
       setMessage(null);
       setLoadingSettings(true);
       getWorkshopSettings()
@@ -32,30 +27,6 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
         .finally(() => setLoadingSettings(false));
     }
   }, [isOpen]);
-
-  const handleSaveAdmin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage(null);
-    if (adminNewPassword.trim().length < 4) {
-      setMessage({ type: 'err', text: 'A senha deve ter pelo menos 4 caracteres.' });
-      return;
-    }
-    if (adminNewPassword !== adminConfirm) {
-      setMessage({ type: 'err', text: 'As senhas não coincidem.' });
-      return;
-    }
-    setSavingAdmin(true);
-    try {
-      await updateWorkshopSettings({ adminPassword: adminNewPassword.trim() });
-      setMessage({ type: 'ok', text: 'Senha do administrador alterada!' });
-      setAdminNewPassword('');
-      setAdminConfirm('');
-    } catch (e) {
-      setMessage({ type: 'err', text: e instanceof Error ? e.message : 'Erro ao salvar.' });
-    } finally {
-      setSavingAdmin(false);
-    }
-  };
 
   const handleSavePin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,43 +101,6 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
               {message.text}
             </div>
           )}
-
-          {/* Senha do administrador */}
-          <section className="bg-zinc-100/80 dark:bg-white/[0.06] p-4 rounded-2xl border border-zinc-200/60 dark:border-white/[0.08]">
-            <div className="flex items-center gap-2 mb-3">
-              <Lock className="w-5 h-5 text-amber-500" />
-              <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                Senha do administrador
-              </h3>
-            </div>
-            <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
-              Define a senha usada no login &quot;Acesso total&quot;.
-            </p>
-            <form onSubmit={handleSaveAdmin} className="space-y-3">
-              <input
-                type="password"
-                value={adminNewPassword}
-                onChange={(e) => setAdminNewPassword(e.target.value)}
-                placeholder="Nova senha"
-                className="w-full px-4 py-3 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 text-[15px]"
-              />
-              <input
-                type="password"
-                value={adminConfirm}
-                onChange={(e) => setAdminConfirm(e.target.value)}
-                placeholder="Confirmar nova senha"
-                className="w-full px-4 py-3 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 text-[15px]"
-              />
-              <button
-                type="submit"
-                disabled={savingAdmin || !adminNewPassword.trim() || adminNewPassword !== adminConfirm}
-                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold text-[15px] flex items-center justify-center gap-2"
-              >
-                {savingAdmin ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                Salvar senha do admin
-              </button>
-            </form>
-          </section>
 
           {/* PIN dos técnicos */}
           <section className="bg-zinc-100/80 dark:bg-white/[0.06] p-4 rounded-2xl border border-zinc-200/60 dark:border-white/[0.08]">
