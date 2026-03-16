@@ -3463,7 +3463,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     return (
                                       <div className="space-y-5">
                                         {images.length > 0 && (
-                                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                                          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-2 gap-1.5 md:gap-3">
                                             {images.map(att => {
                                               const isLoadingThis = loadingAttachmentId === att.id;
                                               const src = thumbUrl(att);
