@@ -41,7 +41,7 @@ import {
   type ChecklistTemplate,
 } from '../../services/apiService';
 import type { ServiceOrderDetail } from '../../services/apiService';
-import { SERVICE_ORDER_STAGES, getStageStyle, type ServiceOrderStatus } from '../../constants/serviceOrderStages';
+import { SERVICE_ORDER_STAGES, getStageStyle, getStageRingClass, type ServiceOrderStatus } from '../../constants/serviceOrderStages';
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
 import { PatioCarIcon } from '../ui/PatioCarIcon';
 
@@ -1625,10 +1625,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const byName = SERVICE_ORDER_STAGES.find(
       (s) => s.name.toLowerCase() === listName.toLowerCase()
     );
-    if (byName) return { style: byName.style, label: byName.name };
+    if (byName) return { style: byName.style, label: byName.name, ringClass: byName.ringClass };
     if (listId === "CANCELLED")
-      return { style: "bg-zinc-600 text-zinc-300 border-zinc-600", label: "Arquivado" };
-    return { style: getStageStyle(listId || ""), label: listName };
+      return { style: "bg-zinc-600 text-zinc-300 border-zinc-600", label: "Arquivado", ringClass: getStageRingClass("CANCELLED") };
+    return { style: getStageStyle(listId || ""), label: listName, ringClass: getStageRingClass(listId || "") };
   };
 
   // Mapa de accent_color (perfil do técnico) para classes Tailwind
@@ -2576,9 +2576,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* MODAL DETALHE DO VEÍCULO */}
-      {selectedCard && (
+      {selectedCard && (() => {
+        const modalListName = lists.find(l => l.id === selectedCard.idList)?.name ?? '';
+        const modalStatusConfig = getStatusConfig(modalListName, selectedCard.idList);
+        const modalRingClass = selectedCard.garantiaTag
+          ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a] border-2 border-red-500/30'
+          : `${modalStatusConfig.ringClass} border border-zinc-200/60 dark:border-white/[0.08]`;
+        return (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-xl p-4 animate-modal-backdrop">
-           <div className={`bg-zinc-50/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl w-full max-w-4xl h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08),0_12px_40px_-8px_rgba(0,0,0,0.12)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative ${selectedCard.garantiaTag ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a] border-2 border-red-500/30' : 'border border-zinc-200/60 dark:border-white/[0.08]'}`}>
+           <div className={`bg-zinc-50/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl w-full max-w-4xl h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08),0_12px_40px_-8px_rgba(0,0,0,0.12)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative ${modalRingClass}`}>
               
               <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
                 {can('canDeleteCards') && (
@@ -3810,7 +3816,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
           </div>
         </div>
-      )}
+      );
+      })()}
 
       {/* MODAL EDITAR DADOS DA FICHA (cliente + veículo) */}
       {isEditFichaOpen && selectedCard && (
