@@ -621,6 +621,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   // Efeito "folha boiando na água" nos cards do pátio (hover 3D)
   const [cardFloat, setCardFloat] = useState<{ id: string; rotateX: number; rotateY: number } | null>(null);
+  // Desativa o efeito 3D quando o mouse está sobre o conteúdo (botões), evitando cliques perdidos
+  const [interactingCardId, setInteractingCardId] = useState<string | null>(null);
   const FLOAT_MAX_TILT = 6;
   const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>, cardId: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -2030,7 +2032,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           const showNotApprovedDeliverButton = listNameLower.includes('não aprovado');
 
           const isGarantia = card.garantiaTag === true;
-          const isFloating = effectsEnabled && cardFloat?.id === card.id;
+          const isFloating = effectsEnabled && cardFloat?.id === card.id && interactingCardId !== card.id;
 
           return (
             <div
@@ -2071,6 +2073,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               ) : null}
 
+              {/* Conteúdo interativo: ao entrar aqui desativamos o 3D para os cliques nos botões funcionarem */}
+              <div
+                className="relative z-10"
+                onMouseEnter={() => setInteractingCardId(card.id)}
+                onMouseLeave={() => setInteractingCardId(null)}
+              >
               {/* Layout Superior */}
               <div className="flex justify-between items-start mb-6">
                 
@@ -2232,6 +2240,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </button>
               </div>
 
+              </div>
             </div>
             </div>
           );
