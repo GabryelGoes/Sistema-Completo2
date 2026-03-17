@@ -3271,8 +3271,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       key={budget.id}
                                       type="button"
                                       onClick={() => setViewingBudget(budget)}
-                                      className="w-full text-left rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-3.5 shadow-sm hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-600 transition-all duration-200"
+                                      className="w-full text-left rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_4px_14px_rgba(0,0,0,0.1),0_2px_6px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 active:translate-y-0"
+                                      style={{
+                                        backgroundColor: '#f8f6f1',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8)',
+                                        border: '1px solid rgba(0,0,0,0.06)',
+                                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.03'/%3E%3C/svg%3E")`,
+                                      }}
                                     >
+                                      <div className="relative p-3.5">
                                       <div className="flex items-center justify-between gap-2 mb-2">
                                         <span className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
                                           Orçamento {numero}
@@ -3289,11 +3296,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         <span className="text-zinc-400">·</span>
                                         <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
                                       </div>
+                                      </div>
                                     </button>
                                   );
                                 })}
                               {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
-                                <div className="rounded-xl bg-zinc-100 dark:bg-zinc-800/80 border border-dashed border-zinc-300 dark:border-zinc-600 p-5 text-center">
+                                <div
+                                  className="rounded-lg p-5 text-center border border-dashed"
+                                  style={{
+                                    backgroundColor: '#f8f6f1',
+                                    borderColor: 'rgba(0,0,0,0.08)',
+                                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)',
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.03'/%3E%3C/svg%3E")`,
+                                  }}
+                                >
                                   <FileText className="w-9 h-9 text-zinc-400 dark:text-zinc-500 mx-auto mb-2" />
                                   <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Nenhum orçamento</p>
                                   <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-0.5">Crie um orçamento pelo botão acima</p>
@@ -3974,11 +3990,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
         />
       )}
 
-      {/* MODAL VISUALIZAR ORÇAMENTO */}
+      {/* MODAL VISUALIZAR ORÇAMENTO — fundo com efeito de papel */}
       {viewingBudget && selectedCard && (
         <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/70 p-4 animate-modal-backdrop">
-          <div className="relative w-full max-w-2xl max-h-[90vh] rounded-xl flex flex-col overflow-hidden animate-modal-sheet bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-700 shrink-0">
+          <div
+            className="relative w-full max-w-2xl max-h-[90vh] rounded-lg flex flex-col overflow-hidden animate-modal-sheet"
+            style={{
+              backgroundColor: '#f5f2eb',
+              border: '1px solid rgba(0,0,0,0.08)',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.5) inset, 0 2px 4px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.12), 0 16px 48px rgba(0,0,0,0.08)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='0.035'/%3E%3C/svg%3E")`,
+            }}
+          >
+            <div className="absolute inset-0 pointer-events-none rounded-lg" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7)' }} aria-hidden />
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200/80 dark:border-zinc-600/80 shrink-0 bg-[#f0ede6]/80 dark:bg-zinc-800/90 relative z-10">
               <div>
                 <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
                   {(() => {
@@ -4016,7 +4041,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-zinc-800 dark:text-zinc-200">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-zinc-800 dark:text-zinc-200 relative z-10">
               {viewingBudget.diagnosis && (
                 <section>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Diagnóstico</h3>
@@ -4060,7 +4085,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </section>
               )}
             </div>
-            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-zinc-200 dark:border-zinc-700 shrink-0 bg-zinc-50 dark:bg-zinc-800/50">
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-zinc-200/80 dark:border-zinc-600/80 shrink-0 bg-[#f0ede6]/80 dark:bg-zinc-800/80 relative z-10">
               <button
                 type="button"
                 onClick={handleDeleteBudget}

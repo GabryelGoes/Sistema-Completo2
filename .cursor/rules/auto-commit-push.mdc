@@ -7,9 +7,9 @@ alwaysApply: true
 
 Quando o usuário pedir para você **alterar** algo no projeto (código, config, etc.):
 
-1. **Depois de aplicar as alterações**, execute commit e push no repositório correto:
-   - Se as alterações forem em arquivos dentro de **Patio-View/** → fazer commit e push no repositório **Patio-View** (`d:\RDA-Trello\Patio-View`).
-   - Se as alterações forem em outros arquivos do workspace → fazer commit e push no repositório **raiz** (`d:\RDA-Trello`).
+1. **Depois de aplicar as alterações**, execute commit e push no repositório do **workspace atual** (raiz do projeto aberto, ex.: `Sistema-Completo2`).
+   - Comandos: `git add` nos arquivos alterados, `git commit -m "mensagem em português"`, `git push origin main`.
+   - No PowerShell use `Set-Location` e `;` em vez de `&&`.
 
 2. **Mensagem de commit**: use uma mensagem curta e descritiva em português do que foi alterado.
 
