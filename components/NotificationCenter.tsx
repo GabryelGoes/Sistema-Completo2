@@ -370,7 +370,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       </button>
 
       {open && (
-        <div className={`fixed right-4 top-20 w-[min(380px,calc(100vw-24px))] rounded-2xl backdrop-blur-2xl overflow-hidden z-[200] flex flex-col max-h-[75vh] ${panelClass}`}>
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-20 bg-black/40">
+          <div className={`w-[min(380px,calc(100vw-24px))] rounded-2xl backdrop-blur-2xl overflow-hidden flex flex-col max-h-[75vh] ${panelClass}`}>
           <div className={`flex items-center justify-between p-4 border-b shrink-0 ${headerBorderClass}`}>
             <h3 className={`text-lg font-semibold ${titleClass}`}>Notificações</h3>
             <div className="flex items-center gap-3">
