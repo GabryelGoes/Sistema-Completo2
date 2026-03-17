@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2 } from 'lucide-react';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
+import { NotificationCenter } from '../NotificationCenter';
 import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer } from '../../types';
 import {
   getServiceOrders,
@@ -78,33 +79,6 @@ interface PatioViewProps {
     canArchiveCard?: boolean;
   };
 }
-
-/** Chave do localStorage para "última visualização" por usuário (cada um vê suas próprias notificações). */
-const getPatioSeenStorageKey = (actor?: string, technicianSlug?: string) =>
-  `patio-card-seen-${actor ?? 'anon'}-${technicianSlug ?? ''}`;
-
-const getCardSeen = (cardId: string, actor?: string, technicianSlug?: string): { listId: string; budgets: number; comments: number } | null => {
-  try {
-    const raw = localStorage.getItem(getPatioSeenStorageKey(actor, technicianSlug));
-    if (!raw) return null;
-    const data = JSON.parse(raw) as Record<string, { listId: string; budgets: number; comments: number }>;
-    return data[cardId] ?? null;
-  } catch {
-    return null;
-  }
-};
-
-const setCardSeen = (cardId: string, value: { listId: string; budgets: number; comments: number }, actor?: string, technicianSlug?: string) => {
-  try {
-    const key = getPatioSeenStorageKey(actor, technicianSlug);
-    const raw = localStorage.getItem(key);
-    const data = (raw ? JSON.parse(raw) : {}) as Record<string, { listId: string; budgets: number; comments: number }>;
-    data[cardId] = value;
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (e) {
-    console.warn('Patio: falha ao salvar last-seen', e);
-  }
-};
 
 const BACKEND_LISTS: BoardList[] = SERVICE_ORDER_STAGES.map((s) => ({
   id: s.id,
@@ -529,8 +503,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [viewingBudget, setViewingBudget] = useState<SavedBudget | null>(null);
   const [editingBudget, setEditingBudget] = useState<SavedBudget | null>(null);
   const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
-  /** Contagem de orçamentos e comentários por card (para badge de notificações). */
-  const [cardCounts, setCardCounts] = useState<Record<string, { budgets: number; comments: number }>>({});
   /** Admin: orçamento em aprovação (modal com toggles por serviço/peça). */
   const [budgetApprovalTarget, setBudgetApprovalTarget] = useState<SavedBudget | null>(null);
   const [approvalServices, setApprovalServices] = useState<boolean[]>([]);
@@ -789,46 +761,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setSavedBudgets([]);
     }
   }, [selectedCard]);
-
-  // Ao abrir o card e carregar detalhes, atualizar "última visualização" para este usuário (zerar notificações deste card).
-  useEffect(() => {
-    if (!selectedCard || loadingDetails || !cardDetails) return;
-    const budgets = savedBudgets.length;
-    const comments = cardDetails.actions?.length ?? 0;
-    setCardSeen(selectedCard.id, { listId: selectedCard.idList, budgets, comments }, actorOptions?.actor, actorOptions?.actorTechnicianSlug);
-    // Atualizar cardCounts localmente para este card (evita refetch só por ter aberto).
-    setCardCounts((prev) => ({ ...prev, [selectedCard.id]: { budgets, comments } }));
-  }, [selectedCard?.id, selectedCard?.idList, loadingDetails, cardDetails?.actions?.length, savedBudgets.length, actorOptions?.actor, actorOptions?.actorTechnicianSlug]);
-
-  // Buscar contagem de orçamentos e comentários por card para exibir badge de notificações (em background).
-  useEffect(() => {
-    if (cards.length === 0) {
-      setCardCounts({});
-      return;
-    }
-    const cardIds = cards.map((c) => c.id);
-    let cancelled = false;
-    Promise.all(
-      cardIds.map(async (id) => {
-        try {
-          const [budgets, comments] = await Promise.all([
-            getServiceOrderBudgets(id),
-            getServiceOrderComments(id),
-          ]);
-          return { id, budgets: budgets.length, comments: (comments ?? []).length };
-        } catch {
-          return { id, budgets: 0, comments: 0 };
-        }
-      })
-    ).then((results) => {
-      if (cancelled) return;
-      setCardCounts(results.reduce<Record<string, { budgets: number; comments: number }>>((acc, r) => {
-        acc[r.id] = { budgets: r.budgets, comments: r.comments };
-        return acc;
-      }, {}));
-    });
-    return () => { cancelled = true; };
-  }, [cards]);
 
   /** Atualiza os detalhes da OS no modal (serviceOrderDetail) sem fechar o modal nem mostrar loading. */
   const refreshModalDetails = React.useCallback(async () => {
@@ -1185,10 +1117,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
         ...prev,
         actions: comments.map(commentToAction),
       } : null);
-      setCardCounts(prev => ({
-        ...prev,
-        [selectedCard.id]: { budgets: prev[selectedCard.id]?.budgets ?? 0, comments: comments.length },
-      }));
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao enviar comentário.');
       setNewComment(text);
@@ -1601,10 +1529,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       } else {
         const budget = await createServiceOrderBudget(selectedCard.id, payload, actorOptions);
         setSavedBudgets(prev => [budget, ...prev]);
-        setCardCounts(prev => ({
-          ...prev,
-          [selectedCard.id]: { budgets: (prev[selectedCard.id]?.budgets ?? 0) + 1, comments: prev[selectedCard.id]?.comments ?? 0 },
-        }));
         closeBudgetModal();
       }
     } catch (err: any) {
@@ -1980,8 +1904,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
           </div>
         </div>
 
-        {/* Botão central de Lembretes (agora também visível no mobile) */}
-        <div className="flex flex-1 justify-center">
+        {/* Lembretes + Central de notificações (por usuário) */}
+        <div className="flex flex-1 items-center justify-center gap-3">
           <button
             type="button"
             onClick={() => setIsRemindersOpen(true)}
@@ -1994,6 +1918,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
               {isModuleMode ? 'Lembretes do laboratório' : 'Lembretes do pátio'}
             </span>
           </button>
+          <NotificationCenter
+            theme="light"
+            forTechnician={actorOptions?.actor === 'technician'}
+            technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
+          />
         </div>
 
         <div className="flex items-center gap-2">
@@ -2026,7 +1955,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         };
         const sortedCards = [...cards].sort(byStage);
         return (
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 px-1 max-w-[1600px] mx-auto" style={{ perspective: '1400px' }}>
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-1" style={{ perspective: '1400px' }}>
         {sortedCards.map(card => {
           const parts = card.name.split('-').map(s => s.trim());
           const model = parts[0] || card.name;
@@ -2058,7 +1987,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           return (
             <div
               key={card.id}
-              className="min-h-[260px] flex"
+              className="min-h-[180px]"
               style={{ transformStyle: 'preserve-3d' }}
               onMouseMove={(e) => handleCardMouseMove(e, card.id)}
               onMouseLeave={handleCardMouseLeave}
@@ -2066,17 +1995,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div
                 onClick={() => setSelectedCard(card)}
                 className={`
-                  group relative overflow-hidden w-full
+                  group relative overflow-hidden
                   bg-white/95 dark:bg-[#1C1C1E]/95
                   backdrop-blur-xl
-                  border rounded-[1.5rem] p-4 md:p-5
+                  border rounded-[1.5rem] p-5
                   shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.02)]
                   dark:shadow-[0_1px_2px_rgba(0,0,0,0.2),0_4px_16px_rgba(0,0,0,0.25),0_12px_32px_-8px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.04)]
                   hover:shadow-[0_2px_4px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.08),0_16px_48px_-12px_rgba(0,0,0,0.12),0_24px_64px_-16px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.03)]
                   dark:hover:shadow-[0_2px_4px_rgba(0,0,0,0.25),0_12px_32px_rgba(0,0,0,0.3),0_24px_56px_-12px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)]
                   hover:border-zinc-300/80 dark:hover:border-white/[0.12]
                   active:scale-[0.99]
-                  flex flex-col cursor-pointer h-full min-h-[260px]
+                  flex flex-col justify-between min-h-[180px] cursor-pointer h-full
                   ${isGarantia ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-white dark:ring-offset-[#0a0a0a] border-red-500/30' : 'border border-zinc-200/60 dark:border-white/[0.08]'}
                 `}
                 style={{
@@ -2100,150 +2029,107 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 onMouseEnter={() => setInteractingCardId(card.id)}
                 onMouseLeave={() => setInteractingCardId(null)}
               >
-              {/* Badge de notificações (estilo iPhone): etapa alterada, novos orçamentos, novos comentários */}
-              {(() => {
-                const seen = getCardSeen(card.id, actorOptions?.actor, actorOptions?.actorTechnicianSlug);
-                const counts = cardCounts[card.id] ?? { budgets: 0, comments: 0 };
-                const stageChange = seen && seen.listId !== card.idList ? 1 : 0;
-                const newBudgets = seen ? Math.max(0, counts.budgets - seen.budgets) : 0;
-                const newComments = seen ? Math.max(0, counts.comments - seen.comments) : 0;
-                const total = stageChange + newBudgets + newComments;
-                if (total <= 0) return null;
-                return (
-                  <div
-                    className="absolute top-3 right-3 z-20 flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-red-500 text-white text-xs font-bold shadow-lg border-2 border-white dark:border-[#1C1C1E] select-none"
-                    aria-label={`${total} notificação${total !== 1 ? 'ões' : ''}`}
-                  >
-                    {total > 99 ? '99+' : total}
-                  </div>
-                );
-              })()}
-              {/* Layout padronizado: grid 2 colunas x 3 linhas — mesmo padrão em todos os cards */}
-              <div className="grid grid-cols-[1fr_120px] grid-rows-[auto_auto_auto] gap-x-4 gap-y-2 mb-4 min-h-0 flex-shrink-0 content-start">
-                {/* Linha 1: Modelo | Técnico */}
-                <div className="min-w-0 flex items-center">
-                  <h3 className="text-xl md:text-2xl font-black text-zinc-900 dark:text-white uppercase leading-tight tracking-tighter line-clamp-2 italic">
+              {/* Layout Superior */}
+              <div className="flex justify-between items-start mb-6">
+                {/* Info Carro/Cliente */}
+                <div className="flex-1 pr-2">
+                  <h3 className="text-4xl font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic">
                     {model}
                   </h3>
+                  {customerName && (
+                    <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
+                      <User className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
+                      <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
+                        {firstTwoNames(customerName)}
+                      </span>
+                    </div>
+                  )}
+                  {card.deliveryDate && (
+                    <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
+                      <Calendar className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
+                      <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
+                        Entrega: {new Date(card.deliveryDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center justify-end">
+
+                {/* Info Mecânico/Placa */}
+                <div className="flex flex-col items-end min-w-[120px] text-right pl-2">
                   <button
                     type="button"
                     disabled={!canAssignMember}
                     onClick={(e) => { e.stopPropagation(); canAssignMember && setCardForMemberAssignment(card); }}
                     className={`
-                      w-full flex items-center justify-end gap-1.5 min-h-[32px] px-2 py-1.5 rounded-xl border transition-all
+                      flex items-center justify-end gap-1.5 mb-2 px-3 py-1.5 rounded-2xl border transition-all
                       ${canAssignMember
                         ? 'border-light-border dark:border-white/10 bg-light-card dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-200 cursor-pointer hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] active:scale-[0.97]'
                         : 'border-zinc-200/60 dark:border-white/5 bg-light-card/80 dark:bg-white/[0.04] text-zinc-500 cursor-default'}
                     `}
                   >
-                    <span className={`text-xs font-bold truncate max-w-[70px] ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}>
-                      {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : '—')}
+                    <span className={`text-sm font-bold truncate max-w-[120px] ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}>
+                      {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : 'Sem técnico')}
                     </span>
                     {member?.avatarUrl ? (
-                      <img src={member.avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover border border-zinc-300/80 dark:border-white/10 shrink-0" />
+                      <img src={member.avatarUrl} alt={capitalizeFirst(member.fullName)} className="w-6 h-6 rounded-full object-cover border border-zinc-300/80 dark:border-white/10" />
                     ) : (
-                      <MechanicIcon className={`w-5 h-5 shrink-0 ${mechanicColorClass}`} />
+                      <MechanicIcon className={`w-6 h-6 shrink-0 ${mechanicColorClass}`} />
                     )}
                   </button>
-                </div>
-                {/* Linha 2: Cliente | Placa (ou módulo) */}
-                <div className="min-h-[40px] min-w-0 flex items-center">
-                  {customerName ? (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-full max-w-full min-w-0">
-                      <User className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
-                      <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200 truncate">
-                        {firstTwoNames(customerName)}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-zinc-400/60 dark:text-zinc-500/60 text-sm">—</span>
-                  )}
-                </div>
-                <div className="min-h-[40px] flex items-center justify-end">
-                  {!isModuleMode ? (
-                    <div className="w-full max-w-[120px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/15 select-none">
-                      <div className="h-3 bg-[#003399] flex items-center justify-between px-1.5">
-                        <span className="text-[5px] font-bold text-white tracking-wider">BR</span>
-                        <BrazilFlagIcon width={10} height={6} className="rounded-sm flex-shrink-0 border border-white/30" />
+                  {!isModuleMode && (
+                    <div className="w-[120px] bg-white rounded-xl border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/15 mt-1 select-none">
+                      <div className="h-4 bg-[#003399] flex items-center justify-between px-2 relative">
+                        <span className="text-[6px] font-bold text-white tracking-wider">BRASIL</span>
+                        <BrazilFlagIcon width={12} height={8} className="rounded-sm flex-shrink-0 border border-white/30" />
                       </div>
-                      <div className="h-7 flex items-center justify-center bg-white">
-                        <span className={`text-black font-mono text-base font-black tracking-widest leading-none ${blurPlates ? 'blur-plate' : ''}`}>
+                      <div className="h-8 flex items-center justify-center bg-white">
+                        <span className={`text-black font-mono text-xl font-black tracking-widest leading-none ${blurPlates ? 'blur-plate' : ''}`}>
                           {plate.toUpperCase()}
                         </span>
                       </div>
                     </div>
-                  ) : (
-                    <div className="w-full h-10 rounded-lg border border-zinc-200/60 dark:border-white/10 bg-zinc-50/50 dark:bg-white/[0.03] flex items-center justify-center">
-                      <span className="text-zinc-400 text-xs">Módulo</span>
-                    </div>
                   )}
                 </div>
-                {/* Linha 3: Entrega | vazio */}
-                <div className="min-h-[40px] min-w-0 flex items-center">
-                  {card.deliveryDate ? (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-full max-w-full min-w-0">
-                      <Calendar className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
-                      <span className="text-xs md:text-sm font-medium text-zinc-600 dark:text-zinc-300">
-                        {new Date(card.deliveryDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-zinc-400/60 dark:text-zinc-500/60 text-sm">—</span>
-                  )}
-                </div>
-                <div className="min-h-[40px]" />
               </div>
 
-              {/* Botões de Ação Inferiores — sempre mesmo padrão e ordem */}
-              <div className="relative w-full mt-auto space-y-2.5 flex-shrink-0">
-                {/* Botão ENTREGUE (Apenas se Finalizado) */}
+              {/* Botões de Ação Inferiores */}
+              <div className="relative w-full mt-auto space-y-3">
                 {can('canArchiveCard') && showDeliverButton && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDeliverVehicle(card.id); }}
                     disabled={archivingId === card.id}
-                    className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-light-card dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400 border border-zinc-200/60 dark:border-white/[0.08] font-bold text-xs uppercase tracking-widest hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+                    className="w-full py-3 px-4 rounded-2xl bg-light-card dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400 border border-zinc-200/60 dark:border-white/[0.08] font-bold uppercase tracking-widest hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.99] flex items-center justify-center gap-2"
                   >
                     {archivingId === card.id ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
                     ENTREGUE
                   </button>
                 )}
-
-                {/* Botão ENTREGUE (Se Não Aprovado) */}
                 {can('canArchiveCard') && showNotApprovedDeliverButton && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDeliverVehicle(card.id); }}
                     disabled={archivingId === card.id}
-                    className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-light-card dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400 border border-zinc-200/60 dark:border-white/[0.08] font-bold text-xs uppercase tracking-widest hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+                    className="w-full py-3 px-4 rounded-2xl bg-light-card dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400 border border-zinc-200/60 dark:border-white/[0.08] font-bold uppercase tracking-widest hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.99] flex items-center justify-center gap-2"
                   >
                     {archivingId === card.id ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
                     ENTREGUE
                   </button>
                 )}
-
-                {/* Botão de Status (Mudar Etapa) — altura fixa, mesmo padrão em todos os cards */}
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleOpenMoveModal(card, e);
-                  }}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenMoveModal(card, e); }}
                   onPointerDown={(e) => e.stopPropagation()}
                   className={`
-                    flex items-center justify-between w-full min-h-[44px] px-4 py-2.5 rounded-xl
-                    cursor-pointer transition-all duration-200 ease-out
+                    flex items-center justify-between w-full px-5 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 ease-out
                     shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
                     border border-black/10 dark:border-white/10
                     ${statusConfig.style}
                     hover:brightness-110 active:scale-[0.98]
                   `}
                 >
-                  <span className="font-black text-xs uppercase tracking-wide truncate pr-2">
+                  <span className="font-black text-sm uppercase tracking-wide truncate pr-2">
                     {statusConfig.label}
                   </span>
-                  <ChevronDown className="w-5 h-5 opacity-70 shrink-0" />
+                  <ChevronDown className="w-5 h-5 opacity-70" />
                 </button>
               </div>
 
