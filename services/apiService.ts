@@ -212,6 +212,136 @@ export async function deleteAppointment(id: string): Promise<void> {
   }
 }
 
+// --- Quadro de Avisos (Painel TV) ---
+
+export interface WorkshopNotice {
+  id: string;
+  title: string;
+  body: string;
+  highlight: boolean;
+  active: boolean;
+  sortOrder: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getNotices(): Promise<WorkshopNotice[]> {
+  const response = await fetch(`${API_BASE}/notices`);
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Falha ao listar avisos (status ${response.status})`);
+  }
+  return response.json();
+}
+
+export async function createNotice(input: {
+  title: string;
+  body: string;
+  highlight?: boolean;
+  active?: boolean;
+  sortOrder?: number | null;
+}): Promise<WorkshopNotice> {
+  const response = await fetch(`${API_BASE}/notices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: input.title,
+      body: input.body,
+      highlight: !!input.highlight,
+      active: input.active !== false,
+      sortOrder: input.sortOrder ?? null,
+    }),
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Falha ao criar aviso (status ${response.status})`);
+  }
+  return response.json();
+}
+
+export async function updateNotice(
+  id: string,
+  input: {
+    title?: string;
+    body?: string;
+    highlight?: boolean;
+    active?: boolean;
+    sortOrder?: number | null;
+  }
+): Promise<WorkshopNotice> {
+  const body: Record<string, unknown> = {};
+  if (input.title !== undefined) body.title = input.title;
+  if (input.body !== undefined) body.body = input.body;
+  if (input.highlight !== undefined) body.highlight = input.highlight;
+  if (input.active !== undefined) body.active = input.active;
+  if (input.sortOrder !== undefined) body.sortOrder = input.sortOrder;
+
+  const response = await fetch(`${API_BASE}/notices/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Falha ao atualizar aviso (status ${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteNotice(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/notices/${id}`, { method: "DELETE" });
+  if (!response.ok && response.status !== 204) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Falha ao excluir aviso (status ${response.status})`);
+  }
+}
+
+// ---------- Meta semanal (quadro de avisos / painel TV) ----------
+
+export interface WeeklyGoal {
+  id: string;
+  /** Início da semana (ISO date, ex.: 2025-03-03) */
+  weekStart: string;
+  /** Meta de faturamento da semana em reais (centavos já convertidos) */
+  targetAmount: number;
+  /** Total faturado acumulado na semana, em reais */
+  currentAmount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Retorna a meta semanal atual (ou null se ainda não houver meta cadastrada). */
+export async function getWeeklyGoal(): Promise<WeeklyGoal | null> {
+  const response = await fetch(`${API_BASE}/weekly-goal`);
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Falha ao carregar meta semanal (status ${response.status})`);
+  }
+  return response.json();
+}
+
+/**
+ * Atualiza a meta semanal.
+ * - targetAmount: define/ajusta o valor da meta (em reais).
+ * - addAmount: soma esse valor ao faturamento atual (em reais).
+ */
+export async function updateWeeklyGoal(input: {
+  targetAmount?: number;
+  addAmount?: number;
+}): Promise<WeeklyGoal> {
+  const response = await fetch(`${API_BASE}/weekly-goal`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Falha ao atualizar meta semanal (status ${response.status})`);
+  }
+  return response.json();
+}
+
 export async function createCustomer(customer: Customer): Promise<ApiCustomer> {
   const response = await fetch(`${API_BASE}/customers`, {
     method: "POST",
