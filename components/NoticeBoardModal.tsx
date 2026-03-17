@@ -217,8 +217,8 @@ export const NoticeBoardModal: React.FC<NoticeBoardModalProps> = ({ open, onClos
   const hasEditing = editing.mode !== "idle";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-2xl p-4">
-      <div className="w-full max-w-5xl rounded-3xl bg-zinc-950/90 border border-white/10 shadow-[0_40px_120px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/70 backdrop-blur-2xl p-4 overflow-y-auto">
+      <div className="w-full max-w-5xl my-6 rounded-3xl bg-zinc-950/90 border border-white/10 shadow-[0_40px_120px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between px-6 sm:px-8 pt-5 pb-4 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-[0_8px_30px_rgba(251,191,36,0.75)] flex items-center justify-center">
