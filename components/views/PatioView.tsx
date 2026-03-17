@@ -3254,7 +3254,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <span className="font-black text-zinc-800">Criar orçamento</span>
                                   <Calculator className="w-5 h-5 text-zinc-700 group-hover:scale-110 transition-transform" />
                               </button>
-                              <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-3 space-y-3 max-h-[280px] overflow-y-auto shadow-inner bg-zinc-100/50 dark:bg-zinc-900/30">
+                              <div className="rounded-xl p-3 space-y-4 max-h-[300px] overflow-y-auto bg-gradient-to-b from-zinc-200/60 to-zinc-300/40 dark:from-zinc-800/60 dark:to-zinc-900/50 rounded-tl-[20px] rounded-tr-xl rounded-br-xl rounded-bl-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.06)] border border-zinc-300/80 dark:border-zinc-600/50">
                               {savedBudgets
                                 .filter((b) => b.serviceOrderId === selectedCard.id)
                                 .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
@@ -3271,32 +3271,49 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       key={budget.id}
                                       type="button"
                                       onClick={() => setViewingBudget(budget)}
-                                      className="w-full text-left rounded-xl bg-[#f5f4f0] dark:bg-[#f5f4f0]/90 border border-zinc-200/90 dark:border-zinc-300/40 p-3.5 shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:border-zinc-300 dark:hover:border-zinc-400/60 transition-all duration-200"
+                                      className="w-full text-left relative overflow-hidden rounded-lg transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12),0_4px_8px_rgba(0,0,0,0.08)] active:translate-y-0 group"
+                                      style={{
+                                        backgroundColor: '#faf8f2',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)',
+                                      }}
                                     >
-                                      <div className="flex items-center justify-between gap-2 mb-2">
-                                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-700">
-                                          Orçamento {numero}
-                                        </span>
-                                        <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-600 tabular-nums">
-                                          {dateStr}
-                                        </span>
-                                      </div>
-                                      <p className="text-[13px] font-medium text-zinc-800 dark:text-zinc-800 line-clamp-2 leading-snug mb-2">
-                                        {preview}
-                                      </p>
-                                      <div className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-600">
-                                        <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
-                                        <span className="text-zinc-400">·</span>
-                                        <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
+                                      {/* Margem esquerda tipo caderno */}
+                                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-200/70 via-amber-100/50 to-amber-200/70 dark:from-amber-900/30 dark:via-amber-800/20 dark:to-amber-900/30 rounded-l-lg" aria-hidden />
+                                      {/* Linhas horizontais sutis (pautado) */}
+                                      <div className="absolute inset-0 pointer-events-none rounded-lg opacity-50" style={{ backgroundImage: 'repeating-linear-gradient(180deg, transparent 0, transparent 22px, rgba(61,57,50,0.12) 22px, rgba(61,57,50,0.12) 24px)' }} aria-hidden />
+                                      <div className="relative pl-5 pr-4 py-4">
+                                        <div className="flex items-center justify-between gap-2 mb-2">
+                                          <span className="text-xs font-bold uppercase tracking-widest text-amber-800/90 dark:text-amber-200/90">
+                                            Orçamento {numero}
+                                          </span>
+                                          <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 tabular-nums bg-white/50 dark:bg-black/20 px-2 py-0.5 rounded">
+                                            {dateStr}
+                                          </span>
+                                        </div>
+                                        <p className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-snug mb-2">
+                                          {preview}
+                                        </p>
+                                        <div className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
+                                          <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
+                                          <span className="text-zinc-400">·</span>
+                                          <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
+                                        </div>
                                       </div>
                                     </button>
                                   );
                                 })}
                               {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
-                                <div className="rounded-xl bg-[#f5f4f0] dark:bg-[#f5f4f0]/80 border border-dashed border-zinc-300 dark:border-zinc-400/50 p-5 text-center">
-                                  <FileText className="w-9 h-9 text-zinc-400 dark:text-zinc-500 mx-auto mb-2" />
-                                  <p className="text-sm font-medium text-zinc-600 dark:text-zinc-600">Nenhum orçamento</p>
-                                  <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-0.5">Crie um orçamento pelo botão acima</p>
+                                <div
+                                  className="relative overflow-hidden rounded-lg p-6 text-center"
+                                  style={{
+                                    backgroundColor: '#faf8f2',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03)',
+                                  }}
+                                >
+                                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-200/50 to-amber-200/50 rounded-l-lg" aria-hidden />
+                                  <FileText className="w-10 h-10 text-amber-700/50 dark:text-amber-400/40 mx-auto mb-3" />
+                                  <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">Nenhum orçamento</p>
+                                  <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">Crie um orçamento pelo botão acima</p>
                                 </div>
                               )}
                               </div>
@@ -3974,18 +3991,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
         />
       )}
 
-      {/* MODAL VISUALIZAR ORÇAMENTO — folha de papel envelhecido */}
+      {/* MODAL VISUALIZAR ORÇAMENTO — folha de caderno com profundidade */}
       {viewingBudget && selectedCard && (
-        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/70 p-4 animate-modal-backdrop">
+        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/75 p-4 animate-modal-backdrop">
           <div
-            className="relative w-full max-w-2xl max-h-[90vh] rounded-sm flex flex-col overflow-hidden animate-modal-sheet"
+            className="relative w-full max-w-2xl max-h-[90vh] rounded-lg flex flex-col overflow-hidden animate-modal-sheet"
             style={{
               backgroundColor: '#e8e4d9',
               border: '1px solid #c9c4b8',
-              boxShadow: '0 2px 2px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.15)',
+              boxShadow: '0 0 0 1px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.12), 0 24px 48px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.2)',
               backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='0.04'/%3E%3C/svg%3E")`,
             }}
           >
+            {/* Margem esquerda tipo caderno na folha inteira */}
+            <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-amber-300/40 via-amber-200/30 to-amber-300/40 rounded-l-lg z-10 pointer-events-none" aria-hidden />
             {/* Textura de fibra sobreposta */}
             <div
               className="absolute inset-0 pointer-events-none rounded-sm opacity-[0.035]"
@@ -3993,7 +4012,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
               }}
             />
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#d4cfc4] shrink-0 relative z-10">
+            <div className="flex items-center justify-between pl-8 pr-6 py-4 border-b border-[#d4cfc4] shrink-0 relative z-10">
               <div>
                 <h2 className="text-lg font-bold text-[#3d3932]">
                   {(() => {
@@ -4031,7 +4050,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-[#3d3932] relative z-10">
+            <div className="flex-1 overflow-y-auto pl-8 pr-6 py-6 space-y-6 text-[#3d3932] relative z-10">
               {viewingBudget.diagnosis && (
                 <section>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-2">Diagnóstico</h3>
@@ -4075,7 +4094,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </section>
               )}
             </div>
-            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-[#d4cfc4] shrink-0 relative z-10" style={{ backgroundColor: 'rgba(221,216,206,0.6)' }}>
+            <div className="flex items-center justify-between gap-3 pl-8 pr-6 py-4 border-t border-[#d4cfc4] shrink-0 relative z-10" style={{ backgroundColor: 'rgba(221,216,206,0.6)' }}>
               <button
                 type="button"
                 onClick={handleDeleteBudget}
