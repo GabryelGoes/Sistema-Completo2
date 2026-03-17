@@ -1627,8 +1627,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // Define tamanho da fonte do modelo para não empurrar placa / técnico para fora do card
   const getModelTitleClass = (modelName: string) => {
     const len = (modelName || '').length;
-    if (len > 40) return 'text-xl md:text-2xl';
-    if (len > 26) return 'text-2xl md:text-3xl';
+    if (len > 40) return 'text-2xl md:text-3xl';
+    if (len > 26) return 'text-3xl md:text-4xl';
     return 'text-3xl md:text-4xl';
   };
 
