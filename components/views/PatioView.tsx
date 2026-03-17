@@ -575,7 +575,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [loadingHistoryDetails, setLoadingHistoryDetails] = useState(false);
   const [historyCardDetails, setHistoryCardDetails] = useState<{ actions: BoardAction[], attachments: BoardAttachment[] } | null>(null);
 
-  // Área de lembretes (Pátio / Laboratório) — armazenados por tipo no navegador
+  // Lembretes do Pátio/Laboratório — exibidos para todos os usuários e o admin (chave única por tipo, sem usuário)
   type Reminder = { id: string; text: string; createdAt: string; done: boolean; createdBy?: string };
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -2026,7 +2026,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         };
         const sortedCards = [...cards].sort(byStage);
         return (
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-1" style={{ perspective: '1400px' }}>
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 px-1 max-w-[1600px] mx-auto" style={{ perspective: '1400px' }}>
         {sortedCards.map(card => {
           const parts = card.name.split('-').map(s => s.trim());
           const model = parts[0] || card.name;
@@ -2058,7 +2058,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           return (
             <div
               key={card.id}
-              className="min-h-[180px]"
+              className="min-h-[260px] flex"
               style={{ transformStyle: 'preserve-3d' }}
               onMouseMove={(e) => handleCardMouseMove(e, card.id)}
               onMouseLeave={handleCardMouseLeave}
@@ -2066,17 +2066,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div
                 onClick={() => setSelectedCard(card)}
                 className={`
-                  group relative overflow-hidden
+                  group relative overflow-hidden w-full
                   bg-white/95 dark:bg-[#1C1C1E]/95
                   backdrop-blur-xl
-                  border rounded-[1.5rem] p-5
+                  border rounded-[1.5rem] p-4 md:p-5
                   shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.02)]
                   dark:shadow-[0_1px_2px_rgba(0,0,0,0.2),0_4px_16px_rgba(0,0,0,0.25),0_12px_32px_-8px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.04)]
                   hover:shadow-[0_2px_4px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.08),0_16px_48px_-12px_rgba(0,0,0,0.12),0_24px_64px_-16px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.03)]
                   dark:hover:shadow-[0_2px_4px_rgba(0,0,0,0.25),0_12px_32px_rgba(0,0,0,0.3),0_24px_56px_-12px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)]
                   hover:border-zinc-300/80 dark:hover:border-white/[0.12]
                   active:scale-[0.99]
-                  flex flex-col justify-between min-h-[180px] cursor-pointer h-full
+                  flex flex-col cursor-pointer h-full min-h-[260px]
                   ${isGarantia ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-white dark:ring-offset-[#0a0a0a] border-red-500/30' : 'border border-zinc-200/60 dark:border-white/[0.08]'}
                 `}
                 style={{
@@ -2118,117 +2118,111 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
                 );
               })()}
-              {/* Layout Superior */}
-              <div className="flex justify-between items-start mb-6">
-                
-                {/* Info Carro/Cliente */}
-                <div className="flex-1 pr-2">
-                  <h3 className="text-4xl font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic">
+              {/* Layout padronizado: grid 2 colunas x 3 linhas — mesmo padrão em todos os cards */}
+              <div className="grid grid-cols-[1fr_120px] grid-rows-[auto_auto_auto] gap-x-4 gap-y-2 mb-4 min-h-0 flex-shrink-0 content-start">
+                {/* Linha 1: Modelo | Técnico */}
+                <div className="min-w-0 flex items-center">
+                  <h3 className="text-xl md:text-2xl font-black text-zinc-900 dark:text-white uppercase leading-tight tracking-tighter line-clamp-2 italic">
                     {model}
                   </h3>
-                  {customerName && (
-                    <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
+                </div>
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    disabled={!canAssignMember}
+                    onClick={(e) => { e.stopPropagation(); canAssignMember && setCardForMemberAssignment(card); }}
+                    className={`
+                      w-full flex items-center justify-end gap-1.5 min-h-[32px] px-2 py-1.5 rounded-xl border transition-all
+                      ${canAssignMember
+                        ? 'border-light-border dark:border-white/10 bg-light-card dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-200 cursor-pointer hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] active:scale-[0.97]'
+                        : 'border-zinc-200/60 dark:border-white/5 bg-light-card/80 dark:bg-white/[0.04] text-zinc-500 cursor-default'}
+                    `}
+                  >
+                    <span className={`text-xs font-bold truncate max-w-[70px] ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}>
+                      {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : '—')}
+                    </span>
+                    {member?.avatarUrl ? (
+                      <img src={member.avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover border border-zinc-300/80 dark:border-white/10 shrink-0" />
+                    ) : (
+                      <MechanicIcon className={`w-5 h-5 shrink-0 ${mechanicColorClass}`} />
+                    )}
+                  </button>
+                </div>
+                {/* Linha 2: Cliente | Placa (ou módulo) */}
+                <div className="min-h-[40px] min-w-0 flex items-center">
+                  {customerName ? (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-full max-w-full min-w-0">
                       <User className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
-                      <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
+                      <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200 truncate">
                         {firstTwoNames(customerName)}
                       </span>
                     </div>
+                  ) : (
+                    <span className="text-zinc-400/60 dark:text-zinc-500/60 text-sm">—</span>
                   )}
-                  {card.deliveryDate && (
-                    <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
-                      <Calendar className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
-                      <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
-                        Entrega: {new Date(card.deliveryDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                      </span>
+                </div>
+                <div className="min-h-[40px] flex items-center justify-end">
+                  {!isModuleMode ? (
+                    <div className="w-full max-w-[120px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/15 select-none">
+                      <div className="h-3 bg-[#003399] flex items-center justify-between px-1.5">
+                        <span className="text-[5px] font-bold text-white tracking-wider">BR</span>
+                        <BrazilFlagIcon width={10} height={6} className="rounded-sm flex-shrink-0 border border-white/30" />
+                      </div>
+                      <div className="h-7 flex items-center justify-center bg-white">
+                        <span className={`text-black font-mono text-base font-black tracking-widest leading-none ${blurPlates ? 'blur-plate' : ''}`}>
+                          {plate.toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full h-10 rounded-lg border border-zinc-200/60 dark:border-white/10 bg-zinc-50/50 dark:bg-white/[0.03] flex items-center justify-center">
+                      <span className="text-zinc-400 text-xs">Módulo</span>
                     </div>
                   )}
                 </div>
-
-                {/* Info Mecânico/Placa */}
-                <div className="flex flex-col items-end min-w-[120px] text-right pl-2">
-                   <button 
-                     type="button"
-                     disabled={!canAssignMember}
-                     onClick={(e) => { e.stopPropagation(); canAssignMember && setCardForMemberAssignment(card); }}
-                     className={`
-                        flex items-center justify-end gap-1.5 mb-2 px-3 py-1.5 rounded-2xl border transition-all
-                        ${canAssignMember
-                          ? 'border-light-border dark:border-white/10 bg-light-card dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-200 cursor-pointer hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] active:scale-[0.97]'
-                          : 'border-zinc-200/60 dark:border-white/5 bg-light-card/80 dark:bg-white/[0.04] text-zinc-500 cursor-default'}
-                     `}
-                   >
-                      <span className={`text-sm font-bold truncate max-w-[120px] ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}>
-                        {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : 'Sem técnico')}
+                {/* Linha 3: Entrega | vazio */}
+                <div className="min-h-[40px] min-w-0 flex items-center">
+                  {card.deliveryDate ? (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-full max-w-full min-w-0">
+                      <Calendar className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
+                      <span className="text-xs md:text-sm font-medium text-zinc-600 dark:text-zinc-300">
+                        {new Date(card.deliveryDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </span>
-                      {member?.avatarUrl ? (
-                         <img 
-                            src={member.avatarUrl} 
-                            alt={capitalizeFirst(member.fullName)} 
-                            className="w-6 h-6 rounded-full object-cover border border-zinc-300/80 dark:border-white/10"
-                         />
-                      ) : (
-                         <MechanicIcon className={`w-6 h-6 shrink-0 ${mechanicColorClass}`} />
-                      )}
-                   </button>
-                   {!isModuleMode && (
-                   <div className="w-[120px] bg-white rounded-xl border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/15 mt-1 select-none">
-                      <div className="h-4 bg-[#003399] flex items-center justify-between px-2 relative">
-                         <span className="text-[6px] font-bold text-white tracking-wider">BRASIL</span>
-                         <BrazilFlagIcon width={12} height={8} className="rounded-sm flex-shrink-0 border border-white/30" />
-                      </div>
-                      <div className="h-8 flex items-center justify-center bg-white">
-                         <span className={`text-black font-mono text-xl font-black tracking-widest leading-none ${blurPlates ? 'blur-plate' : ''}`}>
-                            {plate.toUpperCase()}
-                         </span>
-                      </div>
-                   </div>
-                   )}
+                    </div>
+                  ) : (
+                    <span className="text-zinc-400/60 dark:text-zinc-500/60 text-sm">—</span>
+                  )}
                 </div>
+                <div className="min-h-[40px]" />
               </div>
 
-              {/* Botões de Ação Inferiores — estilo iOS (checklists só no modal do veículo) */}
-              <div className="relative w-full mt-auto space-y-3">
+              {/* Botões de Ação Inferiores — sempre mesmo padrão e ordem */}
+              <div className="relative w-full mt-auto space-y-2.5 flex-shrink-0">
                 {/* Botão ENTREGUE (Apenas se Finalizado) */}
                 {can('canArchiveCard') && showDeliverButton && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleDeliverVehicle(card.id); }}
-                        disabled={archivingId === card.id}
-                        className="
-                            w-full py-3 px-4 rounded-2xl
-                            bg-light-card dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400
-                            border border-zinc-200/60 dark:border-white/[0.08]
-                            font-bold uppercase tracking-widest
-                            hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white
-                            transition-all active:scale-[0.99]
-                            flex items-center justify-center gap-2
-                        "
-                    >
-                        {archivingId === card.id ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                        ENTREGUE
-                    </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeliverVehicle(card.id); }}
+                    disabled={archivingId === card.id}
+                    className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-light-card dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400 border border-zinc-200/60 dark:border-white/[0.08] font-bold text-xs uppercase tracking-widest hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+                  >
+                    {archivingId === card.id ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                    ENTREGUE
+                  </button>
                 )}
 
                 {/* Botão ENTREGUE (Se Não Aprovado) */}
                 {can('canArchiveCard') && showNotApprovedDeliverButton && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleDeliverVehicle(card.id); }}
-                        disabled={archivingId === card.id}
-                        className="
-                            w-full py-3 px-4 rounded-2xl
-                            bg-light-card dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400
-                            border border-zinc-200/60 dark:border-white/[0.08]
-                            font-bold uppercase tracking-widest
-                            hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white
-                            transition-all active:scale-[0.99]
-                            flex items-center justify-center gap-2
-                        "
-                    >
-                        {archivingId === card.id ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                        ENTREGUE
-                    </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeliverVehicle(card.id); }}
+                    disabled={archivingId === card.id}
+                    className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-light-card dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400 border border-zinc-200/60 dark:border-white/[0.08] font-bold text-xs uppercase tracking-widest hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+                  >
+                    {archivingId === card.id ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                    ENTREGUE
+                  </button>
                 )}
 
-                {/* Botão de Status (Mudar Etapa) — mesmo tamanho, visual iOS */}
+                {/* Botão de Status (Mudar Etapa) — altura fixa, mesmo padrão em todos os cards */}
                 <button
                   type="button"
                   onClick={(e) => {
@@ -2236,24 +2230,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     e.stopPropagation();
                     handleOpenMoveModal(card, e);
                   }}
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
                   className={`
-                    flex items-center justify-between 
-                    w-full px-5 py-3.5 rounded-2xl 
+                    flex items-center justify-between w-full min-h-[44px] px-4 py-2.5 rounded-xl
                     cursor-pointer transition-all duration-200 ease-out
-                    shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)]
-                    dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
+                    shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
                     border border-black/10 dark:border-white/10
                     ${statusConfig.style}
                     hover:brightness-110 active:scale-[0.98]
                   `}
                 >
-                  <span className="font-black text-sm uppercase tracking-wide truncate pr-2">
+                  <span className="font-black text-xs uppercase tracking-wide truncate pr-2">
                     {statusConfig.label}
                   </span>
-                  <ChevronDown className="w-5 h-5 opacity-70" />
+                  <ChevronDown className="w-5 h-5 opacity-70 shrink-0" />
                 </button>
               </div>
 
@@ -3747,6 +3737,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     <h2 className="text-xl font-semibold text-white tracking-tight">
                       Centro de Lembretes
                     </h2>
+                    <p className="text-[11px] text-zinc-500 mt-0.5">
+                      Visível para todo o time e admin
+                    </p>
                   </div>
                 </div>
                 <button
