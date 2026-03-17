@@ -3990,34 +3990,34 @@ export const PatioView: React.FC<PatioViewProps> = ({
         />
       )}
 
-      {/* MODAL VISUALIZAR ORÇAMENTO — fundo com efeito de papel */}
+      {/* MODAL VISUALIZAR ORÇAMENTO — papel envelhecido no modal inteiro, textos em preto */}
       {viewingBudget && selectedCard && (
         <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/70 p-4 animate-modal-backdrop">
           <div
             className="relative w-full max-w-2xl max-h-[90vh] rounded-lg flex flex-col overflow-hidden animate-modal-sheet"
             style={{
-              backgroundColor: '#f5f2eb',
-              border: '1px solid rgba(0,0,0,0.08)',
-              boxShadow: '0 0 0 1px rgba(255,255,255,0.5) inset, 0 2px 4px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.12), 0 16px 48px rgba(0,0,0,0.08)',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='0.035'/%3E%3C/svg%3E")`,
+              backgroundColor: '#d9d0bc',
+              border: '1px solid rgba(0,0,0,0.12)',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.3) inset, 0 2px 4px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.14), 0 20px 50px rgba(0,0,0,0.1)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='0.045'/%3E%3C/svg%3E")`,
             }}
           >
-            <div className="absolute inset-0 pointer-events-none rounded-lg" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7)' }} aria-hidden />
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200/80 dark:border-zinc-600/80 shrink-0 bg-[#f0ede6]/80 dark:bg-zinc-800/90 relative z-10">
+            <div className="absolute inset-0 pointer-events-none rounded-lg" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)' }} aria-hidden />
+            <div className="flex items-center justify-between px-6 py-4 border-b border-black/10 shrink-0 relative z-10">
               <div>
-                <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                <h2 className="text-lg font-bold" style={{ color: '#000000' }}>
                   {(() => {
                     const sorted = savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
                     const num = sorted.findIndex((b) => b.id === viewingBudget.id) + 1;
                     return `Orçamento ${num}`;
                   })()}
                 </h2>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">
+                <p className="text-sm mt-0.5 font-medium" style={{ color: '#000000' }}>
                   {new Date(viewingBudget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </p>
                 {selectedCard?.mileageKm && (
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                    <span className="text-amber-600 dark:text-amber-400 font-medium">Km</span> {selectedCard.mileageKm}
+                  <p className="text-sm mt-1 font-medium" style={{ color: '#000000' }}>
+                    <span className="font-semibold">Km</span> {selectedCard.mileageKm}
                   </p>
                 )}
               </div>
@@ -4025,7 +4025,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <button
                   type="button"
                   onClick={() => shareBudget(viewingBudget, selectedCard?.mileageKm ?? null)}
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:opacity-80"
+                  style={{ color: '#000000' }}
                   title="Compartilhar orçamento"
                   aria-label="Compartilhar"
                 >
@@ -4034,30 +4035,31 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setViewingBudget(null)}
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:opacity-80"
+                  style={{ color: '#000000' }}
                   aria-label="Fechar"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-zinc-800 dark:text-zinc-200 relative z-10">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 relative z-10">
               {viewingBudget.diagnosis && (
                 <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Diagnóstico</h3>
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{viewingBudget.diagnosis}</div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Diagnóstico</h3>
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: '#000000' }}>{viewingBudget.diagnosis}</div>
                 </section>
               )}
               {viewingBudget.services.length > 0 && (
                 <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Serviços</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Serviços</h3>
                   <ul className="list-none space-y-1.5 text-sm">
                     {viewingBudget.services.map((s, i) => (
-                      <li key={i} className="flex items-center gap-2">
-                        {s.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600" aria-label="Aprovado" />}
-                        {s.approved === false && <X className="w-4 h-4 shrink-0 text-red-600" aria-label="Reprovado" />}
-                        {s.approved !== true && s.approved !== false && <span className="w-4 h-4 shrink-0 text-zinc-400 font-bold" aria-label="Pendente">—</span>}
-                        <span>{s.description}</span>
+                      <li key={i} className="flex items-center gap-2" style={{ color: '#000000' }}>
+                        {s.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-700" aria-label="Aprovado" />}
+                        {s.approved === false && <X className="w-4 h-4 shrink-0 text-red-700" aria-label="Reprovado" />}
+                        {s.approved !== true && s.approved !== false && <span className="w-4 h-4 shrink-0 font-bold" style={{ color: '#000000' }} aria-label="Pendente">—</span>}
+                        <span style={{ color: '#000000' }}>{s.description}</span>
                       </li>
                     ))}
                   </ul>
@@ -4065,14 +4067,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
               {viewingBudget.parts.length > 0 && (
                 <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Peças</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Peças</h3>
                   <ul className="space-y-1.5 text-sm">
                     {viewingBudget.parts.map((p, i) => (
-                      <li key={i} className="flex items-center gap-2">
-                        {p.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600" aria-label="Aprovado" />}
-                        {p.approved === false && <X className="w-4 h-4 shrink-0 text-red-600" aria-label="Reprovado" />}
-                        {p.approved !== true && p.approved !== false && <span className="w-4 h-4 shrink-0 text-zinc-400 font-bold" aria-label="Pendente">—</span>}
-                        <span><span className="font-medium">({p.quantity}x)</span> {p.description}</span>
+                      <li key={i} className="flex items-center gap-2" style={{ color: '#000000' }}>
+                        {p.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-700" aria-label="Aprovado" />}
+                        {p.approved === false && <X className="w-4 h-4 shrink-0 text-red-700" aria-label="Reprovado" />}
+                        {p.approved !== true && p.approved !== false && <span className="w-4 h-4 shrink-0 font-bold" style={{ color: '#000000' }} aria-label="Pendente">—</span>}
+                        <span style={{ color: '#000000' }}><span className="font-medium">({p.quantity}x)</span> {p.description}</span>
                       </li>
                     ))}
                   </ul>
@@ -4080,17 +4082,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
               {viewingBudget.observations && (
                 <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Observações</h3>
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{viewingBudget.observations}</div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Observações</h3>
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: '#000000' }}>{viewingBudget.observations}</div>
                 </section>
               )}
             </div>
-            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-zinc-200/80 dark:border-zinc-600/80 shrink-0 bg-[#f0ede6]/80 dark:bg-zinc-800/80 relative z-10">
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-black/10 shrink-0 relative z-10">
               <button
                 type="button"
                 onClick={handleDeleteBudget}
                 disabled={!!deletingBudgetId}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-red-300 text-red-700 font-medium text-sm hover:bg-red-50 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-red-400 text-red-800 font-medium text-sm hover:bg-red-100 disabled:opacity-50 transition-colors"
               >
                 {deletingBudgetId ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                 {deletingBudgetId ? 'Excluindo…' : 'Excluir orçamento'}
@@ -4100,7 +4102,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   type="button"
                   onClick={() => { setViewingBudget(null); openBudgetModal(viewingBudget); }}
                   disabled={!!deletingBudgetId}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 font-medium text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-black/20 font-medium text-sm hover:bg-black/5 transition-colors disabled:opacity-50"
+                  style={{ color: '#000000' }}
                 >
                   <Pencil className="w-4 h-4" /> Editar orçamento
                 </button>
@@ -4108,8 +4111,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   type="button"
                   onClick={() => setViewingBudget(null)}
                   disabled={!!deletingBudgetId}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-opacity text-[#e8e4d9] hover:opacity-90 disabled:opacity-50"
-                  style={{ backgroundColor: '#5c564d' }}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-opacity hover:opacity-90 disabled:opacity-50 text-white"
+                  style={{ backgroundColor: '#3d3932' }}
                 >
                   Fechar
                 </button>
