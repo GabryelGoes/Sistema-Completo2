@@ -79,6 +79,33 @@ interface PatioViewProps {
   };
 }
 
+/** Chave do localStorage para "última visualização" por usuário (cada um vê suas próprias notificações). */
+const getPatioSeenStorageKey = (actor?: string, technicianSlug?: string) =>
+  `patio-card-seen-${actor ?? 'anon'}-${technicianSlug ?? ''}`;
+
+const getCardSeen = (cardId: string, actor?: string, technicianSlug?: string): { listId: string; budgets: number; comments: number } | null => {
+  try {
+    const raw = localStorage.getItem(getPatioSeenStorageKey(actor, technicianSlug));
+    if (!raw) return null;
+    const data = JSON.parse(raw) as Record<string, { listId: string; budgets: number; comments: number }>;
+    return data[cardId] ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const setCardSeen = (cardId: string, value: { listId: string; budgets: number; comments: number }, actor?: string, technicianSlug?: string) => {
+  try {
+    const key = getPatioSeenStorageKey(actor, technicianSlug);
+    const raw = localStorage.getItem(key);
+    const data = (raw ? JSON.parse(raw) : {}) as Record<string, { listId: string; budgets: number; comments: number }>;
+    data[cardId] = value;
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.warn('Patio: falha ao salvar last-seen', e);
+  }
+};
+
 const BACKEND_LISTS: BoardList[] = SERVICE_ORDER_STAGES.map((s) => ({
   id: s.id,
   name: s.name,
@@ -502,6 +529,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [viewingBudget, setViewingBudget] = useState<SavedBudget | null>(null);
   const [editingBudget, setEditingBudget] = useState<SavedBudget | null>(null);
   const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
+  /** Contagem de orçamentos e comentários por card (para badge de notificações). */
+  const [cardCounts, setCardCounts] = useState<Record<string, { budgets: number; comments: number }>>({});
   /** Admin: orçamento em aprovação (modal com toggles por serviço/peça). */
   const [budgetApprovalTarget, setBudgetApprovalTarget] = useState<SavedBudget | null>(null);
   const [approvalServices, setApprovalServices] = useState<boolean[]>([]);
@@ -760,6 +789,46 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setSavedBudgets([]);
     }
   }, [selectedCard]);
+
+  // Ao abrir o card e carregar detalhes, atualizar "última visualização" para este usuário (zerar notificações deste card).
+  useEffect(() => {
+    if (!selectedCard || loadingDetails || !cardDetails) return;
+    const budgets = savedBudgets.length;
+    const comments = cardDetails.actions?.length ?? 0;
+    setCardSeen(selectedCard.id, { listId: selectedCard.idList, budgets, comments }, actorOptions?.actor, actorOptions?.actorTechnicianSlug);
+    // Atualizar cardCounts localmente para este card (evita refetch só por ter aberto).
+    setCardCounts((prev) => ({ ...prev, [selectedCard.id]: { budgets, comments } }));
+  }, [selectedCard?.id, selectedCard?.idList, loadingDetails, cardDetails?.actions?.length, savedBudgets.length, actorOptions?.actor, actorOptions?.actorTechnicianSlug]);
+
+  // Buscar contagem de orçamentos e comentários por card para exibir badge de notificações (em background).
+  useEffect(() => {
+    if (cards.length === 0) {
+      setCardCounts({});
+      return;
+    }
+    const cardIds = cards.map((c) => c.id);
+    let cancelled = false;
+    Promise.all(
+      cardIds.map(async (id) => {
+        try {
+          const [budgets, comments] = await Promise.all([
+            getServiceOrderBudgets(id),
+            getServiceOrderComments(id),
+          ]);
+          return { id, budgets: budgets.length, comments: (comments ?? []).length };
+        } catch {
+          return { id, budgets: 0, comments: 0 };
+        }
+      })
+    ).then((results) => {
+      if (cancelled) return;
+      setCardCounts(results.reduce<Record<string, { budgets: number; comments: number }>>((acc, r) => {
+        acc[r.id] = { budgets: r.budgets, comments: r.comments };
+        return acc;
+      }, {}));
+    });
+    return () => { cancelled = true; };
+  }, [cards]);
 
   /** Atualiza os detalhes da OS no modal (serviceOrderDetail) sem fechar o modal nem mostrar loading. */
   const refreshModalDetails = React.useCallback(async () => {
@@ -1116,6 +1185,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
         ...prev,
         actions: comments.map(commentToAction),
       } : null);
+      setCardCounts(prev => ({
+        ...prev,
+        [selectedCard.id]: { budgets: prev[selectedCard.id]?.budgets ?? 0, comments: comments.length },
+      }));
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao enviar comentário.');
       setNewComment(text);
@@ -1528,6 +1601,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
       } else {
         const budget = await createServiceOrderBudget(selectedCard.id, payload, actorOptions);
         setSavedBudgets(prev => [budget, ...prev]);
+        setCardCounts(prev => ({
+          ...prev,
+          [selectedCard.id]: { budgets: (prev[selectedCard.id]?.budgets ?? 0) + 1, comments: prev[selectedCard.id]?.comments ?? 0 },
+        }));
         closeBudgetModal();
       }
     } catch (err: any) {
@@ -2023,6 +2100,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 onMouseEnter={() => setInteractingCardId(card.id)}
                 onMouseLeave={() => setInteractingCardId(null)}
               >
+              {/* Badge de notificações (estilo iPhone): etapa alterada, novos orçamentos, novos comentários */}
+              {(() => {
+                const seen = getCardSeen(card.id, actorOptions?.actor, actorOptions?.actorTechnicianSlug);
+                const counts = cardCounts[card.id] ?? { budgets: 0, comments: 0 };
+                const stageChange = seen && seen.listId !== card.idList ? 1 : 0;
+                const newBudgets = seen ? Math.max(0, counts.budgets - seen.budgets) : 0;
+                const newComments = seen ? Math.max(0, counts.comments - seen.comments) : 0;
+                const total = stageChange + newBudgets + newComments;
+                if (total <= 0) return null;
+                return (
+                  <div
+                    className="absolute top-3 right-3 z-20 flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-red-500 text-white text-xs font-bold shadow-lg border-2 border-white dark:border-[#1C1C1E] select-none"
+                    aria-label={`${total} notificação${total !== 1 ? 'ões' : ''}`}
+                  >
+                    {total > 99 ? '99+' : total}
+                  </div>
+                );
+              })()}
               {/* Layout Superior */}
               <div className="flex justify-between items-start mb-6">
                 
