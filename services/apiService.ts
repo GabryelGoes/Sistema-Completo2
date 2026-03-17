@@ -227,10 +227,6 @@ export interface WorkshopNotice {
 
 export async function getNotices(): Promise<WorkshopNotice[]> {
   const response = await fetch(`${API_BASE}/notices`);
-  if (response.status === 404) {
-    // Se o backend ainda não tiver o endpoint/tabela, tratamos como "nenhum aviso" em vez de quebrar a tela
-    return [];
-  }
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
     throw new Error(errorBody.error || `Falha ao listar avisos (status ${response.status})`);
