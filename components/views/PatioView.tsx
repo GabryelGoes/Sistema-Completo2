@@ -1627,10 +1627,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // Define tamanho da fonte do modelo para não empurrar placa / técnico para fora do card
   const getModelTitleClass = (modelName: string) => {
     const len = (modelName || '').length;
-    // Deixa a fonte maior especificamente em tablets na vertical (largura ~md, abaixo de lg)
-    if (len > 40) return 'text-2xl md:text-4xl lg:text-3xl';
-    if (len > 26) return 'text-3xl md:text-5xl lg:text-4xl';
-    return 'text-3xl md:text-5xl lg:text-4xl';
+    // Deixa a fonte bem maior especificamente em tablets na vertical (md), mantendo desktop mais controlado
+    if (len > 40) return 'text-2xl md:text-5xl lg:text-3xl';
+    if (len > 26) return 'text-3xl md:text-6xl lg:text-4xl';
+    return 'text-3xl md:text-6xl lg:text-4xl';
   };
 
   const getCommentAuthorAvatar = (authorName: string, photoUrlFromComment?: string | null): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
