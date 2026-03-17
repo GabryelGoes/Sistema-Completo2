@@ -494,7 +494,7 @@ export const NoticeBoardModal: React.FC<NoticeBoardModalProps> = ({ open, onClos
                         type="button"
                         onClick={handleSaveTarget}
                         disabled={weeklySaving}
-                        className="px-3 py-2 rounded-xl bg-white/90 text-zinc-950 text-xs font-semibold hover:bg-amber-100 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                        className="px-3 py-2 rounded-xl bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-400 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                       >
                         Definir
                       </button>
