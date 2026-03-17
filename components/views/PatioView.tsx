@@ -547,15 +547,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [loadingHistoryDetails, setLoadingHistoryDetails] = useState(false);
   const [historyCardDetails, setHistoryCardDetails] = useState<{ actions: BoardAction[], attachments: BoardAttachment[] } | null>(null);
 
-  // Slider "deslize para ENTREGAR" dentro do botão de status (estilo iPhone antigo)
-  const [slideDeliver, setSlideDeliver] = useState<{ cardId: string | null; offset: number; sliding: boolean }>({
-    cardId: null,
-    offset: 0,
-    sliding: false,
-  });
-  const slideDeliverMetaRef = useRef<{ width: number; startX: number } | null>(null);
-  const SLIDE_DELIVER_THUMB_WIDTH = 80; // px aproximado do quadrado que desliza
-
   // Lembretes do Pátio/Laboratório — exibidos para todos os usuários e o admin (chave única por tipo, sem usuário)
   type Reminder = { id: string; text: string; createdAt: string; done: boolean; createdBy?: string };
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
@@ -1563,42 +1554,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  const startSlideDeliver = (e: React.PointerEvent<HTMLDivElement>, cardId: string) => {
-    if (archivingId) return;
-    const track = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-    slideDeliverMetaRef.current = { width: track.width, startX: e.clientX };
-    setSlideDeliver({ cardId, offset: 0, sliding: true });
-    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-  };
-
-  const handleSlideDeliverMove = (e: React.PointerEvent<HTMLDivElement>, cardId: string) => {
-    if (!slideDeliver.sliding || slideDeliver.cardId !== cardId) return;
-    const meta = slideDeliverMetaRef.current;
-    if (!meta) return;
-    const delta = e.clientX - meta.startX;
-    const maxTravel = Math.max(1, meta.width - SLIDE_DELIVER_THUMB_WIDTH - 8); // margem interna
-    const offset = Math.min(maxTravel, Math.max(0, delta));
-    setSlideDeliver((prev) => ({ ...prev, offset }));
-  };
-
-  const endSlideDeliver = (e: React.PointerEvent<HTMLDivElement>, cardId: string) => {
-    if (!slideDeliver.sliding || slideDeliver.cardId !== cardId) return;
-    const meta = slideDeliverMetaRef.current;
-    const maxTravel = meta ? Math.max(1, meta.width - SLIDE_DELIVER_THUMB_WIDTH - 8) : 1;
-    const progress = slideDeliver.offset / maxTravel;
-    const shouldTrigger = progress > 0.85;
-    setSlideDeliver({ cardId: null, offset: 0, sliding: false });
-    slideDeliverMetaRef.current = null;
-    try {
-      (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
-    } catch {
-      // ignore
-    }
-    if (shouldTrigger) {
-      handleDeliverVehicle(cardId);
-    }
-  };
-
   const handleUnarchive = async (card: BoardCard) => {
     try {
       await updateServiceOrderStatus(card.id, 'FINALIZADO', actorOptions);
@@ -2151,41 +2106,37 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     hover:brightness-110 active:scale-[0.98]
                   `}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-sm uppercase tracking-wide truncate pr-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-black text-sm uppercase tracking-wide truncate">
                       {statusConfig.label}
                     </span>
-                    <ChevronDown className="w-5 h-5 opacity-70" />
-                  </div>
-                  {can('canArchiveCard') && (showDeliverButton || showNotApprovedDeliverButton) && (
-                    <div
-                      className="relative mt-2 w-full h-9 rounded-xl bg-black/5 dark:bg-white/[0.04] overflow-hidden text-[11px] font-medium text-zinc-600 dark:text-zinc-300 flex items-center pl-3 select-none"
-                      onPointerDown={(e) => startSlideDeliver(e, card.id)}
-                      onPointerMove={(e) => handleSlideDeliverMove(e, card.id)}
-                      onPointerUp={(e) => endSlideDeliver(e, card.id)}
-                      onPointerCancel={(e) => endSlideDeliver(e, card.id)}
-                      onPointerLeave={(e) => slideDeliver.sliding && slideDeliver.cardId === card.id && endSlideDeliver(e, card.id)}
-                    >
-                      <span className="z-10 pointer-events-none">
-                        {archivingId === card.id
-                          ? 'Arquivando…'
-                          : showDeliverButton
-                          ? 'Deslize para ENTREGAR (Finalizado)'
-                          : 'Deslize para ENTREGAR (Não aprovado)'}
-                      </span>
-                      <div
-                        className="absolute inset-y-1 left-1 w-[72px] rounded-xl border border-white/60 bg-white/30 dark:bg-white/20 shadow-[0_4px_10px_rgba(0,0,0,0.25)] flex items-center justify-center text-[10px] font-semibold text-zinc-800 dark:text-black"
-                        style={{
-                          transform: slideDeliver.cardId === card.id
-                            ? `translateX(${slideDeliver.offset}px)`
-                            : 'translateX(0)',
-                          transition: slideDeliver.sliding ? 'none' : 'transform 0.25s ease-out',
-                        }}
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                      </div>
+                    <div className="flex items-center gap-1.5">
+                      {can('canArchiveCard') && (showDeliverButton || showNotApprovedDeliverButton) && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const msg = showDeliverButton
+                              ? 'Confirmar entrega deste veículo finalizado? Ele será arquivado e irá para o histórico.'
+                              : 'Confirmar entrega deste veículo não aprovado? Ele será arquivado e irá para o histórico.';
+                            if (archivingId === card.id) return;
+                            if (window.confirm(msg)) {
+                              handleDeliverVehicle(card.id);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-white/90 text-emerald-700 border border-emerald-500/70 shadow-sm hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
+                        >
+                          {archivingId === card.id ? (
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-3 h-3" />
+                          )}
+                          ENTREGAR
+                        </button>
+                      )}
+                      <ChevronDown className="w-5 h-5 opacity-70" />
                     </div>
-                  )}
+                  </div>
                 </button>
               </div>
 
