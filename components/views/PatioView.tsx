@@ -2037,69 +2037,73 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 onMouseEnter={() => setInteractingCardId(card.id)}
                 onMouseLeave={() => setInteractingCardId(null)}
               >
-              {/* Layout Superior */}
-              <div className="flex justify-between items-start mb-6">
-                {/* Info Carro/Cliente */}
-                <div className="flex-1 pr-2 min-w-0">
+              {/* Layout Superior reorganizado:
+                   - Linha 1: nome do carro (topo)
+                   - Linha 2: técnico à esquerda, placa à direita
+                   - Linha 3: nome do cliente abaixo, ocupando largura toda */}
+              <div className="mb-4">
+                {/* Nome do carro */}
+                <div className="mb-3">
                   <h3
                     className={`${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic`}
                   >
                     {model}
                   </h3>
-                  {customerName && (
-                    <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
-                      <User className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
-                      <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
-                        {firstTwoNames(customerName)}
-                      </span>
-                    </div>
-                  )}
-                  {card.deliveryDate && (
-                    <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
-                      <Calendar className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
-                      <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
-                        Entrega: {new Date(card.deliveryDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                      </span>
-                    </div>
-                  )}
                 </div>
 
-                {/* Info Mecânico/Placa */}
-                <div className="flex flex-col items-end min-w-[120px] text-right pl-2">
-                  <button
-                    type="button"
-                    disabled={!canAssignMember}
-                    onClick={(e) => { e.stopPropagation(); canAssignMember && setCardForMemberAssignment(card); }}
-                    className={`
-                      flex items-center justify-end gap-1.5 mb-2 px-3 py-1.5 rounded-2xl border transition-all
-                      ${canAssignMember
-                        ? 'border-light-border dark:border-white/10 bg-light-card dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-200 cursor-pointer hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] active:scale-[0.97]'
-                        : 'border-zinc-200/60 dark:border-white/5 bg-light-card/80 dark:bg-white/[0.04] text-zinc-500 cursor-default'}
-                    `}
-                  >
-                    <span className={`text-sm font-bold truncate max-w-[120px] ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}>
-                      {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : 'Sem técnico')}
-                    </span>
-                    {member?.avatarUrl ? (
-                      <img src={member.avatarUrl} alt={capitalizeFirst(member.fullName)} className="w-6 h-6 rounded-full object-cover border border-zinc-300/80 dark:border-white/10" />
-                    ) : (
-                      <MechanicIcon className={`w-6 h-6 shrink-0 ${mechanicColorClass}`} />
+                {/* Técnico (esquerda) | Placa (direita) */}
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  {/* Técnico */}
+                  <div className="flex-1 min-w-0">
+                    <button
+                      type="button"
+                      disabled={!canAssignMember}
+                      onClick={(e) => { e.stopPropagation(); canAssignMember && setCardForMemberAssignment(card); }}
+                      className={`
+                        inline-flex items-center justify-start gap-1.5 px-3 py-1.5 rounded-2xl border transition-all max-w-full
+                        ${canAssignMember
+                          ? 'border-light-border dark:border-white/10 bg-light-card dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-200 cursor-pointer hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] active:scale-[0.97]'
+                          : 'border-zinc-200/60 dark:border-white/5 bg-light-card/80 dark:bg-white/[0.04] text-zinc-500 cursor-default'}
+                      `}
+                    >
+                      {member?.avatarUrl ? (
+                        <img src={member.avatarUrl} alt={capitalizeFirst(member.fullName)} className="w-6 h-6 rounded-full object-cover border border-zinc-300/80 dark:border-white/10 shrink-0" />
+                      ) : (
+                        <MechanicIcon className={`w-5 h-5 shrink-0 ${mechanicColorClass}`} />
+                      )}
+                      <span className={`text-sm font-bold truncate ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}>
+                        {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : 'Sem técnico')}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Placa */}
+                  <div className="flex-shrink-0">
+                    {!isModuleMode && (
+                      <div className="w-[120px] bg-white rounded-xl border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/15 select-none">
+                        <div className="h-4 bg-[#003399] flex items-center justify-between px-2 relative">
+                          <span className="text-[6px] font-bold text-white tracking-wider">BRASIL</span>
+                          <BrazilFlagIcon width={12} height={8} className="rounded-sm flex-shrink-0 border border-white/30" />
+                        </div>
+                        <div className="h-8 flex items-center justify-center bg-white">
+                          <span className={`text-black font-mono text-xl font-black tracking-widest leading-none ${blurPlates ? 'blur-plate' : ''}`}>
+                            {plate.toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
                     )}
-                  </button>
-                  {!isModuleMode && (
-                    <div className="w-[120px] bg-white rounded-xl border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/15 mt-1 select-none">
-                      <div className="h-4 bg-[#003399] flex items-center justify-between px-2 relative">
-                        <span className="text-[6px] font-bold text-white tracking-wider">BRASIL</span>
-                        <BrazilFlagIcon width={12} height={8} className="rounded-sm flex-shrink-0 border border-white/30" />
-                      </div>
-                      <div className="h-8 flex items-center justify-center bg-white">
-                        <span className={`text-black font-mono text-xl font-black tracking-widest leading-none ${blurPlates ? 'blur-plate' : ''}`}>
-                          {plate.toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
+
+                {/* Cliente abaixo */}
+                {customerName && (
+                  <div className="mt-1 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
+                    <User className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
+                    <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
+                      {firstTwoNames(customerName)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Botões de Ação Inferiores */}
