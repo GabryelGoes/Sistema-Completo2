@@ -3254,7 +3254,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <span className="font-black text-zinc-800">Criar orçamento</span>
                                   <Calculator className="w-5 h-5 text-zinc-700 group-hover:scale-110 transition-transform" />
                               </button>
-                              <div className="rounded-xl p-3 space-y-4 max-h-[300px] overflow-y-auto bg-gradient-to-b from-zinc-200/60 to-zinc-300/40 dark:from-zinc-800/60 dark:to-zinc-900/50 rounded-tl-[20px] rounded-tr-xl rounded-br-xl rounded-bl-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.06)] border border-zinc-300/80 dark:border-zinc-600/50">
+                              <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-3 space-y-3 max-h-[280px] overflow-y-auto shadow-inner bg-zinc-100/50 dark:bg-zinc-900/30">
                               {savedBudgets
                                 .filter((b) => b.serviceOrderId === selectedCard.id)
                                 .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
@@ -3271,49 +3271,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       key={budget.id}
                                       type="button"
                                       onClick={() => setViewingBudget(budget)}
-                                      className="w-full text-left relative overflow-hidden rounded-lg transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12),0_4px_8px_rgba(0,0,0,0.08)] active:translate-y-0 group"
-                                      style={{
-                                        backgroundColor: '#faf8f2',
-                                        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)',
-                                      }}
+                                      className="w-full text-left rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-3.5 shadow-sm hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-600 transition-all duration-200"
                                     >
-                                      {/* Margem esquerda tipo caderno — vermelha */}
-                                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-red-400 via-red-500 to-red-400 dark:from-red-600 dark:via-red-700 dark:to-red-600 rounded-l-lg shadow-sm" aria-hidden />
-                                      {/* Linhas azuis: uma a cada 24px, alinhadas ao line-height 24px do texto */}
-                                      <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none rounded-lg overflow-hidden" style={{ backgroundImage: 'repeating-linear-gradient(180deg, transparent 0, transparent 23px, rgba(37,99,235,0.45) 23px, rgba(37,99,235,0.45) 24px)', backgroundPosition: '0 0' }} aria-hidden />
-                                      <div className="relative pl-5 pr-4 pt-0 pb-3 flex flex-col gap-0" style={{ lineHeight: '24px', fontSize: '13px' }}>
-                                        <div className="flex items-center justify-between gap-2 flex-shrink-0" style={{ height: '24px', minHeight: '24px' }}>
-                                          <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#000000' }}>
-                                            Orçamento {numero}
-                                          </span>
-                                          <span className="text-[10px] font-semibold tabular-nums bg-white dark:bg-zinc-800 px-2 py-0.5 rounded border border-zinc-300 dark:border-zinc-600" style={{ color: '#000000' }}>
-                                            {dateStr}
-                                          </span>
-                                        </div>
-                                        <p className="text-[13px] font-semibold line-clamp-2 flex-shrink-0 m-0 p-0" style={{ color: '#000000', lineHeight: '24px', height: '48px', minHeight: '48px', display: 'block' }}>
-                                          {preview}
-                                        </p>
-                                        <div className="flex items-center gap-2 text-[11px] font-medium flex-shrink-0" style={{ color: '#000000', height: '24px', minHeight: '24px' }}>
-                                          <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
-                                          <span style={{ color: '#000000' }}>·</span>
-                                          <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
-                                        </div>
+                                      <div className="flex items-center justify-between gap-2 mb-2">
+                                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                                          Orçamento {numero}
+                                        </span>
+                                        <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 tabular-nums">
+                                          {dateStr}
+                                        </span>
+                                      </div>
+                                      <p className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-snug mb-2">
+                                        {preview}
+                                      </p>
+                                      <div className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
+                                        <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
+                                        <span className="text-zinc-400">·</span>
+                                        <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
                                       </div>
                                     </button>
                                   );
                                 })}
                               {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
-                                <div
-                                  className="relative overflow-hidden rounded-lg p-6 text-center"
-                                  style={{
-                                    backgroundColor: '#faf8f2',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03)',
-                                  }}
-                                >
-                                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-red-400 to-red-500 dark:from-red-600 dark:to-red-700 rounded-l-lg" aria-hidden />
-                                  <FileText className="w-10 h-10 text-zinc-500 dark:text-zinc-400 mx-auto mb-3" />
-                                  <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Nenhum orçamento</p>
-                                  <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-1">Crie um orçamento pelo botão acima</p>
+                                <div className="rounded-xl bg-zinc-100 dark:bg-zinc-800/80 border border-dashed border-zinc-300 dark:border-zinc-600 p-5 text-center">
+                                  <FileText className="w-9 h-9 text-zinc-400 dark:text-zinc-500 mx-auto mb-2" />
+                                  <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Nenhum orçamento</p>
+                                  <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-0.5">Crie um orçamento pelo botão acima</p>
                                 </div>
                               )}
                               </div>
@@ -3991,42 +3974,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
         />
       )}
 
-      {/* MODAL VISUALIZAR ORÇAMENTO — folha de caderno com profundidade */}
+      {/* MODAL VISUALIZAR ORÇAMENTO */}
       {viewingBudget && selectedCard && (
-        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/75 p-4 animate-modal-backdrop">
-          <div
-            className="relative w-full max-w-2xl max-h-[90vh] rounded-lg flex flex-col overflow-hidden animate-modal-sheet"
-            style={{
-              backgroundColor: '#e8e4d9',
-              border: '1px solid #c9c4b8',
-              boxShadow: '0 0 0 1px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.12), 0 24px 48px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.2)',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='0.04'/%3E%3C/svg%3E")`,
-            }}
-          >
-            {/* Margem esquerda tipo caderno na folha inteira — vermelha */}
-            <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-red-400 via-red-500 to-red-400 dark:from-red-600 dark:via-red-700 dark:to-red-600 rounded-l-lg z-10 pointer-events-none shadow-sm" aria-hidden />
-            {/* Textura de fibra sobreposta */}
-            <div
-              className="absolute inset-0 pointer-events-none rounded-sm opacity-[0.035]"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-              }}
-            />
-            <div className="flex items-center justify-between pl-8 pr-6 py-4 border-b border-[#d4cfc4] shrink-0 relative z-10 bg-[#e8e4d9]">
+        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/70 p-4 animate-modal-backdrop">
+          <div className="relative w-full max-w-2xl max-h-[90vh] rounded-xl flex flex-col overflow-hidden animate-modal-sheet bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-700 shrink-0">
               <div>
-                <h2 className="text-lg font-bold text-[#0f0f0f]">
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
                   {(() => {
                     const sorted = savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
                     const num = sorted.findIndex((b) => b.id === viewingBudget.id) + 1;
                     return `Orçamento ${num}`;
                   })()}
                 </h2>
-                <p className="text-sm text-[#1a1a1a] mt-0.5 font-medium">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">
                   {new Date(viewingBudget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </p>
                 {selectedCard?.mileageKm && (
-                  <p className="text-sm text-[#1a1a1a] mt-1 font-medium">
-                    <span className="text-amber-700 font-semibold">Km</span> {selectedCard.mileageKm}
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                    <span className="text-amber-600 dark:text-amber-400 font-medium">Km</span> {selectedCard.mileageKm}
                   </p>
                 )}
               </div>
@@ -4034,7 +4000,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <button
                   type="button"
                   onClick={() => shareBudget(viewingBudget, selectedCard?.mileageKm ?? null)}
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-[#6b6560] hover:text-[#3d3932] hover:bg-[#ddd8ce] transition-colors"
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                   title="Compartilhar orçamento"
                   aria-label="Compartilhar"
                 >
@@ -4043,48 +4009,45 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setViewingBudget(null)}
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-[#6b6560] hover:text-[#3d3932] hover:bg-[#ddd8ce] transition-colors"
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                   aria-label="Fechar"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto pl-8 pr-6 pt-6 pb-6 relative z-10" style={{ lineHeight: '24px' }}>
-              {/* Linhas azuis a cada 24px; área de conteúdo com padding-top 0 para alinhar primeira linha ao primeiro traço */}
-              <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none z-0 pl-8 pr-6 pt-6 pb-6" style={{ backgroundImage: 'repeating-linear-gradient(180deg, transparent 0, transparent 23px, rgba(37,99,235,0.4) 23px, rgba(37,99,235,0.4) 24px)' }} aria-hidden />
-              <div className="relative z-10" style={{ lineHeight: '24px', color: '#000000' }}>
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-zinc-800 dark:text-zinc-200">
               {viewingBudget.diagnosis && (
-                <section className="mb-6">
-                  <h3 className="text-xs font-bold uppercase tracking-wider mb-2 min-h-[24px] flex items-center" style={{ lineHeight: '24px', color: '#000000' }}>Diagnóstico</h3>
-                  <div className="text-sm whitespace-pre-wrap" style={{ lineHeight: '24px', color: '#000000' }}>{viewingBudget.diagnosis}</div>
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Diagnóstico</h3>
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{viewingBudget.diagnosis}</div>
                 </section>
               )}
               {viewingBudget.services.length > 0 && (
-                <section className="mb-6">
-                  <h3 className="text-xs font-bold uppercase tracking-wider mb-2 min-h-[24px] flex items-center" style={{ lineHeight: '24px', color: '#000000' }}>Serviços</h3>
-                  <ul className="list-none text-sm" style={{ lineHeight: '24px' }}>
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Serviços</h3>
+                  <ul className="list-none space-y-1.5 text-sm">
                     {viewingBudget.services.map((s, i) => (
-                      <li key={i} className="flex items-center gap-2 min-h-[24px]" style={{ color: '#000000' }}>
+                      <li key={i} className="flex items-center gap-2">
                         {s.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600" aria-label="Aprovado" />}
                         {s.approved === false && <X className="w-4 h-4 shrink-0 text-red-600" aria-label="Reprovado" />}
-                        {s.approved !== true && s.approved !== false && <span className="w-4 h-4 shrink-0 font-bold" style={{ color: '#000000' }} aria-label="Pendente">—</span>}
-                        <span style={{ color: '#000000' }}>{s.description}</span>
+                        {s.approved !== true && s.approved !== false && <span className="w-4 h-4 shrink-0 text-zinc-400 font-bold" aria-label="Pendente">—</span>}
+                        <span>{s.description}</span>
                       </li>
                     ))}
                   </ul>
                 </section>
               )}
               {viewingBudget.parts.length > 0 && (
-                <section className="mb-6">
-                  <h3 className="text-xs font-bold uppercase tracking-wider mb-2 min-h-[24px] flex items-center" style={{ lineHeight: '24px', color: '#000000' }}>Peças</h3>
-                  <ul className="space-y-0 text-sm" style={{ lineHeight: '24px' }}>
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Peças</h3>
+                  <ul className="space-y-1.5 text-sm">
                     {viewingBudget.parts.map((p, i) => (
-                      <li key={i} className="flex items-center gap-2 min-h-[24px]" style={{ color: '#000000' }}>
+                      <li key={i} className="flex items-center gap-2">
                         {p.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600" aria-label="Aprovado" />}
                         {p.approved === false && <X className="w-4 h-4 shrink-0 text-red-600" aria-label="Reprovado" />}
-                        {p.approved !== true && p.approved !== false && <span className="w-4 h-4 shrink-0 font-bold" style={{ color: '#000000' }} aria-label="Pendente">—</span>}
-                        <span style={{ color: '#000000' }}><span className="font-semibold">({p.quantity}x)</span> {p.description}</span>
+                        {p.approved !== true && p.approved !== false && <span className="w-4 h-4 shrink-0 text-zinc-400 font-bold" aria-label="Pendente">—</span>}
+                        <span><span className="font-medium">({p.quantity}x)</span> {p.description}</span>
                       </li>
                     ))}
                   </ul>
@@ -4092,13 +4055,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
               {viewingBudget.observations && (
                 <section>
-                  <h3 className="text-xs font-bold uppercase tracking-wider mb-2 min-h-[24px] flex items-center" style={{ lineHeight: '24px', color: '#000000' }}>Observações</h3>
-                  <div className="text-sm whitespace-pre-wrap" style={{ lineHeight: '24px', color: '#000000' }}>{viewingBudget.observations}</div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Observações</h3>
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{viewingBudget.observations}</div>
                 </section>
               )}
-              </div>
             </div>
-            <div className="flex items-center justify-between gap-3 pl-8 pr-6 py-4 border-t border-[#d4cfc4] shrink-0 relative z-10" style={{ backgroundColor: 'rgba(221,216,206,0.6)' }}>
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-zinc-200 dark:border-zinc-700 shrink-0 bg-zinc-50 dark:bg-zinc-800/50">
               <button
                 type="button"
                 onClick={handleDeleteBudget}
@@ -4113,7 +4075,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   type="button"
                   onClick={() => { setViewingBudget(null); openBudgetModal(viewingBudget); }}
                   disabled={!!deletingBudgetId}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-[#c9c4b8] text-[#4a4540] font-medium text-sm hover:bg-[#ddd8ce] transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 font-medium text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
                 >
                   <Pencil className="w-4 h-4" /> Editar orçamento
                 </button>
