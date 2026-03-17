@@ -1627,9 +1627,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // Define tamanho da fonte do modelo para não empurrar placa / técnico para fora do card
   const getModelTitleClass = (modelName: string) => {
     const len = (modelName || '').length;
-    if (len > 40) return 'text-2xl md:text-3xl';
-    if (len > 26) return 'text-3xl md:text-4xl';
-    return 'text-4xl md:text-5xl';
+    if (len > 40) return 'text-xl md:text-2xl';
+    if (len > 26) return 'text-2xl md:text-3xl';
+    return 'text-3xl md:text-4xl';
   };
 
   const getCommentAuthorAvatar = (authorName: string, photoUrlFromComment?: string | null): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
@@ -2037,13 +2037,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 onMouseEnter={() => setInteractingCardId(card.id)}
                 onMouseLeave={() => setInteractingCardId(null)}
               >
-              {/* Layout Superior reorganizado:
-                   - Linha 1: nome do carro (topo)
-                   - Linha 2: técnico à esquerda, placa à direita
-                   - Linha 3: nome do cliente abaixo, ocupando largura toda */}
+              {/* Layout: 1) nome do carro  2) cliente  3) técnico | placa */}
               <div className="mb-4">
-                {/* Nome do carro */}
-                <div className="mb-3">
+                {/* Nome do carro (fonte um pouco menor) */}
+                <div className="mb-2">
                   <h3
                     className={`${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic`}
                   >
@@ -2051,9 +2048,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </h3>
                 </div>
 
+                {/* Cliente logo abaixo do carro */}
+                {customerName && (
+                  <div className="mb-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
+                    <User className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
+                    <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
+                      {firstTwoNames(customerName)}
+                    </span>
+                  </div>
+                )}
+
                 {/* Técnico (esquerda) | Placa (direita) */}
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  {/* Técnico */}
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <button
                       type="button"
@@ -2076,8 +2082,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </span>
                     </button>
                   </div>
-
-                  {/* Placa */}
                   <div className="flex-shrink-0">
                     {!isModuleMode && (
                       <div className="w-[120px] bg-white rounded-xl border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/15 select-none">
@@ -2094,16 +2098,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     )}
                   </div>
                 </div>
-
-                {/* Cliente abaixo */}
-                {customerName && (
-                  <div className="mt-1 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
-                    <User className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
-                    <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
-                      {firstTwoNames(customerName)}
-                    </span>
-                  </div>
-                )}
               </div>
 
               {/* Botões de Ação Inferiores */}
