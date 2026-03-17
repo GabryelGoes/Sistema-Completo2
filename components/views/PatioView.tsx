@@ -3277,25 +3277,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)',
                                       }}
                                     >
-                                      {/* Margem esquerda tipo caderno */}
-                                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-200/70 via-amber-100/50 to-amber-200/70 dark:from-amber-900/30 dark:via-amber-800/20 dark:to-amber-900/30 rounded-l-lg" aria-hidden />
-                                      {/* Linhas horizontais sutis (pautado) */}
-                                      <div className="absolute inset-0 pointer-events-none rounded-lg opacity-50" style={{ backgroundImage: 'repeating-linear-gradient(180deg, transparent 0, transparent 22px, rgba(61,57,50,0.12) 22px, rgba(61,57,50,0.12) 24px)' }} aria-hidden />
-                                      <div className="relative pl-5 pr-4 py-4">
-                                        <div className="flex items-center justify-between gap-2 mb-2">
-                                          <span className="text-xs font-bold uppercase tracking-widest text-amber-800/90 dark:text-amber-200/90">
+                                      {/* Margem esquerda tipo caderno — vermelha */}
+                                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-red-400 via-red-500 to-red-400 dark:from-red-600 dark:via-red-700 dark:to-red-600 rounded-l-lg shadow-sm" aria-hidden />
+                                      {/* Linhas horizontais azuis (pautado 24px); texto com line-height 24px fica em cima das linhas */}
+                                      <div className="absolute inset-0 pointer-events-none rounded-lg" style={{ backgroundImage: 'repeating-linear-gradient(180deg, transparent 0, transparent 23px, rgba(37,99,235,0.45) 23px, rgba(37,99,235,0.45) 24px)' }} aria-hidden />
+                                      <div className="relative pl-5 pr-4 pt-0 pb-4" style={{ lineHeight: '24px' }}>
+                                        <div className="flex items-center justify-between gap-2 h-6">
+                                          <span className="text-xs font-bold uppercase tracking-widest text-zinc-900 dark:text-zinc-100">
                                             Orçamento {numero}
                                           </span>
-                                          <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 tabular-nums bg-white/50 dark:bg-black/20 px-2 py-0.5 rounded">
+                                          <span className="text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 tabular-nums bg-white/80 dark:bg-zinc-800/80 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-600">
                                             {dateStr}
                                           </span>
                                         </div>
-                                        <p className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-snug mb-2">
+                                        <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-2 mb-0" style={{ lineHeight: '24px' }}>
                                           {preview}
                                         </p>
-                                        <div className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
+                                        <div className="flex items-center gap-2 text-[11px] font-medium text-zinc-700 dark:text-zinc-300 h-6 items-center">
                                           <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
-                                          <span className="text-zinc-400">·</span>
+                                          <span className="text-zinc-500 dark:text-zinc-400">·</span>
                                           <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
                                         </div>
                                       </div>
@@ -3310,10 +3310,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03)',
                                   }}
                                 >
-                                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-200/50 to-amber-200/50 rounded-l-lg" aria-hidden />
-                                  <FileText className="w-10 h-10 text-amber-700/50 dark:text-amber-400/40 mx-auto mb-3" />
-                                  <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">Nenhum orçamento</p>
-                                  <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">Crie um orçamento pelo botão acima</p>
+                                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-red-400 to-red-500 dark:from-red-600 dark:to-red-700 rounded-l-lg" aria-hidden />
+                                  <FileText className="w-10 h-10 text-zinc-500 dark:text-zinc-400 mx-auto mb-3" />
+                                  <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Nenhum orçamento</p>
+                                  <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-1">Crie um orçamento pelo botão acima</p>
                                 </div>
                               )}
                               </div>
@@ -4003,8 +4003,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
               backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='0.04'/%3E%3C/svg%3E")`,
             }}
           >
-            {/* Margem esquerda tipo caderno na folha inteira */}
-            <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-amber-300/40 via-amber-200/30 to-amber-300/40 rounded-l-lg z-10 pointer-events-none" aria-hidden />
+            {/* Margem esquerda tipo caderno na folha inteira — vermelha */}
+            <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-red-400 via-red-500 to-red-400 dark:from-red-600 dark:via-red-700 dark:to-red-600 rounded-l-lg z-10 pointer-events-none shadow-sm" aria-hidden />
             {/* Textura de fibra sobreposta */}
             <div
               className="absolute inset-0 pointer-events-none rounded-sm opacity-[0.035]"
@@ -4050,22 +4050,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto pl-8 pr-6 py-6 space-y-6 text-[#3d3932] relative z-10">
+            <div className="flex-1 overflow-y-auto pl-8 pr-6 py-6 space-y-6 text-[#2d2a26] relative z-10">
+              {/* Linhas azuis pautadas no fundo do conteúdo */}
+              <div className="absolute inset-0 pointer-events-none z-0 pl-8 pr-6 py-6" style={{ backgroundImage: 'repeating-linear-gradient(180deg, transparent 0, transparent 23px, rgba(37,99,235,0.35) 23px, rgba(37,99,235,0.35) 24px)' }} aria-hidden />
+              <div className="relative z-10">
               {viewingBudget.diagnosis && (
                 <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-2">Diagnóstico</h3>
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap text-[#4a4540]">{viewingBudget.diagnosis}</div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#2d2a26] mb-2">Diagnóstico</h3>
+                  <div className="text-sm leading-[24px] whitespace-pre-wrap text-[#2d2a26]">{viewingBudget.diagnosis}</div>
                 </section>
               )}
               {viewingBudget.services.length > 0 && (
                 <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-2">Serviços</h3>
-                  <ul className="list-none space-y-1.5 text-sm text-[#4a4540]">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#2d2a26] mb-2">Serviços</h3>
+                  <ul className="list-none space-y-1.5 text-sm leading-[24px] text-[#2d2a26]">
                     {viewingBudget.services.map((s, i) => (
                       <li key={i} className="flex items-center gap-2">
                         {s.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600" aria-label="Aprovado" />}
                         {s.approved === false && <X className="w-4 h-4 shrink-0 text-red-600" aria-label="Reprovado" />}
-                        {s.approved !== true && s.approved !== false && <span className="w-4 h-4 shrink-0 text-[#6b6560] font-bold" aria-label="Pendente">—</span>}
+                        {s.approved !== true && s.approved !== false && <span className="w-4 h-4 shrink-0 text-[#2d2a26] font-bold" aria-label="Pendente">—</span>}
                         <span>{s.description}</span>
                       </li>
                     ))}
@@ -4074,14 +4077,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
               {viewingBudget.parts.length > 0 && (
                 <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-2">Peças</h3>
-                  <ul className="space-y-1.5 text-sm text-[#4a4540]">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#2d2a26] mb-2">Peças</h3>
+                  <ul className="space-y-1.5 text-sm leading-[24px] text-[#2d2a26]">
                     {viewingBudget.parts.map((p, i) => (
                       <li key={i} className="flex items-center gap-2">
                         {p.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600" aria-label="Aprovado" />}
                         {p.approved === false && <X className="w-4 h-4 shrink-0 text-red-600" aria-label="Reprovado" />}
-                        {p.approved !== true && p.approved !== false && <span className="w-4 h-4 shrink-0 text-[#6b6560] font-bold" aria-label="Pendente">—</span>}
-                        <span><span className="font-medium text-[#3d3932]">({p.quantity}x)</span> {p.description}</span>
+                        {p.approved !== true && p.approved !== false && <span className="w-4 h-4 shrink-0 text-[#2d2a26] font-bold" aria-label="Pendente">—</span>}
+                        <span><span className="font-semibold text-[#2d2a26]">({p.quantity}x)</span> {p.description}</span>
                       </li>
                     ))}
                   </ul>
@@ -4089,10 +4092,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
               {viewingBudget.observations && (
                 <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[#6b6560] mb-2">Observações</h3>
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap text-[#4a4540]">{viewingBudget.observations}</div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#2d2a26] mb-2">Observações</h3>
+                  <div className="text-sm leading-[24px] whitespace-pre-wrap text-[#2d2a26]">{viewingBudget.observations}</div>
                 </section>
               )}
+              </div>
             </div>
             <div className="flex items-center justify-between gap-3 pl-8 pr-6 py-4 border-t border-[#d4cfc4] shrink-0 relative z-10" style={{ backgroundColor: 'rgba(221,216,206,0.6)' }}>
               <button
