@@ -514,6 +514,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const suggestionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusedServiceInputRef = useRef<HTMLDivElement>(null);
   const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [shareBudgetMenuOpen, setShareBudgetMenuOpen] = useState(false);
+  const shareBudgetMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!shareBudgetMenuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (shareBudgetMenuRef.current && !shareBudgetMenuRef.current.contains(e.target as Node)) {
+        setShareBudgetMenuOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [shareBudgetMenuOpen]);
+
+  useEffect(() => {
+    if (!viewingBudget) setShareBudgetMenuOpen(false);
+  }, [viewingBudget]);
 
   // Card em transição de COLUNA (Status)
   const [cardInTransition, setCardInTransition] = useState<BoardCard | null>(null);
@@ -1354,8 +1371,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  /** Compartilha orçamento via Web Share API (igual às fotos dos anexos). */
-  const shareBudget = async (budget: SavedBudget, mileageKm?: string | null) => {
+  /** Monta o texto do orçamento para compartilhamento (WhatsApp, clipboard, etc.). */
+  const getBudgetShareText = (budget: SavedBudget, mileageKm?: string | null): string => {
     const dateStr = new Date(budget.createdAt).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: 'long',
@@ -1382,31 +1399,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (budget.observations) {
       lines.push('Observações:', budget.observations.trim());
     }
-    const text = lines.join('\n');
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Orçamento - ${budget.cardName ?? 'Veículo'}`,
-          text,
-        });
-      } catch (err: unknown) {
-        if ((err as { name?: string })?.name !== 'AbortError') {
-          try {
-            await navigator.clipboard.writeText(text);
-            alert('Orçamento copiado para a área de transferência.');
-          } catch {
-            alert('Não foi possível compartilhar. Tente imprimir.');
-          }
-        }
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(text);
-        alert('Orçamento copiado para a área de transferência.');
-      } catch {
-        alert('Seu navegador não suporta compartilhar. Use Ctrl+C após abrir para imprimir.');
-      }
-    }
+    return lines.join('\n');
+  };
+
+  /** Abre o WhatsApp (app no celular ou Web no desktop) com o orçamento no campo de mensagem. */
+  const shareBudgetToWhatsApp = (budget: SavedBudget, mileageKm?: string | null) => {
+    const text = getBudgetShareText(budget, mileageKm);
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setShareBudgetMenuOpen(false);
   };
 
   const printBudget = (budget: SavedBudget, mileageKm?: string | null) => {
@@ -4022,16 +4023,47 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => shareBudget(viewingBudget, selectedCard?.mileageKm ?? null)}
-                  className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:opacity-80"
-                  style={{ color: '#000000' }}
-                  title="Compartilhar orçamento"
-                  aria-label="Compartilhar"
-                >
-                  <Share2 className="w-5 h-5" />
-                </button>
+                <div className="relative" ref={shareBudgetMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShareBudgetMenuOpen((v) => !v)}
+                    className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:opacity-80"
+                    style={{ color: '#000000' }}
+                    title="Compartilhar orçamento (imprimir ou WhatsApp)"
+                    aria-label="Compartilhar orçamento"
+                    aria-expanded={shareBudgetMenuOpen}
+                  >
+                    <Share2 className="w-5 h-5" />
+                  </button>
+                  {shareBudgetMenuOpen && (
+                    <div
+                      className="absolute right-0 top-full mt-2 py-1.5 min-w-[200px] rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-lg z-50"
+                      role="menu"
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          printBudget(viewingBudget, selectedCard?.mileageKm ?? null);
+                          setShareBudgetMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors rounded-lg mx-1"
+                      >
+                        <Printer className="w-5 h-5 shrink-0 text-zinc-700 dark:text-zinc-300" />
+                        Imprimir
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => shareBudgetToWhatsApp(viewingBudget, selectedCard?.mileageKm ?? null)}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors rounded-lg mx-1"
+                      >
+                        <MessageSquare className="w-5 h-5 shrink-0 text-[#25D366]" />
+                        Enviar para WhatsApp
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => setViewingBudget(null)}
