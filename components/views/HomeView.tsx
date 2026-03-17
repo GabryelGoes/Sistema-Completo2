@@ -18,7 +18,6 @@ import { ChangePasswordsModal } from '../ChangePasswordsModal';
 import { TechnicianProfileModal } from '../TechnicianProfileModal';
 import { AdminProfileModal } from '../AdminProfileModal';
 import { SystemUsersModal } from '../SystemUsersModal';
-import { NoticeBoardModal } from '../NoticeBoardModal';
 import { UserProfileModal } from '../UserProfileModal';
 import type { SystemUserPermissions } from '../../services/apiService';
 
@@ -104,7 +103,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isSystemUsersOpen, setIsSystemUsersOpen] = useState(false);
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [isPatioChecklistsOpen, setIsPatioChecklistsOpen] = useState(false);
-  const [isNoticeBoardOpen, setIsNoticeBoardOpen] = useState(false);
 
   const perms = systemUserPermissions || {};
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
@@ -200,23 +198,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
                 <ExternalLink className="w-5 h-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
               </a>
-
-              {/* Acesso ao Quadro de Avisos (TV) */}
-              <button
-                type="button"
-                onClick={() => setIsNoticeBoardOpen(true)}
-                className="mt-3 w-full flex items-center gap-3 p-4 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-900/90 hover:border-amber-300 hover:shadow-md active:scale-[0.99] transition-all text-left"
-              >
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-900 dark:bg-zinc-100 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]">
-                  <ClipboardList className="w-5 h-5 text-amber-400 dark:text-amber-500" strokeWidth={2.5} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-[15px] font-semibold text-zinc-900 dark:text-white block">Quadro de avisos (TV)</span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Crie avisos para aparecerem como uma página da TV do pátio
-                  </span>
-                </div>
-              </button>
             </section>
           </div>
 
@@ -320,8 +301,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
       </main>
-
-      <NoticeBoardModal open={isNoticeBoardOpen} onClose={() => setIsNoticeBoardOpen(false)} />
 
       {!isTechnician && (
         <>
