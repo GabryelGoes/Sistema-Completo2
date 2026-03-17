@@ -79,7 +79,7 @@ interface PatioViewProps {
   };
 }
 
-const BACKEND_LISTS: TrelloList[] = SERVICE_ORDER_STAGES.map((s) => ({
+const BACKEND_LISTS: BoardList[] = SERVICE_ORDER_STAGES.map((s) => ({
   id: s.id,
   name: s.name,
   pos: s.pos,
@@ -516,11 +516,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
 
   // Card em transição de COLUNA (Status)
-  const [cardInTransition, setCardInTransition] = useState<TrelloCard | null>(null);
+  const [cardInTransition, setCardInTransition] = useState<BoardCard | null>(null);
   const [isMoving, setIsMoving] = useState(false);
 
   // Card em transição de MEMBRO (Mecânico)
-  const [cardForMemberAssignment, setCardForMemberAssignment] = useState<TrelloCard | null>(null);
+  const [cardForMemberAssignment, setCardForMemberAssignment] = useState<BoardCard | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
 
   // Checklists do Pátio (templates criados pelo admin)
@@ -543,9 +543,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [recentArchivedCards, setRecentArchivedCards] = useState<TrelloCard[]>([]);
   const [historyShowingFallback, setHistoryShowingFallback] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [selectedHistoryCard, setSelectedHistoryCard] = useState<TrelloCard | null>(null);
+  const [selectedHistoryCard, setSelectedHistoryCard] = useState<BoardCard | null>(null);
   const [loadingHistoryDetails, setLoadingHistoryDetails] = useState(false);
-  const [historyCardDetails, setHistoryCardDetails] = useState<{ actions: TrelloAction[], attachments: TrelloAttachment[] } | null>(null);
+  const [historyCardDetails, setHistoryCardDetails] = useState<{ actions: BoardAction[], attachments: BoardAttachment[] } | null>(null);
 
   // Área de lembretes (Pátio / Laboratório) — armazenados por tipo no navegador
   type Reminder = { id: string; text: string; createdAt: string; done: boolean; createdBy?: string };
@@ -896,7 +896,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       .finally(() => setLoadingHistoryDetails(false));
   };
 
-  const handleUseRegistration = async (card: TrelloCard) => {
+  const handleUseRegistration = async (card: BoardCard) => {
     try {
       const detail = await getServiceOrderById(card.id);
       const c = detail.customers;
@@ -926,7 +926,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  const handleOpenMoveModal = (card: TrelloCard, e?: React.MouseEvent) => {
+  const handleOpenMoveModal = (card: BoardCard, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setCardInTransition(card);
   };
@@ -1609,7 +1609,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  const handleUnarchive = async (card: TrelloCard) => {
+  const handleUnarchive = async (card: BoardCard) => {
     try {
       await updateServiceOrderStatus(card.id, 'FINALIZADO', actorOptions);
       setSelectedHistoryCard(null);
@@ -3271,29 +3271,29 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       key={budget.id}
                                       type="button"
                                       onClick={() => setViewingBudget(budget)}
-                                      className="w-full text-left rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_4px_14px_rgba(0,0,0,0.1),0_2px_6px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 active:translate-y-0"
+                                      className="w-full text-left rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_4px_14px_rgba(0,0,0,0.12),0_2px_6px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 active:translate-y-0"
                                       style={{
-                                        backgroundColor: '#f8f6f1',
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8)',
-                                        border: '1px solid rgba(0,0,0,0.06)',
-                                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.03'/%3E%3C/svg%3E")`,
+                                        backgroundColor: '#d9d0bc',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.4)',
+                                        border: '1px solid rgba(0,0,0,0.12)',
+                                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.045'/%3E%3C/svg%3E")`,
                                       }}
                                     >
                                       <div className="relative p-3.5">
                                       <div className="flex items-center justify-between gap-2 mb-2">
-                                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                                        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#000000' }}>
                                           Orçamento {numero}
                                         </span>
-                                        <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 tabular-nums">
+                                        <span className="text-[10px] font-medium tabular-nums" style={{ color: '#000000' }}>
                                           {dateStr}
                                         </span>
                                       </div>
-                                      <p className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-snug mb-2">
+                                      <p className="text-[13px] font-medium line-clamp-2 leading-snug mb-2" style={{ color: '#000000' }}>
                                         {preview}
                                       </p>
-                                      <div className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
+                                      <div className="flex items-center gap-2 text-[11px]" style={{ color: '#000000' }}>
                                         <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
-                                        <span className="text-zinc-400">·</span>
+                                        <span>·</span>
                                         <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
                                       </div>
                                       </div>
@@ -3304,15 +3304,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <div
                                   className="rounded-lg p-5 text-center border border-dashed"
                                   style={{
-                                    backgroundColor: '#f8f6f1',
-                                    borderColor: 'rgba(0,0,0,0.08)',
-                                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)',
-                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.03'/%3E%3C/svg%3E")`,
+                                    backgroundColor: '#d9d0bc',
+                                    borderColor: 'rgba(0,0,0,0.12)',
+                                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)',
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.045'/%3E%3C/svg%3E")`,
                                   }}
                                 >
-                                  <FileText className="w-9 h-9 text-zinc-400 dark:text-zinc-500 mx-auto mb-2" />
-                                  <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Nenhum orçamento</p>
-                                  <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-0.5">Crie um orçamento pelo botão acima</p>
+                                  <FileText className="w-9 h-9 mx-auto mb-2" style={{ color: '#000000' }} />
+                                  <p className="text-sm font-medium mt-0.5" style={{ color: '#000000' }}>Nenhum orçamento</p>
+                                  <p className="text-xs mt-0.5" style={{ color: '#000000' }}>Crie um orçamento pelo botão acima</p>
                                 </div>
                               )}
                               </div>
