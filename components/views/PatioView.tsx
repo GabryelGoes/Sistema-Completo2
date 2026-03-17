@@ -275,7 +275,7 @@ const Lightbox = ({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-modal-backdrop overflow-hidden"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-modal-backdrop overflow-hidden"
       onClick={onClose}
     >
       <button
@@ -349,7 +349,7 @@ const Lightbox = ({
 // --- Componente Visualizador de PDF ---
 const PdfViewer = ({ src, onClose }: { src: string; onClose: () => void }) => {
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col bg-black/95 backdrop-blur-xl animate-modal-backdrop">
+    <div className="fixed inset-0 z-[90] flex flex-col bg-black/95 backdrop-blur-xl animate-modal-backdrop">
       {/* Header do PDF Viewer */}
       <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/80">
         <div className="flex items-center gap-3">
@@ -1898,8 +1898,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* Sombra leve em amarelo (como na Recepção) */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
       
-      {/* Header Fixo no Topo da Página (acima dos cards para a central de notificações) */}
-      <div className="relative z-[80] flex items-center justify-between gap-4 mb-8 px-2">
+      {/* Header Fixo no Topo da Página (acima dos cards, abaixo da central de notificações e dos modais de veículo) */}
+      <div className="relative z-10 flex items-center justify-between gap-4 mb-8 px-2">
         <div className="flex items-center gap-4">
           <img src="/logo.png" alt="Logo" className="h-20 w-auto object-contain bg-black rounded-xl p-2" />
           <div>
@@ -1952,7 +1952,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
       </div>
 
-      {/* Grid Unificado de Veículos — ordenado pela ordem dos estágios (Garantia → … → Orçamento não aprovado), depois por data */}
+      {/* Grid Unificado de Veículos — ordenado pela ordem dos estágios (Garantia → … → Orçamento não aprovado), depois por data.
+          Fica abaixo dos modais e do header/central de notificações. */}
       {(() => {
         const stageOrder = SERVICE_ORDER_STAGES.map((s) => s.id);
         const byStage = (a: TrelloCard, b: TrelloCard) => {
@@ -2303,7 +2304,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* --- DETALHES DO CARD ARQUIVADO (MODAL NO PÁTIO) --- */}
       {selectedHistoryCard && (
-         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
             <div className="bg-white/98 dark:bg-brand-surface/95 backdrop-blur-2xl border border-zinc-200/70 dark:border-brand-border w-full max-w-[90rem] h-[90vh] rounded-[1.5rem] shadow-[0_18px_60px_-24px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden animate-modal-sheet relative">
                
                <div className="absolute top-6 right-6 z-10 flex gap-3">
