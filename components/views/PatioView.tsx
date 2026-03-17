@@ -3279,23 +3279,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     >
                                       {/* Margem esquerda tipo caderno — vermelha */}
                                       <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-red-400 via-red-500 to-red-400 dark:from-red-600 dark:via-red-700 dark:to-red-600 rounded-l-lg shadow-sm" aria-hidden />
-                                      {/* Linhas azuis a cada 24px; conteúdo com line-height 24px e alturas fixas para alinhar */}
-                                      <div className="absolute inset-0 pointer-events-none rounded-lg" style={{ backgroundImage: 'repeating-linear-gradient(180deg, transparent 0, transparent 23px, rgba(37,99,235,0.4) 23px, rgba(37,99,235,0.4) 24px)' }} aria-hidden />
-                                      <div className="relative pl-5 pr-4 pt-0 pb-3" style={{ lineHeight: '24px', fontSize: '13px' }}>
-                                        <div className="flex items-center justify-between gap-2 h-6 min-h-[24px] flex-shrink-0">
-                                          <span className="text-xs font-bold uppercase tracking-widest text-[#0f0f0f] dark:text-[#fafafa]" style={{ textShadow: '0 0 1px rgba(255,255,255,0.9)' }}>
+                                      {/* Linhas azuis: uma a cada 24px, alinhadas ao line-height 24px do texto */}
+                                      <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none rounded-lg overflow-hidden" style={{ backgroundImage: 'repeating-linear-gradient(180deg, transparent 0, transparent 23px, rgba(37,99,235,0.45) 23px, rgba(37,99,235,0.45) 24px)', backgroundPosition: '0 0' }} aria-hidden />
+                                      <div className="relative pl-5 pr-4 pt-0 pb-3 flex flex-col gap-0" style={{ lineHeight: '24px', fontSize: '13px' }}>
+                                        <div className="flex items-center justify-between gap-2 flex-shrink-0" style={{ height: '24px', minHeight: '24px' }}>
+                                          <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#000000' }}>
                                             Orçamento {numero}
                                           </span>
-                                          <span className="text-[10px] font-semibold text-[#1a1a1a] dark:text-[#e4e4e7] tabular-nums bg-white dark:bg-zinc-800 px-2 py-0.5 rounded border border-zinc-300 dark:border-zinc-600" style={{ textShadow: '0 0 1px rgba(255,255,255,0.9)' }}>
+                                          <span className="text-[10px] font-semibold tabular-nums bg-white dark:bg-zinc-800 px-2 py-0.5 rounded border border-zinc-300 dark:border-zinc-600" style={{ color: '#000000' }}>
                                             {dateStr}
                                           </span>
                                         </div>
-                                        <p className="text-[13px] font-semibold text-[#0f0f0f] dark:text-[#fafafa] line-clamp-2 mt-0 mb-0 min-h-[48px]" style={{ lineHeight: '24px', textShadow: '0 0 1px rgba(255,255,255,0.9)' }}>
+                                        <p className="text-[13px] font-semibold line-clamp-2 flex-shrink-0 m-0 p-0" style={{ color: '#000000', lineHeight: '24px', height: '48px', minHeight: '48px', display: 'block' }}>
                                           {preview}
                                         </p>
-                                        <div className="flex items-center gap-2 text-[11px] font-medium text-[#1a1a1a] dark:text-[#e4e4e7] h-6 min-h-[24px] items-center" style={{ textShadow: '0 0 1px rgba(255,255,255,0.9)' }}>
+                                        <div className="flex items-center gap-2 text-[11px] font-medium flex-shrink-0" style={{ color: '#000000', height: '24px', minHeight: '24px' }}>
                                           <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
-                                          <span className="text-[#52525b] dark:text-[#a1a1aa]">·</span>
+                                          <span style={{ color: '#000000' }}>·</span>
                                           <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
                                         </div>
                                       </div>
@@ -4050,26 +4050,26 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto pl-8 pr-6 py-6 text-[#0f0f0f] relative z-10" style={{ lineHeight: '24px' }}>
-              {/* Linhas azuis a cada 24px; conteúdo com line-height 24px para alinhar */}
-              <div className="absolute inset-0 pointer-events-none z-0 pl-8 pr-6 py-6" style={{ backgroundImage: 'repeating-linear-gradient(180deg, transparent 0, transparent 23px, rgba(37,99,235,0.32) 23px, rgba(37,99,235,0.32) 24px)' }} aria-hidden />
-              <div className="relative z-10" style={{ lineHeight: '24px' }}>
+            <div className="flex-1 overflow-y-auto pl-8 pr-6 pt-6 pb-6 relative z-10" style={{ lineHeight: '24px' }}>
+              {/* Linhas azuis a cada 24px; área de conteúdo com padding-top 0 para alinhar primeira linha ao primeiro traço */}
+              <div className="absolute left-0 right-0 top-0 bottom-0 pointer-events-none z-0 pl-8 pr-6 pt-6 pb-6" style={{ backgroundImage: 'repeating-linear-gradient(180deg, transparent 0, transparent 23px, rgba(37,99,235,0.4) 23px, rgba(37,99,235,0.4) 24px)' }} aria-hidden />
+              <div className="relative z-10" style={{ lineHeight: '24px', color: '#000000' }}>
               {viewingBudget.diagnosis && (
                 <section className="mb-6">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#0f0f0f] mb-2 min-h-[24px] flex items-center" style={{ lineHeight: '24px', textShadow: '0 0 1px rgba(255,255,255,0.9)' }}>Diagnóstico</h3>
-                  <div className="text-sm whitespace-pre-wrap text-[#0f0f0f]" style={{ lineHeight: '24px', textShadow: '0 0 1px rgba(255,255,255,0.9)' }}>{viewingBudget.diagnosis}</div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider mb-2 min-h-[24px] flex items-center" style={{ lineHeight: '24px', color: '#000000' }}>Diagnóstico</h3>
+                  <div className="text-sm whitespace-pre-wrap" style={{ lineHeight: '24px', color: '#000000' }}>{viewingBudget.diagnosis}</div>
                 </section>
               )}
               {viewingBudget.services.length > 0 && (
                 <section className="mb-6">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#0f0f0f] mb-2 min-h-[24px] flex items-center" style={{ lineHeight: '24px', textShadow: '0 0 1px rgba(255,255,255,0.9)' }}>Serviços</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider mb-2 min-h-[24px] flex items-center" style={{ lineHeight: '24px', color: '#000000' }}>Serviços</h3>
                   <ul className="list-none text-sm" style={{ lineHeight: '24px' }}>
                     {viewingBudget.services.map((s, i) => (
-                      <li key={i} className="flex items-center gap-2 min-h-[24px]" style={{ textShadow: '0 0 1px rgba(255,255,255,0.9)' }}>
+                      <li key={i} className="flex items-center gap-2 min-h-[24px]" style={{ color: '#000000' }}>
                         {s.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600" aria-label="Aprovado" />}
                         {s.approved === false && <X className="w-4 h-4 shrink-0 text-red-600" aria-label="Reprovado" />}
-                        {s.approved !== true && s.approved !== false && <span className="w-4 h-4 shrink-0 text-[#0f0f0f] font-bold" aria-label="Pendente">—</span>}
-                        <span className="text-[#0f0f0f]">{s.description}</span>
+                        {s.approved !== true && s.approved !== false && <span className="w-4 h-4 shrink-0 font-bold" style={{ color: '#000000' }} aria-label="Pendente">—</span>}
+                        <span style={{ color: '#000000' }}>{s.description}</span>
                       </li>
                     ))}
                   </ul>
@@ -4077,14 +4077,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
               {viewingBudget.parts.length > 0 && (
                 <section className="mb-6">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#0f0f0f] mb-2 min-h-[24px] flex items-center" style={{ lineHeight: '24px', textShadow: '0 0 1px rgba(255,255,255,0.9)' }}>Peças</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider mb-2 min-h-[24px] flex items-center" style={{ lineHeight: '24px', color: '#000000' }}>Peças</h3>
                   <ul className="space-y-0 text-sm" style={{ lineHeight: '24px' }}>
                     {viewingBudget.parts.map((p, i) => (
-                      <li key={i} className="flex items-center gap-2 min-h-[24px]" style={{ textShadow: '0 0 1px rgba(255,255,255,0.9)' }}>
+                      <li key={i} className="flex items-center gap-2 min-h-[24px]" style={{ color: '#000000' }}>
                         {p.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600" aria-label="Aprovado" />}
                         {p.approved === false && <X className="w-4 h-4 shrink-0 text-red-600" aria-label="Reprovado" />}
-                        {p.approved !== true && p.approved !== false && <span className="w-4 h-4 shrink-0 text-[#0f0f0f] font-bold" aria-label="Pendente">—</span>}
-                        <span className="text-[#0f0f0f]"><span className="font-semibold">({p.quantity}x)</span> {p.description}</span>
+                        {p.approved !== true && p.approved !== false && <span className="w-4 h-4 shrink-0 font-bold" style={{ color: '#000000' }} aria-label="Pendente">—</span>}
+                        <span style={{ color: '#000000' }}><span className="font-semibold">({p.quantity}x)</span> {p.description}</span>
                       </li>
                     ))}
                   </ul>
@@ -4092,8 +4092,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
               {viewingBudget.observations && (
                 <section>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#0f0f0f] mb-2 min-h-[24px] flex items-center" style={{ lineHeight: '24px', textShadow: '0 0 1px rgba(255,255,255,0.9)' }}>Observações</h3>
-                  <div className="text-sm whitespace-pre-wrap text-[#0f0f0f]" style={{ lineHeight: '24px', textShadow: '0 0 1px rgba(255,255,255,0.9)' }}>{viewingBudget.observations}</div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider mb-2 min-h-[24px] flex items-center" style={{ lineHeight: '24px', color: '#000000' }}>Observações</h3>
+                  <div className="text-sm whitespace-pre-wrap" style={{ lineHeight: '24px', color: '#000000' }}>{viewingBudget.observations}</div>
                 </section>
               )}
               </div>
