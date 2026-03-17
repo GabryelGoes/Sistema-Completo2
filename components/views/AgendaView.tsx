@@ -54,7 +54,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
   };
 
   const handleEditClick = (app: Appointment) => {
-    setNewAppointment(app);
+    const date = app.date instanceof Date ? app.date : (app.date ? new Date(app.date) : new Date());
+    setNewAppointment({ ...app, date });
     setIsEditing(true);
     setIsModalOpen(true);
   };
@@ -548,7 +549,12 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                                 <input 
                                     type="date" 
                                     className="w-full bg-zinc-100 dark:bg-black border border-zinc-200 dark:border-zinc-700 rounded-xl p-3 text-zinc-900 dark:text-white focus:outline-none focus:border-brand-yellow"
-                                    value={newAppointment.date ? format(newAppointment.date, 'yyyy-MM-dd') : ''}
+                                    value={(() => {
+                                      const d = newAppointment.date;
+                                      if (!d) return format(selectedDate, 'yyyy-MM-dd');
+                                      const date = d instanceof Date ? d : new Date(d);
+                                      return isNaN(date.getTime()) ? format(selectedDate, 'yyyy-MM-dd') : format(date, 'yyyy-MM-dd');
+                                    })()}
                                     onChange={e => setNewAppointment({...newAppointment, date: parseISO(e.target.value)})}
                                 />
                             </div>

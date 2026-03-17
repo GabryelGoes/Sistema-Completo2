@@ -1,4 +1,3 @@
-
 export interface Customer {
   name: string;
   phone: string;
@@ -16,16 +15,6 @@ export interface Customer {
   mileageKm?: string;
   issueDescription: string;
   aiAnalysis?: string;
-  trelloCardId?: string;
-}
-
-export interface TrelloConfig {
-  apiKey: string;
-  token: string;
-  listId: string;
-  agendamentoListId?: string;
-  boardId?: string;
-  lockRotation?: boolean;
 }
 
 export interface ProcessingStatus {
@@ -33,33 +22,34 @@ export interface ProcessingStatus {
   message?: string;
 }
 
-export interface TrelloList {
+/** Formato de lista/coluna do quadro (ex.: etapas da OS). */
+export interface BoardList {
   id: string;
   name: string;
   pos: number;
 }
 
-export interface TrelloMember {
+export interface BoardMember {
   id: string;
   fullName: string;
   username: string;
   avatarUrl?: string | null;
 }
 
-export interface TrelloCheckItem {
+export interface BoardCheckItem {
   id: string;
   name: string;
   state: 'complete' | 'incomplete';
   pos: number;
 }
 
-export interface TrelloChecklist {
+export interface BoardChecklist {
   id: string;
   name: string;
-  checkItems: TrelloCheckItem[];
+  checkItems: BoardCheckItem[];
 }
 
-export interface TrelloAction {
+export interface BoardAction {
   id: string;
   idMemberCreator: string;
   data: {
@@ -72,11 +62,11 @@ export interface TrelloAction {
     id: string;
     fullName: string;
     avatarHash?: string | null;
-    avatarUrl?: string | null; // Calculado no frontend/service
+    avatarUrl?: string | null;
   };
 }
 
-export interface TrelloAttachment {
+export interface BoardAttachment {
   id: string;
   name: string;
   url: string;
@@ -84,7 +74,7 @@ export interface TrelloAttachment {
   previews?: { url: string; height: number; width: number }[];
 }
 
-export interface TrelloCard {
+export interface BoardCard {
   id: string;
   name: string;
   desc: string;
@@ -93,15 +83,12 @@ export interface TrelloCard {
   dateLastActivity: string;
   pos: number;
   due?: string | null;
-  members?: TrelloMember[];
-  checklists?: TrelloChecklist[];
-  actions?: TrelloAction[];      // Comentários carregados sob demanda
-  attachments?: TrelloAttachment[]; // Anexos carregados sob demanda
-  /** Etiqueta de garantia: definida ao entrar na etapa Garantia e só removida pelo modal. */
+  members?: BoardMember[];
+  checklists?: BoardChecklist[];
+  actions?: BoardAction[];
+  attachments?: BoardAttachment[];
   garantiaTag?: boolean;
-  /** Quilometragem do veículo (vinda da OS). */
   mileageKm?: string | null;
-  /** Data de entrega prevista (YYYY-MM-DD, vinda da OS). */
   deliveryDate?: string | null;
   /** Número da OS na oficina (ex: 1, 2, 3). */
   osNumber?: number | null;
@@ -119,5 +106,4 @@ export interface Appointment {
   time: string;
   notes?: string;
   status: 'scheduled' | 'completed' | 'cancelled';
-  trelloCardId?: string;
 }
