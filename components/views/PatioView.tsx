@@ -514,24 +514,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const suggestionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusedServiceInputRef = useRef<HTMLDivElement>(null);
   const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
-  const [shareBudgetMenuOpen, setShareBudgetMenuOpen] = useState(false);
-  const shareBudgetMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!shareBudgetMenuOpen) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (shareBudgetMenuRef.current && !shareBudgetMenuRef.current.contains(e.target as Node)) {
-        setShareBudgetMenuOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [shareBudgetMenuOpen]);
-
-  useEffect(() => {
-    if (!viewingBudget) setShareBudgetMenuOpen(false);
-  }, [viewingBudget]);
-
   // Card em transição de COLUNA (Status)
   const [cardInTransition, setCardInTransition] = useState<BoardCard | null>(null);
   const [isMoving, setIsMoving] = useState(false);
@@ -1369,45 +1351,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     } finally {
       setSavingApproval(false);
     }
-  };
-
-  /** Monta o texto do orçamento para compartilhamento (WhatsApp, clipboard, etc.). */
-  const getBudgetShareText = (budget: SavedBudget, mileageKm?: string | null): string => {
-    const dateStr = new Date(budget.createdAt).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    const sym = (approved: boolean | undefined) => approved === true ? '✓ ' : approved === false ? '✗ ' : '— ';
-    const lines: string[] = [
-      `Orçamento - ${budget.cardName ?? 'Veículo'}`,
-      dateStr,
-      ...(mileageKm ? [`Km ${mileageKm}`] : []),
-      '',
-    ];
-    if (budget.diagnosis) {
-      lines.push('Diagnóstico:', budget.diagnosis.trim(), '');
-    }
-    if (budget.services.length > 0) {
-      lines.push('Serviços:', ...budget.services.map((s) => `  ${sym(s.approved)}${s.description}`), '');
-    }
-    if (budget.parts.length > 0) {
-      lines.push('Peças:', ...budget.parts.map((p) => `  ${sym(p.approved)}(${p.quantity || 1}x) ${p.description}`), '');
-    }
-    if (budget.observations) {
-      lines.push('Observações:', budget.observations.trim());
-    }
-    return lines.join('\n');
-  };
-
-  /** Abre o WhatsApp (app no celular ou Web no desktop) com o orçamento no campo de mensagem. */
-  const shareBudgetToWhatsApp = (budget: SavedBudget, mileageKm?: string | null) => {
-    const text = getBudgetShareText(budget, mileageKm);
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
-    setShareBudgetMenuOpen(false);
   };
 
   const printBudget = (budget: SavedBudget, mileageKm?: string | null) => {
@@ -4023,47 +3966,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <div className="relative" ref={shareBudgetMenuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setShareBudgetMenuOpen((v) => !v)}
-                    className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:opacity-80"
-                    style={{ color: '#000000' }}
-                    title="Compartilhar orçamento (imprimir ou WhatsApp)"
-                    aria-label="Compartilhar orçamento"
-                    aria-expanded={shareBudgetMenuOpen}
-                  >
-                    <Share2 className="w-5 h-5" />
-                  </button>
-                  {shareBudgetMenuOpen && (
-                    <div
-                      className="absolute right-0 top-full mt-2 py-1.5 min-w-[200px] rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-lg z-50"
-                      role="menu"
-                    >
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          printBudget(viewingBudget, selectedCard?.mileageKm ?? null);
-                          setShareBudgetMenuOpen(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors rounded-lg mx-1"
-                      >
-                        <Printer className="w-5 h-5 shrink-0 text-zinc-700 dark:text-zinc-300" />
-                        Imprimir
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => shareBudgetToWhatsApp(viewingBudget, selectedCard?.mileageKm ?? null)}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors rounded-lg mx-1"
-                      >
-                        <MessageSquare className="w-5 h-5 shrink-0 text-[#25D366]" />
-                        Enviar para WhatsApp
-                      </button>
-                    </div>
-                  )}
-                </div>
                 <button
                   type="button"
                   onClick={() => setViewingBudget(null)}
@@ -4236,21 +4138,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
       )}
 
-      {/* BUDGET FULL-SCREEN — Papel envelhecido (criar/editar) */}
+      {/* BUDGET FULL-SCREEN — Fundo claro com textura de papel realista (criar/editar) */}
       {isBudgetOpen && selectedCard && (
         <div
           className="fixed inset-0 z-[60] overflow-auto animate-modal-backdrop"
           style={{
-            backgroundColor: '#d9d0bc',
-            border: '1px solid rgba(0,0,0,0.12)',
-            boxShadow: '0 0 0 1px rgba(255,255,255,0.3) inset, 0 2px 4px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.14)',
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='0.045'/%3E%3C/svg%3E")`,
+            backgroundColor: '#ebe6dc',
+            border: '1px solid rgba(0,0,0,0.08)',
+            boxShadow: '0 0 0 1px rgba(255,255,255,0.5) inset, 0 2px 4px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.1)',
+            backgroundImage: [
+              'linear-gradient(rgba(0,0,0,0.018) 1px, transparent 1px)',
+              'linear-gradient(90deg, rgba(0,0,0,0.012) 1px, transparent 1px)',
+              `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.065'/%3E%3C/svg%3E")`,
+            ].join(', '),
+            backgroundSize: '24px 24px, 24px 24px, 100% 100%',
+            backgroundRepeat: 'repeat, repeat, repeat',
           }}
         >
-          <div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)' }} aria-hidden />
+          <div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)' }} aria-hidden />
           <div className="min-h-full flex flex-col max-w-[1600px] mx-auto pb-[env(safe-area-inset-bottom)] relative z-10">
             {/* Header */}
-            <header className="sticky top-0 z-10 flex items-center justify-between px-6 lg:px-10 py-5 bg-[#d9d0bc]/95 backdrop-blur-md border-b border-black/10 shrink-0">
+            <header className="sticky top-0 z-10 flex items-center justify-between px-6 lg:px-10 py-5 backdrop-blur-md border-b border-black/8 shrink-0" style={{ backgroundColor: 'rgba(235,230,220,0.97)' }}>
               <div className="flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-zinc-900 text-white flex items-center justify-center shadow-sm">
                   <Calculator className="w-6 h-6" />
