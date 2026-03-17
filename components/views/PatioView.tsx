@@ -1624,6 +1624,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return defaultTechStyle;
   };
 
+  // Define tamanho da fonte do modelo para não empurrar placa / técnico para fora do card
+  const getModelTitleClass = (modelName: string) => {
+    const len = (modelName || '').length;
+    if (len > 40) return 'text-2xl md:text-3xl';
+    if (len > 26) return 'text-3xl md:text-4xl';
+    return 'text-4xl md:text-5xl';
+  };
+
   const getCommentAuthorAvatar = (authorName: string, photoUrlFromComment?: string | null): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
     const name = (authorName ?? '').trim();
     const initial = name ? name.charAt(0).toUpperCase() : '?';
@@ -2032,8 +2040,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
               {/* Layout Superior */}
               <div className="flex justify-between items-start mb-6">
                 {/* Info Carro/Cliente */}
-                <div className="flex-1 pr-2">
-                  <h3 className="text-4xl font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic">
+                <div className="flex-1 pr-2 min-w-0">
+                  <h3
+                    className={`${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic`}
+                  >
                     {model}
                   </h3>
                   {customerName && (
