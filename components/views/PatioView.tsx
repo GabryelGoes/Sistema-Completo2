@@ -1898,8 +1898,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* Sombra leve em amarelo (como na Recepção) */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
       
-      {/* Header Fixo no Topo da Página */}
-      <div className="relative z-10 flex items-center justify-between gap-4 mb-8 px-2">
+      {/* Header Fixo no Topo da Página (acima dos cards para a central de notificações) */}
+      <div className="relative z-[80] flex items-center justify-between gap-4 mb-8 px-2">
         <div className="flex items-center gap-4">
           <img src="/logo.png" alt="Logo" className="h-20 w-auto object-contain bg-black rounded-xl p-2" />
           <div>
@@ -1963,7 +1963,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         };
         const sortedCards = [...cards].sort(byStage);
         return (
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-1" style={{ perspective: '1400px' }}>
+      <div className="relative z-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-1" style={{ perspective: '1400px' }}>
         {sortedCards.map(card => {
           const parts = card.name.split('-').map(s => s.trim());
           const model = parts[0] || card.name;

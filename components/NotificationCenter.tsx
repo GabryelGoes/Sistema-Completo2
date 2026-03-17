@@ -12,6 +12,7 @@ import {
   AlertCircle,
   ChevronRight,
   Loader2,
+  X,
 } from 'lucide-react';
 import {
   getNotifications,
@@ -370,11 +371,26 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-20 bg-black/40">
-          <div className={`w-[min(380px,calc(100vw-24px))] rounded-2xl backdrop-blur-2xl overflow-hidden flex flex-col max-h-[75vh] ${panelClass}`}>
+        <div
+          className="fixed inset-0 z-[9999] flex items-start justify-center pt-20 bg-black/40"
+          role="presentation"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className={`w-[min(380px,calc(100vw-24px))] rounded-2xl backdrop-blur-2xl overflow-hidden flex flex-col max-h-[75vh] ${panelClass}`}
+            onClick={(e) => e.stopPropagation()}
+          >
           <div className={`flex items-center justify-between p-4 border-b shrink-0 ${headerBorderClass}`}>
             <h3 className={`text-lg font-semibold ${titleClass}`}>Notificações</h3>
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className={`p-1.5 rounded-full transition-colors ${isDark ? 'hover:bg-white/10 text-zinc-400 hover:text-white' : 'hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900'}`}
+                aria-label="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
               {unreadCount > 0 && (
                 <button
                   type="button"
