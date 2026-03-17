@@ -4204,29 +4204,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
       )}
 
-      {/* BUDGET FULL-SCREEN — Off-white paper texture, criar/editar */}
+      {/* BUDGET FULL-SCREEN — Papel envelhecido (criar/editar) */}
       {isBudgetOpen && selectedCard && (
         <div
           className="fixed inset-0 z-[60] overflow-auto animate-modal-backdrop"
           style={{
-            backgroundColor: '#f5f4f0',
-            backgroundImage: `
-              linear-gradient(rgba(0,0,0,.018) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(0,0,0,.018) 1px, transparent 1px)
-            `,
-            backgroundSize: '24px 24px',
+            backgroundColor: '#d9d0bc',
+            border: '1px solid rgba(0,0,0,0.12)',
+            boxShadow: '0 0 0 1px rgba(255,255,255,0.3) inset, 0 2px 4px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.14)',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='0.045'/%3E%3C/svg%3E")`,
           }}
         >
-          <div className="min-h-full flex flex-col max-w-[1600px] mx-auto pb-[env(safe-area-inset-bottom)]">
+          <div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)' }} aria-hidden />
+          <div className="min-h-full flex flex-col max-w-[1600px] mx-auto pb-[env(safe-area-inset-bottom)] relative z-10">
             {/* Header */}
-            <header className="sticky top-0 z-10 flex items-center justify-between px-6 lg:px-10 py-5 bg-[#f5f4f0]/95 backdrop-blur-md border-b border-zinc-300/50 shrink-0">
+            <header className="sticky top-0 z-10 flex items-center justify-between px-6 lg:px-10 py-5 bg-[#d9d0bc]/95 backdrop-blur-md border-b border-black/10 shrink-0">
               <div className="flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-zinc-900 text-white flex items-center justify-center shadow-sm">
                   <Calculator className="w-6 h-6" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-semibold tracking-tight text-zinc-900">{editingBudget ? 'Editar orçamento' : 'Orçamento'}</h1>
-                  <p className="text-sm text-zinc-600 mt-0.5">
+                  <h1 className="text-xl font-semibold tracking-tight" style={{ color: '#000000' }}>{editingBudget ? 'Editar orçamento' : 'Orçamento'}</h1>
+                  <p className="text-sm mt-0.5" style={{ color: '#000000' }}>
                     {blurPlates ? (() => {
                       const p = selectedCard.name.split(' - ');
                       return p.length >= 3 ? <>{p[0]} <span className="blur-plate">{p[1]}</span> {p.slice(2).join(' - ')}</> : selectedCard.name;
@@ -4236,14 +4235,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
               <button
                 onClick={closeBudgetModal}
-                className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-300/50 transition-colors"
+                className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/10 transition-colors"
+                style={{ color: '#000000' }}
                 aria-label="Fechar"
               >
                 <X className="w-5 h-5" />
               </button>
             </header>
 
-            <div className="flex-1 overflow-y-auto flex justify-center" style={{ paddingBottom: 'max(8rem, env(safe-area-inset-bottom, 0px))' }}>
+            <div className="flex-1 overflow-y-auto flex justify-center relative z-10" style={{ paddingBottom: 'max(8rem, env(safe-area-inset-bottom, 0px))' }}>
               <main className="w-full max-w-2xl p-6 lg:p-10">
                   <div className="space-y-8">
                     <section className="bg-white/80 rounded-2xl border border-zinc-200/80 shadow-sm overflow-hidden">
