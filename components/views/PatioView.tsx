@@ -28,6 +28,7 @@ import {
   deleteServiceOrderComment,
   updateServiceOrderComment,
   getWorkshopServices,
+  getWorkshopParts,
   getSystemUserTechnicians,
   updateCustomer,
   deleteServiceOrderWithPassword,
@@ -36,6 +37,7 @@ import {
   updateServiceOrderChecklistItem,
   ServiceOrderListItem,
   type WorkshopService,
+  type WorkshopPart,
   type SystemUserTechnician,
   type ServiceOrderUpdateActor,
   type ServiceOrderType,
@@ -512,12 +514,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [approvalParts, setApprovalParts] = useState<boolean[]>([]);
   const [savingApproval, setSavingApproval] = useState(false);
   const [workshopServices, setWorkshopServices] = useState<WorkshopService[]>([]);
+  const [workshopParts, setWorkshopParts] = useState<WorkshopPart[]>([]);
   const [systemTechnicians, setSystemTechnicians] = useState<SystemUserTechnician[]>([]);
   const [isServiceListOpen, setIsServiceListOpen] = useState(false);
   const [suggestionsForServiceId, setSuggestionsForServiceId] = useState<string | null>(null);
+  const [suggestionsForPartId, setSuggestionsForPartId] = useState<string | null>(null);
   const suggestionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const partSuggestionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusedServiceInputRef = useRef<HTMLDivElement>(null);
+  const focusedPartInputRef = useRef<HTMLDivElement>(null);
   const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [partSuggestionBoxPosition, setPartSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   // Card em transição de COLUNA (Status)
   const [cardInTransition, setCardInTransition] = useState<BoardCard | null>(null);
   const [isMoving, setIsMoving] = useState(false);
@@ -1290,6 +1297,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
     setIsBudgetOpen(true);
     getWorkshopServices().then(setWorkshopServices).catch(() => setWorkshopServices([]));
+    getWorkshopParts().then(setWorkshopParts).catch(() => setWorkshopParts([]));
   };
 
   const closeBudgetModal = () => {
@@ -1481,6 +1489,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return workshopServices.filter(s => normalizeText(s.name).includes(q)).slice(0, 6);
   };
 
+  const getPartSuggestions = (description: string) => {
+    const q = normalizeText(description.trim());
+    if (!q) return [];
+    return workshopParts.filter(p => normalizeText(p.name).includes(q)).slice(0, 6);
+  };
+
   useEffect(() => {
     if (suggestionsForServiceId && focusedServiceInputRef.current) {
       const rect = focusedServiceInputRef.current.getBoundingClientRect();
@@ -1489,6 +1503,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setSuggestionBoxPosition(null);
     }
   }, [suggestionsForServiceId]);
+
+  useEffect(() => {
+    if (suggestionsForPartId && focusedPartInputRef.current) {
+      const rect = focusedPartInputRef.current.getBoundingClientRect();
+      setPartSuggestionBoxPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    } else {
+      setPartSuggestionBoxPosition(null);
+    }
+  }, [suggestionsForPartId]);
 
   const handleServiceInputFocus = (id: string) => {
     if (suggestionCloseTimerRef.current) {
@@ -1502,9 +1525,26 @@ export const PatioView: React.FC<PatioViewProps> = ({
     suggestionCloseTimerRef.current = setTimeout(() => setSuggestionsForServiceId(null), 180);
   };
 
+  const handlePartInputFocus = (id: string) => {
+    if (partSuggestionCloseTimerRef.current) {
+      clearTimeout(partSuggestionCloseTimerRef.current);
+      partSuggestionCloseTimerRef.current = null;
+    }
+    setSuggestionsForPartId(id);
+  };
+
+  const handlePartInputBlur = () => {
+    partSuggestionCloseTimerRef.current = setTimeout(() => setSuggestionsForPartId(null), 180);
+  };
+
   const applySuggestion = (itemId: string, name: string) => {
     updateServiceDescription(itemId, name);
     setSuggestionsForServiceId(null);
+  };
+
+  const applyPartSuggestion = (itemId: string, name: string) => {
+    updatePartDescription(itemId, name);
+    setSuggestionsForPartId(null);
   };
 
   const handleCreateBudget = async () => {
@@ -4327,14 +4367,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </button>
                       </div>
                       <div className="p-4 space-y-4">
-                        {budgetParts.map((item) => (
-                          <div key={item.id} className="flex flex-col sm:flex-row gap-3 sm:items-center bg-zinc-50/50 rounded-xl p-3 border border-zinc-100">
+                        {budgetParts.map((item) => {
+                          const isFocusedPart = suggestionsForPartId === item.id;
+                          return (
+                          <div key={item.id} ref={isFocusedPart ? focusedPartInputRef : undefined} className="flex flex-col sm:flex-row gap-3 sm:items-center bg-zinc-50/50 rounded-xl p-3 border border-zinc-100">
                             <input
                               type="text"
                               placeholder="Nome da peça..."
                               className="flex-1 px-4 py-2.5 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-300 text-sm"
                               value={item.description}
                               onChange={(e) => updatePartDescription(item.id, e.target.value)}
+                              onFocus={() => handlePartInputFocus(item.id)}
+                              onBlur={handlePartInputBlur}
                             />
                             <div className="flex items-center gap-2">
                               <div className="flex items-center rounded-lg border border-zinc-200 overflow-hidden bg-white">
@@ -4351,9 +4395,43 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </button>
                             </div>
                           </div>
-                        ))}
+                        );
+                        })}
                       </div>
                     </section>
+
+                    {/* Modal: sugestões de peças ao digitar (igual serviços) */}
+                    {partSuggestionBoxPosition && suggestionsForPartId && (() => {
+                      const suggestions = budgetParts.find(i => i.id === suggestionsForPartId)
+                        ? getPartSuggestions(budgetParts.find(i => i.id === suggestionsForPartId)!.description)
+                        : [];
+                      if (suggestions.length === 0) return null;
+                      return (
+                        <>
+                          <div className="fixed inset-0 z-[65] bg-black/25" onClick={() => setSuggestionsForPartId(null)} />
+                          <div
+                            className="fixed z-[66] rounded-xl bg-white border border-zinc-200 shadow-xl overflow-hidden py-1 max-h-[200px] overflow-y-auto"
+                            style={{
+                              top: partSuggestionBoxPosition.top,
+                              left: partSuggestionBoxPosition.left,
+                              width: partSuggestionBoxPosition.width,
+                            }}
+                            onMouseDown={(e) => e.preventDefault()}
+                          >
+                            {suggestions.map((p) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onMouseDown={() => suggestionsForPartId && applyPartSuggestion(suggestionsForPartId, p.name)}
+                                className="w-full text-left px-4 py-2.5 text-sm text-zinc-900 hover:bg-amber-100 transition-colors"
+                              >
+                                {p.name}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      );
+                    })()}
 
                     <section className="bg-white/80 rounded-2xl border border-zinc-200/80 shadow-sm overflow-hidden">
                       <div className="px-6 py-4 border-b border-zinc-100">
