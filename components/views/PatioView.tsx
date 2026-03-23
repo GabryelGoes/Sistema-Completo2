@@ -1539,10 +1539,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const handleDeliverVehicle = async (cardId: string) => {
-    const confirmMessage = isModuleMode
-      ? "Confirmar entrega do módulo? O registro será arquivado e ficará disponível no Histórico de módulos."
-      : "Confirmar entrega do veículo? O registro será arquivado e ficará disponível no Histórico de veículos.";
-    if (!confirm(confirmMessage)) return;
     setArchivingId(cardId);
     try {
       await updateServiceOrderStatus(cardId, 'CANCELLED', actorOptions);
