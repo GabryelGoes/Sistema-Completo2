@@ -179,56 +179,74 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           )}
 
           <div className="rounded-2xl overflow-hidden bg-white/70 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08] shadow-sm">
-            <div className="px-3 pt-3 pb-1 grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto_auto] gap-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              <span>Nome da peça</span>
-              <span>Preço (R$)</span>
-              <span>Quantidade em estoque</span>
-              <span className="text-center">Salvar</span>
-              <span className="text-center">Foto</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto_auto] gap-2 p-3 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                placeholder="Nome da peça (ex.: Sensor ABS)"
-                className="min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60"
-              />
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={newPrice}
-                onChange={(e) => setNewPrice(e.target.value)}
-                placeholder="Preço (R$)"
-                className="min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60"
-              />
-              <input
-                type="number"
-                min="0"
-                step="0.001"
-                value={newStock}
-                onChange={(e) => setNewStock(e.target.value)}
-                placeholder="Estoque"
-                className="min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60"
-              />
-              <button
-                type="button"
-                onClick={handleAdd}
-                disabled={!newName.trim() || adding}
-                className="shrink-0 w-10 h-10 rounded-xl bg-brand-yellow hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none text-black flex items-center justify-center transition-colors"
-              >
-                {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-              </button>
-              <button
-                type="button"
-                onClick={() => createPhotoInputRef.current?.click()}
-                className="shrink-0 w-10 h-10 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-white flex items-center justify-center transition-colors"
-                title="Selecionar foto da peça"
-              >
-                <Camera className="w-5 h-5" />
-              </button>
+            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto_auto] gap-3 p-3 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  Nome da peça
+                </label>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                  placeholder="Ex.: Sensor ABS"
+                  className="w-full min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  Preço (R$)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newPrice}
+                  onChange={(e) => setNewPrice(e.target.value)}
+                  placeholder="0,00"
+                  className="w-full min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  Quantidade em estoque
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  value={newStock}
+                  onChange={(e) => setNewStock(e.target.value)}
+                  placeholder="0"
+                  className="w-full min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 text-center">
+                  Salvar
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAdd}
+                  disabled={!newName.trim() || adding}
+                  className="w-10 h-10 rounded-xl bg-brand-yellow hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none text-black flex items-center justify-center transition-colors mx-auto"
+                >
+                  {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                </button>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 text-center">
+                  Foto
+                </label>
+                <button
+                  type="button"
+                  onClick={() => createPhotoInputRef.current?.click()}
+                  className="w-10 h-10 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-white flex items-center justify-center transition-colors mx-auto"
+                  title="Selecionar foto da peça"
+                >
+                  <Camera className="w-5 h-5" />
+                </button>
+              </div>
               <input
                 ref={createPhotoInputRef}
                 type="file"
