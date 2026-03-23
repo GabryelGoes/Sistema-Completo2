@@ -1,56 +1,92 @@
-const CACHE_NAME = 'rei-do-abs-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/logo.png',
-  'https://cdn.tailwindcss.com'
-];
+/**
+ * PWA — evita servir versão antiga do app:
+ * - NÃO usar cache-first em HTML / navegação (era a causa de "às vezes abre versão velha").
+ * - HTML: rede primeiro; cache só como fallback offline.
+ * - Nome do cache versionado para limpar caches antigos após deploy.
+ */
+const CACHE_VERSION = 'rei-do-abs-v3';
+const CACHE_NAME = `static-${CACHE_VERSION}`;
 
-// Instalação do Service Worker
+/** Só pré-cache de assets que não mudam o shell do app; evita travar index.html antigo. */
+const ASSETS_TO_CACHE = ['/manifest.json', '/logo.png'];
+
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Tenta cachear arquivos estáticos cruciais
-      return cache.addAll(ASSETS_TO_CACHE).catch(err => {
-         console.warn('Falha ao cachear alguns recursos estáticos:', err);
+      return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
+        console.warn('[SW] Falha ao pré-cachear:', err);
       });
     })
   );
 });
 
-// Ativação e limpeza de caches antigos
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
+    caches
+      .keys()
+      .then((cacheNames) =>
+        Promise.all(
+          cacheNames.map((name) => {
+            if (name !== CACHE_NAME) return caches.delete(name);
+          })
+        )
+      )
+      .then(() => self.clients.claim())
+  );
+});
+
+function isSameOriginApi(url) {
+  try {
+    const u = new URL(url, self.location.origin);
+    return u.origin === self.location.origin && u.pathname.startsWith('/api');
+  } catch {
+    return false;
+  }
+}
+
+self.addEventListener('fetch', (event) => {
+  const url = event.request.url;
+
+  if (url.includes('api.trello.com') || url.includes('generativelanguage.googleapis.com')) {
+    return;
+  }
+
+  // APIs do próprio app: sempre rede (dados frescos)
+  if (isSameOriginApi(url)) {
+    return;
+  }
+
+  // Só navegação top-level (evita tratar outros GET como HTML)
+  const isNavigation = event.request.mode === 'navigate';
+
+  // Documentos / SPA: rede primeiro → evita versão antiga do bundle
+  if (isNavigation) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((r) => r || caches.match('/index.html')))
+    );
+    return;
+  }
+
+  // Demais recursos (JS/CSS com hash, imagens): cache primeiro, depois rede
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      return (
+        response ||
+        fetch(event.request).catch(() => {
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html');
           }
         })
       );
-    })
-  );
-});
-
-// Interceptação de requisições
-self.addEventListener('fetch', (event) => {
-  // Ignora requisições de API (Trello/Gemini) para garantir dados frescos,
-  // mas poderia implementar estratégias de fallback se necessário.
-  if (event.request.url.includes('api.trello.com') || event.request.url.includes('generativelanguage.googleapis.com')) {
-      return; 
-  }
-
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      // Cache First strategy para assets estáticos
-      return response || fetch(event.request).catch(() => {
-          // Fallback para offline (opcional: retornar uma página offline.html)
-          if (event.request.mode === 'navigate') {
-              return caches.match('/index.html');
-          }
-      });
     })
   );
 });
