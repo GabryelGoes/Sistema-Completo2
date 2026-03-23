@@ -155,7 +155,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] rounded-[1.5rem] w-full max-w-4xl h-[92vh] max-h-[92vh] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden animate-modal-sheet flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/80 dark:bg-white/[0.04] shrink-0">
           <h2 className="text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
-            <Package className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+            <Package className="w-5 h-5 text-brand-yellow" />
             Estoque de Peças
           </h2>
           <button
@@ -179,6 +179,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           )}
 
           <div className="rounded-2xl overflow-hidden bg-white/70 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08] shadow-sm">
+            <div className="px-3 pt-3 pb-1 grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto_auto] gap-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              <span>Nome da peça</span>
+              <span>Preço (R$)</span>
+              <span>Quantidade em estoque</span>
+              <span className="text-center">Salvar</span>
+              <span className="text-center">Foto</span>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto_auto] gap-2 p-3 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
               <input
                 type="text"
@@ -186,7 +193,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
                 placeholder="Nome da peça (ex.: Sensor ABS)"
-                className="min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50"
+                className="min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60"
               />
               <input
                 type="number"
@@ -195,7 +202,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 value={newPrice}
                 onChange={(e) => setNewPrice(e.target.value)}
                 placeholder="Preço (R$)"
-                className="min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50"
+                className="min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60"
               />
               <input
                 type="number"
@@ -204,13 +211,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 value={newStock}
                 onChange={(e) => setNewStock(e.target.value)}
                 placeholder="Estoque"
-                className="min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50"
+                className="min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60"
               />
               <button
                 type="button"
                 onClick={handleAdd}
                 disabled={!newName.trim() || adding}
-                className="shrink-0 w-10 h-10 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:pointer-events-none text-white flex items-center justify-center transition-colors"
+                className="shrink-0 w-10 h-10 rounded-xl bg-brand-yellow hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none text-black flex items-center justify-center transition-colors"
               >
                 {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
               </button>
@@ -249,6 +256,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">Adicione acima para montar seu estoque.</p>
               </div>
             ) : (
+              <div className="px-4 pt-3 pb-2 grid grid-cols-[2fr_1fr_1fr_auto_auto_auto] gap-3 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
+                <span>Nome da peça</span>
+                <span>Preço</span>
+                <span>Quantidade</span>
+                <span className="text-center">Editar</span>
+                <span className="text-center">Foto</span>
+                <span className="text-center">Excluir</span>
+              </div>
               <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
                 {parts.map((p) => (
                   <div
@@ -261,7 +276,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           type="text"
                           value={editingName}
                           onChange={(e) => setEditingName(e.target.value)}
-                          className="flex-[2] min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                          className="flex-[2] min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40"
                           autoFocus
                         />
                         <input
@@ -270,7 +285,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           step="0.01"
                           value={editingPrice}
                           onChange={(e) => setEditingPrice(e.target.value)}
-                          className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                          className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40"
                         />
                         <input
                           type="number"
@@ -278,12 +293,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           step="0.001"
                           value={editingStock}
                           onChange={(e) => setEditingStock(e.target.value)}
-                          className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                          className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40"
                         />
                         <button
                           type="button"
                           onClick={handleSaveEdit}
-                          className="w-9 h-9 rounded-lg bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600"
+                          className="w-9 h-9 rounded-lg bg-brand-yellow text-black flex items-center justify-center hover:brightness-110"
                         >
                           <Check className="w-4 h-4" />
                         </button>
@@ -316,7 +331,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         <button
                           type="button"
                           onClick={() => startEdit(p)}
-                          className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-emerald-600 hover:bg-emerald-500/10 transition-colors"
+                          className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-brand-yellow/10 transition-colors"
                           aria-label="Editar"
                         >
                           <Pencil className="w-4 h-4" />
@@ -328,7 +343,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                             editPhotoInputRef.current.dataset.partId = p.id;
                             editPhotoInputRef.current.click();
                           }}
-                          className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-emerald-600 hover:bg-emerald-500/10 transition-colors"
+                          className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-brand-yellow/10 transition-colors"
                           aria-label="Foto"
                           title="Adicionar/alterar foto"
                         >
