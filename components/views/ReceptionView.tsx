@@ -4,7 +4,7 @@ import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, Shield
 import { Customer, ProcessingStatus } from '../../types';
 import { Input, TextArea } from '../ui/Input';
 import { ProcessingOverlay } from '../ProcessingOverlay';
-import { saveReceptionIntake, uploadServiceOrderPhoto, getServiceOrders, type ServiceOrderListItem } from '../../services/apiService';
+import { saveReceptionIntake, uploadServiceOrderPhoto, getServiceOrders, getServiceOrderBudgets, type ServiceOrderListItem, type SavedBudgetFromApi } from '../../services/apiService';
 import type { ServiceOrderType } from '../../services/apiService';
 
 const RECEPTION_MODE_KEY = 'app_reception_mode';
@@ -77,6 +77,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [historySearch, setHistorySearch] = useState('');
   const [historyLoading, setHistoryLoading] = useState(false);
   const [archivedOrders, setArchivedOrders] = useState<ServiceOrderListItem[]>([]);
+  const [expandedHistoryOrderId, setExpandedHistoryOrderId] = useState<string | null>(null);
+  const [historyBudgetsByOrder, setHistoryBudgetsByOrder] = useState<Record<string, SavedBudgetFromApi[]>>({});
+  const [historyBudgetsLoadingId, setHistoryBudgetsLoadingId] = useState<string | null>(null);
+  const [historyBudgetErrorByOrder, setHistoryBudgetErrorByOrder] = useState<Record<string, string>>({});
 
   // Efeito para carregar dados iniciais vindos do Pátio ou Histórico (todos editáveis, inclusive placa)
   useEffect(() => {
@@ -217,6 +221,31 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     if (isHistoryOpen) loadVehicleHistory(historySearch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHistoryOpen]);
+
+  const handleToggleHistoryBudgets = async (serviceOrderId: string) => {
+    if (expandedHistoryOrderId === serviceOrderId) {
+      setExpandedHistoryOrderId(null);
+      return;
+    }
+
+    setExpandedHistoryOrderId(serviceOrderId);
+    if (historyBudgetsByOrder[serviceOrderId]) return;
+
+    setHistoryBudgetsLoadingId(serviceOrderId);
+    setHistoryBudgetErrorByOrder((prev) => ({ ...prev, [serviceOrderId]: '' }));
+    try {
+      const budgets = await getServiceOrderBudgets(serviceOrderId);
+      setHistoryBudgetsByOrder((prev) => ({ ...prev, [serviceOrderId]: budgets }));
+    } catch (err: any) {
+      setHistoryBudgetErrorByOrder((prev) => ({
+        ...prev,
+        [serviceOrderId]: err?.message ?? 'Falha ao carregar orçamentos.',
+      }));
+      setHistoryBudgetsByOrder((prev) => ({ ...prev, [serviceOrderId]: [] }));
+    } finally {
+      setHistoryBudgetsLoadingId(null);
+    }
+  };
 
   return (
     <div className="w-full max-w-2xl lg:max-w-5xl mx-auto px-4 md:px-6 pb-24 animate-in fade-in duration-500">
@@ -576,6 +605,50 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       </div>
                       <span className="text-[11px] uppercase tracking-wide text-zinc-500">{o.status}</span>
                     </div>
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleHistoryBudgets(o.id)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors"
+                      >
+                        {expandedHistoryOrderId === o.id ? 'Ocultar orçamentos' : 'Ver orçamentos'}
+                      </button>
+                    </div>
+                    {expandedHistoryOrderId === o.id && (
+                      <div className="mt-3 rounded-lg border border-zinc-200 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] p-3 space-y-2">
+                        {historyBudgetsLoadingId === o.id ? (
+                          <div className="text-sm text-zinc-500 flex items-center gap-2">
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            Carregando orçamentos...
+                          </div>
+                        ) : historyBudgetErrorByOrder[o.id] ? (
+                          <div className="text-sm text-red-500">{historyBudgetErrorByOrder[o.id]}</div>
+                        ) : (historyBudgetsByOrder[o.id] || []).length === 0 ? (
+                          <div className="text-sm text-zinc-500">Nenhum orçamento encontrado para este veículo.</div>
+                        ) : (
+                          (historyBudgetsByOrder[o.id] || []).map((b, idx) => (
+                            <div key={b.id} className="rounded-lg border border-zinc-200 dark:border-white/10 p-2.5 bg-white dark:bg-white/[0.02]">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                                  Orçamento {idx + 1}
+                                </p>
+                                <p className="text-xs text-zinc-500">
+                                  {new Date(b.createdAt).toLocaleString('pt-BR')}
+                                </p>
+                              </div>
+                              {b.diagnosis?.trim() && (
+                                <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+                                  <span className="font-medium">Diagnóstico:</span> {b.diagnosis}
+                                </p>
+                              )}
+                              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+                                {b.services.length} serviço(s) • {b.parts.length} peça(s)
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))
               )}
