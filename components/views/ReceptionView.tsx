@@ -770,11 +770,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       {/* Modal: orçamento completo (histórico arquivado) — acima do modal de histórico (z-50) */}
       {historyBudgetDetail && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]"
           onClick={() => setHistoryBudgetDetail(null)}
         >
           <div
-            className="w-full max-w-2xl max-h-[90vh] rounded-2xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#1C1C1E] shadow-2xl flex flex-col overflow-hidden"
+            className="w-full max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] flex flex-col min-h-0 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#1C1C1E] shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 p-5 border-b border-zinc-200 dark:border-white/10 shrink-0">
@@ -805,7 +805,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5 space-y-5 text-zinc-900 dark:text-zinc-100">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-5 text-zinc-900 dark:text-zinc-100 [-webkit-overflow-scrolling:touch]">
               {historyBudgetDetail.diagnosis?.trim() && (
                 <section>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Diagnóstico</h3>

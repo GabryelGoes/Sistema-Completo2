@@ -3973,9 +3973,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* MODAL VISUALIZAR ORÇAMENTO — papel envelhecido no modal inteiro, textos em preto */}
       {viewingBudget && selectedCard && (
-        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/70 p-4 animate-modal-backdrop">
+        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/70 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] animate-modal-backdrop">
           <div
-            className="relative w-full max-w-2xl max-h-[90vh] rounded-lg flex flex-col overflow-hidden animate-modal-sheet"
+            className="relative w-full max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] flex flex-col min-h-0 overflow-hidden rounded-lg animate-modal-sheet"
             style={{
               backgroundColor: '#d9d0bc',
               border: '1px solid rgba(0,0,0,0.12)',
@@ -4014,7 +4014,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 relative z-10">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-6 relative z-10 [-webkit-overflow-scrolling:touch]">
               {viewingBudget.diagnosis && (
                 <section>
                   <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Diagnóstico</h3>
