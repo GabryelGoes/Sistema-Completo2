@@ -2140,6 +2140,224 @@ export function createApiApp() {
     }
   });
 
+  // ----------------- ESTOQUE DE PEÇAS (para orçamentos) -----------------
+  app.get("/api/workshop-parts", async (_req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("workshop_parts")
+        .select("id, name, unit_price, stock_qty, photo_url, sort_order, created_at")
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true });
+
+      if (error) {
+        console.error("[API] Erro ao listar peças:", error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      return res.json(data ?? []);
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/workshop-parts:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/workshop-parts", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const { name, unit_price, stock_qty, photo_url } = req.body || {};
+      const trimmed = typeof name === "string" ? name.trim() : "";
+      const unitPrice = Number(unit_price ?? 0);
+      const stockQty = Number(stock_qty ?? 0);
+
+      if (!trimmed) {
+        return res.status(400).json({ error: "Nome da peça é obrigatório." });
+      }
+      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+        return res.status(400).json({ error: "Preço unitário inválido." });
+      }
+      if (!Number.isFinite(stockQty) || stockQty < 0) {
+        return res.status(400).json({ error: "Quantidade em estoque inválida." });
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("workshop_parts")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          name: trimmed,
+          unit_price: unitPrice,
+          stock_qty: stockQty,
+          photo_url: typeof photo_url === "string" && photo_url.trim() ? photo_url.trim() : null,
+          sort_order: 0,
+        })
+        .select("id, name, unit_price, stock_qty, photo_url, sort_order, created_at")
+        .single();
+
+      if (error) {
+        if (error.code === "23505") {
+          return res.status(409).json({ error: "Já existe uma peça com este nome." });
+        }
+        console.error("[API] Erro ao criar peça:", error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      return res.status(201).json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/workshop-parts:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.put("/api/workshop-parts/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const { id } = req.params;
+      const { name, unit_price, stock_qty, photo_url } = req.body || {};
+      const patch: Record<string, any> = {};
+
+      if (name !== undefined) {
+        const trimmed = String(name).trim();
+        if (!trimmed) return res.status(400).json({ error: "Nome da peça é obrigatório." });
+        patch.name = trimmed;
+      }
+      if (unit_price !== undefined) {
+        const unitPrice = Number(unit_price);
+        if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+          return res.status(400).json({ error: "Preço unitário inválido." });
+        }
+        patch.unit_price = unitPrice;
+      }
+      if (stock_qty !== undefined) {
+        const stockQty = Number(stock_qty);
+        if (!Number.isFinite(stockQty) || stockQty < 0) {
+          return res.status(400).json({ error: "Quantidade em estoque inválida." });
+        }
+        patch.stock_qty = stockQty;
+      }
+      if (photo_url !== undefined) {
+        patch.photo_url = typeof photo_url === "string" && photo_url.trim() ? photo_url.trim() : null;
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("workshop_parts")
+        .update(patch)
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("id, name, unit_price, stock_qty, photo_url, sort_order, created_at")
+        .single();
+
+      if (error) {
+        if (error.code === "23505") {
+          return res.status(409).json({ error: "Já existe uma peça com este nome." });
+        }
+        console.error("[API] Erro ao atualizar peça:", error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      if (!data) return res.status(404).json({ error: "Peça não encontrada." });
+      return res.json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em PUT /api/workshop-parts/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.delete("/api/workshop-parts/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const { id } = req.params;
+      const { error } = await supabaseAdmin
+        .from("workshop_parts")
+        .delete()
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (error) {
+        console.error("[API] Erro ao excluir peça:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] Erro em DELETE /api/workshop-parts/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Upload da foto da peça do estoque (arquivo de imagem). */
+  app.post("/api/workshop-parts/:id/photo", upload.single("file"), async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const id = String(req.params.id || "");
+      const file = req.file;
+      if (!id) return res.status(400).json({ error: "ID da peça é obrigatório." });
+      if (!file) return res.status(400).json({ error: "Arquivo não enviado." });
+      const mime = file.mimetype || "application/octet-stream";
+      if (!mime.startsWith("image/")) {
+        return res.status(400).json({ error: "Envie apenas imagem." });
+      }
+
+      const bucket = VEHICLE_PHOTOS_BUCKET;
+      const ext = (file.originalname?.split(".").pop() || "jpg").toLowerCase();
+      const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : "jpg";
+      const pathInBucket = `workshops/${WORKSHOP_ID}/parts/${id}_${Date.now()}.${safeExt}`;
+
+      const { error: uploadErr } = await supabaseAdmin.storage
+        .from(bucket)
+        .upload(pathInBucket, file.buffer, { contentType: mime, upsert: true });
+      if (uploadErr) {
+        console.error("[API] Erro upload foto da peça:", uploadErr);
+        return res.status(500).json({ error: uploadErr.message });
+      }
+
+      const { data: { publicUrl } } = supabaseAdmin.storage.from(bucket).getPublicUrl(pathInBucket);
+      const photoUrlWithCacheBust = `${publicUrl}${publicUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
+
+      const { data, error } = await supabaseAdmin
+        .from("workshop_parts")
+        .update({ photo_url: photoUrlWithCacheBust })
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("id, name, unit_price, stock_qty, photo_url, sort_order, created_at")
+        .single();
+      if (error) {
+        console.error("[API] Erro ao atualizar foto da peça:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/workshop-parts/:id/photo:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   // ----------------- TÉCNICOS DA OFICINA (atribuição nos cards) -----------------
   const capitalizeTechnicianName = (s: string) =>
     (s || "").trim().split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");

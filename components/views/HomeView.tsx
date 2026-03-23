@@ -10,9 +10,11 @@ import {
   User,
   FlaskConical,
   ExternalLink,
+  Package,
 } from 'lucide-react';
 import { PatioCarIcon } from '../ui/PatioCarIcon';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
+import { WorkshopPartsModal } from '../WorkshopPartsModal';
 import { PatioChecklistsModal } from '../PatioChecklistsModal';
 import { ChangePasswordsModal } from '../ChangePasswordsModal';
 import { TechnicianProfileModal } from '../TechnicianProfileModal';
@@ -103,6 +105,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isSystemUsersOpen, setIsSystemUsersOpen] = useState(false);
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [isPatioChecklistsOpen, setIsPatioChecklistsOpen] = useState(false);
+  const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
 
   const perms = systemUserPermissions || {};
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
@@ -248,7 +251,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Serviços da oficina</span>
                     <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
                   </button>
-                  <button type="button" onClick={() => setIsPatioChecklistsOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors lg:border-b">
+                  <button type="button" onClick={() => setIsPartsModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors lg:border-b">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-emerald-600 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Package className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                    <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Estoque de Peças</span>
+                    <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                  </button>
+                  <button type="button" onClick={() => setIsPatioChecklistsOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors lg:border-b-0 lg:border-r border-r-0 lg:border-zinc-100 dark:lg:border-zinc-700">
                     <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-emerald-500 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><ClipboardList className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
                     <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Checklists do Pátio</span>
                     <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
@@ -306,6 +314,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <>
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />
           <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
+          <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
           <PatioChecklistsModal isOpen={isPatioChecklistsOpen} onClose={() => setIsPatioChecklistsOpen(false)} />
           <ChangePasswordsModal isOpen={isChangePasswordsOpen} onClose={() => setIsChangePasswordsOpen(false)} />
         </>

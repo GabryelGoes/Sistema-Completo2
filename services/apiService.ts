@@ -1084,6 +1084,94 @@ export async function deleteWorkshopService(id: string): Promise<void> {
   }
 }
 
+// ---------- Estoque de peças (para orçamentos) ----------
+
+export interface WorkshopPart {
+  id: string;
+  name: string;
+  unit_price: number;
+  stock_qty: number;
+  photo_url?: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export async function getWorkshopParts(): Promise<WorkshopPart[]> {
+  const response = await fetch(`${API_BASE}/workshop-parts`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar peças (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function createWorkshopPart(input: {
+  name: string;
+  unit_price?: number;
+  stock_qty?: number;
+}): Promise<WorkshopPart> {
+  const response = await fetch(`${API_BASE}/workshop-parts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: input.name.trim(),
+      unit_price: input.unit_price ?? 0,
+      stock_qty: input.stock_qty ?? 0,
+    }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao criar peça (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function updateWorkshopPart(
+  id: string,
+  input: { name?: string; unit_price?: number; stock_qty?: number }
+): Promise<WorkshopPart> {
+  const body: Record<string, unknown> = {};
+  if (input.name !== undefined) body.name = input.name.trim();
+  if (input.unit_price !== undefined) body.unit_price = input.unit_price;
+  if (input.stock_qty !== undefined) body.stock_qty = input.stock_qty;
+  const response = await fetch(`${API_BASE}/workshop-parts/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar peça (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteWorkshopPart(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/workshop-parts/${id}`, { method: "DELETE" });
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir peça (${response.status})`);
+  }
+}
+
+export async function uploadWorkshopPartPhoto(
+  partId: string,
+  file: Blob,
+  fileName?: string
+): Promise<WorkshopPart> {
+  const formData = new FormData();
+  formData.append("file", file, fileName ?? "part.jpg");
+  const response = await fetch(`${API_BASE}/workshop-parts/${partId}/photo`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao enviar foto da peça (${response.status})`);
+  }
+  return response.json();
+}
+
 // ---------- Técnicos da oficina (atribuição nos cards) ----------
 
 export interface WorkshopTechnician {
