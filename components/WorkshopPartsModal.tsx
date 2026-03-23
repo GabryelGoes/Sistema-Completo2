@@ -256,15 +256,16 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">Adicione acima para montar seu estoque.</p>
               </div>
             ) : (
-              <div className="px-4 pt-3 pb-2 grid grid-cols-[2fr_1fr_1fr_auto_auto_auto] gap-3 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
-                <span>Nome da peça</span>
-                <span>Preço</span>
-                <span>Quantidade</span>
-                <span className="text-center">Editar</span>
-                <span className="text-center">Foto</span>
-                <span className="text-center">Excluir</span>
-              </div>
-              <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
+              <>
+                <div className="px-4 pt-3 pb-2 grid grid-cols-[2fr_1fr_1fr_auto_auto_auto] gap-3 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
+                  <span>Nome da peça</span>
+                  <span>Preço</span>
+                  <span>Quantidade</span>
+                  <span className="text-center">Editar</span>
+                  <span className="text-center">Foto</span>
+                  <span className="text-center">Excluir</span>
+                </div>
+                <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
                 {parts.map((p) => (
                   <div
                     key={p.id}
@@ -375,7 +376,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                     }
                   }}
                 />
-              </div>
+                </div>
+              </>
             )}
           </div>
         </div>
