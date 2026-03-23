@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw } from 'lucide-react';
 import { Customer, ProcessingStatus } from '../../types';
 import { Input, TextArea } from '../ui/Input';
 import { ProcessingOverlay } from '../ProcessingOverlay';
-import { saveReceptionIntake, uploadServiceOrderPhoto } from '../../services/apiService';
+import { saveReceptionIntake, uploadServiceOrderPhoto, getServiceOrders, type ServiceOrderListItem } from '../../services/apiService';
 import type { ServiceOrderType } from '../../services/apiService';
 
 const RECEPTION_MODE_KEY = 'app_reception_mode';
@@ -12,8 +12,6 @@ const RECEPTION_MODE_KEY = 'app_reception_mode';
 interface ReceptionViewProps {
   initialData?: Customer | null;
   onDataLoaded?: () => void;
-  /** Abre a tela do Pátio para consultar o histórico de veículos. */
-  onOpenVehicleHistory?: () => void;
   /** Modo cinematográfico: embaçar placas exibidas (para gravar tela / redes sociais). */
   blurPlates?: boolean;
 }
@@ -33,7 +31,6 @@ const MarkdownComponents = {
 export const ReceptionView: React.FC<ReceptionViewProps> = ({
   initialData,
   onDataLoaded,
-  onOpenVehicleHistory,
   blurPlates = false,
 }) => {
   const [receptionMode, setReceptionMode] = useState<ServiceOrderType>(() => {
@@ -76,6 +73,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [cameraOrientation, setCameraOrientation] = useState<{alpha: number | null, beta: number | null, gamma: number | null} | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [archivedOrders, setArchivedOrders] = useState<ServiceOrderListItem[]>([]);
 
   // Efeito para carregar dados iniciais vindos do Pátio ou Histórico (todos editáveis, inclusive placa)
   useEffect(() => {
@@ -191,6 +192,31 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   };
 
   // --- Funções de Histórico ---
+  const loadVehicleHistory = async (term = '') => {
+    setHistoryLoading(true);
+    try {
+      const rows = await getServiceOrders('CANCELLED', 'vehicle');
+      const t = term.trim().toLowerCase();
+      const filtered = t
+        ? rows.filter((o) =>
+            (o.plate || '').toLowerCase().includes(t) ||
+            (o.vehicle_model || '').toLowerCase().includes(t) ||
+            (o.customer_name || o.customers?.name || '').toLowerCase().includes(t)
+          )
+        : rows;
+      setArchivedOrders(filtered);
+    } catch (e) {
+      console.error(e);
+      setArchivedOrders([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isHistoryOpen) loadVehicleHistory(historySearch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHistoryOpen]);
 
   return (
     <div className="w-full max-w-2xl lg:max-w-5xl mx-auto px-4 md:px-6 pb-24 animate-in fade-in duration-500">
@@ -235,19 +261,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         </div>
       </header>
 
-      {onOpenVehicleHistory && (
-        <div className="flex justify-end mb-4">
-          <button
-            type="button"
-            onClick={onOpenVehicleHistory}
-            className="inline-flex items-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900/80 text-zinc-800 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
-            title="Consultar histórico de veículos no Pátio"
-          >
-            <History className="w-4 h-4" />
-            Histórico de veículos
-          </button>
-        </div>
-      )}
+      <div className="flex justify-end mb-4">
+        <button
+          type="button"
+          onClick={() => setIsHistoryOpen(true)}
+          className="inline-flex items-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900/80 text-zinc-800 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
+          title="Consultar histórico de veículos arquivados"
+        >
+          <History className="w-4 h-4" />
+          Histórico de veículos
+        </button>
+      </div>
 
       {/* Main Card */}
       <div className="bg-white dark:bg-brand-surface border border-zinc-200 dark:border-brand-border rounded-[2rem] p-6 md:p-8 lg:p-10 shadow-2xl relative overflow-hidden">
@@ -501,6 +525,64 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
         </form>
       </div>
+
+      {isHistoryOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4">
+          <div className="w-full max-w-4xl max-h-[90vh] bg-white/95 dark:bg-[#1C1C1E]/95 border border-zinc-200/60 dark:border-white/[0.08] rounded-[1.5rem] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-zinc-200/60 dark:border-white/[0.08]">
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
+                <History className="w-5 h-5 text-zinc-500" />
+                Histórico de veículos
+              </h2>
+              <button onClick={() => setIsHistoryOpen(false)} className="w-9 h-9 rounded-full bg-zinc-200/80 dark:bg-white/10 flex items-center justify-center">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 border-b border-zinc-200/60 dark:border-white/[0.08]">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && loadVehicleHistory(historySearch)}
+                    placeholder="Buscar por placa, cliente ou modelo"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => loadVehicleHistory(historySearch)}
+                  className="w-10 h-10 rounded-xl bg-zinc-900 text-white flex items-center justify-center"
+                >
+                  <RefreshCw className={`w-4 h-4 ${historyLoading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {historyLoading ? (
+                <div className="py-10 flex justify-center"><RefreshCw className="w-6 h-6 animate-spin text-zinc-500" /></div>
+              ) : archivedOrders.length === 0 ? (
+                <div className="py-10 text-center text-zinc-500">Nenhum veículo arquivado encontrado.</div>
+              ) : (
+                archivedOrders.map((o) => (
+                  <div key={o.id} className="rounded-xl border border-zinc-200 dark:border-white/10 p-3 bg-white/70 dark:bg-white/[0.04]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-zinc-900 dark:text-white truncate">{o.vehicle_model || 'Veículo'}</p>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate">
+                          {(o.customer_name || o.customers?.name || 'Cliente')} • {(o.plate || '---').toUpperCase()}
+                        </p>
+                      </div>
+                      <span className="text-[11px] uppercase tracking-wide text-zinc-500">{o.status}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <ProcessingOverlay 
         status={status}
