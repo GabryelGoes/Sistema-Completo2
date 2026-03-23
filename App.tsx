@@ -52,6 +52,8 @@ export default function App() {
 
   // Estado para transferir dados do Histórico (Pátio) para a Recepção
   const [prefillData, setPrefillData] = useState<Customer | null>(null);
+  // Gatilho para abrir o modal de Histórico no Pátio quando acionado pela Recepção
+  const [openPatioHistoryRequest, setOpenPatioHistoryRequest] = useState(0);
 
   // Nome do admin (vem das configurações da oficina; atualizado ao salvar no Perfil do administrador)
   const [adminDisplayName, setAdminDisplayName] = useState<string>('Rei do ABS');
@@ -229,7 +231,10 @@ export default function App() {
             <ReceptionView
               initialData={prefillData}
               onDataLoaded={() => setPrefillData(null)}
-            onOpenVehicleHistory={() => setUserTab('patio')}
+              onOpenVehicleHistory={() => {
+                setUserTab('patio');
+                setOpenPatioHistoryRequest((n) => n + 1);
+              }}
               blurPlates={cinematographicMode}
             />
           )}
@@ -245,6 +250,7 @@ export default function App() {
               onUseCustomerData={handleUseCustomerData}
               effectsEnabled={effectsEnabled}
               commentAuthorName={authSession.displayName ?? 'Usuário'}
+              openHistoryRequested={openPatioHistoryRequest}
               blurPlates={cinematographicMode}
               openServiceOrderId={null}
               openServiceOrderSection={null}
@@ -349,7 +355,10 @@ export default function App() {
           <ReceptionView
             initialData={prefillData}
             onDataLoaded={() => setPrefillData(null)}
-            onOpenVehicleHistory={() => setCurrentTab('patio')}
+            onOpenVehicleHistory={() => {
+              setCurrentTab('patio');
+              setOpenPatioHistoryRequest((n) => n + 1);
+            }}
             blurPlates={cinematographicMode}
           />
         )}
@@ -367,6 +376,7 @@ export default function App() {
             onUseCustomerData={handleUseCustomerData}
             effectsEnabled={effectsEnabled}
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
+            openHistoryRequested={openPatioHistoryRequest}
             blurPlates={cinematographicMode}
             openServiceOrderId={null}
             openServiceOrderSection={null}

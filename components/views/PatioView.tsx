@@ -64,6 +64,8 @@ interface PatioViewProps {
   actorOptions?: ServiceOrderUpdateActor;
   /** Modo cinematográfico: embaçar placas em todo o app (para gravar tela / redes sociais). */
   blurPlates?: boolean;
+  /** Ao mudar este número, abre o modal de Histórico automaticamente. */
+  openHistoryRequested?: number;
   /** Exibir apenas veículos (Pátio) ou apenas módulos (Laboratório). */
   orderType?: ServiceOrderType;
   /** Permissões do pátio para usuários limitados. Se não passado (admin), tudo permitido. */
@@ -412,6 +414,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   onOpenServiceOrderHandled,
   actorOptions,
   blurPlates = false,
+  openHistoryRequested,
   orderType = 'vehicle',
   patioPermissions,
 }) => {
@@ -874,6 +877,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
       loadRecentArchived();
     }
   }, [isHistoryOpen]);
+
+  // Abrir histórico quando solicitado pela Recepção
+  useEffect(() => {
+    if (typeof openHistoryRequested !== 'number') return;
+    if (openHistoryRequested <= 0) return;
+    setIsHistoryOpen(true);
+  }, [openHistoryRequested]);
 
   const handleOpenHistoryCardDetails = (card: TrelloCard) => {
     setSelectedHistoryCard(card);
