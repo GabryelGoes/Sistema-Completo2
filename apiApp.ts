@@ -52,6 +52,86 @@ export function createApiApp() {
     return (data || []).map((r: { id: string }) => r.id);
   }
 
+  function normalizePartName(value: string): string {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function parsePartQuantity(value: unknown): number {
+    const raw = String(value ?? "").replace(",", ".").trim();
+    const qty = Number(raw);
+    if (!Number.isFinite(qty) || qty <= 0) return 1;
+    return qty;
+  }
+
+  function aggregateBudgetParts(parts: unknown): Map<string, number> {
+    const agg = new Map<string, number>();
+    if (!Array.isArray(parts)) return agg;
+    for (const item of parts as Array<{ description?: unknown; quantity?: unknown }>) {
+      const description = typeof item?.description === "string" ? item.description.trim() : "";
+      if (!description) continue;
+      const key = normalizePartName(description);
+      const prev = agg.get(key) ?? 0;
+      agg.set(key, prev + parsePartQuantity(item?.quantity));
+    }
+    return agg;
+  }
+
+  function invertDeltaMap(input: Map<string, number>): Map<string, number> {
+    const result = new Map<string, number>();
+    input.forEach((value, key) => result.set(key, value * -1));
+    return result;
+  }
+
+  async function applyStockDeltaByPartName(deltaByPart: Map<string, number>): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return;
+    const nonZero = Array.from(deltaByPart.entries()).filter(([, value]) => Math.abs(value) > 0);
+    if (nonZero.length === 0) return;
+
+    const { data: partsRows, error: partsError } = await supabaseAdmin
+      .from("workshop_parts")
+      .select("id, name, stock_qty")
+      .eq("workshop_id", WORKSHOP_ID);
+
+    if (partsError) {
+      throw new Error(`Falha ao carregar estoque de peças: ${partsError.message}`);
+    }
+
+    const byNormalized = new Map<string, { id: string; name: string; stock_qty: number }>();
+    for (const row of (partsRows || []) as Array<{ id: string; name: string; stock_qty: number | null }>) {
+      byNormalized.set(normalizePartName(row.name), {
+        id: row.id,
+        name: row.name,
+        stock_qty: Number(row.stock_qty ?? 0),
+      });
+    }
+
+    for (const [normalizedName, delta] of nonZero) {
+      const part = byNormalized.get(normalizedName);
+      if (!part) continue;
+      const nextStock = part.stock_qty - delta;
+      if (nextStock < 0) {
+        throw new Error(`Estoque insuficiente para "${part.name}". Disponível: ${part.stock_qty}.`);
+      }
+      const { error: updateErr } = await supabaseAdmin
+        .from("workshop_parts")
+        .update({ stock_qty: Number(nextStock.toFixed(3)) })
+        .eq("id", part.id)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (updateErr) {
+        throw new Error(`Falha ao atualizar estoque da peça "${part.name}": ${updateErr.message}`);
+      }
+    }
+  }
+
+  function isMissingRpcFunctionError(message: string): boolean {
+    const m = (message || "").toLowerCase();
+    return m.includes("does not exist") || m.includes("function") || m.includes("pgrst202");
+  }
+
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
@@ -1374,7 +1454,7 @@ export function createApiApp() {
         observations: typeof observations === "string" ? observations : "",
       };
 
-      const { data, error } = await supabaseAdmin.rpc("create_budget_with_stock", {
+      let { data, error } = await supabaseAdmin.rpc("create_budget_with_stock", {
         p_workshop_id: WORKSHOP_ID,
         p_service_order_id: serviceOrderId,
         p_card_name: payload.card_name,
@@ -1383,6 +1463,26 @@ export function createApiApp() {
         p_parts: payload.parts,
         p_observations: payload.observations,
       });
+
+      if (error && isMissingRpcFunctionError(error.message || "")) {
+        // Fallback de compatibilidade (caso a migration RPC ainda não tenha sido aplicada no banco)
+        const stockDelta = aggregateBudgetParts(payload.parts);
+        await applyStockDeltaByPartName(stockDelta);
+        const legacy = await supabaseAdmin
+          .from("budgets")
+          .insert(payload)
+          .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at")
+          .single();
+        data = legacy.data;
+        error = legacy.error;
+        if (error) {
+          try {
+            await applyStockDeltaByPartName(invertDeltaMap(stockDelta));
+          } catch (rollbackErr) {
+            console.error("[API] Falha no rollback de estoque (fallback criar orçamento):", rollbackErr);
+          }
+        }
+      }
 
       if (error) {
         const message = error.message || "Erro ao criar orçamento.";
@@ -1466,7 +1566,7 @@ export function createApiApp() {
         observations: typeof observations === "string" ? observations : "",
       };
 
-      const { data, error } = await supabaseAdmin.rpc("update_budget_with_stock", {
+      let { data, error } = await supabaseAdmin.rpc("update_budget_with_stock", {
         p_workshop_id: WORKSHOP_ID,
         p_service_order_id: serviceOrderId,
         p_budget_id: budgetId,
@@ -1476,6 +1576,51 @@ export function createApiApp() {
         p_parts: updatePayload.parts,
         p_observations: updatePayload.observations,
       });
+
+      if (error && isMissingRpcFunctionError(error.message || "")) {
+        // Fallback de compatibilidade (caso a migration RPC ainda não tenha sido aplicada no banco)
+        const currentBudgetRes = await supabaseAdmin
+          .from("budgets")
+          .select("id, parts")
+          .eq("id", budgetId)
+          .eq("service_order_id", serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID)
+          .single();
+        const currentBudget = currentBudgetRes.data;
+        if (currentBudgetRes.error || !currentBudget) {
+          return res.status(404).json({ error: "Orçamento não encontrado." });
+        }
+
+        const oldParts = aggregateBudgetParts((currentBudget as { parts?: unknown }).parts);
+        const newParts = aggregateBudgetParts(updatePayload.parts);
+        const stockDelta = new Map<string, number>();
+        const allNames = new Set<string>([...oldParts.keys(), ...newParts.keys()]);
+        allNames.forEach((name) => {
+          const oldQty = oldParts.get(name) ?? 0;
+          const newQty = newParts.get(name) ?? 0;
+          const delta = newQty - oldQty;
+          if (Math.abs(delta) > 0) stockDelta.set(name, delta);
+        });
+
+        await applyStockDeltaByPartName(stockDelta);
+        const legacy = await supabaseAdmin
+          .from("budgets")
+          .update(updatePayload)
+          .eq("id", budgetId)
+          .eq("service_order_id", serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID)
+          .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at")
+          .single();
+        data = legacy.data;
+        error = legacy.error;
+        if (error) {
+          try {
+            await applyStockDeltaByPartName(invertDeltaMap(stockDelta));
+          } catch (rollbackErr) {
+            console.error("[API] Falha no rollback de estoque (fallback editar orçamento):", rollbackErr);
+          }
+        }
+      }
 
       if (error) {
         const message = error.message || "Erro ao atualizar orçamento.";
