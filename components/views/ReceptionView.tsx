@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History } from 'lucide-react';
 import { Customer, ProcessingStatus } from '../../types';
 import { Input, TextArea } from '../ui/Input';
 import { ProcessingOverlay } from '../ProcessingOverlay';
@@ -12,6 +12,8 @@ const RECEPTION_MODE_KEY = 'app_reception_mode';
 interface ReceptionViewProps {
   initialData?: Customer | null;
   onDataLoaded?: () => void;
+  /** Abre a tela do Pátio para consultar o histórico de veículos. */
+  onOpenVehicleHistory?: () => void;
   /** Modo cinematográfico: embaçar placas exibidas (para gravar tela / redes sociais). */
   blurPlates?: boolean;
 }
@@ -31,6 +33,7 @@ const MarkdownComponents = {
 export const ReceptionView: React.FC<ReceptionViewProps> = ({
   initialData,
   onDataLoaded,
+  onOpenVehicleHistory,
   blurPlates = false,
 }) => {
   const [receptionMode, setReceptionMode] = useState<ServiceOrderType>(() => {
@@ -231,6 +234,20 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           </button>
         </div>
       </header>
+
+      {onOpenVehicleHistory && (
+        <div className="flex justify-end mb-4">
+          <button
+            type="button"
+            onClick={onOpenVehicleHistory}
+            className="inline-flex items-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900/80 text-zinc-800 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
+            title="Consultar histórico de veículos no Pátio"
+          >
+            <History className="w-4 h-4" />
+            Histórico de veículos
+          </button>
+        </div>
+      )}
 
       {/* Main Card */}
       <div className="bg-white dark:bg-brand-surface border border-zinc-200 dark:border-brand-border rounded-[2rem] p-6 md:p-8 lg:p-10 shadow-2xl relative overflow-hidden">

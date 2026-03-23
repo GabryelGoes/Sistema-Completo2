@@ -229,6 +229,7 @@ export default function App() {
             <ReceptionView
               initialData={prefillData}
               onDataLoaded={() => setPrefillData(null)}
+            onOpenVehicleHistory={() => setUserTab('patio')}
               blurPlates={cinematographicMode}
             />
           )}
@@ -348,6 +349,7 @@ export default function App() {
           <ReceptionView
             initialData={prefillData}
             onDataLoaded={() => setPrefillData(null)}
+            onOpenVehicleHistory={() => setCurrentTab('patio')}
             blurPlates={cinematographicMode}
           />
         )}
