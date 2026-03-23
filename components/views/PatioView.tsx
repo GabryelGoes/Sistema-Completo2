@@ -46,6 +46,7 @@ import {
 import type { ServiceOrderDetail } from '../../services/apiService';
 import { SERVICE_ORDER_STAGES, getStageStyle, getStageRingClass, type ServiceOrderStatus } from '../../constants/serviceOrderStages';
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
+import { ModalPortal } from '../ui/ModalPortal';
 import { PatioCarIcon } from '../ui/PatioCarIcon';
 
 export type OpenServiceOrderSection = 'comments' | 'budgets' | 'description' | null;
@@ -279,7 +280,7 @@ const Lightbox = ({
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-modal-backdrop overflow-hidden"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-modal-backdrop overflow-hidden"
       onClick={onClose}
     >
       <button
@@ -353,7 +354,7 @@ const Lightbox = ({
 // --- Componente Visualizador de PDF ---
 const PdfViewer = ({ src, onClose }: { src: string; onClose: () => void }) => {
   return (
-    <div className="fixed inset-0 z-[90] flex flex-col bg-black/95 backdrop-blur-xl animate-modal-backdrop">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-xl animate-modal-backdrop">
       {/* Header do PDF Viewer */}
       <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/80">
         <div className="flex items-center gap-3">
@@ -2214,7 +2215,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* --- MODAL DE HISTÓRICO (BUSCA) --- */}
       {isHistoryOpen && (
-         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
             <div className="bg-white/98 dark:bg-brand-surface/95 backdrop-blur-2xl border border-zinc-200/70 dark:border-brand-border w-full max-w-[90rem] h-[90vh] rounded-[1.5rem] shadow-[0_18px_60px_-24px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden animate-modal-sheet relative">
                
                <div className="p-6 border-b border-zinc-200/80 dark:border-brand-border flex items-center justify-between bg-zinc-50/90 dark:bg-black/40">
@@ -2351,7 +2352,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* --- DETALHES DO CARD ARQUIVADO (MODAL NO PÁTIO) --- */}
       {selectedHistoryCard && (
-         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
             <div className="bg-white/98 dark:bg-brand-surface/95 backdrop-blur-2xl border border-zinc-200/70 dark:border-brand-border w-full max-w-[90rem] h-[90vh] rounded-[1.5rem] shadow-[0_18px_60px_-24px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden animate-modal-sheet relative">
                
                <div className="absolute top-6 right-6 z-10 flex gap-3">
@@ -2561,7 +2562,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a] border-2 border-red-500/30'
           : `${modalStatusConfig.ringClass} border border-zinc-200/60 dark:border-white/[0.08]`;
         return (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-xl p-4 animate-modal-backdrop">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-xl p-4 animate-modal-backdrop">
            <div className={`bg-zinc-50/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl w-full max-w-4xl h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08),0_12px_40px_-8px_rgba(0,0,0,0.12)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative ${modalRingClass}`}>
               
               <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
@@ -3669,7 +3670,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* --- MODAL DE LEMBRETES (PÁTIO / LABORATÓRIO) --- */}
       {isRemindersOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xl p-4 animate-modal-backdrop">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-xl p-4 animate-modal-backdrop">
           <div className="relative w-full max-w-xl rounded-[1.75rem] bg-gradient-to-b from-zinc-900/95 via-black/95 to-zinc-950/95 border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.7)] overflow-hidden animate-modal-sheet">
             {/* Top handle + título */}
             <div className="pt-4 px-6 pb-3 border-b border-white/10 bg-white/5 backdrop-blur-2xl">
@@ -3819,7 +3820,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* MODAL EDITAR DADOS DA FICHA (cliente + veículo) */}
       {isEditFichaOpen && selectedCard && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
           <div className="bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-white/10 w-full max-w-lg max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-modal-sheet">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-white/10 bg-brand-yellow/10">
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
@@ -3900,7 +3901,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* MODAL EDITAR NOME DO VEÍCULO / PLACA */}
       {isVehicleEditOpen && selectedCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
           <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md rounded-[1.5rem] shadow-xl overflow-hidden animate-modal-sheet">
             <div className="p-6 border-b border-zinc-200/60 dark:border-white/[0.08]">
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
@@ -3971,9 +3972,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
         />
       )}
 
-      {/* MODAL VISUALIZAR ORÇAMENTO — papel envelhecido no modal inteiro, textos em preto */}
+      {/* MODAL VISUALIZAR ORÇAMENTO — papel envelhecido no modal inteiro, textos em preto (portal: acima da TabBar) */}
       {viewingBudget && selectedCard && (
-        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/70 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] animate-modal-backdrop">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] animate-modal-backdrop">
           <div
             className="relative w-full max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] flex flex-col min-h-0 overflow-hidden rounded-lg animate-modal-sheet"
             style={{
@@ -4091,19 +4093,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Modal: Aprovar orçamento (admin) — toggles por serviço e peça */}
       {budgetApprovalTarget && selectedCard && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-lg max-h-[90vh] flex flex-col shadow-xl">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-lg max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] min-h-0 flex flex-col shadow-xl">
             <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-700">
               <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Aprovar orçamento</h2>
               <button type="button" onClick={closeBudgetApproval} className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-6">
               <p className="text-sm text-zinc-600 dark:text-zinc-400">Ligue = aprovado, desligue = reprovado. O técnico verá ✓ ou ✗ em cada item.</p>
               {budgetApprovalTarget.services.length > 0 && (
                 <section>
@@ -4173,12 +4177,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* BUDGET FULL-SCREEN — Fundo claro com textura de papel realista (criar/editar) */}
       {isBudgetOpen && selectedCard && (
+        <ModalPortal>
         <div
-          className="fixed inset-0 z-[60] overflow-auto animate-modal-backdrop"
+          className="fixed inset-0 z-[200] overflow-auto animate-modal-backdrop"
           style={{
             backgroundColor: '#ebe6dc',
             border: '1px solid rgba(0,0,0,0.08)',
@@ -4296,7 +4302,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                     {/* Modal: lista de serviços cadastrados (mesma largura do campo de serviços) */}
                     {isServiceListOpen && (
-                      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40" onClick={() => setIsServiceListOpen(false)}>
+                      <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-black/40" onClick={() => setIsServiceListOpen(false)}>
                         <div
                           className="w-full max-w-2xl max-h-[70vh] overflow-hidden rounded-2xl bg-white shadow-xl border border-zinc-200"
                           onClick={(e) => e.stopPropagation()}
@@ -4331,9 +4337,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       if (suggestions.length === 0) return null;
                       return (
                         <>
-                          <div className="fixed inset-0 z-[65] bg-black/25" onClick={() => setSuggestionsForServiceId(null)} />
+                          <div className="fixed inset-0 z-[205] bg-black/25" onClick={() => setSuggestionsForServiceId(null)} />
                           <div
-                            className="fixed z-[66] rounded-xl bg-white border border-zinc-200 shadow-xl overflow-hidden py-1 max-h-[200px] overflow-y-auto"
+                            className="fixed z-[206] rounded-xl bg-white border border-zinc-200 shadow-xl overflow-hidden py-1 max-h-[200px] overflow-y-auto"
                             style={{
                               top: suggestionBoxPosition.top,
                               left: suggestionBoxPosition.left,
@@ -4408,9 +4414,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       if (suggestions.length === 0) return null;
                       return (
                         <>
-                          <div className="fixed inset-0 z-[65] bg-black/25" onClick={() => setSuggestionsForPartId(null)} />
+                          <div className="fixed inset-0 z-[205] bg-black/25" onClick={() => setSuggestionsForPartId(null)} />
                           <div
-                            className="fixed z-[66] rounded-xl bg-white border border-zinc-200 shadow-xl overflow-hidden py-1 max-h-[200px] overflow-y-auto"
+                            className="fixed z-[206] rounded-xl bg-white border border-zinc-200 shadow-xl overflow-hidden py-1 max-h-[200px] overflow-y-auto"
                             style={{
                               top: partSuggestionBoxPosition.top,
                               left: partSuggestionBoxPosition.left,
@@ -4464,11 +4470,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* MODAL DE SELEÇÃO DE ETAPA (MOVE) — estilo iOS 26 */}
       {cardInTransition && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
           <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md rounded-[1.5rem] shadow-[0_4px_32px_-4px_rgba(0,0,0,0.12),0_16px_48px_-12px_rgba(0,0,0,0.18)] dark:shadow-[0_4px_40px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh] animate-modal-sheet">
             <div className="flex items-center justify-between p-6 pb-5 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/60 dark:bg-white/[0.03]">
               <div className="flex-1 min-w-0 pr-4">
@@ -4513,7 +4520,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* MODAL DE SELEÇÃO DE MECÂNICO */}
       {cardForMemberAssignment && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
            <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh] animate-modal-sheet">
             <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-light-card/80 dark:bg-white/[0.04]">
               <div className="flex items-center gap-3">
@@ -4568,7 +4575,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* MODAL DE CHECKLIST (templates criados pelo admin) */}
       {activeChecklistCard && activeChecklistTemplate && (
-         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
            <div className="bg-[#FAFAF9] dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-lg rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh] animate-modal-sheet">
              
              {/* Header Checklist */}
@@ -4676,7 +4683,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* CAMERA MODAL */}
       {isCameraOpen && (
-        <div className="fixed inset-0 z-[80] bg-black flex flex-col animate-modal-backdrop">
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-modal-backdrop">
             <div className="relative flex-1 bg-black">
                 <video 
                     ref={videoRef} 
@@ -4707,7 +4714,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* PHOTO PREVIEW MODAL */}
       {photoPreview && (
-        <div className="fixed inset-0 z-[80] bg-black flex flex-col animate-modal-backdrop">
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-modal-backdrop">
             <div className="relative flex-1 bg-black flex items-center justify-center">
                 <img src={photoPreview} alt="Preview" className="max-w-full max-h-full object-contain" />
                 

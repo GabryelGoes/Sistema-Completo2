@@ -126,10 +126,14 @@ export default function App() {
     setSystemUsersRefreshTrigger((t) => t + 1);
   };
 
-  // Função chamada pelo Pátio para preencher a Recepção com dados de um veículo
+  // Função chamada pelo Pátio / histórico da Recepção para preencher o cadastro com dados de uma OS
   const handleUseCustomerData = (data: Customer) => {
     setPrefillData(data);
-    setCurrentTab('reception');
+    if (authSession?.role === 'user' && !hasFullAccess) {
+      setUserTab('reception');
+    } else {
+      setCurrentTab('reception');
+    }
   };
 
   const handleHomeOpenApp = (app: HomeAppId) => {
@@ -192,7 +196,7 @@ export default function App() {
             <span />
           </header>
         )}
-        <main className={`flex-1 overflow-y-auto z-10 ${userTab === 'home' ? 'p-0' : 'p-4 md:p-8 pt-8'}`}>
+        <main className={`flex-1 overflow-y-auto ${userTab === 'home' ? 'p-0' : 'p-4 md:p-8 pt-8'}`}>
           {userTab === 'home' && (
             <HomeView
               isTechnician
@@ -230,6 +234,12 @@ export default function App() {
               initialData={prefillData}
               onDataLoaded={() => setPrefillData(null)}
               blurPlates={cinematographicMode}
+              onUseCustomerData={handleUseCustomerData}
+              actorOptions={{
+                actor: 'technician',
+                actorTechnicianSlug: authSession.userId,
+                actorTechnicianName: authSession.displayName ?? authSession.username,
+              }}
             />
           )}
           {userTab === 'agenda' && (
@@ -317,7 +327,7 @@ export default function App() {
 
       {/* Main Content Area */}
       <main
-        className={`flex-1 overflow-y-auto z-10 ${currentTab === 'home' ? 'p-0 pt-4' : 'p-4 md:p-8 pt-8'}`}
+        className={`flex-1 overflow-y-auto ${currentTab === 'home' ? 'p-0 pt-4' : 'p-4 md:p-8 pt-8'}`}
       >
         {currentTab === 'home' && (
           <HomeView
@@ -349,6 +359,16 @@ export default function App() {
             initialData={prefillData}
             onDataLoaded={() => setPrefillData(null)}
             blurPlates={cinematographicMode}
+            onUseCustomerData={handleUseCustomerData}
+            actorOptions={
+              authSession?.role === 'admin'
+                ? { actor: 'admin' }
+                : {
+                    actor: 'technician',
+                    actorTechnicianSlug: authSession?.userId,
+                    actorTechnicianName: authSession?.displayName ?? authSession?.username,
+                  }
+            }
           />
         )}
 

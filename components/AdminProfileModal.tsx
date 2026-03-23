@@ -103,7 +103,7 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4">
       <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-zinc-200/60 dark:border-white/10 w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-zinc-200/60 dark:border-white/10">
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Perfil do administrador</h2>

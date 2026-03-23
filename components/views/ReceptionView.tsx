@@ -1,12 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy } from 'lucide-react';
 import { Customer, ProcessingStatus } from '../../types';
 import { Input, TextArea } from '../ui/Input';
 import { ProcessingOverlay } from '../ProcessingOverlay';
-import { saveReceptionIntake, uploadServiceOrderPhoto, getServiceOrders, getServiceOrderBudgets, type ServiceOrderListItem, type SavedBudgetFromApi } from '../../services/apiService';
-import type { ServiceOrderType } from '../../services/apiService';
+import {
+  saveReceptionIntake,
+  uploadServiceOrderPhoto,
+  getServiceOrders,
+  getServiceOrderBudgets,
+  getServiceOrderById,
+  getServiceOrderPhotos,
+  getServiceOrderComments,
+  updateServiceOrderStatus,
+  type ServiceOrderListItem,
+  type SavedBudgetFromApi,
+  type ServiceOrderType,
+  type ServiceOrderDetail,
+  type ServiceOrderComment,
+  type ServiceOrderUpdateActor,
+} from '../../services/apiService';
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
+import { ModalPortal } from '../ui/ModalPortal';
 
 const RECEPTION_MODE_KEY = 'app_reception_mode';
 
@@ -31,6 +46,10 @@ interface ReceptionViewProps {
   onDataLoaded?: () => void;
   /** Modo cinematográfico: embaçar placas exibidas (para gravar tela / redes sociais). */
   blurPlates?: boolean;
+  /** Preencher o formulário com dados da OS (igual ao Pátio: "Usar cadastro"). */
+  onUseCustomerData?: (data: Customer) => void;
+  /** Quem registra o desarquivamento na API (igual ao Pátio). */
+  actorOptions?: ServiceOrderUpdateActor;
 }
 
 // Componentes de Estilo para Markdown (Reutilizado do PatioView para consistência)
@@ -45,10 +64,37 @@ const MarkdownComponents = {
   blockquote: ({children}: any) => <blockquote className="border-l-4 border-zinc-600 pl-4 py-1 italic text-zinc-400 my-2">{children}</blockquote>,
 };
 
+/** Markdown no modal de detalhe arquivado (fundo claro/escuro legível). */
+const DetailMarkdownComponents = {
+  p: ({ children }: any) => <p className="mb-2 last:mb-0 break-words text-zinc-800 dark:text-zinc-100">{children}</p>,
+  strong: ({ children }: any) => <strong className="font-bold text-zinc-900 dark:text-white">{children}</strong>,
+  em: ({ children }: any) => <em className="italic text-zinc-600 dark:text-zinc-400">{children}</em>,
+  ul: ({ children }: any) => <ul className="list-disc list-inside ml-2 mb-2 space-y-1">{children}</ul>,
+  ol: ({ children }: any) => <ol className="list-decimal list-inside ml-2 mb-2 space-y-1">{children}</ol>,
+  li: ({ children }: any) => <li className="text-zinc-700 dark:text-zinc-300">{children}</li>,
+  a: ({ children, href }: any) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-amber-600 dark:text-brand-yellow hover:underline">
+      {children}
+    </a>
+  ),
+  blockquote: ({ children }: any) => (
+    <blockquote className="border-l-4 border-zinc-400 dark:border-zinc-600 pl-4 py-1 italic text-zinc-600 dark:text-zinc-400 my-2">{children}</blockquote>
+  ),
+};
+
+function attachmentMimeType(name: string): string {
+  const n = (name || '').toLowerCase();
+  if (n.endsWith('.pdf')) return 'application/pdf';
+  if (/\.(jpg|jpeg|png|gif|webp)$/.test(n)) return 'image/*';
+  return 'application/octet-stream';
+}
+
 export const ReceptionView: React.FC<ReceptionViewProps> = ({
   initialData,
   onDataLoaded,
   blurPlates = false,
+  onUseCustomerData,
+  actorOptions,
 }) => {
   const [receptionMode, setReceptionMode] = useState<ServiceOrderType>(() => {
     try {
@@ -101,6 +147,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [historyBudgetsLoadingId, setHistoryBudgetsLoadingId] = useState<string | null>(null);
   const [historyBudgetErrorByOrder, setHistoryBudgetErrorByOrder] = useState<Record<string, string>>({});
   const [historyBudgetDetail, setHistoryBudgetDetail] = useState<SavedBudgetFromApi | null>(null);
+  const [archivedDetailOrderId, setArchivedDetailOrderId] = useState<string | null>(null);
+  const [archivedDetailLoading, setArchivedDetailLoading] = useState(false);
+  const [archivedDetailData, setArchivedDetailData] = useState<ServiceOrderDetail | null>(null);
+  const [archivedDetailPhotos, setArchivedDetailPhotos] = useState<
+    { id: string; name: string; url: string; mimeType: string }[]
+  >([]);
+  const [archivedDetailComments, setArchivedDetailComments] = useState<ServiceOrderComment[]>([]);
+  const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
 
   // Efeito para carregar dados iniciais vindos do Pátio ou Histórico (todos editáveis, inclusive placa)
   useEffect(() => {
@@ -219,11 +273,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const loadVehicleHistory = async (term = '') => {
     setHistoryLoading(true);
     try {
-      const rows = await getServiceOrders('CANCELLED', 'vehicle');
+      const rows = await getServiceOrders('CANCELLED', receptionMode);
       const t = term.trim().toLowerCase();
       const filtered = t
         ? rows.filter((o) =>
             (o.plate || '').toLowerCase().includes(t) ||
+            (o.module_identification || '').toLowerCase().includes(t) ||
             (o.vehicle_model || '').toLowerCase().includes(t) ||
             (o.customer_name || o.customers?.name || '').toLowerCase().includes(t)
           )
@@ -240,12 +295,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   useEffect(() => {
     if (isHistoryOpen) loadVehicleHistory(historySearch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHistoryOpen]);
+  }, [isHistoryOpen, receptionMode]);
 
   useEffect(() => {
     if (!isHistoryOpen) {
       setHistoryBudgetDetail(null);
       setExpandedHistoryOrderId(null);
+      setArchivedDetailOrderId(null);
+      setArchivedDetailData(null);
+      setArchivedDetailPhotos([]);
+      setArchivedDetailComments([]);
     }
   }, [isHistoryOpen]);
 
@@ -290,6 +349,93 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     } finally {
       setHistoryBudgetsLoadingId(null);
     }
+  };
+
+  const openArchivedDetail = async (order: ServiceOrderListItem) => {
+    setArchivedDetailOrderId(order.id);
+    setArchivedDetailLoading(true);
+    setArchivedDetailData(null);
+    setArchivedDetailPhotos([]);
+    setArchivedDetailComments([]);
+    try {
+      const [detail, photos, comments] = await Promise.all([
+        getServiceOrderById(order.id),
+        getServiceOrderPhotos(order.id),
+        getServiceOrderComments(order.id).catch(() => [] as ServiceOrderComment[]),
+      ]);
+      setArchivedDetailData(detail);
+      setArchivedDetailPhotos(
+        photos.map((p, i) => ({
+          id: p.path || String(i),
+          name: p.name,
+          url: p.url,
+          mimeType: attachmentMimeType(p.name),
+        }))
+      );
+      setArchivedDetailComments(comments);
+    } catch (e: any) {
+      alert(e?.message ?? 'Erro ao carregar detalhes.');
+      setArchivedDetailOrderId(null);
+    } finally {
+      setArchivedDetailLoading(false);
+    }
+  };
+
+  const handleUnarchiveFromDetail = async () => {
+    if (!archivedDetailData) return;
+    const id = archivedDetailData.id;
+    setUnarchivingId(id);
+    try {
+      await updateServiceOrderStatus(id, 'FINALIZADO', actorOptions ?? { actor: 'admin' });
+      setArchivedDetailOrderId(null);
+      setArchivedDetailData(null);
+      setArchivedDetailPhotos([]);
+      setArchivedDetailComments([]);
+      await loadVehicleHistory(historySearch);
+    } catch (e: any) {
+      alert(e?.message ?? 'Erro ao desarquivar.');
+    } finally {
+      setUnarchivingId(null);
+    }
+  };
+
+  const handleUseRegistrationFromDetail = () => {
+    if (!archivedDetailData || !onUseCustomerData) return;
+    const detail = archivedDetailData;
+    const c = detail.customers;
+    const customerData: Customer = {
+      name: c?.name ?? '',
+      cpf: c?.cpf ?? '',
+      phone: c?.phone ?? '',
+      email: c?.email ?? undefined,
+      cep: c?.cep ?? '',
+      address: c?.address ?? '',
+      addressNumber: c?.address_number ?? '',
+      city: c?.city ?? '',
+      vehicleModel: detail.vehicle_model ?? '',
+      moduleIdentification: detail.module_identification ?? undefined,
+      plate: (detail.plate || '').toUpperCase(),
+      mileageKm: detail.mileage_km ?? '',
+      issueDescription: '',
+    };
+    const mode: ServiceOrderType = detail.order_type === 'module' ? 'module' : 'vehicle';
+    try {
+      localStorage.setItem(RECEPTION_MODE_KEY, mode);
+    } catch (_) {}
+    setReceptionMode(mode);
+    setArchivedDetailOrderId(null);
+    setArchivedDetailData(null);
+    setArchivedDetailPhotos([]);
+    setArchivedDetailComments([]);
+    setIsHistoryOpen(false);
+    onUseCustomerData(customerData);
+  };
+
+  const closeArchivedDetail = () => {
+    setArchivedDetailOrderId(null);
+    setArchivedDetailData(null);
+    setArchivedDetailPhotos([]);
+    setArchivedDetailComments([]);
   };
 
   return (
@@ -343,7 +489,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           title="Consultar histórico de veículos arquivados"
         >
           <History className="w-4 h-4" />
-          Histórico de veículos
+          {receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
         </button>
       </div>
 
@@ -601,16 +747,21 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       </div>
 
       {isHistoryOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4">
-          <div className="w-full max-w-[90rem] max-h-[90vh] bg-white/95 dark:bg-[#1C1C1E]/95 border border-zinc-200/60 dark:border-white/[0.08] rounded-[1.5rem] overflow-hidden flex flex-col shadow-[0_18px_60px_-24px_rgba(0,0,0,0.6)]">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="w-full max-w-[90rem] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] bg-white/95 dark:bg-[#1C1C1E]/95 border border-zinc-200/60 dark:border-white/[0.08] rounded-[1.5rem] overflow-hidden flex flex-col min-h-0 shadow-[0_18px_60px_-24px_rgba(0,0,0,0.6)]">
             <div className="flex items-center justify-between p-5 sm:p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/90 dark:bg-black/40">
               <div className="flex items-center gap-3">
                 <div className="bg-brand-yellow/15 p-2 rounded-xl">
                   <History className="w-6 h-6 text-zinc-900 dark:text-brand-yellow" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Histórico de veículos</h2>
-                  <p className="text-zinc-500 dark:text-zinc-400 text-xs mt-0.5">Veículos arquivados — mesmo visual dos cards do Pátio</p>
+                  <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
+                    {receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
+                  </h2>
+                  <p className="text-zinc-500 dark:text-zinc-400 text-xs mt-0.5">
+                    {receptionMode === 'module' ? 'Módulos arquivados' : 'Veículos arquivados'} — mesmo visual dos cards do Pátio
+                  </p>
                 </div>
               </div>
               <button onClick={() => setIsHistoryOpen(false)} className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-white/10 flex items-center justify-center text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-700">
@@ -625,7 +776,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     value={historySearch}
                     onChange={(e) => setHistorySearch(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && loadVehicleHistory(historySearch)}
-                    placeholder="Buscar por placa, cliente ou modelo"
+                    placeholder={
+                      receptionMode === 'module'
+                        ? 'Buscar por identificação, cliente ou modelo'
+                        : 'Buscar por placa, cliente ou modelo'
+                    }
                     className="w-full pl-9 pr-3 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900/70 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:border-brand-yellow focus:ring-2 focus:ring-brand-yellow/30"
                   />
                 </div>
@@ -638,14 +793,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-50/60 dark:bg-brand-surface/60 custom-scrollbar">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 bg-zinc-50/60 dark:bg-brand-surface/60 custom-scrollbar pb-[max(1rem,env(safe-area-inset-bottom))]">
               {historyLoading ? (
                 <div className="py-16 flex flex-col items-center justify-center gap-3 text-zinc-500">
                   <RefreshCw className="w-8 h-8 animate-spin text-brand-yellow" />
                   <p>Carregando arquivados...</p>
                 </div>
               ) : archivedOrders.length === 0 ? (
-                <div className="py-16 text-center text-zinc-500">Nenhum veículo arquivado encontrado.</div>
+                <div className="py-16 text-center text-zinc-500">
+                  {receptionMode === 'module' ? 'Nenhum módulo arquivado encontrado.' : 'Nenhum veículo arquivado encontrado.'}
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {archivedOrders.map((o) => {
@@ -672,17 +829,26 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         </div>
                       </div>
                       <div className="flex-shrink-0">
-                        <div className="w-[120px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/20 select-none">
-                          <div className="h-4 bg-[#003399] flex items-center justify-between px-2">
-                            <span className="text-[7px] font-bold text-white tracking-wider">BRASIL</span>
-                            <BrazilFlagIcon width={12} height={8} className="rounded-[2px] flex-shrink-0 border border-white/30" />
+                        {receptionMode === 'vehicle' ? (
+                          <div className="w-[120px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/20 select-none">
+                            <div className="h-4 bg-[#003399] flex items-center justify-between px-2">
+                              <span className="text-[7px] font-bold text-white tracking-wider">BRASIL</span>
+                              <BrazilFlagIcon width={12} height={8} className="rounded-[2px] flex-shrink-0 border border-white/30" />
+                            </div>
+                            <div className="h-9 flex items-center justify-center bg-white">
+                              <span className={`text-black font-mono text-xl font-black tracking-[0.2em] leading-none ${blurPlates ? 'blur-plate' : ''}`}>
+                                {plate}
+                              </span>
+                            </div>
                           </div>
-                          <div className="h-9 flex items-center justify-center bg-white">
-                            <span className={`text-black font-mono text-xl font-black tracking-[0.2em] leading-none ${blurPlates ? 'blur-plate' : ''}`}>
-                              {plate}
+                        ) : (
+                          <div className="max-w-[140px] rounded-xl border border-zinc-300 dark:border-white/15 bg-zinc-100/80 dark:bg-white/[0.06] px-3 py-2 text-right">
+                            <span className="text-[9px] uppercase font-bold text-zinc-500 dark:text-zinc-400 block">Módulo</span>
+                            <span className="text-sm font-mono font-bold text-zinc-900 dark:text-white break-all">
+                              {(o.module_identification || '—').trim()}
                             </span>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
 
@@ -697,6 +863,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     </div>
 
                     <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => openArchivedDetail(o)}
+                        className="w-full px-3 py-2.5 rounded-xl text-xs font-bold bg-brand-yellow text-zinc-950 hover:bg-[#fcd61e] transition-colors flex items-center justify-center gap-2"
+                      >
+                        Ver detalhes completos
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="mt-2">
                       <button
                         type="button"
                         onClick={() => handleToggleHistoryBudgets(o.id)}
@@ -765,12 +942,275 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
-      {/* Modal: orçamento completo (histórico arquivado) — acima do modal de histórico (z-50) */}
+      {/* Modal: detalhe completo da OS arquivada (queixa, comentários, anexos — como no Pátio) */}
+      {archivedDetailOrderId && (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-[220] flex items-center justify-center bg-black/85 backdrop-blur-xl p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reception-archived-detail-title"
+          >
+            <div className="bg-white/98 dark:bg-brand-surface/95 backdrop-blur-2xl border border-zinc-200/70 dark:border-brand-border w-full max-w-[90rem] max-h-[90vh] rounded-[1.5rem] shadow-[0_18px_60px_-24px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden relative animate-modal-sheet">
+              <div className="absolute top-4 right-4 z-10 flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={handleUnarchiveFromDetail}
+                  disabled={!archivedDetailData || unarchivingId !== null}
+                  className="bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white px-4 sm:px-6 py-2.5 rounded-full font-bold shadow-lg flex items-center gap-2 text-sm transition-all"
+                >
+                  {unarchivingId ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ArchiveRestore className="w-4 h-4" />
+                  )}
+                  DESARQUIVAR
+                </button>
+                {onUseCustomerData && (
+                  <button
+                    type="button"
+                    onClick={handleUseRegistrationFromDetail}
+                    disabled={!archivedDetailData}
+                    className="bg-brand-yellow hover:bg-[#fcd61e] disabled:opacity-50 text-zinc-950 px-4 sm:px-6 py-2.5 rounded-full font-bold shadow-lg shadow-brand-yellow/30 flex items-center gap-2 text-sm transition-all"
+                  >
+                    <Copy className="w-4 h-4" />
+                    USAR CADASTRO
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={closeArchivedDetail}
+                  className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-zinc-800/80 flex items-center justify-center text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all shrink-0"
+                  aria-label="Fechar"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+                {archivedDetailLoading && !archivedDetailData ? (
+                  <div className="flex flex-col items-center justify-center py-24 gap-3 text-zinc-500">
+                    <RefreshCw className="w-10 h-10 animate-spin text-brand-yellow" />
+                    <p>Carregando dados da OS...</p>
+                  </div>
+                ) : archivedDetailData ? (
+                  (() => {
+                    const d = archivedDetailData;
+                    const isModuleDetail = d.order_type === 'module';
+                    const cust = d.customers;
+                    const customerName = firstTwoNames((cust?.name || 'Cliente').trim());
+                    return (
+                      <div className="p-6 sm:p-10 md:p-12 pb-28">
+                        <div className="flex flex-col gap-3 mb-6">
+                          <span className="inline-flex self-start items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest border bg-zinc-100 dark:bg-black/60 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700">
+                            ARQUIVADO
+                            {d.os_number != null && (
+                              <span className="text-brand-yellow dark:text-brand-yellow">· OS #{d.os_number}</span>
+                            )}
+                          </span>
+                          <h1
+                            id="reception-archived-detail-title"
+                            className="text-3xl sm:text-5xl md:text-6xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none pr-4"
+                          >
+                            {(d.vehicle_model || '—').trim()}
+                          </h1>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-4 text-zinc-700 dark:text-zinc-300 mb-8">
+                          {!isModuleDetail && (
+                            <div className="flex items-center">
+                              <div className="w-[140px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-xl shadow-black/20 select-none">
+                                <div className="h-5 bg-[#003399] flex items-center justify-between px-3 relative">
+                                  <span className="text-[8px] font-bold text-white tracking-wider">BRASIL</span>
+                                  <BrazilFlagIcon width={16} height={11} className="rounded-sm flex-shrink-0 border border-white/30" />
+                                </div>
+                                <div className="h-10 flex items-center justify-center bg-white">
+                                  <span
+                                    className={`text-black font-mono text-2xl font-black tracking-widest leading-none ${blurPlates ? 'blur-plate' : ''}`}
+                                  >
+                                    {(d.plate || '---').toUpperCase()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {isModuleDetail && (
+                            <div className="rounded-xl border border-zinc-300 dark:border-white/15 bg-zinc-100/80 dark:bg-white/[0.06] px-4 py-3">
+                              <span className="text-[10px] uppercase font-bold text-zinc-500 dark:text-zinc-400">Identificação do módulo</span>
+                              <p className="text-lg font-mono font-bold text-zinc-900 dark:text-white mt-1">
+                                {(d.module_identification || '—').trim()}
+                              </p>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 px-4 py-2">
+                            <User className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
+                            <span className="text-lg font-medium text-zinc-900 dark:text-white">{customerName}</span>
+                          </div>
+                          {d.delivery_date && (
+                            <div className="flex items-center gap-2 bg-zinc-100/80 dark:bg-zinc-900/50 px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700/80">
+                              <Calendar className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+                              <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100">
+                                Entrega: {new Date(d.delivery_date).toLocaleDateString('pt-BR')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="w-full h-px bg-zinc-200 dark:bg-zinc-800/60 mb-10" />
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                          <div className="lg:col-span-2 space-y-10">
+                            <div>
+                              <h3 className="text-zinc-700 dark:text-zinc-300 text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-4">
+                                <FileText className="w-4 h-4" />
+                                Queixa do cliente
+                              </h3>
+                              <div className="bg-white dark:bg-zinc-900/70 rounded-2xl p-6 border border-zinc-200/80 dark:border-zinc-800 text-zinc-800 dark:text-zinc-100 leading-relaxed font-light text-lg">
+                                <ReactMarkdown components={DetailMarkdownComponents}>
+                                  {d.issue_description?.trim() || 'Nenhuma descrição disponível.'}
+                                </ReactMarkdown>
+                              </div>
+                            </div>
+
+                            {d.ai_analysis?.trim() && (
+                              <div>
+                                <h3 className="text-zinc-700 dark:text-zinc-300 text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-4">
+                                  <MessageSquare className="w-4 h-4" />
+                                  Análise (IA)
+                                </h3>
+                                <div className="bg-zinc-50 dark:bg-black/40 rounded-2xl p-6 border border-zinc-200/80 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-200 whitespace-pre-wrap">
+                                  {d.ai_analysis}
+                                </div>
+                              </div>
+                            )}
+
+                            <div>
+                              <h3 className="text-zinc-700 dark:text-zinc-300 text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <MessageSquare className="w-4 h-4" />
+                                Comentários e atividades
+                              </h3>
+                              <div className="bg-white dark:bg-zinc-900/70 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 overflow-hidden">
+                                <div className="p-6 space-y-6 max-h-[420px] overflow-y-auto custom-scrollbar bg-zinc-50/60 dark:bg-black/40">
+                                  {archivedDetailComments.length === 0 ? (
+                                    <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 italic text-sm">
+                                      Nenhum comentário registrado nesta OS.
+                                    </div>
+                                  ) : (
+                                    archivedDetailComments.map((c) => (
+                                      <div key={c.id} className="flex gap-4">
+                                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-brand-yellow/20 border border-brand-yellow/40 flex items-center justify-center text-sm font-bold text-zinc-900 dark:text-white">
+                                          {(c.author_display_name || '?').slice(0, 1).toUpperCase()}
+                                        </div>
+                                        <div className="flex-1 space-y-1 min-w-0">
+                                          <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">{c.author_display_name}</span>
+                                            <span className="text-xs text-zinc-500">
+                                              {new Date(c.created_at).toLocaleString('pt-BR')}
+                                            </span>
+                                          </div>
+                                          <div className="bg-zinc-100/90 dark:bg-zinc-800/50 p-3 rounded-r-xl rounded-bl-xl text-zinc-800 dark:text-zinc-200 text-sm leading-relaxed border border-zinc-200 dark:border-zinc-700/50">
+                                            <ReactMarkdown components={DetailMarkdownComponents}>{c.text}</ReactMarkdown>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-8">
+                            <div>
+                              <h3 className="text-brand-yellow dark:text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <Paperclip className="w-4 h-4" />
+                                Fotos e anexos
+                              </h3>
+                              {archivedDetailPhotos.length === 0 ? (
+                                <p className="text-sm text-zinc-500 italic">Nenhum anexo nesta OS.</p>
+                              ) : (
+                                <div className="grid grid-cols-2 gap-2">
+                                  {archivedDetailPhotos.map((att) => {
+                                    const isImage =
+                                      att.mimeType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url);
+                                    const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
+                                    return (
+                                      <a
+                                        key={att.id}
+                                        href={att.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden group hover:border-brand-yellow transition-all"
+                                      >
+                                        {isImage ? (
+                                          <div className="aspect-square relative bg-zinc-100 dark:bg-black">
+                                            <img
+                                              src={att.url}
+                                              alt={att.name}
+                                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                            />
+                                            <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/60 text-[10px] text-white truncate">
+                                              {att.name}
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="p-4 flex flex-col items-center gap-2 text-center">
+                                            <FileText className="w-8 h-8 text-zinc-400" />
+                                            <span className="text-xs font-medium text-zinc-700 dark:text-zinc-200 break-all line-clamp-2">
+                                              {att.name}
+                                            </span>
+                                            {isPdf && <span className="text-[10px] text-red-500 font-bold">PDF</span>}
+                                          </div>
+                                        )}
+                                      </a>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="rounded-xl border border-zinc-200 dark:border-zinc-700/80 p-4 bg-zinc-50/80 dark:bg-black/30 text-sm space-y-2">
+                              <p className="text-[10px] uppercase font-bold text-zinc-500">Cliente (cadastro)</p>
+                              {cust?.phone && (
+                                <p>
+                                  <span className="text-zinc-500">Tel: </span>
+                                  {cust.phone}
+                                </p>
+                              )}
+                              {cust?.email && (
+                                <p>
+                                  <span className="text-zinc-500">E-mail: </span>
+                                  {cust.email}
+                                </p>
+                              )}
+                              {(cust?.cpf || cust?.cep || cust?.address) && (
+                                <p className="text-xs text-zinc-600 dark:text-zinc-400 pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                                  {[cust?.cpf, cust?.cep, cust?.address, cust?.city, cust?.address_number].filter(Boolean).join(' · ')}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="py-16 text-center text-zinc-500">Não foi possível carregar os dados.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* Modal: orçamento completo — portal para ficar acima da TabBar do app */}
       {historyBudgetDetail && (
+        <ModalPortal>
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]"
+          className="fixed inset-0 z-[230] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]"
           onClick={() => setHistoryBudgetDetail(null)}
         >
           <div
@@ -863,6 +1303,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       <ProcessingOverlay 

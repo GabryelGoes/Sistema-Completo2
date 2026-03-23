@@ -33,8 +33,9 @@ export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowed
     return null;
   };
 
+  // Barra fixa inferior: z-40 fica abaixo dos modais do app (z-[100]+).
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50">
+    <div className="fixed bottom-0 left-0 right-0 z-40">
       <div className="absolute inset-0 bg-light-card/95 dark:bg-zinc-900/90 backdrop-blur-xl border-t border-light-border dark:border-white/10" />
       <div className="relative flex justify-around items-center h-20 px-2 pb-4 pt-2 max-w-2xl mx-auto">
         {tabs.map((t) => (

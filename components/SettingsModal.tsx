@@ -27,7 +27,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
       <div className="bg-light-elevated/98 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-light-border dark:border-white/[0.08] rounded-[1.5rem] w-full max-w-md shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden animate-modal-sheet flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-light-border dark:border-white/[0.08] bg-light-card dark:bg-white/[0.04] shrink-0">
           <h2 className="text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2">

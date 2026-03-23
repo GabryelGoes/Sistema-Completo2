@@ -15,7 +15,7 @@ export const ProcessingOverlay: React.FC<ProcessingOverlayProps> = ({ status, on
   const isError = status.step === 'error';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 dark:bg-black/90 backdrop-blur-md animate-modal-backdrop">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/90 dark:bg-black/90 backdrop-blur-md animate-modal-backdrop">
       <div className="text-center max-w-sm px-6">
         
         {/* Icon Container */}

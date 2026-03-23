@@ -116,7 +116,7 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-md animate-in fade-in duration-200"
       onClick={(e) => e.target === e.currentTarget && onClose()}
       aria-modal="true"
       role="dialog"
