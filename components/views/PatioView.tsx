@@ -2563,7 +2563,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           : `${modalStatusConfig.ringClass} border border-zinc-200/60 dark:border-white/[0.08]`;
         return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-xl p-4 animate-modal-backdrop">
-           <div className={`bg-zinc-50/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl w-full max-w-4xl h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08),0_12px_40px_-8px_rgba(0,0,0,0.12)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative ${modalRingClass}`}>
+           <div className={`bg-zinc-50/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl w-full max-w-[96vw] xl:max-w-[92vw] 2xl:max-w-[88vw] h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08),0_12px_40px_-8px_rgba(0,0,0,0.12)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative ${modalRingClass}`}>
               
               <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
                 {can('canDeleteCards') && (
