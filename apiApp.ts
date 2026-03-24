@@ -3366,7 +3366,7 @@ Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçam
 Etapas do fluxo (IDs exatos):
 ${stageCatalog}
 
-Ferramentas principais: list_vehicles_in_stage (por etapa); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
+Ferramentas principais: open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro; se ambíguo, pedir cliente e repetir com customer_name_query); list_vehicles_in_stage (por etapa); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
 Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
 
       const statusEnum = [...ALL_STATUSES];
@@ -3660,6 +3660,28 @@ Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
                 query: { type: "string" },
               },
               required: ["query"],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "open_patio_vehicle_modal",
+            description:
+              "Abre o modal do veículo na página Pátio. Use vehicle_model_query com nome/modelo (ex.: Civic, Gol). Se a ferramenta retornar ambiguous com várias opções, pergunte qual o nome do cliente e chame de novo com customer_name_query.",
+            parameters: {
+              type: "object",
+              properties: {
+                vehicle_model_query: {
+                  type: "string",
+                  description: "Nome ou modelo do veículo a abrir.",
+                },
+                customer_name_query: {
+                  type: "string",
+                  description: "Parte do nome do cliente, se houver mais de um veículo igual.",
+                },
+              },
+              required: ["vehicle_model_query"],
             },
           },
         },

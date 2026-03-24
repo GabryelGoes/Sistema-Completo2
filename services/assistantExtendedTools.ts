@@ -644,3 +644,97 @@ export async function searchCustomersJson(
     });
   }
 }
+
+/**
+ * Resolve OS de veículo no Pátio por nome/modelo; se vários, pede cliente.
+ * Retorno com action "open" faz o app abrir o modal (via callback no cliente).
+ */
+export async function openPatioVehicleModalJson(
+  payload: { vehicle_model_query: string; customer_name_query?: string },
+  allowedTabs: TabId[]
+): Promise<string> {
+  if (!allowedTabs.includes("patio")) {
+    return JSON.stringify({ ok: false, error: "Sem acesso ao Pátio." });
+  }
+  const raw = String(payload.vehicle_model_query ?? "").trim();
+  const q = norm(raw);
+  if (q.length < 2) {
+    return JSON.stringify({
+      ok: false,
+      error: "Informe o nome ou modelo do veículo (ao menos 2 caracteres).",
+    });
+  }
+  try {
+    const orders = await getServiceOrders(undefined, "vehicle");
+    const active = orders.filter((o) => o.status !== CANCELLED_STATUS);
+    let matches = active.filter((o) => {
+      const vm = norm(o.vehicle_model || "");
+      if (!vm) return false;
+      return vm.includes(q) || q.includes(vm);
+    });
+    if (matches.length === 0) {
+      return JSON.stringify({
+        ok: false,
+        error: `Nenhum veículo em aberto no Pátio combina com "${raw}".`,
+      });
+    }
+    const custRaw =
+      typeof payload.customer_name_query === "string" ? payload.customer_name_query.trim() : "";
+    const cq = custRaw ? norm(custRaw) : "";
+    if (custRaw && cq.length < 2) {
+      return JSON.stringify({
+        ok: false,
+        error: "Nome do cliente deve ter ao menos 2 letras para filtrar.",
+      });
+    }
+    if (cq.length >= 2) {
+      matches = matches.filter((o) => {
+        const cn = norm(o.customer_name ?? o.customers?.name ?? "");
+        return (
+          cn.includes(cq) ||
+          cq
+            .split(/\s+/)
+            .filter((w) => w.length >= 2)
+            .some((w) => cn.includes(w))
+        );
+      });
+    }
+    if (matches.length === 0) {
+      return JSON.stringify({
+        ok: false,
+        error: "Nenhuma OS encontrada com esse veículo e esse cliente.",
+      });
+    }
+    if (matches.length === 1) {
+      const o = matches[0];
+      return JSON.stringify({
+        ok: true,
+        action: "open",
+        service_order_id: o.id,
+        os_number: o.os_number ?? null,
+        plate: o.plate,
+        vehicle_model: o.vehicle_model,
+        cliente: o.customer_name ?? o.customers?.name ?? null,
+      });
+    }
+    return JSON.stringify({
+      ok: true,
+      ambiguous: true,
+      pedir_cliente: true,
+      mensagem:
+        "Há mais de um veículo com esse nome. Pergunte o nome do cliente e use a ferramenta de novo com customer_name_query.",
+      opcoes: matches.slice(0, 20).map((o) => ({
+        service_order_id: o.id,
+        os_number: o.os_number ?? null,
+        placa: o.plate,
+        veiculo: o.vehicle_model,
+        cliente: o.customer_name ?? o.customers?.name ?? "—",
+      })),
+    });
+  } catch (e) {
+    return JSON.stringify({
+      ok: false,
+      error: e instanceof Error ? e.message : "Falha ao buscar veículo.",
+    });
+  }
+}

@@ -30,6 +30,7 @@ import {
   registerCustomerVehicleIntakeJson,
   searchCustomersJson,
   searchServiceOrdersJson,
+  openPatioVehicleModalJson,
 } from "../services/assistantExtendedTools";
 
 interface AssistantChatProps {
@@ -43,6 +44,8 @@ interface AssistantChatProps {
   assistantCommentActor: "admin" | "technician";
   /** UUID do usuário do sistema (técnico), para "minhas OS". */
   currentTechnicianUserId?: string | null;
+  /** Abre o modal do veículo no Pátio (OS já resolvida pela Zaya). */
+  onOpenPatioVehicle?: (serviceOrderId: string) => void;
 }
 
 /** API Web Speech (tipos podem não estar no tsconfig). */
@@ -81,7 +84,8 @@ async function executeToolCalls(
   onNavigateTab: (tab: TabId) => void,
   onOpenSettings: () => void,
   serviceOrderActor: ServiceOrderUpdateActor | undefined,
-  assistantCtx: AssistantContext
+  assistantCtx: AssistantContext,
+  onOpenPatioVehicle?: (serviceOrderId: string) => void
 ): Promise<{ id: string; content: string }[]> {
   const results: { id: string; content: string }[] = [];
   for (const tc of calls) {
@@ -319,6 +323,35 @@ async function executeToolCalls(
       results.push({ id: tc.id, content: out });
       continue;
     }
+    if (name === "open_patio_vehicle_modal") {
+      const out = await openPatioVehicleModalJson(
+        {
+          vehicle_model_query: String(payload.vehicle_model_query ?? ""),
+          customer_name_query:
+            typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+        },
+        allowedTabs
+      );
+      try {
+        const parsed = JSON.parse(out) as {
+          ok?: boolean;
+          action?: string;
+          service_order_id?: string;
+        };
+        if (
+          parsed.ok &&
+          parsed.action === "open" &&
+          typeof parsed.service_order_id === "string" &&
+          onOpenPatioVehicle
+        ) {
+          onOpenPatioVehicle(parsed.service_order_id);
+        }
+      } catch {
+        /* ignore */
+      }
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
     results.push({ id: tc.id, content: JSON.stringify({ ok: false, error: "Função desconhecida." }) });
   }
   return results;
@@ -333,6 +366,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   assistantAuthorDisplayName,
   assistantCommentActor,
   currentTechnicianUserId,
+  onOpenPatioVehicle,
 }) => {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -367,7 +401,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               onNavigateTab,
               onOpenSettings,
               serviceOrderActor,
-              assistantCtx
+              assistantCtx,
+              onOpenPatioVehicle
             );
             for (const tr of toolResults) {
               current.push({ role: "tool", tool_call_id: tr.id, content: tr.content });
@@ -394,6 +429,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       assistantAuthorDisplayName,
       assistantCommentActor,
       currentTechnicianUserId,
+      onOpenPatioVehicle,
     ]
   );
 

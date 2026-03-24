@@ -30,6 +30,8 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUserChangePasswordsOpen, setIsUserChangePasswordsOpen] = useState(false);
   const [commentPopUpNotification, setCommentPopUpNotification] = useState<Notification | null>(null);
+  /** Abrir modal do Pátio via assistente (Zaya). */
+  const [assistantPatioOpenOrderId, setAssistantPatioOpenOrderId] = useState<string | null>(null);
 
   const handleNewCommentNotification = (n: Notification) => {
     playNotificationSound();
@@ -256,9 +258,9 @@ export default function App() {
               effectsEnabled={effectsEnabled}
               commentAuthorName={authSession.displayName ?? 'Usuário'}
               blurPlates={cinematographicMode}
-              openServiceOrderId={null}
+              openServiceOrderId={assistantPatioOpenOrderId}
               openServiceOrderSection={null}
-              onOpenServiceOrderHandled={() => {}}
+              onOpenServiceOrderHandled={() => setAssistantPatioOpenOrderId(null)}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
@@ -327,6 +329,10 @@ export default function App() {
           assistantAuthorDisplayName={authSession.displayName ?? authSession.username ?? 'Usuário'}
           assistantCommentActor="technician"
           currentTechnicianUserId={authSession.userId}
+          onOpenPatioVehicle={(id) => {
+            setUserTab('patio');
+            setAssistantPatioOpenOrderId(id);
+          }}
         />
       </div>
     );
@@ -401,9 +407,9 @@ export default function App() {
             effectsEnabled={effectsEnabled}
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
-            openServiceOrderId={null}
+            openServiceOrderId={assistantPatioOpenOrderId}
             openServiceOrderSection={null}
-            onOpenServiceOrderHandled={() => {}}
+            onOpenServiceOrderHandled={() => setAssistantPatioOpenOrderId(null)}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         )}
@@ -481,6 +487,10 @@ export default function App() {
         }
         assistantCommentActor={authSession?.role === 'admin' ? 'admin' : 'technician'}
         currentTechnicianUserId={authSession?.role === 'user' ? authSession.userId : undefined}
+        onOpenPatioVehicle={(id) => {
+          setCurrentTab('patio');
+          setAssistantPatioOpenOrderId(id);
+        }}
       />
     </div>
   );
