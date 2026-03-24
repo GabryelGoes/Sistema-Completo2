@@ -691,18 +691,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [selectedCard?.id, selectedCard?.mileageKm, selectedCard?.deliveryDate]);
 
-  // Abrir modal do veículo ao clicar em notificação (navegação da central de notificações)
+  // Abrir modal do veículo ao clicar em notificação (navegação da central de notificações / assistente Zaya)
   useEffect(() => {
     if (!openServiceOrderIdProp || openServiceOrderHandledRef.current) return;
     if (cards.length === 0) return;
     const card = cards.find((c) => c.id === openServiceOrderIdProp);
     if (card) {
       setSelectedCard(card);
+      // Sem seção para rolar: libera o pedido já (senão o id fica preso no pai e cada refresh da lista reabre o modal).
+      if (!openServiceOrderSection) {
+        openServiceOrderHandledRef.current = true;
+        onOpenServiceOrderHandled?.();
+      }
     } else {
       openServiceOrderHandledRef.current = true;
       onOpenServiceOrderHandled?.();
     }
-  }, [openServiceOrderIdProp, cards, onOpenServiceOrderHandled]);
+  }, [openServiceOrderIdProp, cards, onOpenServiceOrderHandled, openServiceOrderSection]);
 
   // Rolar à seção (comentários, orçamentos, queixa) após abrir o modal e carregar detalhes
   useEffect(() => {
