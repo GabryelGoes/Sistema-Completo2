@@ -1,6 +1,6 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Mic, MicOff, Send, X } from "lucide-react";
+import { Mic, MicOff, Send, Volume2, VolumeX, X } from "lucide-react";
 import { AssistantIcon } from "./AssistantIcon";
 import { ASSISTANT_NAME } from "../constants/assistant";
 import type { TabId } from "./TabBar";
@@ -47,7 +47,7 @@ interface AssistantChatProps {
   /** UUID do usuário do sistema (técnico), para "minhas OS". */
   currentTechnicianUserId?: string | null;
   /** Abre o modal do veículo no Pátio (OS já resolvida pela Zaya). */
-  onOpenPatioVehicle?: (serviceOrderId: string) => void;
+  onOpenPatioVehicle?: (serviceOrderId: string, options?: { budgetId?: string }) => void;
 }
 
 /** API Web Speech (tipos podem não estar no tsconfig). */
@@ -69,6 +69,38 @@ function getSpeechRecognitionCtor(): SpeechRecCtor | null {
     webkitSpeechRecognition?: SpeechRecCtor;
   };
   return w.SpeechRecognition || w.webkitSpeechRecognition || null;
+}
+
+const TTS_STORAGE_KEY = "assistant_tts_enabled";
+
+/** Remove markdown para leitura em voz ficar natural. */
+function markdownToSpeechText(md: string): string {
+  return md
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`[^`]+`/g, " ")
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/#{1,6}\s*/g, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function speakAssistantResponse(text: string): void {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  const plain = markdownToSpeechText(text);
+  if (!plain.trim()) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(plain);
+  u.lang = "pt-BR";
+  const voices = window.speechSynthesis.getVoices();
+  const ptBr =
+    voices.find((v) => /pt-BR|pt_BR/i.test(v.lang)) ||
+    voices.find((v) => v.lang.toLowerCase().startsWith("pt"));
+  if (ptBr) u.voice = ptBr;
+  u.rate = 0.98;
+  window.speechSynthesis.speak(u);
 }
 
 function parseOsNumber(raw: unknown): number | undefined {
@@ -435,6 +467,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     async (history: AssistantApiMessage[]) => {
       setLoading(true);
       setError(null);
+      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
       try {
         let current = [...history];
         const assistantCtx: AssistantContext = {
@@ -464,6 +497,13 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           }
           current = [...current, message];
           setMessages(current);
+          if (
+            ttsEnabledRef.current &&
+            typeof message.content === "string" &&
+            message.content.trim()
+          ) {
+            speakAssistantResponse(message.content);
+          }
           return;
         }
         setError(`Limite de passos da ${ASSISTANT_NAME} atingido.`);
@@ -529,7 +569,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     }
   }, [listening]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
@@ -565,7 +605,10 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+                  setOpen(false);
+                }}
                 className="rounded-full p-2 hover:bg-white/10"
                 aria-label="Fechar"
               >
@@ -577,7 +620,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               {messages.length === 0 && (
                 <p className="text-zinc-500 dark:text-zinc-400">
                   Olá, eu sou a {ASSISTANT_NAME}. Pergunte sobre o app, peça para abrir uma aba ou
-                  liste/movimente veículos no Pátio (por etapa). Você pode usar o microfone.
+                  liste/movimente veículos no Pátio (por etapa). Use o microfone; as respostas podem
+                  ser lidas em voz (botão de alto-falante).
                 </p>
               )}
               {messages.map((m, i) => {
@@ -609,6 +653,17 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
             </div>
 
             <div className="flex gap-2 border-t border-white/10 p-3 dark:border-white/10">
+              <button
+                type="button"
+                onClick={toggleTts}
+                className={`shrink-0 rounded-xl p-3 ${
+                  ttsEnabled ? "bg-brand-yellow/20 text-zinc-900 dark:text-brand-yellow" : "bg-white/10 hover:bg-white/15"
+                }`}
+                aria-label={ttsEnabled ? "Desativar voz da assistente" : "Ativar voz da assistente"}
+                title={ttsEnabled ? "Voz da Zaya ligada" : "Voz da Zaya desligada"}
+              >
+                {ttsEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+              </button>
               <button
                 type="button"
                 onClick={toggleMic}
