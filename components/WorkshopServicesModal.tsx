@@ -379,7 +379,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-2 p-3 border-b border-zinc-200/50 dark:border-white/[0.06]">
-              <div className="md:col-span-7">
+              <div className="md:col-span-8">
                 <input
                   type="text"
                   value={newServiceName}
@@ -389,7 +389,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                   className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                 />
               </div>
-              <div className="md:col-span-3">
+              <div className="md:col-span-2">
                 <div className="relative">
                   <Clock3 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                   <input
