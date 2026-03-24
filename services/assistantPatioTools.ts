@@ -21,7 +21,8 @@ function normalizePlate(p: string): string {
     .toUpperCase();
 }
 
-async function resolveServiceOrderId(opts: {
+/** Resolve UUID da OS a partir de id, número ou placa (reutilizado por outras ferramentas do assistente). */
+export async function resolveServiceOrderId(opts: {
   service_order_id?: string;
   os_number?: number;
   plate?: string | null;

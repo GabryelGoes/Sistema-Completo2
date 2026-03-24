@@ -3359,14 +3359,14 @@ export function createApiApp() {
 
       const systemContent = `Você é a assistente do app Rei do ABS (gestão de oficina). Responda em português do Brasil, de forma breve e útil.
 O usuário só pode acessar estas abas: ${allowedTabs.join(", ")}.
-Use navigate_to_tab quando pedirem para ir a uma tela (Recepção, Pátio, Agenda, Laboratório ou Início).
-Use open_settings para configurações, tema, aparência ou som.
+Use navigate_to_tab para mudar de tela; open_settings para tema/efeitos.
+Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçamento, etc.), combinando com as ferramentas quando fizer sentido.
 
-Etapas do fluxo (use estes IDs exatos nas ferramentas de OS):
+Etapas do fluxo (IDs exatos):
 ${stageCatalog}
 
-Use list_vehicles_in_stage quando perguntarem quais veículos/OS estão em uma etapa (parâmetro status = ID da etapa, ex.: EM_SERVICO). order_type vehicle = Pátio, module = Laboratório.
-Use update_service_order_status para mudar a etapa de uma OS: informe new_status (ID da etapa) e um identificador: service_order_id (UUID), ou os_number (número da OS), ou plate (placa, só veículos). Não invente listagens ou placas; use só o retorno das ferramentas.`;
+Ferramentas principais: list_vehicles_in_stage (por etapa); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
+Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
 
       const statusEnum = [...ALL_STATUSES];
 
@@ -3452,6 +3452,213 @@ Use update_service_order_status para mudar a etapa de uma OS: informe new_status
                 },
               },
               required: ["new_status"],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "add_service_order_comment",
+            description: "Adiciona comentário no chat da OS (modal Pátio/Laboratório).",
+            parameters: {
+              type: "object",
+              properties: {
+                text: { type: "string", description: "Texto do comentário." },
+                service_order_id: { type: "string" },
+                os_number: { type: "integer" },
+                plate: { type: "string" },
+              },
+              required: ["text"],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "get_service_order_comments",
+            description: "Lista comentários de uma OS.",
+            parameters: {
+              type: "object",
+              properties: {
+                service_order_id: { type: "string" },
+                os_number: { type: "integer" },
+                plate: { type: "string" },
+              },
+              required: [],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "list_orders_by_technician",
+            description:
+              "Lista OS abertas atribuídas a um técnico. Use only_mine=true para o técnico logado, ou technician_user_id (UUID), ou technician_name_search.",
+            parameters: {
+              type: "object",
+              properties: {
+                only_mine: { type: "boolean" },
+                technician_user_id: { type: "string" },
+                technician_name_search: { type: "string", description: "Parte do nome ou username." },
+              },
+              required: [],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "list_upcoming_deliveries",
+            description: "Entregas previstas nos próximos dias e lista de atrasadas.",
+            parameters: {
+              type: "object",
+              properties: {
+                days_ahead: { type: "integer", description: "Padrão 14, máx. 90." },
+              },
+              required: [],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "search_service_orders",
+            description: "Busca OS por placa, modelo, cliente, número, trecho da queixa.",
+            parameters: {
+              type: "object",
+              properties: {
+                query: { type: "string" },
+              },
+              required: ["query"],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "get_service_order_budgets",
+            description: "Lista orçamentos salvos de uma OS.",
+            parameters: {
+              type: "object",
+              properties: {
+                service_order_id: { type: "string" },
+                os_number: { type: "integer" },
+                plate: { type: "string" },
+              },
+              required: [],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "create_service_order_budget_simple",
+            description: "Cria um orçamento com diagnóstico, um serviço e opcionalmente peças.",
+            parameters: {
+              type: "object",
+              properties: {
+                diagnosis: { type: "string" },
+                service_description: { type: "string" },
+                service_order_id: { type: "string" },
+                os_number: { type: "integer" },
+                plate: { type: "string" },
+                card_name: { type: "string" },
+                observations: { type: "string" },
+                parts: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      description: { type: "string" },
+                      quantity: { type: "string" },
+                    },
+                  },
+                },
+              },
+              required: ["diagnosis", "service_description"],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "list_appointments",
+            description: "Lista agendamentos da oficina.",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "create_appointment",
+            description: "Cria agendamento na agenda.",
+            parameters: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                customer_name: { type: "string" },
+                phone: { type: "string" },
+                vehicle_model: { type: "string" },
+                plate: { type: "string" },
+                date: { type: "string", description: "AAAA-MM-DD" },
+                time: { type: "string", description: "HH:MM" },
+                notes: { type: "string" },
+              },
+              required: ["customer_name", "vehicle_model", "plate", "date", "time"],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "count_orders_by_stage",
+            description: "Conta quantas OS abertas existem em cada etapa.",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "count_customer_open_orders",
+            description: "Conta e lista OS abertas cujo cliente contém o nome informado.",
+            parameters: {
+              type: "object",
+              properties: {
+                customer_name_fragment: { type: "string" },
+              },
+              required: ["customer_name_fragment"],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "register_customer_vehicle_intake",
+            description: "Cadastro rápido na Recepção: cliente + veículo + queixa (cria OS).",
+            parameters: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                phone: { type: "string" },
+                vehicle_model: { type: "string" },
+                plate: { type: "string" },
+                issue_description: { type: "string" },
+              },
+              required: ["name", "phone", "vehicle_model", "plate"],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "search_customers",
+            description: "Busca clientes por nome ou telefone.",
+            parameters: {
+              type: "object",
+              properties: {
+                query: { type: "string" },
+              },
+              required: ["query"],
             },
           },
         },

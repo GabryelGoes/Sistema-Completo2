@@ -13,6 +13,22 @@ import {
   listVehiclesInStageJson,
   updateServiceOrderStageJson,
 } from "../services/assistantPatioTools";
+import type { AssistantContext } from "../services/assistantExtendedTools";
+import {
+  addServiceOrderCommentJson,
+  countCustomerOpenOrdersJson,
+  countOrdersByStageJson,
+  createAppointmentJson,
+  createServiceOrderBudgetSimpleJson,
+  getServiceOrderBudgetsJson,
+  getServiceOrderCommentsJson,
+  listAppointmentsJson,
+  listOrdersByTechnicianJson,
+  listUpcomingDeliveriesJson,
+  registerCustomerVehicleIntakeJson,
+  searchCustomersJson,
+  searchServiceOrdersJson,
+} from "../services/assistantExtendedTools";
 
 interface AssistantChatProps {
   theme: "dark" | "light";
@@ -21,6 +37,10 @@ interface AssistantChatProps {
   onOpenSettings: () => void;
   /** Quem executa mudança de etapa da OS (notificações), igual ao Pátio. */
   serviceOrderActor?: ServiceOrderUpdateActor;
+  assistantAuthorDisplayName: string;
+  assistantCommentActor: "admin" | "technician";
+  /** UUID do usuário do sistema (técnico), para "minhas OS". */
+  currentTechnicianUserId?: string | null;
 }
 
 /** API Web Speech (tipos podem não estar no tsconfig). */
@@ -58,7 +78,8 @@ async function executeToolCalls(
   allowedTabs: TabId[],
   onNavigateTab: (tab: TabId) => void,
   onOpenSettings: () => void,
-  serviceOrderActor?: ServiceOrderUpdateActor
+  serviceOrderActor: ServiceOrderUpdateActor | undefined,
+  assistantCtx: AssistantContext
 ): Promise<{ id: string; content: string }[]> {
   const results: { id: string; content: string }[] = [];
   for (const tc of calls) {
@@ -145,6 +166,157 @@ async function executeToolCalls(
       results.push({ id: tc.id, content: out });
       continue;
     }
+    if (name === "add_service_order_comment") {
+      const out = await addServiceOrderCommentJson(
+        {
+          text: String(payload.text ?? ""),
+          service_order_id:
+            typeof payload.service_order_id === "string" ? payload.service_order_id.trim() : undefined,
+          os_number: parseOsNumber(payload.os_number),
+          plate: payload.plate != null ? String(payload.plate) : undefined,
+        },
+        assistantCtx
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "get_service_order_comments") {
+      const out = await getServiceOrderCommentsJson(
+        {
+          service_order_id:
+            typeof payload.service_order_id === "string" ? payload.service_order_id.trim() : undefined,
+          os_number: parseOsNumber(payload.os_number),
+          plate: payload.plate != null ? String(payload.plate) : undefined,
+        },
+        assistantCtx
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "list_orders_by_technician") {
+      const out = await listOrdersByTechnicianJson(
+        {
+          only_mine: payload.only_mine === true,
+          technician_user_id:
+            typeof payload.technician_user_id === "string" ? payload.technician_user_id.trim() : undefined,
+          technician_name_search:
+            typeof payload.technician_name_search === "string"
+              ? payload.technician_name_search.trim()
+              : undefined,
+        },
+        assistantCtx
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "list_upcoming_deliveries") {
+      const out = await listUpcomingDeliveriesJson(
+        { days_ahead: typeof payload.days_ahead === "number" ? payload.days_ahead : undefined },
+        assistantCtx
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "search_service_orders") {
+      const out = await searchServiceOrdersJson({ query: String(payload.query ?? "") }, assistantCtx);
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "get_service_order_budgets") {
+      const out = await getServiceOrderBudgetsJson(
+        {
+          service_order_id:
+            typeof payload.service_order_id === "string" ? payload.service_order_id.trim() : undefined,
+          os_number: parseOsNumber(payload.os_number),
+          plate: payload.plate != null ? String(payload.plate) : undefined,
+        },
+        assistantCtx
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "create_service_order_budget_simple") {
+      const partsRaw = payload.parts;
+      const parts = Array.isArray(partsRaw)
+        ? (partsRaw as unknown[]).map((p) => {
+            const o = p as { description?: unknown; quantity?: unknown };
+            return {
+              description: String(o.description ?? ""),
+              quantity: String(o.quantity ?? "1"),
+            };
+          })
+        : undefined;
+      const out = await createServiceOrderBudgetSimpleJson(
+        {
+          service_order_id:
+            typeof payload.service_order_id === "string" ? payload.service_order_id.trim() : undefined,
+          os_number: parseOsNumber(payload.os_number),
+          plate: payload.plate != null ? String(payload.plate) : undefined,
+          card_name: typeof payload.card_name === "string" ? payload.card_name : undefined,
+          diagnosis: String(payload.diagnosis ?? ""),
+          service_description: String(payload.service_description ?? ""),
+          parts,
+          observations: typeof payload.observations === "string" ? payload.observations : undefined,
+        },
+        assistantCtx
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "list_appointments") {
+      const out = await listAppointmentsJson(assistantCtx);
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "create_appointment") {
+      const out = await createAppointmentJson(
+        {
+          title: String(payload.title ?? ""),
+          customer_name: String(payload.customer_name ?? ""),
+          phone: typeof payload.phone === "string" ? payload.phone : undefined,
+          vehicle_model: String(payload.vehicle_model ?? ""),
+          plate: String(payload.plate ?? ""),
+          date: String(payload.date ?? ""),
+          time: String(payload.time ?? ""),
+          notes: typeof payload.notes === "string" ? payload.notes : undefined,
+        },
+        assistantCtx
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "count_orders_by_stage") {
+      const out = await countOrdersByStageJson(assistantCtx);
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "count_customer_open_orders") {
+      const out = await countCustomerOpenOrdersJson(
+        { customer_name_fragment: String(payload.customer_name_fragment ?? "") },
+        assistantCtx
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "register_customer_vehicle_intake") {
+      const out = await registerCustomerVehicleIntakeJson(
+        {
+          name: String(payload.name ?? ""),
+          phone: String(payload.phone ?? ""),
+          vehicle_model: String(payload.vehicle_model ?? ""),
+          plate: String(payload.plate ?? ""),
+          issue_description: String(payload.issue_description ?? ""),
+        },
+        assistantCtx
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "search_customers") {
+      const out = await searchCustomersJson({ query: String(payload.query ?? "") }, assistantCtx);
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
     results.push({ id: tc.id, content: JSON.stringify({ ok: false, error: "Função desconhecida." }) });
   }
   return results;
@@ -156,6 +328,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   onNavigateTab,
   onOpenSettings,
   serviceOrderActor,
+  assistantAuthorDisplayName,
+  assistantCommentActor,
+  currentTechnicianUserId,
 }) => {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -173,7 +348,14 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       setError(null);
       try {
         let current = [...history];
-        for (let step = 0; step < 8; step++) {
+        const assistantCtx: AssistantContext = {
+          allowedTabs,
+          serviceOrderActor,
+          authorDisplayName: assistantAuthorDisplayName,
+          commentActor: assistantCommentActor,
+          currentTechnicianUserId: currentTechnicianUserId ?? null,
+        };
+        for (let step = 0; step < 15; step++) {
           const { message } = await postAssistantChat(current, allowedTabs);
           if (message.tool_calls?.length) {
             current = [...current, message];
@@ -182,7 +364,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               allowedTabs,
               onNavigateTab,
               onOpenSettings,
-              serviceOrderActor
+              serviceOrderActor,
+              assistantCtx
             );
             for (const tr of toolResults) {
               current.push({ role: "tool", tool_call_id: tr.id, content: tr.content });
@@ -201,7 +384,15 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
         setLoading(false);
       }
     },
-    [allowedTabs, onNavigateTab, onOpenSettings, serviceOrderActor]
+    [
+      allowedTabs,
+      onNavigateTab,
+      onOpenSettings,
+      serviceOrderActor,
+      assistantAuthorDisplayName,
+      assistantCommentActor,
+      currentTechnicianUserId,
+    ]
   );
 
   const sendUserMessage = useCallback(

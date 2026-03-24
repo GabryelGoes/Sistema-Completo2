@@ -106,4 +106,6 @@ export interface Appointment {
   time: string;
   notes?: string;
   status: 'scheduled' | 'completed' | 'cancelled';
+  /** Legado Trello (opcional). */
+  trelloCardId?: string;
 }

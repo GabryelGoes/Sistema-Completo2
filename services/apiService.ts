@@ -4,7 +4,7 @@ import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
 
 const API_BASE = "/api";
 
-interface ApiCustomer {
+export interface ApiCustomer {
   id: string;
   name: string;
   cpf: string | null;
@@ -17,8 +17,19 @@ interface ApiCustomer {
   created_at: string;
 }
 
+/** Lista todos os clientes da oficina (para buscas / assistente). */
+export async function getCustomers(): Promise<ApiCustomer[]> {
+  const response = await fetch(`${API_BASE}/customers`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar clientes (${response.status})`);
+  }
+  return response.json();
+}
+
 interface ApiServiceOrder {
   id: string;
+  os_number?: number | null;
   customer_id: string;
   vehicle_model: string;
   plate: string;

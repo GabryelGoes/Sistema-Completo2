@@ -324,6 +324,9 @@ export default function App() {
             actorTechnicianSlug: authSession.userId,
             actorTechnicianName: authSession.displayName ?? authSession.username ?? '',
           }}
+          assistantAuthorDisplayName={authSession.displayName ?? authSession.username ?? 'Usuário'}
+          assistantCommentActor="technician"
+          currentTechnicianUserId={authSession.userId}
         />
       </div>
     );
@@ -471,6 +474,13 @@ export default function App() {
                 actorTechnicianName: authSession?.displayName ?? authSession?.username ?? '',
               }
         }
+        assistantAuthorDisplayName={
+          authSession?.role === 'admin'
+            ? adminDisplayName
+            : (authSession?.displayName ?? authSession?.username ?? 'Usuário')
+        }
+        assistantCommentActor={authSession?.role === 'admin' ? 'admin' : 'technician'}
+        currentTechnicianUserId={authSession?.role === 'user' ? authSession.userId : undefined}
       />
     </div>
   );
