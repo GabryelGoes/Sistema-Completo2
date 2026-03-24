@@ -18,6 +18,7 @@ import {
   type ServiceOrderType,
 } from "./apiService";
 import { resolveServiceOrderId } from "./assistantPatioTools";
+import { ASSISTANT_NAME } from "../constants/assistant";
 
 export interface AssistantContext {
   allowedTabs: TabId[];
@@ -399,7 +400,7 @@ export async function createServiceOrderBudgetSimpleJson(
     const b = await createServiceOrderBudget(
       id,
       {
-        cardName: (payload.card_name && String(payload.card_name).trim()) || "Orçamento (assistente)",
+        cardName: (payload.card_name && String(payload.card_name).trim()) || `Orçamento (${ASSISTANT_NAME})`,
         diagnosis,
         services: [{ description: svc }],
         parts: parts.map((p) => ({

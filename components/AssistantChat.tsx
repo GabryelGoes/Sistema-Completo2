@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Mic, MicOff, Send, X } from "lucide-react";
 import { AssistantIcon } from "./AssistantIcon";
+import { ASSISTANT_NAME } from "../constants/assistant";
 import type { TabId } from "./TabBar";
 import {
   postAssistantChat,
@@ -377,10 +378,10 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           setMessages(current);
           return;
         }
-        setError("Limite de passos da assistente atingido.");
+        setError(`Limite de passos da ${ASSISTANT_NAME} atingido.`);
         setMessages(current);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Falha ao falar com a assistente.");
+        setError(e instanceof Error ? e.message : `Falha ao falar com a ${ASSISTANT_NAME}.`);
       } finally {
         setLoading(false);
       }
@@ -456,7 +457,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     <>
       <button
         type="button"
-        aria-label="Abrir assistente"
+        aria-label={`Abrir ${ASSISTANT_NAME}`}
         onClick={() => setOpen(true)}
         className={`fixed bottom-24 right-4 z-[90] flex h-14 w-14 items-center justify-center rounded-full ${fabBg} transition-transform hover:scale-105 active:scale-95`}
       >
@@ -471,7 +472,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 dark:border-white/10">
               <div className="flex items-center gap-2 font-semibold">
                 <AssistantIcon className="h-5 w-5 shrink-0" />
-                Assistente
+                {ASSISTANT_NAME}
               </div>
               <button
                 type="button"
@@ -486,8 +487,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">
               {messages.length === 0 && (
                 <p className="text-zinc-500 dark:text-zinc-400">
-                  Pergunte sobre o app, peça para abrir uma aba ou liste/movimente veículos no Pátio
-                  (por etapa). Você pode usar o microfone.
+                  Olá, eu sou a {ASSISTANT_NAME}. Pergunte sobre o app, peça para abrir uma aba ou
+                  liste/movimente veículos no Pátio (por etapa). Você pode usar o microfone.
                 </p>
               )}
               {messages.map((m, i) => {

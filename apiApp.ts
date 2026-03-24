@@ -9,6 +9,7 @@ import {
   SERVICE_ORDER_STAGES,
   CANCELLED_STATUS,
 } from "./constants/serviceOrderStages.js";
+import { ASSISTANT_NAME } from "./constants/assistant.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -3334,7 +3335,7 @@ export function createApiApp() {
     try {
       if (!OPENAI_API_KEY) {
         return res.status(503).json({
-          error: "Assistente não configurada. Defina OPENAI_API_KEY no servidor (.env).",
+          error: `${ASSISTANT_NAME} não está configurada. Defina OPENAI_API_KEY no servidor (.env).`,
         });
       }
       const rawMessages = req.body?.messages;
@@ -3357,7 +3358,7 @@ export function createApiApp() {
         `Entregue/arquivado → ${CANCELLED_STATUS}`,
       ].join("\n");
 
-      const systemContent = `Você é a assistente do app Rei do ABS (gestão de oficina). Responda em português do Brasil, de forma breve e útil.
+      const systemContent = `Você é ${ASSISTANT_NAME}, a assistente virtual do app Rei do ABS (gestão de oficina). Apresente-se pelo nome quando fizer sentido. Responda em português do Brasil, de forma breve e útil.
 O usuário só pode acessar estas abas: ${allowedTabs.join(", ")}.
 Use navigate_to_tab para mudar de tela; open_settings para tema/efeitos.
 Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçamento, etc.), combinando com as ferramentas quando fizer sentido.
