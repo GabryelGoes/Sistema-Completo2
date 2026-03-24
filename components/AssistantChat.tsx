@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Bot, Mic, MicOff, Send, X } from "lucide-react";
+import { Mic, MicOff, Send, X } from "lucide-react";
+import { AssistantIcon } from "./AssistantIcon";
 import type { TabId } from "./TabBar";
 import {
   postAssistantChat,
@@ -459,7 +460,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
         onClick={() => setOpen(true)}
         className={`fixed bottom-24 right-4 z-[90] flex h-14 w-14 items-center justify-center rounded-full ${fabBg} transition-transform hover:scale-105 active:scale-95`}
       >
-        <Bot className="h-7 w-7" />
+        <AssistantIcon className="h-7 w-7" />
       </button>
 
       {open && (
@@ -469,7 +470,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           >
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 dark:border-white/10">
               <div className="flex items-center gap-2 font-semibold">
-                <Bot className="h-5 w-5 text-brand-yellow" />
+                <AssistantIcon className="h-5 w-5 shrink-0" />
                 Assistente
               </div>
               <button
