@@ -2173,9 +2173,10 @@ export function createApiApp() {
 
       const { data, error } = await supabaseAdmin
         .from("workshop_services")
-        .select("id, name, sort_order, created_at")
+        .select("id, name, category, labor_hours, sort_order, created_at")
         .eq("workshop_id", WORKSHOP_ID)
         .order("sort_order", { ascending: true })
+        .order("category", { ascending: true })
         .order("name", { ascending: true });
 
       if (error) {
@@ -2199,11 +2200,20 @@ export function createApiApp() {
         });
       }
 
-      const { name } = req.body;
+      const { name, category, labor_hours } = req.body;
       const trimmed = typeof name === "string" ? name.trim() : "";
+      const categoryTrimmed = typeof category === "string" ? category.trim() : "";
+      const hasLaborHours = labor_hours !== undefined && labor_hours !== null && labor_hours !== "";
+      const laborHoursNumber = hasLaborHours ? Number(labor_hours) : null;
 
       if (!trimmed) {
         return res.status(400).json({ error: "Nome do serviço é obrigatório." });
+      }
+      if (!categoryTrimmed) {
+        return res.status(400).json({ error: "Categoria do serviço é obrigatória." });
+      }
+      if (hasLaborHours && (!Number.isFinite(laborHoursNumber) || laborHoursNumber! <= 0)) {
+        return res.status(400).json({ error: "Horas de serviço inválidas." });
       }
 
       const { data, error } = await supabaseAdmin
@@ -2211,9 +2221,11 @@ export function createApiApp() {
         .insert({
           workshop_id: WORKSHOP_ID,
           name: trimmed,
+          category: categoryTrimmed,
+          labor_hours: laborHoursNumber,
           sort_order: 0,
         })
-        .select("id, name, sort_order, created_at")
+        .select("id, name, category, labor_hours, sort_order, created_at")
         .single();
 
       if (error) {
@@ -2241,19 +2253,28 @@ export function createApiApp() {
       }
 
       const { id } = req.params;
-      const { name } = req.body;
+      const { name, category, labor_hours } = req.body;
       const trimmed = typeof name === "string" ? name.trim() : "";
+      const categoryTrimmed = typeof category === "string" ? category.trim() : "";
+      const hasLaborHours = labor_hours !== undefined && labor_hours !== null && labor_hours !== "";
+      const laborHoursNumber = hasLaborHours ? Number(labor_hours) : null;
 
       if (!trimmed) {
         return res.status(400).json({ error: "Nome do serviço é obrigatório." });
       }
+      if (!categoryTrimmed) {
+        return res.status(400).json({ error: "Categoria do serviço é obrigatória." });
+      }
+      if (hasLaborHours && (!Number.isFinite(laborHoursNumber) || laborHoursNumber! <= 0)) {
+        return res.status(400).json({ error: "Horas de serviço inválidas." });
+      }
 
       const { data, error } = await supabaseAdmin
         .from("workshop_services")
-        .update({ name: trimmed })
+        .update({ name: trimmed, category: categoryTrimmed, labor_hours: laborHoursNumber })
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
-        .select("id, name, sort_order, created_at")
+        .select("id, name, category, labor_hours, sort_order, created_at")
         .single();
 
       if (error) {

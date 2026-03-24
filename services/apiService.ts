@@ -1037,6 +1037,8 @@ export async function deleteServiceOrderBudget(
 export interface WorkshopService {
   id: string;
   name: string;
+  category: string | null;
+  labor_hours: number | null;
   sort_order: number;
   created_at: string;
 }
@@ -1050,11 +1052,19 @@ export async function getWorkshopServices(): Promise<WorkshopService[]> {
   return response.json();
 }
 
-export async function createWorkshopService(name: string): Promise<WorkshopService> {
+export async function createWorkshopService(input: {
+  name: string;
+  category?: string | null;
+  labor_hours?: number | null;
+}): Promise<WorkshopService> {
   const response = await fetch(`${API_BASE}/workshop-services`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: name.trim() }),
+    body: JSON.stringify({
+      name: input.name.trim(),
+      category: input.category?.trim() || null,
+      labor_hours: input.labor_hours ?? null,
+    }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -1063,11 +1073,18 @@ export async function createWorkshopService(name: string): Promise<WorkshopServi
   return response.json();
 }
 
-export async function updateWorkshopService(id: string, name: string): Promise<WorkshopService> {
+export async function updateWorkshopService(
+  id: string,
+  input: { name: string; category?: string | null; labor_hours?: number | null }
+): Promise<WorkshopService> {
   const response = await fetch(`${API_BASE}/workshop-services/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: name.trim() }),
+    body: JSON.stringify({
+      name: input.name.trim(),
+      category: input.category?.trim() || null,
+      labor_hours: input.labor_hours ?? null,
+    }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));

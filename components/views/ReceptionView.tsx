@@ -24,6 +24,8 @@ import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
 import { ModalPortal } from '../ui/ModalPortal';
 
 const RECEPTION_MODE_KEY = 'app_reception_mode';
+const VEHICLE_CATEGORIES = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
+type VehicleCategory = (typeof VEHICLE_CATEGORIES)[number];
 
 /** Mesmo critério do Pátio: dois primeiros nomes do cliente. */
 function firstTwoNames(fullName: string): string {
@@ -122,6 +124,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   });
 
   const [status, setStatus] = useState<ProcessingStatus>({ step: 'idle' });
+  const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory | ''>('');
 
   useEffect(() => {
     try {
@@ -206,6 +209,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         return;
       }
     } else {
+      if (!vehicleCategory) {
+        setStatus({
+          step: 'error',
+          message: 'Selecione a categoria do veículo: Compacto, Médio/SUV, Pick-Up ou Premium.',
+        });
+        return;
+      }
       if (!customer.name && !customer.phone && !customer.vehicleModel && !customer.plate) {
         setStatus({
           step: 'error',
@@ -217,8 +227,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
     try {
       setStatus({ step: 'creating', message: 'Criando cadastro' });
+      const issueDescriptionWithCategory =
+        receptionMode === 'vehicle'
+          ? `Categoria do veículo: ${vehicleCategory}${customer.issueDescription?.trim() ? `\n\n${customer.issueDescription}` : ''}`
+          : customer.issueDescription;
 
-      const { customer: savedCustomer, serviceOrder } = await saveReceptionIntake(customer, receptionMode);
+      const { customer: savedCustomer, serviceOrder } = await saveReceptionIntake(
+        { ...customer, issueDescription: issueDescriptionWithCategory },
+        receptionMode
+      );
 
       // 2) Se houver foto, enviar (com compressão automática para evitar 413 no Vercel)
       if (photoBlob && serviceOrder?.id) {
@@ -260,6 +277,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setPhotoBlob(null);
     setPhotoPreview(null);
     setCameraOrientation(null);
+    setVehicleCategory('');
     setStatus({ step: 'idle' });
   };
 
@@ -652,6 +670,34 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     onChange={handleInputChange}
                     icon={<Package className="w-4 h-4" />}
                   />
+                </div>
+              )}
+
+              {receptionMode === 'vehicle' && (
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-300 uppercase tracking-wider ml-1 mb-2">
+                    Categoria do Veículo <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {VEHICLE_CATEGORIES.map((category) => {
+                      const selected = vehicleCategory === category;
+                      return (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => setVehicleCategory(category)}
+                          className={`px-3 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                            selected
+                              ? 'bg-brand-yellow text-zinc-950 border-brand-yellow shadow-sm'
+                              : 'bg-white dark:bg-zinc-900/80 text-zinc-700 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700 hover:border-brand-yellow/70'
+                          }`}
+                          aria-pressed={selected}
+                        >
+                          {category}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
