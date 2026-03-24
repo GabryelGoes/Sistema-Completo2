@@ -460,8 +460,42 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   /** Histórico exibido + enviado ao servidor (sem system). */
   const [messages, setMessages] = useState<AssistantApiMessage[]>([]);
   const [listening, setListening] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(() => {
+    try {
+      return localStorage.getItem(TTS_STORAGE_KEY) !== "false";
+    } catch {
+      return true;
+    }
+  });
+  const ttsEnabledRef = useRef(ttsEnabled);
+  ttsEnabledRef.current = ttsEnabled;
+
   const recRef = useRef<InstanceType<SpeechRecCtor> | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const s = window.speechSynthesis;
+    const warm = () => void s.getVoices();
+    warm();
+    s.addEventListener("voiceschanged", warm);
+    return () => s.removeEventListener("voiceschanged", warm);
+  }, []);
+
+  const toggleTts = useCallback(() => {
+    setTtsEnabled((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(TTS_STORAGE_KEY, next ? "true" : "false");
+      } catch {
+        /* ignore */
+      }
+      if (!next && typeof window !== "undefined") {
+        window.speechSynthesis?.cancel();
+      }
+      return next;
+    });
+  }, []);
 
   const runAssistantTurn = useCallback(
     async (history: AssistantApiMessage[]) => {
