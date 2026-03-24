@@ -314,6 +314,17 @@ export default function App() {
           showPatioAccess={false}
         />
         <ChangePasswordsModal isOpen={isUserChangePasswordsOpen} onClose={() => setIsUserChangePasswordsOpen(false)} />
+        <AssistantChat
+          theme={theme}
+          allowedTabs={userAllowedTabs}
+          onNavigateTab={setUserTab}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          serviceOrderActor={{
+            actor: 'technician',
+            actorTechnicianSlug: authSession.userId,
+            actorTechnicianName: authSession.displayName ?? authSession.username ?? '',
+          }}
+        />
       </div>
     );
   }
@@ -451,6 +462,15 @@ export default function App() {
         allowedTabs={['home', 'reception', 'agenda', 'patio', 'laboratorio']}
         onNavigateTab={setCurrentTab}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        serviceOrderActor={
+          authSession?.role === 'admin'
+            ? { actor: 'admin' }
+            : {
+                actor: 'technician',
+                actorTechnicianSlug: authSession?.userId,
+                actorTechnicianName: authSession?.displayName ?? authSession?.username ?? '',
+              }
+        }
       />
     </div>
   );

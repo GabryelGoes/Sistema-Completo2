@@ -3,7 +3,12 @@ import crypto from "crypto";
 import express from "express";
 import multer from "multer";
 import { supabaseAdmin, VEHICLE_PHOTOS_BUCKET } from "./supabaseClient.js";
-import { FIRST_STAGE, ALL_STATUSES } from "./constants/serviceOrderStages.js";
+import {
+  FIRST_STAGE,
+  ALL_STATUSES,
+  SERVICE_ORDER_STAGES,
+  CANCELLED_STATUS,
+} from "./constants/serviceOrderStages.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -3347,11 +3352,23 @@ export function createApiApp() {
         return res.status(400).json({ error: "Nenhuma aba permitida." });
       }
 
+      const stageCatalog = [
+        ...SERVICE_ORDER_STAGES.map((s) => `${s.name} → ${s.id}`),
+        `Entregue/arquivado → ${CANCELLED_STATUS}`,
+      ].join("\n");
+
       const systemContent = `Você é a assistente do app Rei do ABS (gestão de oficina). Responda em português do Brasil, de forma breve e útil.
 O usuário só pode acessar estas abas: ${allowedTabs.join(", ")}.
-Use a ferramenta navigate_to_tab quando o usuário pedir para ir a uma tela (Recepção, Pátio, Agenda, Laboratório ou Início).
-Use open_settings quando pedirem configurações, tema, aparência ou som.
-Não invente dados de ordens de serviço ou clientes; ajude a navegar e explique como usar o app.`;
+Use navigate_to_tab quando pedirem para ir a uma tela (Recepção, Pátio, Agenda, Laboratório ou Início).
+Use open_settings para configurações, tema, aparência ou som.
+
+Etapas do fluxo (use estes IDs exatos nas ferramentas de OS):
+${stageCatalog}
+
+Use list_vehicles_in_stage quando perguntarem quais veículos/OS estão em uma etapa (parâmetro status = ID da etapa, ex.: EM_SERVICO). order_type vehicle = Pátio, module = Laboratório.
+Use update_service_order_status para mudar a etapa de uma OS: informe new_status (ID da etapa) e um identificador: service_order_id (UUID), ou os_number (número da OS), ou plate (placa, só veículos). Não invente listagens ou placas; use só o retorno das ferramentas.`;
+
+      const statusEnum = [...ALL_STATUSES];
 
       const tools = [
         {
@@ -3380,6 +3397,62 @@ Não invente dados de ordens de serviço ou clientes; ajude a navegar e explique
             name: "open_settings",
             description: "Abre o painel de configurações (tema, efeitos, modo cinematográfico).",
             parameters: { type: "object", properties: {} },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "list_vehicles_in_stage",
+            description:
+              "Lista ordens de serviço na etapa informada (Pátio: veículos; Laboratório: módulos). Use quando perguntarem quais carros ou OS estão em uma fase.",
+            parameters: {
+              type: "object",
+              properties: {
+                status: {
+                  type: "string",
+                  enum: statusEnum,
+                  description: "ID da etapa (ex.: AVALIACAO_TECNICA, EM_SERVICO).",
+                },
+                order_type: {
+                  type: "string",
+                  enum: ["vehicle", "module"],
+                  description:
+                    "vehicle = Pátio (padrão). module = Laboratório para OS de módulo.",
+                },
+              },
+              required: ["status"],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "update_service_order_status",
+            description:
+              "Altera a etapa (status) de uma ordem de serviço. Exija um identificador: UUID da OS, ou número da OS (os_number), ou placa (veículos).",
+            parameters: {
+              type: "object",
+              properties: {
+                new_status: {
+                  type: "string",
+                  enum: statusEnum,
+                  description: "ID da etapa de destino.",
+                },
+                service_order_id: {
+                  type: "string",
+                  description: "UUID da ordem de serviço (opcional se usar os_number ou plate).",
+                },
+                os_number: {
+                  type: "integer",
+                  description: "Número da OS exibido no app (opcional).",
+                },
+                plate: {
+                  type: "string",
+                  description: "Placa do veículo, para localizar a OS (opcional, veículos).",
+                },
+              },
+              required: ["new_status"],
+            },
           },
         },
       ];

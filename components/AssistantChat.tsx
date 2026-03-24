@@ -7,12 +7,20 @@ import {
   type AssistantApiMessage,
   type AssistantToolCall,
 } from "../services/assistantApi";
+import type { ServiceOrderUpdateActor } from "../services/apiService";
+import {
+  isValidServiceOrderStatus,
+  listVehiclesInStageJson,
+  updateServiceOrderStageJson,
+} from "../services/assistantPatioTools";
 
 interface AssistantChatProps {
   theme: "dark" | "light";
   allowedTabs: TabId[];
   onNavigateTab: (tab: TabId) => void;
   onOpenSettings: () => void;
+  /** Quem executa mudança de etapa da OS (notificações), igual ao Pátio. */
+  serviceOrderActor?: ServiceOrderUpdateActor;
 }
 
 /** API Web Speech (tipos podem não estar no tsconfig). */
@@ -36,12 +44,22 @@ function getSpeechRecognitionCtor(): SpeechRecCtor | null {
   return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 }
 
-function executeToolCalls(
+function parseOsNumber(raw: unknown): number | undefined {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string" && raw.trim() !== "") {
+    const n = parseInt(raw.trim(), 10);
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
+
+async function executeToolCalls(
   calls: AssistantToolCall[],
   allowedTabs: TabId[],
   onNavigateTab: (tab: TabId) => void,
-  onOpenSettings: () => void
-): { id: string; content: string }[] {
+  onOpenSettings: () => void,
+  serviceOrderActor?: ServiceOrderUpdateActor
+): Promise<{ id: string; content: string }[]> {
   const results: { id: string; content: string }[] = [];
   for (const tc of calls) {
     if (tc.type !== "function") continue;
@@ -73,6 +91,60 @@ function executeToolCalls(
       results.push({ id: tc.id, content: JSON.stringify({ ok: true, opened: "settings" }) });
       continue;
     }
+    if (name === "list_vehicles_in_stage") {
+      const status = String(payload.status ?? "").trim();
+      const orderType = payload.order_type === "module" ? "module" : "vehicle";
+      if (orderType === "vehicle" && !allowedTabs.includes("patio")) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "Sem acesso ao Pátio para listar veículos." }),
+        });
+        continue;
+      }
+      if (orderType === "module" && !allowedTabs.includes("laboratorio")) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: "Sem acesso ao Laboratório para listar módulos.",
+          }),
+        });
+        continue;
+      }
+      if (!isValidServiceOrderStatus(status)) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "Status de etapa inválido." }),
+        });
+        continue;
+      }
+      const out = await listVehiclesInStageJson(status, orderType);
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "update_service_order_status") {
+      const newStatus = String(payload.new_status ?? "").trim();
+      if (!isValidServiceOrderStatus(newStatus)) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "Status de destino inválido." }),
+        });
+        continue;
+      }
+      const out = await updateServiceOrderStageJson(
+        newStatus,
+        {
+          service_order_id:
+            typeof payload.service_order_id === "string" ? payload.service_order_id.trim() : undefined,
+          os_number: parseOsNumber(payload.os_number),
+          plate: payload.plate != null ? String(payload.plate) : undefined,
+        },
+        allowedTabs,
+        serviceOrderActor
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
     results.push({ id: tc.id, content: JSON.stringify({ ok: false, error: "Função desconhecida." }) });
   }
   return results;
@@ -83,6 +155,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   allowedTabs,
   onNavigateTab,
   onOpenSettings,
+  serviceOrderActor,
 }) => {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -104,11 +177,12 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           const { message } = await postAssistantChat(current, allowedTabs);
           if (message.tool_calls?.length) {
             current = [...current, message];
-            const toolResults = executeToolCalls(
+            const toolResults = await executeToolCalls(
               message.tool_calls,
               allowedTabs,
               onNavigateTab,
-              onOpenSettings
+              onOpenSettings,
+              serviceOrderActor
             );
             for (const tr of toolResults) {
               current.push({ role: "tool", tool_call_id: tr.id, content: tr.content });
@@ -127,7 +201,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
         setLoading(false);
       }
     },
-    [allowedTabs, onNavigateTab, onOpenSettings]
+    [allowedTabs, onNavigateTab, onOpenSettings, serviceOrderActor]
   );
 
   const sendUserMessage = useCallback(
@@ -220,8 +294,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">
               {messages.length === 0 && (
                 <p className="text-zinc-500 dark:text-zinc-400">
-                  Pergunte sobre o app ou peça para abrir uma aba (Recepção, Pátio, Agenda…). Você
-                  pode usar o microfone.
+                  Pergunte sobre o app, peça para abrir uma aba ou liste/movimente veículos no Pátio
+                  (por etapa). Você pode usar o microfone.
                 </p>
               )}
               {messages.map((m, i) => {
