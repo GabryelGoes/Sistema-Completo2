@@ -427,13 +427,13 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
               </div>
             ) : (
               <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
-                {categories.map((category) => {
-                  const bucket = servicesByCategory.get(category) ?? [];
+                {(() => {
+                  const bucket = servicesByCategory.get(selectedCategory) ?? [];
                   return (
-                    <div key={category}>
+                    <div key={selectedCategory}>
                       <div className="px-4 py-2.5 bg-zinc-100/70 dark:bg-white/[0.05] border-y border-zinc-200/60 dark:border-white/[0.06]">
                         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-300">
-                          {category} ({bucket.length})
+                          {selectedCategory} ({bucket.length})
                         </p>
                       </div>
                       {bucket.length === 0 ? (
@@ -532,7 +532,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                       )}
                     </div>
                   );
-                })}
+                })()}
               </div>
             )}
           </div>
