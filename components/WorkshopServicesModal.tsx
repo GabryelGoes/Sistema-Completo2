@@ -15,9 +15,9 @@ interface WorkshopServicesModalProps {
 
 export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ isOpen, onClose }) => {
   const DEFAULT_CATEGORIES = useMemo(() => ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'], []);
-  const CUSTOM_CATEGORIES_KEY = 'workshop_service_custom_categories';
+  const CATEGORIES_STORAGE_KEY = 'workshop_service_categories';
   const baseCategory = DEFAULT_CATEGORIES[0];
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [managedCategories, setManagedCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>(baseCategory);
   const [services, setServices] = useState<WorkshopService[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,9 +32,9 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
   const [editingCategory, setEditingCategory] = useState<string>(baseCategory);
 
   const categories = useMemo(() => {
-    const merged = [...DEFAULT_CATEGORIES, ...customCategories];
-    return Array.from(new Set(merged.map((c) => c.trim()).filter(Boolean)));
-  }, [DEFAULT_CATEGORIES, customCategories]);
+    const source = managedCategories.length > 0 ? managedCategories : DEFAULT_CATEGORIES;
+    return Array.from(new Set(source.map((c) => c.trim()).filter(Boolean)));
+  }, [DEFAULT_CATEGORIES, managedCategories]);
 
   const parseServiceName = useCallback(
     (rawName: string): { category: string; hours: string; title: string } => {
@@ -78,20 +78,27 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(CUSTOM_CATEGORIES_KEY);
-      if (!raw) return;
+      const raw = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+      if (!raw) {
+        setManagedCategories(DEFAULT_CATEGORIES);
+        return;
+      }
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        setCustomCategories(parsed.map((c) => String(c).trim()).filter(Boolean));
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setManagedCategories(parsed.map((c) => String(c).trim()).filter(Boolean));
+      } else {
+        setManagedCategories(DEFAULT_CATEGORIES);
       }
     } catch (_) {}
-  }, []);
+  }, [CATEGORIES_STORAGE_KEY, DEFAULT_CATEGORIES]);
 
   useEffect(() => {
     try {
-      localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(customCategories));
+      if (managedCategories.length > 0) {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(managedCategories));
+      }
     } catch (_) {}
-  }, [customCategories]);
+  }, [CATEGORIES_STORAGE_KEY, managedCategories]);
 
   useEffect(() => {
     if (!categories.includes(selectedCategory)) {
@@ -188,16 +195,82 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
       return;
     }
     setError(null);
-    setCustomCategories((prev) => [...prev, c]);
+    setManagedCategories((prev) => [...prev, c]);
     setSelectedCategory(c);
     setNewCategoryName('');
   };
 
-  const handleDeleteCategory = (category: string) => {
-    if (DEFAULT_CATEGORIES.includes(category)) return;
+  const handleRenameCategory = async (category: string) => {
+    const next = window.prompt(`Novo nome para a categoria "${category}":`, category)?.trim() ?? '';
+    if (!next || next === category) return;
+    if (categories.some((c) => c.toLowerCase() === next.toLowerCase())) {
+      setError('Já existe uma categoria com esse nome.');
+      return;
+    }
+    setError(null);
+    const affected = services.filter((s) => (s.category || '').trim() === category.trim());
+    try {
+      if (affected.length > 0) {
+        await Promise.all(
+          affected.map((s) =>
+            updateWorkshopService(s.id, {
+              name: s.name,
+              category: next,
+              labor_hours: s.labor_hours ?? 1,
+            })
+          )
+        );
+      }
+      setManagedCategories((prev) => prev.map((c) => (c === category ? next : c)));
+      setServices((prev) => prev.map((s) => ((s.category || '').trim() === category.trim() ? { ...s, category: next } : s)));
+      if (selectedCategory === category) setSelectedCategory(next);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao renomear categoria.');
+    }
+  };
+
+  const handleDeleteCategory = async (category: string) => {
+    if (categories.length <= 1) {
+      setError('É necessário manter pelo menos 1 categoria.');
+      return;
+    }
     if (!window.confirm(`Excluir categoria "${category}"?`)) return;
-    setCustomCategories((prev) => prev.filter((c) => c !== category));
-    setSelectedCategory(baseCategory);
+    const others = categories.filter((c) => c !== category);
+    const affected = services.filter((s) => (s.category || '').trim() === category.trim());
+    const fallback = others[0];
+    try {
+      if (affected.length > 0) {
+        const optionList = others.join(', ');
+        const chosen =
+          window.prompt(
+            `A categoria "${category}" tem ${affected.length} serviço(s). Para qual categoria deseja mover?\n\nOpções: ${optionList}`,
+            fallback
+          )?.trim() ?? '';
+        if (!chosen) return;
+        const validTarget = others.find((c) => c.toLowerCase() === chosen.toLowerCase());
+        if (!validTarget) {
+          setError('Categoria de destino inválida.');
+          return;
+        }
+        await Promise.all(
+          affected.map((s) =>
+            updateWorkshopService(s.id, {
+              name: s.name,
+              category: validTarget,
+              labor_hours: s.labor_hours ?? 1,
+            })
+          )
+        );
+        setServices((prev) =>
+          prev.map((s) => ((s.category || '').trim() === category.trim() ? { ...s, category: validTarget } : s))
+        );
+      }
+      setManagedCategories((prev) => prev.filter((c) => c !== category));
+      if (selectedCategory === category) setSelectedCategory(fallback);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao excluir categoria.');
+    }
   };
 
   const servicesByCategory = useMemo(() => {
@@ -219,7 +292,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-2 sm:p-4 animate-modal-backdrop">
-      <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] rounded-[1.5rem] w-full max-w-3xl h-[92vh] max-h-[92vh] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden animate-modal-sheet flex flex-col">
+      <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] rounded-[1.5rem] w-full max-w-[95vw] h-[94vh] max-h-[94vh] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden animate-modal-sheet flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/80 dark:bg-white/[0.04] shrink-0">
           <h2 className="text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
             <Wrench className="w-5 h-5 text-amber-500 dark:text-amber-400" />
@@ -254,7 +327,6 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
               <div className="flex flex-wrap gap-2 mb-3">
                 {categories.map((category) => {
                   const active = selectedCategory === category;
-                  const isDefault = DEFAULT_CATEGORIES.includes(category);
                   return (
                     <div key={category} className="inline-flex items-center gap-1.5">
                       <button
@@ -268,16 +340,22 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                       >
                         {category}
                       </button>
-                      {!isDefault && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteCategory(category)}
-                          className="w-6 h-6 rounded-full text-zinc-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30"
-                          title="Excluir categoria"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRenameCategory(category)}
+                        className="w-6 h-6 rounded-full text-zinc-500 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                        title="Editar categoria"
+                      >
+                        <Pencil className="w-3.5 h-3.5 mx-auto" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCategory(category)}
+                        className="w-6 h-6 rounded-full text-zinc-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30"
+                        title="Excluir categoria"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                      </button>
                     </div>
                   );
                 })}
