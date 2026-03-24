@@ -3320,5 +3320,139 @@ export function createApiApp() {
     }
   });
 
+  // ----------------- ASSISTENTE (OpenAI) -----------------
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
+  const ALL_TAB_IDS = ["home", "reception", "agenda", "patio", "laboratorio"] as const;
+
+  app.post("/api/assistant/chat", async (req, res) => {
+    try {
+      if (!OPENAI_API_KEY) {
+        return res.status(503).json({
+          error: "Assistente não configurada. Defina OPENAI_API_KEY no servidor (.env).",
+        });
+      }
+      const rawMessages = req.body?.messages;
+      const rawAllowed = req.body?.allowedTabs;
+      if (!Array.isArray(rawMessages)) {
+        return res.status(400).json({ error: "messages deve ser um array." });
+      }
+      const allowedTabs = Array.isArray(rawAllowed)
+        ? (rawAllowed as unknown[]).filter(
+            (t): t is string =>
+              typeof t === "string" && (ALL_TAB_IDS as readonly string[]).includes(t)
+          )
+        : [...ALL_TAB_IDS];
+      if (allowedTabs.length === 0) {
+        return res.status(400).json({ error: "Nenhuma aba permitida." });
+      }
+
+      const systemContent = `Você é a assistente do app Rei do ABS (gestão de oficina). Responda em português do Brasil, de forma breve e útil.
+O usuário só pode acessar estas abas: ${allowedTabs.join(", ")}.
+Use a ferramenta navigate_to_tab quando o usuário pedir para ir a uma tela (Recepção, Pátio, Agenda, Laboratório ou Início).
+Use open_settings quando pedirem configurações, tema, aparência ou som.
+Não invente dados de ordens de serviço ou clientes; ajude a navegar e explique como usar o app.`;
+
+      const tools = [
+        {
+          type: "function" as const,
+          function: {
+            name: "navigate_to_tab",
+            description:
+              "Muda a tela principal do aplicativo. Use quando o usuário pedir para ir à Recepção, Agenda, Pátio, Laboratório ou Início.",
+            parameters: {
+              type: "object",
+              properties: {
+                tab: {
+                  type: "string",
+                  enum: allowedTabs,
+                  description:
+                    "home=Início, reception=Recepção, agenda=Agenda, patio=Pátio, laboratorio=Laboratório.",
+                },
+              },
+              required: ["tab"],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "open_settings",
+            description: "Abre o painel de configurações (tema, efeitos, modo cinematográfico).",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      ];
+
+      const filteredMessages = rawMessages.filter((m: unknown) => {
+        if (!m || typeof m !== "object") return false;
+        const role = (m as { role?: unknown }).role;
+        return role === "user" || role === "assistant" || role === "tool";
+      }) as Array<Record<string, unknown>>;
+
+      const openaiMessages: Array<Record<string, unknown>> = [
+        { role: "system", content: systemContent },
+        ...filteredMessages,
+      ];
+
+      const r = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: OPENAI_MODEL,
+          messages: openaiMessages,
+          tools,
+          tool_choice: "auto",
+          temperature: 0.6,
+        }),
+      });
+
+      const data = (await r.json()) as {
+        error?: { message?: string };
+        choices?: Array<{
+          finish_reason?: string;
+          message?: {
+            role?: string;
+            content?: string | null;
+            tool_calls?: Array<{
+              id: string;
+              type: string;
+              function: { name: string; arguments: string };
+            }>;
+          };
+        }>;
+      };
+
+      if (!r.ok) {
+        const errMsg = data.error?.message || `OpenAI HTTP ${r.status}`;
+        console.error("[API] OpenAI assistant:", errMsg);
+        return res.status(502).json({ error: errMsg });
+      }
+
+      const choice = data.choices?.[0];
+      const msg = choice?.message;
+      if (!msg || msg.role !== "assistant") {
+        return res.status(502).json({ error: "Resposta inválida da OpenAI." });
+      }
+
+      return res.json({
+        message: {
+          role: "assistant",
+          content: msg.content ?? null,
+          tool_calls: msg.tool_calls,
+        },
+        finish_reason: choice?.finish_reason ?? "stop",
+      });
+    } catch (err: unknown) {
+      console.error("[API] Erro em POST /api/assistant/chat:", err);
+      return res.status(500).json({
+        error: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    }
+  });
+
   return app;
 }

@@ -15,6 +15,7 @@ import { LoginView, getStoredAuth, setStoredAuth, clearStoredAuth } from './comp
 import { useOrientation } from './components/views/useOrientation';
 import type { AuthSession, SystemUserPermissions } from './services/apiService';
 import { getWorkshopSettings } from './services/apiService';
+import { AssistantChat } from './components/AssistantChat';
 
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
@@ -445,6 +446,12 @@ export default function App() {
           onClose={() => setCommentPopUpNotification(null)}
         />
       )}
+      <AssistantChat
+        theme={theme}
+        allowedTabs={['home', 'reception', 'agenda', 'patio', 'laboratorio']}
+        onNavigateTab={setCurrentTab}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
     </div>
   );
 }
