@@ -31,6 +31,7 @@ import {
   searchCustomersJson,
   searchServiceOrdersJson,
   openPatioVehicleModalJson,
+  openPatioVehicleBudgetViewJson,
   appendComplaintToVehicleJson,
 } from "../services/assistantExtendedTools";
 
@@ -86,7 +87,7 @@ async function executeToolCalls(
   onOpenSettings: () => void,
   serviceOrderActor: ServiceOrderUpdateActor | undefined,
   assistantCtx: AssistantContext,
-  onOpenPatioVehicle?: (serviceOrderId: string) => void
+  onOpenPatioVehicle?: (serviceOrderId: string, options?: { budgetId?: string }) => void
 ): Promise<{ id: string; content: string }[]> {
   const results: { id: string; content: string }[] = [];
   for (const tc of calls) {
@@ -359,6 +360,44 @@ async function executeToolCalls(
           onOpenPatioVehicle
         ) {
           onOpenPatioVehicle(parsed.service_order_id);
+        }
+      } catch {
+        /* ignore */
+      }
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "open_patio_vehicle_budget_view") {
+      const out = await openPatioVehicleBudgetViewJson(
+        {
+          vehicle_model_query: String(payload.vehicle_model_query ?? ""),
+          customer_name_query:
+            typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+          budget_id: typeof payload.budget_id === "string" ? payload.budget_id : undefined,
+          budget_index:
+            typeof payload.budget_index === "number" && Number.isFinite(payload.budget_index)
+              ? payload.budget_index
+              : typeof payload.budget_index === "string" && payload.budget_index.trim() !== ""
+                ? parseInt(payload.budget_index.trim(), 10)
+                : undefined,
+        },
+        allowedTabs
+      );
+      try {
+        const parsed = JSON.parse(out) as {
+          ok?: boolean;
+          action?: string;
+          service_order_id?: string;
+          budget_id?: string;
+        };
+        if (
+          parsed.ok &&
+          parsed.action === "open_budget" &&
+          typeof parsed.service_order_id === "string" &&
+          typeof parsed.budget_id === "string" &&
+          onOpenPatioVehicle
+        ) {
+          onOpenPatioVehicle(parsed.service_order_id, { budgetId: parsed.budget_id });
         }
       } catch {
         /* ignore */

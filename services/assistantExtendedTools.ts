@@ -776,6 +776,111 @@ export async function openPatioVehicleModalJson(
   });
 }
 
+/**
+ * Abre o Pátio no modal do veículo e exibe o modal de leitura do orçamento.
+ * Vários orçamentos na mesma OS: retorna ambiguous com lista (índice 1 = mais recente) ou use budget_id / budget_index.
+ */
+export async function openPatioVehicleBudgetViewJson(
+  payload: {
+    vehicle_model_query: string;
+    customer_name_query?: string;
+    budget_id?: string;
+    budget_index?: number | string;
+  },
+  allowedTabs: TabId[]
+): Promise<string> {
+  const r = await matchPatioVehicleByModel(
+    payload.vehicle_model_query,
+    typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+    allowedTabs
+  );
+  if (r.kind === "error") {
+    return JSON.stringify({ ok: false, error: r.message });
+  }
+  if (r.kind === "ambiguous") {
+    return JSON.stringify({
+      ok: true,
+      ambiguous: true,
+      pedir_cliente: true,
+      mensagem:
+        "Há mais de um veículo com esse nome. Pergunte o nome do cliente e use a ferramenta de novo com customer_name_query.",
+      opcoes: r.opcoes,
+    });
+  }
+  try {
+    const budgets = await getServiceOrderBudgets(r.order.id);
+    if (budgets.length === 0) {
+      return JSON.stringify({ ok: false, error: "Esta OS não tem orçamentos salvos." });
+    }
+    const sorted = [...budgets].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    const bidRaw = typeof payload.budget_id === "string" ? payload.budget_id.trim() : "";
+    const idxRaw = payload.budget_index;
+    const idx =
+      typeof idxRaw === "number" && Number.isFinite(idxRaw)
+        ? idxRaw
+        : typeof idxRaw === "string" && String(idxRaw).trim() !== ""
+          ? parseInt(String(idxRaw).trim(), 10)
+          : NaN;
+
+    if (sorted.length === 1) {
+      const b = sorted[0]!;
+      return JSON.stringify({
+        ok: true,
+        action: "open_budget",
+        service_order_id: r.order.id,
+        budget_id: b.id,
+        resumo: b.cardName,
+      });
+    }
+
+    if (bidRaw) {
+      const b = sorted.find((x) => x.id === bidRaw);
+      if (!b) {
+        return JSON.stringify({ ok: false, error: "Orçamento não encontrado nesta OS." });
+      }
+      return JSON.stringify({
+        ok: true,
+        action: "open_budget",
+        service_order_id: r.order.id,
+        budget_id: b.id,
+        resumo: b.cardName,
+      });
+    }
+
+    if (Number.isFinite(idx) && idx >= 1 && idx <= sorted.length) {
+      const b = sorted[idx - 1]!;
+      return JSON.stringify({
+        ok: true,
+        action: "open_budget",
+        service_order_id: r.order.id,
+        budget_id: b.id,
+        resumo: b.cardName,
+      });
+    }
+
+    return JSON.stringify({
+      ok: true,
+      ambiguous: true,
+      pedir_orcamento: true,
+      mensagem:
+        "Há mais de um orçamento nesta OS. Pergunte qual o usuário deseja ver ou use budget_index (1 = mais recente) ou budget_id.",
+      orcamentos: sorted.map((b, i) => ({
+        indice: i + 1,
+        budget_id: b.id,
+        nome: b.cardName,
+        criado_em: b.createdAt,
+      })),
+    });
+  } catch (e) {
+    return JSON.stringify({
+      ok: false,
+      error: e instanceof Error ? e.message : "Falha ao listar orçamentos.",
+    });
+  }
+}
+
 /** Acrescenta texto ao campo queixa do cliente (issue_description) da OS encontrada pelo modelo do carro. */
 export async function appendComplaintToVehicleJson(
   payload: {

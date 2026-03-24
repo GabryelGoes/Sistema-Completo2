@@ -3366,7 +3366,8 @@ Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçam
 Etapas do fluxo (IDs exatos):
 ${stageCatalog}
 
-Ferramentas principais: open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro; se ambíguo, pedir cliente e repetir com customer_name_query); append_complaint_to_vehicle (acrescentar texto à queixa do cliente pelo modelo do carro; mesma desambiguação); list_vehicles_in_stage (por etapa); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
+Ferramentas principais: open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro; se ambíguo, pedir cliente e repetir com customer_name_query); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); append_complaint_to_vehicle (acrescentar texto à queixa do cliente pelo modelo do carro; mesma desambiguação); list_vehicles_in_stage (por etapa); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
+Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no Pátio, use open_patio_vehicle_budget_view (não só open_patio_vehicle_modal).
 Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
 
       const statusEnum = [...ALL_STATUSES];
@@ -3679,6 +3680,36 @@ Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
                 customer_name_query: {
                   type: "string",
                   description: "Parte do nome do cliente, se houver mais de um veículo igual.",
+                },
+              },
+              required: ["vehicle_model_query"],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "open_patio_vehicle_budget_view",
+            description:
+              "Abre o Pátio no modal do veículo e exibe o overlay de leitura do orçamento. Use vehicle_model_query (ex.: Civic, Gol). Se houver mais de um veículo igual, peça o cliente e repita com customer_name_query. Se houver mais de um orçamento na OS, a resposta traz orcamentos com indice (1 = mais recente); chame de novo com budget_index ou budget_id.",
+            parameters: {
+              type: "object",
+              properties: {
+                vehicle_model_query: {
+                  type: "string",
+                  description: "Nome ou modelo do veículo.",
+                },
+                customer_name_query: {
+                  type: "string",
+                  description: "Se houver vários veículos iguais, parte do nome do cliente.",
+                },
+                budget_id: {
+                  type: "string",
+                  description: "UUID do orçamento, se já souber (ex.: após lista na resposta).",
+                },
+                budget_index: {
+                  type: "integer",
+                  description: "Posição na lista retornada quando há vários orçamentos (1 = mais recente).",
                 },
               },
               required: ["vehicle_model_query"],

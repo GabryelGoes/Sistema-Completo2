@@ -61,6 +61,8 @@ interface PatioViewProps {
   openServiceOrderId?: string | null;
   /** Seção do modal para rolar após abrir (comentários, orçamentos, queixa). */
   openServiceOrderSection?: OpenServiceOrderSection;
+  /** Após carregar orçamentos, abre o modal de leitura deste id (ex.: assistente Zaya). */
+  openBudgetIdAfterLoad?: string | null;
   /** Chamado após abrir o modal e rolar à seção (para limpar o estado de navegação no pai). */
   onOpenServiceOrderHandled?: () => void;
   /** Quem está agindo (admin vs técnico) para as notificações: admin só recebe de técnicos, técnicos só de admin. */
@@ -414,6 +416,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   commentAuthorName = 'Rei do ABS',
   openServiceOrderId: openServiceOrderIdProp,
   openServiceOrderSection,
+  openBudgetIdAfterLoad = null,
   onOpenServiceOrderHandled,
   actorOptions,
   blurPlates = false,
@@ -716,6 +719,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const scrollToSection = () => {
       const ref = openServiceOrderSection === 'comments' ? commentsSectionRef : openServiceOrderSection === 'budgets' ? budgetsSectionRef : descriptionSectionRef;
       ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (openServiceOrderSection === 'budgets' && openBudgetIdAfterLoad) {
+        return;
+      }
       openServiceOrderHandledRef.current = true;
       onOpenServiceOrderHandled?.();
     };
@@ -724,7 +730,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
     } else {
       setTimeout(scrollToSection, 300);
     }
-  }, [selectedCard?.id, openServiceOrderSection, openServiceOrderIdProp, loadingDetails, onOpenServiceOrderHandled]);
+  }, [selectedCard?.id, openServiceOrderSection, openServiceOrderIdProp, loadingDetails, onOpenServiceOrderHandled, openBudgetIdAfterLoad]);
+
+  useEffect(() => {
+    if (!openBudgetIdAfterLoad || !selectedCard || loadingDetails) return;
+    if (selectedCard.id !== openServiceOrderIdProp) return;
+    const b = savedBudgets.find((x) => x.id === openBudgetIdAfterLoad);
+    if (b) {
+      setViewingBudget(b);
+    }
+    openServiceOrderHandledRef.current = true;
+    onOpenServiceOrderHandled?.();
+  }, [
+    openBudgetIdAfterLoad,
+    selectedCard?.id,
+    savedBudgets,
+    loadingDetails,
+    openServiceOrderIdProp,
+    onOpenServiceOrderHandled,
+  ]);
 
   useEffect(() => {
     if (!openServiceOrderIdProp) openServiceOrderHandledRef.current = false;
