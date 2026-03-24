@@ -13,6 +13,7 @@ import {
   getServiceOrders,
   getSystemUserTechnicians,
   saveReceptionIntake,
+  updateServiceOrderDescription,
   type ServiceOrderListItem,
   type ServiceOrderUpdateActor,
   type ServiceOrderType,
@@ -645,24 +646,36 @@ export async function searchCustomersJson(
   }
 }
 
-/**
- * Resolve OS de veículo no Pátio por nome/modelo; se vários, pede cliente.
- * Retorno com action "open" faz o app abrir o modal (via callback no cliente).
- */
-export async function openPatioVehicleModalJson(
-  payload: { vehicle_model_query: string; customer_name_query?: string },
+export type PatioVehicleMatchResult =
+  | { kind: "error"; message: string }
+  | {
+      kind: "ambiguous";
+      opcoes: Array<{
+        service_order_id: string;
+        os_number: number | null;
+        placa: string | null;
+        veiculo: string | null;
+        cliente: string;
+      }>;
+    }
+  | { kind: "single"; order: ServiceOrderListItem };
+
+/** Mesma regra de open_patio_vehicle_modal / queixa: um veículo ou ambíguo. */
+export async function matchPatioVehicleByModel(
+  vehicle_model_query: string,
+  customer_name_query: string | undefined,
   allowedTabs: TabId[]
-): Promise<string> {
+): Promise<PatioVehicleMatchResult> {
   if (!allowedTabs.includes("patio")) {
-    return JSON.stringify({ ok: false, error: "Sem acesso ao Pátio." });
+    return { kind: "error", message: "Sem acesso ao Pátio." };
   }
-  const raw = String(payload.vehicle_model_query ?? "").trim();
+  const raw = String(vehicle_model_query ?? "").trim();
   const q = norm(raw);
   if (q.length < 2) {
-    return JSON.stringify({
-      ok: false,
-      error: "Informe o nome ou modelo do veículo (ao menos 2 caracteres).",
-    });
+    return {
+      kind: "error",
+      message: "Informe o nome ou modelo do veículo (ao menos 2 caracteres).",
+    };
   }
   try {
     const orders = await getServiceOrders(undefined, "vehicle");
@@ -673,19 +686,18 @@ export async function openPatioVehicleModalJson(
       return vm.includes(q) || q.includes(vm);
     });
     if (matches.length === 0) {
-      return JSON.stringify({
-        ok: false,
-        error: `Nenhum veículo em aberto no Pátio combina com "${raw}".`,
-      });
+      return {
+        kind: "error",
+        message: `Nenhum veículo em aberto no Pátio combina com "${raw}".`,
+      };
     }
-    const custRaw =
-      typeof payload.customer_name_query === "string" ? payload.customer_name_query.trim() : "";
+    const custRaw = typeof customer_name_query === "string" ? customer_name_query.trim() : "";
     const cq = custRaw ? norm(custRaw) : "";
     if (custRaw && cq.length < 2) {
-      return JSON.stringify({
-        ok: false,
-        error: "Nome do cliente deve ter ao menos 2 letras para filtrar.",
-      });
+      return {
+        kind: "error",
+        message: "Nome do cliente deve ter ao menos 2 letras para filtrar.",
+      };
     }
     if (cq.length >= 2) {
       matches = matches.filter((o) => {
@@ -700,29 +712,16 @@ export async function openPatioVehicleModalJson(
       });
     }
     if (matches.length === 0) {
-      return JSON.stringify({
-        ok: false,
-        error: "Nenhuma OS encontrada com esse veículo e esse cliente.",
-      });
+      return {
+        kind: "error",
+        message: "Nenhuma OS encontrada com esse veículo e esse cliente.",
+      };
     }
     if (matches.length === 1) {
-      const o = matches[0];
-      return JSON.stringify({
-        ok: true,
-        action: "open",
-        service_order_id: o.id,
-        os_number: o.os_number ?? null,
-        plate: o.plate,
-        vehicle_model: o.vehicle_model,
-        cliente: o.customer_name ?? o.customers?.name ?? null,
-      });
+      return { kind: "single", order: matches[0] };
     }
-    return JSON.stringify({
-      ok: true,
-      ambiguous: true,
-      pedir_cliente: true,
-      mensagem:
-        "Há mais de um veículo com esse nome. Pergunte o nome do cliente e use a ferramenta de novo com customer_name_query.",
+    return {
+      kind: "ambiguous",
       opcoes: matches.slice(0, 20).map((o) => ({
         service_order_id: o.id,
         os_number: o.os_number ?? null,
@@ -730,11 +729,100 @@ export async function openPatioVehicleModalJson(
         veiculo: o.vehicle_model,
         cliente: o.customer_name ?? o.customers?.name ?? "—",
       })),
+    };
+  } catch (e) {
+    return {
+      kind: "error",
+      message: e instanceof Error ? e.message : "Falha ao buscar veículo.",
+    };
+  }
+}
+
+/**
+ * Resolve OS de veículo no Pátio por nome/modelo; se vários, pede cliente.
+ * Retorno com action "open" faz o app abrir o modal (via callback no cliente).
+ */
+export async function openPatioVehicleModalJson(
+  payload: { vehicle_model_query: string; customer_name_query?: string },
+  allowedTabs: TabId[]
+): Promise<string> {
+  const r = await matchPatioVehicleByModel(
+    payload.vehicle_model_query,
+    typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+    allowedTabs
+  );
+  if (r.kind === "error") {
+    return JSON.stringify({ ok: false, error: r.message });
+  }
+  if (r.kind === "ambiguous") {
+    return JSON.stringify({
+      ok: true,
+      ambiguous: true,
+      pedir_cliente: true,
+      mensagem:
+        "Há mais de um veículo com esse nome. Pergunte o nome do cliente e use a ferramenta de novo com customer_name_query.",
+      opcoes: r.opcoes,
+    });
+  }
+  const o = r.order;
+  return JSON.stringify({
+    ok: true,
+    action: "open",
+    service_order_id: o.id,
+    os_number: o.os_number ?? null,
+    plate: o.plate,
+    vehicle_model: o.vehicle_model,
+    cliente: o.customer_name ?? o.customers?.name ?? null,
+  });
+}
+
+/** Acrescenta texto ao campo queixa do cliente (issue_description) da OS encontrada pelo modelo do carro. */
+export async function appendComplaintToVehicleJson(
+  payload: {
+    complaint_text: string;
+    vehicle_model_query: string;
+    customer_name_query?: string;
+  },
+  ctx: AssistantContext
+): Promise<string> {
+  const text = String(payload.complaint_text ?? "").trim();
+  if (!text) {
+    return JSON.stringify({ ok: false, error: "Texto da queixa vazio." });
+  }
+  const r = await matchPatioVehicleByModel(
+    payload.vehicle_model_query,
+    typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+    ctx.allowedTabs
+  );
+  if (r.kind === "error") {
+    return JSON.stringify({ ok: false, error: r.message });
+  }
+  if (r.kind === "ambiguous") {
+    return JSON.stringify({
+      ok: true,
+      ambiguous: true,
+      pedir_cliente: true,
+      mensagem:
+        "Há mais de um veículo com esse nome. Pergunte o nome do cliente e chame a ferramenta de novo com customer_name_query.",
+      opcoes: r.opcoes,
+    });
+  }
+  try {
+    const detail = await getServiceOrderById(r.order.id);
+    const prev = (detail.issue_description ?? "").trim();
+    const merged = prev ? `${prev}\n\n${text}` : text;
+    await updateServiceOrderDescription(r.order.id, merged, ctx.serviceOrderActor);
+    return JSON.stringify({
+      ok: true,
+      service_order_id: r.order.id,
+      os_number: r.order.os_number ?? null,
+      texto_adicionado: text,
+      queixa_completa: merged,
     });
   } catch (e) {
     return JSON.stringify({
       ok: false,
-      error: e instanceof Error ? e.message : "Falha ao buscar veículo.",
+      error: e instanceof Error ? e.message : "Falha ao salvar a queixa.",
     });
   }
 }

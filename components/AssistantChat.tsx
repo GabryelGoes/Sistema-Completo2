@@ -31,6 +31,7 @@ import {
   searchCustomersJson,
   searchServiceOrdersJson,
   openPatioVehicleModalJson,
+  appendComplaintToVehicleJson,
 } from "../services/assistantExtendedTools";
 
 interface AssistantChatProps {
@@ -320,6 +321,19 @@ async function executeToolCalls(
     }
     if (name === "search_customers") {
       const out = await searchCustomersJson({ query: String(payload.query ?? "") }, assistantCtx);
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "append_complaint_to_vehicle") {
+      const out = await appendComplaintToVehicleJson(
+        {
+          complaint_text: String(payload.complaint_text ?? ""),
+          vehicle_model_query: String(payload.vehicle_model_query ?? ""),
+          customer_name_query:
+            typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+        },
+        assistantCtx
+      );
       results.push({ id: tc.id, content: out });
       continue;
     }

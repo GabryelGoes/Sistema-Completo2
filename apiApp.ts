@@ -3366,7 +3366,7 @@ Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçam
 Etapas do fluxo (IDs exatos):
 ${stageCatalog}
 
-Ferramentas principais: open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro; se ambíguo, pedir cliente e repetir com customer_name_query); list_vehicles_in_stage (por etapa); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
+Ferramentas principais: open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro; se ambíguo, pedir cliente e repetir com customer_name_query); append_complaint_to_vehicle (acrescentar texto à queixa do cliente pelo modelo do carro; mesma desambiguação); list_vehicles_in_stage (por etapa); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
 Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
 
       const statusEnum = [...ALL_STATUSES];
@@ -3682,6 +3682,32 @@ Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
                 },
               },
               required: ["vehicle_model_query"],
+            },
+          },
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "append_complaint_to_vehicle",
+            description:
+              "Acrescenta texto ao campo queixa do cliente (issue_description) da OS do veículo indicado. Use vehicle_model_query (ex.: Argo, Civic) e complaint_text com o que o usuário pediu para adicionar. Se ambiguous, peça o cliente e repita com customer_name_query.",
+            parameters: {
+              type: "object",
+              properties: {
+                complaint_text: {
+                  type: "string",
+                  description: "Trecho a acrescentar à queixa (ex.: pedal do freio está baixando).",
+                },
+                vehicle_model_query: {
+                  type: "string",
+                  description: "Nome ou modelo do carro para localizar a OS.",
+                },
+                customer_name_query: {
+                  type: "string",
+                  description: "Se houver vários carros iguais, parte do nome do cliente.",
+                },
+              },
+              required: ["complaint_text", "vehicle_model_query"],
             },
           },
         },
