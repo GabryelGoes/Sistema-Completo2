@@ -43,6 +43,7 @@ import {
 import type { AssistantContext } from "../services/assistantExtendedTools";
 import {
   addServiceOrderCommentJson,
+  addServiceOrderBudgetItemsJson,
   countCustomerOpenOrdersJson,
   countOrdersByStageJson,
   createAppointmentJson,
@@ -63,6 +64,7 @@ import {
   openPatioVehicleHistoryJson,
   listArchivedVehicleOrdersJson,
   unarchiveVehicleServiceOrderJson,
+  updateServiceOrderBudgetJson,
 } from "../services/assistantExtendedTools";
 
 interface AssistantChatProps {
@@ -789,6 +791,86 @@ async function executeToolCalls(
           diagnosis: String(payload.diagnosis ?? ""),
           service_description: String(payload.service_description ?? ""),
           parts,
+          observations: typeof payload.observations === "string" ? payload.observations : undefined,
+        },
+        assistantCtx
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "update_service_order_budget") {
+      const servicesRaw = payload.services;
+      const services = Array.isArray(servicesRaw)
+        ? (servicesRaw as unknown[]).map((s) => {
+            const o = s as { description?: unknown; approved?: unknown };
+            return {
+              description: String(o.description ?? ""),
+              approved: typeof o.approved === "boolean" ? o.approved : undefined,
+            };
+          })
+        : undefined;
+
+      const partsRaw = payload.parts;
+      const parts = Array.isArray(partsRaw)
+        ? (partsRaw as unknown[]).map((p) => {
+            const o = p as { description?: unknown; quantity?: unknown; approved?: unknown };
+            return {
+              description: String(o.description ?? ""),
+              quantity: String(o.quantity ?? "1"),
+              approved: typeof o.approved === "boolean" ? o.approved : undefined,
+            };
+          })
+        : undefined;
+
+      const out = await updateServiceOrderBudgetJson(
+        {
+          budget_id: String(payload.budget_id ?? ""),
+          service_order_id:
+            typeof payload.service_order_id === "string" ? payload.service_order_id.trim() : undefined,
+          os_number: parseOsNumber(payload.os_number),
+          plate: payload.plate != null ? String(payload.plate) : undefined,
+          card_name: typeof payload.card_name === "string" ? payload.card_name : undefined,
+          diagnosis: typeof payload.diagnosis === "string" ? payload.diagnosis : undefined,
+          services,
+          parts,
+          observations: typeof payload.observations === "string" ? payload.observations : undefined,
+        },
+        assistantCtx
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "add_service_order_budget_items") {
+      const servicesToAddRaw = payload.services_to_add;
+      const servicesToAdd = Array.isArray(servicesToAddRaw)
+        ? (servicesToAddRaw as unknown[]).map((s) => {
+            const o = s as { description?: unknown };
+            return { description: String(o.description ?? "") };
+          })
+        : undefined;
+
+      const partsToAddRaw = payload.parts_to_add;
+      const partsToAdd = Array.isArray(partsToAddRaw)
+        ? (partsToAddRaw as unknown[]).map((p) => {
+            const o = p as { description?: unknown; quantity?: unknown };
+            return {
+              description: String(o.description ?? ""),
+              quantity: String(o.quantity ?? "1"),
+            };
+          })
+        : undefined;
+
+      const out = await addServiceOrderBudgetItemsJson(
+        {
+          budget_id: String(payload.budget_id ?? ""),
+          service_order_id:
+            typeof payload.service_order_id === "string" ? payload.service_order_id.trim() : undefined,
+          os_number: parseOsNumber(payload.os_number),
+          plate: payload.plate != null ? String(payload.plate) : undefined,
+          services_to_add: servicesToAdd,
+          parts_to_add: partsToAdd,
+          card_name: typeof payload.card_name === "string" ? payload.card_name : undefined,
+          diagnosis: typeof payload.diagnosis === "string" ? payload.diagnosis : undefined,
           observations: typeof payload.observations === "string" ? payload.observations : undefined,
         },
         assistantCtx

@@ -13,6 +13,7 @@ import {
   getServiceOrders,
   getSystemUserTechnicians,
   saveReceptionIntake,
+  updateServiceOrderBudget,
   updateServiceOrderDescription,
   updateServiceOrderStatus,
   updateServiceOrderTechnician,
@@ -436,6 +437,229 @@ export async function createServiceOrderBudgetSimpleJson(
     return JSON.stringify({
       ok: false,
       error: e instanceof Error ? e.message : "Falha ao criar orçamento.",
+    });
+  }
+}
+
+export async function updateServiceOrderBudgetJson(
+  payload: {
+    budget_id: string;
+    service_order_id?: string;
+    os_number?: number;
+    plate?: string | null;
+    card_name?: string;
+    diagnosis?: string;
+    services?: { description: string; approved?: boolean }[];
+    parts?: { description: string; quantity: string; approved?: boolean }[];
+    observations?: string;
+  },
+  ctx: AssistantContext
+): Promise<string> {
+  if (!canAccessOsTools(ctx.allowedTabs)) {
+    return JSON.stringify({ ok: false, error: "Sem acesso ao Pátio/Laboratório." });
+  }
+
+  const budgetId = String(payload.budget_id ?? "").trim();
+  if (!budgetId) {
+    return JSON.stringify({ ok: false, error: "budget_id é obrigatório." });
+  }
+
+  try {
+    const id = await resolveServiceOrderId({
+      service_order_id: payload.service_order_id,
+      os_number: payload.os_number,
+      plate: payload.plate,
+    });
+    if (!id) {
+      return JSON.stringify({
+        ok: false,
+        error: "OS não encontrada. Informe service_order_id (UUID), os_number ou plate.",
+      });
+    }
+
+    const detail = await getServiceOrderById(id);
+    const ot: ServiceOrderType = detail.order_type === "module" ? "module" : "vehicle";
+    if (ot === "vehicle" && !ctx.allowedTabs.includes("patio")) {
+      return JSON.stringify({ ok: false, error: "Sem acesso ao Pátio para esta OS." });
+    }
+    if (ot === "module" && !ctx.allowedTabs.includes("laboratorio")) {
+      return JSON.stringify({ ok: false, error: "Sem acesso ao Laboratório para esta OS." });
+    }
+
+    const budgets = await getServiceOrderBudgets(id);
+    const existing = budgets.find((b) => b.id === budgetId);
+    if (!existing) {
+      return JSON.stringify({ ok: false, error: "Orçamento não encontrado nesta OS." });
+    }
+
+    const nextCardName = typeof payload.card_name === "string" ? payload.card_name : existing.cardName;
+    const nextDiagnosis = typeof payload.diagnosis === "string" ? payload.diagnosis : existing.diagnosis;
+    const nextObservations =
+      typeof payload.observations === "string" ? payload.observations : existing.observations;
+
+    const services =
+      Array.isArray(payload.services)
+        ? payload.services
+            .map((s, i) => {
+              const description = String(s?.description ?? "").trim();
+              if (!description) return null;
+              const approved =
+                typeof s?.approved === "boolean" ? s.approved : existing.services[i]?.approved;
+              return { description, approved };
+            })
+            .filter(Boolean)
+        : existing.services.map((s) => ({ description: s.description, approved: s.approved }));
+
+    const parts =
+      Array.isArray(payload.parts)
+        ? payload.parts
+            .map((p, i) => {
+              const description = String(p?.description ?? "").trim();
+              if (!description) return null;
+              const quantity = String(p?.quantity ?? existing.parts[i]?.quantity ?? "1").trim() || "1";
+              const approved =
+                typeof p?.approved === "boolean" ? p.approved : existing.parts[i]?.approved;
+              return { description, quantity, approved };
+            })
+            .filter(Boolean)
+        : existing.parts.map((p) => ({ description: p.description, quantity: p.quantity, approved: p.approved }));
+
+    const updated = await updateServiceOrderBudget(
+      id,
+      budgetId,
+      {
+        cardName: nextCardName ?? "",
+        diagnosis: nextDiagnosis ?? "",
+        services,
+        parts,
+        observations: nextObservations ?? "",
+      },
+      ctx.serviceOrderActor
+    );
+
+    return JSON.stringify({
+      ok: true,
+      orcamento_id: updated.id,
+      service_order_id: id,
+    });
+  } catch (e) {
+    return JSON.stringify({
+      ok: false,
+      error: e instanceof Error ? e.message : "Falha ao atualizar orçamento.",
+    });
+  }
+}
+
+export async function addServiceOrderBudgetItemsJson(
+  payload: {
+    budget_id: string;
+    service_order_id?: string;
+    os_number?: number;
+    plate?: string | null;
+    services_to_add?: { description: string }[];
+    parts_to_add?: { description: string; quantity?: string }[];
+    card_name?: string;
+    diagnosis?: string;
+    observations?: string;
+  },
+  ctx: AssistantContext
+): Promise<string> {
+  if (!canAccessOsTools(ctx.allowedTabs)) {
+    return JSON.stringify({ ok: false, error: "Sem acesso ao Pátio/Laboratório." });
+  }
+
+  const budgetId = String(payload.budget_id ?? "").trim();
+  if (!budgetId) {
+    return JSON.stringify({ ok: false, error: "budget_id é obrigatório." });
+  }
+
+  try {
+    const id = await resolveServiceOrderId({
+      service_order_id: payload.service_order_id,
+      os_number: payload.os_number,
+      plate: payload.plate,
+    });
+    if (!id) {
+      return JSON.stringify({
+        ok: false,
+        error: "OS não encontrada. Informe service_order_id (UUID), os_number ou plate.",
+      });
+    }
+
+    const detail = await getServiceOrderById(id);
+    const ot: ServiceOrderType = detail.order_type === "module" ? "module" : "vehicle";
+    if (ot === "vehicle" && !ctx.allowedTabs.includes("patio")) {
+      return JSON.stringify({ ok: false, error: "Sem acesso ao Pátio para esta OS." });
+    }
+    if (ot === "module" && !ctx.allowedTabs.includes("laboratorio")) {
+      return JSON.stringify({ ok: false, error: "Sem acesso ao Laboratório para esta OS." });
+    }
+
+    const budgets = await getServiceOrderBudgets(id);
+    const existing = budgets.find((b) => b.id === budgetId);
+    if (!existing) {
+      return JSON.stringify({ ok: false, error: "Orçamento não encontrado nesta OS." });
+    }
+
+    const servicesToAdd = Array.isArray(payload.services_to_add) ? payload.services_to_add : [];
+    const partsToAdd = Array.isArray(payload.parts_to_add) ? payload.parts_to_add : [];
+
+    if (servicesToAdd.length === 0 && partsToAdd.length === 0) {
+      return JSON.stringify({
+        ok: false,
+        error: "Nada para adicionar: informe services_to_add e/ou parts_to_add.",
+      });
+    }
+
+    const nextCardName = typeof payload.card_name === "string" ? payload.card_name : existing.cardName;
+    const nextDiagnosis = typeof payload.diagnosis === "string" ? payload.diagnosis : existing.diagnosis;
+    const nextObservations =
+      typeof payload.observations === "string" ? payload.observations : existing.observations;
+
+    const baseServices = existing.services.map((s) => ({ description: s.description, approved: s.approved }));
+    const addedServices = servicesToAdd
+      .map((s) => {
+        const description = String(s?.description ?? "").trim();
+        return description ? { description, approved: undefined as boolean | undefined } : null;
+      })
+      .filter(Boolean) as { description: string; approved?: boolean }[];
+
+    const baseParts = existing.parts.map((p) => ({
+      description: p.description,
+      quantity: p.quantity,
+      approved: p.approved,
+    }));
+    const addedParts = partsToAdd
+      .map((p) => {
+        const description = String(p?.description ?? "").trim();
+        if (!description) return null;
+        const quantity = String(p?.quantity ?? "1").trim() || "1";
+        return { description, quantity, approved: undefined as boolean | undefined };
+      })
+      .filter(Boolean) as { description: string; quantity: string; approved?: boolean }[];
+
+    const updated = await updateServiceOrderBudget(
+      id,
+      budgetId,
+      {
+        cardName: nextCardName ?? "",
+        diagnosis: nextDiagnosis ?? "",
+        services: [...baseServices, ...addedServices],
+        parts: [...baseParts, ...addedParts],
+        observations: nextObservations ?? "",
+      },
+      ctx.serviceOrderActor
+    );
+
+    return JSON.stringify({
+      ok: true,
+      orcamento_id: updated.id,
+      service_order_id: id,
+    });
+  } catch (e) {
+    return JSON.stringify({
+      ok: false,
+      error: e instanceof Error ? e.message : "Falha ao adicionar itens ao orçamento.",
     });
   }
 }

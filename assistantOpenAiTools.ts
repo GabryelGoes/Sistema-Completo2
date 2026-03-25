@@ -51,8 +51,8 @@ Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçam
 Etapas do fluxo (IDs exatos):
 ${stageCatalog}
 
-Central de notificações (oficina inteira): list_notifications, get_unread_notifications_count, mark_notification_read, mark_all_notifications_read, clear_all_notifications (só se o usuário pedir para apagar tudo). Ferramentas principais: create_workshop_reminder, list_workshop_reminders (ler), update_workshop_reminder (editar texto ou marcar concluído), delete_workshop_reminder (excluir) — sempre com target patio ou laboratorio conforme o modal; open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro — também encontra OS arquivadas/entregues se não houver em aberto; veja regra de nome do cliente abaixo); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); get_customer_complaint_for_vehicle (ler a queixa do cliente; OS arquivada: só leitura); append_complaint_to_vehicle (acrescentar ao final da queixa; nunca apaga o que já estava; não use em OS arquivada); set_vehicle_technician (atribuir, trocar ou retirar técnico no card do veículo; clear_technician para remover; technician_user_id ou technician_username para atribuir/trocar); open_patio_vehicle_history (abrir o modal de histórico de arquivados no Pátio ou Laboratório); list_archived_vehicle_orders (listar OS com status CANCELLED); unarchive_vehicle_service_order (desarquivar: CANCELLED → FINALIZADO, como o botão no histórico); list_vehicles_in_stage (por etapa; use status CANCELLED para listar arquivados/entregues — alternativa a list_archived_vehicle_orders); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto em OS abertas e arquivadas); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
-Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no Pátio, use open_patio_vehicle_budget_view (não só open_patio_vehicle_modal). Com sucesso, o app abre o orçamento no Pátio sem fechar o chat da Zaya.
+Central de notificações (oficina inteira): list_notifications, get_unread_notifications_count, mark_notification_read, mark_all_notifications_read, clear_all_notifications (só se o usuário pedir para apagar tudo). Ferramentas principais: create_workshop_reminder, list_workshop_reminders (ler), update_workshop_reminder (editar texto ou marcar concluído), delete_workshop_reminder (excluir) — sempre com target patio ou laboratorio conforme o modal; open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro — também encontra OS arquivadas/entregues se não houver em aberto; veja regra de nome do cliente abaixo); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); get_customer_complaint_for_vehicle (ler a queixa do cliente; OS arquivada: só leitura); append_complaint_to_vehicle (acrescentar ao final da queixa; nunca apaga o que já estava; não use em OS arquivada); set_vehicle_technician (atribuir, trocar ou retirar técnico no card do veículo; clear_technician para remover; technician_user_id ou technician_username para atribuir/trocar); open_patio_vehicle_history (abrir o modal de histórico de arquivados no Pátio ou Laboratório); list_archived_vehicle_orders (listar OS com status CANCELLED); unarchive_vehicle_service_order (desarquivar: CANCELLED → FINALIZADO, como o botão no histórico); list_vehicles_in_stage (por etapa; use status CANCELLED para listar arquivados/entregues — alternativa a list_archived_vehicle_orders); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto em OS abertas e arquivadas); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; update_service_order_budget; add_service_order_budget_items; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
+Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no Pátio, use open_patio_vehicle_budget_view (não só open_patio_vehicle_modal). Com sucesso, o app abre o orçamento no Pátio sem fechar o chat da Zaya. Para editar orçamento ou adicionar peças/serviços dentro dele, obtenha antes o `budget_id` com open_patio_vehicle_budget_view e em seguida use update_service_order_budget ou add_service_order_budget_items.
 
 Queixa do cliente (campo issue_description na OS): use get_customer_complaint_for_vehicle para ler o texto atual. Para acrescentar informação, use append_complaint_to_vehicle — ela só concatena ao final do que já estava escrito. Nunca apague, substitua nem sobrescreva a queixa existente; não há ferramenta para apagar ou reescrever esse campo por completo.
 
@@ -419,6 +419,94 @@ export function buildAssistantChatTools(
             },
           },
           required: ["diagnosis", "service_description"],
+        },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "update_service_order_budget",
+        description:
+          "Edita um orçamento existente: mantém aprovações quando approved não é fornecido e substitui diagnóstico/serviços/peças/observações pelos campos informados (preserva quando omitidos).",
+        parameters: {
+          type: "object",
+          properties: {
+            budget_id: { type: "string", description: "UUID do orçamento a editar." },
+            service_order_id: { type: "string", description: "UUID da OS (opcional se você informar os_number ou plate)." },
+            os_number: { type: "integer" },
+            plate: { type: "string" },
+            card_name: { type: "string", description: "Nome do cartão do orçamento (ex.: Civic, Gol)." },
+            diagnosis: { type: "string" },
+            services: {
+              type: "array",
+              description: "Lista completa de serviços do orçamento.",
+              items: {
+                type: "object",
+                properties: {
+                  description: { type: "string" },
+                  approved: { type: "boolean", description: "Aprovado pelo admin (opcional)." },
+                },
+                required: ["description"],
+              },
+            },
+            parts: {
+              type: "array",
+              description: "Lista completa de peças do orçamento.",
+              items: {
+                type: "object",
+                properties: {
+                  description: { type: "string" },
+                  quantity: { type: "string", description: "Quantidade (string numérica)." },
+                  approved: { type: "boolean", description: "Aprovado pelo admin (opcional)." },
+                },
+                required: ["description", "quantity"],
+              },
+            },
+            observations: { type: "string", description: "Observações do orçamento." },
+          },
+          required: ["budget_id"],
+        },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "add_service_order_budget_items",
+        description:
+          "Adiciona serviços e/ou peças a um orçamento existente (mantém itens já existentes; aprovações dos existentes são preservadas).",
+        parameters: {
+          type: "object",
+          properties: {
+            budget_id: { type: "string", description: "UUID do orçamento a editar." },
+            service_order_id: { type: "string", description: "UUID da OS (opcional se você informar os_number ou plate)." },
+            os_number: { type: "integer" },
+            plate: { type: "string" },
+            services_to_add: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  description: { type: "string" },
+                },
+                required: ["description"],
+              },
+            },
+            parts_to_add: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  description: { type: "string" },
+                  quantity: { type: "string", description: "Quantidade (string numérica)." },
+                },
+                required: ["description", "quantity"],
+              },
+            },
+            card_name: { type: "string", description: "Se fornecido, substitui o cardName do orçamento." },
+            diagnosis: { type: "string", description: "Se fornecido, substitui o diagnóstico do orçamento." },
+            observations: { type: "string", description: "Se fornecido, substitui as observações do orçamento." },
+          },
+          required: ["budget_id"],
         },
       },
     },
