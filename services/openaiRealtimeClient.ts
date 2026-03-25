@@ -53,6 +53,8 @@ export interface OpenAiRealtimeClientHandlers {
   onResponseDone: () => void;
   onFunctionCall: (ev: { name: string; arguments: string; call_id: string }) => Promise<string>;
   onError: (message: string) => void;
+  /** Primeiro chunk de áudio da assistente — parar o microfone do usuário para evitar eco/loop. */
+  onAssistantAudioPlaybackStart?: () => void;
 }
 
 export class OpenAiRealtimeClient {
@@ -60,6 +62,8 @@ export class OpenAiRealtimeClient {
   private readonly player = new Pcm24kPlayer();
   private handlers: OpenAiRealtimeClientHandlers;
   private toolChain: Promise<void> = Promise.resolve();
+  /** Evita disparar onAssistantAudioPlaybackStart várias vezes na mesma resposta. */
+  private assistantAudioStartedThisResponse = false;
 
   constructor(handlers: OpenAiRealtimeClientHandlers) {
     this.handlers = handlers;
@@ -122,7 +126,13 @@ export class OpenAiRealtimeClient {
     const t = data.type;
     if (t === "response.output_audio.delta") {
       const delta = data.delta;
-      if (typeof delta === "string") this.player.playBase64Pcm16(delta);
+      if (typeof delta === "string") {
+        if (!this.assistantAudioStartedThisResponse) {
+          this.assistantAudioStartedThisResponse = true;
+          this.handlers.onAssistantAudioPlaybackStart?.();
+        }
+        this.player.playBase64Pcm16(delta);
+      }
       return;
     }
     if (t === "response.output_audio_transcript.delta") {
@@ -135,6 +145,7 @@ export class OpenAiRealtimeClient {
       return;
     }
     if (t === "response.done") {
+      this.assistantAudioStartedThisResponse = false;
       this.handlers.onResponseDone();
       return;
     }

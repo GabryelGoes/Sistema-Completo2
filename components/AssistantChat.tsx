@@ -780,6 +780,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const loadingRef = useRef(loading);
+  loadingRef.current = loading;
   const [error, setError] = useState<string | null>(null);
   /** Histórico exibido + enviado ao servidor (sem system). */
   const [messages, setMessages] = useState<AssistantApiMessage[]>([]);
@@ -804,6 +806,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   const recRef = useRef<InstanceType<SpeechRecCtor> | null>(null);
   /** Mantém o microfone “ligado” no modo tempo real até o usuário desligar (reinício após pausa do navegador). */
   const listeningRef = useRef(false);
+  /** Retoma o mic após a assistente terminar de falar (evita capturar o áudio dela). */
+  const resumeMicTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const sendUserMessageRef = useRef<(text: string) => void>(() => {});
 
@@ -908,6 +912,10 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
 
   useEffect(() => {
     if (!open) {
+      if (resumeMicTimeoutRef.current) {
+        clearTimeout(resumeMicTimeoutRef.current);
+        resumeMicTimeoutRef.current = null;
+      }
       realtimeClientRef.current?.disconnect();
       realtimeClientRef.current = null;
       setRealtimeReady(false);
@@ -940,6 +948,11 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
             });
           },
           onAssistantTranscriptDone: () => {},
+          onAssistantAudioPlaybackStart: () => {
+            loadingRef.current = true;
+            recRef.current?.stop();
+            setLoading(true);
+          },
           onResponseDone: () => setLoading(false),
           onFunctionCall: async ({ name, arguments: argsStr, call_id }) => {
             const assistantCtx: AssistantContext = {
@@ -1009,6 +1022,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       setError(null);
       if (realtimeClientRef.current && realtimeReady && !useClassicChat) {
         if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+        loadingRef.current = true;
+        recRef.current?.stop();
         setMessages((prev) => [
           ...prev,
           { role: "user", content: trimmed },
@@ -1086,6 +1101,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
         setListening(false);
         return;
       }
+      if (loadingRef.current) {
+        return;
+      }
       if (isRealtimeVoice) {
         try {
           rec.start();
@@ -1124,6 +1142,35 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       : "bg-zinc-900 text-brand-yellow shadow-lg";
 
   const isRealtimeVoice = realtimeReady && !useClassicChat;
+
+  useEffect(() => {
+    if (!isRealtimeVoice) return;
+    if (resumeMicTimeoutRef.current) {
+      clearTimeout(resumeMicTimeoutRef.current);
+      resumeMicTimeoutRef.current = null;
+    }
+    if (loading) {
+      recRef.current?.stop();
+      return;
+    }
+    if (listeningRef.current && recRef.current) {
+      resumeMicTimeoutRef.current = setTimeout(() => {
+        resumeMicTimeoutRef.current = null;
+        if (!listeningRef.current || loadingRef.current) return;
+        try {
+          recRef.current?.start();
+        } catch {
+          /* ignore */
+        }
+      }, 850);
+    }
+    return () => {
+      if (resumeMicTimeoutRef.current) {
+        clearTimeout(resumeMicTimeoutRef.current);
+        resumeMicTimeoutRef.current = null;
+      }
+    };
+  }, [loading, isRealtimeVoice]);
 
   return (
     <>
@@ -1248,7 +1295,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                 type="button"
                 onClick={toggleTts}
                 disabled={realtimeReady && !useClassicChat}
-                className={`shrink-0 rounded-xl p-3 disabled:cursor-not-allowed disabled:opacity-40 ${
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full p-0 disabled:cursor-not-allowed disabled:opacity-40 ${
                   ttsEnabled ? "bg-brand-yellow/20 text-zinc-900 dark:text-brand-yellow" : "bg-white/10 hover:bg-white/15"
                 }`}
                 aria-label={ttsEnabled ? "Desativar voz da assistente" : "Ativar voz da assistente"}
@@ -1278,7 +1325,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                 <button
                   type="button"
                   onClick={toggleMic}
-                  className={`relative z-10 rounded-xl p-3 ${
+                  className={`relative z-10 flex h-11 w-11 items-center justify-center rounded-full p-0 ${
                     listening
                       ? "bg-sky-500/15 text-sky-300 shadow-[0_0_14px_rgba(56,189,248,0.4)] dark:text-sky-200"
                       : "bg-white/10 hover:bg-white/15"
@@ -1309,7 +1356,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                 type="button"
                 onClick={() => sendUserMessage(input)}
                 disabled={loading || connectingRealtime}
-                className="shrink-0 rounded-xl bg-brand-yellow px-4 py-2 font-medium text-zinc-900 disabled:opacity-50"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-yellow p-0 font-medium text-zinc-900 disabled:opacity-50"
                 title={
                   isRealtimeVoice
                     ? "Enviar texto (opcional; no microfone o envio é automático)"
