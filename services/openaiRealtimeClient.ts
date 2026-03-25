@@ -245,6 +245,13 @@ export class OpenAiRealtimeClient {
     this.sendJson({ type: "response.create" });
   }
 
+  /** Recado pendente: a assistente lê em voz (prefixo reconhecido nas instruções do sistema). */
+  sendRelayVoiceAnnouncement(plainText: string): void {
+    const t = String(plainText ?? "").trim();
+    if (!t) return;
+    this.sendUserText(`[RECADO_ZAYA]\n\n${t}`);
+  }
+
   private sendJson(payload: object): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(payload));

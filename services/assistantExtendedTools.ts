@@ -14,11 +14,13 @@ import {
   getSystemUserTechnicians,
   saveReceptionIntake,
   updateServiceOrderDescription,
+  updateServiceOrderStatus,
+  updateServiceOrderTechnician,
   type ServiceOrderListItem,
   type ServiceOrderUpdateActor,
   type ServiceOrderType,
 } from "./apiService";
-import { resolveServiceOrderId } from "./assistantPatioTools";
+import { listVehiclesInStageJson, resolveServiceOrderId } from "./assistantPatioTools";
 import { ASSISTANT_NAME } from "../constants/assistant";
 
 export interface AssistantContext {
@@ -1013,6 +1015,260 @@ export async function appendComplaintToVehicleJson(
     return JSON.stringify({
       ok: false,
       error: e instanceof Error ? e.message : "Falha ao salvar a queixa.",
+    });
+  }
+}
+
+type ResolveTechnicianResult =
+  | { kind: "clear" }
+  | { kind: "id"; id: string; label: string }
+  | {
+      kind: "ambiguous_tech";
+      technicians: Array<{ id: string; username: string; nome: string }>;
+    }
+  | { kind: "error"; message: string };
+
+async function resolveTechnicianForAssignment(payload: {
+  clear_technician?: boolean;
+  technician_user_id?: string;
+  technician_username?: string;
+}): Promise<ResolveTechnicianResult> {
+  if (payload.clear_technician === true) {
+    return { kind: "clear" };
+  }
+  const rawId = typeof payload.technician_user_id === "string" ? payload.technician_user_id.trim() : "";
+  if (rawId) {
+    const techs = await getSystemUserTechnicians();
+    const t = techs.find((x) => x.id === rawId);
+    if (!t) {
+      return {
+        kind: "error",
+        message: "UUID de técnico inválido ou usuário não é técnico da oficina.",
+      };
+    }
+    return { kind: "id", id: t.id, label: t.display_name ?? t.username };
+  }
+  const rawUser = typeof payload.technician_username === "string" ? payload.technician_username.trim() : "";
+  if (rawUser) {
+    const techs = await getSystemUserTechnicians();
+    const q = norm(rawUser);
+    const matches = techs.filter((t) => {
+      const u = norm(t.username);
+      const d = norm(t.display_name ?? "");
+      return (
+        u === q ||
+        d === q ||
+        (u.length >= 2 && (u.includes(q) || q.includes(u))) ||
+        (d.length >= 2 && (d.includes(q) || q.includes(d)))
+      );
+    });
+    if (matches.length === 0) {
+      return {
+        kind: "error",
+        message: `Nenhum técnico encontrado para "${rawUser}". Informe o login (username) ou o UUID (technician_user_id).`,
+      };
+    }
+    if (matches.length > 1) {
+      return {
+        kind: "ambiguous_tech",
+        technicians: matches.slice(0, 20).map((t) => ({
+          id: t.id,
+          username: t.username,
+          nome: t.display_name ?? t.username,
+        })),
+      };
+    }
+    const t = matches[0]!;
+    return { kind: "id", id: t.id, label: t.display_name ?? t.username };
+  }
+  return {
+    kind: "error",
+    message:
+      "Para atribuir ou trocar técnico, informe technician_user_id (UUID) ou technician_username (login ou nome exibido). Para retirar o técnico do card, use clear_technician: true.",
+  };
+}
+
+/** Atribui, retira ou troca o técnico responsável na OS localizada pelo modelo do veículo. */
+export async function setVehicleTechnicianJson(
+  payload: {
+    vehicle_model_query: string;
+    customer_name_query?: string;
+    clear_technician?: boolean;
+    technician_user_id?: string;
+    technician_username?: string;
+  },
+  ctx: AssistantContext
+): Promise<string> {
+  if (!canAccessOsTools(ctx.allowedTabs)) {
+    return JSON.stringify({ ok: false, error: "Sem acesso ao Pátio/Laboratório." });
+  }
+  const r = await matchPatioVehicleByModel(
+    payload.vehicle_model_query,
+    typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+    ctx.allowedTabs
+  );
+  if (r.kind === "error") {
+    return JSON.stringify({ ok: false, error: r.message });
+  }
+  if (r.kind === "ambiguous") {
+    return JSON.stringify({
+      ok: true,
+      ambiguous: true,
+      pedir_cliente: true,
+      mensagem:
+        "Há mais de um veículo com esse nome. Pergunte o nome do cliente e chame a ferramenta de novo com customer_name_query.",
+      opcoes: r.opcoes,
+    });
+  }
+  if (r.order.status === CANCELLED_STATUS) {
+    return JSON.stringify({
+      ok: false,
+      error: "Esta OS está arquivada (entregue); não é possível alterar o técnico por aqui.",
+    });
+  }
+
+  const resolved = await resolveTechnicianForAssignment({
+    clear_technician: payload.clear_technician,
+    technician_user_id: payload.technician_user_id,
+    technician_username: payload.technician_username,
+  });
+  if (resolved.kind === "error") {
+    return JSON.stringify({ ok: false, error: resolved.message });
+  }
+  if (resolved.kind === "ambiguous_tech") {
+    return JSON.stringify({
+      ok: true,
+      ambiguous_tecnico: true,
+      mensagem:
+        "Há mais de um técnico que combina com o nome. Pergunte qual é ou chame de novo com technician_user_id (UUID exato).",
+      tecnicos: resolved.technicians,
+    });
+  }
+
+  try {
+    const before = await getServiceOrderById(r.order.id);
+    const prevId = before.assigned_technician ?? null;
+    let prevLabel: string | null = null;
+    if (prevId) {
+      const techs = await getSystemUserTechnicians();
+      const pt = techs.find((x) => x.id === prevId);
+      prevLabel = pt ? pt.display_name ?? pt.username : prevId;
+    }
+
+    if (resolved.kind === "clear") {
+      await updateServiceOrderTechnician(r.order.id, null, ctx.serviceOrderActor);
+      return JSON.stringify({
+        ok: true,
+        service_order_id: r.order.id,
+        os_number: r.order.os_number ?? null,
+        acao: "tecnico_retirado",
+        tecnico_anterior_id: prevId,
+        tecnico_anterior_nome: prevLabel,
+      });
+    }
+
+    await updateServiceOrderTechnician(r.order.id, resolved.id, ctx.serviceOrderActor);
+    return JSON.stringify({
+      ok: true,
+      service_order_id: r.order.id,
+      os_number: r.order.os_number ?? null,
+      acao: prevId ? "tecnico_trocado" : "tecnico_atribuido",
+      tecnico_anterior_id: prevId,
+      tecnico_anterior_nome: prevLabel,
+      tecnico_novo_id: resolved.id,
+      tecnico_novo_nome: resolved.label,
+    });
+  } catch (e) {
+    return JSON.stringify({
+      ok: false,
+      error: e instanceof Error ? e.message : "Falha ao atualizar o técnico.",
+    });
+  }
+}
+
+/** Abre o modal de histórico de veículos/módulos arquivados no Pátio ou Laboratório (callback no cliente). */
+export async function openPatioVehicleHistoryJson(
+  payload: { target?: "patio" | "laboratorio" },
+  allowedTabs: TabId[]
+): Promise<string> {
+  const target = payload.target === "laboratorio" ? "laboratorio" : "patio";
+  if (target === "patio" && !allowedTabs.includes("patio")) {
+    return JSON.stringify({ ok: false, error: "Sem acesso ao Pátio." });
+  }
+  if (target === "laboratorio" && !allowedTabs.includes("laboratorio")) {
+    return JSON.stringify({ ok: false, error: "Sem acesso ao Laboratório." });
+  }
+  return JSON.stringify({
+    ok: true,
+    action: "open_history",
+    target,
+    mensagem:
+      target === "laboratorio"
+        ? "Abrindo o histórico de módulos arquivados no Laboratório."
+        : "Abrindo o histórico de veículos arquivados no Pátio.",
+  });
+}
+
+/** Lista OS arquivadas (entregues) — status CANCELLED. */
+export async function listArchivedVehicleOrdersJson(
+  orderType: ServiceOrderType,
+  allowedTabs: TabId[]
+): Promise<string> {
+  if (orderType === "vehicle" && !allowedTabs.includes("patio")) {
+    return JSON.stringify({ ok: false, error: "Sem acesso ao Pátio." });
+  }
+  if (orderType === "module" && !allowedTabs.includes("laboratorio")) {
+    return JSON.stringify({ ok: false, error: "Sem acesso ao Laboratório." });
+  }
+  return listVehiclesInStageJson(CANCELLED_STATUS, orderType);
+}
+
+/** Remove o arquivamento: OS em CANCELLED volta para FINALIZADO (mesmo fluxo do botão Desarquivar no Pátio). */
+export async function unarchiveVehicleServiceOrderJson(
+  payload: {
+    service_order_id?: string;
+    os_number?: number;
+    plate?: string | null;
+  },
+  ctx: AssistantContext
+): Promise<string> {
+  if (!canAccessOsTools(ctx.allowedTabs)) {
+    return JSON.stringify({ ok: false, error: "Sem acesso ao Pátio/Laboratório." });
+  }
+  try {
+    const id = await resolveServiceOrderId({
+      service_order_id: payload.service_order_id,
+      os_number: payload.os_number,
+      plate: payload.plate,
+    });
+    if (!id) {
+      return JSON.stringify({
+        ok: false,
+        error: "OS não encontrada. Informe service_order_id, os_number ou plate.",
+      });
+    }
+    const detail = await getServiceOrderById(id);
+    if (detail.status !== CANCELLED_STATUS) {
+      return JSON.stringify({
+        ok: false,
+        error: `Esta OS não está arquivada (status atual: ${detail.status}). Só é possível desarquivar ordens entregues/arquivadas (CANCELLED).`,
+      });
+    }
+    await updateServiceOrderStatus(id, "FINALIZADO", ctx.serviceOrderActor);
+    return JSON.stringify({
+      ok: true,
+      service_order_id: id,
+      os_number: detail.os_number ?? null,
+      placa: detail.plate ?? null,
+      veiculo_modelo: detail.vehicle_model ?? null,
+      novo_status: "FINALIZADO",
+      mensagem:
+        "OS desarquivada: voltou para a etapa Finalizado no fluxo do Pátio/Laboratório (como o botão Desarquivar no histórico).",
+    });
+  } catch (e) {
+    return JSON.stringify({
+      ok: false,
+      error: e instanceof Error ? e.message : "Falha ao desarquivar.",
     });
   }
 }

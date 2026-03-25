@@ -34,6 +34,8 @@ export default function App() {
   const [assistantPatioOpenOrderId, setAssistantPatioOpenOrderId] = useState<string | null>(null);
   /** Quando definido com orderId, abre o modal de leitura deste orçamento após carregar. */
   const [assistantPatioOpenBudgetId, setAssistantPatioOpenBudgetId] = useState<string | null>(null);
+  /** Incrementa para abrir o modal de histórico de arquivados no Pátio/Laboratório (Zaya). */
+  const [assistantPatioOpenHistoryTrigger, setAssistantPatioOpenHistoryTrigger] = useState(0);
 
   const handleNewCommentNotification = (n: Notification) => {
     playNotificationSound();
@@ -267,6 +269,7 @@ export default function App() {
                 setAssistantPatioOpenOrderId(null);
                 setAssistantPatioOpenBudgetId(null);
               }}
+              openHistoryRequested={assistantPatioOpenHistoryTrigger}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
@@ -281,6 +284,7 @@ export default function App() {
               openServiceOrderId={null}
               openServiceOrderSection={null}
               onOpenServiceOrderHandled={() => {}}
+              openHistoryRequested={assistantPatioOpenHistoryTrigger}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
@@ -345,6 +349,10 @@ export default function App() {
           onOpenPatioVehicle={(id) => {
             setUserTab('patio');
             setAssistantPatioOpenOrderId(id);
+          }}
+          onOpenPatioHistory={(target) => {
+            setUserTab(target);
+            setAssistantPatioOpenHistoryTrigger((n) => n + 1);
           }}
         />
       </div>
@@ -427,6 +435,7 @@ export default function App() {
               setAssistantPatioOpenOrderId(null);
               setAssistantPatioOpenBudgetId(null);
             }}
+            openHistoryRequested={assistantPatioOpenHistoryTrigger}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         )}
@@ -441,6 +450,7 @@ export default function App() {
             openServiceOrderId={null}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={() => {}}
+            openHistoryRequested={assistantPatioOpenHistoryTrigger}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         )}
@@ -517,6 +527,10 @@ export default function App() {
           setCurrentTab('patio');
           setAssistantPatioOpenOrderId(id);
           setAssistantPatioOpenBudgetId(opts?.budgetId ?? null);
+        }}
+        onOpenPatioHistory={(target) => {
+          setCurrentTab(target);
+          setAssistantPatioOpenHistoryTrigger((n) => n + 1);
         }}
       />
     </div>

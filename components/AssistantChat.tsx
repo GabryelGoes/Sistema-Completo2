@@ -59,6 +59,10 @@ import {
   openPatioVehicleBudgetViewJson,
   getCustomerComplaintForVehicleJson,
   appendComplaintToVehicleJson,
+  setVehicleTechnicianJson,
+  openPatioVehicleHistoryJson,
+  listArchivedVehicleOrdersJson,
+  unarchiveVehicleServiceOrderJson,
 } from "../services/assistantExtendedTools";
 
 interface AssistantChatProps {
@@ -74,6 +78,8 @@ interface AssistantChatProps {
   currentTechnicianUserId?: string | null;
   /** Abre o modal do veículo no Pátio (OS já resolvida pela Zaya). */
   onOpenPatioVehicle?: (serviceOrderId: string, options?: { budgetId?: string }) => void;
+  /** Abre o modal de histórico de arquivados no Pátio ou Laboratório. */
+  onOpenPatioHistory?: (target: "patio" | "laboratorio") => void;
   /** Recados entre gerência e técnicos (ferramentas + indicador). */
   relaySessionRole?: "management" | "technician" | "none";
 }
@@ -171,7 +177,8 @@ async function executeToolCalls(
   onOpenSettings: () => void,
   serviceOrderActor: ServiceOrderUpdateActor | undefined,
   assistantCtx: AssistantContext,
-  onOpenPatioVehicle?: (serviceOrderId: string, options?: { budgetId?: string }) => void
+  onOpenPatioVehicle?: (serviceOrderId: string, options?: { budgetId?: string }) => void,
+  onOpenPatioHistory?: (target: "patio" | "laboratorio") => void
 ): Promise<{ id: string; content: string }[]> {
   const results: { id: string; content: string }[] = [];
   for (const tc of calls) {
@@ -935,6 +942,66 @@ async function executeToolCalls(
       results.push({ id: tc.id, content: out });
       continue;
     }
+    if (name === "open_patio_vehicle_history") {
+      const out = await openPatioVehicleHistoryJson(
+        {
+          target: payload.target === "laboratorio" ? "laboratorio" : "patio",
+        },
+        allowedTabs
+      );
+      try {
+        const parsed = JSON.parse(out) as {
+          ok?: boolean;
+          action?: string;
+          target?: string;
+        };
+        if (parsed.ok && parsed.action === "open_history") {
+          const tab = parsed.target === "laboratorio" ? "laboratorio" : "patio";
+          onNavigateTab(tab);
+          onOpenPatioHistory?.(tab);
+        }
+      } catch {
+        /* ignore */
+      }
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "list_archived_vehicle_orders") {
+      const ot = payload.order_type === "module" ? "module" : "vehicle";
+      const out = await listArchivedVehicleOrdersJson(ot, allowedTabs);
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "unarchive_vehicle_service_order") {
+      const out = await unarchiveVehicleServiceOrderJson(
+        {
+          service_order_id:
+            typeof payload.service_order_id === "string" ? payload.service_order_id.trim() : undefined,
+          os_number: parseOsNumber(payload.os_number),
+          plate: payload.plate != null ? String(payload.plate) : undefined,
+        },
+        assistantCtx
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "set_vehicle_technician") {
+      const out = await setVehicleTechnicianJson(
+        {
+          vehicle_model_query: String(payload.vehicle_model_query ?? ""),
+          customer_name_query:
+            typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+          clear_technician: payload.clear_technician === true,
+          technician_user_id:
+            typeof payload.technician_user_id === "string" ? payload.technician_user_id : undefined,
+          technician_username:
+            typeof payload.technician_username === "string" ? payload.technician_username : undefined,
+        },
+        assistantCtx
+      );
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
     results.push({ id: tc.id, content: JSON.stringify({ ok: false, error: "Função desconhecida." }) });
   }
   return results;
@@ -950,6 +1017,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   assistantCommentActor,
   currentTechnicianUserId,
   onOpenPatioVehicle,
+  onOpenPatioHistory,
   relaySessionRole: relaySessionRoleProp = "none",
 }) => {
   const [open, setOpen] = useState(false);
@@ -1064,7 +1132,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               onOpenSettings,
               serviceOrderActor,
               assistantCtx,
-              onOpenPatioVehicle
+              onOpenPatioVehicle,
+              onOpenPatioHistory
             );
             for (const tr of toolResults) {
               current.push({ role: "tool", tool_call_id: tr.id, content: tr.content });
@@ -1099,6 +1168,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       assistantCommentActor,
       currentTechnicianUserId,
       onOpenPatioVehicle,
+      onOpenPatioHistory,
       relaySessionRole,
     ]
   );
@@ -1376,7 +1446,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               onOpenSettings,
               serviceOrderActor,
               assistantCtx,
-              onOpenPatioVehicle
+              onOpenPatioVehicle,
+              onOpenPatioHistory
             );
             return results.find((r) => r.id === call_id)?.content ?? '{"ok":false}';
           },
@@ -1424,6 +1495,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     assistantCommentActor,
     currentTechnicianUserId,
     onOpenPatioVehicle,
+    onOpenPatioHistory,
     relaySessionRole,
     refreshRelayPendingCount,
   ]);
