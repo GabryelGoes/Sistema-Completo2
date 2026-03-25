@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Mic, MicOff, Send, Volume2, VolumeX, X } from "lucide-react";
+import { Mic, Send, Volume2, VolumeX, X } from "lucide-react";
 import { AssistantIcon } from "./AssistantIcon";
 import { ASSISTANT_NAME } from "../constants/assistant";
 import type { TabId } from "./TabBar";
@@ -780,7 +780,10 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   messagesRef.current = messages;
 
   const recRef = useRef<InstanceType<SpeechRecCtor> | null>(null);
+  /** Mantém o microfone “ligado” no modo tempo real até o usuário desligar (reinício após pausa do navegador). */
+  const listeningRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const sendUserMessageRef = useRef<(text: string) => void>(() => {});
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
@@ -999,6 +1002,25 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     [loading, runAssistantTurn, useClassicChat, realtimeReady, open]
   );
 
+  sendUserMessageRef.current = sendUserMessage;
+
+  /** Ao mudar para modo clássico ou fechar, encerra o reconhecimento contínuo. */
+  useEffect(() => {
+    if (useClassicChat && listeningRef.current) {
+      listeningRef.current = false;
+      recRef.current?.stop();
+      setListening(false);
+    }
+  }, [useClassicChat]);
+
+  useEffect(() => {
+    if (!open && listeningRef.current) {
+      listeningRef.current = false;
+      recRef.current?.stop();
+      setListening(false);
+    }
+  }, [open]);
+
   const toggleMic = useCallback(() => {
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) {
@@ -1006,29 +1028,62 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       return;
     }
     if (listening) {
+      listeningRef.current = false;
       recRef.current?.stop();
       setListening(false);
       return;
     }
+    const isRealtimeVoice = realtimeReady && !useClassicChat;
     const rec = new Ctor();
     rec.lang = "pt-BR";
     rec.interimResults = false;
     rec.maxAlternatives = 1;
+    rec.continuous = isRealtimeVoice;
     rec.onresult = (ev: { results: ArrayLike<{ 0: { transcript: string } }> }) => {
       const said = ev.results[0]?.[0]?.transcript?.trim();
-      if (said) setInput((prev) => (prev ? `${prev} ${said}` : said));
+      if (said) {
+        if (isRealtimeVoice) {
+          sendUserMessageRef.current(said);
+        } else {
+          setInput((prev) => (prev ? `${prev} ${said}` : said));
+          setListening(false);
+          listeningRef.current = false;
+        }
+      } else if (!isRealtimeVoice) {
+        setListening(false);
+        listeningRef.current = false;
+      }
+    };
+    rec.onerror = () => {
+      listeningRef.current = false;
       setListening(false);
     };
-    rec.onerror = () => setListening(false);
-    rec.onend = () => setListening(false);
+    rec.onend = () => {
+      if (!listeningRef.current) {
+        setListening(false);
+        return;
+      }
+      if (isRealtimeVoice) {
+        try {
+          rec.start();
+        } catch {
+          listeningRef.current = false;
+          setListening(false);
+        }
+      } else {
+        setListening(false);
+      }
+    };
     recRef.current = rec;
+    listeningRef.current = true;
     try {
       rec.start();
       setListening(true);
     } catch {
+      listeningRef.current = false;
       setListening(false);
     }
-  }, [listening]);
+  }, [listening, realtimeReady, useClassicChat]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1045,8 +1100,23 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       ? "bg-brand-yellow text-zinc-900 shadow-lg shadow-brand-yellow/20"
       : "bg-zinc-900 text-brand-yellow shadow-lg";
 
+  const isRealtimeVoice = realtimeReady && !useClassicChat;
+
   return (
     <>
+      <style>{`
+        @keyframes assist-mic-pulse {
+          0%, 100% { transform: scale(1); opacity: 0.88; }
+          50% { transform: scale(1.42); opacity: 0.22; }
+        }
+        .assist-mic-pulse-a {
+          animation: assist-mic-pulse 1.35s ease-in-out infinite;
+        }
+        .assist-mic-pulse-b {
+          animation: assist-mic-pulse 1.35s ease-in-out infinite;
+          animation-delay: 0.4s;
+        }
+      `}</style>
       <button
         type="button"
         aria-label={`Abrir ${ASSISTANT_NAME}`}
@@ -1082,6 +1152,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                     type="button"
                     className="rounded-lg px-2 py-1 text-[11px] text-zinc-500 hover:bg-white/10 hover:text-zinc-300"
                     onClick={() => {
+                      listeningRef.current = false;
+                      recRef.current?.stop();
+                      setListening(false);
                       realtimeClientRef.current?.disconnect();
                       realtimeClientRef.current = null;
                       setRealtimeReady(false);
@@ -1095,6 +1168,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                 type="button"
                 onClick={() => {
                   if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+                  listeningRef.current = false;
+                  recRef.current?.stop();
+                  setListening(false);
                   setOpen(false);
                 }}
                 className="rounded-full p-2 hover:bg-white/10"
@@ -1108,9 +1184,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">
               {messages.length === 0 && (
                 <p className="text-zinc-500 dark:text-zinc-400">
-                  Olá, eu sou a {ASSISTANT_NAME}. Por padrão uso voz em tempo real (menos robótica).
-                  Pergunte sobre o app ou use o microfone. No modo clássico, as respostas podem ser
-                  lidas pelo botão de alto-falante.
+                  Olá, eu sou a {ASSISTANT_NAME}. No modo tempo real, ligue o microfone: cada frase é
+                  enviada automaticamente ao terminar. No modo clássico, o microfone só preenche o
+                  texto — use Enviar.
                 </p>
               )}
               {messages.map((m, i) => {
@@ -1163,22 +1239,47 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               >
                 {ttsEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
               </button>
-              <button
-                type="button"
-                onClick={toggleMic}
-                className={`shrink-0 rounded-xl p-3 ${
-                  listening ? "bg-red-500/20 text-red-400" : "bg-white/10 hover:bg-white/15"
-                }`}
-                aria-label={listening ? "Parar microfone" : "Falar"}
-              >
-                {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-              </button>
+              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
+                {listening && (
+                  <>
+                    <span
+                      className="assist-mic-pulse-a pointer-events-none absolute inset-0 m-auto h-10 w-10 rounded-full border-2 border-sky-500 bg-sky-500/15"
+                      aria-hidden
+                    />
+                    <span
+                      className="assist-mic-pulse-b pointer-events-none absolute inset-0 m-auto h-[44px] w-[44px] rounded-full border border-sky-400/55"
+                      aria-hidden
+                    />
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={toggleMic}
+                  className={`relative z-10 rounded-xl p-3 ${
+                    listening
+                      ? "bg-sky-500/15 text-sky-300 shadow-[0_0_14px_rgba(56,189,248,0.4)] dark:text-sky-200"
+                      : "bg-white/10 hover:bg-white/15"
+                  }`}
+                  aria-label={listening ? "Parar de ouvir" : "Ativar microfone"}
+                  title={
+                    isRealtimeVoice
+                      ? "Ligado: suas falas são enviadas ao terminar cada frase"
+                      : "Ditar no campo; use Enviar para enviar"
+                  }
+                >
+                  <Mic className="h-5 w-5" />
+                </button>
+              </div>
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendUserMessage(input)}
-                placeholder="Escreva uma mensagem…"
+                placeholder={
+                  isRealtimeVoice
+                    ? "Ou fale com o microfone (envio automático) ou digite…"
+                    : "Escreva e envie (Enter ou botão)…"
+                }
                 className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-inherit placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-brand-yellow/50"
               />
               <button
@@ -1186,6 +1287,11 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                 onClick={() => sendUserMessage(input)}
                 disabled={loading || connectingRealtime}
                 className="shrink-0 rounded-xl bg-brand-yellow px-4 py-2 font-medium text-zinc-900 disabled:opacity-50"
+                title={
+                  isRealtimeVoice
+                    ? "Enviar texto (opcional; no microfone o envio é automático)"
+                    : "Enviar mensagem"
+                }
               >
                 <Send className="h-5 w-5" />
               </button>
