@@ -899,11 +899,12 @@ export type PatioVehicleMatchResult =
     }
   | { kind: "single"; order: ServiceOrderListItem };
 
-/** Mesma regra de open_patio_vehicle_modal / queixa: um veículo ou ambíguo. */
+/** Resolve veículo por nome/modelo. Por padrão só OS em aberto no Pátio; use includeArchived para OS arquivadas (CANCELLED). */
 export async function matchPatioVehicleByModel(
   vehicle_model_query: string,
   customer_name_query: string | undefined,
-  allowedTabs: TabId[]
+  allowedTabs: TabId[],
+  options?: { includeArchived?: boolean }
 ): Promise<PatioVehicleMatchResult> {
   if (!allowedTabs.includes("patio")) {
     return { kind: "error", message: "Sem acesso ao Pátio." };
@@ -920,6 +921,8 @@ export async function matchPatioVehicleByModel(
     const orders = await getServiceOrders(undefined, "vehicle");
     const active = orders.filter((o) => o.status !== CANCELLED_STATUS);
     const archived = orders.filter((o) => o.status === CANCELLED_STATUS);
+    const includeArchived = options?.includeArchived === true;
+    const pool = includeArchived ? archived : active;
 
     const custRaw = typeof customer_name_query === "string" ? customer_name_query.trim() : "";
     const cq = custRaw ? norm(custRaw) : "";
@@ -951,14 +954,17 @@ export async function matchPatioVehicleByModel(
       });
     };
 
-    let matches = applyCustomer(matchByVehicle(active));
+    let matches = applyCustomer(matchByVehicle(pool));
     if (matches.length === 0) {
-      matches = applyCustomer(matchByVehicle(archived));
-    }
-    if (matches.length === 0) {
+      if (includeArchived) {
+        return {
+          kind: "error",
+          message: `Nenhum veículo arquivado combina com "${raw}".`,
+        };
+      }
       return {
         kind: "error",
-        message: `Nenhum veículo no Pátio (em aberto ou arquivado) combina com "${raw}".`,
+        message: `Não encontrei nenhum veículo em aberto no Pátio com esse nome. Se o carro estiver arquivado/entregue, diga explicitamente e chame de novo com include_archived: true.`,
       };
     }
 
@@ -1003,13 +1009,14 @@ export async function matchPatioVehicleByModel(
  * Retorno com action "open" faz o app abrir o modal (via callback no cliente).
  */
 export async function openPatioVehicleModalJson(
-  payload: { vehicle_model_query: string; customer_name_query?: string },
+  payload: { vehicle_model_query: string; customer_name_query?: string; include_archived?: boolean },
   allowedTabs: TabId[]
 ): Promise<string> {
   const r = await matchPatioVehicleByModel(
     payload.vehicle_model_query,
     typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
-    allowedTabs
+    allowedTabs,
+    { includeArchived: payload.include_archived === true }
   );
   if (r.kind === "error") {
     return JSON.stringify({ ok: false, error: r.message });
@@ -1045,6 +1052,7 @@ export async function openPatioVehicleBudgetViewJson(
   payload: {
     vehicle_model_query: string;
     customer_name_query?: string;
+    include_archived?: boolean;
     budget_id?: string;
     budget_index?: number | string;
   },
@@ -1053,7 +1061,8 @@ export async function openPatioVehicleBudgetViewJson(
   const r = await matchPatioVehicleByModel(
     payload.vehicle_model_query,
     typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
-    allowedTabs
+    allowedTabs,
+    { includeArchived: payload.include_archived === true }
   );
   if (r.kind === "error") {
     return JSON.stringify({ ok: false, error: r.message });
@@ -1151,13 +1160,15 @@ export async function getCustomerComplaintForVehicleJson(
   payload: {
     vehicle_model_query: string;
     customer_name_query?: string;
+    include_archived?: boolean;
   },
   ctx: AssistantContext
 ): Promise<string> {
   const r = await matchPatioVehicleByModel(
     payload.vehicle_model_query,
     typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
-    ctx.allowedTabs
+    ctx.allowedTabs,
+    { includeArchived: payload.include_archived === true }
   );
   if (r.kind === "error") {
     return JSON.stringify({ ok: false, error: r.message });
@@ -1202,6 +1213,7 @@ export async function appendComplaintToVehicleJson(
     complaint_text: string;
     vehicle_model_query: string;
     customer_name_query?: string;
+    include_archived?: boolean;
   },
   ctx: AssistantContext
 ): Promise<string> {
@@ -1212,7 +1224,8 @@ export async function appendComplaintToVehicleJson(
   const r = await matchPatioVehicleByModel(
     payload.vehicle_model_query,
     typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
-    ctx.allowedTabs
+    ctx.allowedTabs,
+    { includeArchived: payload.include_archived === true }
   );
   if (r.kind === "error") {
     return JSON.stringify({ ok: false, error: r.message });
@@ -1333,6 +1346,7 @@ export async function setVehicleTechnicianJson(
   payload: {
     vehicle_model_query: string;
     customer_name_query?: string;
+    include_archived?: boolean;
     clear_technician?: boolean;
     technician_user_id?: string;
     technician_username?: string;
@@ -1345,7 +1359,8 @@ export async function setVehicleTechnicianJson(
   const r = await matchPatioVehicleByModel(
     payload.vehicle_model_query,
     typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
-    ctx.allowedTabs
+    ctx.allowedTabs,
+    { includeArchived: payload.include_archived === true }
   );
   if (r.kind === "error") {
     return JSON.stringify({ ok: false, error: r.message });

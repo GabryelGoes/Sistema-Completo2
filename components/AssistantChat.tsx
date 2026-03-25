@@ -938,6 +938,7 @@ async function executeToolCalls(
           vehicle_model_query: String(payload.vehicle_model_query ?? ""),
           customer_name_query:
             typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+          include_archived: payload.include_archived === true,
         },
         assistantCtx
       );
@@ -951,6 +952,7 @@ async function executeToolCalls(
           vehicle_model_query: String(payload.vehicle_model_query ?? ""),
           customer_name_query:
             typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+          include_archived: payload.include_archived === true,
         },
         assistantCtx
       );
@@ -963,6 +965,7 @@ async function executeToolCalls(
           vehicle_model_query: String(payload.vehicle_model_query ?? ""),
           customer_name_query:
             typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+          include_archived: payload.include_archived === true,
         },
         allowedTabs
       );
@@ -992,6 +995,7 @@ async function executeToolCalls(
           vehicle_model_query: String(payload.vehicle_model_query ?? ""),
           customer_name_query:
             typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+          include_archived: payload.include_archived === true,
           budget_id: typeof payload.budget_id === "string" ? payload.budget_id : undefined,
           budget_index:
             typeof payload.budget_index === "number" && Number.isFinite(payload.budget_index)
@@ -1073,6 +1077,7 @@ async function executeToolCalls(
           vehicle_model_query: String(payload.vehicle_model_query ?? ""),
           customer_name_query:
             typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+          include_archived: payload.include_archived === true,
           clear_technician: payload.clear_technician === true,
           technician_user_id:
             typeof payload.technician_user_id === "string" ? payload.technician_user_id : undefined,

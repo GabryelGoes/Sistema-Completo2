@@ -51,12 +51,13 @@ Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçam
 Etapas do fluxo (IDs exatos):
 ${stageCatalog}
 
-Central de notificações (oficina inteira): list_notifications, get_unread_notifications_count, mark_notification_read, mark_all_notifications_read, clear_all_notifications (só se o usuário pedir para apagar tudo). Ferramentas principais: create_workshop_reminder, list_workshop_reminders (ler), update_workshop_reminder (editar texto ou marcar concluído), delete_workshop_reminder (excluir) — sempre com target patio ou laboratorio conforme o modal; open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro — também encontra OS arquivadas/entregues se não houver em aberto; veja regra de nome do cliente abaixo); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); get_customer_complaint_for_vehicle (ler a queixa do cliente; OS arquivada: só leitura); append_complaint_to_vehicle (acrescentar ao final da queixa; nunca apaga o que já estava; não use em OS arquivada); set_vehicle_technician (atribuir, trocar ou retirar técnico no card do veículo; clear_technician para remover; technician_user_id ou technician_username para atribuir/trocar); open_patio_vehicle_history (abrir o modal de histórico de arquivados no Pátio ou Laboratório); list_archived_vehicle_orders (listar OS com status CANCELLED); unarchive_vehicle_service_order (desarquivar: CANCELLED → FINALIZADO, como o botão no histórico); list_vehicles_in_stage (por etapa; use status CANCELLED para listar arquivados/entregues — alternativa a list_archived_vehicle_orders); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto em OS abertas e arquivadas); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; update_service_order_budget; add_service_order_budget_items; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
+Central de notificações (oficina inteira): list_notifications, get_unread_notifications_count, mark_notification_read, mark_all_notifications_read, clear_all_notifications (só se o usuário pedir para apagar tudo). Ferramentas principais: create_workshop_reminder, list_workshop_reminders (ler), update_workshop_reminder (editar texto ou marcar concluído), delete_workshop_reminder (excluir) — sempre com target patio ou laboratorio conforme o modal; open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro — por padrão só OS em aberto no Pátio; use include_archived: true só se o usuário disser que o carro está arquivado/entregue); open_patio_vehicle_budget_view (idem: padrão = em aberto no Pátio; include_archived: true se o usuário avisar que é arquivado); get_customer_complaint_for_vehicle; append_complaint_to_vehicle; set_vehicle_technician; open_patio_vehicle_history (abrir o modal de histórico de arquivados no Pátio ou Laboratório); list_archived_vehicle_orders (listar OS com status CANCELLED); unarchive_vehicle_service_order (desarquivar: CANCELLED → FINALIZADO, como o botão no histórico); list_vehicles_in_stage (por etapa; use status CANCELLED para listar arquivados/entregues — alternativa a list_archived_vehicle_orders); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto em OS abertas e arquivadas); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; update_service_order_budget; add_service_order_budget_items; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
 Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no Pátio, use open_patio_vehicle_budget_view (não só open_patio_vehicle_modal). Com sucesso, o app abre o orçamento no Pátio sem fechar o chat da Zaya. Para editar orçamento ou adicionar peças/serviços dentro dele, obtenha antes o `budget_id` com open_patio_vehicle_budget_view e em seguida use update_service_order_budget ou add_service_order_budget_items.
 
 Queixa do cliente (campo issue_description na OS): use get_customer_complaint_for_vehicle para ler o texto atual. Para acrescentar informação, use append_complaint_to_vehicle — ela só concatena ao final do que já estava escrito. Nunca apague, substitua nem sobrescreva a queixa existente; não há ferramenta para apagar ou reescrever esse campo por completo.
 
-Veículos por modelo (open_patio_vehicle_modal, orçamento, queixa, técnico): identifique sempre pelo nome/modelo (vehicle_model_query). Não peça placa. Mesmo que existam múltiplas OS com o mesmo nome/modelo, a ferramenta escolhe automaticamente a mais provável (prioriza a mais recente) e você continua sem solicitar nome do cliente.
+Carros no Pátio: quando o usuário falar de um carro sem dizer "arquivado", trate sempre como veículo em aberto no Pátio (OS ativas). Não misture com arquivados. Só use include_archived: true nas ferramentas se o usuário avisar explicitamente que o carro está arquivado/entregue.
+Veículos por modelo (open_patio_vehicle_modal, orçamento, queixa, técnico): identifique pelo nome/modelo (vehicle_model_query). Não peça placa. Entre várias OS em aberto com o mesmo nome/modelo, a ferramenta escolhe a mais provável (prioriza a mais recente).
 
 Histórico de arquivados (entregues): use open_patio_vehicle_history para abrir a mesma tela do botão de histórico no Pátio/Laboratório. Para só listar dados no chat, use list_archived_vehicle_orders ou list_vehicles_in_stage com status CANCELLED. Para desarquivar uma OS (voltar ao fluxo ativo na etapa Finalizado), use unarchive_vehicle_service_order com id, número da OS ou placa.
 Quando a pergunta for “quais carros estão na etapa X?” (ferramenta `list_vehicles_in_stage`): liste apenas o `nome do veículo` e o `primeiro nome do cliente`; não mencione `os_number` nem `placa`, mesmo que estejam no retorno.
@@ -599,7 +600,7 @@ export function buildAssistantChatTools(
       function: {
         name: "open_patio_vehicle_modal",
         description:
-          "Abre o modal do veículo na página Pátio. Use vehicle_model_query (ex.: Civic, Gol). Não peça placa. Mesmo que existam várias OS com o mesmo nome/modelo, a ferramenta escolhe automaticamente a mais provável (prioriza a mais recente) e você não deve pedir nome do cliente.",
+          "Abre o modal do veículo na página Pátio. Por padrão usa só OS em aberto no Pátio; use include_archived: true só se o usuário disser que o carro está arquivado/entregue. Use vehicle_model_query (ex.: Civic, Gol). Não peça placa. Mesmo que existam várias OS em aberto com o mesmo nome/modelo, a ferramenta escolhe a mais provável (prioriza a mais recente).",
         parameters: {
           type: "object",
           properties: {
@@ -611,6 +612,11 @@ export function buildAssistantChatTools(
               type: "string",
               description: "Parte do nome do cliente, se houver mais de um veículo igual.",
             },
+            include_archived: {
+              type: "boolean",
+              description:
+                "true somente se o usuário avisar que o carro está arquivado/entregue. Omitido ou false = só veículos em aberto no Pátio.",
+            },
           },
           required: ["vehicle_model_query"],
         },
@@ -621,7 +627,7 @@ export function buildAssistantChatTools(
       function: {
         name: "open_patio_vehicle_budget_view",
         description:
-          "Abre o Pátio no modal do veículo e exibe o overlay de leitura do orçamento. Use vehicle_model_query (ex.: Civic, Gol). Não peça placa nem nome do cliente. Se houver mais de um orçamento na OS, pergunte qual o usuário quer e use budget_index (1 = mais recente) ou budget_id.",
+          "Abre o Pátio no modal do veículo e exibe o overlay de leitura do orçamento. Padrão = só OS em aberto no Pátio; include_archived: true só se o usuário disser que o carro está arquivado. Use vehicle_model_query (ex.: Civic, Gol). Não peça placa nem nome do cliente. Se houver mais de um orçamento na OS, pergunte qual o usuário quer e use budget_index (1 = mais recente) ou budget_id.",
         parameters: {
           type: "object",
           properties: {
@@ -632,6 +638,11 @@ export function buildAssistantChatTools(
             customer_name_query: {
               type: "string",
               description: "Se houver vários veículos iguais, parte do nome do cliente.",
+            },
+            include_archived: {
+              type: "boolean",
+              description:
+                "true somente se o usuário avisar que o carro está arquivado/entregue. Omitido ou false = só veículos em aberto no Pátio.",
             },
             budget_id: {
               type: "string",
@@ -651,7 +662,7 @@ export function buildAssistantChatTools(
       function: {
         name: "get_customer_complaint_for_vehicle",
         description:
-          "Lê o texto atual da queixa do cliente (issue_description). Identifique pelo vehicle_model_query (nome/modelo). Não peça placa nem nome do cliente. Em OS arquivada, só leitura.",
+          "Lê o texto atual da queixa do cliente (issue_description). Padrão = só OS em aberto no Pátio; include_archived: true se o usuário disser que o carro está arquivado. Identifique pelo vehicle_model_query. Não peça placa. Em OS arquivada, só leitura.",
         parameters: {
           type: "object",
           properties: {
@@ -663,6 +674,11 @@ export function buildAssistantChatTools(
               type: "string",
               description: "Se houver vários carros iguais, parte do nome do cliente.",
             },
+            include_archived: {
+              type: "boolean",
+              description:
+                "true somente se o usuário avisar que o carro está arquivado/entregue. Omitido ou false = só veículos em aberto no Pátio.",
+            },
           },
           required: ["vehicle_model_query"],
         },
@@ -673,7 +689,7 @@ export function buildAssistantChatTools(
       function: {
         name: "append_complaint_to_vehicle",
         description:
-          "Acrescenta texto ao final da queixa (nunca apaga o existente). Identifique pelo vehicle_model_query (nome/modelo). Não peça placa nem nome do cliente. Não use em OS arquivada.",
+          "Acrescenta texto ao final da queixa (nunca apaga o existente). Padrão = só OS em aberto no Pátio; não use em arquivada. Identifique pelo vehicle_model_query. Não peça placa.",
         parameters: {
           type: "object",
           properties: {
@@ -689,6 +705,11 @@ export function buildAssistantChatTools(
               type: "string",
               description: "Se houver vários carros iguais, parte do nome do cliente.",
             },
+            include_archived: {
+              type: "boolean",
+              description:
+                "true somente se o usuário avisar que o carro está arquivado (raramente útil para editar queixa). Omitido ou false = só veículos em aberto no Pátio.",
+            },
           },
           required: ["complaint_text", "vehicle_model_query"],
         },
@@ -699,7 +720,7 @@ export function buildAssistantChatTools(
       function: {
         name: "set_vehicle_technician",
         description:
-          "Atribui, troca ou remove o técnico responsável pelo card do veículo no Pátio. Localiza a OS por vehicle_model_query (nome/modelo). Não peça placa nem nome do cliente; se houver mais de uma OS com o mesmo nome/modelo, a ferramenta escolhe automaticamente a mais provável. Para remover: clear_technician: true. Para atribuir ou trocar: technician_user_id (UUID) ou technician_username (login/nome). Se retornar ambiguous_tecnico, pergunte qual técnico ou repita com technician_user_id exato.",
+          "Atribui, troca ou remove o técnico responsável pelo card do veículo no Pátio. Padrão = só OS em aberto no Pátio; include_archived: true só se o usuário disser que o carro está arquivado. Localiza por vehicle_model_query. Não peça placa. Para remover: clear_technician: true. Para atribuir ou trocar: technician_user_id (UUID) ou technician_username (login/nome). Se retornar ambiguous_tecnico, pergunte qual técnico ou repita com technician_user_id exato.",
         parameters: {
           type: "object",
           properties: {
@@ -710,6 +731,11 @@ export function buildAssistantChatTools(
             customer_name_query: {
               type: "string",
               description: "Só quando a busca por veículo retornou ambiguous (mais de uma OS).",
+            },
+            include_archived: {
+              type: "boolean",
+              description:
+                "true somente se o usuário avisar que o carro está arquivado/entregue. Omitido ou false = só veículos em aberto no Pátio.",
             },
             clear_technician: {
               type: "boolean",
