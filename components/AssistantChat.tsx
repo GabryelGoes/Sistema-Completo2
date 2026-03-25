@@ -118,6 +118,23 @@ function speakAssistantResponse(text: string): void {
   window.speechSynthesis.speak(u);
 }
 
+/** TTS fixo ao abrir orçamento (sempre fala; o painel fecha sem cancelar esta leitura). */
+function speakBudgetOpenConfirmation(text: string): void {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  const plain = text.trim();
+  if (!plain) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(plain);
+  u.lang = "pt-BR";
+  const voices = window.speechSynthesis.getVoices();
+  const ptBr =
+    voices.find((v) => /pt-BR|pt_BR/i.test(v.lang)) ||
+    voices.find((v) => v.lang.toLowerCase().startsWith("pt"));
+  if (ptBr) u.voice = ptBr;
+  u.rate = 0.98;
+  window.speechSynthesis.speak(u);
+}
+
 function parseOsNumber(raw: unknown): number | undefined {
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;
   if (typeof raw === "string" && raw.trim() !== "") {
@@ -135,8 +152,10 @@ async function executeToolCalls(
   serviceOrderActor: ServiceOrderUpdateActor | undefined,
   assistantCtx: AssistantContext,
   onOpenPatioVehicle?: (serviceOrderId: string, options?: { budgetId?: string }) => void,
-  /** Fecha/minimiza o painel da assistente após abrir orçamento no Pátio (UX). */
-  onMinimizeAfterBudgetOpen?: () => void
+  /** Fecha o painel após abrir orçamento (sem cancelar a fala de confirmação). */
+  onMinimizeAfterBudgetOpen?: () => void,
+  /** Fala a mensagem em `mensagem_voz` ao abrir orçamento (ex.: "Abrindo o orçamento do…"). */
+  onBudgetOpenSpeak?: (text: string) => void
 ): Promise<{ id: string; content: string }[]> {
   const results: { id: string; content: string }[] = [];
   for (const tc of calls) {
@@ -722,6 +741,7 @@ async function executeToolCalls(
           action?: string;
           service_order_id?: string;
           budget_id?: string;
+          mensagem_voz?: string;
         };
         if (
           parsed.ok &&
@@ -730,6 +750,8 @@ async function executeToolCalls(
           typeof parsed.budget_id === "string" &&
           onOpenPatioVehicle
         ) {
+          const voz = typeof parsed.mensagem_voz === "string" ? parsed.mensagem_voz.trim() : "";
+          if (voz) onBudgetOpenSpeak?.(voz);
           onOpenPatioVehicle(parsed.service_order_id, { budgetId: parsed.budget_id });
           onMinimizeAfterBudgetOpen?.();
         }
@@ -809,9 +831,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     });
   }, []);
 
-  /** Ao abrir orçamento no Pátio, minimiza a Zaya para o usuário ver o modal de verdade. */
-  const minimizeAssistant = useCallback(() => {
-    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+  /** Só fecha o painel (não cancela síntese de voz — usado após falar confirmação do orçamento). */
+  const closeAssistantAfterBudget = useCallback(() => {
     setOpen(false);
   }, []);
 
@@ -845,7 +866,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               serviceOrderActor,
               assistantCtx,
               onOpenPatioVehicle,
-              minimizeAssistant
+              closeAssistantAfterBudget,
+              speakBudgetOpenConfirmation
             );
             for (const tr of toolResults) {
               current.push({ role: "tool", tool_call_id: tr.id, content: tr.content });
@@ -880,7 +902,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       assistantCommentActor,
       currentTechnicianUserId,
       onOpenPatioVehicle,
-      minimizeAssistant,
+      closeAssistantAfterBudget,
     ]
   );
 
@@ -938,7 +960,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               serviceOrderActor,
               assistantCtx,
               onOpenPatioVehicle,
-              minimizeAssistant
+              closeAssistantAfterBudget,
+              speakBudgetOpenConfirmation
             );
             return results.find((r) => r.id === call_id)?.content ?? '{"ok":false}';
           },
@@ -971,7 +994,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     assistantCommentActor,
     currentTechnicianUserId,
     onOpenPatioVehicle,
-    minimizeAssistant,
+    closeAssistantAfterBudget,
   ]);
 
   const sendUserMessage = useCallback(
