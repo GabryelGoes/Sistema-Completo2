@@ -41,7 +41,7 @@ Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçam
 Etapas do fluxo (IDs exatos):
 ${stageCatalog}
 
-Ferramentas principais: create_workshop_reminder (SEMPRE que o usuário pedir para criar/gravar um lembrete: salva no modal "Lembretes do Pátio" com target patio ou "Lembretes do Laboratório" com target laboratorio; se não disser qual, pergunte ou infira pelo contexto); open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro — também encontra OS arquivadas/entregues se não houver em aberto; se ambíguo, pedir cliente e repetir com customer_name_query); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); append_complaint_to_vehicle (acrescentar texto à queixa do cliente pelo modelo do carro; mesma desambiguação; não use em OS arquivada); list_vehicles_in_stage (por etapa; use status CANCELLED para listar arquivados/entregues); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto em OS abertas e arquivadas); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
+Ferramentas principais: create_workshop_reminder, list_workshop_reminders (ler), update_workshop_reminder (editar texto ou marcar concluído), delete_workshop_reminder (excluir) — sempre com target patio ou laboratorio conforme o modal; open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro — também encontra OS arquivadas/entregues se não houver em aberto; se ambíguo, pedir cliente e repetir com customer_name_query); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); append_complaint_to_vehicle (acrescentar texto à queixa do cliente pelo modelo do carro; mesma desambiguação; não use em OS arquivada); list_vehicles_in_stage (por etapa; use status CANCELLED para listar arquivados/entregues); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto em OS abertas e arquivadas); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
 Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no Pátio, use open_patio_vehicle_budget_view (não só open_patio_vehicle_modal). Ao usar open_patio_vehicle_budget_view com sucesso, o app minimiza o chat da assistente e mostra o orçamento no modal do Pátio — responda de forma breve (ex.: "Abri o orçamento no Pátio").
 Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
 }
@@ -448,6 +448,78 @@ export function buildAssistantChatTools(allowedTabs: string[], statusEnum: strin
                   },
                 },
                 required: ["text", "target"],
+              },
+            },
+          },
+          {
+            type: "function" as const,
+            function: {
+              name: "list_workshop_reminders",
+              description:
+                "Lista os lembretes salvos do Pátio ou do Laboratório (cada item tem id, texto, concluído, data). Use antes de editar ou excluir para obter o id.",
+              parameters: {
+                type: "object",
+                properties: {
+                  target: {
+                    type: "string",
+                    enum: reminderTargets,
+                    description: "patio ou laboratorio.",
+                  },
+                },
+                required: ["target"],
+              },
+            },
+          },
+          {
+            type: "function" as const,
+            function: {
+              name: "delete_workshop_reminder",
+              description: "Remove um lembrete pelo id (UUID retornado em list_workshop_reminders).",
+              parameters: {
+                type: "object",
+                properties: {
+                  target: {
+                    type: "string",
+                    enum: reminderTargets,
+                    description: "patio ou laboratorio.",
+                  },
+                  reminder_id: {
+                    type: "string",
+                    description: "UUID do lembrete (campo id na listagem).",
+                  },
+                },
+                required: ["target", "reminder_id"],
+              },
+            },
+          },
+          {
+            type: "function" as const,
+            function: {
+              name: "update_workshop_reminder",
+              description:
+                "Edita o texto do lembrete e/ou marca como concluído (done: true) ou reabre (done: false).",
+              parameters: {
+                type: "object",
+                properties: {
+                  target: {
+                    type: "string",
+                    enum: reminderTargets,
+                    description: "patio ou laboratorio.",
+                  },
+                  reminder_id: {
+                    type: "string",
+                    description: "UUID do lembrete.",
+                  },
+                  text: {
+                    type: "string",
+                    description: "Novo texto completo do lembrete (opcional).",
+                  },
+                  done: {
+                    type: "boolean",
+                    description: "true = concluído/riscado; false = voltar a pendente (opcional).",
+                  },
+                },
+                required: ["target", "reminder_id"],
               },
             },
           },

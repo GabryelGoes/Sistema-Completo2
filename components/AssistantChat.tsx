@@ -11,7 +11,12 @@ import {
 } from "../services/assistantApi";
 import { postAssistantRealtimeSession } from "../services/assistantRealtimeApi";
 import { OpenAiRealtimeClient } from "../services/openaiRealtimeClient";
-import { appendWorkshopReminder } from "../services/workshopRemindersStorage";
+import {
+  appendWorkshopReminder,
+  deleteWorkshopReminder,
+  readWorkshopReminders,
+  updateWorkshopReminder,
+} from "../services/workshopRemindersStorage";
 import type { ServiceOrderUpdateActor } from "../services/apiService";
 import {
   isValidServiceOrderStatus,
@@ -205,6 +210,139 @@ async function executeToolCalls(
         text,
         assistantCtx.authorDisplayName || ASSISTANT_NAME
       );
+      results.push({ id: tc.id, content: JSON.stringify(out) });
+      continue;
+    }
+    if (name === "list_workshop_reminders") {
+      const rawTarget = String(payload.target ?? "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "");
+      const target =
+        rawTarget === "laboratorio" ? "laboratorio" : rawTarget === "patio" ? "patio" : "";
+      if (target !== "patio" && target !== "laboratorio") {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: 'Use target "patio" ou "laboratorio".',
+          }),
+        });
+        continue;
+      }
+      if (target === "patio" && !allowedTabs.includes("patio")) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "Sem acesso ao Pátio." }),
+        });
+        continue;
+      }
+      if (target === "laboratorio" && !allowedTabs.includes("laboratorio")) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "Sem acesso ao Laboratório." }),
+        });
+        continue;
+      }
+      const list = readWorkshopReminders(target);
+      results.push({
+        id: tc.id,
+        content: JSON.stringify({
+          ok: true,
+          target,
+          total: list.length,
+          lembretes: list.map((r) => ({
+            id: r.id,
+            text: r.text,
+            done: r.done,
+            createdAt: r.createdAt,
+            createdBy: r.createdBy ?? null,
+          })),
+        }),
+      });
+      continue;
+    }
+    if (name === "delete_workshop_reminder") {
+      const rawTarget = String(payload.target ?? "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "");
+      const target =
+        rawTarget === "laboratorio" ? "laboratorio" : rawTarget === "patio" ? "patio" : "";
+      const reminderId = String(payload.reminder_id ?? "").trim();
+      if (target !== "patio" && target !== "laboratorio") {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: 'Use target "patio" ou "laboratorio".' }),
+        });
+        continue;
+      }
+      if (target === "patio" && !allowedTabs.includes("patio")) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "Sem acesso ao Pátio." }),
+        });
+        continue;
+      }
+      if (target === "laboratorio" && !allowedTabs.includes("laboratorio")) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "Sem acesso ao Laboratório." }),
+        });
+        continue;
+      }
+      const out = deleteWorkshopReminder(target, reminderId);
+      results.push({ id: tc.id, content: JSON.stringify(out) });
+      continue;
+    }
+    if (name === "update_workshop_reminder") {
+      const rawTarget = String(payload.target ?? "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "");
+      const target =
+        rawTarget === "laboratorio" ? "laboratorio" : rawTarget === "patio" ? "patio" : "";
+      const reminderId = String(payload.reminder_id ?? "").trim();
+      const hasText = typeof payload.text === "string";
+      const hasDone = typeof payload.done === "boolean";
+      if (target !== "patio" && target !== "laboratorio") {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: 'Use target "patio" ou "laboratorio".' }),
+        });
+        continue;
+      }
+      if (target === "patio" && !allowedTabs.includes("patio")) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "Sem acesso ao Pátio." }),
+        });
+        continue;
+      }
+      if (target === "laboratorio" && !allowedTabs.includes("laboratorio")) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "Sem acesso ao Laboratório." }),
+        });
+        continue;
+      }
+      if (!hasText && !hasDone) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: "Informe text (novo texto) e/ou done (boolean).",
+          }),
+        });
+        continue;
+      }
+      const out = updateWorkshopReminder(target, reminderId, {
+        ...(hasText ? { text: String(payload.text) } : {}),
+        ...(hasDone ? { done: payload.done as boolean } : {}),
+      });
       results.push({ id: tc.id, content: JSON.stringify(out) });
       continue;
     }
