@@ -122,7 +122,9 @@ async function executeToolCalls(
   onOpenSettings: () => void,
   serviceOrderActor: ServiceOrderUpdateActor | undefined,
   assistantCtx: AssistantContext,
-  onOpenPatioVehicle?: (serviceOrderId: string, options?: { budgetId?: string }) => void
+  onOpenPatioVehicle?: (serviceOrderId: string, options?: { budgetId?: string }) => void,
+  /** Fecha/minimiza o painel da assistente após abrir orçamento no Pátio (UX). */
+  onMinimizeAfterBudgetOpen?: () => void
 ): Promise<{ id: string; content: string }[]> {
   const results: { id: string; content: string }[] = [];
   for (const tc of calls) {
@@ -484,6 +486,7 @@ async function executeToolCalls(
           onOpenPatioVehicle
         ) {
           onOpenPatioVehicle(parsed.service_order_id, { budgetId: parsed.budget_id });
+          onMinimizeAfterBudgetOpen?.();
         }
       } catch {
         /* ignore */
@@ -558,6 +561,12 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     });
   }, []);
 
+  /** Ao abrir orçamento no Pátio, minimiza a Zaya para o usuário ver o modal de verdade. */
+  const minimizeAssistant = useCallback(() => {
+    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    setOpen(false);
+  }, []);
+
   const runAssistantTurn = useCallback(
     async (history: AssistantApiMessage[]) => {
       setLoading(true);
@@ -587,7 +596,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               onOpenSettings,
               serviceOrderActor,
               assistantCtx,
-              onOpenPatioVehicle
+              onOpenPatioVehicle,
+              minimizeAssistant
             );
             for (const tr of toolResults) {
               current.push({ role: "tool", tool_call_id: tr.id, content: tr.content });
@@ -622,6 +632,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       assistantCommentActor,
       currentTechnicianUserId,
       onOpenPatioVehicle,
+      minimizeAssistant,
     ]
   );
 
@@ -678,7 +689,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               onOpenSettings,
               serviceOrderActor,
               assistantCtx,
-              onOpenPatioVehicle
+              onOpenPatioVehicle,
+              minimizeAssistant
             );
             return results.find((r) => r.id === call_id)?.content ?? '{"ok":false}';
           },
@@ -711,6 +723,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     assistantCommentActor,
     currentTechnicianUserId,
     onOpenPatioVehicle,
+    minimizeAssistant,
   ]);
 
   const sendUserMessage = useCallback(
