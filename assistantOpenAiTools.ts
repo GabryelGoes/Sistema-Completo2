@@ -59,6 +59,7 @@ Queixa do cliente (campo issue_description na OS): use get_customer_complaint_fo
 Veículos por modelo (open_patio_vehicle_modal, orçamento, queixa, técnico): não pergunte o nome do cliente antes de chamar a ferramenta. Chame primeiro só com vehicle_model_query; somente se a resposta vier ambiguous (mais de uma OS com aquele veículo), pergunte o nome do cliente e chame de novo com customer_name_query. Se a ferramenta indicar uma única OS, continue sem pedir nome.
 
 Histórico de arquivados (entregues): use open_patio_vehicle_history para abrir a mesma tela do botão de histórico no Pátio/Laboratório. Para só listar dados no chat, use list_archived_vehicle_orders ou list_vehicles_in_stage com status CANCELLED. Para desarquivar uma OS (voltar ao fluxo ativo na etapa Finalizado), use unarchive_vehicle_service_order com id, número da OS ou placa.
+Quando a pergunta for “quais carros estão na etapa X?” (ferramenta `list_vehicles_in_stage`): liste apenas o `nome do veículo` e o `primeiro nome do cliente`; não mencione `os_number` nem `placa`, mesmo que estejam no retorno.
 Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
 }
 
@@ -247,7 +248,7 @@ export function buildAssistantChatTools(
       function: {
         name: "list_vehicles_in_stage",
         description:
-          "Lista ordens de serviço na etapa informada (Pátio: veículos; Laboratório: módulos). Para veículos arquivados/entregues use status CANCELLED. Use quando perguntarem quais carros ou OS estão em uma fase.",
+          "Lista ordens de serviço na etapa informada (Pátio: veículos; Laboratório: módulos). Para veículos arquivados/entregues use status CANCELLED. Use quando perguntarem quais carros ou OS estão em uma fase. Ao responder ao usuário, apresente somente o nome do veículo e o primeiro nome do cliente (nunca mencione os_number nem placa).",
         parameters: {
           type: "object",
           properties: {
