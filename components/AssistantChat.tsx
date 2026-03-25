@@ -33,6 +33,7 @@ import {
   markZayaRelayOpened,
   submitZayaRelayReply,
   type ServiceOrderUpdateActor,
+  type ZayaRelayPendingRow,
 } from "../services/apiService";
 import {
   isValidServiceOrderStatus,
@@ -111,6 +112,30 @@ function markdownToSpeechText(md: string): string {
     .replace(/\*([^*]+)\*/g, "$1")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** Texto linear para leitura em voz (Realtime ou TTS do navegador). */
+function combineRelayRowsForVoice(
+  rows: ZayaRelayPendingRow[],
+  scope: "technician" | "management"
+): string {
+  if (rows.length === 0) return "";
+  if (scope === "technician") {
+    return rows
+      .map((r, i) =>
+        rows.length > 1
+          ? `Recado ${i + 1} de ${rows.length} da gerência: ${r.body.replace(/\s+/g, " ").trim()}`
+          : `Recado da gerência: ${r.body.replace(/\s+/g, " ").trim()}`
+      )
+      .join(". ");
+  }
+  return rows
+    .map((r, i) =>
+      rows.length > 1
+        ? `Recado ${i + 1} de ${rows.length} do técnico ${r.sender_label}: ${r.body.replace(/\s+/g, " ").trim()}`
+        : `Recado do técnico ${r.sender_label}: ${r.body.replace(/\s+/g, " ").trim()}`
+    )
+    .join(". ");
 }
 
 function speakAssistantResponse(text: string): void {
@@ -951,6 +976,19 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   const relaySessionRole = relaySessionRoleProp;
   const [relayPendingTech, setRelayPendingTech] = useState(0);
   const [relayPendingMgmt, setRelayPendingMgmt] = useState(0);
+  /** Dispara nova tentativa de entrega quando o contador de pendentes sobe. */
+  const [relayRedeliveryTick, setRelayRedeliveryTick] = useState(0);
+  const lastRelayPendingCountRef = useRef(0);
+  /** Após `sendRelayVoiceAnnouncement`, marcar recados abertos no fim da resposta Realtime. */
+  const relayMarkAfterResponseRef = useRef<{
+    ids: string[];
+    scope: "technician" | "management";
+    userId?: string;
+  } | null>(null);
+  /** Evita reenviar o mesmo lote no modo clássico. */
+  const relayClassicBatchKeyRef = useRef<string>("");
+  /** Evita duas buscas paralelas de recados antes de enviar ao Realtime. */
+  const relayRealtimeDeliveryLockRef = useRef(false);
   /** Fila de áudio da assistente no Realtime terminou (evita eco em respostas longas). */
   const [assistantPlaybackIdle, setAssistantPlaybackIdle] = useState(true);
   const assistantPlaybackIdleRef = useRef(true);
@@ -1050,6 +1088,33 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     ]
   );
 
+  const refreshRelayPendingCount = useCallback(() => {
+    if (relaySessionRole === "none") return;
+    if (relaySessionRole === "technician" && currentTechnicianUserId) {
+      void getZayaRelayPendingCountForTechnician(currentTechnicianUserId).then(setRelayPendingTech);
+    } else if (relaySessionRole === "management") {
+      void getZayaRelayPendingCountForManagement().then(setRelayPendingMgmt);
+    }
+  }, [relaySessionRole, currentTechnicianUserId]);
+
+  /** Novo recado enquanto o app está aberto: dispara entrega (Realtime ou clássico). */
+  useEffect(() => {
+    if (relaySessionRole === "none") {
+      lastRelayPendingCountRef.current = 0;
+      return;
+    }
+    const n =
+      relaySessionRole === "technician"
+        ? relayPendingTech
+        : relaySessionRole === "management"
+          ? relayPendingMgmt
+          : 0;
+    if (n > lastRelayPendingCountRef.current) {
+      setRelayRedeliveryTick((t) => t + 1);
+    }
+    lastRelayPendingCountRef.current = n;
+  }, [relayPendingTech, relayPendingMgmt, relaySessionRole]);
+
   /** Polling: recados pendentes (indicador no botão). */
   useEffect(() => {
     if (relaySessionRole === "none") {
@@ -1058,75 +1123,157 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       return;
     }
     const tick = () => {
-      if (relaySessionRole === "technician" && currentTechnicianUserId) {
-        void getZayaRelayPendingCountForTechnician(currentTechnicianUserId).then(setRelayPendingTech);
-      } else if (relaySessionRole === "management") {
-        void getZayaRelayPendingCountForManagement().then(setRelayPendingMgmt);
-      }
+      refreshRelayPendingCount();
     };
     tick();
-    const id = window.setInterval(tick, 40000);
-    return () => window.clearInterval(id);
-  }, [relaySessionRole, currentTechnicianUserId]);
+    const id = window.setInterval(tick, 12000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    const onFocus = () => tick();
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [relaySessionRole, refreshRelayPendingCount]);
 
-  /** Ao abrir o chat: entregar recados pendentes (voz + texto) e marcar como abertos. */
   useEffect(() => {
-    if (!open || relaySessionRole === "none") return;
+    if (open) refreshRelayPendingCount();
+  }, [open, refreshRelayPendingCount]);
+
+  /** Modo clássico: recados na abertura ou quando chegam novos (TTS do navegador). */
+  useEffect(() => {
+    if (!open || relaySessionRole === "none" || !useClassicChat) return;
+    if (relaySessionRole === "technician" && !currentTechnicianUserId) return;
     let cancelled = false;
     void (async () => {
-      if (relaySessionRole === "technician" && currentTechnicianUserId) {
-        const rows = await getZayaRelayPendingForTechnician(currentTechnicianUserId);
-        if (cancelled || rows.length === 0) return;
-        const ids = rows.map((r) => r.id);
-        const delivery: AssistantApiMessage[] = rows.map((r) => ({
-          role: "assistant" as const,
-          content:
-            `**Recado da gerência**\n\n${r.body}\n\n---\nPara responder, diga ou escreva sua resposta; o id deste recado é \`${r.id}\` (uso na ferramenta zaya_submit_relay_reply).`,
-        }));
-        setMessages((prev) => [...delivery, ...prev]);
-        try {
-          await markZayaRelayOpened(ids, "technician", currentTechnicianUserId);
-        } catch {
-          /* ignore */
-        }
-        if (!cancelled) setRelayPendingTech(0);
-        if (!cancelled && ttsEnabledRef.current && rows[0]) {
-          speakAssistantResponse(
-            `Recado da gerência: ${rows[0].body.replace(/\s+/g, " ").trim()}`
-          );
-        }
-        return;
+      const rows =
+        relaySessionRole === "technician" && currentTechnicianUserId
+          ? await getZayaRelayPendingForTechnician(currentTechnicianUserId)
+          : await getZayaRelayPendingForManagement();
+      if (cancelled || rows.length === 0) return;
+      const ids = rows.map((r) => r.id).sort();
+      const batchKey = ids.join(",");
+      if (batchKey === relayClassicBatchKeyRef.current) return;
+      const scope = relaySessionRole === "technician" ? "technician" : "management";
+      const delivery: AssistantApiMessage[] =
+        relaySessionRole === "technician"
+          ? rows.map((r) => ({
+              role: "assistant" as const,
+              content:
+                `**Recado da gerência**\n\n${r.body}\n\n---\nPara responder, diga ou escreva sua resposta; o id deste recado é \`${r.id}\` (uso na ferramenta zaya_submit_relay_reply).`,
+            }))
+          : rows.map((r) => ({
+              role: "assistant" as const,
+              content:
+                `**Recado do técnico ${r.sender_label}**\n\n${r.body}\n\n---\nPara responder a este recado, use a ferramenta de resposta com o id \`${r.id}\` e o texto da sua resposta.`,
+            }));
+      setMessages((prev) => [...delivery, ...prev]);
+      relayClassicBatchKeyRef.current = batchKey;
+      try {
+        await markZayaRelayOpened(
+          ids,
+          scope,
+          scope === "technician" ? currentTechnicianUserId : undefined
+        );
+      } catch {
+        relayClassicBatchKeyRef.current = "";
       }
-      if (relaySessionRole === "management") {
-        const rows = await getZayaRelayPendingForManagement();
-        if (cancelled || rows.length === 0) return;
-        const ids = rows.map((r) => r.id);
-        const delivery: AssistantApiMessage[] = rows.map((r) => ({
-          role: "assistant" as const,
-          content:
-            `**Recado do técnico ${r.sender_label}**\n\n${r.body}\n\n---\nPara responder a este recado, use a ferramenta de resposta com o id \`${r.id}\` e o texto da sua resposta.`,
-        }));
-        setMessages((prev) => [...delivery, ...prev]);
-        try {
-          await markZayaRelayOpened(ids, "management");
-        } catch {
-          /* ignore */
-        }
-        if (!cancelled) setRelayPendingMgmt(0);
-        if (!cancelled && ttsEnabledRef.current && rows[0]) {
-          speakAssistantResponse(
-            `Recado do técnico ${rows[0].sender_label}: ${rows[0].body.replace(/\s+/g, " ").trim()}`
-          );
-        }
+      if (!cancelled) {
+        if (scope === "technician") setRelayPendingTech(0);
+        else setRelayPendingMgmt(0);
+        refreshRelayPendingCount();
+      }
+      if (!cancelled && ttsEnabledRef.current && rows[0]) {
+        speakAssistantResponse(combineRelayRowsForVoice(rows, scope));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [open, relaySessionRole, currentTechnicianUserId]);
+  }, [
+    open,
+    relaySessionRole,
+    currentTechnicianUserId,
+    useClassicChat,
+    relayRedeliveryTick,
+    refreshRelayPendingCount,
+  ]);
+
+  /** Realtime: voz da Zaya para recados; marca aberto após response.done. */
+  useEffect(() => {
+    if (!open || !realtimeReady || useClassicChat || relaySessionRole === "none") return;
+    if (relaySessionRole === "technician" && !currentTechnicianUserId) return;
+    if (relayMarkAfterResponseRef.current) return;
+    if (relayRealtimeDeliveryLockRef.current) return;
+    const client = realtimeClientRef.current;
+    if (!client) return;
+    let cancelled = false;
+    void (async () => {
+      if (relayRealtimeDeliveryLockRef.current) return;
+      relayRealtimeDeliveryLockRef.current = true;
+      let releaseLockOnExit = true;
+      try {
+        const rows =
+          relaySessionRole === "technician" && currentTechnicianUserId
+            ? await getZayaRelayPendingForTechnician(currentTechnicianUserId)
+            : await getZayaRelayPendingForManagement();
+        if (cancelled || rows.length === 0) return;
+        const ids = rows.map((r) => r.id);
+        const scope = relaySessionRole === "technician" ? "technician" : "management";
+        const voice = combineRelayRowsForVoice(rows, scope);
+        relayMarkAfterResponseRef.current = {
+          ids,
+          scope,
+          ...(scope === "technician" && currentTechnicianUserId
+            ? { userId: currentTechnicianUserId }
+            : {}),
+        };
+        const userLabel =
+          scope === "technician" ? "🔔 Recado da gerência" : "🔔 Recado de técnico";
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", content: userLabel },
+          { role: "assistant", content: "" },
+        ]);
+        if (cancelled) {
+          relayMarkAfterResponseRef.current = null;
+          return;
+        }
+        releaseLockOnExit = false;
+        loadingRef.current = true;
+        assistantPlaybackIdleRef.current = false;
+        setAssistantPlaybackIdle(false);
+        setLoading(true);
+        if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+        recRef.current?.stop();
+        client.sendRelayVoiceAnnouncement(voice);
+      } catch {
+        relayMarkAfterResponseRef.current = null;
+      } finally {
+        if (releaseLockOnExit) relayRealtimeDeliveryLockRef.current = false;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    realtimeReady,
+    useClassicChat,
+    relaySessionRole,
+    currentTechnicianUserId,
+    relayRedeliveryTick,
+  ]);
 
   useEffect(() => {
     if (!open) {
+      relayClassicBatchKeyRef.current = "";
+      relayMarkAfterResponseRef.current = null;
+      relayRealtimeDeliveryLockRef.current = false;
       assistantPlaybackIdleRef.current = true;
       setAssistantPlaybackIdle(true);
       if (resumeMicTimeoutRef.current) {
@@ -1177,7 +1324,22 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
             assistantPlaybackIdleRef.current = true;
             setAssistantPlaybackIdle(true);
           },
-          onResponseDone: () => setLoading(false),
+          onResponseDone: () => {
+            setLoading(false);
+            const pending = relayMarkAfterResponseRef.current;
+            if (!pending) return;
+            relayMarkAfterResponseRef.current = null;
+            relayRealtimeDeliveryLockRef.current = false;
+            void markZayaRelayOpened(pending.ids, pending.scope, pending.userId)
+              .then(() => {
+                if (pending.scope === "technician") setRelayPendingTech(0);
+                else setRelayPendingMgmt(0);
+                refreshRelayPendingCount();
+              })
+              .catch(() => {
+                refreshRelayPendingCount();
+              });
+          },
           onFunctionCall: async ({ name, arguments: argsStr, call_id }) => {
             const assistantCtx: AssistantContext = {
               allowedTabs,
@@ -1206,6 +1368,19 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
             setLoading(false);
             assistantPlaybackIdleRef.current = true;
             setAssistantPlaybackIdle(true);
+            const pending = relayMarkAfterResponseRef.current;
+            if (pending) {
+              relayMarkAfterResponseRef.current = null;
+              void markZayaRelayOpened(pending.ids, pending.scope, pending.userId)
+                .then(() => {
+                  if (pending.scope === "technician") setRelayPendingTech(0);
+                  else setRelayPendingMgmt(0);
+                  refreshRelayPendingCount();
+                })
+                .catch(() => {
+                  refreshRelayPendingCount();
+                });
+            }
           },
         });
         await client.connect(session.client_secret, session.model);
@@ -1233,6 +1408,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     currentTechnicianUserId,
     onOpenPatioVehicle,
     relaySessionRole,
+    refreshRelayPendingCount,
   ]);
 
   const sendUserMessage = useCallback(
@@ -1445,9 +1621,27 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               />
             </>
           )}
+          {relaySessionRole === "management" && relayPendingMgmt > 0 && (
+            <>
+              <span
+                className="pointer-events-none absolute inset-0 -m-[2px] rounded-full border-2 border-emerald-500 assist-relay-green-a"
+                aria-hidden
+              />
+              <span
+                className="pointer-events-none absolute inset-0 -m-[5px] rounded-full border border-emerald-400/55 assist-relay-green-b"
+                aria-hidden
+              />
+            </>
+          )}
           <button
             type="button"
-            aria-label={`Abrir ${ASSISTANT_NAME}${relaySessionRole === "technician" && relayPendingTech > 0 ? " — há recado da gerência" : ""}`}
+            aria-label={`Abrir ${ASSISTANT_NAME}${
+              relaySessionRole === "technician" && relayPendingTech > 0
+                ? " — há recado da gerência"
+                : relaySessionRole === "management" && relayPendingMgmt > 0
+                  ? " — há recado de técnico"
+                  : ""
+            }`}
             onClick={() => setOpen(true)}
             className={`relative z-10 flex h-14 w-14 items-center justify-center rounded-full ${fabBg} transition-transform hover:scale-105 active:scale-95`}
           >
