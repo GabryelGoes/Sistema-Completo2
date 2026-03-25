@@ -51,8 +51,10 @@ Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçam
 Etapas do fluxo (IDs exatos):
 ${stageCatalog}
 
-Central de notificações (oficina inteira): list_notifications, get_unread_notifications_count, mark_notification_read, mark_all_notifications_read, clear_all_notifications (só se o usuário pedir para apagar tudo). Ferramentas principais: create_workshop_reminder, list_workshop_reminders (ler), update_workshop_reminder (editar texto ou marcar concluído), delete_workshop_reminder (excluir) — sempre com target patio ou laboratorio conforme o modal; open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro — também encontra OS arquivadas/entregues se não houver em aberto; se ambíguo, pedir cliente e repetir com customer_name_query); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); append_complaint_to_vehicle (acrescentar texto à queixa do cliente pelo modelo do carro; mesma desambiguação; não use em OS arquivada); list_vehicles_in_stage (por etapa; use status CANCELLED para listar arquivados/entregues); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto em OS abertas e arquivadas); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
+Central de notificações (oficina inteira): list_notifications, get_unread_notifications_count, mark_notification_read, mark_all_notifications_read, clear_all_notifications (só se o usuário pedir para apagar tudo). Ferramentas principais: create_workshop_reminder, list_workshop_reminders (ler), update_workshop_reminder (editar texto ou marcar concluído), delete_workshop_reminder (excluir) — sempre com target patio ou laboratorio conforme o modal; open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro — também encontra OS arquivadas/entregues se não houver em aberto; se ambíguo, pedir cliente e repetir com customer_name_query); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); get_customer_complaint_for_vehicle (ler a queixa do cliente; OS arquivada: só leitura); append_complaint_to_vehicle (acrescentar ao final da queixa; nunca apaga o que já estava; mesma desambiguação; não use em OS arquivada); list_vehicles_in_stage (por etapa; use status CANCELLED para listar arquivados/entregues); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto em OS abertas e arquivadas); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
 Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no Pátio, use open_patio_vehicle_budget_view (não só open_patio_vehicle_modal). Com sucesso, o app abre o orçamento no Pátio sem fechar o chat da Zaya.
+
+Queixa do cliente (campo issue_description na OS): use get_customer_complaint_for_vehicle para ler o texto atual. Para acrescentar informação, use append_complaint_to_vehicle — ela só concatena ao final do que já estava escrito. Nunca apague, substitua nem sobrescreva a queixa existente; não há ferramenta para apagar ou reescrever esse campo por completo.
 Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
 }
 
@@ -554,9 +556,31 @@ export function buildAssistantChatTools(
     {
       type: "function" as const,
       function: {
+        name: "get_customer_complaint_for_vehicle",
+        description:
+          "Lê o texto atual da queixa do cliente (issue_description) da OS do veículo. Use vehicle_model_query (ex.: Argo, Civic). Se houver vários veículos iguais, peça o cliente e repita com customer_name_query. Em OS arquivada, só leitura.",
+        parameters: {
+          type: "object",
+          properties: {
+            vehicle_model_query: {
+              type: "string",
+              description: "Nome ou modelo do carro para localizar a OS.",
+            },
+            customer_name_query: {
+              type: "string",
+              description: "Se houver vários carros iguais, parte do nome do cliente.",
+            },
+          },
+          required: ["vehicle_model_query"],
+        },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
         name: "append_complaint_to_vehicle",
         description:
-          "Acrescenta texto ao campo queixa do cliente (issue_description) da OS do veículo indicado. Use vehicle_model_query (ex.: Argo, Civic) e complaint_text com o que o usuário pediu para adicionar. Se ambiguous, peça o cliente e repita com customer_name_query.",
+          "Acrescenta texto ao final do campo queixa do cliente (issue_description); o texto que já estava escrito é sempre preservado — nunca apaga nem substitui. Use vehicle_model_query (ex.: Argo, Civic) e complaint_text só com o trecho novo. Se ambiguous, peça o cliente e repita com customer_name_query. Não use em OS arquivada.",
         parameters: {
           type: "object",
           properties: {

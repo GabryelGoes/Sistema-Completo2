@@ -904,7 +904,57 @@ export async function openPatioVehicleBudgetViewJson(
   }
 }
 
-/** Acrescenta texto ao campo queixa do cliente (issue_description) da OS encontrada pelo modelo do carro. */
+/** Lê o campo queixa do cliente (issue_description) da OS localizada pelo modelo do veículo. Somente leitura. */
+export async function getCustomerComplaintForVehicleJson(
+  payload: {
+    vehicle_model_query: string;
+    customer_name_query?: string;
+  },
+  ctx: AssistantContext
+): Promise<string> {
+  const r = await matchPatioVehicleByModel(
+    payload.vehicle_model_query,
+    typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+    ctx.allowedTabs
+  );
+  if (r.kind === "error") {
+    return JSON.stringify({ ok: false, error: r.message });
+  }
+  if (r.kind === "ambiguous") {
+    return JSON.stringify({
+      ok: true,
+      ambiguous: true,
+      pedir_cliente: true,
+      mensagem:
+        "Há mais de um veículo com esse nome. Pergunte o nome do cliente e chame a ferramenta de novo com customer_name_query.",
+      opcoes: r.opcoes,
+    });
+  }
+  try {
+    const detail = await getServiceOrderById(r.order.id);
+    const queixa = (detail.issue_description ?? "").trim();
+    const cliente =
+      detail.customers?.name ?? r.order.customer_name ?? r.order.customers?.name ?? null;
+    return JSON.stringify({
+      ok: true,
+      service_order_id: r.order.id,
+      os_number: r.order.os_number ?? null,
+      placa: r.order.plate,
+      veiculo_modelo: r.order.vehicle_model,
+      cliente,
+      queixa_do_cliente: queixa || null,
+      os_arquivada: r.order.status === CANCELLED_STATUS,
+      leitura_apenas: r.order.status === CANCELLED_STATUS,
+    });
+  } catch (e) {
+    return JSON.stringify({
+      ok: false,
+      error: e instanceof Error ? e.message : "Falha ao carregar a queixa.",
+    });
+  }
+}
+
+/** Acrescenta texto ao campo queixa do cliente (issue_description) da OS encontrada pelo modelo do carro. Nunca substitui o que já existia — só concatena ao final. */
 export async function appendComplaintToVehicleJson(
   payload: {
     complaint_text: string;
@@ -945,6 +995,12 @@ export async function appendComplaintToVehicleJson(
     const detail = await getServiceOrderById(r.order.id);
     const prev = (detail.issue_description ?? "").trim();
     const merged = prev ? `${prev}\n\n${text}` : text;
+    if (prev && !merged.startsWith(prev)) {
+      return JSON.stringify({
+        ok: false,
+        error: "Não foi possível preservar o texto existente da queixa; operação cancelada.",
+      });
+    }
     await updateServiceOrderDescription(r.order.id, merged, ctx.serviceOrderActor);
     return JSON.stringify({
       ok: true,

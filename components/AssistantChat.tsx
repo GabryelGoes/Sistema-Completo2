@@ -57,6 +57,7 @@ import {
   searchServiceOrdersJson,
   openPatioVehicleModalJson,
   openPatioVehicleBudgetViewJson,
+  getCustomerComplaintForVehicleJson,
   appendComplaintToVehicleJson,
 } from "../services/assistantExtendedTools";
 
@@ -839,6 +840,18 @@ async function executeToolCalls(
     }
     if (name === "search_customers") {
       const out = await searchCustomersJson({ query: String(payload.query ?? "") }, assistantCtx);
+      results.push({ id: tc.id, content: out });
+      continue;
+    }
+    if (name === "get_customer_complaint_for_vehicle") {
+      const out = await getCustomerComplaintForVehicleJson(
+        {
+          vehicle_model_query: String(payload.vehicle_model_query ?? ""),
+          customer_name_query:
+            typeof payload.customer_name_query === "string" ? payload.customer_name_query : undefined,
+        },
+        assistantCtx
+      );
       results.push({ id: tc.id, content: out });
       continue;
     }
