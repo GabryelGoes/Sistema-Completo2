@@ -567,6 +567,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [newReminder, setNewReminder] = useState('');
   const remindersStorageKey = orderType === 'module' ? 'patio-reminders-module' : 'patio-reminders-vehicle';
+  const isModuleMode = orderType === 'module';
 
   useEffect(() => {
     try {
@@ -937,8 +938,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setIsLoadingHistory(false);
     }
   };
-
-  const isModuleMode = orderType === 'module';
 
   // Ao abrir o modal de histórico, carregar os últimos veículos arquivados
   useEffect(() => {
