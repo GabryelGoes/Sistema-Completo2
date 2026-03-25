@@ -589,6 +589,39 @@ export const PatioView: React.FC<PatioViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remindersStorageKey]);
 
+  /** Sincroniza quando a Zaya (assistente) grava lembrete no mesmo localStorage. */
+  useEffect(() => {
+    const reloadFromStorage = () => {
+      try {
+        const raw = localStorage.getItem(remindersStorageKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Reminder[];
+          if (Array.isArray(parsed)) {
+            setReminders(
+              parsed.map((r) => ({
+                ...r,
+                createdBy: r.createdBy || commentAuthorName || (isModuleMode ? 'Laboratório' : 'Pátio'),
+              }))
+            );
+          }
+        } else {
+          setReminders([]);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    const onSync = (e: Event) => {
+      const ce = e as CustomEvent<{ scope?: string }>;
+      const scope = ce.detail?.scope;
+      const mine: 'patio' | 'laboratorio' = orderType === 'module' ? 'laboratorio' : 'patio';
+      if (scope && scope !== mine) return;
+      reloadFromStorage();
+    };
+    window.addEventListener('workshop-reminders-updated', onSync);
+    return () => window.removeEventListener('workshop-reminders-updated', onSync);
+  }, [remindersStorageKey, commentAuthorName, isModuleMode, orderType]);
+
   useEffect(() => {
     try {
       localStorage.setItem(remindersStorageKey, JSON.stringify(reminders));

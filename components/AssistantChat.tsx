@@ -11,6 +11,7 @@ import {
 } from "../services/assistantApi";
 import { postAssistantRealtimeSession } from "../services/assistantRealtimeApi";
 import { OpenAiRealtimeClient } from "../services/openaiRealtimeClient";
+import { appendWorkshopReminder } from "../services/workshopRemindersStorage";
 import type { ServiceOrderUpdateActor } from "../services/apiService";
 import {
   isValidServiceOrderStatus,
@@ -152,6 +153,57 @@ async function executeToolCalls(
     if (name === "open_settings") {
       onOpenSettings();
       results.push({ id: tc.id, content: JSON.stringify({ ok: true, opened: "settings" }) });
+      continue;
+    }
+    if (name === "create_workshop_reminder") {
+      const text = String(payload.text ?? "").trim();
+      const rawTarget = String(payload.target ?? "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "");
+      const target =
+        rawTarget === "laboratorio" ? "laboratorio" : rawTarget === "patio" ? "patio" : "";
+      if (!text) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "Texto do lembrete vazio." }),
+        });
+        continue;
+      }
+      if (target !== "patio" && target !== "laboratorio") {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: 'Use target "patio" (Lembretes do Pátio) ou "laboratorio" (Lembretes do Laboratório).',
+          }),
+        });
+        continue;
+      }
+      if (target === "patio" && !allowedTabs.includes("patio")) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "Sem acesso ao Pátio para este lembrete." }),
+        });
+        continue;
+      }
+      if (target === "laboratorio" && !allowedTabs.includes("laboratorio")) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: "Sem acesso ao Laboratório para este lembrete.",
+          }),
+        });
+        continue;
+      }
+      const out = appendWorkshopReminder(
+        target,
+        text,
+        assistantCtx.authorDisplayName || ASSISTANT_NAME
+      );
+      results.push({ id: tc.id, content: JSON.stringify(out) });
       continue;
     }
     if (name === "list_vehicles_in_stage") {

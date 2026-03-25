@@ -15,7 +15,7 @@ Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçam
 Etapas do fluxo (IDs exatos):
 ${stageCatalog}
 
-Ferramentas principais: open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro; se ambíguo, pedir cliente e repetir com customer_name_query); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); append_complaint_to_vehicle (acrescentar texto à queixa do cliente pelo modelo do carro; mesma desambiguação); list_vehicles_in_stage (por etapa); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
+Ferramentas principais: create_workshop_reminder (SEMPRE que o usuário pedir para criar/gravar um lembrete: salva no modal "Lembretes do Pátio" com target patio ou "Lembretes do Laboratório" com target laboratorio; se não disser qual, pergunte ou infira pelo contexto); open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro; se ambíguo, pedir cliente e repetir com customer_name_query); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); append_complaint_to_vehicle (acrescentar texto à queixa do cliente pelo modelo do carro; mesma desambiguação); list_vehicles_in_stage (por etapa); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
 Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no Pátio, use open_patio_vehicle_budget_view (não só open_patio_vehicle_modal).
 Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
 }
@@ -25,6 +25,10 @@ export const ASSISTANT_REALTIME_VOICE_ADDENDUM = `
 No modo voz: seja calorosa e natural, como alguém da oficina falando com o cliente; evite tom de robô, listas excessivas e frases muito longas; use entonação conversacional.`;
 
 export function buildAssistantChatTools(allowedTabs: string[], statusEnum: string[]) {
+  const reminderTargets: ("patio" | "laboratorio")[] = [];
+  if (allowedTabs.includes("patio")) reminderTargets.push("patio");
+  if (allowedTabs.includes("laboratorio")) reminderTargets.push("laboratorio");
+
   return [
     {
       type: "function" as const,
@@ -394,6 +398,34 @@ export function buildAssistantChatTools(allowedTabs: string[], statusEnum: strin
         },
       },
     },
+    ...(reminderTargets.length > 0
+      ? [
+          {
+            type: "function" as const,
+            function: {
+              name: "create_workshop_reminder",
+              description:
+                "Cria um lembrete no app: aparece no modal Lembretes do Pátio (veículos) ou Lembretes do Laboratório (módulos), conforme o target. Use sempre que o usuário pedir para criar, gravar ou anotar um lembrete da oficina.",
+              parameters: {
+                type: "object",
+                properties: {
+                  text: {
+                    type: "string",
+                    description: "Texto do lembrete (o que não esquecer).",
+                  },
+                  target: {
+                    type: "string",
+                    enum: reminderTargets,
+                    description:
+                      "patio = lista do modal Lembretes do Pátio; laboratorio = lista do modal Lembretes do Laboratório.",
+                  },
+                },
+                required: ["text", "target"],
+              },
+            },
+          },
+        ]
+      : []),
   ];
 }
 
