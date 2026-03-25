@@ -32,6 +32,8 @@ export interface AssistantSessionIdentityPayload {
   assistantIsAdmin: boolean;
   /** Nome de exibição ou usuário (técnico); ignorado no servidor quando admin. */
   assistantUserDisplayName?: string;
+  /** Ferramentas de recado gerência↔técnicos na Zaya. */
+  relaySessionRole?: "management" | "technician" | "none";
 }
 
 export async function postAssistantChat(
@@ -48,6 +50,9 @@ export async function postAssistantChat(
       assistantIsAdmin: identity?.assistantIsAdmin ?? false,
       ...(identity?.assistantUserDisplayName != null && identity.assistantUserDisplayName !== ""
         ? { assistantUserDisplayName: identity.assistantUserDisplayName }
+        : {}),
+      ...(identity?.relaySessionRole != null && identity.relaySessionRole !== "none"
+        ? { relaySessionRole: identity.relaySessionRole }
         : {}),
     }),
   });

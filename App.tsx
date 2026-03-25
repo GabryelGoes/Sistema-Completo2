@@ -335,6 +335,9 @@ export default function App() {
           assistantAuthorDisplayName={authSession.displayName ?? authSession.username ?? 'Usuário'}
           assistantCommentActor="technician"
           currentTechnicianUserId={authSession.userId}
+          relaySessionRole={
+            authSession.isTechnician && authSession.userId ? 'technician' : 'none'
+          }
           onOpenPatioVehicle={(id) => {
             setUserTab('patio');
             setAssistantPatioOpenOrderId(id);
@@ -497,6 +500,15 @@ export default function App() {
         }
         assistantCommentActor={authSession?.role === 'admin' ? 'admin' : 'technician'}
         currentTechnicianUserId={authSession?.role === 'user' ? authSession.userId : undefined}
+        relaySessionRole={
+          authSession?.role === 'admin' || (authSession?.role === 'user' && hasFullAccess)
+            ? 'management'
+            : authSession?.role === 'user' &&
+                authSession.isTechnician &&
+                authSession.userId
+              ? 'technician'
+              : 'none'
+        }
         onOpenPatioVehicle={(id, opts) => {
           setCurrentTab('patio');
           setAssistantPatioOpenOrderId(id);

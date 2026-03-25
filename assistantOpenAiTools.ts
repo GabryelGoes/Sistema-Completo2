@@ -15,6 +15,8 @@ export interface AssistantUserContextOptions {
   isAdminSession?: boolean;
   /** Nome de exibição ou login do usuário (técnico). */
   userDisplayName?: string;
+  /** Recados gerência ↔ técnicos (ferramentas condicionais). */
+  relaySessionRole?: "management" | "technician" | "none";
 }
 
 export function buildAssistantSystemInstructions(
@@ -33,7 +35,15 @@ export function buildAssistantSystemInstructions(
       ? `\nQuem está falando é o técnico "${rawName}". Chame essa pessoa pelo primeiro nome "${firstName}" quando for natural (cumprimentos ou tom próximo), sem repetir o nome em toda frase.`
       : `\nQuem está falando é um usuário técnico do sistema. Não invente um nome; use tom cordial e neutro.`;
 
-  return `Você é ${assistantName}, a assistente virtual do app Rei do ABS (gestão de oficina). Apresente-se pelo nome quando fizer sentido. Responda em português do Brasil, de forma breve e útil.${nameBlock}
+  const relayRole = userContext?.relaySessionRole ?? "none";
+  const relayBlock =
+    relayRole === "management"
+      ? `\nRecados para a equipe: você pode registrar recados da gerência para um técnico (login exato) ou para todos os técnicos. Use list_technicians_for_zaya_relay para ver logins; zaya_send_relay_to_technician com message e recipient_all true OU recipient_username. Quando a gerência receber recado de técnico, use zaya_submit_relay_reply com message_id e reply_text para registrar a resposta.`
+      : relayRole === "technician"
+        ? `\nRecados: o técnico pode enviar mensagem à gerência com zaya_send_relay_to_management (message). Para responder a um recado da gerência já exibido, use zaya_submit_relay_reply (message_id, reply_text).`
+        : "";
+
+  return `Você é ${assistantName}, a assistente virtual do app Rei do ABS (gestão de oficina). Apresente-se pelo nome quando fizer sentido. Responda em português do Brasil, de forma breve e útil.${nameBlock}${relayBlock}
 O usuário só pode acessar estas abas: ${allowedTabs.join(", ")}.
 Use navigate_to_tab para mudar de tela; open_settings para tema/efeitos.
 Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçamento, etc.), combinando com as ferramentas quando fizer sentido.
@@ -50,10 +60,94 @@ Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
 export const ASSISTANT_REALTIME_VOICE_ADDENDUM = `
 No modo voz: seja calorosa e natural, como alguém da oficina falando com o cliente; evite tom de robô, listas excessivas e frases muito longas; use entonação conversacional.`;
 
-export function buildAssistantChatTools(allowedTabs: string[], statusEnum: string[]) {
+export function buildAssistantChatTools(
+  allowedTabs: string[],
+  statusEnum: string[],
+  options?: { relaySessionRole?: "management" | "technician" | "none" }
+) {
   const reminderTargets: ("patio" | "laboratorio")[] = [];
   if (allowedTabs.includes("patio")) reminderTargets.push("patio");
   if (allowedTabs.includes("laboratorio")) reminderTargets.push("laboratorio");
+
+  const relaySessionRole = options?.relaySessionRole ?? "none";
+  const relayReplyTool = {
+    type: "function" as const,
+    function: {
+      name: "zaya_submit_relay_reply",
+      description:
+        "Registra a resposta a um recado já mostrado (UUID message_id vindo do sistema ou da conversa). Use após o usuário dizer como quer responder.",
+      parameters: {
+        type: "object",
+        properties: {
+          message_id: { type: "string", description: "UUID do recado." },
+          reply_text: { type: "string", description: "Texto da resposta." },
+        },
+        required: ["message_id", "reply_text"],
+      },
+    },
+  };
+  const relayManagementTools =
+    relaySessionRole === "management"
+      ? [
+          {
+            type: "function" as const,
+            function: {
+              name: "list_technicians_for_zaya_relay",
+              description:
+                "Lista técnicos da oficina (login/username e nome) para enviar recado a uma pessoa específica.",
+              parameters: { type: "object", properties: {} },
+            },
+          },
+          {
+            type: "function" as const,
+            function: {
+              name: "zaya_send_relay_to_technician",
+              description:
+                "Envia recado da gerência para um técnico (recipient_username = login exato) ou para todos (recipient_all: true). Obrigatório message com o texto.",
+              parameters: {
+                type: "object",
+                properties: {
+                  message: { type: "string", description: "Texto do recado." },
+                  recipient_all: {
+                    type: "boolean",
+                    description: "Se true, envia a todos os técnicos; se false, informe recipient_username.",
+                  },
+                  recipient_username: {
+                    type: "string",
+                    description: "Login do técnico (obrigatório se recipient_all for false).",
+                  },
+                },
+                required: ["message", "recipient_all"],
+              },
+            },
+          },
+          relayReplyTool,
+        ]
+      : [];
+  const relayTechnicianTools =
+    relaySessionRole === "technician"
+      ? [
+          {
+            type: "function" as const,
+            function: {
+              name: "zaya_send_relay_to_management",
+              description: "Envia recado do técnico à gerência. Texto completo em message.",
+              parameters: {
+                type: "object",
+                properties: {
+                  message: { type: "string", description: "Texto do recado à gerência." },
+                },
+                required: ["message"],
+              },
+            },
+          },
+          relayReplyTool,
+        ]
+      : [];
+
+  const relayTools = [...relayManagementTools, ...relayTechnicianTools].filter(
+    (t, i, arr) => arr.findIndex((x) => x.function.name === t.function.name) === i
+  );
 
   return [
     {
@@ -482,6 +576,7 @@ export function buildAssistantChatTools(allowedTabs: string[], statusEnum: strin
         },
       },
     },
+    ...relayTools,
     ...(reminderTargets.length > 0
       ? [
           {

@@ -2196,6 +2196,302 @@ export function createApiApp() {
     }
   });
 
+  // ----------------- RECADOS ZAYA (gerência ↔ técnicos) -----------------
+  app.get("/api/zaya-relay/pending-count", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const userId = typeof req.query.userId === "string" ? req.query.userId.trim() : "";
+      const forManagement = req.query.for === "management";
+      if (forManagement) {
+        const { count, error } = await supabaseAdmin
+          .from("zaya_relay_messages")
+          .select("*", { count: "exact", head: true })
+          .eq("workshop_id", WORKSHOP_ID)
+          .eq("direction", "to_management")
+          .is("opened_at", null);
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json({ toManagement: count ?? 0 });
+      }
+      if (userId) {
+        const { count, error } = await supabaseAdmin
+          .from("zaya_relay_messages")
+          .select("*", { count: "exact", head: true })
+          .eq("workshop_id", WORKSHOP_ID)
+          .eq("direction", "to_technician")
+          .eq("recipient_technician_user_id", userId)
+          .is("opened_at", null);
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json({ toTechnician: count ?? 0 });
+      }
+      return res.status(400).json({ error: "Informe userId ou for=management." });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/zaya-relay/pending-count:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.get("/api/zaya-relay/pending", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const userId = typeof req.query.userId === "string" ? req.query.userId.trim() : "";
+      const forManagement = req.query.for === "management";
+      if (forManagement) {
+        const { data, error } = await supabaseAdmin
+          .from("zaya_relay_messages")
+          .select("id, body, direction, sender_label, created_at, from_technician_user_id")
+          .eq("workshop_id", WORKSHOP_ID)
+          .eq("direction", "to_management")
+          .is("opened_at", null)
+          .order("created_at", { ascending: true });
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json(data ?? []);
+      }
+      if (userId) {
+        const { data, error } = await supabaseAdmin
+          .from("zaya_relay_messages")
+          .select("id, body, direction, sender_label, created_at")
+          .eq("workshop_id", WORKSHOP_ID)
+          .eq("direction", "to_technician")
+          .eq("recipient_technician_user_id", userId)
+          .is("opened_at", null)
+          .order("created_at", { ascending: true });
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json(data ?? []);
+      }
+      return res.status(400).json({ error: "Informe userId ou for=management." });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/zaya-relay/pending:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/zaya-relay/mark-opened", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const rawIds = req.body?.ids;
+      const userId = typeof req.body?.userId === "string" ? req.body.userId.trim() : "";
+      const scope = req.body?.scope === "management" ? "management" : "technician";
+      if (!Array.isArray(rawIds) || rawIds.length === 0) {
+        return res.status(400).json({ error: "ids (array de UUIDs) é obrigatório." });
+      }
+      const ids = rawIds.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim());
+      const now = new Date().toISOString();
+      if (scope === "management") {
+        const { error } = await supabaseAdmin
+          .from("zaya_relay_messages")
+          .update({ opened_at: now })
+          .eq("workshop_id", WORKSHOP_ID)
+          .eq("direction", "to_management")
+          .in("id", ids)
+          .is("opened_at", null);
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json({ ok: true, marked: ids.length });
+      }
+      if (!userId) {
+        return res.status(400).json({ error: "userId é obrigatório para recados ao técnico." });
+      }
+      const { error } = await supabaseAdmin
+        .from("zaya_relay_messages")
+        .update({ opened_at: now })
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("direction", "to_technician")
+        .eq("recipient_technician_user_id", userId)
+        .in("id", ids)
+        .is("opened_at", null);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ ok: true, marked: ids.length });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/zaya-relay/mark-opened:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/zaya-relay/send/to-technicians", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const bodyText = typeof req.body?.body === "string" ? req.body.body.trim() : "";
+      const recipientAll = req.body?.recipient_all === true;
+      const recipientUsername =
+        typeof req.body?.recipient_username === "string" ? req.body.recipient_username.trim() : "";
+      if (!bodyText) {
+        return res.status(400).json({ error: "Informe o texto do recado (body)." });
+      }
+      if (!recipientAll && !recipientUsername) {
+        return res.status(400).json({ error: "Informe recipient_all: true ou recipient_username (login do técnico)." });
+      }
+      const { data: techs, error: techErr } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("id, username")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("is_technician", true);
+      if (techErr) return res.status(500).json({ error: techErr.message });
+      const list = (techs || []) as Array<{ id: string; username: string }>;
+      if (list.length === 0) {
+        return res.status(400).json({ error: "Nenhum técnico cadastrado na oficina." });
+      }
+      let targets: Array<{ id: string; username: string }>;
+      if (recipientAll) {
+        targets = list;
+      } else {
+        const uLower = recipientUsername.toLowerCase();
+        const one = list.find((t) => String(t.username).trim().toLowerCase() === uLower);
+        if (!one) {
+          return res.status(400).json({
+            error: `Técnico com login "${recipientUsername}" não encontrado. Use list_technicians_for_zaya_relay para ver os logins.`,
+          });
+        }
+        targets = [one];
+      }
+      const rows = targets.map((t) => ({
+        workshop_id: WORKSHOP_ID,
+        direction: "to_technician" as const,
+        body: bodyText,
+        from_role: "admin" as const,
+        recipient_technician_user_id: t.id,
+        sender_label: "Gerência",
+      }));
+      const { data: inserted, error: insErr } = await supabaseAdmin
+        .from("zaya_relay_messages")
+        .insert(rows)
+        .select("id, recipient_technician_user_id");
+      if (insErr) {
+        console.error("[API] zaya_send to technicians:", insErr);
+        return res.status(500).json({ error: insErr.message });
+      }
+      return res.status(201).json({
+        ok: true,
+        count: inserted?.length ?? 0,
+        recipient_usernames: targets.map((t) => t.username),
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/zaya-relay/send/to-technicians:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/zaya-relay/send/to-management", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const bodyText = typeof req.body?.body === "string" ? req.body.body.trim() : "";
+      const fromUserId = typeof req.body?.fromUserId === "string" ? req.body.fromUserId.trim() : "";
+      if (!bodyText) {
+        return res.status(400).json({ error: "Informe o texto do recado (body)." });
+      }
+      if (!fromUserId) {
+        return res.status(400).json({ error: "fromUserId é obrigatório." });
+      }
+      const { data: user, error: uErr } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("id, username, display_name, is_technician")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("id", fromUserId)
+        .maybeSingle();
+      if (uErr || !user) {
+        return res.status(400).json({ error: "Usuário não encontrado." });
+      }
+      const u = user as { id: string; username: string; display_name: string | null; is_technician?: boolean };
+      if (!u.is_technician) {
+        return res.status(400).json({ error: "Apenas usuários marcados como técnico podem enviar recado à gerência." });
+      }
+      const label = (u.display_name || u.username || "").trim() || u.username;
+      const { data: inserted, error: insErr } = await supabaseAdmin
+        .from("zaya_relay_messages")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          direction: "to_management",
+          body: bodyText,
+          from_role: "technician",
+          from_technician_user_id: u.id,
+          sender_label: label,
+        })
+        .select("id")
+        .single();
+      if (insErr) {
+        console.error("[API] zaya_send to management:", insErr);
+        return res.status(500).json({ error: insErr.message });
+      }
+      return res.status(201).json({ ok: true, id: inserted?.id });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/zaya-relay/send/to-management:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/zaya-relay/reply", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const messageId = typeof req.body?.messageId === "string" ? req.body.messageId.trim() : "";
+      const replyText = typeof req.body?.replyText === "string" ? req.body.replyText.trim() : "";
+      const role = req.body?.role === "admin" ? "admin" : "technician";
+      const userId = typeof req.body?.userId === "string" ? req.body.userId.trim() : "";
+      if (!messageId || !replyText) {
+        return res.status(400).json({ error: "messageId e replyText são obrigatórios." });
+      }
+      const { data: row, error: fErr } = await supabaseAdmin
+        .from("zaya_relay_messages")
+        .select("id, direction, recipient_technician_user_id, from_technician_user_id, reply_text")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("id", messageId)
+        .maybeSingle();
+      if (fErr || !row) {
+        return res.status(404).json({ error: "Recado não encontrado." });
+      }
+      const r = row as {
+        direction: string;
+        recipient_technician_user_id: string | null;
+        from_technician_user_id: string | null;
+        reply_text: string | null;
+      };
+      if (r.reply_text) {
+        return res.status(400).json({ error: "Este recado já foi respondido." });
+      }
+      const now = new Date().toISOString();
+      if (r.direction === "to_technician") {
+        if (role !== "technician") {
+          return res.status(403).json({ error: "Só o técnico destinatário pode responder este recado." });
+        }
+        if (!userId || r.recipient_technician_user_id !== userId) {
+          return res.status(403).json({ error: "Só o técnico destinatário pode responder este recado." });
+        }
+        const { error: updErr } = await supabaseAdmin
+          .from("zaya_relay_messages")
+          .update({ reply_text: replyText, reply_at: now, reply_from_role: "technician" })
+          .eq("id", messageId)
+          .eq("workshop_id", WORKSHOP_ID);
+        if (updErr) return res.status(500).json({ error: updErr.message });
+        return res.json({ ok: true });
+      }
+      if (r.direction === "to_management") {
+        if (role !== "admin") {
+          return res.status(403).json({ error: "Só a gerência pode responder este recado." });
+        }
+        const { error: updErr } = await supabaseAdmin
+          .from("zaya_relay_messages")
+          .update({ reply_text: replyText, reply_at: now, reply_from_role: "admin" })
+          .eq("id", messageId)
+          .eq("workshop_id", WORKSHOP_ID);
+        if (updErr) return res.status(500).json({ error: updErr.message });
+        return res.json({ ok: true });
+      }
+      return res.status(400).json({ error: "Tipo de recado inválido." });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/zaya-relay/reply:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   // ----------------- SERVIÇOS DA OFICINA (para orçamentos) -----------------
   app.get("/api/workshop-services", async (_req, res) => {
     try {
@@ -3384,6 +3680,9 @@ export function createApiApp() {
       const rawDisplay = req.body?.assistantUserDisplayName;
       const assistantUserDisplayName =
         typeof rawDisplay === "string" ? rawDisplay.trim() : undefined;
+      const rawRelay = req.body?.relaySessionRole;
+      const relaySessionRole =
+        rawRelay === "management" || rawRelay === "technician" ? rawRelay : "none";
 
       const stageCatalog = [
         ...SERVICE_ORDER_STAGES.map((s) => `${s.name} → ${s.id}`),
@@ -3394,10 +3693,11 @@ export function createApiApp() {
         buildAssistantSystemInstructions(ASSISTANT_NAME, allowedTabs, stageCatalog, {
           isAdminSession: assistantIsAdmin,
           userDisplayName: assistantUserDisplayName,
+          relaySessionRole,
         }) + ASSISTANT_REALTIME_VOICE_ADDENDUM;
 
       const statusEnum = [...ALL_STATUSES];
-      const chatTools = buildAssistantChatTools(allowedTabs, statusEnum);
+      const chatTools = buildAssistantChatTools(allowedTabs, statusEnum, { relaySessionRole });
       const realtimeTools = chatToolsToRealtime(chatTools);
 
       const client = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -3455,6 +3755,9 @@ export function createApiApp() {
       const rawDisplay = req.body?.assistantUserDisplayName;
       const assistantUserDisplayName =
         typeof rawDisplay === "string" ? rawDisplay.trim() : undefined;
+      const rawRelayChat = req.body?.relaySessionRole;
+      const relaySessionRoleChat =
+        rawRelayChat === "management" || rawRelayChat === "technician" ? rawRelayChat : "none";
 
       const stageCatalog = [
         ...SERVICE_ORDER_STAGES.map((s) => `${s.name} → ${s.id}`),
@@ -3464,10 +3767,13 @@ export function createApiApp() {
       const systemContent = buildAssistantSystemInstructions(ASSISTANT_NAME, allowedTabs, stageCatalog, {
         isAdminSession: assistantIsAdmin,
         userDisplayName: assistantUserDisplayName,
+        relaySessionRole: relaySessionRoleChat,
       });
 
       const statusEnum = [...ALL_STATUSES];
-      const tools = buildAssistantChatTools(allowedTabs, statusEnum);
+      const tools = buildAssistantChatTools(allowedTabs, statusEnum, {
+        relaySessionRole: relaySessionRoleChat,
+      });
 
       const filteredMessages = rawMessages.filter((m: unknown) => {
         if (!m || typeof m !== "object") return false;

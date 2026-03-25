@@ -27,6 +27,8 @@ export interface AssistantContext {
   authorDisplayName: string;
   commentActor: "admin" | "technician";
   currentTechnicianUserId?: string | null;
+  /** Recados gerência ↔ técnicos (Zaya); `none` desativa as ferramentas de recado. */
+  relaySessionRole?: "management" | "technician" | "none";
 }
 
 function norm(s: string): string {

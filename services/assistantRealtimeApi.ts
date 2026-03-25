@@ -22,6 +22,9 @@ export async function postAssistantRealtimeSession(
       ...(identity?.assistantUserDisplayName != null && identity.assistantUserDisplayName !== ""
         ? { assistantUserDisplayName: identity.assistantUserDisplayName }
         : {}),
+      ...(identity?.relaySessionRole != null && identity.relaySessionRole !== "none"
+        ? { relaySessionRole: identity.relaySessionRole }
+        : {}),
     }),
   });
   const data = (await response.json().catch(() => ({}))) as AssistantRealtimeSessionResponse & {
