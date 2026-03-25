@@ -41,7 +41,7 @@ Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçam
 Etapas do fluxo (IDs exatos):
 ${stageCatalog}
 
-Ferramentas principais: create_workshop_reminder, list_workshop_reminders (ler), update_workshop_reminder (editar texto ou marcar concluído), delete_workshop_reminder (excluir) — sempre com target patio ou laboratorio conforme o modal; open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro — também encontra OS arquivadas/entregues se não houver em aberto; se ambíguo, pedir cliente e repetir com customer_name_query); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); append_complaint_to_vehicle (acrescentar texto à queixa do cliente pelo modelo do carro; mesma desambiguação; não use em OS arquivada); list_vehicles_in_stage (por etapa; use status CANCELLED para listar arquivados/entregues); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto em OS abertas e arquivadas); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
+Central de notificações (oficina inteira): list_notifications, get_unread_notifications_count, mark_notification_read, mark_all_notifications_read, clear_all_notifications (só se o usuário pedir para apagar tudo). Ferramentas principais: create_workshop_reminder, list_workshop_reminders (ler), update_workshop_reminder (editar texto ou marcar concluído), delete_workshop_reminder (excluir) — sempre com target patio ou laboratorio conforme o modal; open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro — também encontra OS arquivadas/entregues se não houver em aberto; se ambíguo, pedir cliente e repetir com customer_name_query); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); append_complaint_to_vehicle (acrescentar texto à queixa do cliente pelo modelo do carro; mesma desambiguação; não use em OS arquivada); list_vehicles_in_stage (por etapa; use status CANCELLED para listar arquivados/entregues); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto em OS abertas e arquivadas); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
 Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no Pátio, use open_patio_vehicle_budget_view (não só open_patio_vehicle_modal). Ao usar open_patio_vehicle_budget_view com sucesso, o app minimiza o chat da assistente e mostra o orçamento no modal do Pátio — responda de forma breve (ex.: "Abri o orçamento no Pátio").
 Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
 }
@@ -81,6 +81,63 @@ export function buildAssistantChatTools(allowedTabs: string[], statusEnum: strin
       function: {
         name: "open_settings",
         description: "Abre o painel de configurações (tema, efeitos, modo cinematográfico).",
+        parameters: { type: "object", properties: {} },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "list_notifications",
+        description:
+          "Lista todas as notificações da oficina (admin e técnicos): comentários, etapas, orçamentos, etc. Cada item tem id, type, payload, lida ou não, target_type/target_slug (destino).",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: {
+              type: "integer",
+              description: "Máximo de itens (padrão 50, máx. 100).",
+            },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "get_unread_notifications_count",
+        description: "Quantas notificações não lidas existem no total na oficina.",
+        parameters: { type: "object", properties: {} },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "mark_notification_read",
+        description: "Marca uma notificação como lida pelo id (UUID).",
+        parameters: {
+          type: "object",
+          properties: {
+            notification_id: { type: "string", description: "UUID da notificação." },
+          },
+          required: ["notification_id"],
+        },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "mark_all_notifications_read",
+        description: "Marca todas as notificações da oficina como lidas.",
+        parameters: { type: "object", properties: {} },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "clear_all_notifications",
+        description:
+          "APAGA todas as notificações da oficina (irreversível). Só use se o usuário pedir explicitamente para limpar a central.",
         parameters: { type: "object", properties: {} },
       },
     },

@@ -17,7 +17,14 @@ import {
   readWorkshopReminders,
   updateWorkshopReminder,
 } from "../services/workshopRemindersStorage";
-import type { ServiceOrderUpdateActor } from "../services/apiService";
+import {
+  clearNotifications,
+  getNotifications,
+  getUnreadNotificationsCount,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type ServiceOrderUpdateActor,
+} from "../services/apiService";
 import {
   isValidServiceOrderStatus,
   listVehiclesInStageJson,
@@ -160,6 +167,106 @@ async function executeToolCalls(
     if (name === "open_settings") {
       onOpenSettings();
       results.push({ id: tc.id, content: JSON.stringify({ ok: true, opened: "settings" }) });
+      continue;
+    }
+    if (name === "list_notifications") {
+      const limRaw = payload.limit;
+      const lim =
+        typeof limRaw === "number" && Number.isFinite(limRaw) && limRaw > 0
+          ? Math.min(Math.floor(limRaw), 100)
+          : 50;
+      try {
+        const list = await getNotifications({ for: "all", limit: lim });
+        const rows = list.map((n) => ({
+          id: n.id,
+          type: n.type,
+          lida: n.read_at != null,
+          created_at: n.created_at,
+          target_type: n.target_type ?? null,
+          target_slug: n.target_slug ?? null,
+          payload: n.payload,
+        }));
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: true, total: rows.length, notificacoes: rows }),
+        });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao listar notificações.",
+          }),
+        });
+      }
+      continue;
+    }
+    if (name === "get_unread_notifications_count") {
+      try {
+        const count = await getUnreadNotificationsCount({ for: "all" });
+        results.push({ id: tc.id, content: JSON.stringify({ ok: true, nao_lidas: count }) });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao contar notificações.",
+          }),
+        });
+      }
+      continue;
+    }
+    if (name === "mark_notification_read") {
+      const nid = String(payload.notification_id ?? "").trim();
+      if (!nid) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "notification_id obrigatório." }),
+        });
+        continue;
+      }
+      try {
+        await markNotificationRead(nid, { for: "all" });
+        results.push({ id: tc.id, content: JSON.stringify({ ok: true, notification_id: nid }) });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao marcar como lida.",
+          }),
+        });
+      }
+      continue;
+    }
+    if (name === "mark_all_notifications_read") {
+      try {
+        await markAllNotificationsRead({ for: "all" });
+        results.push({ id: tc.id, content: JSON.stringify({ ok: true, marcadas: "todas" }) });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao marcar todas como lidas.",
+          }),
+        });
+      }
+      continue;
+    }
+    if (name === "clear_all_notifications") {
+      try {
+        await clearNotifications({ for: "all" });
+        results.push({ id: tc.id, content: JSON.stringify({ ok: true, removidas: "todas" }) });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao limpar notificações.",
+          }),
+        });
+      }
       continue;
     }
     if (name === "create_workshop_reminder") {

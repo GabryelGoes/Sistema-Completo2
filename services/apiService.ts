@@ -794,18 +794,24 @@ export interface Notification {
   payload: NotificationPayload;
   read_at: string | null;
   created_at: string;
+  /** Presente quando a API retorna lista completa (`for=all`): admin | technician */
+  target_type?: string | null;
+  target_slug?: string | null;
 }
 
 export async function getNotifications(params?: {
   limit?: number;
   since?: string;
-  for?: "admin" | "technician";
+  /** admin = só central; technician = um técnico; all = toda a oficina (assistente) */
+  for?: "admin" | "technician" | "all";
   technicianSlug?: string;
 }): Promise<Notification[]> {
   const sp = new URLSearchParams();
   if (params?.limit) sp.set("limit", String(params.limit));
   if (params?.since) sp.set("since", params.since ?? "");
-  if (params?.for === "technician" && params?.technicianSlug) {
+  if (params?.for === "all") {
+    sp.set("for", "all");
+  } else if (params?.for === "technician" && params?.technicianSlug) {
     sp.set("for", "technician");
     sp.set("slug", params.technicianSlug);
   }
@@ -819,11 +825,13 @@ export async function getNotifications(params?: {
 }
 
 export async function getUnreadNotificationsCount(params?: {
-  for?: "admin" | "technician";
+  for?: "admin" | "technician" | "all";
   technicianSlug?: string;
 }): Promise<number> {
   const sp = new URLSearchParams();
-  if (params?.for === "technician" && params?.technicianSlug) {
+  if (params?.for === "all") {
+    sp.set("for", "all");
+  } else if (params?.for === "technician" && params?.technicianSlug) {
     sp.set("for", "technician");
     sp.set("slug", params.technicianSlug);
   }
@@ -836,10 +844,12 @@ export async function getUnreadNotificationsCount(params?: {
 
 export async function markNotificationRead(
   id: string,
-  params?: { for?: "admin" | "technician"; technicianSlug?: string }
+  params?: { for?: "admin" | "technician" | "all"; technicianSlug?: string }
 ): Promise<void> {
   const sp = new URLSearchParams();
-  if (params?.for === "technician" && params?.technicianSlug) {
+  if (params?.for === "all") {
+    sp.set("for", "all");
+  } else if (params?.for === "technician" && params?.technicianSlug) {
     sp.set("for", "technician");
     sp.set("slug", params.technicianSlug);
   }
@@ -852,13 +862,15 @@ export async function markNotificationRead(
 }
 
 export async function markAllNotificationsRead(params?: {
-  for?: "admin" | "technician";
+  for?: "admin" | "technician" | "all";
   technicianSlug?: string;
 }): Promise<void> {
   const body =
-    params?.for === "technician" && params?.technicianSlug
-      ? { for: "technician" as const, slug: params.technicianSlug }
-      : undefined;
+    params?.for === "all"
+      ? { for: "all" as const }
+      : params?.for === "technician" && params?.technicianSlug
+        ? { for: "technician" as const, slug: params.technicianSlug }
+        : undefined;
   const response = await fetch(`${API_BASE}/notifications/read-all`, {
     method: "POST",
     headers: body ? { "Content-Type": "application/json" } : undefined,
@@ -871,11 +883,13 @@ export async function markAllNotificationsRead(params?: {
 }
 
 export async function clearNotifications(params?: {
-  for?: "admin" | "technician";
+  for?: "admin" | "technician" | "all";
   technicianSlug?: string;
 }): Promise<void> {
   const sp = new URLSearchParams();
-  if (params?.for === "technician" && params?.technicianSlug) {
+  if (params?.for === "all") {
+    sp.set("for", "all");
+  } else if (params?.for === "technician" && params?.technicianSlug) {
     sp.set("for", "technician");
     sp.set("slug", params.technicianSlug);
   }

@@ -2017,11 +2017,13 @@ export function createApiApp() {
 
       let query = supabaseAdmin
         .from("notifications")
-        .select("id, type, payload, read_at, created_at")
+        .select("id, type, payload, read_at, created_at, target_type, target_slug")
         .eq("workshop_id", WORKSHOP_ID)
         .order("created_at", { ascending: false })
         .limit(limit);
-      if (forWho === "technician" && technicianSlug) {
+      if (forWho === "all") {
+        /* todas as notificações da oficina (admin + técnicos) — ex.: assistente Zaya */
+      } else if (forWho === "technician" && technicianSlug) {
         query = query.eq("target_type", "technician").eq("target_slug", technicianSlug);
       } else {
         query = query.or("target_type.eq.admin,target_type.is.null");
@@ -2053,7 +2055,9 @@ export function createApiApp() {
         .select("*", { count: "exact", head: true })
         .eq("workshop_id", WORKSHOP_ID)
         .is("read_at", null);
-      if (forWho === "technician" && technicianSlug) {
+      if (forWho === "all") {
+        /* contagem global da oficina */
+      } else if (forWho === "technician" && technicianSlug) {
         query = query.eq("target_type", "technician").eq("target_slug", technicianSlug);
       } else {
         query = query.or("target_type.eq.admin,target_type.is.null");
@@ -2083,7 +2087,9 @@ export function createApiApp() {
         .update({ read_at: new Date().toISOString() })
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID);
-      if (forWho === "technician" && technicianSlug) {
+      if (forWho === "all") {
+        /* qualquer notificação da oficina por id */
+      } else if (forWho === "technician" && technicianSlug) {
         updateQuery = updateQuery.eq("target_type", "technician").eq("target_slug", technicianSlug);
       } else {
         updateQuery = updateQuery.or("target_type.eq.admin,target_type.is.null");
@@ -2104,14 +2110,18 @@ export function createApiApp() {
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
-      const forWho = (req.body?.for ?? req.query.for) === "technician" ? "technician" : "admin";
+      const rawFor = req.body?.for ?? req.query.for;
+      const forWho =
+        rawFor === "all" ? "all" : rawFor === "technician" ? "technician" : "admin";
       const technicianSlug = typeof (req.body?.slug ?? req.query.slug) === "string" ? String(req.body?.slug ?? req.query.slug).trim() : "";
       let updateQuery = supabaseAdmin
         .from("notifications")
         .update({ read_at: new Date().toISOString() })
         .eq("workshop_id", WORKSHOP_ID)
         .is("read_at", null);
-      if (forWho === "technician" && technicianSlug) {
+      if (forWho === "all") {
+        /* marcar todas como lidas na oficina */
+      } else if (forWho === "technician" && technicianSlug) {
         updateQuery = updateQuery.eq("target_type", "technician").eq("target_slug", technicianSlug);
       } else {
         updateQuery = updateQuery.or("target_type.eq.admin,target_type.is.null");
@@ -2134,6 +2144,18 @@ export function createApiApp() {
       }
       const forWho = (req.query.for as string) || "admin";
       const technicianSlug = typeof req.query.slug === "string" ? req.query.slug.trim() : "";
+
+      if (forWho === "all") {
+        const { error } = await supabaseAdmin
+          .from("notifications")
+          .delete()
+          .eq("workshop_id", WORKSHOP_ID);
+        if (error) {
+          console.error("[API] Erro em DELETE /api/notifications (all):", error);
+          return res.status(500).json({ error: error.message });
+        }
+        return res.status(204).send();
+      }
 
       if (forWho === "technician" && technicianSlug) {
         const { error } = await supabaseAdmin
