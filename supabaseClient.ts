@@ -23,3 +23,6 @@ export const supabaseAdmin =
 export const VEHICLE_PHOTOS_BUCKET =
   process.env.SUPABASE_VEHICLE_PHOTOS_BUCKET || "vehicle-photos";
 
+/** Bucket Storage para imagens/vídeos da TV do pátio (público leitura). */
+export const TV_PATIO_BUCKET = process.env.SUPABASE_TV_PATIO_BUCKET || "tv-patio";
+

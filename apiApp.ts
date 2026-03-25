@@ -1,8 +1,9 @@
 import "dotenv/config";
 import crypto from "crypto";
+import path from "path";
 import express from "express";
 import multer from "multer";
-import { supabaseAdmin, VEHICLE_PHOTOS_BUCKET } from "./supabaseClient.js";
+import { supabaseAdmin, VEHICLE_PHOTOS_BUCKET, TV_PATIO_BUCKET } from "./supabaseClient.js";
 import {
   FIRST_STAGE,
   ALL_STATUSES,
@@ -150,6 +151,11 @@ export function createApiApp() {
     limits: {
       fileSize: 20 * 1024 * 1024, // 20MB (evitar 413 Payload Too Large em fotos de celular)
     },
+  });
+
+  const tvMediaUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB — vídeos curtos para a TV
   });
 
   if (!WORKSHOP_ID) {
@@ -1225,6 +1231,55 @@ export function createApiApp() {
     } catch (err: any) {
       console.error("[API] DELETE /api/tv/slides/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  /** Upload de imagem ou vídeo para a TV (Storage público). Multipart: file + adminPassword */
+  app.post("/api/tv/media/upload", tvMediaUpload.single("file"), async (req, res) => {
+    try {
+      const adminPassword = typeof req.body?.adminPassword === "string" ? req.body.adminPassword : "";
+      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+        return res.status(403).json({ error: "Senha de administrador inválida." });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const file = req.file;
+      if (!file?.buffer) {
+        return res.status(400).json({ error: "Envie um arquivo (imagem ou vídeo)." });
+      }
+      const mime = String(file.mimetype || "");
+      if (!mime.startsWith("image/") && !mime.startsWith("video/")) {
+        return res.status(400).json({ error: "Apenas arquivos de imagem ou vídeo são permitidos." });
+      }
+      let ext = path.extname(file.originalname || "").replace(/^\./, "").toLowerCase();
+      if (!ext || !/^[a-z0-9]{2,8}$/.test(ext)) {
+        const map: Record<string, string> = {
+          "image/jpeg": "jpg",
+          "image/png": "png",
+          "image/webp": "webp",
+          "image/gif": "gif",
+          "video/mp4": "mp4",
+          "video/webm": "webm",
+          "video/quicktime": "mov",
+        };
+        ext = map[mime] || "bin";
+      }
+      const objectPath = `${WORKSHOP_ID}/tv/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(TV_PATIO_BUCKET)
+        .upload(objectPath, file.buffer, { contentType: mime, upsert: false });
+      if (uploadError) {
+        console.error("[API] TV media upload:", uploadError);
+        return res.status(500).json({ error: uploadError.message });
+      }
+      const {
+        data: { publicUrl },
+      } = supabaseAdmin.storage.from(TV_PATIO_BUCKET).getPublicUrl(objectPath);
+      return res.json({ url: publicUrl });
+    } catch (err: any) {
+      console.error("[API] POST /api/tv/media/upload:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro no upload." });
     }
   });
 

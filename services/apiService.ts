@@ -1853,3 +1853,19 @@ export async function deleteTvSlide(adminPassword: string, id: string): Promise<
   }
 }
 
+/** Upload de imagem ou vídeo para o Storage da TV (retorna URL pública). */
+export async function uploadTvPatioMedia(adminPassword: string, file: File): Promise<{ url: string }> {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("adminPassword", adminPassword);
+  const response = await fetch(`${API_BASE}/tv/media/upload`, {
+    method: "POST",
+    body: fd,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((data as { error?: string }).error || "Falha no upload do arquivo.");
+  }
+  return data as { url: string };
+}
+
