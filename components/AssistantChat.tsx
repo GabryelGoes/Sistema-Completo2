@@ -985,6 +985,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   const resumeMicTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const sendUserMessageRef = useRef<(text: string) => void>(() => {});
+  /** Uma vez por abertura do painel: liga o mic após Realtime pronto. */
+  const autoMicStartedForOpenRef = useRef(false);
 
   const relaySessionRole = relaySessionRoleProp;
   const [relayPendingTech, setRelayPendingTech] = useState(0);
@@ -1479,19 +1481,19 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     }
   }, [open]);
 
-  const toggleMic = useCallback(() => {
+  useEffect(() => {
+    if (!open) autoMicStartedForOpenRef.current = false;
+  }, [open]);
+
+  const startSpeechRecognition = useCallback(() => {
+    const isRealtimeVoice = realtimeReady && !useClassicChat;
+    if (!isRealtimeVoice) return;
+    if (listeningRef.current) return;
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) {
       setError("Reconhecimento de voz não suportado neste navegador.");
       return;
     }
-    if (listening) {
-      listeningRef.current = false;
-      recRef.current?.stop();
-      setListening(false);
-      return;
-    }
-    const isRealtimeVoice = realtimeReady && !useClassicChat;
     const rec = new Ctor();
     rec.lang = "pt-BR";
     rec.interimResults = false;
@@ -1551,7 +1553,44 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       listeningRef.current = false;
       setListening(false);
     }
-  }, [listening, realtimeReady, useClassicChat]);
+  }, [realtimeReady, useClassicChat]);
+
+  const toggleMic = useCallback(() => {
+    if (listening) {
+      listeningRef.current = false;
+      recRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    startSpeechRecognition();
+  }, [listening, startSpeechRecognition]);
+
+  /** Ao abrir o chat com voz em tempo real pronta, liga o microfone uma vez (após relay inicial, se houver). */
+  useEffect(() => {
+    if (!open || !realtimeReady || useClassicChat || autoMicStartedForOpenRef.current) return;
+    let cancelled = false;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    const outer = window.setTimeout(() => {
+      let attempts = 0;
+      const poll = () => {
+        if (cancelled || autoMicStartedForOpenRef.current) return;
+        attempts++;
+        const idle = !loadingRef.current && assistantPlaybackIdleRef.current;
+        if (idle || attempts > 80) {
+          autoMicStartedForOpenRef.current = true;
+          startSpeechRecognition();
+          return;
+        }
+        pollTimer = window.setTimeout(poll, 120);
+      };
+      poll();
+    }, 350);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(outer);
+      if (pollTimer) window.clearTimeout(pollTimer);
+    };
+  }, [open, realtimeReady, useClassicChat, startSpeechRecognition]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
