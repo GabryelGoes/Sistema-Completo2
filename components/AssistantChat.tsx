@@ -9,6 +9,8 @@ import {
   type AssistantApiMessage,
   type AssistantToolCall,
 } from "../services/assistantApi";
+import { postAssistantRealtimeSession } from "../services/assistantRealtimeApi";
+import { OpenAiRealtimeClient } from "../services/openaiRealtimeClient";
 import type { ServiceOrderUpdateActor } from "../services/apiService";
 import {
   isValidServiceOrderStatus,
@@ -470,6 +472,13 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   const ttsEnabledRef = useRef(ttsEnabled);
   ttsEnabledRef.current = ttsEnabled;
 
+  /** Conexão OpenAI Realtime (voz natural); fallback = chat HTTP clássico. */
+  const [useClassicChat, setUseClassicChat] = useState(false);
+  const [realtimeReady, setRealtimeReady] = useState(false);
+  const realtimeClientRef = useRef<OpenAiRealtimeClient | null>(null);
+  const messagesRef = useRef<AssistantApiMessage[]>([]);
+  messagesRef.current = messages;
+
   const recRef = useRef<InstanceType<SpeechRecCtor> | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -560,16 +569,116 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     ]
   );
 
+  useEffect(() => {
+    if (!open) {
+      realtimeClientRef.current?.disconnect();
+      realtimeClientRef.current = null;
+      setRealtimeReady(false);
+      return;
+    }
+    let cancelled = false;
+    setRealtimeReady(false);
+    setUseClassicChat(false);
+    void (async () => {
+      try {
+        const session = await postAssistantRealtimeSession(allowedTabs);
+        if (cancelled) return;
+        const client = new OpenAiRealtimeClient({
+          onSessionReady: () => {},
+          onAssistantTranscriptDelta: (delta) => {
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (last?.role === "assistant") {
+                next[next.length - 1] = {
+                  ...last,
+                  content: (last.content || "") + delta,
+                };
+              }
+              return next;
+            });
+          },
+          onAssistantTranscriptDone: () => {},
+          onResponseDone: () => setLoading(false),
+          onFunctionCall: async ({ name, arguments: argsStr, call_id }) => {
+            const assistantCtx: AssistantContext = {
+              allowedTabs,
+              serviceOrderActor,
+              authorDisplayName: assistantAuthorDisplayName,
+              commentActor: assistantCommentActor,
+              currentTechnicianUserId: currentTechnicianUserId ?? null,
+            };
+            const toolCalls: AssistantToolCall[] = [
+              { id: call_id, type: "function", function: { name, arguments: argsStr } },
+            ];
+            const results = await executeToolCalls(
+              toolCalls,
+              allowedTabs,
+              onNavigateTab,
+              onOpenSettings,
+              serviceOrderActor,
+              assistantCtx,
+              onOpenPatioVehicle
+            );
+            return results.find((r) => r.id === call_id)?.content ?? '{"ok":false}';
+          },
+          onError: (msg) => {
+            setError(msg);
+            setLoading(false);
+          },
+        });
+        await client.connect(session.client_secret, session.model);
+        if (cancelled) {
+          client.disconnect();
+          return;
+        }
+        realtimeClientRef.current = client;
+        setRealtimeReady(true);
+      } catch {
+        if (!cancelled) setUseClassicChat(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    allowedTabs,
+    onNavigateTab,
+    onOpenSettings,
+    serviceOrderActor,
+    assistantAuthorDisplayName,
+    assistantCommentActor,
+    currentTechnicianUserId,
+    onOpenPatioVehicle,
+  ]);
+
   const sendUserMessage = useCallback(
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || loading) return;
-      const next: AssistantApiMessage[] = [...messages, { role: "user", content: trimmed }];
-      setMessages(next);
+      if (!useClassicChat && open && !realtimeReady) {
+        setError(`Aguarde a conexão com a ${ASSISTANT_NAME}…`);
+        return;
+      }
       setInput("");
+      setError(null);
+      if (realtimeClientRef.current && realtimeReady && !useClassicChat) {
+        if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", content: trimmed },
+          { role: "assistant", content: "" },
+        ]);
+        setLoading(true);
+        realtimeClientRef.current.sendUserText(trimmed);
+        return;
+      }
+      const next: AssistantApiMessage[] = [...messagesRef.current, { role: "user", content: trimmed }];
+      setMessages(next);
       void runAssistantTurn(next);
     },
-    [messages, loading, runAssistantTurn]
+    [loading, runAssistantTurn, useClassicChat, realtimeReady, open]
   );
 
   const toggleMic = useCallback(() => {
@@ -607,6 +716,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
+  const connectingRealtime = open && !useClassicChat && !realtimeReady;
+
   const panelBg =
     theme === "dark"
       ? "bg-zinc-900/95 border-white/10 text-white"
@@ -633,10 +744,35 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
             className={`flex max-h-[min(520px,70vh)] w-full max-w-md flex-col overflow-hidden rounded-2xl border shadow-2xl ${panelBg}`}
           >
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 dark:border-white/10">
-              <div className="flex items-center gap-2 font-semibold">
-                <AssistantIcon className="h-5 w-5 shrink-0" />
-                {ASSISTANT_NAME}
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <div className="flex items-center gap-2 font-semibold">
+                  <AssistantIcon className="h-5 w-5 shrink-0" />
+                  {ASSISTANT_NAME}
+                </div>
+                {realtimeReady && !useClassicChat && (
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                    Voz em tempo real
+                  </span>
+                )}
+                {useClassicChat && (
+                  <span className="text-[10px] text-zinc-500">Modo chat clássico</span>
+                )}
               </div>
+              <div className="flex shrink-0 items-center gap-1">
+                {!useClassicChat && realtimeReady && (
+                  <button
+                    type="button"
+                    className="rounded-lg px-2 py-1 text-[11px] text-zinc-500 hover:bg-white/10 hover:text-zinc-300"
+                    onClick={() => {
+                      realtimeClientRef.current?.disconnect();
+                      realtimeClientRef.current = null;
+                      setRealtimeReady(false);
+                      setUseClassicChat(true);
+                    }}
+                  >
+                    Modo clássico
+                  </button>
+                )}
               <button
                 type="button"
                 onClick={() => {
@@ -648,14 +784,15 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               >
                 <X className="h-5 w-5" />
               </button>
+              </div>
             </div>
 
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">
               {messages.length === 0 && (
                 <p className="text-zinc-500 dark:text-zinc-400">
-                  Olá, eu sou a {ASSISTANT_NAME}. Pergunte sobre o app, peça para abrir uma aba ou
-                  liste/movimente veículos no Pátio (por etapa). Use o microfone; as respostas podem
-                  ser lidas em voz (botão de alto-falante).
+                  Olá, eu sou a {ASSISTANT_NAME}. Por padrão uso voz em tempo real (menos robótica).
+                  Pergunte sobre o app ou use o microfone. No modo clássico, as respostas podem ser
+                  lidas pelo botão de alto-falante.
                 </p>
               )}
               {messages.map((m, i) => {
@@ -679,6 +816,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                 }
                 return null;
               })}
+              {connectingRealtime && (
+                <div className="text-zinc-500 dark:text-zinc-400">Conectando voz em tempo real…</div>
+              )}
               {loading && (
                 <div className="text-zinc-500 dark:text-zinc-400">Pensando…</div>
               )}
@@ -690,11 +830,18 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               <button
                 type="button"
                 onClick={toggleTts}
-                className={`shrink-0 rounded-xl p-3 ${
+                disabled={realtimeReady && !useClassicChat}
+                className={`shrink-0 rounded-xl p-3 disabled:cursor-not-allowed disabled:opacity-40 ${
                   ttsEnabled ? "bg-brand-yellow/20 text-zinc-900 dark:text-brand-yellow" : "bg-white/10 hover:bg-white/15"
                 }`}
                 aria-label={ttsEnabled ? "Desativar voz da assistente" : "Ativar voz da assistente"}
-                title={ttsEnabled ? "Voz da Zaya ligada" : "Voz da Zaya desligada"}
+                title={
+                  realtimeReady && !useClassicChat
+                    ? "No modo tempo real a voz já vem do modelo"
+                    : ttsEnabled
+                      ? "Voz da Zaya ligada"
+                      : "Voz da Zaya desligada"
+                }
               >
                 {ttsEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
               </button>
@@ -719,7 +866,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               <button
                 type="button"
                 onClick={() => sendUserMessage(input)}
-                disabled={loading}
+                disabled={loading || connectingRealtime}
                 className="shrink-0 rounded-xl bg-brand-yellow px-4 py-2 font-medium text-zinc-900 disabled:opacity-50"
               >
                 <Send className="h-5 w-5" />

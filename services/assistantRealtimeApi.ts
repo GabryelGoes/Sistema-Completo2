@@ -1,0 +1,29 @@
+import type { TabId } from "../components/TabBar";
+
+const API_BASE = "/api";
+
+export interface AssistantRealtimeSessionResponse {
+  client_secret: string;
+  expires_at: number;
+  model: string;
+}
+
+export async function postAssistantRealtimeSession(
+  allowedTabs: TabId[]
+): Promise<AssistantRealtimeSessionResponse> {
+  const response = await fetch(`${API_BASE}/assistant/realtime/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ allowedTabs }),
+  });
+  const data = (await response.json().catch(() => ({}))) as AssistantRealtimeSessionResponse & {
+    error?: string;
+  };
+  if (!response.ok) {
+    throw new Error(data.error || `Erro ${response.status}`);
+  }
+  if (!data.client_secret || !data.model) {
+    throw new Error("Resposta inválida do servidor (Realtime).");
+  }
+  return data;
+}
