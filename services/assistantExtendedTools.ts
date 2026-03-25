@@ -51,6 +51,15 @@ async function fetchAllNonCancelled(): Promise<ServiceOrderListItem[]> {
   return [...v, ...m].filter((o) => o.status !== CANCELLED_STATUS);
 }
 
+/** Veículo + módulo, inclusive arquivados (CANCELLED), para busca textual da assistente. */
+async function fetchAllOrdersForAssistantSearch(): Promise<ServiceOrderListItem[]> {
+  const v = await getServiceOrders(undefined, "vehicle");
+  const m = await getServiceOrders(undefined, "module");
+  const byId = new Map<string, ServiceOrderListItem>();
+  for (const o of [...v, ...m]) byId.set(o.id, o);
+  return Array.from(byId.values());
+}
+
 export async function addServiceOrderCommentJson(
   payload: {
     text: string;
@@ -303,7 +312,7 @@ export async function searchServiceOrdersJson(
     return JSON.stringify({ ok: false, error: "Use ao menos 2 caracteres na busca." });
   }
   try {
-    const orders = await fetchAllNonCancelled();
+    const orders = await fetchAllOrdersForAssistantSearch();
     const hit = orders.filter((o) => {
       const parts = [
         o.plate,
@@ -324,8 +333,10 @@ export async function searchServiceOrdersJson(
       placa: o.plate,
       modelo: o.vehicle_model,
       cliente: o.customer_name ?? o.customers?.name ?? null,
-      etapa: stageName(o.status),
+      etapa:
+        o.status === CANCELLED_STATUS ? "Entregue/arquivado" : stageName(o.status),
       status_id: o.status,
+      arquivada: o.status === CANCELLED_STATUS,
     }));
     return JSON.stringify({ ok: true, total_encontrado: hit.length, ordens: rows });
   } catch (e) {
@@ -680,17 +691,8 @@ export async function matchPatioVehicleByModel(
   try {
     const orders = await getServiceOrders(undefined, "vehicle");
     const active = orders.filter((o) => o.status !== CANCELLED_STATUS);
-    let matches = active.filter((o) => {
-      const vm = norm(o.vehicle_model || "");
-      if (!vm) return false;
-      return vm.includes(q) || q.includes(vm);
-    });
-    if (matches.length === 0) {
-      return {
-        kind: "error",
-        message: `Nenhum veículo em aberto no Pátio combina com "${raw}".`,
-      };
-    }
+    const archived = orders.filter((o) => o.status === CANCELLED_STATUS);
+
     const custRaw = typeof customer_name_query === "string" ? customer_name_query.trim() : "";
     const cq = custRaw ? norm(custRaw) : "";
     if (custRaw && cq.length < 2) {
@@ -699,8 +701,17 @@ export async function matchPatioVehicleByModel(
         message: "Nome do cliente deve ter ao menos 2 letras para filtrar.",
       };
     }
-    if (cq.length >= 2) {
-      matches = matches.filter((o) => {
+
+    const matchByVehicle = (pool: ServiceOrderListItem[]) =>
+      pool.filter((o) => {
+        const vm = norm(o.vehicle_model || "");
+        if (!vm) return false;
+        return vm.includes(q) || q.includes(vm);
+      });
+
+    const applyCustomer = (pool: ServiceOrderListItem[]) => {
+      if (cq.length < 2) return pool;
+      return pool.filter((o) => {
         const cn = norm(o.customer_name ?? o.customers?.name ?? "");
         return (
           cn.includes(cq) ||
@@ -710,11 +721,16 @@ export async function matchPatioVehicleByModel(
             .some((w) => cn.includes(w))
         );
       });
+    };
+
+    let matches = applyCustomer(matchByVehicle(active));
+    if (matches.length === 0) {
+      matches = applyCustomer(matchByVehicle(archived));
     }
     if (matches.length === 0) {
       return {
         kind: "error",
-        message: "Nenhuma OS encontrada com esse veículo e esse cliente.",
+        message: `Nenhum veículo no Pátio (em aberto ou arquivado) combina com "${raw}".`,
       };
     }
     if (matches.length === 1) {
@@ -773,6 +789,7 @@ export async function openPatioVehicleModalJson(
     plate: o.plate,
     vehicle_model: o.vehicle_model,
     cliente: o.customer_name ?? o.customers?.name ?? null,
+    os_arquivada: o.status === CANCELLED_STATUS,
   });
 }
 
@@ -808,6 +825,7 @@ export async function openPatioVehicleBudgetViewJson(
     });
   }
   try {
+    const osArquivada = r.order.status === CANCELLED_STATUS;
     const budgets = await getServiceOrderBudgets(r.order.id);
     if (budgets.length === 0) {
       return JSON.stringify({ ok: false, error: "Esta OS não tem orçamentos salvos." });
@@ -832,6 +850,7 @@ export async function openPatioVehicleBudgetViewJson(
         service_order_id: r.order.id,
         budget_id: b.id,
         resumo: b.cardName,
+        os_arquivada: osArquivada,
       });
     }
 
@@ -846,6 +865,7 @@ export async function openPatioVehicleBudgetViewJson(
         service_order_id: r.order.id,
         budget_id: b.id,
         resumo: b.cardName,
+        os_arquivada: osArquivada,
       });
     }
 
@@ -857,6 +877,7 @@ export async function openPatioVehicleBudgetViewJson(
         service_order_id: r.order.id,
         budget_id: b.id,
         resumo: b.cardName,
+        os_arquivada: osArquivada,
       });
     }
 
@@ -910,6 +931,12 @@ export async function appendComplaintToVehicleJson(
       mensagem:
         "Há mais de um veículo com esse nome. Pergunte o nome do cliente e chame a ferramenta de novo com customer_name_query.",
       opcoes: r.opcoes,
+    });
+  }
+  if (r.order.status === CANCELLED_STATUS) {
+    return JSON.stringify({
+      ok: false,
+      error: "Esta OS está arquivada (entregue); não é possível alterar a queixa por aqui.",
     });
   }
   try {

@@ -41,7 +41,7 @@ Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçam
 Etapas do fluxo (IDs exatos):
 ${stageCatalog}
 
-Ferramentas principais: create_workshop_reminder (SEMPRE que o usuário pedir para criar/gravar um lembrete: salva no modal "Lembretes do Pátio" com target patio ou "Lembretes do Laboratório" com target laboratorio; se não disser qual, pergunte ou infira pelo contexto); open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro; se ambíguo, pedir cliente e repetir com customer_name_query); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); append_complaint_to_vehicle (acrescentar texto à queixa do cliente pelo modelo do carro; mesma desambiguação); list_vehicles_in_stage (por etapa); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
+Ferramentas principais: create_workshop_reminder (SEMPRE que o usuário pedir para criar/gravar um lembrete: salva no modal "Lembretes do Pátio" com target patio ou "Lembretes do Laboratório" com target laboratorio; se não disser qual, pergunte ou infira pelo contexto); open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro — também encontra OS arquivadas/entregues se não houver em aberto; se ambíguo, pedir cliente e repetir com customer_name_query); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); append_complaint_to_vehicle (acrescentar texto à queixa do cliente pelo modelo do carro; mesma desambiguação; não use em OS arquivada); list_vehicles_in_stage (por etapa; use status CANCELLED para listar arquivados/entregues); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto em OS abertas e arquivadas); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
 Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no Pátio, use open_patio_vehicle_budget_view (não só open_patio_vehicle_modal).
 Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
 }
@@ -89,7 +89,7 @@ export function buildAssistantChatTools(allowedTabs: string[], statusEnum: strin
       function: {
         name: "list_vehicles_in_stage",
         description:
-          "Lista ordens de serviço na etapa informada (Pátio: veículos; Laboratório: módulos). Use quando perguntarem quais carros ou OS estão em uma fase.",
+          "Lista ordens de serviço na etapa informada (Pátio: veículos; Laboratório: módulos). Para veículos arquivados/entregues use status CANCELLED. Use quando perguntarem quais carros ou OS estão em uma fase.",
         parameters: {
           type: "object",
           properties: {
@@ -207,7 +207,8 @@ export function buildAssistantChatTools(allowedTabs: string[], statusEnum: strin
       type: "function" as const,
       function: {
         name: "search_service_orders",
-        description: "Busca OS por placa, modelo, cliente, número, trecho da queixa.",
+        description:
+          "Busca OS por placa, modelo, cliente, número, trecho da queixa. Inclui ordens arquivadas (entregues); cada resultado traz arquivada=true/false.",
         parameters: {
           type: "object",
           properties: {
