@@ -336,7 +336,11 @@ export default function App() {
           assistantCommentActor="technician"
           currentTechnicianUserId={authSession.userId}
           relaySessionRole={
-            authSession.isTechnician && authSession.userId ? 'technician' : 'none'
+            authSession.isTechnician && authSession.userId
+              ? 'technician'
+              : authSession.userId
+                ? 'management'
+                : 'none'
           }
           onOpenPatioVehicle={(id) => {
             setUserTab('patio');
