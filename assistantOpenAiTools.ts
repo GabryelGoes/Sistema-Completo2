@@ -2,12 +2,38 @@
  * Definições compartilhadas das ferramentas da assistente (chat completions + Realtime API).
  */
 
+/** Primeiro token do nome exibido (ex.: "João Silva" → "João"; "maria" → "maria"). */
+export function firstNameFromDisplayName(displayName: string | undefined | null): string | null {
+  const t = (displayName ?? "").trim();
+  if (!t) return null;
+  const first = t.split(/\s+/)[0];
+  return first || null;
+}
+
+export interface AssistantUserContextOptions {
+  /** Sessão de administrador: a assistente não deve tratar o usuário pelo nome. */
+  isAdminSession?: boolean;
+  /** Nome de exibição ou login do usuário (técnico). */
+  userDisplayName?: string;
+}
+
 export function buildAssistantSystemInstructions(
   assistantName: string,
   allowedTabs: string[],
-  stageCatalog: string
+  stageCatalog: string,
+  userContext?: AssistantUserContextOptions
 ): string {
-  return `Você é ${assistantName}, a assistente virtual do app Rei do ABS (gestão de oficina). Apresente-se pelo nome quando fizer sentido. Responda em português do Brasil, de forma breve e útil.
+  const isAdmin = userContext?.isAdminSession === true;
+  const rawName = userContext?.userDisplayName?.trim();
+  const firstName = !isAdmin && rawName ? firstNameFromDisplayName(rawName) : null;
+
+  const nameBlock = isAdmin
+    ? `\nQuem está falando é um administrador: não trate essa pessoa pelo nome e não use o nome dela em cumprimentos (tom cordial e neutro).`
+    : firstName
+      ? `\nQuem está falando é o técnico "${rawName}". Chame essa pessoa pelo primeiro nome "${firstName}" quando for natural (cumprimentos ou tom próximo), sem repetir o nome em toda frase.`
+      : `\nQuem está falando é um usuário técnico do sistema. Não invente um nome; use tom cordial e neutro.`;
+
+  return `Você é ${assistantName}, a assistente virtual do app Rei do ABS (gestão de oficina). Apresente-se pelo nome quando fizer sentido. Responda em português do Brasil, de forma breve e útil.${nameBlock}
 O usuário só pode acessar estas abas: ${allowedTabs.join(", ")}.
 Use navigate_to_tab para mudar de tela; open_settings para tema/efeitos.
 Explique passo a passo quando pedirem "como fazer" algo no app (cadastro, orçamento, etc.), combinando com as ferramentas quando fizer sentido.

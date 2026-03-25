@@ -572,8 +572,12 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           commentActor: assistantCommentActor,
           currentTechnicianUserId: currentTechnicianUserId ?? null,
         };
+        const assistantIdentity = {
+          assistantIsAdmin: assistantCommentActor === "admin",
+          assistantUserDisplayName: assistantAuthorDisplayName,
+        };
         for (let step = 0; step < 15; step++) {
-          const { message } = await postAssistantChat(current, allowedTabs);
+          const { message } = await postAssistantChat(current, allowedTabs, assistantIdentity);
           if (message.tool_calls?.length) {
             current = [...current, message];
             const toolResults = await executeToolCalls(
@@ -633,7 +637,11 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     setUseClassicChat(false);
     void (async () => {
       try {
-        const session = await postAssistantRealtimeSession(allowedTabs);
+        const assistantIdentity = {
+          assistantIsAdmin: assistantCommentActor === "admin",
+          assistantUserDisplayName: assistantAuthorDisplayName,
+        };
+        const session = await postAssistantRealtimeSession(allowedTabs, assistantIdentity);
         if (cancelled) return;
         const client = new OpenAiRealtimeClient({
           onSessionReady: () => {},

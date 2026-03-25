@@ -3358,14 +3358,21 @@ export function createApiApp() {
         return res.status(400).json({ error: "Nenhuma aba permitida." });
       }
 
+      const assistantIsAdmin = req.body?.assistantIsAdmin === true;
+      const rawDisplay = req.body?.assistantUserDisplayName;
+      const assistantUserDisplayName =
+        typeof rawDisplay === "string" ? rawDisplay.trim() : undefined;
+
       const stageCatalog = [
         ...SERVICE_ORDER_STAGES.map((s) => `${s.name} → ${s.id}`),
         `Entregue/arquivado → ${CANCELLED_STATUS}`,
       ].join("\n");
 
       const instructions =
-        buildAssistantSystemInstructions(ASSISTANT_NAME, allowedTabs, stageCatalog) +
-        ASSISTANT_REALTIME_VOICE_ADDENDUM;
+        buildAssistantSystemInstructions(ASSISTANT_NAME, allowedTabs, stageCatalog, {
+          isAdminSession: assistantIsAdmin,
+          userDisplayName: assistantUserDisplayName,
+        }) + ASSISTANT_REALTIME_VOICE_ADDENDUM;
 
       const statusEnum = [...ALL_STATUSES];
       const chatTools = buildAssistantChatTools(allowedTabs, statusEnum);
@@ -3422,12 +3429,20 @@ export function createApiApp() {
         return res.status(400).json({ error: "Nenhuma aba permitida." });
       }
 
+      const assistantIsAdmin = req.body?.assistantIsAdmin === true;
+      const rawDisplay = req.body?.assistantUserDisplayName;
+      const assistantUserDisplayName =
+        typeof rawDisplay === "string" ? rawDisplay.trim() : undefined;
+
       const stageCatalog = [
         ...SERVICE_ORDER_STAGES.map((s) => `${s.name} → ${s.id}`),
         `Entregue/arquivado → ${CANCELLED_STATUS}`,
       ].join("\n");
 
-      const systemContent = buildAssistantSystemInstructions(ASSISTANT_NAME, allowedTabs, stageCatalog);
+      const systemContent = buildAssistantSystemInstructions(ASSISTANT_NAME, allowedTabs, stageCatalog, {
+        isAdminSession: assistantIsAdmin,
+        userDisplayName: assistantUserDisplayName,
+      });
 
       const statusEnum = [...ALL_STATUSES];
       const tools = buildAssistantChatTools(allowedTabs, statusEnum);

@@ -27,14 +27,29 @@ export interface AssistantChatResponse {
   finish_reason: string;
 }
 
+export interface AssistantSessionIdentityPayload {
+  /** true = login admin: a assistente não deve usar o nome do usuário. */
+  assistantIsAdmin: boolean;
+  /** Nome de exibição ou usuário (técnico); ignorado no servidor quando admin. */
+  assistantUserDisplayName?: string;
+}
+
 export async function postAssistantChat(
   messages: AssistantApiMessage[],
-  allowedTabs: TabId[]
+  allowedTabs: TabId[],
+  identity?: AssistantSessionIdentityPayload
 ): Promise<AssistantChatResponse> {
   const response = await fetch(`${API_BASE}/assistant/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, allowedTabs }),
+    body: JSON.stringify({
+      messages,
+      allowedTabs,
+      assistantIsAdmin: identity?.assistantIsAdmin ?? false,
+      ...(identity?.assistantUserDisplayName != null && identity.assistantUserDisplayName !== ""
+        ? { assistantUserDisplayName: identity.assistantUserDisplayName }
+        : {}),
+    }),
   });
   const data = (await response.json().catch(() => ({}))) as {
     error?: string;

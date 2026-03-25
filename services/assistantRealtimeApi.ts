@@ -1,4 +1,5 @@
 import type { TabId } from "../components/TabBar";
+import type { AssistantSessionIdentityPayload } from "./assistantApi";
 
 const API_BASE = "/api";
 
@@ -9,12 +10,19 @@ export interface AssistantRealtimeSessionResponse {
 }
 
 export async function postAssistantRealtimeSession(
-  allowedTabs: TabId[]
+  allowedTabs: TabId[],
+  identity?: AssistantSessionIdentityPayload
 ): Promise<AssistantRealtimeSessionResponse> {
   const response = await fetch(`${API_BASE}/assistant/realtime/session`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ allowedTabs }),
+    body: JSON.stringify({
+      allowedTabs,
+      assistantIsAdmin: identity?.assistantIsAdmin ?? false,
+      ...(identity?.assistantUserDisplayName != null && identity.assistantUserDisplayName !== ""
+        ? { assistantUserDisplayName: identity.assistantUserDisplayName }
+        : {}),
+    }),
   });
   const data = (await response.json().catch(() => ({}))) as AssistantRealtimeSessionResponse & {
     error?: string;
