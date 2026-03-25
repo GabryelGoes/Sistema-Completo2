@@ -1249,6 +1249,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
         setAssistantPlaybackIdle(false);
         setLoading(true);
         if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+        listeningRef.current = false;
+        setListening(false);
         recRef.current?.stop();
         client.sendRelayVoiceAnnouncement(voice);
       } catch {
@@ -1423,6 +1425,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       setError(null);
       if (realtimeClientRef.current && realtimeReady && !useClassicChat) {
         if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+        listeningRef.current = false;
+        setListening(false);
         loadingRef.current = true;
         assistantPlaybackIdleRef.current = true;
         setAssistantPlaybackIdle(true);
@@ -1479,11 +1483,19 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     rec.lang = "pt-BR";
     rec.interimResults = false;
     rec.maxAlternatives = 1;
-    rec.continuous = isRealtimeVoice;
+    /** Uma frase por ativação do mic; após enviar, o mic desliga (evita eco com a voz da Zaya). */
+    rec.continuous = false;
     rec.onresult = (ev: { results: ArrayLike<{ 0: { transcript: string } }> }) => {
       const said = ev.results[0]?.[0]?.transcript?.trim();
       if (said) {
         if (isRealtimeVoice) {
+          listeningRef.current = false;
+          setListening(false);
+          try {
+            rec.stop();
+          } catch {
+            /* ignore */
+          }
           sendUserMessageRef.current(said);
         } else {
           setInput((prev) => (prev ? `${prev} ${said}` : said));
@@ -1504,22 +1516,18 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
         setListening(false);
         return;
       }
+      if (isRealtimeVoice) {
+        listeningRef.current = false;
+        setListening(false);
+        return;
+      }
       if (loadingRef.current) {
         return;
       }
       if (!assistantPlaybackIdleRef.current) {
         return;
       }
-      if (isRealtimeVoice) {
-        try {
-          rec.start();
-        } catch {
-          listeningRef.current = false;
-          setListening(false);
-        }
-      } else {
-        setListening(false);
-      }
+      setListening(false);
     };
     recRef.current = rec;
     listeningRef.current = true;
