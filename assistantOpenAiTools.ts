@@ -52,7 +52,7 @@ Etapas do fluxo (IDs exatos):
 ${stageCatalog}
 
 Central de notificações (oficina inteira): list_notifications, get_unread_notifications_count, mark_notification_read, mark_all_notifications_read, clear_all_notifications (só se o usuário pedir para apagar tudo). Ferramentas principais: create_workshop_reminder, list_workshop_reminders (ler), update_workshop_reminder (editar texto ou marcar concluído), delete_workshop_reminder (excluir) — sempre com target patio ou laboratorio conforme o modal; open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro — também encontra OS arquivadas/entregues se não houver em aberto; se ambíguo, pedir cliente e repetir com customer_name_query); open_patio_vehicle_budget_view (abrir o Pátio e exibir o modal de leitura do orçamento do veículo; se vários orçamentos na mesma OS, a ferramenta retorna lista — pergunte qual o usuário quer e chame de novo com budget_index: 1 = mais recente, ou budget_id); append_complaint_to_vehicle (acrescentar texto à queixa do cliente pelo modelo do carro; mesma desambiguação; não use em OS arquivada); list_vehicles_in_stage (por etapa; use status CANCELLED para listar arquivados/entregues); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto em OS abertas e arquivadas); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
-Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no Pátio, use open_patio_vehicle_budget_view (não só open_patio_vehicle_modal). Ao usar open_patio_vehicle_budget_view com sucesso, o app fala em voz alta a mensagem em mensagem_voz (ex.: veículo e cliente), minimiza o chat e abre o orçamento no Pátio — não precisa repetir essa frase na resposta escrita.
+Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no Pátio, use open_patio_vehicle_budget_view (não só open_patio_vehicle_modal). Com sucesso, o app abre o orçamento no Pátio sem fechar o chat da Zaya.
 Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
 }
 
@@ -525,7 +525,7 @@ export function buildAssistantChatTools(
       function: {
         name: "open_patio_vehicle_budget_view",
         description:
-          "Abre o Pátio no modal do veículo e exibe o overlay de leitura do orçamento. Em caso de sucesso, o app fala mensagem_voz (veículo + cliente) e minimiza o chat. Use vehicle_model_query (ex.: Civic, Gol). Se houver mais de um veículo igual, peça o cliente e repita com customer_name_query. Se houver mais de um orçamento na OS, a resposta traz orcamentos com indice (1 = mais recente); chame de novo com budget_index ou budget_id.",
+          "Abre o Pátio no modal do veículo e exibe o overlay de leitura do orçamento. Use vehicle_model_query (ex.: Civic, Gol). Se houver mais de um veículo igual, peça o cliente e repita com customer_name_query. Se houver mais de um orçamento na OS, a resposta traz orcamentos com indice (1 = mais recente); chame de novo com budget_index ou budget_id.",
         parameters: {
           type: "object",
           properties: {

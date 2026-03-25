@@ -795,19 +795,6 @@ export async function openPatioVehicleModalJson(
   });
 }
 
-/** Frase para TTS ao abrir orçamento (ex.: "Abrindo o orçamento do Duster do cliente Jp Montagem."). */
-export function buildBudgetOpenVoicePhrase(order: ServiceOrderListItem): string {
-  const isModule = order.order_type === "module";
-  const vehiclePart = isModule
-    ? (order.module_identification?.trim() || order.vehicle_model?.trim() || "módulo")
-    : (order.vehicle_model?.trim() || "veículo");
-  const customer = (order.customer_name ?? order.customers?.name ?? "").trim();
-  if (customer) {
-    return `Abrindo o orçamento do ${vehiclePart} do cliente ${customer}.`;
-  }
-  return `Abrindo o orçamento do ${vehiclePart}.`;
-}
-
 /**
  * Abre o Pátio no modal do veículo e exibe o modal de leitura do orçamento.
  * Vários orçamentos na mesma OS: retorna ambiguous com lista (índice 1 = mais recente) ou use budget_id / budget_index.
@@ -857,8 +844,6 @@ export async function openPatioVehicleBudgetViewJson(
           ? parseInt(String(idxRaw).trim(), 10)
           : NaN;
 
-    const mensagemVoz = buildBudgetOpenVoicePhrase(r.order);
-
     if (sorted.length === 1) {
       const b = sorted[0]!;
       return JSON.stringify({
@@ -868,7 +853,6 @@ export async function openPatioVehicleBudgetViewJson(
         budget_id: b.id,
         resumo: b.cardName,
         os_arquivada: osArquivada,
-        mensagem_voz: mensagemVoz,
       });
     }
 
@@ -884,7 +868,6 @@ export async function openPatioVehicleBudgetViewJson(
         budget_id: b.id,
         resumo: b.cardName,
         os_arquivada: osArquivada,
-        mensagem_voz: mensagemVoz,
       });
     }
 
@@ -897,7 +880,6 @@ export async function openPatioVehicleBudgetViewJson(
         budget_id: b.id,
         resumo: b.cardName,
         os_arquivada: osArquivada,
-        mensagem_voz: mensagemVoz,
       });
     }
 

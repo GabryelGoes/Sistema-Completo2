@@ -8,6 +8,7 @@ const SAMPLE_RATE = 24000;
 class Pcm24kPlayer {
   private ctx: AudioContext | null = null;
   private nextTime = 0;
+  private playbackEndTimer: ReturnType<typeof setTimeout> | null = null;
 
   private ensureContext(): AudioContext {
     if (!this.ctx) this.ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
@@ -37,9 +38,33 @@ class Pcm24kPlayer {
 
   resetSchedule(): void {
     if (this.ctx) this.nextTime = this.ctx.currentTime;
+    this.clearPlaybackEndSchedule();
+  }
+
+  clearPlaybackEndSchedule(): void {
+    if (this.playbackEndTimer) {
+      clearTimeout(this.playbackEndTimer);
+      this.playbackEndTimer = null;
+    }
+  }
+
+  /** Aguarda o fim da fila de PCM já agendada (para retomar o microfone só depois do áudio). */
+  schedulePlaybackEndWhenQueueDrains(cb: () => void): void {
+    this.clearPlaybackEndSchedule();
+    const ctx = this.ctx;
+    if (!ctx) {
+      queueMicrotask(cb);
+      return;
+    }
+    const delayMs = Math.max(0, (this.nextTime - ctx.currentTime) * 1000) + 400;
+    this.playbackEndTimer = setTimeout(() => {
+      this.playbackEndTimer = null;
+      cb();
+    }, delayMs);
   }
 
   dispose(): void {
+    this.clearPlaybackEndSchedule();
     void this.ctx?.close();
     this.ctx = null;
     this.nextTime = 0;
@@ -55,6 +80,8 @@ export interface OpenAiRealtimeClientHandlers {
   onError: (message: string) => void;
   /** Primeiro chunk de áudio da assistente — parar o microfone do usuário para evitar eco/loop. */
   onAssistantAudioPlaybackStart?: () => void;
+  /** Fila de áudio da assistente terminou (após response.done); mais longo que o evento WebSocket. */
+  onAssistantAudioPlaybackEnd?: () => void;
 }
 
 export class OpenAiRealtimeClient {
@@ -145,8 +172,16 @@ export class OpenAiRealtimeClient {
       return;
     }
     if (t === "response.done") {
+      const hadAudio = this.assistantAudioStartedThisResponse;
       this.assistantAudioStartedThisResponse = false;
       this.handlers.onResponseDone();
+      if (hadAudio) {
+        this.player.schedulePlaybackEndWhenQueueDrains(() => {
+          this.handlers.onAssistantAudioPlaybackEnd?.();
+        });
+      } else {
+        this.handlers.onAssistantAudioPlaybackEnd?.();
+      }
       return;
     }
     if (t === "response.function_call_arguments.done") {

@@ -129,23 +129,6 @@ function speakAssistantResponse(text: string): void {
   window.speechSynthesis.speak(u);
 }
 
-/** TTS fixo ao abrir orçamento (sempre fala; o painel fecha sem cancelar esta leitura). */
-function speakBudgetOpenConfirmation(text: string): void {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  const plain = text.trim();
-  if (!plain) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(plain);
-  u.lang = "pt-BR";
-  const voices = window.speechSynthesis.getVoices();
-  const ptBr =
-    voices.find((v) => /pt-BR|pt_BR/i.test(v.lang)) ||
-    voices.find((v) => v.lang.toLowerCase().startsWith("pt"));
-  if (ptBr) u.voice = ptBr;
-  u.rate = 0.98;
-  window.speechSynthesis.speak(u);
-}
-
 function parseOsNumber(raw: unknown): number | undefined {
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;
   if (typeof raw === "string" && raw.trim() !== "") {
@@ -162,11 +145,7 @@ async function executeToolCalls(
   onOpenSettings: () => void,
   serviceOrderActor: ServiceOrderUpdateActor | undefined,
   assistantCtx: AssistantContext,
-  onOpenPatioVehicle?: (serviceOrderId: string, options?: { budgetId?: string }) => void,
-  /** Fecha o painel após abrir orçamento (sem cancelar a fala de confirmação). */
-  onMinimizeAfterBudgetOpen?: () => void,
-  /** Fala a mensagem em `mensagem_voz` ao abrir orçamento (ex.: "Abrindo o orçamento do…"). */
-  onBudgetOpenSpeak?: (text: string) => void
+  onOpenPatioVehicle?: (serviceOrderId: string, options?: { budgetId?: string }) => void
 ): Promise<{ id: string; content: string }[]> {
   const results: { id: string; content: string }[] = [];
   for (const tc of calls) {
@@ -902,7 +881,6 @@ async function executeToolCalls(
           action?: string;
           service_order_id?: string;
           budget_id?: string;
-          mensagem_voz?: string;
         };
         if (
           parsed.ok &&
@@ -911,10 +889,7 @@ async function executeToolCalls(
           typeof parsed.budget_id === "string" &&
           onOpenPatioVehicle
         ) {
-          const voz = typeof parsed.mensagem_voz === "string" ? parsed.mensagem_voz.trim() : "";
-          if (voz) onBudgetOpenSpeak?.(voz);
           onOpenPatioVehicle(parsed.service_order_id, { budgetId: parsed.budget_id });
-          onMinimizeAfterBudgetOpen?.();
         }
       } catch {
         /* ignore */
@@ -976,6 +951,10 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   const relaySessionRole = relaySessionRoleProp;
   const [relayPendingTech, setRelayPendingTech] = useState(0);
   const [relayPendingMgmt, setRelayPendingMgmt] = useState(0);
+  /** Fila de áudio da assistente no Realtime terminou (evita eco em respostas longas). */
+  const [assistantPlaybackIdle, setAssistantPlaybackIdle] = useState(true);
+  const assistantPlaybackIdleRef = useRef(true);
+  assistantPlaybackIdleRef.current = assistantPlaybackIdle;
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
@@ -999,11 +978,6 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       }
       return next;
     });
-  }, []);
-
-  /** Só fecha o painel (não cancela síntese de voz — usado após falar confirmação do orçamento). */
-  const closeAssistantAfterBudget = useCallback(() => {
-    setOpen(false);
   }, []);
 
   const runAssistantTurn = useCallback(
@@ -1037,9 +1011,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               onOpenSettings,
               serviceOrderActor,
               assistantCtx,
-              onOpenPatioVehicle,
-              closeAssistantAfterBudget,
-              speakBudgetOpenConfirmation
+              onOpenPatioVehicle
             );
             for (const tr of toolResults) {
               current.push({ role: "tool", tool_call_id: tr.id, content: tr.content });
@@ -1074,7 +1046,6 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       assistantCommentActor,
       currentTechnicianUserId,
       onOpenPatioVehicle,
-      closeAssistantAfterBudget,
       relaySessionRole,
     ]
   );
@@ -1110,7 +1081,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
         const delivery: AssistantApiMessage[] = rows.map((r) => ({
           role: "assistant" as const,
           content:
-            `**Recado da gerência**\n\n${r.body}\n\n---\nSe quiser responder à gerência, diga sua resposta ou escreva aqui; eu registro com a ferramenta de resposta quando você pedir.`,
+            `**Recado da gerência**\n\n${r.body}\n\n---\nPara responder, diga ou escreva sua resposta; o id deste recado é \`${r.id}\` (uso na ferramenta zaya_submit_relay_reply).`,
         }));
         setMessages((prev) => [...delivery, ...prev]);
         try {
@@ -1156,6 +1127,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
 
   useEffect(() => {
     if (!open) {
+      assistantPlaybackIdleRef.current = true;
+      setAssistantPlaybackIdle(true);
       if (resumeMicTimeoutRef.current) {
         clearTimeout(resumeMicTimeoutRef.current);
         resumeMicTimeoutRef.current = null;
@@ -1195,8 +1168,14 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           onAssistantTranscriptDone: () => {},
           onAssistantAudioPlaybackStart: () => {
             loadingRef.current = true;
+            assistantPlaybackIdleRef.current = false;
+            setAssistantPlaybackIdle(false);
             recRef.current?.stop();
             setLoading(true);
+          },
+          onAssistantAudioPlaybackEnd: () => {
+            assistantPlaybackIdleRef.current = true;
+            setAssistantPlaybackIdle(true);
           },
           onResponseDone: () => setLoading(false),
           onFunctionCall: async ({ name, arguments: argsStr, call_id }) => {
@@ -1218,15 +1197,15 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               onOpenSettings,
               serviceOrderActor,
               assistantCtx,
-              onOpenPatioVehicle,
-              closeAssistantAfterBudget,
-              speakBudgetOpenConfirmation
+              onOpenPatioVehicle
             );
             return results.find((r) => r.id === call_id)?.content ?? '{"ok":false}';
           },
           onError: (msg) => {
             setError(msg);
             setLoading(false);
+            assistantPlaybackIdleRef.current = true;
+            setAssistantPlaybackIdle(true);
           },
         });
         await client.connect(session.client_secret, session.model);
@@ -1253,7 +1232,6 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     assistantCommentActor,
     currentTechnicianUserId,
     onOpenPatioVehicle,
-    closeAssistantAfterBudget,
     relaySessionRole,
   ]);
 
@@ -1270,6 +1248,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       if (realtimeClientRef.current && realtimeReady && !useClassicChat) {
         if (typeof window !== "undefined") window.speechSynthesis?.cancel();
         loadingRef.current = true;
+        assistantPlaybackIdleRef.current = true;
+        setAssistantPlaybackIdle(true);
         recRef.current?.stop();
         setMessages((prev) => [
           ...prev,
@@ -1351,6 +1331,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       if (loadingRef.current) {
         return;
       }
+      if (!assistantPlaybackIdleRef.current) {
+        return;
+      }
       if (isRealtimeVoice) {
         try {
           rec.start();
@@ -1400,16 +1383,19 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       recRef.current?.stop();
       return;
     }
+    if (!assistantPlaybackIdle) {
+      return;
+    }
     if (listeningRef.current && recRef.current) {
       resumeMicTimeoutRef.current = setTimeout(() => {
         resumeMicTimeoutRef.current = null;
-        if (!listeningRef.current || loadingRef.current) return;
+        if (!listeningRef.current || loadingRef.current || !assistantPlaybackIdleRef.current) return;
         try {
           recRef.current?.start();
         } catch {
           /* ignore */
         }
-      }, 850);
+      }, 1100);
     }
     return () => {
       if (resumeMicTimeoutRef.current) {
@@ -1417,7 +1403,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
         resumeMicTimeoutRef.current = null;
       }
     };
-  }, [loading, isRealtimeVoice]);
+  }, [loading, assistantPlaybackIdle, isRealtimeVoice]);
 
   return (
     <>
