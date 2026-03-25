@@ -56,7 +56,7 @@ Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no 
 
 Queixa do cliente (campo issue_description na OS): use get_customer_complaint_for_vehicle para ler o texto atual. Para acrescentar informação, use append_complaint_to_vehicle — ela só concatena ao final do que já estava escrito. Nunca apague, substitua nem sobrescreva a queixa existente; não há ferramenta para apagar ou reescrever esse campo por completo.
 
-Veículos por modelo (open_patio_vehicle_modal, orçamento, queixa, técnico): não pergunte o nome do cliente antes de chamar a ferramenta. Chame primeiro só com vehicle_model_query; somente se a resposta vier ambiguous (mais de uma OS com aquele veículo), pergunte o nome do cliente e chame de novo com customer_name_query. Se a ferramenta indicar uma única OS, continue sem pedir nome.
+Veículos por modelo (open_patio_vehicle_modal, orçamento, queixa, técnico): identifique sempre pelo nome/modelo (vehicle_model_query). Não peça placa. Mesmo que existam múltiplas OS com o mesmo nome/modelo, a ferramenta escolhe automaticamente a mais provável (prioriza a mais recente) e você continua sem solicitar nome do cliente.
 
 Histórico de arquivados (entregues): use open_patio_vehicle_history para abrir a mesma tela do botão de histórico no Pátio/Laboratório. Para só listar dados no chat, use list_archived_vehicle_orders ou list_vehicles_in_stage com status CANCELLED. Para desarquivar uma OS (voltar ao fluxo ativo na etapa Finalizado), use unarchive_vehicle_service_order com id, número da OS ou placa.
 Quando a pergunta for “quais carros estão na etapa X?” (ferramenta `list_vehicles_in_stage`): liste apenas o `nome do veículo` e o `primeiro nome do cliente`; não mencione `os_number` nem `placa`, mesmo que estejam no retorno.
@@ -599,7 +599,7 @@ export function buildAssistantChatTools(
       function: {
         name: "open_patio_vehicle_modal",
         description:
-          "Abre o modal do veículo na página Pátio. Use vehicle_model_query (ex.: Civic, Gol). Não pergunte o nome do cliente antes: chame só com vehicle_model_query; se retornar ambiguous (várias OS), aí sim pergunte o nome e use customer_name_query.",
+          "Abre o modal do veículo na página Pátio. Use vehicle_model_query (ex.: Civic, Gol). Não peça placa. Mesmo que existam várias OS com o mesmo nome/modelo, a ferramenta escolhe automaticamente a mais provável (prioriza a mais recente) e você não deve pedir nome do cliente.",
         parameters: {
           type: "object",
           properties: {
@@ -621,7 +621,7 @@ export function buildAssistantChatTools(
       function: {
         name: "open_patio_vehicle_budget_view",
         description:
-          "Abre o Pátio no modal do veículo e exibe o overlay de leitura do orçamento. Use vehicle_model_query (ex.: Civic, Gol). Se houver mais de um veículo igual, peça o cliente e repita com customer_name_query. Se houver mais de um orçamento na OS, a resposta traz orcamentos com indice (1 = mais recente); chame de novo com budget_index ou budget_id.",
+          "Abre o Pátio no modal do veículo e exibe o overlay de leitura do orçamento. Use vehicle_model_query (ex.: Civic, Gol). Não peça placa nem nome do cliente. Se houver mais de um orçamento na OS, pergunte qual o usuário quer e use budget_index (1 = mais recente) ou budget_id.",
         parameters: {
           type: "object",
           properties: {
@@ -651,7 +651,7 @@ export function buildAssistantChatTools(
       function: {
         name: "get_customer_complaint_for_vehicle",
         description:
-          "Lê o texto atual da queixa do cliente (issue_description). Chame com vehicle_model_query primeiro; customer_name_query só se ambiguous (vários veículos). Em OS arquivada, só leitura.",
+          "Lê o texto atual da queixa do cliente (issue_description). Identifique pelo vehicle_model_query (nome/modelo). Não peça placa nem nome do cliente. Em OS arquivada, só leitura.",
         parameters: {
           type: "object",
           properties: {
@@ -673,7 +673,7 @@ export function buildAssistantChatTools(
       function: {
         name: "append_complaint_to_vehicle",
         description:
-          "Acrescenta texto ao final da queixa (nunca apaga o existente). Use vehicle_model_query e complaint_text; customer_name_query só se a resposta anterior foi ambiguous (vários veículos). Não use em OS arquivada.",
+          "Acrescenta texto ao final da queixa (nunca apaga o existente). Identifique pelo vehicle_model_query (nome/modelo). Não peça placa nem nome do cliente. Não use em OS arquivada.",
         parameters: {
           type: "object",
           properties: {
@@ -699,7 +699,7 @@ export function buildAssistantChatTools(
       function: {
         name: "set_vehicle_technician",
         description:
-          "Atribui, troca ou remove o técnico responsável pelo card do veículo no Pátio. Localiza a OS por vehicle_model_query (não pergunte nome do cliente antes; customer_name_query só se a ferramenta retornar ambiguous com várias OS). Para remover: clear_technician: true. Para atribuir ou trocar: technician_user_id (UUID do usuário técnico) ou technician_username (login ou nome). Se retornar ambiguous_tecnico, pergunte qual técnico ou repita com technician_user_id exato.",
+          "Atribui, troca ou remove o técnico responsável pelo card do veículo no Pátio. Localiza a OS por vehicle_model_query (nome/modelo). Não peça placa nem nome do cliente; se houver mais de uma OS com o mesmo nome/modelo, a ferramenta escolhe automaticamente a mais provável. Para remover: clear_technician: true. Para atribuir ou trocar: technician_user_id (UUID) ou technician_username (login/nome). Se retornar ambiguous_tecnico, pergunte qual técnico ou repita com technician_user_id exato.",
         parameters: {
           type: "object",
           properties: {

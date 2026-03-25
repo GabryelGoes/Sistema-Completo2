@@ -961,19 +961,35 @@ export async function matchPatioVehicleByModel(
         message: `Nenhum veículo no Pátio (em aberto ou arquivado) combina com "${raw}".`,
       };
     }
-    if (matches.length === 1) {
-      return { kind: "single", order: matches[0] };
-    }
-    return {
-      kind: "ambiguous",
-      opcoes: matches.slice(0, 20).map((o) => ({
-        service_order_id: o.id,
-        os_number: o.os_number ?? null,
-        placa: o.plate,
-        veiculo: o.vehicle_model,
-        cliente: o.customer_name ?? o.customers?.name ?? "—",
-      })),
+
+    // Em vez de pedir placa ou nome do cliente quando o usuário só falar o nome/modelo,
+    // escolhemos automaticamente o registro mais provável.
+    const scoreOrder = (o: ServiceOrderListItem) => {
+      const vm = norm(o.vehicle_model || "");
+      if (!vm) return 0;
+
+      let score = 0;
+      if (vm === q) score += 100;
+      else if (vm.includes(q) || q.includes(vm)) score += 70;
+
+      const qTokens = q.split(/\s+/).filter((w) => w.length >= 2);
+      for (const t of qTokens) {
+        if (vm.includes(t)) score += 6;
+      }
+
+      return score;
     };
+
+    const best = [...matches].sort((a, b) => {
+      const sa = scoreOrder(a);
+      const sb = scoreOrder(b);
+      if (sb !== sa) return sb - sa;
+      const ua = new Date(a.updated_at || a.created_at).getTime();
+      const ub = new Date(b.updated_at || b.created_at).getTime();
+      return (ub || 0) - (ua || 0);
+    })[0]!;
+
+    return { kind: "single", order: best };
   } catch (e) {
     return {
       kind: "error",
