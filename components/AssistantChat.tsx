@@ -1139,6 +1139,39 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   const autoMicStartedForOpenRef = useRef(false);
 
   const relaySessionRole = relaySessionRoleProp;
+
+  /** Refs para evitar recriar a sessão Realtime (histórico) por causa de identidades mutáveis de props. */
+  const onNavigateTabRef = useRef(onNavigateTab);
+  const onOpenSettingsRef = useRef(onOpenSettings);
+  const onOpenPatioVehicleRef = useRef(onOpenPatioVehicle);
+  const onOpenPatioHistoryRef = useRef(onOpenPatioHistory);
+  const serviceOrderActorRef = useRef<ServiceOrderUpdateActor | undefined>(serviceOrderActor);
+  const assistantAuthorDisplayNameRef = useRef(assistantAuthorDisplayName);
+  const assistantCommentActorRef = useRef(assistantCommentActor);
+  const currentTechnicianUserIdRef = useRef(currentTechnicianUserId);
+  const relaySessionRoleRef = useRef(relaySessionRole);
+
+  onNavigateTabRef.current = onNavigateTab;
+  onOpenSettingsRef.current = onOpenSettings;
+  onOpenPatioVehicleRef.current = onOpenPatioVehicle;
+  onOpenPatioHistoryRef.current = onOpenPatioHistory;
+  serviceOrderActorRef.current = serviceOrderActor;
+  assistantAuthorDisplayNameRef.current = assistantAuthorDisplayName;
+  assistantCommentActorRef.current = assistantCommentActor;
+  currentTechnicianUserIdRef.current = currentTechnicianUserId;
+  relaySessionRoleRef.current = relaySessionRole;
+
+  const onNavigateTabStable = useCallback((tab: TabId) => onNavigateTabRef.current(tab), []);
+  const onOpenSettingsStable = useCallback(() => onOpenSettingsRef.current(), []);
+  const onOpenPatioVehicleStable = useCallback(
+    (id: string, options?: { budgetId?: string }) => onOpenPatioVehicleRef.current?.(id, options),
+    []
+  );
+  const onOpenPatioHistoryStable = useCallback(
+    (target: "patio" | "laboratorio") => onOpenPatioHistoryRef.current?.(target),
+    []
+  );
+
   const [relayPendingTech, setRelayPendingTech] = useState(0);
   const [relayPendingMgmt, setRelayPendingMgmt] = useState(0);
   /** Dispara nova tentativa de entrega quando o contador de pendentes sobe. */
@@ -1512,11 +1545,11 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           onFunctionCall: async ({ name, arguments: argsStr, call_id }) => {
             const assistantCtx: AssistantContext = {
               allowedTabs,
-              serviceOrderActor,
-              authorDisplayName: assistantAuthorDisplayName,
-              commentActor: assistantCommentActor,
-              currentTechnicianUserId: currentTechnicianUserId ?? null,
-              relaySessionRole,
+              serviceOrderActor: serviceOrderActorRef.current,
+              authorDisplayName: assistantAuthorDisplayNameRef.current,
+              commentActor: assistantCommentActorRef.current,
+              currentTechnicianUserId: currentTechnicianUserIdRef.current ?? null,
+              relaySessionRole: relaySessionRoleRef.current,
             };
             const toolCalls: AssistantToolCall[] = [
               { id: call_id, type: "function", function: { name, arguments: argsStr } },
@@ -1524,12 +1557,12 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
             const results = await executeToolCalls(
               toolCalls,
               allowedTabs,
-              onNavigateTab,
-              onOpenSettings,
-              serviceOrderActor,
+              onNavigateTabStable,
+              onOpenSettingsStable,
+              serviceOrderActorRef.current,
               assistantCtx,
-              onOpenPatioVehicle,
-              onOpenPatioHistory
+              onOpenPatioVehicleStable,
+              onOpenPatioHistoryStable
             );
             return results.find((r) => r.id === call_id)?.content ?? '{"ok":false}';
           },
@@ -1570,14 +1603,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   }, [
     open,
     allowedTabs,
-    onNavigateTab,
-    onOpenSettings,
-    serviceOrderActor,
     assistantAuthorDisplayName,
     assistantCommentActor,
     currentTechnicianUserId,
-    onOpenPatioVehicle,
-    onOpenPatioHistory,
     relaySessionRole,
     refreshRelayPendingCount,
   ]);
