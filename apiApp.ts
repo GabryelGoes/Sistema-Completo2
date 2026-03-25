@@ -978,6 +978,256 @@ export function createApiApp() {
     }
   });
 
+  // ----------------- TV DO PÁTIO (playlist pública + gestão admin) -----------------
+  async function fetchTvPlaylistForWorkshop(): Promise<{
+    slides: Array<Record<string, unknown>>;
+    weeklyGoal: { label: string; currentAmount: number; targetAmount: number } | null;
+  }> {
+    if (!supabaseAdmin || !WORKSHOP_ID) {
+      return { slides: [], weeklyGoal: null };
+    }
+    const { data: slideRows, error: slideErr } = await supabaseAdmin
+      .from("workshop_tv_slides")
+      .select(
+        "id, slide_type, title, body, media_url, duration_seconds, sort_order, is_active, goal_current, goal_target, goal_label"
+      )
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (slideErr) {
+      console.error("[API] TV slides:", slideErr);
+    }
+
+    const slides = (slideRows ?? []).map((row: Record<string, unknown>) => ({
+      id: row.id,
+      slideType: row.slide_type,
+      title: row.title ?? "",
+      body: row.body ?? "",
+      mediaUrl: row.media_url ?? null,
+      durationSeconds: row.duration_seconds ?? 10,
+      sortOrder: row.sort_order ?? 0,
+      goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
+      goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
+      goalLabel: row.goal_label ?? null,
+    }));
+
+    const { data: goalRow } = await supabaseAdmin
+      .from("workshop_tv_weekly_goal")
+      .select("label, current_amount, target_amount")
+      .eq("workshop_id", WORKSHOP_ID)
+      .maybeSingle();
+
+    const weeklyGoal = goalRow
+      ? {
+          label: String((goalRow as { label?: string }).label ?? "Meta semanal"),
+          currentAmount: Number((goalRow as { current_amount?: number }).current_amount ?? 0),
+          targetAmount: Number((goalRow as { target_amount?: number }).target_amount ?? 0),
+        }
+      : null;
+
+    return { slides, weeklyGoal };
+  }
+
+  /** Playlist para o painel da TV (sem autenticação; CORS já limita origem do Patio-View). */
+  app.get("/api/tv/playlist", async (_req, res) => {
+    try {
+      const { slides, weeklyGoal } = await fetchTvPlaylistForWorkshop();
+      return res.json({ slides, weeklyGoal });
+    } catch (err: any) {
+      console.error("[API] GET /api/tv/playlist:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro ao carregar playlist da TV." });
+    }
+  });
+
+  /** Lista completa (inclui inativos) para tela de gestão — requer senha de administrador. */
+  app.get("/api/tv/manage", async (req, res) => {
+    try {
+      const adminPassword = typeof req.query.adminPassword === "string" ? req.query.adminPassword : "";
+      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+        return res.status(403).json({ error: "Senha de administrador inválida." });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const { data: slideRows, error } = await supabaseAdmin
+        .from("workshop_tv_slides")
+        .select("*")
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      const slides = (slideRows ?? []).map((row: Record<string, unknown>) => ({
+        id: row.id,
+        slideType: row.slide_type,
+        title: row.title ?? "",
+        body: row.body ?? "",
+        mediaUrl: row.media_url ?? null,
+        durationSeconds: row.duration_seconds ?? 10,
+        sortOrder: row.sort_order ?? 0,
+        isActive: row.is_active === true,
+        goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
+        goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
+        goalLabel: row.goal_label ?? null,
+      }));
+
+      const { data: goalRow } = await supabaseAdmin
+        .from("workshop_tv_weekly_goal")
+        .select("*")
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+
+      const weeklyGoal = goalRow
+        ? {
+            label: String((goalRow as { label?: string }).label ?? "Meta semanal"),
+            currentAmount: Number((goalRow as { current_amount?: number }).current_amount ?? 0),
+            targetAmount: Number((goalRow as { target_amount?: number }).target_amount ?? 0),
+          }
+        : null;
+
+      return res.json({ slides, weeklyGoal });
+    } catch (err: any) {
+      console.error("[API] GET /api/tv/manage:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.put("/api/tv/weekly-goal", async (req, res) => {
+    try {
+      const { adminPassword, label, currentAmount, targetAmount } = req.body || {};
+      const pwd = typeof adminPassword === "string" ? adminPassword : "";
+      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, pwd))) {
+        return res.status(403).json({ error: "Senha de administrador inválida." });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const row = {
+        workshop_id: WORKSHOP_ID,
+        label: typeof label === "string" && label.trim() ? label.trim() : "Meta semanal",
+        current_amount: Number(currentAmount) || 0,
+        target_amount: Number(targetAmount) || 0,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabaseAdmin.from("workshop_tv_weekly_goal").upsert(row, {
+        onConflict: "workshop_id",
+      });
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] PUT /api/tv/weekly-goal:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.post("/api/tv/slides", async (req, res) => {
+    try {
+      const { adminPassword, slide } = req.body || {};
+      const pwd = typeof adminPassword === "string" ? adminPassword : "";
+      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, pwd))) {
+        return res.status(403).json({ error: "Senha de administrador inválida." });
+      }
+      if (!supabaseAdmin || !slide || typeof slide !== "object") {
+        return res.status(400).json({ error: "Dados inválidos." });
+      }
+      const s = slide as Record<string, unknown>;
+      const slideType = String(s.slideType ?? "notice");
+      if (!["notice", "image", "video", "goal", "alert"].includes(slideType)) {
+        return res.status(400).json({ error: "slideType inválido." });
+      }
+      const insert = {
+        workshop_id: WORKSHOP_ID,
+        slide_type: slideType,
+        title: s.title != null ? String(s.title) : null,
+        body: s.body != null ? String(s.body) : null,
+        media_url: s.mediaUrl != null && String(s.mediaUrl).trim() ? String(s.mediaUrl).trim() : null,
+        duration_seconds: Math.min(300, Math.max(3, Number(s.durationSeconds) || 10)),
+        sort_order: Number.isFinite(Number(s.sortOrder)) ? Number(s.sortOrder) : 0,
+        is_active: s.isActive !== false,
+        goal_current: s.goalCurrent != null ? Number(s.goalCurrent) : null,
+        goal_target: s.goalTarget != null ? Number(s.goalTarget) : null,
+        goal_label: s.goalLabel != null ? String(s.goalLabel) : null,
+      };
+      const { data, error } = await supabaseAdmin.from("workshop_tv_slides").insert(insert).select("id").single();
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(201).json({ id: data?.id });
+    } catch (err: any) {
+      console.error("[API] POST /api/tv/slides:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.patch("/api/tv/slides/:id", async (req, res) => {
+    try {
+      const { adminPassword, slide } = req.body || {};
+      const pwd = typeof adminPassword === "string" ? adminPassword : "";
+      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, pwd))) {
+        return res.status(403).json({ error: "Senha de administrador inválida." });
+      }
+      if (!supabaseAdmin || !slide || typeof slide !== "object") {
+        return res.status(400).json({ error: "Dados inválidos." });
+      }
+      const { id } = req.params;
+      const s = slide as Record<string, unknown>;
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (s.slideType != null) updates.slide_type = String(s.slideType);
+      if (s.title !== undefined) updates.title = s.title != null ? String(s.title) : null;
+      if (s.body !== undefined) updates.body = s.body != null ? String(s.body) : null;
+      if (s.mediaUrl !== undefined) updates.media_url = s.mediaUrl != null && String(s.mediaUrl).trim() ? String(s.mediaUrl).trim() : null;
+      if (s.durationSeconds != null) updates.duration_seconds = Math.min(300, Math.max(3, Number(s.durationSeconds) || 10));
+      if (s.sortOrder != null) updates.sort_order = Number(s.sortOrder);
+      if (s.isActive !== undefined) updates.is_active = Boolean(s.isActive);
+      if (s.goalCurrent !== undefined) updates.goal_current = s.goalCurrent != null ? Number(s.goalCurrent) : null;
+      if (s.goalTarget !== undefined) updates.goal_target = s.goalTarget != null ? Number(s.goalTarget) : null;
+      if (s.goalLabel !== undefined) updates.goal_label = s.goalLabel != null ? String(s.goalLabel) : null;
+
+      const { error } = await supabaseAdmin
+        .from("workshop_tv_slides")
+        .update(updates)
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] PATCH /api/tv/slides/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.delete("/api/tv/slides/:id", async (req, res) => {
+    try {
+      const adminPassword = typeof req.query.adminPassword === "string" ? req.query.adminPassword : "";
+      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+        return res.status(403).json({ error: "Senha de administrador inválida." });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const { id } = req.params;
+      const { error } = await supabaseAdmin
+        .from("workshop_tv_slides")
+        .delete()
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] DELETE /api/tv/slides/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
   // ----------------- ORDENS DE SERVIÇO -----------------
   app.get("/api/service-orders", async (req, res) => {
     try {

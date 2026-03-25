@@ -11,6 +11,7 @@ import {
   FlaskConical,
   ExternalLink,
   Package,
+  Monitor,
 } from 'lucide-react';
 import { PatioCarIcon } from '../ui/PatioCarIcon';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
@@ -20,6 +21,7 @@ import { ChangePasswordsModal } from '../ChangePasswordsModal';
 import { TechnicianProfileModal } from '../TechnicianProfileModal';
 import { AdminProfileModal } from '../AdminProfileModal';
 import { SystemUsersModal } from '../SystemUsersModal';
+import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import type { SystemUserPermissions } from '../../services/apiService';
 
@@ -106,6 +108,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [isPatioChecklistsOpen, setIsPatioChecklistsOpen] = useState(false);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
+  const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
 
   const perms = systemUserPermissions || {};
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
@@ -261,6 +264,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Checklists do Pátio</span>
                     <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
                   </button>
+                  <button type="button" onClick={() => setIsTvPatioOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors lg:border-b-0">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-cyan-600 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Monitor className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
+                    <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Conteúdo da TV do pátio</span>
+                    <ChevronRight className="w-5 h-5 shrink-0 text-zinc-500" />
+                  </button>
                   <button type="button" onClick={() => setIsChangePasswordsOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors lg:col-span-2">
                     <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-zinc-600 shadow-[0_6px_18px_-2px_rgba(0,0,0,0.22),0_4px_8px_-1px_rgba(0,0,0,0.12),inset_0_2px_0_0_rgba(255,255,255,0.28)]"><Lock className="w-5 h-5 text-white" strokeWidth={2.5} /></div>
                     <span className="flex-1 text-left text-[15px] font-medium text-zinc-900 dark:text-white">Alterar senhas</span>
@@ -316,6 +324,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
           <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
           <PatioChecklistsModal isOpen={isPatioChecklistsOpen} onClose={() => setIsPatioChecklistsOpen(false)} />
+          <TvPatioModal isOpen={isTvPatioOpen} onClose={() => setIsTvPatioOpen(false)} />
           <ChangePasswordsModal isOpen={isChangePasswordsOpen} onClose={() => setIsChangePasswordsOpen(false)} />
         </>
       )}

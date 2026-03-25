@@ -1756,3 +1756,100 @@ export async function submitZayaRelayReply(
   }
 }
 
+/** --- TV do pátio (playlist) --- */
+export type TvSlideType = "notice" | "image" | "video" | "goal" | "alert";
+
+export interface TvSlide {
+  id: string;
+  slideType: TvSlideType;
+  title: string;
+  body: string;
+  mediaUrl: string | null;
+  durationSeconds: number;
+  sortOrder: number;
+  isActive?: boolean;
+  goalCurrent: number | null;
+  goalTarget: number | null;
+  goalLabel: string | null;
+}
+
+export interface TvWeeklyGoal {
+  label: string;
+  currentAmount: number;
+  targetAmount: number;
+}
+
+export async function getTvManage(adminPassword: string): Promise<{
+  slides: TvSlide[];
+  weeklyGoal: TvWeeklyGoal | null;
+}> {
+  const url = `${API_BASE}/tv/manage?adminPassword=${encodeURIComponent(adminPassword)}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao carregar dados da TV.");
+  }
+  return response.json();
+}
+
+export async function putTvWeeklyGoal(
+  adminPassword: string,
+  data: { label: string; currentAmount: number; targetAmount: number }
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/tv/weekly-goal`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      adminPassword,
+      label: data.label,
+      currentAmount: data.currentAmount,
+      targetAmount: data.targetAmount,
+    }),
+  });
+  const err = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((err as { error?: string }).error || "Falha ao salvar meta.");
+  }
+}
+
+export async function createTvSlide(
+  adminPassword: string,
+  slide: Omit<TvSlide, "id"> & { isActive?: boolean }
+): Promise<string> {
+  const response = await fetch(`${API_BASE}/tv/slides`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ adminPassword, slide }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((data as { error?: string }).error || "Falha ao criar slide.");
+  }
+  return (data as { id?: string }).id ?? "";
+}
+
+export async function updateTvSlide(
+  adminPassword: string,
+  id: string,
+  slide: Partial<Omit<TvSlide, "id">>
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/tv/slides/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ adminPassword, slide }),
+  });
+  const err = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((err as { error?: string }).error || "Falha ao atualizar slide.");
+  }
+}
+
+export async function deleteTvSlide(adminPassword: string, id: string): Promise<void> {
+  const url = `${API_BASE}/tv/slides/${encodeURIComponent(id)}?adminPassword=${encodeURIComponent(adminPassword)}`;
+  const response = await fetch(url, { method: "DELETE" });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao excluir slide.");
+  }
+}
+
