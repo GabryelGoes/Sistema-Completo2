@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Car, Cpu } from 'lucide-react';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
 import { NotificationCenter } from '../NotificationCenter';
@@ -54,6 +54,7 @@ import {
   iosModalShell,
   iosInput,
   iosLabel,
+  iosPageGlass,
 } from '../ui/iosModalStyles';
 
 export type OpenServiceOrderSection = 'comments' | 'budgets' | 'description' | null;
@@ -1980,11 +1981,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   if (initialLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] w-full" aria-hidden="true">
-        <div className="relative w-14 h-14">
-          <div className="absolute inset-0 rounded-full border-2 border-brand-yellow/30" />
-          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-brand-yellow animate-spin" />
+      <div className="flex min-h-[70vh] w-full flex-col items-center justify-center" aria-hidden="true">
+        <div className="relative h-12 w-12">
+          <div className="absolute inset-0 rounded-full border-2 border-zinc-200/80 dark:border-white/10" />
+          <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-[#007AFF]" />
         </div>
+        <p className="mt-4 text-[13px] text-zinc-500 dark:text-zinc-400">Carregando…</p>
       </div>
     );
   }
@@ -2010,67 +2012,87 @@ export const PatioView: React.FC<PatioViewProps> = ({
   );
 
   return (
-    <div className="w-full min-h-full pb-32 animate-in fade-in duration-700 relative">
-      {/* Sombra leve em amarelo (como na Recepção) */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
-      
-      {/* Header Fixo no Topo da Página (acima dos cards, abaixo da central de notificações e dos modais de veículo) */}
-      <div className="relative z-10 flex items-center justify-between gap-4 mb-8 px-2">
-        <div className="flex items-center gap-4">
-          <img src="/logo.png" alt="Logo" className="h-20 w-auto object-contain bg-black rounded-xl p-2" />
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight text-brand-yellow leading-none">
-              {isModuleMode ? 'LABORATÓRIO' : 'PÁTIO'}
-            </h1>
-            <p className="text-zinc-500 text-sm mt-1">
-              {cards.length} {isModuleMode ? 'Módulos' : 'Veículos'} na oficina
-            </p>
+    <div className="relative min-h-full w-full animate-in pb-32 fade-in duration-500">
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-32 left-1/2 h-[min(520px,70vw)] w-[min(920px,95vw)] -translate-x-1/2 rounded-full bg-gradient-to-br from-cyan-400/[0.12] via-transparent to-violet-500/[0.1] blur-3xl dark:from-cyan-500/10 dark:to-violet-600/10" />
+        <div className="absolute bottom-0 right-0 h-[380px] w-[480px] translate-x-1/4 rounded-full bg-amber-400/[0.06] blur-[100px] dark:bg-amber-500/10" />
+      </div>
+
+      <div className="relative z-0 mx-auto max-w-[100rem] px-3 pt-1 sm:px-5 md:px-6">
+        <header className={`${iosPageGlass} mb-6 p-5 sm:mb-8 sm:p-6`}>
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between xl:gap-6">
+            <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
+              <img
+                src="/logo.png"
+                alt="Logo"
+                className="h-14 w-auto shrink-0 rounded-xl bg-black object-contain p-2 sm:h-16"
+              />
+              <div className="flex min-w-0 items-start gap-3 sm:items-center">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/90 to-blue-600 shadow-lg shadow-cyan-500/20">
+                  {isModuleMode ? (
+                    <Cpu className="h-6 w-6 text-white" strokeWidth={2.2} />
+                  ) : (
+                    <Car className="h-6 w-6 text-white" strokeWidth={2.2} />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[26px]">
+                    {isModuleMode ? 'Laboratório' : 'Pátio'}
+                  </h1>
+                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" />
+                    {cards.length} {isModuleMode ? 'módulos' : 'veículos'} na oficina
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center xl:flex-1 xl:justify-center">
+              <button
+                type="button"
+                onClick={() => setIsRemindersOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-200/80 bg-white/80 px-5 py-3 text-sm font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white"
+              >
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/15 text-[#007AFF] dark:bg-[#007AFF]/25 dark:text-[#64B5FF]">
+                  <ReminderIcon className="h-3.5 w-3.5" strokeWidth={2} />
+                </span>
+                <span className="tracking-tight">
+                  {isModuleMode ? 'Lembretes do laboratório' : 'Lembretes do pátio'}
+                </span>
+              </button>
+              <div className="flex justify-center">
+                <NotificationCenter
+                  theme="light"
+                  forTechnician={actorOptions?.actor === 'technician'}
+                  technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 sm:justify-end xl:shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsHistoryOpen(true)}
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-zinc-900 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-white"
+                title="Consultar histórico (arquivados)"
+              >
+                <History className="h-5 w-5" strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                onClick={() => fetchData(false)}
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-500 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-400 dark:hover:text-[#64B5FF]"
+              >
+                <RefreshCw className="h-6 w-6" />
+              </button>
+            </div>
           </div>
-        </div>
-
-        {/* Lembretes + Central de notificações (por usuário) */}
-        <div className="flex flex-1 items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={() => setIsRemindersOpen(true)}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white/80 dark:bg-white/10 border border-zinc-200/80 dark:border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.6)] backdrop-blur-xl text-sm font-semibold text-zinc-700 dark:text-zinc-100 hover:bg-white hover:border-brand-yellow/60 hover:text-zinc-900 dark:hover:bg-white/15 dark:hover:border-brand-yellow/70 transition-all duration-300 active:scale-[0.97]"
-          >
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand-yellow text-black shadow-[0_0_0_1px_rgba(0,0,0,0.15)]">
-              <ReminderIcon className="w-3.5 h-3.5" strokeWidth={2} />
-            </span>
-            <span className="tracking-tight">
-              {isModuleMode ? 'Lembretes do laboratório' : 'Lembretes do pátio'}
-            </span>
-          </button>
-          <NotificationCenter
-            theme="light"
-            forTechnician={actorOptions?.actor === 'technician'}
-            technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Botão de Histórico — alinhado ao vidro dos modais iOS */}
-          <button
-            type="button"
-            onClick={() => setIsHistoryOpen(true)}
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-zinc-900 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-white"
-            title="Consultar histórico (arquivados)"
-          >
-            <History className="h-5 w-5" strokeWidth={2} />
-          </button>
-          
-          <button 
-            onClick={() => fetchData(false)}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-white dark:bg-brand-surfaceHighlight border border-zinc-200 dark:border-brand-border text-zinc-400 hover:text-brand-yellow hover:border-brand-yellow/50 transition-all duration-300 active:scale-90"
-          >
-            <RefreshCw className="w-6 h-6" />
-          </button>
-        </div>
+        </header>
       </div>
 
       {/* Grid Unificado de Veículos — ordenado pela ordem dos estágios (Garantia → … → Orçamento não aprovado), depois por data.
           Fica abaixo dos modais e do header/central de notificações. */}
+      <div className="mx-auto max-w-[100rem] px-3 sm:px-5 md:px-6">
       {(() => {
         const stageOrder = SERVICE_ORDER_STAGES.map((s) => s.id);
         const byStage = (a: TrelloCard, b: TrelloCard) => {
@@ -2081,7 +2103,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         };
         const sortedCards = [...cards].sort(byStage);
         return (
-      <div className="relative z-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-1" style={{ perspective: '1400px' }}>
+      <div className="relative z-0 grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-5 lg:grid-cols-3 lg:gap-6" style={{ perspective: '1400px' }}>
         {sortedCards.map(card => {
           const parts = card.name.split('-').map(s => s.trim());
           const model = parts[0] || card.name;
@@ -2121,18 +2143,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div
                 onClick={() => setSelectedCard(card)}
                 className={`
-                  group relative overflow-hidden
-                  bg-white/95 dark:bg-[#1C1C1E]/95
-                  backdrop-blur-xl
-                  border rounded-[1.5rem] p-5
-                  shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.02)]
-                  dark:shadow-[0_1px_2px_rgba(0,0,0,0.2),0_4px_16px_rgba(0,0,0,0.25),0_12px_32px_-8px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.04)]
-                  hover:shadow-[0_2px_4px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.08),0_16px_48px_-12px_rgba(0,0,0,0.12),0_24px_64px_-16px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.03)]
-                  dark:hover:shadow-[0_2px_4px_rgba(0,0,0,0.25),0_12px_32px_rgba(0,0,0,0.3),0_24px_56px_-12px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)]
-                  hover:border-zinc-300/80 dark:hover:border-white/[0.12]
+                  group relative flex h-full min-h-[180px] cursor-pointer flex-col justify-between overflow-hidden
+                  rounded-[2rem] border bg-white/70 p-5 backdrop-blur-2xl
+                  shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:bg-zinc-900/40
+                  dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]
+                  hover:border-[#007AFF]/25 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:hover:border-white/[0.12] dark:hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.5)]
                   active:scale-[0.99]
-                  flex flex-col justify-between min-h-[180px] cursor-pointer h-full
-                  ${isGarantia ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-white dark:ring-offset-[#0a0a0a] border-red-500/30' : 'border border-zinc-200/60 dark:border-white/[0.08]'}
+                  ${isGarantia ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-white dark:ring-offset-[#0a0a0a] border-red-500/30' : 'border-zinc-200/80 dark:border-white/[0.07]'}
                 `}
                 style={{
                   transform: isFloating
@@ -2144,8 +2161,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
               >
               {/* Overlay de Loading (Geral para Card) */}
               {(isMoving && cardInTransition?.id === card.id) || (isAssigning && cardForMemberAssignment?.id === card.id) || (archivingId === card.id) || (removingGarantiaId === card.id) ? (
-                <div className="absolute inset-0 z-30 bg-white/70 dark:bg-black/50 backdrop-blur-md rounded-[1.5rem] flex items-center justify-center overflow-hidden">
-                   <RefreshCw className="w-8 h-8 text-brand-yellow animate-spin" />
+                <div className="absolute inset-0 z-30 flex items-center justify-center overflow-hidden rounded-[2rem] bg-white/75 backdrop-blur-md dark:bg-black/50">
+                   <RefreshCw className="h-8 w-8 animate-spin text-[#007AFF]" />
                 </div>
               ) : null}
 
@@ -2276,11 +2293,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
       })()}
 
       {cards.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-zinc-600">
-            <PatioCarIcon className="w-16 h-16 mb-4 opacity-20" strokeWidth={2.5} />
-            <p>{isModuleMode ? 'Nenhum módulo no laboratório' : 'Nenhum veículo no pátio'}</p>
+          <div className={`${iosPageGlass} flex flex-col items-center justify-center py-16 text-center sm:py-20`}>
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/90 to-blue-600 shadow-lg shadow-cyan-500/20">
+              {isModuleMode ? (
+                <Cpu className="h-8 w-8 text-white" strokeWidth={2} />
+              ) : (
+                <PatioCarIcon className="h-9 w-9 text-white opacity-95" strokeWidth={2} />
+              )}
+            </div>
+            <p className="text-[15px] font-medium text-zinc-700 dark:text-zinc-200">
+              {isModuleMode ? 'Nenhum módulo no laboratório' : 'Nenhum veículo no pátio'}
+            </p>
+            <p className="mt-2 max-w-sm text-[13px] text-zinc-500 dark:text-zinc-400">
+              Quando houver OS ativas, elas aparecem aqui em cartões de vidro.
+            </p>
           </div>
       )}
+      </div>
 
       {/* --- MODAL DE HISTÓRICO (BUSCA) — vidro iOS alinhado ao TV do pátio --- */}
       {isHistoryOpen && (
