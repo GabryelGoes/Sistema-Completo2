@@ -780,7 +780,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <div className="pt-2 flex justify-center lg:justify-start">
                 <button 
                   type="submit"
-                  className="group relative min-w-[220px] px-8 py-3.5 rounded-2xl border border-zinc-300/90 dark:border-white/[0.14] bg-zinc-100/95 dark:bg-zinc-800/80 text-zinc-800 dark:text-zinc-100 font-medium text-[15px] shadow-sm hover:bg-zinc-200/90 dark:hover:bg-zinc-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="group relative min-w-[220px] px-8 py-3.5 rounded-2xl border border-amber-200/90 dark:border-amber-500/22 bg-amber-50/95 dark:bg-amber-950/40 text-amber-950/90 dark:text-amber-100/95 font-medium text-[15px] shadow-sm hover:bg-amber-100/95 dark:hover:bg-amber-900/45 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
                   Criar ficha
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
