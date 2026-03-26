@@ -987,7 +987,12 @@ export function createApiApp() {
   // ----------------- TV DO PÁTIO (playlist pública + gestão admin) -----------------
   async function fetchTvPlaylistForWorkshop(): Promise<{
     slides: Array<Record<string, unknown>>;
-    weeklyGoal: { label: string; currentAmount: number; targetAmount: number } | null;
+    weeklyGoal: {
+      label: string;
+      currentAmount: number;
+      targetAmount: number;
+      showWeeklyBar: boolean;
+    } | null;
   }> {
     if (!supabaseAdmin || !WORKSHOP_ID) {
       return { slides: [], weeklyGoal: null };
@@ -1021,7 +1026,7 @@ export function createApiApp() {
 
     const { data: goalRow } = await supabaseAdmin
       .from("workshop_tv_weekly_goal")
-      .select("label, current_amount, target_amount")
+      .select("label, current_amount, target_amount, show_weekly_bar")
       .eq("workshop_id", WORKSHOP_ID)
       .maybeSingle();
 
@@ -1030,6 +1035,7 @@ export function createApiApp() {
           label: String((goalRow as { label?: string }).label ?? "Meta semanal"),
           currentAmount: Number((goalRow as { current_amount?: number }).current_amount ?? 0),
           targetAmount: Number((goalRow as { target_amount?: number }).target_amount ?? 0),
+          showWeeklyBar: (goalRow as { show_weekly_bar?: boolean }).show_weekly_bar !== false,
         }
       : null;
 
@@ -1091,6 +1097,7 @@ export function createApiApp() {
             label: String((goalRow as { label?: string }).label ?? "Meta semanal"),
             currentAmount: Number((goalRow as { current_amount?: number }).current_amount ?? 0),
             targetAmount: Number((goalRow as { target_amount?: number }).target_amount ?? 0),
+            showWeeklyBar: (goalRow as { show_weekly_bar?: boolean }).show_weekly_bar !== false,
           }
         : null;
 
@@ -1103,7 +1110,7 @@ export function createApiApp() {
 
   app.put("/api/tv/weekly-goal", async (req, res) => {
     try {
-      const { adminPassword, label, currentAmount, targetAmount } = req.body || {};
+      const { adminPassword, label, currentAmount, targetAmount, showWeeklyBar } = req.body || {};
       const pwd = typeof adminPassword === "string" ? adminPassword : "";
       if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, pwd))) {
         return res.status(403).json({ error: "Senha de administrador inválida." });
@@ -1116,6 +1123,7 @@ export function createApiApp() {
         label: typeof label === "string" && label.trim() ? label.trim() : "Meta semanal",
         current_amount: Number(currentAmount) || 0,
         target_amount: Number(targetAmount) || 0,
+        show_weekly_bar: showWeeklyBar !== false,
         updated_at: new Date().toISOString(),
       };
       const { error } = await supabaseAdmin.from("workshop_tv_weekly_goal").upsert(row, {

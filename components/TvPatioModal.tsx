@@ -48,8 +48,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const [error, setError] = useState<string | null>(null);
   const [slides, setSlides] = useState<TvSlide[]>([]);
   const [weeklyLabel, setWeeklyLabel] = useState('Meta semanal');
-  const [weeklyCurrent, setWeeklyCurrent] = useState(0);
-  const [weeklyTarget, setWeeklyTarget] = useState(0);
+  /** Texto livre evita "0" colado ao digitar em input type=number. */
+  const [weeklyCurrentStr, setWeeklyCurrentStr] = useState('');
+  const [weeklyTargetStr, setWeeklyTargetStr] = useState('');
+  const [showWeeklyBar, setShowWeeklyBar] = useState(true);
 
   const [newType, setNewType] = useState<TvSlideType>('notice');
   const [newTitle, setNewTitle] = useState('');
@@ -85,8 +87,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       setSlides(data.slides);
       if (data.weeklyGoal) {
         setWeeklyLabel(data.weeklyGoal.label);
-        setWeeklyCurrent(data.weeklyGoal.currentAmount);
-        setWeeklyTarget(data.weeklyGoal.targetAmount);
+        setWeeklyCurrentStr(String(data.weeklyGoal.currentAmount ?? 0));
+        setWeeklyTargetStr(String(data.weeklyGoal.targetAmount ?? 0));
+        setShowWeeklyBar(data.weeklyGoal.showWeeklyBar !== false);
       }
       setUnlocked(true);
       if (data.slides.length > 0) {
@@ -186,6 +189,30 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     return librarySlide;
   }, [previewTab, draftSlide, librarySlide, libraryPreviewId, editingSlideId, editForm]);
 
+  const weeklyCurrentNum = useMemo(() => {
+    const d = weeklyCurrentStr.replace(/\D/g, '');
+    if (d === '') return 0;
+    return Number(d) || 0;
+  }, [weeklyCurrentStr]);
+
+  const weeklyTargetNum = useMemo(() => {
+    const d = weeklyTargetStr.replace(/\D/g, '');
+    if (d === '') return 0;
+    return Number(d) || 0;
+  }, [weeklyTargetStr]);
+
+  /** No preview: barra só quando simula lista de veículos (não quando há slide em tela cheia). */
+  const previewShowsWeeklyStrip = useMemo(
+    () =>
+      showWeeklyBar &&
+      weeklyTargetNum > 0 &&
+      !(
+        (previewTab === 'draft' && draftSlide !== null) ||
+        (previewTab === 'library' && librarySlide !== null)
+      ),
+    [showWeeklyBar, weeklyTargetNum, previewTab, draftSlide, librarySlide]
+  );
+
   if (!isOpen) return null;
 
   const handleUnlock = (e: React.FormEvent) => {
@@ -199,8 +226,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     try {
       await putTvWeeklyGoal(adminPassword, {
         label: weeklyLabel,
-        currentAmount: weeklyCurrent,
-        targetAmount: weeklyTarget,
+        currentAmount: weeklyCurrentNum,
+        targetAmount: weeklyTargetNum,
+        showWeeklyBar,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
@@ -454,8 +482,30 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                   <p className={iosLabel}>Meta semanal · barra superior na TV</p>
                   <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
                     Na TV do pátio só aparece o <span className="font-semibold text-zinc-600 dark:text-zinc-300">rótulo</span> e a{' '}
-                    <span className="font-semibold text-zinc-600 dark:text-zinc-300">porcentagem</span> do progresso (valores em R$ ficam só aqui).
+                    <span className="font-semibold text-zinc-600 dark:text-zinc-300">porcentagem</span> do progresso (valores em R$ ficam só aqui). A barra{' '}
+                    <span className="font-semibold text-zinc-600 dark:text-zinc-300">não aparece</span> durante os slides da playlist — só nas páginas de veículos.
                   </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 p-3 rounded-2xl bg-zinc-100/80 dark:bg-white/[0.04]">
+                    <div>
+                      <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Exibir barra na TV</p>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">Liga/desliga a faixa de meta (apenas nas páginas de veículos).</p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={showWeeklyBar}
+                      onClick={() => setShowWeeklyBar((v) => !v)}
+                      className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 ${
+                        showWeeklyBar ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-600'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                          showWeeklyBar ? 'translate-x-[22px]' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-1.5 block">Rótulo</label>
@@ -468,19 +518,31 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                     <div>
                       <label className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-1.5 block">Atual (R$)</label>
                       <input
-                        type="number"
-                        value={weeklyCurrent}
-                        onChange={(e) => setWeeklyCurrent(Number(e.target.value))}
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={weeklyCurrentStr}
+                        onChange={(e) => {
+                          const d = e.target.value.replace(/\D/g, '');
+                          setWeeklyCurrentStr(d === '' ? '' : String(Number(d)));
+                        }}
                         className={iosInput}
+                        placeholder="0"
                       />
                     </div>
                     <div>
                       <label className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-1.5 block">Meta (R$)</label>
                       <input
-                        type="number"
-                        value={weeklyTarget}
-                        onChange={(e) => setWeeklyTarget(Number(e.target.value))}
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={weeklyTargetStr}
+                        onChange={(e) => {
+                          const d = e.target.value.replace(/\D/g, '');
+                          setWeeklyTargetStr(d === '' ? '' : String(Number(d)));
+                        }}
                         className={iosInput}
+                        placeholder="0"
                       />
                     </div>
                   </div>
@@ -904,8 +966,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
             <div className="flex-1 flex flex-col justify-center min-h-[200px]">
               <TvPatioPreview
                 weeklyLabel={weeklyLabel}
-                weeklyCurrent={weeklyCurrent}
-                weeklyTarget={weeklyTarget}
+                weeklyCurrent={weeklyCurrentNum}
+                weeklyTarget={weeklyTargetNum}
+                showWeeklyStrip={previewShowsWeeklyStrip}
                 slide={previewSlide}
                 showVehiclesPlaceholder={previewTab === 'draft' && !draftSlide}
               />

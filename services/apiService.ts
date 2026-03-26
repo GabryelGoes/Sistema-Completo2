@@ -1777,6 +1777,8 @@ export interface TvWeeklyGoal {
   label: string;
   currentAmount: number;
   targetAmount: number;
+  /** Se false, a barra de meta não aparece na TV (páginas de veículos). Default true. */
+  showWeeklyBar?: boolean;
 }
 
 export async function getTvManage(adminPassword: string): Promise<{
@@ -1794,7 +1796,7 @@ export async function getTvManage(adminPassword: string): Promise<{
 
 export async function putTvWeeklyGoal(
   adminPassword: string,
-  data: { label: string; currentAmount: number; targetAmount: number }
+  data: { label: string; currentAmount: number; targetAmount: number; showWeeklyBar?: boolean }
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/tv/weekly-goal`, {
     method: "PUT",
@@ -1804,6 +1806,7 @@ export async function putTvWeeklyGoal(
       label: data.label,
       currentAmount: data.currentAmount,
       targetAmount: data.targetAmount,
+      showWeeklyBar: data.showWeeklyBar !== false,
     }),
   });
   const err = await response.json().catch(() => ({}));
