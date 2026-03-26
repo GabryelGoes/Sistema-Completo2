@@ -2031,7 +2031,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       <div className="relative z-0 mx-auto max-w-[100rem] px-3 pt-2 sm:px-5 md:px-6 md:pt-3">
         {/* Cabeçalho — mesmo padrão Recepção/Agenda: sem painel vidro em volta; ícone = tile da Home (Pátio / Laboratório) */}
-        <header className="mb-6 flex flex-col gap-5 sm:mb-8 xl:flex-row xl:items-center xl:justify-between xl:gap-6">
+        <header className="mb-6 flex flex-col gap-4 sm:mb-8 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <div
               className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.35rem] bg-gradient-to-br shadow-[0_8px_28px_-6px_rgba(0,0,0,0.38),inset_0_1px_0_0_rgba(255,255,255,0.38)] ${
@@ -2058,45 +2058,42 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
           </div>
 
-            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center xl:flex-1 xl:justify-center">
-              <button
-                type="button"
-                onClick={() => setIsRemindersOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-200/80 bg-white/80 px-5 py-3 text-sm font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white"
-              >
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/15 text-[#007AFF] dark:bg-[#007AFF]/25 dark:text-[#64B5FF]">
-                  <ReminderIcon className="h-3.5 w-3.5" strokeWidth={2} />
-                </span>
-                <span className="tracking-tight">
-                  {isModuleMode ? 'Lembretes do laboratório' : 'Lembretes do pátio'}
-                </span>
-              </button>
-              <div className="flex justify-center">
-                <NotificationCenter
-                  theme="light"
-                  forTechnician={actorOptions?.actor === 'technician'}
-                  technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
-                />
-              </div>
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:shrink-0 lg:justify-end">
+            <button
+              type="button"
+              onClick={() => setIsRemindersOpen(true)}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-zinc-200/80 bg-white/80 px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white sm:px-5 sm:py-3"
+            >
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/15 text-[#007AFF] dark:bg-[#007AFF]/25 dark:text-[#64B5FF]">
+                <ReminderIcon className="h-3.5 w-3.5" strokeWidth={2} />
+              </span>
+              <span className="tracking-tight">
+                {isModuleMode ? 'Lembretes do laboratório' : 'Lembretes do pátio'}
+              </span>
+            </button>
+            <div className="flex shrink-0 items-center">
+              <NotificationCenter
+                theme="light"
+                forTechnician={actorOptions?.actor === 'technician'}
+                technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
+              />
             </div>
-
-            <div className="flex items-center justify-center gap-2 sm:justify-end xl:shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsHistoryOpen(true)}
-                className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-zinc-900 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-white"
-                title="Consultar histórico (arquivados)"
-              >
-                <History className="h-5 w-5" strokeWidth={2} />
-              </button>
-              <button
-                type="button"
-                onClick={() => fetchData(false)}
-                className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-500 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-400 dark:hover:text-[#64B5FF]"
-              >
-                <RefreshCw className="h-6 w-6" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsHistoryOpen(true)}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-zinc-900 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-white"
+              title="Consultar histórico (arquivados)"
+            >
+              <History className="h-5 w-5" strokeWidth={2} />
+            </button>
+            <button
+              type="button"
+              onClick={() => fetchData(false)}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-500 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-400 dark:hover:text-[#64B5FF]"
+            >
+              <RefreshCw className="h-6 w-6" />
+            </button>
+          </div>
         </header>
       </div>
 
