@@ -2542,6 +2542,161 @@ export function createApiApp() {
     }
   });
 
+  // ----------------- LEMBRETES (PÁTIO / LABORATÓRIO — compartilhados na oficina) -----------------
+  function mapWorkshopReminderRow(row: {
+    id: string;
+    text: string;
+    done: boolean;
+    created_by: string | null;
+    created_at: string;
+  }) {
+    return {
+      id: row.id,
+      text: row.text,
+      done: row.done,
+      createdAt: row.created_at,
+      createdBy: row.created_by ?? "",
+    };
+  }
+
+  app.get("/api/workshop-reminders", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const scope = String(req.query.scope ?? "").trim();
+      if (scope !== "vehicle" && scope !== "module") {
+        return res.status(400).json({ error: "Parâmetro scope deve ser vehicle ou module." });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("workshop_reminders")
+        .select("id, text, done, created_by, created_at")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("scope", scope)
+        .order("created_at", { ascending: false });
+      if (error) {
+        console.error("[API] GET /api/workshop-reminders:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json((data ?? []).map(mapWorkshopReminderRow));
+    } catch (err: any) {
+      console.error("[API] GET /api/workshop-reminders:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/workshop-reminders", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const scope = String(req.body?.scope ?? "").trim();
+      const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+      const createdBy =
+        typeof req.body?.createdBy === "string" ? req.body.createdBy.trim() : "";
+      if (scope !== "vehicle" && scope !== "module") {
+        return res.status(400).json({ error: "scope deve ser vehicle ou module." });
+      }
+      if (!text) {
+        return res.status(400).json({ error: "Texto do lembrete é obrigatório." });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("workshop_reminders")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          scope,
+          text,
+          done: false,
+          created_by: createdBy || "Oficina",
+        })
+        .select("id, text, done, created_by, created_at")
+        .single();
+      if (error) {
+        console.error("[API] POST /api/workshop-reminders:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(201).json(mapWorkshopReminderRow(data as any));
+    } catch (err: any) {
+      console.error("[API] POST /api/workshop-reminders:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.patch("/api/workshop-reminders/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { id } = req.params;
+      const scope = String(req.body?.scope ?? "").trim();
+      if (scope !== "vehicle" && scope !== "module") {
+        return res.status(400).json({ error: "scope deve ser vehicle ou module." });
+      }
+      const hasText = typeof req.body?.text === "string";
+      const hasDone = typeof req.body?.done === "boolean";
+      if (!hasText && !hasDone) {
+        return res.status(400).json({ error: "Informe text e/ou done." });
+      }
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (hasText) {
+        const t = String(req.body.text).trim();
+        if (!t) {
+          return res.status(400).json({ error: "Texto não pode ser vazio." });
+        }
+        updates.text = t;
+      }
+      if (hasDone) {
+        updates.done = req.body.done;
+      }
+      const { data, error } = await supabaseAdmin
+        .from("workshop_reminders")
+        .update(updates)
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("scope", scope)
+        .select("id, text, done, created_by, created_at")
+        .maybeSingle();
+      if (error) {
+        console.error("[API] PATCH /api/workshop-reminders/:id:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      if (!data) {
+        return res.status(404).json({ error: "Lembrete não encontrado." });
+      }
+      return res.json(mapWorkshopReminderRow(data as any));
+    } catch (err: any) {
+      console.error("[API] PATCH /api/workshop-reminders/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.delete("/api/workshop-reminders/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { id } = req.params;
+      const scope = String(req.query.scope ?? "").trim();
+      if (scope !== "vehicle" && scope !== "module") {
+        return res.status(400).json({ error: "Parâmetro scope deve ser vehicle ou module." });
+      }
+      const { error } = await supabaseAdmin
+        .from("workshop_reminders")
+        .delete()
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("scope", scope);
+      if (error) {
+        console.error("[API] DELETE /api/workshop-reminders/:id:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] DELETE /api/workshop-reminders/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   // ----------------- RECADOS ZAYA (gerência ↔ técnicos) -----------------
   app.get("/api/zaya-relay/pending-count", async (req, res) => {
     try {

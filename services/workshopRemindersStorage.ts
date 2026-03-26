@@ -1,4 +1,11 @@
-/** Mesmas chaves que `PatioView` (localStorage). */
+import {
+  createWorkshopReminder as apiCreateWorkshopReminder,
+  deleteWorkshopReminderRemote,
+  getWorkshopReminders,
+  updateWorkshopReminderRemote,
+} from "./apiService";
+
+/** Mesmas chaves legadas (migração local → API no Pátio). */
 export const WORKSHOP_REMINDERS_KEY_PATIO = "patio-reminders-vehicle";
 export const WORKSHOP_REMINDERS_KEY_LAB = "patio-reminders-module";
 
@@ -12,126 +19,87 @@ export type StoredReminder = {
   createdBy?: string;
 };
 
-function storageKeyForScope(scope: WorkshopReminderScope): string {
-  return scope === "laboratorio" ? WORKSHOP_REMINDERS_KEY_LAB : WORKSHOP_REMINDERS_KEY_PATIO;
+function scopeToApi(scope: WorkshopReminderScope): "vehicle" | "module" {
+  return scope === "laboratorio" ? "module" : "vehicle";
+}
+
+function dispatchUpdated(scope: WorkshopReminderScope) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("workshop-reminders-updated", { detail: { scope } }));
 }
 
 /**
- * Adiciona lembrete na lista do Pátio ou do Laboratório (modal Lembretes).
+ * Adiciona lembrete na lista do Pátio ou do Laboratório (API — visível para toda a oficina).
  * Dispara `workshop-reminders-updated` para a UI sincronizar.
  */
-export function appendWorkshopReminder(
+export async function appendWorkshopReminder(
   scope: WorkshopReminderScope,
   text: string,
   createdBy: string
-): { ok: true; id: string } | { ok: false; error: string } {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return { ok: false, error: "Armazenamento local indisponível." };
-  }
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const trimmed = text.trim();
   if (!trimmed) {
     return { ok: false, error: "Texto do lembrete vazio." };
   }
-  const key = storageKeyForScope(scope);
-  let list: StoredReminder[] = [];
   try {
-    const raw = localStorage.getItem(key);
-    if (raw) {
-      const p = JSON.parse(raw) as unknown;
-      if (Array.isArray(p)) list = p as StoredReminder[];
-    }
-  } catch {
-    list = [];
+    const row = await apiCreateWorkshopReminder({
+      scope: scopeToApi(scope),
+      text: trimmed,
+      createdBy: createdBy.trim() || (scope === "laboratorio" ? "Laboratório" : "Pátio"),
+    });
+    dispatchUpdated(scope);
+    return { ok: true, id: row.id };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Não foi possível salvar o lembrete.",
+    };
   }
-  const id =
-    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID()
-      : `r-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  const item: StoredReminder = {
-    id,
-    text: trimmed,
-    createdAt: new Date().toISOString(),
-    done: false,
-    createdBy: createdBy.trim() || (scope === "laboratorio" ? "Laboratório" : "Pátio"),
-  };
-  list.unshift(item);
-  try {
-    localStorage.setItem(key, JSON.stringify(list));
-  } catch {
-    return { ok: false, error: "Não foi possível salvar o lembrete." };
-  }
-  window.dispatchEvent(
-    new CustomEvent("workshop-reminders-updated", { detail: { scope } })
-  );
-  return { ok: true, id };
 }
 
-function parseReminderList(raw: string | null): StoredReminder[] {
-  if (!raw) return [];
+/** Lê lembretes do Pátio ou Laboratório (API — compartilhados). */
+export async function readWorkshopReminders(scope: WorkshopReminderScope): Promise<StoredReminder[]> {
   try {
-    const p = JSON.parse(raw) as unknown;
-    if (!Array.isArray(p)) return [];
-    return p.filter(
-      (x): x is StoredReminder =>
-        x != null &&
-        typeof x === "object" &&
-        typeof (x as StoredReminder).id === "string" &&
-        typeof (x as StoredReminder).text === "string"
-    );
+    const rows = await getWorkshopReminders(scopeToApi(scope));
+    return rows.map((r) => ({
+      id: r.id,
+      text: r.text,
+      createdAt: r.createdAt,
+      done: r.done,
+      createdBy: r.createdBy,
+    }));
   } catch {
     return [];
   }
 }
 
-/** Lê lembretes do Pátio ou Laboratório (mesmo formato do modal). */
-export function readWorkshopReminders(scope: WorkshopReminderScope): StoredReminder[] {
-  if (typeof window === "undefined" || !window.localStorage) return [];
-  const key = storageKeyForScope(scope);
-  try {
-    return parseReminderList(localStorage.getItem(key));
-  } catch {
-    return [];
-  }
-}
-
-/** Remove um lembrete pelo `id` (UUID). Dispara sincronização com o modal. */
-export function deleteWorkshopReminder(
+/** Remove um lembrete pelo `id`. Dispara sincronização com o modal. */
+export async function deleteWorkshopReminder(
   scope: WorkshopReminderScope,
   id: string
-): { ok: true } | { ok: false; error: string } {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return { ok: false, error: "Armazenamento local indisponível." };
-  }
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const trimmedId = id.trim();
   if (!trimmedId) {
     return { ok: false, error: "ID do lembrete obrigatório." };
   }
-  const key = storageKeyForScope(scope);
-  const list = parseReminderList(localStorage.getItem(key));
-  const next = list.filter((r) => r.id !== trimmedId);
-  if (next.length === list.length) {
-    return { ok: false, error: "Lembrete não encontrado." };
-  }
   try {
-    localStorage.setItem(key, JSON.stringify(next));
-  } catch {
-    return { ok: false, error: "Não foi possível salvar." };
+    await deleteWorkshopReminderRemote(trimmedId, scopeToApi(scope));
+    dispatchUpdated(scope);
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Não foi possível excluir.",
+    };
   }
-  window.dispatchEvent(
-    new CustomEvent("workshop-reminders-updated", { detail: { scope } })
-  );
-  return { ok: true };
 }
 
 /** Atualiza texto e/ou concluído (`done`). */
-export function updateWorkshopReminder(
+export async function updateWorkshopReminder(
   scope: WorkshopReminderScope,
   id: string,
   updates: { text?: string; done?: boolean }
-): { ok: true } | { ok: false; error: string } {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return { ok: false, error: "Armazenamento local indisponível." };
-  }
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const trimmedId = id.trim();
   if (!trimmedId) {
     return { ok: false, error: "ID do lembrete obrigatório." };
@@ -141,32 +109,24 @@ export function updateWorkshopReminder(
   if (!hasText && !hasDone) {
     return { ok: false, error: "Informe text (novo texto) e/ou done (true/false)." };
   }
-  const key = storageKeyForScope(scope);
-  const list = parseReminderList(localStorage.getItem(key));
-  const idx = list.findIndex((r) => r.id === trimmedId);
-  if (idx === -1) {
-    return { ok: false, error: "Lembrete não encontrado." };
-  }
-  const item: StoredReminder = { ...list[idx]! };
   if (hasText) {
     const t = updates.text!.trim();
     if (!t) {
       return { ok: false, error: "Texto do lembrete não pode ser vazio." };
     }
-    item.text = t;
   }
-  if (hasDone) {
-    item.done = updates.done!;
-  }
-  const next = [...list];
-  next[idx] = item;
   try {
-    localStorage.setItem(key, JSON.stringify(next));
-  } catch {
-    return { ok: false, error: "Não foi possível salvar." };
+    await updateWorkshopReminderRemote(trimmedId, {
+      scope: scopeToApi(scope),
+      ...(hasText ? { text: updates.text!.trim() } : {}),
+      ...(hasDone ? { done: updates.done! } : {}),
+    });
+    dispatchUpdated(scope);
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Não foi possível salvar.",
+    };
   }
-  window.dispatchEvent(
-    new CustomEvent("workshop-reminders-updated", { detail: { scope } })
-  );
-  return { ok: true };
 }

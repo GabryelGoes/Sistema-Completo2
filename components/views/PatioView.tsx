@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2 } from 'lucide-react';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
 import { NotificationCenter } from '../NotificationCenter';
@@ -35,6 +35,10 @@ import {
   getChecklistTemplates,
   getServiceOrderChecklistState,
   updateServiceOrderChecklistItem,
+  getWorkshopReminders,
+  createWorkshopReminder,
+  updateWorkshopReminderRemote,
+  deleteWorkshopReminderRemote,
   ServiceOrderListItem,
   type WorkshopService,
   type WorkshopPart,
@@ -571,75 +575,115 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [loadingHistoryDetails, setLoadingHistoryDetails] = useState(false);
   const [historyCardDetails, setHistoryCardDetails] = useState<{ actions: BoardAction[], attachments: BoardAttachment[] } | null>(null);
 
-  // Lembretes do Pátio/Laboratório — exibidos para todos os usuários e o admin (chave única por tipo, sem usuário)
+  // Lembretes do Pátio/Laboratório — persistidos na API (Supabase), visíveis para toda a oficina
   type Reminder = { id: string; text: string; createdAt: string; done: boolean; createdBy?: string };
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [remindersLoading, setRemindersLoading] = useState(false);
+  const [reminderSubmitting, setReminderSubmitting] = useState(false);
   const [newReminder, setNewReminder] = useState('');
   const remindersStorageKey = orderType === 'module' ? 'patio-reminders-module' : 'patio-reminders-vehicle';
   const isModuleMode = orderType === 'module';
+  const remindersScopeApi = orderType === 'module' ? ('module' as const) : ('vehicle' as const);
 
-  useEffect(() => {
+  const fetchReminders = useCallback(async () => {
+    setRemindersLoading(true);
     try {
-      const raw = localStorage.getItem(remindersStorageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Reminder[];
-        if (Array.isArray(parsed)) {
-          setReminders(
-            parsed.map((r) => ({
-              ...r,
-              // Para lembretes antigos que não tinham autor salvo
-              createdBy: r.createdBy || commentAuthorName || (isModuleMode ? 'Laboratório' : 'Pátio'),
-            }))
-          );
-        }
-      }
+      const rows = await getWorkshopReminders(remindersScopeApi);
+      setReminders(
+        rows.map((r) => ({
+          id: r.id,
+          text: r.text,
+          createdAt: r.createdAt,
+          done: r.done,
+          createdBy: r.createdBy || commentAuthorName || (isModuleMode ? 'Laboratório' : 'Pátio'),
+        }))
+      );
     } catch {
-      // ignore parse errors
+      // mantém lista anterior em falha de rede
+    } finally {
+      setRemindersLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remindersStorageKey]);
+  }, [remindersScopeApi, commentAuthorName, isModuleMode]);
 
-  /** Sincroniza quando a Zaya (assistente) grava lembrete no mesmo localStorage. */
   useEffect(() => {
-    const reloadFromStorage = () => {
+    fetchReminders();
+  }, [fetchReminders]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') fetchReminders();
+    }, 12000);
+    return () => window.clearInterval(id);
+  }, [fetchReminders]);
+
+  useEffect(() => {
+    if (isRemindersOpen) fetchReminders();
+  }, [isRemindersOpen, fetchReminders]);
+
+  /** Migra lembretes antigos do localStorage para a API (uma vez por chave). */
+  useEffect(() => {
+    const flag = `workshop-reminders-migrated-${remindersStorageKey}`;
+    const lockKey = `workshop-reminders-migrate-lock-${remindersStorageKey}`;
+    const run = async () => {
+      if (typeof localStorage === 'undefined') return;
+      if (localStorage.getItem(flag)) return;
       try {
+        const server = await getWorkshopReminders(remindersScopeApi);
         const raw = localStorage.getItem(remindersStorageKey);
-        if (raw) {
-          const parsed = JSON.parse(raw) as Reminder[];
-          if (Array.isArray(parsed)) {
-            setReminders(
-              parsed.map((r) => ({
-                ...r,
-                createdBy: r.createdBy || commentAuthorName || (isModuleMode ? 'Laboratório' : 'Pátio'),
-              }))
-            );
+        if (server.length > 0) {
+          if (raw) localStorage.removeItem(remindersStorageKey);
+          localStorage.setItem(flag, '1');
+          return;
+        }
+        if (!raw) {
+          localStorage.setItem(flag, '1');
+          return;
+        }
+        const parsed = JSON.parse(raw) as Reminder[];
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+          localStorage.setItem(flag, '1');
+          return;
+        }
+        if (localStorage.getItem(lockKey)) return;
+        localStorage.setItem(lockKey, '1');
+        try {
+          for (const r of parsed) {
+            if (!r.text?.trim()) continue;
+            const created = await createWorkshopReminder({
+              scope: remindersScopeApi,
+              text: r.text.trim(),
+              createdBy: r.createdBy || commentAuthorName || 'Importado',
+            });
+            if (r.done) {
+              await updateWorkshopReminderRemote(created.id, { scope: remindersScopeApi, done: true });
+            }
           }
-        } else {
-          setReminders([]);
+          localStorage.removeItem(remindersStorageKey);
+          localStorage.setItem(flag, '1');
+          await fetchReminders();
+        } finally {
+          localStorage.removeItem(lockKey);
         }
       } catch {
-        // ignore
+        // tenta de novo em outro carregamento se falhar
       }
     };
+    run();
+  }, [remindersStorageKey, remindersScopeApi, commentAuthorName, fetchReminders]);
+
+  /** Sincroniza quando a Zaya ou outra aba atualiza lembretes via API. */
+  useEffect(() => {
     const onSync = (e: Event) => {
       const ce = e as CustomEvent<{ scope?: string }>;
       const scope = ce.detail?.scope;
       const mine: 'patio' | 'laboratorio' = orderType === 'module' ? 'laboratorio' : 'patio';
       if (scope && scope !== mine) return;
-      reloadFromStorage();
+      fetchReminders();
     };
     window.addEventListener('workshop-reminders-updated', onSync);
     return () => window.removeEventListener('workshop-reminders-updated', onSync);
-  }, [remindersStorageKey, commentAuthorName, isModuleMode, orderType]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(remindersStorageKey, JSON.stringify(reminders));
-    } catch {
-      // ignore quota errors
-    }
-  }, [reminders, remindersStorageKey]);
+  }, [fetchReminders, orderType]);
 
   // --- Attachment States ---
   const [isUploading, setIsUploading] = useState(false);
@@ -3839,23 +3883,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <div className="shrink-0 border-b border-zinc-200/50 px-6 py-4 dark:border-white/[0.06] sm:px-8">
               <p className={iosLabel}>Novo lembrete</p>
               <form
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   const trimmed = newReminder.trim();
-                  if (!trimmed) return;
-                  const now = new Date().toISOString();
+                  if (!trimmed || reminderSubmitting) return;
                   const createdBy = (commentAuthorName && commentAuthorName.trim()) || (isModuleMode ? 'Laboratório' : 'Pátio');
-                  setReminders((prev) => [
-                    {
-                      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                  setReminderSubmitting(true);
+                  try {
+                    await createWorkshopReminder({
+                      scope: remindersScopeApi,
                       text: trimmed,
-                      createdAt: now,
-                      done: false,
                       createdBy,
-                    },
-                    ...prev,
-                  ]);
-                  setNewReminder('');
+                    });
+                    setNewReminder('');
+                    window.dispatchEvent(
+                      new CustomEvent('workshop-reminders-updated', {
+                        detail: { scope: isModuleMode ? 'laboratorio' : 'patio' },
+                      })
+                    );
+                    await fetchReminders();
+                  } catch {
+                    // falha silenciosa; usuário pode tentar de novo
+                  } finally {
+                    setReminderSubmitting(false);
+                  }
                 }}
                 className={`${iosModalInsetCard} p-4 sm:p-5`}
               >
@@ -3867,22 +3918,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       onChange={(e) => setNewReminder(e.target.value)}
                       placeholder={isModuleMode ? 'Algo importante para os módulos…' : 'Algo importante para o pátio…'}
                       className={iosInput}
+                      disabled={reminderSubmitting}
                     />
                   </div>
                   <button
                     type="submit"
-                    disabled={!newReminder.trim()}
+                    disabled={!newReminder.trim() || reminderSubmitting}
                     className="flex h-12 w-12 shrink-0 items-center justify-center self-center rounded-2xl bg-[#007AFF] text-white shadow-lg shadow-blue-500/25 transition-transform active:scale-[0.98] disabled:opacity-45 sm:h-auto sm:w-14 sm:rounded-2xl"
                     aria-label="Adicionar lembrete"
                   >
-                    <Plus className="h-6 w-6" strokeWidth={2.2} />
+                    {reminderSubmitting ? (
+                      <Loader2 className="h-6 w-6 animate-spin" strokeWidth={2.2} />
+                    ) : (
+                      <Plus className="h-6 w-6" strokeWidth={2.2} />
+                    )}
                   </button>
                 </div>
               </form>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
-              {reminders.length === 0 ? (
+              {remindersLoading && reminders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-16">
+                  <Loader2 className="h-9 w-9 animate-spin text-[#007AFF]" strokeWidth={2} />
+                  <p className="text-[14px] text-zinc-500 dark:text-zinc-400">Carregando lembretes…</p>
+                </div>
+              ) : reminders.length === 0 ? (
                 <div className={`${iosModalInsetCard} py-12 text-center`}>
                   <p className="text-[15px] font-medium text-zinc-700 dark:text-zinc-200">Nada por aqui ainda</p>
                   <p className="mt-2 text-[13px] text-zinc-500 dark:text-zinc-400">
@@ -3900,11 +3961,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     >
                       <button
                         type="button"
-                        onClick={() =>
-                          setReminders((prev) =>
-                            prev.map((item) => (item.id === r.id ? { ...item, done: !item.done } : item))
-                          )
-                        }
+                        onClick={async () => {
+                          try {
+                            await updateWorkshopReminderRemote(r.id, {
+                              scope: remindersScopeApi,
+                              done: !r.done,
+                            });
+                            window.dispatchEvent(
+                              new CustomEvent('workshop-reminders-updated', {
+                                detail: { scope: isModuleMode ? 'laboratorio' : 'patio' },
+                              })
+                            );
+                            await fetchReminders();
+                          } catch {
+                            // ignore
+                          }
+                        }}
                         className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
                           r.done
                             ? 'border-[#007AFF] bg-[#007AFF] text-white'
@@ -3939,7 +4011,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
                       <button
                         type="button"
-                        onClick={() => setReminders((prev) => prev.filter((item) => item.id !== r.id))}
+                        onClick={async () => {
+                          try {
+                            await deleteWorkshopReminderRemote(r.id, remindersScopeApi);
+                            window.dispatchEvent(
+                              new CustomEvent('workshop-reminders-updated', {
+                                detail: { scope: isModuleMode ? 'laboratorio' : 'patio' },
+                              })
+                            );
+                            await fetchReminders();
+                          } catch {
+                            // ignore
+                          }
+                        }}
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-black/[0.03] text-zinc-500 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-600 active:scale-95 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-400 dark:hover:text-red-400"
                         aria-label="Excluir lembrete"
                       >

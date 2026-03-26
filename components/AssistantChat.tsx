@@ -512,12 +512,22 @@ async function executeToolCalls(
         });
         continue;
       }
-      const out = appendWorkshopReminder(
-        target,
-        text,
-        assistantCtx.authorDisplayName || ASSISTANT_NAME
-      );
-      results.push({ id: tc.id, content: JSON.stringify(out) });
+      try {
+        const out = await appendWorkshopReminder(
+          target,
+          text,
+          assistantCtx.authorDisplayName || ASSISTANT_NAME
+        );
+        results.push({ id: tc.id, content: JSON.stringify(out) });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao criar lembrete.",
+          }),
+        });
+      }
       continue;
     }
     if (name === "list_workshop_reminders") {
@@ -552,22 +562,32 @@ async function executeToolCalls(
         });
         continue;
       }
-      const list = readWorkshopReminders(target);
-      results.push({
-        id: tc.id,
-        content: JSON.stringify({
-          ok: true,
-          target,
-          total: list.length,
-          lembretes: list.map((r) => ({
-            id: r.id,
-            text: r.text,
-            done: r.done,
-            createdAt: r.createdAt,
-            createdBy: r.createdBy ?? null,
-          })),
-        }),
-      });
+      try {
+        const list = await readWorkshopReminders(target);
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: true,
+            target,
+            total: list.length,
+            lembretes: list.map((r) => ({
+              id: r.id,
+              text: r.text,
+              done: r.done,
+              createdAt: r.createdAt,
+              createdBy: r.createdBy ?? null,
+            })),
+          }),
+        });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao listar lembretes.",
+          }),
+        });
+      }
       continue;
     }
     if (name === "delete_workshop_reminder") {
@@ -600,8 +620,18 @@ async function executeToolCalls(
         });
         continue;
       }
-      const out = deleteWorkshopReminder(target, reminderId);
-      results.push({ id: tc.id, content: JSON.stringify(out) });
+      try {
+        const out = await deleteWorkshopReminder(target, reminderId);
+        results.push({ id: tc.id, content: JSON.stringify(out) });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao excluir lembrete.",
+          }),
+        });
+      }
       continue;
     }
     if (name === "update_workshop_reminder") {
@@ -646,11 +676,21 @@ async function executeToolCalls(
         });
         continue;
       }
-      const out = updateWorkshopReminder(target, reminderId, {
-        ...(hasText ? { text: String(payload.text) } : {}),
-        ...(hasDone ? { done: payload.done as boolean } : {}),
-      });
-      results.push({ id: tc.id, content: JSON.stringify(out) });
+      try {
+        const out = await updateWorkshopReminder(target, reminderId, {
+          ...(hasText ? { text: String(payload.text) } : {}),
+          ...(hasDone ? { done: payload.done as boolean } : {}),
+        });
+        results.push({ id: tc.id, content: JSON.stringify(out) });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao atualizar lembrete.",
+          }),
+        });
+      }
       continue;
     }
     if (name === "list_vehicles_in_stage") {

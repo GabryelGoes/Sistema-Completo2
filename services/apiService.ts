@@ -926,6 +926,81 @@ export async function createNotification(
   return response.json();
 }
 
+/** Lembretes do Pátio (vehicle) / Laboratório (module) — compartilhados na oficina. */
+export type WorkshopReminderScopeApi = "vehicle" | "module";
+
+export interface WorkshopReminder {
+  id: string;
+  text: string;
+  done: boolean;
+  createdAt: string;
+  createdBy: string;
+}
+
+export async function getWorkshopReminders(scope: WorkshopReminderScopeApi): Promise<WorkshopReminder[]> {
+  const response = await fetch(`${API_BASE}/workshop-reminders?scope=${encodeURIComponent(scope)}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao carregar lembretes.");
+  }
+  return response.json();
+}
+
+export async function createWorkshopReminder(params: {
+  scope: WorkshopReminderScopeApi;
+  text: string;
+  createdBy: string;
+}): Promise<WorkshopReminder> {
+  const response = await fetch(`${API_BASE}/workshop-reminders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scope: params.scope,
+      text: params.text.trim(),
+      createdBy: params.createdBy.trim(),
+    }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao criar lembrete.");
+  }
+  return response.json();
+}
+
+export async function updateWorkshopReminderRemote(
+  id: string,
+  params: {
+    scope: WorkshopReminderScopeApi;
+    text?: string;
+    done?: boolean;
+  }
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/workshop-reminders/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scope: params.scope,
+      ...(typeof params.text === "string" ? { text: params.text } : {}),
+      ...(typeof params.done === "boolean" ? { done: params.done } : {}),
+    }),
+  });
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao atualizar lembrete.");
+  }
+}
+
+export async function deleteWorkshopReminderRemote(id: string, scope: WorkshopReminderScopeApi): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/workshop-reminders/${encodeURIComponent(id)}?scope=${encodeURIComponent(scope)}`,
+    { method: "DELETE" }
+  );
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao excluir lembrete.");
+  }
+}
+
 // ---------- Orçamentos ----------
 
 /** Orçamento no formato da API (snake_case). approved = decisão do admin por item. */
@@ -1775,6 +1850,8 @@ export interface TvSlide {
   playSound?: boolean;
   /** Só para tipo goal: true = R$, false = %. */
   goalShowValues?: boolean;
+  /** Fixa este slide na TV imediatamente até desligar (só um por oficina). */
+  pinImmediate?: boolean;
 }
 
 export interface TvWeeklyGoal {
