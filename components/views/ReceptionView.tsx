@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles } from 'lucide-react';
+import { iosModalShell, iosModalClose, iosLabel, iosPageGlass } from '../ui/iosModalStyles';
+import { IosModalHeader } from '../ui/IosModalHeader';
 import { Customer, ProcessingStatus } from '../../types';
 import { Input, TextArea } from '../ui/Input';
 import { ProcessingOverlay } from '../ProcessingOverlay';
@@ -457,45 +459,53 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   };
 
   return (
-    <div className="w-full max-w-2xl lg:max-w-5xl mx-auto px-4 md:px-6 pb-24 animate-in fade-in duration-500">
-      
-      {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 lg:mb-8">
-        <div className="flex items-center gap-4">
-          <img src="/logo.png" alt="Logo" className="h-20 w-auto object-contain bg-black rounded-xl p-2" />
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-brand-yellow leading-none">
-              REI DO ABS
-            </h1>
-            <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Recepção & Cadastro</p>
-          </div>
-        </div>
+    <div className="min-h-[min(100dvh,100%)] w-full bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90">
+    <div className="w-full max-w-2xl lg:max-w-5xl mx-auto px-4 md:px-6 pb-24 md:pb-28 pt-3 md:pt-8 animate-in fade-in duration-500">
 
-        <div className="flex bg-zinc-200 dark:bg-black/40 p-1 rounded-xl">
-          <button
-            type="button"
-            onClick={() => setReceptionMode('vehicle')}
-            className={`flex items-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
-              receptionMode === 'vehicle'
-                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
-            }`}
-          >
-            <Car className="w-4 h-4" />
-            Veículos
-          </button>
-          <button
-            type="button"
-            onClick={() => setReceptionMode('module')}
-            className={`flex items-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
-              receptionMode === 'module'
-                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
-            }`}
-          >
-            <Package className="w-4 h-4" />
-            Módulos
-          </button>
+      {/* Cabeçalho estilo iOS */}
+      <header className="flex flex-col gap-4 mb-6 lg:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="flex h-[5.5rem] w-[5.5rem] shrink-0 items-center justify-center rounded-[1.35rem] bg-gradient-to-br from-amber-400/95 to-orange-600 p-2 shadow-lg shadow-orange-500/25 ring-1 ring-white/25 dark:ring-white/10">
+              <img src="/logo.png" alt="" className="h-full w-full max-h-[4.5rem] object-contain rounded-xl bg-black p-1.5" />
+            </div>
+            <div className="min-w-0 pt-0.5">
+              <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
+                Rei do ABS
+              </h1>
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500/90 shrink-0" strokeWidth={2} />
+                Recepção e cadastro de OS
+              </p>
+            </div>
+          </div>
+
+          <div className="p-1 rounded-2xl bg-zinc-200/90 dark:bg-white/[0.06] border border-zinc-200/70 dark:border-white/[0.08] backdrop-blur-xl shadow-inner flex shrink-0 self-stretch sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setReceptionMode('vehicle')}
+              className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-[0.85rem] text-sm font-semibold transition-all ${
+                receptionMode === 'vehicle'
+                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-md shadow-black/5'
+                  : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+              }`}
+            >
+              <Car className="w-4 h-4" />
+              Veículos
+            </button>
+            <button
+              type="button"
+              onClick={() => setReceptionMode('module')}
+              className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-[0.85rem] text-sm font-semibold transition-all ${
+                receptionMode === 'module'
+                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-md shadow-black/5'
+                  : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              Módulos
+            </button>
+          </div>
         </div>
       </header>
 
@@ -503,21 +513,20 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         <button
           type="button"
           onClick={() => setIsHistoryOpen(true)}
-          className="inline-flex items-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900/80 text-zinc-800 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
+          className="inline-flex items-center gap-2 py-2.5 px-4 rounded-2xl text-sm font-semibold border border-zinc-200/80 dark:border-white/[0.1] bg-white/65 dark:bg-white/[0.06] backdrop-blur-xl text-zinc-800 dark:text-zinc-100 hover:bg-white/90 dark:hover:bg-white/10 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.08)] transition-all active:scale-[0.98]"
           title="Consultar histórico de veículos arquivados"
         >
-          <History className="w-4 h-4" />
+          <History className="w-4 h-4 text-amber-600 dark:text-amber-400" />
           {receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
         </button>
       </div>
 
-      {/* Main Card */}
-      <div className="bg-white dark:bg-brand-surface border border-zinc-200 dark:border-brand-border rounded-[2rem] p-6 md:p-8 lg:p-10 shadow-2xl relative overflow-hidden">
-        
-        {/* Decorative Glow */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-brand-yellow/5 to-transparent rounded-full blur-3xl -z-10" />
+      {/* Cartão principal — vidro iOS */}
+      <div className={`${iosPageGlass} p-6 md:p-8 lg:p-10 overflow-hidden`}>
+        <div className="pointer-events-none absolute -top-32 -right-32 w-[22rem] h-[22rem] bg-gradient-to-br from-cyan-400/20 to-blue-600/10 rounded-full blur-3xl opacity-70" />
+        <div className="pointer-events-none absolute -bottom-28 -left-20 w-[18rem] h-[18rem] bg-gradient-to-br from-amber-400/15 to-orange-500/5 rounded-full blur-3xl opacity-60" />
 
-        <form onSubmit={handleSubmit} className="space-y-6 lg:space-y-0">
+        <form onSubmit={handleSubmit} className="relative z-10 space-y-6 lg:space-y-0">
           
           <div className="flex justify-end mb-1">
              <button
@@ -535,7 +544,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
             {/* Coluna esquerda: Dados do cliente */}
             <div className="space-y-6">
-              <h2 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider border-b border-zinc-200 dark:border-brand-border pb-2">
+              <h2 className={`${iosLabel} border-b border-zinc-200/70 dark:border-white/[0.08] pb-2 mb-0 text-[12px]`}>
                 Dados do cliente
               </h2>
               <div>
@@ -618,7 +627,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
             {/* Coluna direita: Veículo/Módulo + Queixa + Foto + Botão */}
             <div className="space-y-6">
-              <h2 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider border-b border-zinc-200 dark:border-brand-border pb-2">
+              <h2 className={`${iosLabel} border-b border-zinc-200/70 dark:border-white/[0.08] pb-2 mb-0 text-[12px]`}>
                 {receptionMode === 'vehicle' ? 'Veículo e atendimento' : 'Módulo e atendimento'}
               </h2>
               <div className="w-full h-px bg-zinc-200 dark:bg-brand-border/50 lg:hidden" />
@@ -675,8 +684,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
               {receptionMode === 'vehicle' && (
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-300 uppercase tracking-wider ml-1 mb-2">
-                    Categoria do Veículo <span className="text-red-500">*</span>
+                  <label className={`${iosLabel} ml-1`}>
+                    Categoria do veículo <span className="text-red-500">*</span>
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     {VEHICLE_CATEGORIES.map((category) => {
@@ -686,10 +695,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           key={category}
                           type="button"
                           onClick={() => setVehicleCategory(category)}
-                          className={`px-3 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                          className={`px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-all active:scale-[0.98] ${
                             selected
-                              ? 'bg-brand-yellow text-zinc-950 border-brand-yellow shadow-sm'
-                              : 'bg-white dark:bg-zinc-900/80 text-zinc-700 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700 hover:border-brand-yellow/70'
+                              ? 'bg-brand-yellow text-zinc-950 border-brand-yellow/90 shadow-md shadow-amber-500/20'
+                              : 'bg-white/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200 border-zinc-200/90 dark:border-white/[0.1] hover:border-amber-400/60 backdrop-blur-sm'
                           }`}
                           aria-pressed={selected}
                         >
@@ -702,8 +711,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               )}
 
               <div className="relative">
-                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-300 uppercase tracking-wider ml-1 mb-1">
-                  Queixa do Cliente
+                <label className={`${iosLabel} ml-1 mb-1`}>
+                  Queixa do cliente
                 </label>
                 <TextArea
                   label=""
@@ -716,8 +725,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
               {/* Camera Section */}
               <div className="space-y-2">
-                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-300 uppercase tracking-wider ml-1">
-                  {receptionMode === 'vehicle' ? 'Foto do Veículo (Opcional)' : 'Foto (Opcional)'}
+                <label className={`${iosLabel} ml-1`}>
+                  {receptionMode === 'vehicle' ? 'Foto do veículo (opcional)' : 'Foto (opcional)'}
                 </label>
                 <input 
                   type="file" 
@@ -731,13 +740,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-4 border border-zinc-300 dark:border-zinc-700 rounded-xl flex items-center justify-center gap-3 text-zinc-500 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:border-brand-yellow hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
+                    className="w-full py-4 border border-zinc-200/90 dark:border-white/[0.1] rounded-2xl flex items-center justify-center gap-3 text-zinc-600 dark:text-zinc-300 bg-white/50 dark:bg-white/[0.04] backdrop-blur-md hover:border-[#007AFF]/40 hover:bg-white/80 dark:hover:bg-white/[0.08] transition-all active:scale-[0.99]"
                   >
                     <Camera className="w-5 h-5" />
                     <span className="font-medium text-sm">{receptionMode === 'module' ? 'Foto do módulo' : 'Foto do veículo'}</span>
                   </button>
                 ) : (
-                  <div className="relative rounded-2xl overflow-hidden border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-black">
+                  <div className="relative rounded-[1.25rem] overflow-hidden border border-zinc-200/80 dark:border-white/[0.1] bg-zinc-100/80 dark:bg-black/40 backdrop-blur-sm shadow-inner">
                     <img src={photoPreview} alt="Preview" className="w-full h-48 lg:h-56 object-cover opacity-80" />
                     <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                       <div className="absolute top-4 right-4 flex gap-2">
@@ -767,23 +776,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <div className="pt-2 flex justify-center lg:justify-start">
                 <button 
                   type="submit"
-                  className="
-                    group relative 
-                    min-w-[220px] px-8 py-3.5 
-                    rounded-full
-                    bg-brand-yellow
-                    text-black font-bold text-base tracking-wide
-                    shadow-lg shadow-brand-yellow/20
-                    hover:bg-[#fcd61e]
-                    hover:shadow-brand-yellow/40
-                    hover:-translate-y-0.5
-                    active:translate-y-0
-                    transition-all duration-300
-                    flex items-center justify-center gap-2
-                  "
+                  className="group relative min-w-[220px] px-8 py-3.5 rounded-2xl bg-[#007AFF] text-white font-semibold text-[15px] tracking-wide shadow-lg shadow-blue-500/30 hover:opacity-95 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
-                  Criar Ficha
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  Criar ficha
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </button>
               </div>
             </div>
@@ -794,27 +790,29 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
       {isHistoryOpen && (
         <ModalPortal>
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <div className="w-full max-w-[90rem] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] bg-white/95 dark:bg-[#1C1C1E]/95 border border-zinc-200/60 dark:border-white/[0.08] rounded-[1.5rem] overflow-hidden flex flex-col min-h-0 shadow-[0_18px_60px_-24px_rgba(0,0,0,0.6)]">
-            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/90 dark:bg-black/40">
-              <div className="flex items-center gap-3">
-                <div className="bg-brand-yellow/15 p-2 rounded-xl">
-                  <History className="w-6 h-6 text-zinc-900 dark:text-brand-yellow" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
-                    {receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
-                  </h2>
-                  <p className="text-zinc-500 dark:text-zinc-400 text-xs mt-0.5">
-                    {receptionMode === 'module' ? 'Módulos arquivados' : 'Veículos arquivados'} — mesmo visual dos cards do Pátio
-                  </p>
-                </div>
-              </div>
-              <button onClick={() => setIsHistoryOpen(false)} className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-white/10 flex items-center justify-center text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-700">
-                <X className="w-5 h-5" />
-              </button>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className={`${iosModalShell} w-full max-w-[90rem] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]`}>
+            <button
+              type="button"
+              onClick={() => setIsHistoryOpen(false)}
+              className={iosModalClose}
+              aria-label="Fechar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
+              <IosModalHeader
+                icon={<History className="w-6 h-6 text-white" strokeWidth={2.2} />}
+                title={receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
+                subtitle={
+                  receptionMode === 'module'
+                    ? 'Módulos arquivados — mesmo visual do Pátio'
+                    : 'Veículos arquivados — mesmo visual do Pátio'
+                }
+                gradientClass="from-violet-500 to-indigo-700"
+              />
             </div>
-            <div className="p-4 sm:p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/80 dark:bg-black/30">
+            <div className="p-4 sm:p-6 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/40 dark:bg-white/[0.03]">
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
@@ -827,19 +825,19 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         ? 'Buscar por identificação, cliente ou modelo'
                         : 'Buscar por placa, cliente ou modelo'
                     }
-                    className="w-full pl-9 pr-3 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900/70 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:border-brand-yellow focus:ring-2 focus:ring-brand-yellow/30"
+                    className="w-full pl-9 pr-3 py-3 rounded-2xl border border-zinc-200/90 dark:border-white/[0.1] bg-white/90 dark:bg-zinc-950/50 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => loadVehicleHistory(historySearch)}
-                  className="min-w-[44px] h-11 px-4 rounded-xl bg-brand-yellow text-zinc-950 font-bold flex items-center justify-center hover:bg-[#fcd61e] transition-colors"
+                  className="min-w-[44px] h-11 px-4 rounded-2xl bg-[#007AFF] text-white font-semibold flex items-center justify-center hover:opacity-95 active:scale-[0.98] transition-all shadow-lg shadow-blue-500/25"
                 >
                   <RefreshCw className={`w-4 h-4 ${historyLoading ? 'animate-spin' : ''}`} />
                 </button>
               </div>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 bg-zinc-50/60 dark:bg-brand-surface/60 custom-scrollbar pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 bg-zinc-50/30 dark:bg-zinc-950/20 custom-scrollbar pb-[max(1rem,env(safe-area-inset-bottom))]">
               {historyLoading ? (
                 <div className="py-16 flex flex-col items-center justify-center gap-3 text-zinc-500">
                   <RefreshCw className="w-8 h-8 animate-spin text-brand-yellow" />
@@ -858,7 +856,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   return (
                   <div
                     key={o.id}
-                    className="group bg-white dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-white/[0.08] rounded-2xl p-5 hover:border-brand-yellow/80 dark:hover:border-brand-yellow/80 transition-all shadow-sm hover:shadow-lg flex flex-col min-h-[200px]"
+                    className="group bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border border-zinc-200/80 dark:border-white/[0.08] rounded-[22px] p-5 hover:border-amber-400/50 dark:hover:border-amber-500/40 transition-all shadow-[0_2px_20px_-4px_rgba(0,0,0,0.06)] hover:shadow-lg flex flex-col min-h-[200px]"
                   >
                     <div className="flex justify-between items-start gap-4 mb-3">
                       <div className="min-w-0 flex-1">
@@ -995,12 +993,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       {archivedDetailOrderId && (
         <ModalPortal>
           <div
-            className="fixed inset-0 z-[220] flex items-center justify-center bg-black/85 backdrop-blur-xl p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
+            className="fixed inset-0 z-[220] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
             role="dialog"
             aria-modal="true"
             aria-labelledby="reception-archived-detail-title"
           >
-            <div className="bg-white/98 dark:bg-brand-surface/95 backdrop-blur-2xl border border-zinc-200/70 dark:border-brand-border w-full max-w-[90rem] max-h-[90vh] rounded-[1.5rem] shadow-[0_18px_60px_-24px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden relative animate-modal-sheet">
+            <div className={`${iosModalShell} w-full max-w-[90rem] max-h-[90vh] shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)] animate-modal-sheet`}>
               <div className="absolute top-4 right-4 z-10 flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                 <button
                   type="button"
@@ -1029,10 +1027,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 <button
                   type="button"
                   onClick={closeArchivedDetail}
-                  className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-zinc-800/80 flex items-center justify-center text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all shrink-0"
+                  className={`${iosModalClose} static shrink-0`}
                   aria-label="Fechar"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
@@ -1256,23 +1254,25 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       {historyBudgetDetail && (
         <ModalPortal>
         <div
-          className="fixed inset-0 z-[230] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]"
+          className="fixed inset-0 z-[230] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]"
           onClick={() => setHistoryBudgetDetail(null)}
         >
           <div
-            className="w-full max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] flex flex-col min-h-0 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#1C1C1E] shadow-2xl"
+            className={`${iosModalShell} w-full max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)]`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3 p-5 border-b border-zinc-200 dark:border-white/10 shrink-0">
+            <div className="flex items-start justify-between gap-3 p-6 sm:px-8 border-b border-zinc-200/50 dark:border-white/[0.06] shrink-0 pt-8 pr-14">
               <div className="min-w-0">
-                <div className="flex items-center gap-2 text-zinc-900 dark:text-white">
-                  <Calculator className="w-5 h-5 text-brand-yellow shrink-0" />
-                  <h2 className="text-lg font-bold truncate">Orçamento</h2>
-                </div>
+                <div className="flex items-center gap-3 text-zinc-900 dark:text-white">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-orange-500/15">
+                    <Calculator className="w-5 h-5 text-white" strokeWidth={2.2} />
+                  </div>
+                  <div>
+                  <h2 className="text-[20px] sm:text-[22px] font-semibold tracking-tight truncate">Orçamento</h2>
                 {historyBudgetDetail.cardName?.trim() && (
                   <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1 truncate">{historyBudgetDetail.cardName}</p>
                 )}
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                   {new Date(historyBudgetDetail.createdAt).toLocaleString('pt-BR', {
                     day: '2-digit',
                     month: 'long',
@@ -1281,11 +1281,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     minute: '2-digit',
                   })}
                 </p>
+                  </div>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setHistoryBudgetDetail(null)}
-                className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-white/10 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white shrink-0"
+                className={iosModalClose}
                 aria-label="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -1363,6 +1365,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         }}
       />
 
+    </div>
     </div>
   );
 };
