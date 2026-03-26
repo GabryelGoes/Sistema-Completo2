@@ -2100,7 +2100,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </header>
       </div>
 
-      {/* Grid — mesma ordem dos estágios; cartões em vidro iOS (nome do veículo: tipografia preservada). */}
+      {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. */}
       <div className="mx-auto max-w-[100rem] px-3 sm:px-5 md:px-6">
       {(() => {
         const stageOrder = SERVICE_ORDER_STAGES.map((s) => s.id);
@@ -2113,14 +2113,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const sortedCards = [...cards].sort(byStage);
         return (
       <>
-      {sortedCards.length > 0 && (
-        <div className="mb-5 px-0.5">
-          <p className={iosLabel}>Mapa da oficina</p>
-          <p className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-            Ordenado por etapa do fluxo; em cada etapa, os mais recentes primeiro.
-          </p>
-        </div>
-      )}
       <div className="relative z-0 grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-5 lg:grid-cols-3 lg:gap-6" style={{ perspective: '1400px' }}>
         {sortedCards.map(card => {
           const parts = card.name.split('-').map(s => s.trim());
