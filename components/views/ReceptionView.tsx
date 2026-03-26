@@ -462,25 +462,25 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     <div className="min-h-[min(100dvh,100%)] w-full bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90">
     <div className="w-full max-w-2xl lg:max-w-5xl mx-auto px-4 md:px-6 pb-24 md:pb-28 pt-3 md:pt-8 animate-in fade-in duration-500">
 
-      {/* Cabeçalho estilo iOS */}
-      <header className="flex flex-col gap-4 mb-6 lg:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <div className="flex h-[5.5rem] w-[5.5rem] shrink-0 items-center justify-center rounded-[1.35rem] bg-gradient-to-br from-amber-400/95 to-orange-600 p-1 shadow-lg shadow-orange-500/25 ring-1 ring-white/25 dark:ring-white/10">
-              <img src="/logo.png" alt="" className="h-full w-full max-h-[4.5rem] object-contain rounded-xl bg-black p-1.5" />
-            </div>
-            <div className="min-w-0 pt-0.5">
-              <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
-                Rei do ABS
-              </h1>
-              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500/90 shrink-0" strokeWidth={2} />
-                Recepção e cadastro de OS
-              </p>
-            </div>
+      {/* Cabeçalho — mesmo padrão da página Agenda */}
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400/95 to-indigo-600 shadow-lg shadow-indigo-500/25 ring-1 ring-white/20 dark:ring-white/10">
+            <Building2 className="w-7 h-7 text-white" strokeWidth={2.2} />
           </div>
+          <div className="min-w-0">
+            <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
+              Recepção
+            </h1>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500/90 shrink-0" strokeWidth={2} />
+              <span>Cadastro de clientes e veículos</span>
+            </p>
+          </div>
+        </div>
 
-          <div className="p-1 rounded-2xl bg-zinc-200/90 dark:bg-white/[0.06] border border-zinc-200/70 dark:border-white/[0.08] backdrop-blur-xl shadow-inner flex shrink-0 self-stretch sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto justify-end">
+          <div className="p-1 rounded-2xl bg-zinc-200/90 dark:bg-white/[0.06] border border-zinc-200/70 dark:border-white/[0.08] backdrop-blur-xl shadow-inner flex">
             <button
               type="button"
               onClick={() => setReceptionMode('vehicle')}
