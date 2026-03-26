@@ -65,11 +65,11 @@ import {
 
 /** Modal de orçamento: off-white + acentos slate (leitura clara, aspecto profissional). */
 const budgetModalPaperInset =
-  'rounded-[22px] border border-stone-200/90 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06),inset_0_1px_0_rgba(255,255,255,1)] dark:border-stone-600/70 dark:bg-stone-800/95 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
+  'rounded-[22px] border border-stone-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06),inset_0_1px_0_rgba(255,255,255,1)] dark:border-stone-600 dark:bg-stone-800 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
 const budgetModalFieldLabel =
   'block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-stone-400 mb-2';
 const budgetModalInput =
-  'w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-[15px] text-slate-800 shadow-sm placeholder:text-slate-400 transition-[box-shadow,border-color] focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400/20 dark:border-stone-600 dark:bg-stone-900/55 dark:text-stone-100 dark:placeholder:text-stone-500 dark:focus:border-stone-500 dark:focus:ring-stone-500/15';
+  'w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-[15px] text-slate-800 shadow-sm placeholder:text-slate-400 transition-[box-shadow,border-color] focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400/20 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:placeholder:text-stone-500 dark:focus:border-stone-500 dark:focus:ring-stone-500/15';
 
 export type OpenServiceOrderSection = 'comments' | 'budgets' | 'description' | null;
 
@@ -4486,26 +4486,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* MODAL CRIAR/EDITAR ORÇAMENTO — papel antigo (fundo sólido + textura); desktop quase tela cheia */}
       {isBudgetOpen && selectedCard && (
         <ModalPortal>
-        <div className={`${iosModalOverlay} z-[200] animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5 lg:p-6`}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5 lg:p-6 animate-in fade-in duration-200">
           <div
-            className="relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full min-h-0 flex-col overflow-hidden rounded-[2rem] border border-stone-200/90 bg-[#faf9f7] shadow-[0_16px_48px_-20px_rgba(15,23,42,0.12),0_4px_16px_-8px_rgba(15,23,42,0.06)] animate-in zoom-in-95 duration-200 dark:border-stone-600/50 dark:bg-stone-900 dark:shadow-[0_20px_60px_-16px_rgba(0,0,0,0.55)] sm:rounded-[2.25rem] max-w-2xl lg:max-h-[min(94vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.25rem))] lg:max-w-[min(96vw,85rem)] xl:max-w-[min(94vw,96rem)]"
+            className="relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full min-h-0 flex-col overflow-hidden rounded-[2rem] border border-stone-200 bg-[#faf9f7] shadow-[0_16px_48px_-20px_rgba(15,23,42,0.12),0_4px_16px_-8px_rgba(15,23,42,0.06)] animate-in zoom-in-95 duration-200 dark:border-stone-600 dark:bg-stone-900 sm:rounded-[2.25rem] max-w-2xl lg:max-h-[min(94vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.25rem))] lg:max-w-[min(96vw,85rem)] xl:max-w-[min(94vw,96rem)]"
           >
-            {/* Textura discreta (não escurece o off-white) */}
-            <div
-              className="pointer-events-none absolute inset-0 z-0 rounded-[inherit] opacity-[0.09] mix-blend-multiply dark:opacity-[0.12] dark:mix-blend-overlay"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.9'/%3E%3C/svg%3E"), linear-gradient(180deg, rgba(255,255,255,0.55) 0%, transparent 50%, rgba(148,163,184,0.04) 100%)`,
-              }}
-              aria-hidden
-            />
             <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
-            <button type="button" onClick={closeBudgetModal} className={`${iosModalClose} text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-stone-300 dark:hover:bg-white/10 dark:hover:text-white`} aria-label="Fechar orçamento">
+            <button type="button" onClick={closeBudgetModal} className={`${iosModalClose} text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-stone-300 dark:hover:bg-stone-700 dark:hover:text-white`} aria-label="Fechar orçamento">
               <X className="h-5 w-5" />
             </button>
 
-            <div className="shrink-0 border-b border-stone-200/80 bg-[#faf9f7]/95 px-6 pb-5 pt-7 dark:border-stone-700/60 dark:bg-stone-900/50 sm:px-8 sm:pt-8">
+            <div className="shrink-0 border-b border-stone-200 bg-[#faf9f7] px-6 pb-5 pt-7 dark:border-stone-700 dark:bg-stone-900 sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200/90 bg-gradient-to-br from-slate-600 to-slate-800 shadow-md shadow-slate-900/15 dark:border-slate-500/30 dark:from-slate-500 dark:to-slate-800">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-300 bg-gradient-to-br from-slate-600 to-slate-800 shadow-md shadow-slate-900/20 dark:border-slate-500 dark:from-slate-500 dark:to-slate-800">
                   <Calculator className="h-6 w-6 text-white" strokeWidth={2.2} />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -4542,7 +4534,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <p className={budgetModalFieldLabel}>Descrição do diagnóstico</p>
                       <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
                         <textarea
-                          className={`${budgetModalInput} min-h-[120px] resize-y border-0 bg-white py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2 dark:bg-stone-900/40`}
+                          className={`${budgetModalInput} min-h-[120px] resize-y border-0 bg-white py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2 dark:bg-stone-900`}
                           placeholder="Descreva o diagnóstico técnico…"
                           value={budgetDiagnosis}
                           onChange={(e) => setBudgetDiagnosis(e.target.value)}
@@ -4558,7 +4550,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <button
                               type="button"
                               onClick={() => setIsServiceListOpen(true)}
-                              className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700/80"
+                              className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700"
                             >
                               Inserir da lista
                               <ChevronDown className="h-4 w-4 opacity-80" />
@@ -4612,12 +4604,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                     {/* Modal: lista de serviços cadastrados */}
                     {isServiceListOpen && (
-                      <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm" onClick={() => setIsServiceListOpen(false)}>
+                      <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/50 p-4" onClick={() => setIsServiceListOpen(false)}>
                         <div
-                          className="flex max-h-[70vh] w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border border-stone-200/90 bg-[#faf9f7] shadow-xl dark:border-stone-600/60 dark:bg-stone-900"
+                          className="flex max-h-[70vh] w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border border-stone-200 bg-[#faf9f7] shadow-xl dark:border-stone-600 dark:bg-stone-900"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="flex items-center justify-between border-b border-stone-200/80 px-5 py-4 dark:border-stone-700/80">
+                          <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4 dark:border-stone-700">
                             <span className="text-[17px] font-semibold tracking-tight text-slate-900 dark:text-stone-100">Serviços cadastrados</span>
                             <button
                               type="button"
@@ -4634,7 +4626,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 key={s.id}
                                 type="button"
                                 onClick={() => addServiceFromList(s.name)}
-                                className="w-full border-b border-stone-200/70 px-5 py-3.5 text-left text-[15px] text-slate-800 transition-colors last:border-0 hover:bg-slate-100/90 dark:border-stone-700/60 dark:text-stone-200 dark:hover:bg-stone-800/80"
+                                className="w-full border-b border-stone-200 px-5 py-3.5 text-left text-[15px] text-slate-800 transition-colors last:border-0 hover:bg-slate-100 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
                               >
                                 {s.name}
                               </button>
@@ -4652,9 +4644,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       if (suggestions.length === 0) return null;
                       return (
                         <>
-                          <div className="fixed inset-0 z-[215] bg-black/20 backdrop-blur-[1px]" onClick={() => setSuggestionsForServiceId(null)} />
+                          <div className="fixed inset-0 z-[215] bg-black/35" onClick={() => setSuggestionsForServiceId(null)} />
                           <div
-                            className="fixed z-[216] max-h-[200px] overflow-y-auto overflow-hidden rounded-[18px] border border-stone-200 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(15,23,42,0.15)] backdrop-blur-sm dark:border-stone-600 dark:bg-stone-900"
+                            className="fixed z-[216] max-h-[200px] overflow-y-auto overflow-hidden rounded-[18px] border border-stone-200 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(15,23,42,0.15)] dark:border-stone-600 dark:bg-stone-900"
                             style={{
                               top: suggestionBoxPosition.top,
                               left: suggestionBoxPosition.left,
@@ -4708,7 +4700,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 onBlur={handlePartInputBlur}
                               />
                               <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-start">
-                                <div className="flex items-center overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-stone-600 dark:bg-stone-900/50">
+                                <div className="flex items-center overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-stone-600 dark:bg-stone-900">
                                   <button
                                     type="button"
                                     onClick={() => updatePartQuantity(item.id, -1)}
@@ -4752,9 +4744,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       if (suggestions.length === 0) return null;
                       return (
                         <>
-                          <div className="fixed inset-0 z-[215] bg-black/20 backdrop-blur-[1px]" onClick={() => setSuggestionsForPartId(null)} />
+                          <div className="fixed inset-0 z-[215] bg-black/35" onClick={() => setSuggestionsForPartId(null)} />
                           <div
-                            className="fixed z-[216] max-h-[200px] overflow-y-auto overflow-hidden rounded-[18px] border border-stone-200 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(15,23,42,0.15)] backdrop-blur-sm dark:border-stone-600 dark:bg-stone-900"
+                            className="fixed z-[216] max-h-[200px] overflow-y-auto overflow-hidden rounded-[18px] border border-stone-200 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(15,23,42,0.15)] dark:border-stone-600 dark:bg-stone-900"
                             style={{
                               top: partSuggestionBoxPosition.top,
                               left: partSuggestionBoxPosition.left,
@@ -4781,7 +4773,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <p className={budgetModalFieldLabel}>Observações</p>
                       <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
                         <textarea
-                          className={`${budgetModalInput} min-h-[88px] resize-y border-0 bg-white py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2 dark:bg-stone-900/40`}
+                          className={`${budgetModalInput} min-h-[88px] resize-y border-0 bg-white py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2 dark:bg-stone-900`}
                           placeholder="Prazos, condições, etc."
                           value={budgetObservations}
                           onChange={(e) => setBudgetObservations(e.target.value)}
@@ -4791,7 +4783,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
             </div>
 
-            <div className="shrink-0 border-t border-stone-200/90 bg-[#f5f4f2] px-5 py-4 backdrop-blur-[2px] dark:border-stone-700/60 dark:bg-stone-900/90 sm:px-8">
+            <div className="shrink-0 border-t border-stone-200 bg-[#f5f4f2] px-5 py-4 dark:border-stone-700 dark:bg-stone-900 sm:px-8">
               <button
                 type="button"
                 onClick={handleCreateBudget}
