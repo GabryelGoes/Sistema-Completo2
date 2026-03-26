@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, X, Camera, Image as ImageIcon } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, X, Camera } from 'lucide-react';
 import { Customer, ProcessingStatus } from '../types';
-import { Input, TextArea } from './ui/Input';
 import { ProcessingOverlay } from './ProcessingOverlay';
 import { saveReceptionIntake, uploadServiceOrderPhoto } from '../services/apiService';
+import { iosModalShell, iosModalClose, iosLabel, iosInput, iosPrimaryButton } from './ui/iosModalStyles';
+import { IosModalHeader } from './ui/IosModalHeader';
 
 const emptyCustomer: Customer = {
   name: '',
@@ -22,6 +23,7 @@ const emptyCustomer: Customer = {
 interface ReceptionModalProps {
   isOpen: boolean;
   initialData: Customer | null;
+  /** Reservado para compatibilidade (ex.: embaçar placas em telas somente leitura). */
   blurPlates?: boolean;
   onClose: () => void;
   onSuccess?: () => void;
@@ -30,7 +32,7 @@ interface ReceptionModalProps {
 export const ReceptionModal: React.FC<ReceptionModalProps> = ({
   isOpen,
   initialData,
-  blurPlates = false,
+  blurPlates: _blurPlates = false,
   onClose,
   onSuccess,
 }) => {
@@ -112,95 +114,237 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 sm:p-6 animate-in fade-in duration-200">
       <div
-        className="bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-white/10 w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+        className={`${iosModalShell} w-full max-w-2xl max-h-[90vh] animate-in zoom-in-95 duration-200`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-white/10 bg-gradient-to-r from-brand-yellow/10 to-transparent dark:from-brand-yellow/5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-yellow/20 flex items-center justify-center">
-              <Car className="w-5 h-5 text-brand-yellow" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Chegou ao Pátio</h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Preencha e confirme para criar a ficha</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-            aria-label="Fechar"
-          >
-            <X className="w-5 h-5" />
-          </button>
+        <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
+          <IosModalHeader
+            icon={<Car className="w-6 h-6 text-white" strokeWidth={2.2} />}
+            title="Chegou ao pátio"
+            subtitle="Confirme os dados do agendamento e crie a ficha"
+            gradientClass="from-emerald-500 to-teal-700"
+          />
         </div>
 
-        {/* Form - scrollable */}
-        <div className="overflow-y-auto flex-1 p-6 custom-scrollbar">
-          <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="overflow-y-auto flex-1 min-h-0 px-6 sm:px-8 pb-8 custom-scrollbar">
+          <form onSubmit={handleSubmit} className="space-y-5 pt-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input label="Nome" name="name" placeholder="Nome do cliente" value={customer.name} onChange={handleInputChange} icon={<User className="w-4 h-4" />} />
-              <Input label="CPF" name="cpf" placeholder="000.000.000-00" value={customer.cpf} onChange={handleInputChange} icon={<ShieldCheck className="w-4 h-4" />} />
+              <div>
+                <label className={iosLabel}>Nome</label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Nome do cliente"
+                    value={customer.name}
+                    onChange={handleInputChange}
+                    className={`${iosInput} pl-10`}
+                    autoComplete="name"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={iosLabel}>CPF</label>
+                <div className="relative">
+                  <ShieldCheck className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    name="cpf"
+                    placeholder="000.000.000-00"
+                    value={customer.cpf}
+                    onChange={handleInputChange}
+                    className={`${iosInput} pl-10`}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input label="Telefone" name="phone" placeholder="(11) 99999-9999" value={customer.phone} onChange={handleInputChange} icon={<Smartphone className="w-4 h-4" />} />
-              <Input label="E-mail" name="email" placeholder="email@exemplo.com" value={customer.email ?? ''} onChange={handleInputChange} icon={<Mail className="w-4 h-4" />} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input label="Endereço" name="address" placeholder="Rua, bairro..." value={customer.address} onChange={handleInputChange} icon={<Map className="w-4 h-4" />} />
-              <Input label="CEP" name="cep" placeholder="00000-000" value={customer.cep} onChange={handleInputChange} icon={<MapPin className="w-4 h-4" />} />
-            </div>
-            <Input label="Nº" name="addressNumber" placeholder="123" value={customer.addressNumber} onChange={handleInputChange} icon={<Hash className="w-4 h-4" />} />
 
-            <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-2" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={iosLabel}>Telefone</label>
+                <div className="relative">
+                  <Smartphone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="(11) 99999-9999"
+                    value={customer.phone}
+                    onChange={handleInputChange}
+                    className={`${iosInput} pl-10`}
+                    autoComplete="tel"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={iosLabel}>E-mail</label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="email@exemplo.com"
+                    value={customer.email ?? ''}
+                    onChange={handleInputChange}
+                    className={`${iosInput} pl-10`}
+                    autoComplete="email"
+                  />
+                </div>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input label="Modelo do veículo" name="vehicleModel" placeholder="Ex: BMW 320i" value={customer.vehicleModel} onChange={handleInputChange} icon={<Car className="w-4 h-4" />} />
-              <Input
-                label="Placa"
-                name="plate"
-                placeholder="ABC-1D23"
-                value={customer.plate ? customer.plate.toUpperCase() : ''}
-                onChange={handlePlateChange}
-                className="uppercase"
-                maxLength={8}
-                icon={<FileText className="w-4 h-4" />}
+              <div>
+                <label className={iosLabel}>Endereço</label>
+                <div className="relative">
+                  <Map className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    name="address"
+                    placeholder="Rua, bairro..."
+                    value={customer.address}
+                    onChange={handleInputChange}
+                    className={`${iosInput} pl-10`}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={iosLabel}>CEP</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    name="cep"
+                    placeholder="00000-000"
+                    value={customer.cep}
+                    onChange={handleInputChange}
+                    className={`${iosInput} pl-10`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className={iosLabel}>Nº</label>
+              <div className="relative">
+                <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                <input
+                  type="text"
+                  name="addressNumber"
+                  placeholder="123"
+                  value={customer.addressNumber}
+                  onChange={handleInputChange}
+                  className={`${iosInput} pl-10`}
+                />
+              </div>
+            </div>
+
+            <div className="h-px bg-zinc-200/70 dark:bg-white/[0.08] my-1" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={iosLabel}>Modelo do veículo</label>
+                <div className="relative">
+                  <Car className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    name="vehicleModel"
+                    placeholder="Ex.: BMW 320i"
+                    value={customer.vehicleModel}
+                    onChange={handleInputChange}
+                    className={`${iosInput} pl-10`}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={iosLabel}>Placa</label>
+                <div className="relative">
+                  <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    name="plate"
+                    placeholder="ABC-1D23"
+                    value={customer.plate ? customer.plate.toUpperCase() : ''}
+                    onChange={handlePlateChange}
+                    maxLength={8}
+                    className={`${iosInput} pl-10 uppercase`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className={iosLabel}>Km</label>
+              <div className="relative">
+                <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                <input
+                  type="text"
+                  name="mileageKm"
+                  placeholder="Ex.: 45000"
+                  value={customer.mileageKm ?? ''}
+                  onChange={handleInputChange}
+                  className={`${iosInput} pl-10`}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className={iosLabel}>Queixa do cliente</label>
+              <textarea
+                name="issueDescription"
+                placeholder="Descreva o problema..."
+                value={customer.issueDescription}
+                onChange={handleInputChange}
+                className={`${iosInput} min-h-[88px] resize-y py-3`}
               />
             </div>
-            <Input label="Km" name="mileageKm" placeholder="Ex: 45000" value={customer.mileageKm ?? ''} onChange={handleInputChange} icon={<Hash className="w-4 h-4" />} />
 
             <div>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Queixa do cliente</label>
-              <TextArea label="" name="issueDescription" placeholder="Descreva o problema..." value={customer.issueDescription} onChange={handleInputChange} className="min-h-[80px]" />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Foto (opcional)</label>
+              <label className={iosLabel}>Foto (opcional)</label>
               <input type="file" ref={fileInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleFileSelect} />
               {!photoPreview ? (
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full py-3 border border-dashed border-zinc-300 dark:border-zinc-600 rounded-xl flex items-center justify-center gap-2 text-zinc-500 hover:border-brand-yellow hover:bg-brand-yellow/5 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-4 border border-zinc-200/90 dark:border-white/[0.1] rounded-2xl flex items-center justify-center gap-3 text-zinc-600 dark:text-zinc-300 bg-white/50 dark:bg-white/[0.04] backdrop-blur-md hover:border-[#007AFF]/40 hover:bg-white/80 dark:hover:bg-white/[0.08] transition-all active:scale-[0.99]"
+                >
                   <Camera className="w-5 h-5" />
-                  <span className="text-sm">Adicionar foto do veículo</span>
+                  <span className="text-[15px] font-medium">Adicionar foto do veículo</span>
                 </button>
               ) : (
-                <div className="relative rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700">
-                  <img src={photoPreview} alt="Preview" className="w-full h-40 object-cover" />
-                  <button type="button" onClick={() => { setPhotoBlob(null); setPhotoPreview(null); }} className="absolute top-2 right-2 p-1.5 rounded-full bg-red-500/90 text-white hover:bg-red-600">
+                <div className="relative rounded-[1.25rem] overflow-hidden border border-zinc-200/80 dark:border-white/[0.1] bg-zinc-100/80 dark:bg-black/40 shadow-inner">
+                  <img src={photoPreview} alt="" className="w-full h-44 object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhotoBlob(null);
+                      setPhotoPreview(null);
+                    }}
+                    className="absolute top-3 right-3 p-2 rounded-full bg-red-500/95 text-white hover:bg-red-600 shadow-lg transition-colors"
+                    aria-label="Remover foto"
+                  >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
               )}
             </div>
 
-            <div className="flex gap-3 pt-2">
-              <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium transition-colors">
+            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t border-zinc-200/50 dark:border-white/[0.06]">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-3.5 rounded-2xl border border-zinc-200/80 dark:border-white/[0.12] text-[15px] font-medium text-zinc-700 dark:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              >
                 Cancelar
               </button>
-              <button type="submit" className="flex-1 py-3 rounded-xl bg-brand-yellow text-black font-bold shadow-lg shadow-brand-yellow/20 hover:bg-[#fcd61e] transition-all flex items-center justify-center gap-2">
-                Criar Ficha
+              <button type="submit" className={`${iosPrimaryButton} flex-1 flex items-center justify-center gap-2 py-3.5`}>
+                Criar ficha
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
