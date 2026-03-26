@@ -3801,43 +3801,43 @@ export const PatioView: React.FC<PatioViewProps> = ({
       );
       })()}
 
-      {/* --- MODAL DE LEMBRETES (PÁTIO / LABORATÓRIO) --- */}
+      {/* --- MODAL DE LEMBRETES (PÁTIO / LABORATÓRIO) — vidro iOS alinhado ao TV do pátio --- */}
       {isRemindersOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-xl p-4 animate-modal-backdrop">
-          <div className="relative w-full max-w-xl rounded-[1.75rem] bg-gradient-to-b from-zinc-900/95 via-black/95 to-zinc-950/95 border border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.7)] overflow-hidden animate-modal-sheet">
-            {/* Top handle + título */}
-            <div className="pt-4 px-6 pb-3 border-b border-white/10 bg-white/5 backdrop-blur-2xl">
-              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-brand-yellow to-amber-400 flex items-center justify-center shadow-[0_8px_20px_rgba(251,191,36,0.65)]">
-                    <ReminderIcon className="w-5 h-5 text-black" strokeWidth={2} />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
-                      {isModuleMode ? 'Laboratório' : 'Pátio'} · Lembretes
-                    </p>
-                    <h2 className="text-xl font-semibold text-white tracking-tight">
-                      Centro de Lembretes
-                    </h2>
-                    <p className="text-[11px] text-zinc-500 mt-0.5">
-                      Visível para todo o time e admin
-                    </p>
-                  </div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
+          <div
+            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-xl min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+          >
+            <button
+              type="button"
+              onClick={() => setIsRemindersOpen(false)}
+              className={iosModalClose}
+              aria-label="Fechar lembretes"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+              <div className="flex items-start gap-3 pr-10">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF] to-[#5856D6] shadow-lg shadow-blue-500/25">
+                  <ReminderIcon className="h-6 w-6 text-white" strokeWidth={2.2} />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsRemindersOpen(false)}
-                  className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-300 hover:bg-white/15 hover:text-white active:scale-95 transition-all"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                    {isModuleMode ? 'Laboratório' : 'Pátio'}
+                  </p>
+                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[26px]">
+                    Lembretes
+                  </h2>
+                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                    Visível para todo o time e admin — não deixe nada passar.
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Conteúdo */}
-            <div className="px-6 pt-4 pb-5 space-y-4 bg-gradient-to-b from-white/5 to-transparent">
-              {/* Campo novo lembrete */}
+            <div className="shrink-0 border-b border-zinc-200/50 px-6 py-4 dark:border-white/[0.06] sm:px-8">
+              <p className={iosLabel}>Novo lembrete</p>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -3857,95 +3857,98 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ]);
                   setNewReminder('');
                 }}
-                className="flex items-center gap-3"
+                className={`${iosModalInsetCard} p-4 sm:p-5`}
               >
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    value={newReminder}
-                    onChange={(e) => setNewReminder(e.target.value)}
-                    placeholder={isModuleMode ? 'Adicionar lembrete para os módulos...' : 'Adicionar lembrete para o pátio...'}
-                    className="w-full px-4 py-3 rounded-2xl bg-white/90 dark:bg-white/6 border border-white/15 text-sm text-black placeholder:text-zinc-500 outline-none focus:border-brand-yellow/80 focus:ring-2 focus:ring-brand-yellow/40 transition-all"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={!newReminder.trim()}
-                  className="w-10 h-10 rounded-full bg-brand-yellow text-black flex items-center justify-center font-bold text-xl shadow-[0_10px_25px_rgba(250,204,21,0.8)] disabled:opacity-50 disabled:shadow-none active:scale-95 transition-transform"
-                >
-                  +
-                </button>
-              </form>
-
-              {/* Lista de lembretes */}
-              <div className="max-h-[320px] overflow-y-auto custom-scrollbar pr-1">
-                {reminders.length === 0 ? (
-                  <div className="py-10 text-center text-zinc-500 text-sm">
-                    Nenhum lembrete por aqui. Comece adicionando algo para o time não esquecer.
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+                  <div className="min-w-0 flex-1">
+                    <input
+                      type="text"
+                      value={newReminder}
+                      onChange={(e) => setNewReminder(e.target.value)}
+                      placeholder={isModuleMode ? 'Algo importante para os módulos…' : 'Algo importante para o pátio…'}
+                      className={iosInput}
+                    />
                   </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {reminders.map((r) => (
-                      <div
-                        key={r.id}
-                        className={`group flex items-center gap-3 px-3 py-2.5 rounded-2xl border backdrop-blur-xl bg-white/[0.03] hover:bg-white/[0.06] transition-colors ${
-                          r.done ? 'opacity-60 border-zinc-700' : 'border-zinc-700/70'
+                  <button
+                    type="submit"
+                    disabled={!newReminder.trim()}
+                    className="flex h-12 w-12 shrink-0 items-center justify-center self-center rounded-2xl bg-[#007AFF] text-white shadow-lg shadow-blue-500/25 transition-transform active:scale-[0.98] disabled:opacity-45 sm:h-auto sm:w-14 sm:rounded-2xl"
+                    aria-label="Adicionar lembrete"
+                  >
+                    <Plus className="h-6 w-6" strokeWidth={2.2} />
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
+              {reminders.length === 0 ? (
+                <div className={`${iosModalInsetCard} py-12 text-center`}>
+                  <p className="text-[15px] font-medium text-zinc-700 dark:text-zinc-200">Nada por aqui ainda</p>
+                  <p className="mt-2 text-[13px] text-zinc-500 dark:text-zinc-400">
+                    Adicione lembretes para o time não esquecer o que importa.
+                  </p>
+                </div>
+              ) : (
+                <ul className="space-y-2.5">
+                  {reminders.map((r) => (
+                    <li
+                      key={r.id}
+                      className={`${iosModalInsetCard} flex items-start gap-3 p-3.5 transition-opacity ${
+                        r.done ? 'opacity-70' : ''
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setReminders((prev) =>
+                            prev.map((item) => (item.id === r.id ? { ...item, done: !item.done } : item))
+                          )
+                        }
+                        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                          r.done
+                            ? 'border-[#007AFF] bg-[#007AFF] text-white'
+                            : 'border-zinc-300 text-transparent hover:border-[#007AFF]/50 dark:border-white/25 dark:hover:border-[#64B5FF]/60'
                         }`}
+                        aria-label={r.done ? 'Marcar como pendente' : 'Marcar como feito'}
                       >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setReminders((prev) =>
-                              prev.map((item) =>
-                                item.id === r.id ? { ...item, done: !item.done } : item
-                              )
-                            )
-                          }
-                          className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all ${
-                            r.done
-                              ? 'bg-emerald-400 border-emerald-300 text-emerald-900'
-                              : 'border-zinc-500 text-zinc-400 group-hover:border-brand-yellow/80 group-hover:text-brand-yellow'
+                        {r.done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={`text-[15px] leading-snug text-zinc-900 break-words dark:text-zinc-100 ${
+                            r.done ? 'line-through decoration-zinc-400 dark:decoration-zinc-500' : ''
                           }`}
                         >
-                          {r.done && <Check className="w-3 h-3" />}
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className={`text-sm text-zinc-100 break-words ${
-                              r.done ? 'line-through decoration-zinc-500/70' : ''
-                            }`}
-                          >
-                            {r.text}
-                          </p>
-                          <p className="text-[10px] text-zinc-500 mt-0.5">
-                            <span className="font-medium text-zinc-300">
-                              {r.createdBy || (isModuleMode ? 'Laboratório' : 'Pátio')}
-                            </span>
-                            <span className="mx-1.5 text-zinc-600">•</span>
-                            <span>
-                              {new Date(r.createdAt).toLocaleString('pt-BR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setReminders((prev) => prev.filter((item) => item.id !== r.id))
-                          }
-                          className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-red-400 hover:border-red-500/60 hover:bg-red-500/10 active:scale-95 transition-all"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                          {r.text}
+                        </p>
+                        <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                          <span className="font-medium text-zinc-600 dark:text-zinc-300">
+                            {r.createdBy || (isModuleMode ? 'Laboratório' : 'Pátio')}
+                          </span>
+                          <span className="mx-1.5 text-zinc-400 dark:text-zinc-600">·</span>
+                          <span>
+                            {new Date(r.createdAt).toLocaleString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      <button
+                        type="button"
+                        onClick={() => setReminders((prev) => prev.filter((item) => item.id !== r.id))}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-black/[0.03] text-zinc-500 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-600 active:scale-95 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-400 dark:hover:text-red-400"
+                        aria-label="Excluir lembrete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </div>
