@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2 } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles } from 'lucide-react';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
 import { NotificationCenter } from '../NotificationCenter';
@@ -48,6 +48,13 @@ import { SERVICE_ORDER_STAGES, getStageStyle, getStageRingClass, type ServiceOrd
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
 import { ModalPortal } from '../ui/ModalPortal';
 import { PatioCarIcon } from '../ui/PatioCarIcon';
+import {
+  iosModalClose,
+  iosModalInsetCard,
+  iosModalShell,
+  iosInput,
+  iosLabel,
+} from '../ui/iosModalStyles';
 
 export type OpenServiceOrderSection = 'comments' | 'budgets' | 'description' | null;
 
@@ -2043,13 +2050,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Botão de Histórico */}
-          <button 
+          {/* Botão de Histórico — alinhado ao vidro dos modais iOS */}
+          <button
+            type="button"
             onClick={() => setIsHistoryOpen(true)}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-light-card dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:border-brand-yellow hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all duration-300"
-            title="Consultar Histórico (Arquivados)"
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-zinc-900 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-white"
+            title="Consultar histórico (arquivados)"
           >
-            <History className="w-5 h-5" />
+            <History className="h-5 w-5" strokeWidth={2} />
           </button>
           
           <button 
@@ -2274,72 +2282,81 @@ export const PatioView: React.FC<PatioViewProps> = ({
           </div>
       )}
 
-      {/* --- MODAL DE HISTÓRICO (BUSCA) --- */}
+      {/* --- MODAL DE HISTÓRICO (BUSCA) — vidro iOS alinhado ao TV do pátio --- */}
       {isHistoryOpen && (
-         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-            <div className="bg-white/98 dark:bg-brand-surface/95 backdrop-blur-2xl border border-zinc-200/70 dark:border-brand-border w-full max-w-[90rem] h-[90vh] rounded-[1.5rem] shadow-[0_18px_60px_-24px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden animate-modal-sheet relative">
-               
-               <div className="p-6 border-b border-zinc-200/80 dark:border-brand-border flex items-center justify-between bg-zinc-50/90 dark:bg-black/40">
-                  <div className="flex items-center gap-3">
-                     <div className="bg-brand-yellow/15 p-2 rounded-xl">
-                        <History className="w-6 h-6 text-zinc-900 dark:text-brand-yellow" />
+         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
+            <div
+              className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+            >
+               <button
+                  type="button"
+                  onClick={() => setIsHistoryOpen(false)}
+                  className={iosModalClose}
+                  aria-label="Fechar"
+               >
+                  <X className="h-5 w-5" />
+               </button>
+
+               <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+                  <div className="flex items-start gap-3 pr-10">
+                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25">
+                        <History className="h-6 w-6 text-white" strokeWidth={2.2} />
                      </div>
-                     <div>
-                        <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
-                          {isModuleMode ? 'Histórico de Módulos' : 'Histórico de Veículos'}
+                     <div className="min-w-0 flex-1">
+                        <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[26px]">
+                          {isModuleMode ? 'Histórico de módulos' : 'Histórico de veículos'}
                         </h2>
-                        <p className="text-zinc-500 dark:text-zinc-400 text-xs mt-0.5">
-                          {isModuleMode ? 'Buscar módulos arquivados' : 'Buscar veículos arquivados'}
+                        <p className="mt-1 flex items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                           <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" />
+                           {isModuleMode ? 'Consulte módulos arquivados na oficina' : 'Consulte OS entregues e arquivadas'}
                         </p>
                      </div>
                   </div>
-                  <button
-                    onClick={() => setIsHistoryOpen(false)}
-                    className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-zinc-800/70 flex items-center justify-center text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
-                  >
-                     <X className="w-5 h-5" />
-                  </button>
                </div>
 
-               <div className="p-6 bg-zinc-50/80 dark:bg-black/30 border-b border-zinc-200/80 dark:border-brand-border/80">
-                  <div className="flex gap-3">
-                     <div className="flex-1 relative">
-                        <input 
-                           type="text" 
-                           placeholder="Digite placa, nome, cpf, telefone ou cep..." 
+               <div className="shrink-0 border-b border-zinc-200/50 px-6 py-4 dark:border-white/[0.06] sm:px-8">
+                  <p className={iosLabel}>Busca no arquivo</p>
+                  <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+                     <div className="relative min-w-0 flex-1">
+                        <input
+                           type="text"
+                           placeholder="Placa, nome, CPF, telefone ou CEP…"
                            value={historySearchPlate}
                            onChange={(e) => setHistorySearchPlate(e.target.value)}
                            onKeyDown={(e) => e.key === 'Enter' && handleSearchHistory()}
-                           className="w-full bg-white dark:bg-zinc-900/70 border border-zinc-300 dark:border-zinc-700 rounded-xl py-3 pl-10 pr-4 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:border-brand-yellow focus:ring-2 focus:ring-brand-yellow/30 transition-colors"
+                           className={`${iosInput} py-3 pl-10 pr-4`}
                         />
-                        <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                      </div>
-                     <button 
+                     <button
+                        type="button"
                         onClick={() => handleSearchHistory()}
                         disabled={isLoadingHistory}
-                        className="bg-brand-yellow text-zinc-950 px-6 rounded-xl font-bold transition-colors disabled:opacity-50 hover:bg-[#fcd61e]"
+                        className="shrink-0 rounded-2xl bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform active:scale-[0.98] disabled:opacity-45 sm:self-stretch"
                      >
-                        {isLoadingHistory ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'Buscar'}
+                        {isLoadingHistory ? <RefreshCw className="mx-auto h-5 w-5 animate-spin" /> : 'Buscar'}
                      </button>
+                  </div>
                   </div>
                </div>
 
-               <div className="flex-1 overflow-y-auto p-6 bg-zinc-50/60 dark:bg-brand-surface/60 custom-scrollbar">
+               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
                   {isLoadingHistory ? (
-                     <div className="flex flex-col items-center justify-center h-full text-zinc-600 dark:text-zinc-300 gap-4">
-                        <RefreshCw className="w-8 h-8 animate-spin text-brand-yellow" />
-                        <p>Buscando no arquivo morto...</p>
+                     <div className="flex h-full min-h-[200px] flex-col items-center justify-center gap-3 text-zinc-500 dark:text-zinc-400">
+                        <RefreshCw className="h-8 w-8 animate-spin text-[#007AFF]" />
+                        <p className="text-[15px]">Buscando no arquivo…</p>
                      </div>
                   ) : archivedCards.length > 0 ? (
                      <div>
                         {historyShowingFallback && (
-                           <p className="text-sm text-zinc-700 dark:text-zinc-300 mb-4">
+                           <div className={`${iosModalInsetCard} mb-4 p-4 text-[13px] text-zinc-600 dark:text-zinc-300`}>
                               {isModuleMode
-                                ? 'Nenhum resultado para a busca. Exibindo últimos módulos arquivados:'
-                                : 'Nenhum resultado para a busca. Exibindo últimos veículos arquivados:'}
-                           </p>
+                                ? 'Nenhum resultado para a busca. Exibindo os últimos módulos arquivados.'
+                                : 'Nenhum resultado para a busca. Exibindo os últimos veículos arquivados.'}
+                           </div>
                         )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {archivedCards.map(card => {
                            const parts = card.name.split('-');
                            const model = parts[0]?.trim() || card.name;
@@ -2347,19 +2364,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
                            const customerName = parts[2]?.trim() || '';
 
                            return (
-                              <div 
+                              <div
                                  key={card.id}
                                  onClick={() => handleOpenHistoryCardDetails(card)}
-                                 className="group bg-white dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-brand-border rounded-2xl p-5 hover:border-brand-yellow/80 dark:hover:border-brand-yellow transition-all cursor-pointer shadow-sm hover:shadow-lg flex flex-col justify-between min-h-[160px]"
+                                 className={`group flex min-h-[168px] cursor-pointer flex-col justify-between ${iosModalInsetCard} p-5 transition-all duration-200 hover:border-[#007AFF]/35 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.18)] dark:hover:border-white/12 dark:hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.45)] active:scale-[0.995]`}
                               >
                                  <div className="flex justify-between items-start mb-4 gap-4">
                                     <div className="min-w-0 flex-1">
-                                       <h3 className="text-2xl font-black text-zinc-900 dark:text-white uppercase italic tracking-tighter break-words">
+                                       <h3 className="break-words text-xl font-semibold leading-snug tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
                                          {model}
                                        </h3>
-                                       <div className="flex items-center gap-2 mt-1 min-w-0">
-                                          <User className="w-3 h-3 text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
-                                          <p className="text-zinc-700 dark:text-zinc-300 text-sm font-bold truncate">
+                                       <div className="mt-1 flex min-w-0 items-center gap-2">
+                                          <User className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                                          <p className="truncate text-[14px] font-medium text-zinc-600 dark:text-zinc-300">
                                             {customerName}
                                           </p>
                                        </div>
@@ -2382,16 +2399,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     )}
                                  </div>
                                  
-                                 <div className="flex items-end justify-between mt-2 pt-3 border-t border-zinc-200/80 dark:border-zinc-800/70">
+                                 <div className="mt-2 flex items-end justify-between border-t border-zinc-200/60 pt-3 dark:border-white/[0.06]">
                                     <div className="flex flex-col">
-                                         <span className="text-[10px] uppercase text-zinc-500 dark:text-zinc-400 font-bold tracking-wider">Arquivado em</span>
-                                         <span className="text-xl text-zinc-800 dark:text-zinc-100 font-black tracking-tight leading-none">
-                                            {card.dateLastActivity ? new Date(card.dateLastActivity).toLocaleDateString('pt-BR') : 'N/A'}
+                                         <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Arquivado em</span>
+                                         <span className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+                                            {card.dateLastActivity ? new Date(card.dateLastActivity).toLocaleDateString('pt-BR') : '—'}
                                          </span>
                                     </div>
 
-                                    <span className="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-950 dark:group-hover:text-white transition-colors">
-                                       Ver Detalhes <ArrowRight className="w-3 h-3" />
+                                    <span className="flex items-center gap-1 text-[13px] font-medium text-[#007AFF] opacity-90 transition-opacity group-hover:opacity-100">
+                                       Abrir <ArrowRight className="h-3.5 w-3.5" />
                                     </span>
                                  </div>
                               </div>
@@ -2400,9 +2417,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </div>
                      </div>
                   ) : (
-                     <div className="flex flex-col items-center justify-center h-full text-zinc-500 dark:text-zinc-400">
-                        <History className="w-16 h-16 mb-4 opacity-20" />
-                        <p>Nenhum registro encontrado.</p>
+                     <div className={`flex min-h-[240px] flex-col items-center justify-center ${iosModalInsetCard} p-10 text-center`}>
+                        <History className="mb-4 h-14 w-14 text-zinc-300 dark:text-zinc-600" strokeWidth={1.25} />
+                        <p className="text-[15px] font-medium text-zinc-600 dark:text-zinc-400">Nenhum registro encontrado.</p>
+                        <p className="mt-1 max-w-sm text-[13px] text-zinc-500">Ajuste os termos da busca ou confira os filtros da oficina.</p>
                      </div>
                   )}
                </div>
@@ -2411,70 +2429,80 @@ export const PatioView: React.FC<PatioViewProps> = ({
          </div>
       )}
 
-      {/* --- DETALHES DO CARD ARQUIVADO (MODAL NO PÁTIO) --- */}
+      {/* --- DETALHES DO CARD ARQUIVADO — vidro iOS (lista + detalhe coerentes) --- */}
       {selectedHistoryCard && (
-         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-            <div className="bg-white/98 dark:bg-brand-surface/95 backdrop-blur-2xl border border-zinc-200/70 dark:border-brand-border w-full max-w-[90rem] h-[90vh] rounded-[1.5rem] shadow-[0_18px_60px_-24px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden animate-modal-sheet relative">
-               
-               <div className="absolute top-6 right-6 z-10 flex gap-3">
-                  <button 
-                     onClick={() => handleUnarchive(selectedHistoryCard)}
-                     className="bg-zinc-900 hover:bg-zinc-800 text-white px-6 py-2.5 rounded-full font-bold shadow-lg shadow-black/40 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
+            <div
+              className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+            >
+               <div className="shrink-0 border-b border-zinc-200/60 px-4 py-3 dark:border-white/[0.07] sm:px-6">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleUnarchive(selectedHistoryCard)}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-5 py-2.5 text-[15px] font-semibold text-white shadow-md transition-transform hover:opacity-95 active:scale-[0.98] dark:bg-white/12 dark:text-white"
                   >
-                     <ArchiveRestore className="w-4 h-4" />
-                     DESARQUIVAR
+                    <ArchiveRestore className="h-4 w-4" />
+                    Desarquivar
                   </button>
-                  <button 
-                     onClick={() => handleUseRegistration(selectedHistoryCard)}
-                     className="bg-brand-yellow hover:bg-[#fcd61e] text-zinc-950 px-6 py-2.5 rounded-full font-bold shadow-lg shadow-brand-yellow/30 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+                  <button
+                    type="button"
+                    onClick={() => handleUseRegistration(selectedHistoryCard)}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-[#007AFF] px-5 py-2.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform hover:opacity-95 active:scale-[0.98]"
                   >
-                     <Copy className="w-4 h-4" />
-                     USAR CADASTRO
+                    <Copy className="h-4 w-4" />
+                    Usar cadastro
                   </button>
-                  <button 
-                     onClick={() => setSelectedHistoryCard(null)}
-                     className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all active:scale-95"
+                  <button
+                    type="button"
+                    onClick={() => setSelectedHistoryCard(null)}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15"
+                    aria-label="Fechar"
                   >
-                     <X className="w-6 h-6" />
+                    <X className="h-5 w-5" />
                   </button>
+                  </div>
                </div>
 
-               <div className="flex-1 overflow-y-auto custom-scrollbar">
-                  <div className="p-8 md:p-12 pb-24">
-                     <div className="flex flex-col gap-3 mb-6">
-                        <span className="inline-flex self-start items-center gap-2 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest shadow-xl border bg-zinc-100 dark:bg-black/60 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700">
-                            ARQUIVADO
+               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
+                  <div className="px-6 py-6 pb-4 md:px-10 md:py-8">
+                     <div className="mb-6 flex flex-col gap-3">
+                        <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-zinc-200/80 bg-zinc-100/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-300">
+                          Arquivado
                         </span>
-                        <h1 className="text-5xl md:text-7xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none">
+                        <h1 className="text-3xl font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-5xl">
                           {selectedHistoryCard.name.split('-')[0]}
                         </h1>
+                        <p className="flex items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" />
+                          Registro encerrado — leitura, anexos e reabertura
+                        </p>
                      </div>
 
-                     <div className="flex flex-wrap items-center gap-4 text-zinc-700 dark:text-zinc-300">
+                     <div className="flex flex-wrap items-center gap-3 text-zinc-700 dark:text-zinc-300">
                          {!isModuleMode && (
                            <div className="flex items-center">
-                              {/* PLACA MERCOSUL */}
-                              <div className="w-[140px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-xl shadow-black/20 select-none">
-                                 <div className="h-5 bg-[#003399] flex items-center justify-between px-3 relative">
-                                    <span className="text-[8px] font-bold text-white tracking-wider">BRASIL</span>
-                                    <BrazilFlagIcon width={16} height={11} className="rounded-sm flex-shrink-0 border border-white/30" />
+                              <div className="w-[140px] select-none overflow-hidden rounded-lg border-2 border-black bg-white shadow-lg shadow-black/15">
+                                 <div className="relative flex h-5 items-center justify-between bg-[#003399] px-3">
+                                    <span className="text-[8px] font-bold tracking-wider text-white">BRASIL</span>
+                                    <BrazilFlagIcon width={16} height={11} className="shrink-0 rounded-sm border border-white/30" />
                                  </div>
-                                 <div className="h-10 flex items-center justify-center bg-white">
-                                    <span className="text-black font-mono text-2xl font-black tracking-widest leading-none">
+                                 <div className="flex h-10 items-center justify-center bg-white">
+                                    <span className="font-mono text-2xl font-bold tracking-widest leading-none text-black">
                                        {(selectedHistoryCard.name.split('-')[1]?.trim() || '---').toUpperCase()}
                                     </span>
                                  </div>
                               </div>
                            </div>
                          )}
-                         <div className="flex items-center gap-2 px-4 py-2">
-                            <User className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
-                            <span className="text-lg font-medium text-zinc-900 dark:text-white">{selectedHistoryCard.name.split('-')[2]?.trim()}</span>
+                         <div className={`${iosModalInsetCard} flex items-center gap-2 px-4 py-2.5`}>
+                            <User className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
+                            <span className="text-[16px] font-medium text-zinc-900 dark:text-white">{selectedHistoryCard.name.split('-')[2]?.trim()}</span>
                          </div>
                          {selectedHistoryCard.due && (
-                           <div className="flex items-center gap-2 bg-zinc-100/80 dark:bg-zinc-900/50 px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700/80">
-                              <Calendar className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
-                              <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100">
+                           <div className={`${iosModalInsetCard} flex items-center gap-2 px-4 py-2.5`}>
+                              <Calendar className="h-4 w-4 text-zinc-500" />
+                              <span className="text-[14px] font-medium text-zinc-800 dark:text-zinc-100">
                                 Entrega: {new Date(selectedHistoryCard.due).toLocaleDateString('pt-BR')}
                               </span>
                            </div>
@@ -2482,17 +2510,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
                   </div>
 
-                  <div className="w-full h-px bg-zinc-200 dark:bg-zinc-800/60 mx-auto max-w-[90%]"></div>
+                  <div className="mx-auto h-px max-w-[92%] bg-zinc-200/80 dark:bg-white/[0.08]" />
 
-                  <div className="p-8 md:p-12 pt-8 grid grid-cols-1 lg:grid-cols-3 gap-10">
-                      
-                      <div className="lg:col-span-2 space-y-10">
+                  <div className="grid grid-cols-1 gap-10 px-6 py-8 md:px-10 lg:grid-cols-3 lg:gap-12">
+                      <div className="space-y-10 lg:col-span-2">
                         <div>
-                           <h3 className="text-zinc-700 dark:text-zinc-300 text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-4">
-                              <FileText className="w-4 h-4" />
-                              Queixa do cliente (Registro Antigo)
-                           </h3>
-                           <div className="bg-white dark:bg-zinc-900/70 rounded-2xl p-6 border border-zinc-200/80 dark:border-zinc-800 text-zinc-800 dark:text-zinc-100 leading-relaxed font-light text-lg">
+                           <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                              <FileText className="h-3.5 w-3.5" />
+                              Queixa do cliente
+                           </p>
+                           <div className={`${iosModalInsetCard} p-5 text-[16px] leading-relaxed text-zinc-800 dark:text-zinc-100 md:p-6`}>
                               <ReactMarkdown components={MarkdownComponents}>
                                  {selectedHistoryCard.desc || "Nenhuma descrição disponível."}
                               </ReactMarkdown>
@@ -2500,43 +2527,43 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </div>
 
                         <div>
-                           <h3 className="text-zinc-700 dark:text-zinc-300 text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
-                             <MessageSquare className="w-4 h-4" />
-                             Histórico de Atividades
-                          </h3>
-                          <div className="bg-white dark:bg-zinc-900/70 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 overflow-hidden">
-                             <div className="p-6 space-y-6 max-h-[500px] overflow-y-auto custom-scrollbar bg-zinc-50/60 dark:bg-black/40">
+                           <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                             <MessageSquare className="h-3.5 w-3.5" />
+                             Atividades e comentários
+                          </p>
+                          <div className={`${iosModalInsetCard} overflow-hidden`}>
+                             <div className="max-h-[500px] space-y-5 overflow-y-auto bg-zinc-50/40 p-5 dark:bg-black/20 custom-scrollbar sm:p-6">
                                 {loadingHistoryDetails ? (
                                    <div className="flex justify-center py-8">
-                                      <RefreshCw className="w-6 h-6 text-emerald-600 dark:text-emerald-400 animate-spin" />
+                                      <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF]" />
                                    </div>
                                 ) : historyCardDetails?.actions && historyCardDetails.actions.length > 0 ? (
                                    historyCardDetails.actions.map(action => {
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
                                       return (
-                                      <div key={action.id} className="flex gap-4">
-                                         <div className={`flex-shrink-0 w-10 h-10 rounded-full overflow-hidden shrink-0 ${avatar.useLogo ? 'bg-emerald-500' : avatar.photoUrl ? '' : ''}`}>
+                                      <div key={action.id} className="flex gap-3 sm:gap-4">
+                                         <div className={`h-10 w-10 shrink-0 overflow-hidden rounded-full ${avatar.useLogo ? 'bg-[#007AFF]' : ''}`}>
                                             {avatar.useLogo ? (
-                                               <img src="/logo.png" alt="Rei do ABS" className="w-full h-full object-cover" />
+                                               <img src="/logo.png" alt="Rei do ABS" className="h-full w-full object-cover" />
                                             ) : avatar.photoUrl ? (
-                                               <img src={avatar.photoUrl} alt={action.memberCreator.fullName} className="w-full h-full object-cover" />
+                                               <img src={avatar.photoUrl} alt={action.memberCreator.fullName} className="h-full w-full object-cover" />
                                             ) : (
-                                               <div className={`w-full h-full rounded-full flex items-center justify-center text-sm font-bold ${avatar.avatarClass}`}>
+                                               <div className={`flex h-full w-full items-center justify-center text-sm font-bold ${avatar.avatarClass}`}>
                                                   {avatar.initial}
                                                </div>
                                             )}
                                          </div>
-                                         <div className="flex-1 space-y-1">
-                                            <div className="flex items-center justify-between">
-                                               <span className="font-bold text-emerald-900 dark:text-emerald-100 text-sm">{action.memberCreator.fullName}</span>
-                                               <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                                         <div className="min-w-0 flex-1 space-y-1.5">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                               <span className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">{action.memberCreator.fullName}</span>
+                                               <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
                                                   {new Date(action.date).toLocaleString('pt-BR')}
                                                   {action.data.edited_at && (
-                                                    <span className="ml-1.5 text-emerald-500/80 italic">editada</span>
+                                                    <span className="ml-1.5 italic text-zinc-400">editada</span>
                                                   )}
                                                </span>
                                             </div>
-                                            <div className="bg-emerald-100/80 dark:bg-emerald-800/50 p-3 rounded-r-xl rounded-bl-xl text-emerald-800 dark:text-emerald-200 text-sm leading-relaxed border border-emerald-200 dark:border-emerald-700/50">
+                                            <div className="rounded-2xl border border-zinc-200/80 bg-white/90 p-3.5 text-[14px] leading-relaxed text-zinc-800 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-200">
                                                 <ReactMarkdown components={MarkdownComponents}>
                                                    {action.data.text}
                                                 </ReactMarkdown>
@@ -2545,7 +2572,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                    ); })
                                 ) : (
-                                   <div className="text-center py-8 text-emerald-600 dark:text-emerald-400 italic">
+                                   <div className="py-8 text-center text-[14px] text-zinc-500 dark:text-zinc-400">
                                       Nenhum comentário registrado no histórico.
                                    </div>
                                 )}
@@ -2556,52 +2583,49 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                       <div className="space-y-8">
                          <div>
-                            <h3 className="text-emerald-700 dark:text-emerald-400 text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
-                               <Paperclip className="w-4 h-4" />
-                               Anexos Antigos
-                            </h3>
+                            <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                               <Paperclip className="h-3.5 w-3.5" />
+                               Anexos
+                            </p>
                             <div className="space-y-3">
                                {loadingHistoryDetails ? (
                                   <div className="flex justify-center p-4">
-                                     <RefreshCw className="w-4 h-4 text-emerald-500 animate-spin" />
+                                     <RefreshCw className="h-4 w-4 animate-spin text-[#007AFF]" />
                                   </div>
                                ) : historyCardDetails?.attachments && historyCardDetails.attachments.length > 0 ? (
                                   <div className="grid grid-cols-2 gap-2">
                                      {historyCardDetails.attachments.map(att => {
-                                       const isImage = att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url);
-                                       const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
-                                       
                                        return (
-                                        <a 
-                                          key={att.id} 
-                                          href={att.url} 
-                                          target="_blank" 
+                                        <a
+                                          key={att.id}
+                                          href={att.url}
+                                          target="_blank"
                                           rel="noopener noreferrer"
-                                          className="block bg-white dark:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-700 rounded-lg overflow-hidden group hover:border-emerald-400 dark:hover:border-emerald-500 transition-all cursor-pointer"
+                                          className={`group block overflow-hidden ${iosModalInsetCard} transition-all hover:border-[#007AFF]/35`}
                                         >
-                                           <div className="h-24 bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center relative overflow-hidden">
+                                           <div className="relative flex h-24 items-center justify-center overflow-hidden bg-zinc-100/80 dark:bg-white/[0.04]">
                                               {att.previews && att.previews.length > 0 ? (
-                                                 <img 
+                                                 <img
                                                    src={att.previews[att.previews.length > 2 ? 2 : 0].url}
-                                                   alt={att.name} 
-                                                   className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity"
+                                                   alt={att.name}
+                                                   className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
                                                  />
                                               ) : (
-                                                 <FileText className="w-8 h-8 text-emerald-500 dark:text-emerald-600" />
+                                                 <FileText className="h-8 w-8 text-zinc-400" />
                                               )}
-                                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                 <ExternalLink className="w-5 h-5 text-white" />
+                                              <div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity group-hover:opacity-100">
+                                                 <ExternalLink className="h-5 w-5 text-white" />
                                               </div>
                                            </div>
-                                           <div className="p-2 bg-emerald-50 dark:bg-emerald-900/50">
-                                              <p className="text-xs text-emerald-800 dark:text-emerald-200 font-medium truncate">{att.name}</p>
+                                           <div className="border-t border-zinc-200/60 p-2 dark:border-white/[0.06]">
+                                              <p className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-200">{att.name}</p>
                                            </div>
                                         </a>
-                                     )})}
+                                     );})}
                                   </div>
                                ) : (
-                                  <div className="text-center py-6 border border-dashed border-emerald-300 dark:border-emerald-700 rounded-xl">
-                                     <p className="text-emerald-600 dark:text-emerald-400 text-sm">Nenhum anexo encontrado.</p>
+                                  <div className={`${iosModalInsetCard} py-8 text-center`}>
+                                     <p className="text-[14px] text-zinc-500 dark:text-zinc-400">Nenhum anexo encontrado.</p>
                                   </div>
                                )}
                             </div>
