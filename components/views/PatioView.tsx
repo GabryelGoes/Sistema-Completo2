@@ -63,6 +63,14 @@ import {
   iosPrimaryButton,
 } from '../ui/iosModalStyles';
 
+/** Cartões e labels dentro do modal de orçamento (papel antigo). */
+const budgetModalPaperInset =
+  'rounded-[22px] border border-amber-900/14 bg-[#f3e9d8]/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.42)] dark:border-amber-200/10 dark:bg-[#373028]/92';
+const budgetModalFieldLabel =
+  'block text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-900/72 dark:text-amber-200/78 mb-2';
+const budgetModalInput =
+  `${iosInput} border-amber-900/20 bg-white/65 text-stone-900 placeholder:text-stone-500/70 focus:ring-amber-800/25 focus:border-amber-800/35 dark:border-amber-200/12 dark:bg-[#1f1a14]/75 dark:text-[#f0e6d4] dark:placeholder:text-stone-500 dark:focus:ring-amber-500/20`;
+
 export type OpenServiceOrderSection = 'comments' | 'budgets' | 'description' | null;
 
 interface PatioViewProps {
@@ -4475,30 +4483,39 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </ModalPortal>
       )}
 
-      {/* MODAL CRIAR/EDITAR ORÇAMENTO — vidro iOS alinhado ao TV do pátio */}
+      {/* MODAL CRIAR/EDITAR ORÇAMENTO — papel antigo (fundo sólido + textura); desktop quase tela cheia */}
       {isBudgetOpen && selectedCard && (
         <ModalPortal>
-        <div className={`${iosModalOverlay} z-[200] animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}>
+        <div className={`${iosModalOverlay} z-[200] animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5 lg:p-6`}>
           <div
-            className={`relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-2xl min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+            className="relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full min-h-0 flex-col overflow-hidden rounded-[2rem] border border-amber-900/20 bg-[#e9ddc8] shadow-[0_12px_48px_-16px_rgba(60,40,25,0.35)] animate-in zoom-in-95 duration-200 dark:border-amber-200/10 dark:bg-[#2a2319] dark:shadow-[0_16px_56px_-12px_rgba(0,0,0,0.55)] sm:rounded-[2.25rem] max-w-2xl lg:max-h-[min(94vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.25rem))] lg:max-w-[min(96vw,85rem)] xl:max-w-[min(94vw,96rem)]"
           >
-            <button type="button" onClick={closeBudgetModal} className={iosModalClose} aria-label="Fechar orçamento">
+            {/* Textura de papel (noise + leve vinheta) */}
+            <div
+              className="pointer-events-none absolute inset-0 z-0 rounded-[inherit] opacity-[0.22] mix-blend-multiply dark:opacity-[0.18] dark:mix-blend-soft-light"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.78' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.95'/%3E%3C/svg%3E"), linear-gradient(165deg, rgba(255,252,245,0.5) 0%, transparent 42%, rgba(90,60,30,0.06) 100%)`,
+              }}
+              aria-hidden
+            />
+            <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
+            <button type="button" onClick={closeBudgetModal} className={`${iosModalClose} text-stone-700 hover:bg-black/10 dark:text-stone-200 dark:hover:bg-white/10`} aria-label="Fechar orçamento">
               <X className="h-5 w-5" />
             </button>
 
-            <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+            <div className="shrink-0 border-b border-amber-900/15 px-6 pb-5 pt-7 dark:border-amber-100/10 sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF] to-[#5856D6] shadow-lg shadow-blue-500/25">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-900/20 bg-gradient-to-br from-[#c9a86c] to-[#8b6914] shadow-md shadow-amber-900/20 dark:border-amber-400/20 dark:from-amber-700/80 dark:to-amber-950/80">
                   <Calculator className="h-6 w-6 text-white" strokeWidth={2.2} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-900/70 dark:text-amber-200/75">
                     Orçamento
                   </p>
-                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[26px]">
+                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-stone-900 dark:text-[#f5ebe0] sm:text-[26px]">
                     {editingBudget ? 'Editar orçamento' : 'Novo orçamento'}
                   </h2>
-                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-stone-700/90 dark:text-stone-300/95">
                     <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
                     <span className="min-w-0 break-words">
                       {blurPlates ? (() => {
@@ -4519,13 +4536,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 custom-scrollbar sm:px-8">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 text-stone-900 dark:text-[#f0e6d4] custom-scrollbar sm:px-8">
                   <div className="space-y-5">
                     <div>
-                      <p className={iosLabel}>Descrição do diagnóstico</p>
-                      <div className={`${iosModalInsetCard} overflow-hidden p-0`}>
+                      <p className={budgetModalFieldLabel}>Descrição do diagnóstico</p>
+                      <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
                         <textarea
-                          className={`${iosInput} min-h-[120px] resize-y border-0 bg-transparent py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-0 dark:bg-transparent`}
+                          className={`${budgetModalInput} min-h-[120px] resize-y border-0 bg-white/30 py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-1 dark:bg-[#1f1a14]/50`}
                           placeholder="Descreva o diagnóstico técnico…"
                           value={budgetDiagnosis}
                           onChange={(e) => setBudgetDiagnosis(e.target.value)}
@@ -4535,13 +4552,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                     <div>
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        <p className={`${iosLabel} mb-0`}>Serviços</p>
+                        <p className={`${budgetModalFieldLabel} mb-0`}>Serviços</p>
                         <div className="flex flex-wrap items-center gap-2">
                           {workshopServices.length > 0 && (
                             <button
                               type="button"
                               onClick={() => setIsServiceListOpen(true)}
-                              className="inline-flex items-center gap-1.5 rounded-2xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold text-[#007AFF] shadow-sm transition-colors hover:bg-white dark:border-white/15 dark:bg-white/10 dark:text-[#64B5FF]"
+                              className="inline-flex items-center gap-1.5 rounded-2xl border border-amber-900/25 bg-white/70 px-3 py-2 text-[13px] font-semibold text-amber-950 shadow-sm transition-colors hover:bg-white/90 dark:border-amber-200/15 dark:bg-[#2c241c]/80 dark:text-amber-100"
                             >
                               Inserir da lista
                               <ChevronDown className="h-4 w-4 opacity-80" />
@@ -4550,7 +4567,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <button
                             type="button"
                             onClick={addServiceRow}
-                            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#007AFF] transition-opacity hover:opacity-80 dark:text-[#64B5FF]"
+                            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-amber-900/90 transition-opacity hover:opacity-80 dark:text-amber-200/90"
                           >
                             <Plus className="h-4 w-4" strokeWidth={2.2} />
                             Adicionar
@@ -4571,7 +4588,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <input
                                     type="text"
                                     placeholder="Digite ou escolha um serviço…"
-                                    className={iosInput}
+                                    className={budgetModalInput}
                                     value={item.description}
                                     onChange={(e) => updateServiceDescription(item.id, e.target.value)}
                                     onFocus={() => handleServiceInputFocus(item.id)}
@@ -4597,11 +4614,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     {isServiceListOpen && (
                       <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm" onClick={() => setIsServiceListOpen(false)}>
                         <div
-                          className={`flex max-h-[70vh] w-full max-w-lg flex-col overflow-hidden ${iosModalShell}`}
+                          className={`flex max-h-[70vh] w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border border-amber-900/25 bg-[#e9ddc8] shadow-xl dark:border-amber-200/12 dark:bg-[#2a2319]`}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="flex items-center justify-between border-b border-zinc-200/60 px-5 py-4 dark:border-white/[0.07]">
-                            <span className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">Serviços cadastrados</span>
+                          <div className="flex items-center justify-between border-b border-amber-900/15 px-5 py-4 dark:border-amber-100/10">
+                            <span className="text-[17px] font-semibold tracking-tight text-stone-900 dark:text-[#f5ebe0]">Serviços cadastrados</span>
                             <button
                               type="button"
                               onClick={() => setIsServiceListOpen(false)}
@@ -4617,7 +4634,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 key={s.id}
                                 type="button"
                                 onClick={() => addServiceFromList(s.name)}
-                                className="w-full border-b border-zinc-100 px-5 py-3.5 text-left text-[15px] text-zinc-900 transition-colors last:border-0 hover:bg-[#007AFF]/8 dark:border-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                className="w-full border-b border-amber-900/10 px-5 py-3.5 text-left text-[15px] text-stone-900 transition-colors last:border-0 hover:bg-amber-950/8 dark:border-amber-100/8 dark:text-[#f0e6d4] dark:hover:bg-white/[0.06]"
                               >
                                 {s.name}
                               </button>
@@ -4662,11 +4679,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                     <div>
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        <p className={`${iosLabel} mb-0`}>Peças</p>
+                        <p className={`${budgetModalFieldLabel} mb-0`}>Peças</p>
                         <button
                           type="button"
                           onClick={addPartRow}
-                          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#007AFF] transition-opacity hover:opacity-80 dark:text-[#64B5FF]"
+                          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-amber-900/90 transition-opacity hover:opacity-80 dark:text-amber-200/90"
                         >
                           <Plus className="h-4 w-4" strokeWidth={2.2} />
                           Adicionar
@@ -4679,12 +4696,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <div
                               key={item.id}
                               ref={isFocusedPart ? focusedPartInputRef : undefined}
-                              className={`${iosModalInsetCard} flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center`}
+                              className={`${budgetModalPaperInset} flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center`}
                             >
                               <input
                                 type="text"
                                 placeholder="Nome da peça…"
-                                className={`${iosInput} min-w-0 flex-1`}
+                                className={`${budgetModalInput} min-w-0 flex-1`}
                                 value={item.description}
                                 onChange={(e) => updatePartDescription(item.id, e.target.value)}
                                 onFocus={() => handlePartInputFocus(item.id)}
@@ -4761,10 +4778,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     })()}
 
                     <div>
-                      <p className={iosLabel}>Observações</p>
-                      <div className={`${iosModalInsetCard} overflow-hidden p-0`}>
+                      <p className={budgetModalFieldLabel}>Observações</p>
+                      <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
                         <textarea
-                          className={`${iosInput} min-h-[88px] resize-y border-0 bg-transparent py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-0 dark:bg-transparent`}
+                          className={`${budgetModalInput} min-h-[88px] resize-y border-0 bg-white/30 py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-1 dark:bg-[#1f1a14]/50`}
                           placeholder="Prazos, condições, etc."
                           value={budgetObservations}
                           onChange={(e) => setBudgetObservations(e.target.value)}
@@ -4774,7 +4791,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
             </div>
 
-            <div className="shrink-0 border-t border-zinc-200/60 px-5 py-4 dark:border-white/[0.07] sm:px-8">
+            <div className="shrink-0 border-t border-amber-900/18 bg-[#dfd2b8]/95 px-5 py-4 backdrop-blur-[2px] dark:border-amber-100/12 dark:bg-[#352e26]/95 sm:px-8">
               <button
                 type="button"
                 onClick={handleCreateBudget}
@@ -4784,6 +4801,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {sendingBudget ? <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.2} /> : <CheckCircle2 className="h-5 w-5" strokeWidth={2} />}
                 {sendingBudget ? 'Salvando…' : editingBudget ? 'Salvar alterações' : 'Criar orçamento'}
               </button>
+            </div>
             </div>
           </div>
         </div>
