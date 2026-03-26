@@ -3189,9 +3189,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 gap-10 p-8 pt-8 md:px-12 lg:grid-cols-3 lg:gap-12">
+                  <div className="grid grid-cols-1 gap-10 p-8 pt-8 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(248px,288px)] lg:gap-8 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(260px,300px)]">
                       
-                      <div className="space-y-10 lg:col-span-2">
+                      <div className="min-w-0 space-y-10">
                         <div ref={descriptionSectionRef}>
                           <div className="mb-4 flex items-center justify-between">
                              <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
@@ -3245,25 +3245,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           )}
                         </div>
-                        
+
+                      </div>
+
+                      <div className="min-w-0 space-y-8">
                         <div ref={commentsSectionRef}>
-                           <h3 className="mb-4 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                             <MessageSquare className="h-3.5 w-3.5" />
+                           <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 lg:mb-2">
+                             <MessageSquare className="h-3.5 w-3.5 shrink-0" />
                              Comentários
                           </h3>
 
                           <div className={`${iosModalInsetCard} overflow-hidden`}>
-                             <div ref={commentsListRef} className="custom-scrollbar max-h-[400px] space-y-6 overflow-y-auto bg-zinc-50/40 p-5 dark:bg-black/25 sm:p-6">
+                             <div ref={commentsListRef} className="custom-scrollbar max-h-[min(420px,52vh)] space-y-5 overflow-y-auto bg-zinc-50/40 p-4 dark:bg-black/25 sm:p-5 sm:space-y-6 lg:max-h-[min(220px,32vh)] lg:space-y-3 lg:p-3">
                                 {loadingDetails ? (
-                                   <div className="flex justify-center py-8">
-                                      <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF]" />
+                                   <div className="flex justify-center py-8 lg:py-6">
+                                      <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF] lg:h-5 lg:w-5" />
                                    </div>
                                 ) : cardDetails?.actions && cardDetails.actions.length > 0 ? (
                                    cardDetails.actions.map(action => {
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
                                       return (
-                                      <div key={action.id} className="flex gap-4 group/comment">
-                                         <div className={`flex-shrink-0 w-10 h-10 rounded-full overflow-hidden shrink-0 ${avatar.useLogo ? 'bg-brand-yellow' : ''}`}>
+                                      <div key={action.id} className="flex gap-3 group/comment lg:gap-2">
+                                         <div className={`flex h-10 w-10 shrink-0 flex-shrink-0 overflow-hidden rounded-full lg:h-8 lg:w-8 ${avatar.useLogo ? 'bg-brand-yellow' : ''}`}>
                                             {avatar.useLogo ? (
                                                <img src="/logo.png" alt="Rei do ABS" className="w-full h-full object-cover" />
                                             ) : avatar.photoUrl ? (
@@ -3375,10 +3378,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                         </div>
 
-                      </div>
-
-                      <div className="space-y-8">
-                         
                          <div>
                             <p className={`${iosLabel} mb-3`}>Alterar status</p>
                             <button 
