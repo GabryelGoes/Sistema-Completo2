@@ -314,11 +314,12 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
   /** Fixa o slide na TV (sem rotação); só um por vez. Slide pausado não pode. */
   const togglePinImmediate = async (s: TvSlide) => {
-    if (s.isActive === false && !s.pinImmediate) return;
+    const currentlyPinned = s.pinImmediate === true;
+    if (s.isActive === false && !currentlyPinned) return;
     setLoading(true);
     setError(null);
     try {
-      await updateTvSlide(adminPassword, s.id, { pinImmediate: !s.pinImmediate });
+      await updateTvSlide(adminPassword, s.id, { pinImmediate: !currentlyPinned });
       await load(adminPassword);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');

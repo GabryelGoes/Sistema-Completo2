@@ -1000,7 +1000,7 @@ export function createApiApp() {
     const { data: slideRows, error: slideErr } = await supabaseAdmin
       .from("workshop_tv_slides")
       .select(
-        "id, slide_type, title, body, media_url, duration_seconds, sort_order, is_active, goal_current, goal_target, goal_label, play_sound, goal_show_values"
+        "id, slide_type, title, body, media_url, duration_seconds, sort_order, is_active, goal_current, goal_target, goal_label, play_sound, goal_show_values, pin_immediate"
       )
       .eq("workshop_id", WORKSHOP_ID)
       .eq("is_active", true)
@@ -1024,6 +1024,7 @@ export function createApiApp() {
       goalLabel: row.goal_label ?? null,
       playSound: (row as { play_sound?: boolean }).play_sound === true,
       goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
+      pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
     }));
 
     const { data: goalRow } = await supabaseAdmin
@@ -1088,6 +1089,7 @@ export function createApiApp() {
         goalLabel: row.goal_label ?? null,
         playSound: (row as { play_sound?: boolean }).play_sound === true,
         goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
+        pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
       }));
 
       const { data: goalRow } = await supabaseAdmin
@@ -1172,6 +1174,7 @@ export function createApiApp() {
         goal_label: s.goalLabel != null ? String(s.goalLabel) : null,
         play_sound: s.playSound === true,
         goal_show_values: s.goalShowValues === true,
+        pin_immediate: false,
       };
       const { data, error } = await supabaseAdmin.from("workshop_tv_slides").insert(insert).select("id").single();
       if (error) {
@@ -1203,12 +1206,34 @@ export function createApiApp() {
       if (s.mediaUrl !== undefined) updates.media_url = s.mediaUrl != null && String(s.mediaUrl).trim() ? String(s.mediaUrl).trim() : null;
       if (s.durationSeconds != null) updates.duration_seconds = Math.min(300, Math.max(3, Number(s.durationSeconds) || 10));
       if (s.sortOrder != null) updates.sort_order = Number(s.sortOrder);
-      if (s.isActive !== undefined) updates.is_active = Boolean(s.isActive);
       if (s.goalCurrent !== undefined) updates.goal_current = s.goalCurrent != null ? Number(s.goalCurrent) : null;
       if (s.goalTarget !== undefined) updates.goal_target = s.goalTarget != null ? Number(s.goalTarget) : null;
       if (s.goalLabel !== undefined) updates.goal_label = s.goalLabel != null ? String(s.goalLabel) : null;
       if (s.playSound !== undefined) updates.play_sound = Boolean(s.playSound);
       if (s.goalShowValues !== undefined) updates.goal_show_values = Boolean(s.goalShowValues);
+      if (s.isActive !== undefined) {
+        updates.is_active = Boolean(s.isActive);
+        if (updates.is_active === false) updates.pin_immediate = false;
+      }
+      /** Exibir imediatamente: aceita boolean ou string (evita falha se o cliente serializar diferente). */
+      if (Object.prototype.hasOwnProperty.call(s, "pinImmediate")) {
+        const raw = s.pinImmediate;
+        const pinOn = raw === true || raw === "true" || raw === 1 || raw === "1";
+        if (pinOn) {
+          const { error: clearErr } = await supabaseAdmin
+            .from("workshop_tv_slides")
+            .update({ pin_immediate: false, updated_at: new Date().toISOString() })
+            .eq("workshop_id", WORKSHOP_ID);
+          if (clearErr) {
+            console.error("[API] PATCH tv/slides clear pin_immediate:", clearErr);
+            return res.status(500).json({ error: clearErr.message });
+          }
+          updates.pin_immediate = true;
+          updates.is_active = true;
+        } else {
+          updates.pin_immediate = false;
+        }
+      }
 
       const { error } = await supabaseAdmin
         .from("workshop_tv_slides")
