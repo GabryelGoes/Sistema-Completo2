@@ -1903,6 +1903,38 @@ export async function putTvWeeklyGoal(
   }
 }
 
+/** Playlist pública da TV (slides + meta semanal sem senha). */
+export async function getTvPlaylist(): Promise<{
+  slides: unknown[];
+  weeklyGoal: TvWeeklyGoal | null;
+}> {
+  const response = await fetch(`${API_BASE}/tv/playlist`);
+  const d = (await response.json().catch(() => ({}))) as {
+    slides?: unknown[];
+    weeklyGoal?: TvWeeklyGoal | null;
+    error?: string;
+  };
+  if (!response.ok) {
+    throw new Error(d.error || "Falha ao carregar playlist da TV.");
+  }
+  return {
+    slides: d.slides ?? [],
+    weeklyGoal: d.weeklyGoal ?? null,
+  };
+}
+
+export async function deleteTvWeeklyGoal(adminPassword: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/tv/weekly-goal`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ adminPassword }),
+  });
+  const err = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((err as { error?: string }).error || "Falha ao remover meta.");
+  }
+}
+
 export async function createTvSlide(
   adminPassword: string,
   slide: Omit<TvSlide, "id"> & { isActive?: boolean }

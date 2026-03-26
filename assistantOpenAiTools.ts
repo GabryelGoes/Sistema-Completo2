@@ -52,7 +52,7 @@ Etapas do fluxo (IDs exatos):
 ${stageCatalog}
 
 Central de notificações (oficina inteira): list_notifications, get_unread_notifications_count, mark_notification_read, mark_all_notifications_read, clear_all_notifications (só se o usuário pedir para apagar tudo). Ferramentas principais: create_workshop_reminder, list_workshop_reminders (ler), update_workshop_reminder (editar texto ou marcar concluído), delete_workshop_reminder (excluir) — sempre com target patio ou laboratorio conforme o modal; open_patio_vehicle_modal (abrir modal do veículo no Pátio pelo nome do carro — por padrão só OS em aberto no Pátio; use include_archived: true só se o usuário disser que o carro está arquivado/entregue); open_patio_vehicle_budget_view (idem: padrão = em aberto no Pátio; include_archived: true se o usuário avisar que é arquivado); get_customer_complaint_for_vehicle; append_complaint_to_vehicle; set_vehicle_technician; open_patio_vehicle_history (abrir o modal de histórico de arquivados no Pátio ou Laboratório); list_archived_vehicle_orders (listar OS com status CANCELLED); unarchive_vehicle_service_order (desarquivar: CANCELLED → FINALIZADO, como o botão no histórico); list_vehicles_in_stage (por etapa; use status CANCELLED para listar arquivados/entregues — alternativa a list_archived_vehicle_orders); update_service_order_status (mudar etapa; id/os_number/placa); search_service_orders (busca texto em OS abertas e arquivadas); list_orders_by_technician (only_mine ou técnico); list_upcoming_deliveries; count_orders_by_stage; count_customer_open_orders; add_service_order_comment; get_service_order_comments; get_service_order_budgets; create_service_order_budget_simple; update_service_order_budget; add_service_order_budget_items; list_appointments; create_appointment (data AAAA-MM-DD); register_customer_vehicle_intake (cadastro rápido Recepção); search_customers.
-Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no Pátio, use open_patio_vehicle_budget_view (não só open_patio_vehicle_modal). Com sucesso, o app abre o orçamento no Pátio sem fechar o chat da Zaya. Para editar orçamento ou adicionar peças/serviços dentro dele, obtenha antes o `budget_id` com open_patio_vehicle_budget_view e em seguida use update_service_order_budget ou add_service_order_budget_items.
+Quando o usuário pedir para ver, abrir ou mostrar um orçamento de um carro no Pátio, use open_patio_vehicle_budget_view (não só open_patio_vehicle_modal). Com sucesso, o app abre o orçamento no Pátio sem fechar o chat da Zaya. Para editar orçamento ou adicionar peças/serviços dentro dele, obtenha antes o budget_id com open_patio_vehicle_budget_view e em seguida use update_service_order_budget ou add_service_order_budget_items.
 
 Queixa do cliente (campo issue_description na OS): use get_customer_complaint_for_vehicle para ler o texto atual. Para acrescentar informação, use append_complaint_to_vehicle — ela só concatena ao final do que já estava escrito. Nunca apague, substitua nem sobrescreva a queixa existente; não há ferramenta para apagar ou reescrever esse campo por completo.
 
@@ -60,8 +60,9 @@ Carros no Pátio: quando o usuário falar de um carro sem dizer "arquivado", tra
 Veículos por modelo (open_patio_vehicle_modal, orçamento, queixa, técnico): identifique pelo nome/modelo (vehicle_model_query). Não peça placa. Entre várias OS em aberto com o mesmo nome/modelo, a ferramenta escolhe a mais provável (prioriza a mais recente).
 
 Histórico de arquivados (entregues): use open_patio_vehicle_history para abrir a mesma tela do botão de histórico no Pátio/Laboratório. Para só listar dados no chat, use list_archived_vehicle_orders ou list_vehicles_in_stage com status CANCELLED. Para desarquivar uma OS (voltar ao fluxo ativo na etapa Finalizado), use unarchive_vehicle_service_order com id, número da OS ou placa.
-Quando a pergunta for “quais carros estão na etapa X?” (ferramenta `list_vehicles_in_stage`): liste apenas o `nome do veículo` e o `primeiro nome do cliente`; não mencione `os_number` nem `placa`, mesmo que estejam no retorno.
-Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.`;
+Quando a pergunta for “quais carros estão na etapa X?” (ferramenta list_vehicles_in_stage): liste apenas o nome do veículo e o primeiro nome do cliente; não mencione os_number nem placa, mesmo que estejam no retorno.
+Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.
+Meta semanal da TV do Pátio: use get_tv_weekly_goal para consultar (título, valor atual, meta, barra visível).${isAdmin ? " Só administrador altera ou remove: update_tv_weekly_goal com admin_password (mesma senha do login Gerência e da gestão da TV); campos opcionais; delta_current soma ao valor atual (negativo subtrai). clear_tv_weekly_goal com admin_password apaga a meta do sistema. Nunca peça senha em voz alta." : ""}`;
 }
 
 /** Instruções extras para voz na Realtime API (tom mais humano). */
@@ -72,7 +73,11 @@ Se a mensagem do usuário começar exatamente com o prefixo "[RECADO_ZAYA]", lei
 export function buildAssistantChatTools(
   allowedTabs: string[],
   statusEnum: string[],
-  options?: { relaySessionRole?: "management" | "technician" | "none" }
+  options?: {
+    relaySessionRole?: "management" | "technician" | "none";
+    /** Ferramentas de gestão da TV (meta semanal): só sessão admin. */
+    assistantIsAdmin?: boolean;
+  }
 ) {
   const reminderTargets: ("patio" | "laboratorio")[] = [];
   if (allowedTabs.includes("patio")) reminderTargets.push("patio");
@@ -157,6 +162,8 @@ export function buildAssistantChatTools(
   const relayTools = [...relayManagementTools, ...relayTechnicianTools].filter(
     (t, i, arr) => arr.findIndex((x) => x.function.name === t.function.name) === i
   );
+
+  const assistantIsAdmin = options?.assistantIsAdmin === true;
 
   return [
     {
@@ -809,6 +816,66 @@ export function buildAssistantChatTools(
         },
       },
     },
+    {
+      type: "function" as const,
+      function: {
+        name: "get_tv_weekly_goal",
+        description:
+          "Lê a meta semanal da TV do Pátio: título (label), valor atual (current_amount), meta (target_amount) e se a barra aparece nas páginas de veículos (show_weekly_bar).",
+        parameters: { type: "object", properties: {} },
+      },
+    },
+    ...(assistantIsAdmin
+      ? [
+          {
+            type: "function" as const,
+            function: {
+              name: "update_tv_weekly_goal",
+              description:
+                "Cria ou atualiza a meta semanal da TV. Exige admin_password. Informe só o que mudar; use delta_current para somar ou subtrair do valor atual.",
+              parameters: {
+                type: "object",
+                properties: {
+                  admin_password: {
+                    type: "string",
+                    description: "Senha do administrador (login Gerência ou gestão da TV).",
+                  },
+                  label: { type: "string", description: "Título (ex.: Meta semanal)." },
+                  current_amount: { type: "number", description: "Valor já alcançado (R$)." },
+                  target_amount: { type: "number", description: "Meta em R$." },
+                  show_weekly_bar: {
+                    type: "boolean",
+                    description: "Se false, oculta a barra no topo das páginas de veículos na TV.",
+                  },
+                  delta_current: {
+                    type: "number",
+                    description: "Soma ao valor atual (negativo reduz). Ignorado se current_amount for informado.",
+                  },
+                },
+                required: ["admin_password"],
+              },
+            },
+          },
+          {
+            type: "function" as const,
+            function: {
+              name: "clear_tv_weekly_goal",
+              description:
+                "Remove a meta semanal do sistema (a TV deixa de ter registro, como não configurado). Exige admin_password.",
+              parameters: {
+                type: "object",
+                properties: {
+                  admin_password: {
+                    type: "string",
+                    description: "Senha do administrador.",
+                  },
+                },
+                required: ["admin_password"],
+              },
+            },
+          },
+        ]
+      : []),
     ...relayTools,
     ...(reminderTargets.length > 0
       ? [

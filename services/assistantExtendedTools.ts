@@ -32,6 +32,8 @@ export interface AssistantContext {
   currentTechnicianUserId?: string | null;
   /** Recados gerência ↔ técnicos (Zaya); `none` desativa as ferramentas de recado. */
   relaySessionRole?: "management" | "technician" | "none";
+  /** Sessão login admin (Gerência): ferramentas sensíveis da TV / meta semanal. */
+  isAdminSession?: boolean;
 }
 
 function norm(s: string): string {

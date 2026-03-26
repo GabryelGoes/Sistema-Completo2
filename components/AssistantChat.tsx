@@ -38,6 +38,9 @@ import {
   markNotificationRead,
   markZayaRelayOpened,
   submitZayaRelayReply,
+  deleteTvWeeklyGoal,
+  getTvPlaylist,
+  putTvWeeklyGoal,
   type ServiceOrderUpdateActor,
   type ZayaRelayPendingRow,
 } from "../services/apiService";
@@ -314,6 +317,146 @@ async function executeToolCalls(
           content: JSON.stringify({
             ok: false,
             error: e instanceof Error ? e.message : "Falha ao limpar notificações.",
+          }),
+        });
+      }
+      continue;
+    }
+    if (name === "get_tv_weekly_goal") {
+      try {
+        const { weeklyGoal } = await getTvPlaylist();
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: true,
+            weekly_goal: weeklyGoal
+              ? {
+                  label: weeklyGoal.label,
+                  current_amount: weeklyGoal.currentAmount,
+                  target_amount: weeklyGoal.targetAmount,
+                  show_weekly_bar: weeklyGoal.showWeeklyBar !== false,
+                }
+              : null,
+            mensagem: weeklyGoal
+              ? "Meta semanal configurada."
+              : "Nenhuma meta semanal cadastrada ainda.",
+          }),
+        });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao ler meta semanal.",
+          }),
+        });
+      }
+      continue;
+    }
+    if (name === "update_tv_weekly_goal") {
+      if (!assistantCtx.isAdminSession) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: "Só o administrador pode alterar a meta semanal pela Zaya.",
+          }),
+        });
+        continue;
+      }
+      const adminPassword = String(payload.admin_password ?? "").trim();
+      if (!adminPassword) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "Informe admin_password (senha do administrador)." }),
+        });
+        continue;
+      }
+      try {
+        const { weeklyGoal } = await getTvPlaylist();
+        const base = weeklyGoal ?? {
+          label: "Meta semanal",
+          currentAmount: 0,
+          targetAmount: 0,
+          showWeeklyBar: true,
+        };
+        let current = Number(base.currentAmount) || 0;
+        const hasExplicitCurrent = payload.current_amount != null && String(payload.current_amount).trim() !== "";
+        if (hasExplicitCurrent) {
+          current = Number(payload.current_amount);
+        } else if (payload.delta_current != null && Number.isFinite(Number(payload.delta_current))) {
+          current += Number(payload.delta_current);
+        }
+        const label =
+          typeof payload.label === "string" && payload.label.trim()
+            ? payload.label.trim()
+            : base.label;
+        let target = Number(base.targetAmount) || 0;
+        if (payload.target_amount != null && String(payload.target_amount).trim() !== "") {
+          target = Number(payload.target_amount);
+        }
+        let showBar = base.showWeeklyBar !== false;
+        if (typeof payload.show_weekly_bar === "boolean") {
+          showBar = payload.show_weekly_bar;
+        }
+        await putTvWeeklyGoal(adminPassword, {
+          label,
+          currentAmount: current,
+          targetAmount: target,
+          showWeeklyBar: showBar,
+        });
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: true,
+            label,
+            current_amount: current,
+            target_amount: target,
+            show_weekly_bar: showBar,
+          }),
+        });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao salvar meta semanal.",
+          }),
+        });
+      }
+      continue;
+    }
+    if (name === "clear_tv_weekly_goal") {
+      if (!assistantCtx.isAdminSession) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: "Só o administrador pode remover a meta semanal pela Zaya.",
+          }),
+        });
+        continue;
+      }
+      const adminPassword = String(payload.admin_password ?? "").trim();
+      if (!adminPassword) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "Informe admin_password." }),
+        });
+        continue;
+      }
+      try {
+        await deleteTvWeeklyGoal(adminPassword);
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: true, removida: true }),
+        });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao remover meta.",
           }),
         });
       }
@@ -1281,6 +1424,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           commentActor: assistantCommentActor,
           currentTechnicianUserId: currentTechnicianUserId ?? null,
           relaySessionRole,
+          isAdminSession: assistantCommentActor === "admin",
         };
         const assistantIdentity = {
           assistantIsAdmin: assistantCommentActor === "admin",
@@ -1601,6 +1745,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               commentActor: assistantCommentActorRef.current,
               currentTechnicianUserId: currentTechnicianUserIdRef.current ?? null,
               relaySessionRole: relaySessionRoleRef.current,
+              isAdminSession: assistantCommentActorRef.current === "admin",
             };
             const toolCalls: AssistantToolCall[] = [
               { id: call_id, type: "function", function: { name, arguments: argsStr } },

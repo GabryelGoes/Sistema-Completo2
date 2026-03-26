@@ -1145,6 +1145,29 @@ export function createApiApp() {
     }
   });
 
+  app.delete("/api/tv/weekly-goal", async (req, res) => {
+    try {
+      const adminPassword = typeof req.body?.adminPassword === "string" ? req.body.adminPassword : "";
+      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+        return res.status(403).json({ error: "Senha de administrador inválida." });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const { error } = await supabaseAdmin
+        .from("workshop_tv_weekly_goal")
+        .delete()
+        .eq("workshop_id", WORKSHOP_ID);
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] DELETE /api/tv/weekly-goal:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
   app.post("/api/tv/slides", async (req, res) => {
     try {
       const { adminPassword, slide } = req.body || {};
@@ -4198,7 +4221,10 @@ export function createApiApp() {
         }) + ASSISTANT_REALTIME_VOICE_ADDENDUM;
 
       const statusEnum = [...ALL_STATUSES];
-      const chatTools = buildAssistantChatTools(allowedTabs, statusEnum, { relaySessionRole });
+      const chatTools = buildAssistantChatTools(allowedTabs, statusEnum, {
+        relaySessionRole,
+        assistantIsAdmin: assistantIsAdmin === true,
+      });
       const realtimeTools = chatToolsToRealtime(chatTools);
 
       const client = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -4274,6 +4300,7 @@ export function createApiApp() {
       const statusEnum = [...ALL_STATUSES];
       const tools = buildAssistantChatTools(allowedTabs, statusEnum, {
         relaySessionRole: relaySessionRoleChat,
+        assistantIsAdmin: assistantIsAdmin === true,
       });
 
       const filteredMessages = rawMessages.filter((m: unknown) => {
