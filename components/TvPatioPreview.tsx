@@ -1,6 +1,36 @@
 import React from 'react';
 import type { TvSlide } from '../services/apiService';
 
+function extractYoutubeId(url: string): string | null {
+  const m = url.match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([a-zA-Z0-9_-]{11})/);
+  if (m) return m[1];
+  try {
+    const u = new URL(url);
+    const v = u.searchParams.get('v');
+    if (v && /^[\w-]{11}$/.test(v)) return v;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+/** Preview no modal: sem autoplay com som (evita áudio ao abrir); mesma aparência sem controles. */
+function buildYoutubePreviewEmbedUrl(videoId: string): string {
+  const q = new URLSearchParams({
+    autoplay: '0',
+    mute: '1',
+    controls: '0',
+    modestbranding: '1',
+    rel: '0',
+    playsinline: '1',
+    disablekb: '1',
+    fs: '0',
+    iv_load_policy: '3',
+    cc_load_policy: '0',
+  });
+  return `https://www.youtube.com/embed/${videoId}?${q.toString()}`;
+}
+
 function formatMoney(n: number): string {
   try {
     return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
@@ -77,17 +107,17 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
     if (t === 'video' && slide.mediaUrl) {
       const yt = /youtube\.com|youtu\.be/.test(slide.mediaUrl);
       if (yt) {
-        const m = slide.mediaUrl.match(/(?:youtu\.be\/|v=)([\w-]{11})/);
-        const embed = m ? `https://www.youtube.com/embed/${m[1]}` : slide.mediaUrl;
+        const id = extractYoutubeId(slide.mediaUrl);
+        const embed = id ? buildYoutubePreviewEmbedUrl(id) : slide.mediaUrl;
         return (
-          <div className="flex-1 flex items-center justify-center min-h-0 p-1">
-            <iframe title="p" src={embed} className="w-full h-full min-h-[88px] rounded-lg border border-white/10" />
+          <div className="relative flex-1 min-h-[88px] w-full overflow-hidden rounded-lg border border-white/10 bg-black">
+            <iframe title="preview" src={embed} className="absolute inset-0 h-full w-full border-0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" />
           </div>
         );
       }
       return (
         <div className="flex-1 flex items-center justify-center min-h-0 p-2">
-          <video src={slide.mediaUrl} className="max-w-full max-h-[100px] rounded-lg" muted playsInline controls />
+          <video src={slide.mediaUrl} className="max-w-full max-h-[100px] rounded-lg object-contain" muted playsInline controls={false} />
         </div>
       );
     }
