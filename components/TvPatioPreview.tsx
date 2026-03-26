@@ -31,14 +31,6 @@ function buildYoutubePreviewEmbedUrl(videoId: string): string {
   return `https://www.youtube.com/embed/${videoId}?${q.toString()}`;
 }
 
-function formatMoney(n: number): string {
-  try {
-    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-  } catch {
-    return String(n);
-  }
-}
-
 interface TvPatioPreviewProps {
   weeklyLabel: string;
   weeklyCurrent: number;
@@ -132,10 +124,7 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
             {slide.goalLabel || slide.title || 'Meta'}
           </p>
           <div className="w-full max-w-[200px] space-y-1">
-            <div className="flex justify-between text-[9px] font-bold text-yellow-400">
-              <span>{formatMoney(cur)}</span>
-              <span>{formatMoney(tgt)}</span>
-            </div>
+            <p className="text-center text-[14px] font-black tabular-nums text-yellow-400">{Math.round(p)}%</p>
             <div className="h-2 rounded-full bg-white/10 overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-yellow-400 to-orange-500"
@@ -177,9 +166,7 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
           <div className="shrink-0 px-3 py-1.5 space-y-1 bg-black/40 border-b border-white/[0.04]">
             <div className="flex justify-between text-[7px] font-bold uppercase tracking-wider text-zinc-500">
               <span className="truncate">{weeklyLabel}</span>
-              <span className="text-yellow-500/90 shrink-0">
-                {formatMoney(weeklyCurrent)} / {formatMoney(weeklyTarget)}
-              </span>
+              <span className="text-yellow-500/90 shrink-0 tabular-nums">{Math.round(pct)}%</span>
             </div>
             <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
               <div

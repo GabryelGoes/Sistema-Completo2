@@ -11,6 +11,10 @@ import {
   ChevronRight,
   Eye,
   ListVideo,
+  Pencil,
+  ChevronUp,
+  ChevronDown,
+  Save,
 } from 'lucide-react';
 import type { TvSlide, TvSlideType } from '../services/apiService';
 import {
@@ -59,6 +63,19 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const [previewTab, setPreviewTab] = useState<'draft' | 'library'>('draft');
   const [libraryPreviewId, setLibraryPreviewId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
+
+  const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{
+    slideType: TvSlideType;
+    title: string;
+    body: string;
+    mediaUrl: string;
+    durationSeconds: number;
+    goalLabel: string;
+    goalCurrent: number;
+    goalTarget: number;
+  } | null>(null);
 
   const load = async (pwd: string) => {
     setLoading(true);
@@ -89,6 +106,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       setAdminPassword('');
       setError(null);
       setPreviewTab('draft');
+      setEditingSlideId(null);
+      setEditForm(null);
     }
   }, [isOpen]);
 
@@ -142,7 +161,30 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     return slides.find((s) => s.id === libraryPreviewId) ?? null;
   }, [slides, libraryPreviewId]);
 
-  const previewSlide = previewTab === 'draft' ? draftSlide : librarySlide;
+  /** Preview “Na fila” reflete rascunho da edição enquanto o formulário está aberto. */
+  const previewSlide = useMemo((): TvSlide | null => {
+    if (previewTab === 'draft') return draftSlide;
+    if (
+      libraryPreviewId &&
+      editingSlideId === libraryPreviewId &&
+      editForm
+    ) {
+      const isGoal = editForm.slideType === 'goal';
+      return {
+        id: libraryPreviewId,
+        slideType: editForm.slideType,
+        title: editForm.title,
+        body: editForm.body,
+        mediaUrl: editForm.mediaUrl.trim() || null,
+        durationSeconds: Math.min(300, Math.max(3, Number(editForm.durationSeconds) || 10)),
+        sortOrder: 0,
+        goalCurrent: isGoal ? editForm.goalCurrent : null,
+        goalTarget: isGoal ? editForm.goalTarget : null,
+        goalLabel: isGoal ? editForm.goalLabel : null,
+      };
+    }
+    return librarySlide;
+  }, [previewTab, draftSlide, librarySlide, libraryPreviewId, editingSlideId, editForm]);
 
   if (!isOpen) return null;
 
@@ -234,6 +276,102 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     }
   };
 
+  const startEdit = (s: TvSlide) => {
+    setEditingSlideId(s.id);
+    setEditForm({
+      slideType: s.slideType,
+      title: s.title,
+      body: s.body,
+      mediaUrl: s.mediaUrl ?? '',
+      durationSeconds: s.durationSeconds,
+      goalLabel: s.goalLabel ?? '',
+      goalCurrent: s.goalCurrent ?? 0,
+      goalTarget: s.goalTarget ?? 0,
+    });
+    setLibraryPreviewId(s.id);
+    setPreviewTab('library');
+  };
+
+  const cancelEdit = () => {
+    setEditingSlideId(null);
+    setEditForm(null);
+  };
+
+  const saveEdit = async () => {
+    if (!editingSlideId || !editForm) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const isGoal = editForm.slideType === 'goal';
+      const patch: Partial<Omit<TvSlide, 'id'>> = {
+        slideType: editForm.slideType,
+        title: editForm.title,
+        body: editForm.body,
+        mediaUrl: editForm.mediaUrl.trim() ? editForm.mediaUrl.trim() : null,
+        durationSeconds: Math.min(300, Math.max(3, Number(editForm.durationSeconds) || 10)),
+      };
+      if (isGoal) {
+        patch.goalLabel = editForm.goalLabel.trim() || null;
+        patch.goalCurrent = Number(editForm.goalCurrent) || 0;
+        patch.goalTarget = Number(editForm.goalTarget) || 0;
+      } else {
+        patch.goalCurrent = null;
+        patch.goalTarget = null;
+        patch.goalLabel = null;
+      }
+      await updateTvSlide(adminPassword, editingSlideId, patch);
+      setEditingSlideId(null);
+      setEditForm(null);
+      await load(adminPassword);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const moveSlide = async (index: number, dir: -1 | 1) => {
+    const next = index + dir;
+    if (next < 0 || next >= slides.length) return;
+    const a = slides[index];
+    const b = slides[next];
+    const orderA = a.sortOrder ?? index;
+    const orderB = b.sortOrder ?? next;
+    setLoading(true);
+    setError(null);
+    try {
+      await updateTvSlide(adminPassword, a.id, { sortOrder: orderB });
+      await updateTvSlide(adminPassword, b.id, { sortOrder: orderA });
+      await load(adminPassword);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !unlocked) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const { url } = await uploadTvPatioMedia(adminPassword, file);
+      setEditForm((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, mediaUrl: url };
+        if (file.type.startsWith('video/')) return { ...next, slideType: 'video' as TvSlideType };
+        if (file.type.startsWith('image/')) return { ...next, slideType: 'image' as TvSlideType };
+        return next;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha no upload');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const iosCard =
     'rounded-[22px] border border-zinc-200/80 dark:border-white/[0.07] bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
 
@@ -314,6 +452,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 {/* Meta semanal */}
                 <section className={`${iosCard} p-5 sm:p-6`}>
                   <p className={iosLabel}>Meta semanal · barra superior na TV</p>
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
+                    Na TV do pátio só aparece o <span className="font-semibold text-zinc-600 dark:text-zinc-300">rótulo</span> e a{' '}
+                    <span className="font-semibold text-zinc-600 dark:text-zinc-300">porcentagem</span> do progresso (valores em R$ ficam só aqui).
+                  </p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-1.5 block">Rótulo</label>
@@ -472,51 +614,233 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 {/* Lista */}
                 <section className={`${iosCard} p-5 sm:p-6`}>
                   <p className={iosLabel}>Slides na fila ({slides.length})</p>
-                  <ul className="space-y-2">
-                    {slides.map((s) => (
-                      <li key={s.id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLibraryPreviewId(s.id);
-                            setPreviewTab('library');
-                          }}
-                          className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition-colors ${
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
+                    Edite tipo, textos, mídia, duração e ordem. Slides tipo meta na TV mostram só o título e a porcentagem.
+                  </p>
+                  <ul className="space-y-3">
+                    {slides.map((s, idx) => (
+                      <li key={s.id} className="space-y-2">
+                        <div
+                          className={`flex w-full flex-wrap items-stretch gap-2 rounded-2xl border border-transparent px-3 py-2 transition-colors sm:flex-nowrap ${
                             libraryPreviewId === s.id && previewTab === 'library'
                               ? 'bg-[#007AFF]/12 ring-1 ring-[#007AFF]/30'
-                              : 'bg-zinc-50/90 dark:bg-white/[0.04] hover:bg-zinc-100/90 dark:hover:bg-white/[0.07]'
+                              : 'bg-zinc-50/90 dark:bg-white/[0.04]'
                           }`}
                         >
-                          <div className="min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLibraryPreviewId(s.id);
+                              setPreviewTab('library');
+                            }}
+                            className="min-w-0 flex-1 text-left py-1"
+                          >
                             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{s.slideType}</span>
                             <p className="font-medium text-zinc-900 dark:text-white truncate text-[15px]">{s.title || '(sem título)'}</p>
                             <p className="text-[11px] text-zinc-500">
-                              {s.durationSeconds}s · {s.isActive === false ? 'pausado' : 'ativo'}
+                              {s.durationSeconds}s · ordem {s.sortOrder ?? idx} · {s.isActive === false ? 'pausado' : 'ativo'}
                             </p>
-                          </div>
-                          <div className="flex shrink-0 gap-1">
+                          </button>
+                          <div className="flex shrink-0 flex-wrap items-center gap-1 justify-end">
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void toggleActive(s);
-                              }}
+                              title="Subir"
+                              disabled={idx === 0 || loading}
+                              onClick={() => void moveSlide(idx, -1)}
+                              className="rounded-xl bg-zinc-200/80 dark:bg-white/10 p-2 text-zinc-700 dark:text-zinc-200 disabled:opacity-35"
+                            >
+                              <ChevronUp className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Descer"
+                              disabled={idx >= slides.length - 1 || loading}
+                              onClick={() => void moveSlide(idx, 1)}
+                              className="rounded-xl bg-zinc-200/80 dark:bg-white/10 p-2 text-zinc-700 dark:text-zinc-200 disabled:opacity-35"
+                            >
+                              <ChevronDown className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Editar"
+                              onClick={() => startEdit(s)}
+                              className={`rounded-xl px-3 py-2 text-[11px] font-semibold text-zinc-800 dark:text-zinc-200 ${
+                                editingSlideId === s.id ? 'bg-[#007AFF] text-white' : 'bg-zinc-200/80 dark:bg-white/10'
+                              }`}
+                            >
+                              <span className="inline-flex items-center gap-1">
+                                <Pencil className="w-3.5 h-3.5" />
+                                Editar
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void toggleActive(s)}
+                              disabled={loading}
                               className="rounded-xl bg-zinc-200/80 dark:bg-white/10 px-3 py-2 text-[11px] font-semibold text-zinc-800 dark:text-zinc-200"
                             >
                               {s.isActive === false ? 'Ativar' : 'Pausar'}
                             </button>
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void removeSlide(s.id);
-                              }}
+                              onClick={() => void removeSlide(s.id)}
                               className="rounded-xl p-2 text-red-600 hover:bg-red-500/10"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
-                        </button>
+                        </div>
+
+                        {editingSlideId === s.id && editForm && (
+                          <div className={`${iosCard} p-4 sm:p-5 space-y-4 border border-[#007AFF]/25`}>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#007AFF]">Editar slide</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                              {SLIDE_TYPES.map((t) => (
+                                <button
+                                  key={t.value}
+                                  type="button"
+                                  onClick={() => setEditForm((prev) => (prev ? { ...prev, slideType: t.value } : prev))}
+                                  className={`rounded-2xl px-2 py-2.5 text-center transition-all ${
+                                    editForm.slideType === t.value
+                                      ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30'
+                                      : 'bg-zinc-100/90 dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-white/10'
+                                  }`}
+                                >
+                                  <span className="block text-[11px] font-semibold leading-tight">{t.label}</span>
+                                </button>
+                              ))}
+                            </div>
+                            <div>
+                              <label className={iosLabel}>Título</label>
+                              <input
+                                value={editForm.title}
+                                onChange={(e) => setEditForm((f) => (f ? { ...f, title: e.target.value } : f))}
+                                className={iosInput}
+                              />
+                            </div>
+                            {(editForm.slideType === 'notice' || editForm.slideType === 'alert') && (
+                              <div>
+                                <label className={iosLabel}>Texto</label>
+                                <textarea
+                                  value={editForm.body}
+                                  onChange={(e) => setEditForm((f) => (f ? { ...f, body: e.target.value } : f))}
+                                  rows={3}
+                                  className={`${iosInput} resize-none min-h-[100px]`}
+                                />
+                              </div>
+                            )}
+                            {(editForm.slideType === 'image' || editForm.slideType === 'video') && (
+                              <div className="space-y-3">
+                                <input
+                                  ref={editFileInputRef}
+                                  type="file"
+                                  accept="image/*,video/*"
+                                  className="hidden"
+                                  onChange={handleEditFileChange}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => editFileInputRef.current?.click()}
+                                  disabled={uploading}
+                                  className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-zinc-300/90 dark:border-white/15 bg-zinc-50/80 dark:bg-white/[0.03] py-6 text-[14px] font-medium text-zinc-600 dark:text-zinc-300 hover:border-[#007AFF]/50 disabled:opacity-50"
+                                >
+                                  {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImagePlus className="w-5 h-5 text-[#007AFF]" />}
+                                  {uploading ? 'Enviando…' : 'Substituir arquivo (imagem ou vídeo)'}
+                                </button>
+                                <div>
+                                  <label className={iosLabel}>URL (YouTube ou link direto)</label>
+                                  <input
+                                    value={editForm.mediaUrl}
+                                    onChange={(e) => setEditForm((f) => (f ? { ...f, mediaUrl: e.target.value } : f))}
+                                    className={iosInput}
+                                    placeholder="https://..."
+                                  />
+                                </div>
+                              </div>
+                            )}
+                            {editForm.slideType === 'goal' && (
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div>
+                                  <label className={iosLabel}>Rótulo</label>
+                                  <input
+                                    value={editForm.goalLabel}
+                                    onChange={(e) => setEditForm((f) => (f ? { ...f, goalLabel: e.target.value } : f))}
+                                    className={iosInput}
+                                  />
+                                </div>
+                                <div>
+                                  <label className={iosLabel}>Atual (cálculo interno)</label>
+                                  <input
+                                    type="number"
+                                    value={editForm.goalCurrent}
+                                    onChange={(e) => setEditForm((f) => (f ? { ...f, goalCurrent: Number(e.target.value) } : f))}
+                                    className={iosInput}
+                                  />
+                                </div>
+                                <div>
+                                  <label className={iosLabel}>Meta (cálculo interno)</label>
+                                  <input
+                                    type="number"
+                                    value={editForm.goalTarget}
+                                    onChange={(e) => setEditForm((f) => (f ? { ...f, goalTarget: Number(e.target.value) } : f))}
+                                    className={iosInput}
+                                  />
+                                </div>
+                                <p className="sm:col-span-3 text-[11px] text-zinc-500">
+                                  Na TV: só o rótulo e a porcentagem do progresso.
+                                </p>
+                              </div>
+                            )}
+                            {(editForm.slideType === 'image' ||
+                              editForm.slideType === 'video' ||
+                              editForm.slideType === 'goal') && (
+                              <div>
+                                <label className={iosLabel}>Texto complementar (opcional)</label>
+                                <textarea
+                                  value={editForm.body}
+                                  onChange={(e) => setEditForm((f) => (f ? { ...f, body: e.target.value } : f))}
+                                  rows={2}
+                                  className={`${iosInput} resize-none`}
+                                  placeholder="Legenda ou observação"
+                                />
+                              </div>
+                            )}
+                            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                              <div className="w-full sm:w-40">
+                                <label className={iosLabel}>Duração (s)</label>
+                                <input
+                                  type="number"
+                                  min={3}
+                                  max={300}
+                                  value={editForm.durationSeconds}
+                                  onChange={(e) =>
+                                    setEditForm((f) => (f ? { ...f, durationSeconds: Number(e.target.value) } : f))
+                                  }
+                                  className={iosInput}
+                                />
+                              </div>
+                              <div className="flex flex-1 flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void saveEdit()}
+                                  disabled={loading}
+                                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-5 py-3 text-[14px] font-semibold text-white shadow-lg shadow-blue-500/25 disabled:opacity-50 min-w-[140px]"
+                                >
+                                  <Save className="w-4 h-4" />
+                                  Salvar alterações
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelEdit}
+                                  disabled={loading}
+                                  className="rounded-2xl border border-zinc-300/90 dark:border-white/15 px-5 py-3 text-[14px] font-semibold text-zinc-700 dark:text-zinc-200"
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </li>
                     ))}
                   </ul>
