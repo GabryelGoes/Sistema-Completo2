@@ -55,6 +55,7 @@ import {
   iosInput,
   iosLabel,
   iosPageGlass,
+  iosPrimaryButton,
 } from '../ui/iosModalStyles';
 
 export type OpenServiceOrderSection = 'comments' | 'budgets' | 'description' | null;
@@ -1981,27 +1982,36 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   if (initialLoading) {
     return (
-      <div className="flex min-h-[70vh] w-full flex-col items-center justify-center" aria-hidden="true">
-        <div className="relative h-12 w-12">
-          <div className="absolute inset-0 rounded-full border-2 border-zinc-200/80 dark:border-white/10" />
-          <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-[#007AFF]" />
+      <div className="relative flex min-h-[70vh] w-full flex-col items-center justify-center px-4 py-12" aria-hidden="true">
+        <div className={`${iosPageGlass} flex flex-col items-center px-10 py-12 sm:px-14 sm:py-14`}>
+          <div className="relative h-12 w-12">
+            <div className="absolute inset-0 rounded-full border-2 border-zinc-200/80 dark:border-white/10" />
+            <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-[#007AFF]" />
+          </div>
+          <p className="mt-5 text-[15px] font-medium text-zinc-600 dark:text-zinc-300">Carregando o pátio…</p>
+          <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">Sincronizando ordens de serviço</p>
         </div>
-        <p className="mt-4 text-[13px] text-zinc-500 dark:text-zinc-400">Carregando…</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-[80vh] text-zinc-400 gap-6 px-8 text-center">
-        <AlertCircle className="w-16 h-16 text-red-500/80" />
-        <p className="text-lg">{error}</p>
-        <button 
-          onClick={() => fetchData(false)}
-          className="px-8 py-3 bg-brand-surfaceHighlight rounded-full text-white font-medium hover:bg-zinc-800 transition-colors"
-        >
-          Tentar Novamente
-        </button>
+      <div className="relative flex min-h-[75vh] w-full flex-col items-center justify-center px-4 py-12">
+        <div className={`${iosPageGlass} w-full max-w-md px-8 py-10 text-center sm:px-10`}>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/12 dark:bg-red-500/15">
+            <AlertCircle className="h-7 w-7 text-red-600 dark:text-red-400" strokeWidth={2} />
+          </div>
+          <p className="text-[17px] font-semibold leading-snug text-zinc-900 dark:text-white">Não foi possível carregar</p>
+          <p className="mt-2 text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">{error}</p>
+          <button
+            type="button"
+            onClick={() => fetchData(false)}
+            className={`${iosPrimaryButton} mt-8 w-full max-w-xs`}
+          >
+            Tentar novamente
+          </button>
+        </div>
       </div>
     );
   }
@@ -2014,19 +2024,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
   return (
     <div className="relative min-h-full w-full animate-in pb-32 fade-in duration-500">
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-32 left-1/2 h-[min(520px,70vw)] w-[min(920px,95vw)] -translate-x-1/2 rounded-full bg-gradient-to-br from-cyan-400/[0.12] via-transparent to-violet-500/[0.1] blur-3xl dark:from-cyan-500/10 dark:to-violet-600/10" />
-        <div className="absolute bottom-0 right-0 h-[380px] w-[480px] translate-x-1/4 rounded-full bg-amber-400/[0.06] blur-[100px] dark:bg-amber-500/10" />
+        <div className="absolute -top-40 left-1/2 h-[min(480px,75vw)] w-[min(880px,100vw)] -translate-x-1/2 rounded-full bg-gradient-to-br from-cyan-400/[0.09] via-sky-400/[0.05] to-violet-500/[0.08] blur-[90px] dark:from-cyan-500/[0.08] dark:via-transparent dark:to-violet-600/[0.12]" />
+        <div className="absolute bottom-0 right-0 h-[380px] w-[min(520px,90vw)] translate-x-[15%] rounded-full bg-gradient-to-tl from-amber-400/[0.07] to-transparent blur-[100px] dark:from-amber-500/[0.08]" />
+        <div className="absolute bottom-1/4 left-0 h-[220px] w-[320px] -translate-x-1/3 rounded-full bg-[#007AFF]/[0.04] blur-[80px] dark:bg-[#007AFF]/[0.06]" />
       </div>
 
-      <div className="relative z-0 mx-auto max-w-[100rem] px-3 pt-1 sm:px-5 md:px-6">
-        <header className={`${iosPageGlass} mb-6 p-5 sm:mb-8 sm:p-6`}>
+      <div className="relative z-0 mx-auto max-w-[100rem] px-3 pt-2 sm:px-5 md:px-6 md:pt-3">
+        <header className={`${iosPageGlass} ring-1 ring-white/40 dark:ring-white/[0.06] mb-6 overflow-hidden p-5 sm:mb-8 sm:p-6`}>
           <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between xl:gap-6">
             <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
-              <img
-                src="/logo.png"
-                alt="Logo"
-                className="h-14 w-auto shrink-0 rounded-xl bg-black object-contain p-2 sm:h-16"
-              />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-zinc-200/60 bg-white/80 p-1 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)] dark:border-white/[0.08] dark:bg-zinc-950/30 sm:h-16 sm:w-16">
+                <img
+                  src="/logo.png"
+                  alt="Logo"
+                  className="h-full w-full rounded-[10px] bg-black object-contain p-1.5"
+                />
+              </div>
               <div className="flex min-w-0 items-start gap-3 sm:items-center">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/90 to-blue-600 shadow-lg shadow-cyan-500/20">
                   {isModuleMode ? (
@@ -2090,8 +2103,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </header>
       </div>
 
-      {/* Grid Unificado de Veículos — ordenado pela ordem dos estágios (Garantia → … → Orçamento não aprovado), depois por data.
-          Fica abaixo dos modais e do header/central de notificações. */}
+      {/* Grid — mesma ordem dos estágios; cartões em vidro iOS (nome do veículo: tipografia preservada). */}
       <div className="mx-auto max-w-[100rem] px-3 sm:px-5 md:px-6">
       {(() => {
         const stageOrder = SERVICE_ORDER_STAGES.map((s) => s.id);
@@ -2103,6 +2115,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
         };
         const sortedCards = [...cards].sort(byStage);
         return (
+      <>
+      {sortedCards.length > 0 && (
+        <div className="mb-5 px-0.5">
+          <p className={iosLabel}>Mapa da oficina</p>
+          <p className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+            Ordenado por etapa do fluxo; em cada etapa, os mais recentes primeiro.
+          </p>
+        </div>
+      )}
       <div className="relative z-0 grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-5 lg:grid-cols-3 lg:gap-6" style={{ perspective: '1400px' }}>
         {sortedCards.map(card => {
           const parts = card.name.split('-').map(s => s.trim());
@@ -2144,12 +2165,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 onClick={() => setSelectedCard(card)}
                 className={`
                   group relative flex h-full min-h-[180px] cursor-pointer flex-col justify-between overflow-hidden
-                  rounded-[2rem] border bg-white/70 p-5 backdrop-blur-2xl
+                  rounded-[2rem] border bg-white/70 p-5 backdrop-blur-2xl sm:rounded-[2.25rem]
                   shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:bg-zinc-900/40
                   dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]
-                  hover:border-[#007AFF]/25 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:hover:border-white/[0.12] dark:hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.5)]
+                  hover:border-[#007AFF]/28 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:hover:border-white/[0.12] dark:hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.5)]
                   active:scale-[0.99]
-                  ${isGarantia ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-white dark:ring-offset-[#0a0a0a] border-red-500/30' : 'border-zinc-200/80 dark:border-white/[0.07]'}
+                  ${isGarantia ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-white dark:ring-offset-[#0a0a0a] border-red-500/30' : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-white/35 dark:ring-white/[0.06]'}
                 `}
                 style={{
                   transform: isFloating
@@ -2161,7 +2182,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               >
               {/* Overlay de Loading (Geral para Card) */}
               {(isMoving && cardInTransition?.id === card.id) || (isAssigning && cardForMemberAssignment?.id === card.id) || (archivingId === card.id) || (removingGarantiaId === card.id) ? (
-                <div className="absolute inset-0 z-30 flex items-center justify-center overflow-hidden rounded-[2rem] bg-white/75 backdrop-blur-md dark:bg-black/50">
+                <div className="absolute inset-0 z-30 flex items-center justify-center overflow-hidden rounded-[2rem] bg-white/75 backdrop-blur-md dark:bg-black/50 sm:rounded-[2.25rem]">
                    <RefreshCw className="h-8 w-8 animate-spin text-[#007AFF]" />
                 </div>
               ) : null}
@@ -2185,8 +2206,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                 {/* Cliente logo abaixo do carro */}
                 {customerName && (
-                  <div className="mb-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
-                    <User className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
+                  <div className="mb-2 flex w-fit max-w-full items-center gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 px-3 py-1.5 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05]">
+                    <User className="w-4 h-4 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} />
                     <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
                       {firstTwoNames(customerName)}
                     </span>
@@ -2289,23 +2310,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
           );
         })}
       </div>
+      </>
         );
       })()}
 
       {cards.length === 0 && (
-          <div className={`${iosPageGlass} flex flex-col items-center justify-center py-16 text-center sm:py-20`}>
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/90 to-blue-600 shadow-lg shadow-cyan-500/20">
+          <div className={`${iosPageGlass} ring-1 ring-white/40 dark:ring-white/[0.06] flex flex-col items-center justify-center py-16 text-center sm:py-20`}>
+            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/90 to-blue-600 shadow-lg shadow-cyan-500/20">
               {isModuleMode ? (
                 <Cpu className="h-8 w-8 text-white" strokeWidth={2} />
               ) : (
                 <PatioCarIcon className="h-9 w-9 text-white opacity-95" strokeWidth={2} />
               )}
             </div>
-            <p className="text-[15px] font-medium text-zinc-700 dark:text-zinc-200">
+            <p className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">
               {isModuleMode ? 'Nenhum módulo no laboratório' : 'Nenhum veículo no pátio'}
             </p>
-            <p className="mt-2 max-w-sm text-[13px] text-zinc-500 dark:text-zinc-400">
-              Quando houver OS ativas, elas aparecem aqui em cartões de vidro.
+            <p className="mt-2 flex items-center justify-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+              <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" />
+              Quando houver OS ativas, aparecem aqui em cartões de vidro.
             </p>
           </div>
       )}
