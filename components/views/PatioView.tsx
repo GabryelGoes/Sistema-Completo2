@@ -4738,58 +4738,99 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
       )}
 
-      {/* MODAL DE SELEÇÃO DE MECÂNICO */}
+      {/* MODAL DE SELEÇÃO DE MECÂNICO — vidro iOS alinhado ao TV do pátio */}
       {cardForMemberAssignment && (
         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
-           <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
-            <div className="flex shrink-0 items-center justify-between border-b border-zinc-200/60 px-5 py-4 dark:border-white/[0.07] sm:px-6 sm:py-5">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 text-white dark:bg-white/15">
-                  <Users className="h-5 w-5" />
+          <div
+            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+          >
+            <button
+              type="button"
+              onClick={() => setCardForMemberAssignment(null)}
+              className={iosModalClose}
+              aria-label="Fechar"
+              disabled={isAssigning}
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+              <div className="flex items-start gap-3 pr-10">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF] to-[#5856D6] shadow-lg shadow-blue-500/25">
+                  <Users className="h-6 w-6 text-white" strokeWidth={2.2} />
                 </div>
-                <div className="min-w-0">
-                  <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Selecionar técnico</h3>
-                  <p className="mt-0.5 text-[13px] text-zinc-500 dark:text-zinc-400">Responsável pelo veículo</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                    Equipe
+                  </p>
+                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">
+                    Selecionar técnico
+                  </h2>
+                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                    {isModuleMode
+                      ? 'Responsável pelo módulo — escolha quem acompanha esta OS.'
+                      : 'Responsável pelo veículo — escolha quem acompanha esta OS.'}
+                  </p>
                 </div>
               </div>
-              <button type="button" onClick={() => setCardForMemberAssignment(null)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <div className="p-4 overflow-y-auto space-y-2.5">
-              <button
-                type="button"
-                onClick={() => handleAssignTechnician(null)}
-                disabled={isAssigning}
-                className="w-full p-3 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 bg-zinc-100/80 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400 text-sm font-medium hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 transition-all"
-              >
-                Nenhum / Remover técnico
-              </button>
-              {TECHNICIANS.map((tech) => (
-                <button
-                  key={tech.id}
-                  type="button"
-                  onClick={() => handleAssignTechnician(tech)}
-                  disabled={isAssigning}
-                  className={`w-full p-4 rounded-xl border-2 flex items-center gap-3 text-sm uppercase font-black tracking-wide transition-all duration-200 ${tech.style} hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] shadow-sm`}
-                >
-                  <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-black/20 flex items-center justify-center">
-                    {tech.photo_url ? (
-                      <img src={tech.photo_url} alt={tech.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <MechanicIcon className="w-5 h-5 opacity-90" />
-                    )}
-                  </div>
-                  <span>{tech.name}</span>
-                </button>
-              ))}
             </div>
 
-            <div className="shrink-0 border-t border-zinc-200/60 bg-white/40 px-4 py-3 text-center dark:border-white/[0.07] dark:bg-zinc-950/30 sm:px-5">
-                <button type="button" onClick={() => setCardForMemberAssignment(null)} className="text-[15px] font-semibold text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white">Cancelar</button>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
+              <p className={iosLabel}>Atribuição</p>
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  onClick={() => handleAssignTechnician(null)}
+                  disabled={isAssigning}
+                  className={`${iosModalInsetCard} group flex w-full items-center justify-between gap-3 border-2 border-dashed border-zinc-300/90 p-4 text-left transition-all hover:bg-black/[0.03] active:scale-[0.99] disabled:opacity-50 dark:border-white/[0.12] dark:hover:bg-white/[0.04]`}
+                >
+                  <span className="text-[15px] font-semibold tracking-tight text-zinc-700 dark:text-zinc-200">
+                    Nenhum / Remover técnico
+                  </span>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5 dark:text-zinc-500" />
+                </button>
+                {TECHNICIANS.map((tech) => (
+                  <button
+                    key={tech.id}
+                    type="button"
+                    onClick={() => handleAssignTechnician(tech)}
+                    disabled={isAssigning}
+                    className={`group flex w-full items-center gap-3 rounded-[22px] border-2 p-3.5 text-left shadow-[0_2px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200 hover:brightness-[1.06] active:scale-[0.99] disabled:opacity-50 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] ${tech.style}`}
+                  >
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/25 bg-black/15 shadow-inner">
+                      {tech.photo_url ? (
+                        <img src={tech.photo_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <MechanicIcon className="h-5 w-5 opacity-95" />
+                      )}
+                    </div>
+                    <span className="min-w-0 flex-1 text-[15px] font-semibold leading-snug tracking-tight">
+                      {tech.name}
+                    </span>
+                    <ChevronRight className="h-5 w-5 shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5" />
+                  </button>
+                ))}
+              </div>
+              {isAssigning && (
+                <p className="mt-4 flex items-center justify-center gap-2 text-[13px] font-medium text-[#007AFF] dark:text-[#64B5FF]">
+                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
+                  Salvando atribuição…
+                </p>
+              )}
             </div>
-           </div>
+
+            <div className="shrink-0 border-t border-zinc-200/60 px-4 py-3 dark:border-white/[0.07] sm:px-6">
+              <button
+                type="button"
+                onClick={() => setCardForMemberAssignment(null)}
+                disabled={isAssigning}
+                className="w-full rounded-2xl py-3.5 text-[15px] font-semibold text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
