@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Mic, Send, Volume2, VolumeX, X } from "lucide-react";
+import { Mic, Send, Sparkles, Volume2, VolumeX, X } from "lucide-react";
+import {
+  iosModalClose,
+  iosModalInsetCard,
+  iosModalShell,
+  iosInput,
+} from "./ui/iosModalStyles";
 import { AssistantIcon } from "./AssistantIcon";
 import { ASSISTANT_NAME } from "../constants/assistant";
 import type { TabId } from "./TabBar";
@@ -1785,14 +1791,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
 
   const connectingRealtime = open && !useClassicChat && !realtimeReady;
 
-  const panelBg =
-    theme === "dark"
-      ? "bg-zinc-900/95 border-white/10 text-white"
-      : "bg-white/95 border-zinc-200 text-zinc-900";
-  const fabBg =
-    theme === "dark"
-      ? "bg-brand-yellow text-zinc-900 shadow-lg shadow-brand-yellow/20"
-      : "bg-zinc-900 text-brand-yellow shadow-lg";
+  /** Alinhado ao FAB / tiles da home e ao modal TV do pátio (vidro + gradiente âmbar). */
+  const zayaFabSquircle =
+    "rounded-[1.35rem] bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 shadow-[0_8px_28px_-6px_rgba(0,0,0,0.38),inset_0_1px_0_0_rgba(255,255,255,0.38)]";
 
   const isRealtimeVoice = realtimeReady && !useClassicChat;
 
@@ -1890,81 +1891,96 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                   : ""
             }`}
             onClick={() => setOpen(true)}
-            className={`relative z-10 flex h-14 w-14 items-center justify-center rounded-full ${fabBg} transition-transform hover:scale-105 active:scale-95`}
+            className={`relative z-10 flex h-14 w-14 items-center justify-center ${zayaFabSquircle} transition-transform hover:scale-[1.03] active:scale-[0.97]`}
           >
-            <AssistantIcon className="h-7 w-7" />
+            <AssistantIcon className="h-7 w-7 drop-shadow-sm" />
           </button>
         </div>
       </div>
 
       {open && (
-        <div className="fixed inset-0 z-[110] flex flex-col justify-end bg-black/50 p-4 pb-28 sm:items-end sm:justify-end sm:p-6 sm:pb-28">
+        <div className="fixed inset-0 z-[110] flex flex-col justify-end bg-black/45 backdrop-blur-[20px] p-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))] sm:items-end sm:justify-end sm:p-6 sm:pb-28">
           <div
-            className={`flex max-h-[min(520px,70vh)] w-full max-w-md flex-col overflow-hidden rounded-2xl border shadow-2xl ${panelBg}`}
+            className={`relative flex max-h-[min(560px,78vh)] w-full max-w-md flex-col overflow-hidden ${iosModalShell} animate-in fade-in zoom-in-95 duration-200`}
           >
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 dark:border-white/10">
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <div className="flex items-center gap-2 font-semibold">
-                  <AssistantIcon className="h-5 w-5 shrink-0" />
-                  {ASSISTANT_NAME}
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+                listeningRef.current = false;
+                recRef.current?.stop();
+                setListening(false);
+                setOpen(false);
+              }}
+              className={iosModalClose}
+              aria-label="Fechar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-4 pt-6 dark:border-white/[0.07] sm:px-7 sm:pt-7">
+              <div className="flex items-start gap-3 pr-10">
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center ${zayaFabSquircle}`}
+                >
+                  <AssistantIcon className="h-7 w-7" />
                 </div>
-                {realtimeReady && !useClassicChat && (
-                  <span className="text-[10px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                    Voz em tempo real
-                  </span>
-                )}
-                {useClassicChat && (
-                  <span className="text-[10px] text-zinc-500">Modo chat clássico</span>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                {!useClassicChat && realtimeReady && (
-                  <button
-                    type="button"
-                    className="rounded-lg px-2 py-1 text-[11px] text-zinc-500 hover:bg-white/10 hover:text-zinc-300"
-                    onClick={() => {
-                      listeningRef.current = false;
-                      recRef.current?.stop();
-                      setListening(false);
-                      realtimeClientRef.current?.disconnect();
-                      realtimeClientRef.current = null;
-                      setRealtimeReady(false);
-                      setUseClassicChat(true);
-                    }}
-                  >
-                    Modo clássico
-                  </button>
-                )}
-              <button
-                type="button"
-                onClick={() => {
-                  if (typeof window !== "undefined") window.speechSynthesis?.cancel();
-                  listeningRef.current = false;
-                  recRef.current?.stop();
-                  setListening(false);
-                  setOpen(false);
-                }}
-                className="rounded-full p-2 hover:bg-white/10"
-                aria-label="Fechar"
-              >
-                <X className="h-5 w-5" />
-              </button>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white">
+                    {ASSISTANT_NAME}
+                  </h2>
+                  <p className="mt-1 flex items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" />
+                    Assistente da oficina — pergunte por OS, pátio e lembretes
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {realtimeReady && !useClassicChat && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/12 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                        Voz em tempo real
+                      </span>
+                    )}
+                    {useClassicChat && (
+                      <span className="inline-flex items-center rounded-full bg-zinc-500/10 px-2.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-400">
+                        Modo chat clássico
+                      </span>
+                    )}
+                    {!useClassicChat && realtimeReady && (
+                      <button
+                        type="button"
+                        className="rounded-full bg-black/[0.06] px-2.5 py-1 text-[11px] font-medium text-[#007AFF] transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15"
+                        onClick={() => {
+                          listeningRef.current = false;
+                          recRef.current?.stop();
+                          setListening(false);
+                          realtimeClientRef.current?.disconnect();
+                          realtimeClientRef.current = null;
+                          setRealtimeReady(false);
+                          setUseClassicChat(true);
+                        }}
+                      >
+                        Usar modo clássico
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-4 text-[15px] leading-relaxed sm:px-6">
               {messages.length === 0 && (
-                <p className="text-zinc-500 dark:text-zinc-400">
+                <div className={`${iosModalInsetCard} p-4 text-[14px] text-zinc-600 dark:text-zinc-300`}>
                   Olá, eu sou a {ASSISTANT_NAME}. No modo tempo real, ligue o microfone: cada frase é
                   enviada automaticamente ao terminar. No modo clássico, o microfone só preenche o
                   texto — use Enviar.
-                </p>
+                </div>
               )}
               {messages.map((m, i) => {
                 if (m.role === "user") {
                   return (
                     <div key={i} className="flex justify-end">
-                      <div className="max-w-[85%] rounded-2xl bg-brand-yellow/20 px-3 py-2 text-zinc-900 dark:text-zinc-100">
+                      <div
+                        className={`max-w-[88%] ${iosModalInsetCard} border-amber-200/70 bg-amber-50/90 px-3.5 py-2.5 text-zinc-900 dark:border-amber-500/25 dark:bg-amber-950/35 dark:text-zinc-100`}
+                      >
                         {m.content}
                       </div>
                     </div>
@@ -1973,7 +1989,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                 if (m.role === "assistant" && m.content) {
                   return (
                     <div key={i} className="flex justify-start">
-                      <div className="prose prose-sm dark:prose-invert max-w-[90%] rounded-2xl bg-white/5 px-3 py-2">
+                      <div
+                        className={`prose prose-sm dark:prose-invert max-w-[92%] ${iosModalInsetCard} px-3.5 py-2.5 text-zinc-800 dark:text-zinc-100`}
+                      >
                         <ReactMarkdown>{m.content}</ReactMarkdown>
                       </div>
                     </div>
@@ -1982,90 +2000,94 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                 return null;
               })}
               {connectingRealtime && (
-                <div className="text-zinc-500 dark:text-zinc-400">Conectando voz em tempo real…</div>
+                <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Conectando voz em tempo real…</p>
               )}
-              {loading && (
-                <div className="text-zinc-500 dark:text-zinc-400">Pensando…</div>
+              {loading && <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Pensando…</p>}
+              {error && (
+                <p className="text-[13px] text-red-600 dark:text-red-400">{error}</p>
               )}
-              {error && <div className="text-red-500">{error}</div>}
               <div ref={bottomRef} />
             </div>
 
-            <div className="flex gap-2 border-t border-white/10 p-3 dark:border-white/10">
-              <button
-                type="button"
-                onClick={toggleTts}
-                disabled={realtimeReady && !useClassicChat}
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full p-0 disabled:cursor-not-allowed disabled:opacity-40 ${
-                  ttsEnabled ? "bg-brand-yellow/20 text-zinc-900 dark:text-brand-yellow" : "bg-white/10 hover:bg-white/15"
-                }`}
-                aria-label={ttsEnabled ? "Desativar voz da assistente" : "Ativar voz da assistente"}
-                title={
-                  realtimeReady && !useClassicChat
-                    ? "No modo tempo real a voz já vem do modelo"
-                    : ttsEnabled
-                      ? "Voz da Zaya ligada"
-                      : "Voz da Zaya desligada"
-                }
-              >
-                {ttsEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
-              </button>
-              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
-                {listening && (
-                  <>
-                    <span
-                      className="assist-mic-pulse-a pointer-events-none absolute inset-0 m-auto h-10 w-10 rounded-full border-2 border-sky-500 bg-sky-500/15"
-                      aria-hidden
-                    />
-                    <span
-                      className="assist-mic-pulse-b pointer-events-none absolute inset-0 m-auto h-[44px] w-[44px] rounded-full border border-sky-400/55"
-                      aria-hidden
-                    />
-                  </>
-                )}
+            <div className="shrink-0 border-t border-zinc-200/60 bg-white/40 p-3 dark:border-white/[0.07] dark:bg-zinc-950/30 sm:p-3.5">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={toggleMic}
-                  className={`relative z-10 flex h-11 w-11 items-center justify-center rounded-full p-0 ${
-                    listening
-                      ? "bg-sky-500/15 text-sky-300 shadow-[0_0_14px_rgba(56,189,248,0.4)] dark:text-sky-200"
-                      : "bg-white/10 hover:bg-white/15"
+                  onClick={toggleTts}
+                  disabled={realtimeReady && !useClassicChat}
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                    ttsEnabled
+                      ? "bg-amber-500/15 text-amber-900 dark:text-amber-300"
+                      : "bg-black/[0.05] text-zinc-600 hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15"
                   }`}
-                  aria-label={listening ? "Parar de ouvir" : "Ativar microfone"}
+                  aria-label={ttsEnabled ? "Desativar voz da assistente" : "Ativar voz da assistente"}
                   title={
-                    isRealtimeVoice
-                      ? "Ligado: suas falas são enviadas ao terminar cada frase"
-                      : "Ditar no campo; use Enviar para enviar"
+                    realtimeReady && !useClassicChat
+                      ? "No modo tempo real a voz já vem do modelo"
+                      : ttsEnabled
+                        ? "Voz da Zaya ligada"
+                        : "Voz da Zaya desligada"
                   }
                 >
-                  <Mic className="h-5 w-5" />
+                  {ttsEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+                </button>
+                <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
+                  {listening && (
+                    <>
+                      <span
+                        className="assist-mic-pulse-a pointer-events-none absolute inset-0 m-auto h-10 w-10 rounded-full border-2 border-[#007AFF] bg-[#007AFF]/12"
+                        aria-hidden
+                      />
+                      <span
+                        className="assist-mic-pulse-b pointer-events-none absolute inset-0 m-auto h-[44px] w-[44px] rounded-full border border-[#007AFF]/45"
+                        aria-hidden
+                      />
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={toggleMic}
+                    className={`relative z-10 flex h-11 w-11 items-center justify-center rounded-full p-0 transition-colors ${
+                      listening
+                        ? "bg-[#007AFF]/15 text-[#007AFF] shadow-[0_0_16px_rgba(0,122,255,0.35)] dark:text-[#64B5FF]"
+                        : "bg-black/[0.05] text-zinc-600 hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15"
+                    }`}
+                    aria-label={listening ? "Parar de ouvir" : "Ativar microfone"}
+                    title={
+                      isRealtimeVoice
+                        ? "Ligado: suas falas são enviadas ao terminar cada frase"
+                        : "Ditar no campo; use Enviar para enviar"
+                    }
+                  >
+                    <Mic className="h-5 w-5" />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendUserMessage(input)}
+                  placeholder={
+                    isRealtimeVoice
+                      ? "Fale ou digite…"
+                      : "Escreva e envie (Enter)…"
+                  }
+                  className={`min-w-0 flex-1 ${iosInput} py-2.5 text-[15px]`}
+                />
+                <button
+                  type="button"
+                  onClick={() => sendUserMessage(input)}
+                  disabled={loading || connectingRealtime}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#007AFF] p-0 text-white shadow-lg shadow-blue-500/25 transition-transform hover:opacity-95 active:scale-[0.98] disabled:opacity-45"
+                  title={
+                    isRealtimeVoice
+                      ? "Enviar texto (opcional; no microfone o envio é automático)"
+                      : "Enviar mensagem"
+                  }
+                >
+                  <Send className="h-5 w-5" />
                 </button>
               </div>
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendUserMessage(input)}
-                placeholder={
-                  isRealtimeVoice
-                    ? "Ou fale com o microfone (envio automático) ou digite…"
-                    : "Escreva e envie (Enter ou botão)…"
-                }
-                className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-inherit placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-brand-yellow/50"
-              />
-              <button
-                type="button"
-                onClick={() => sendUserMessage(input)}
-                disabled={loading || connectingRealtime}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-yellow p-0 font-medium text-zinc-900 disabled:opacity-50"
-                title={
-                  isRealtimeVoice
-                    ? "Enviar texto (opcional; no microfone o envio é automático)"
-                    : "Enviar mensagem"
-                }
-              >
-                <Send className="h-5 w-5" />
-              </button>
             </div>
           </div>
         </div>
