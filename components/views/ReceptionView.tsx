@@ -466,7 +466,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       <header className="flex flex-col gap-4 mb-6 lg:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <div className="flex h-[5.5rem] w-[5.5rem] shrink-0 items-center justify-center rounded-[1.35rem] bg-gradient-to-br from-amber-400/95 to-orange-600 p-2 shadow-lg shadow-orange-500/25 ring-1 ring-white/25 dark:ring-white/10">
+            <div className="flex h-[5.5rem] w-[5.5rem] shrink-0 items-center justify-center rounded-[1.35rem] bg-gradient-to-br from-amber-400/95 to-orange-600 p-1 shadow-lg shadow-orange-500/25 ring-1 ring-white/25 dark:ring-white/10">
               <img src="/logo.png" alt="" className="h-full w-full max-h-[4.5rem] object-contain rounded-xl bg-black p-1.5" />
             </div>
             <div className="min-w-0 pt-0.5">
@@ -776,7 +776,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <div className="pt-2 flex justify-center lg:justify-start">
                 <button 
                   type="submit"
-                  className="group relative min-w-[220px] px-8 py-3.5 rounded-2xl bg-[#007AFF] text-white font-semibold text-[15px] tracking-wide shadow-lg shadow-blue-500/30 hover:opacity-95 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="group relative min-w-[220px] px-8 py-3.5 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 text-white font-semibold text-[15px] tracking-wide shadow-lg shadow-orange-500/35 hover:opacity-95 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
                   Criar ficha
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
