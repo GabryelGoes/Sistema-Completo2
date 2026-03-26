@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Package, Plus, Pencil, Trash2, Check, Loader2, Camera } from 'lucide-react';
+import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
+import { IosModalHeader } from './ui/IosModalHeader';
 import {
   getWorkshopParts,
   createWorkshopPart,
@@ -151,23 +153,23 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-2 sm:p-4 animate-modal-backdrop">
-      <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] rounded-[1.5rem] w-full max-w-[95vw] h-[94vh] max-h-[94vh] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden animate-modal-sheet flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/80 dark:bg-white/[0.04] shrink-0">
-          <h2 className="text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
-            <Package className="w-5 h-5 text-brand-yellow" />
-            Estoque de Peças
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-white/10 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className={iosModalOverlay}>
+      <div className={`${iosModalShell} w-full max-w-[95vw] h-[94vh] max-h-[94vh]`}>
+        <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+          <X className="w-5 h-5" />
+        </button>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
+          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+            <IosModalHeader
+              icon={<Package className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              title="Estoque de peças"
+              subtitle="Preço, quantidade e foto para orçamentos"
+              gradientClass="from-emerald-500 to-teal-700"
+            />
+          </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8">
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mb-4">
             Cadastre as peças com preço e quantidade em estoque para facilitar a montagem de orçamentos.
           </p>
@@ -178,7 +180,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             </div>
           )}
 
-          <div className="rounded-2xl overflow-hidden bg-white/70 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08] shadow-sm">
+          <div className={`overflow-hidden ${iosModalInsetCard}`}>
             <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto_auto] gap-3 p-3 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -398,6 +400,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               </>
             )}
           </div>
+        </div>
         </div>
       </div>
     </div>

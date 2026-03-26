@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Pencil, Trash2, Loader2, LayoutGrid, Settings, Car, User, ShieldCheck } from 'lucide-react';
+import { iosModalOverlay, iosModalShell, iosModalClose, iosInput } from './ui/iosModalStyles';
+import { IosModalHeader } from './ui/IosModalHeader';
 import type { SystemUserPermissions, SystemUser } from '../services/apiService';
 import {
   getSystemUsers,
@@ -235,16 +237,23 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-zinc-200 dark:border-zinc-700">
-        <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-700 shrink-0">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Usuários do sistema</h2>
-          <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className={iosModalOverlay}>
+      <div className={`${iosModalShell} max-w-2xl w-full max-h-[90vh]`}>
+        <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+          <X className="w-5 h-5" />
+        </button>
 
-        <div className="flex-1 overflow-y-auto p-4 pb-24 space-y-4">
+        <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
+          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+            <IosModalHeader
+              icon={<ShieldCheck className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              title="Usuários do sistema"
+              subtitle="Logins, permissões e acesso ao painel"
+              gradientClass="from-violet-500 to-indigo-700"
+            />
+          </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-24 space-y-4">
           {!unlocked ? (
             <form onSubmit={handleUnlock} className="space-y-3">
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -256,7 +265,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
                   placeholder="Senha do admin"
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                  className={`${iosInput} flex-1`}
                 />
                 <button
                   type="submit"
@@ -462,6 +471,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
               )}
             </>
           )}
+        </div>
         </div>
       </div>
     </div>

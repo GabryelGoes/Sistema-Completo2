@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Lock, KeyRound, Loader2, Check, Trash2 } from 'lucide-react';
+import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard, iosInput } from './ui/iosModalStyles';
+import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
 
 interface ChangePasswordsModalProps {
@@ -73,23 +75,23 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-      <div className="bg-zinc-50/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] rounded-[1.5rem] w-full max-w-md shadow-xl overflow-hidden animate-modal-sheet flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-100/80 dark:bg-white/[0.04] shrink-0">
-          <h2 className="text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
-            <Lock className="w-5 h-5 text-amber-500" />
-            Alterar senhas
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-white/10 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className={iosModalOverlay}>
+      <div className={`${iosModalShell} max-w-md max-h-[90vh]`}>
+        <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+          <X className="w-5 h-5" />
+        </button>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
+          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+            <IosModalHeader
+              icon={<Lock className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              title="Alterar senhas"
+              subtitle="PIN do pátio e exclusão de veículos"
+              gradientClass="from-slate-600 to-zinc-800"
+            />
+          </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8 space-y-6">
           {message && (
             <div
               className={`px-4 py-3 rounded-xl text-sm ${
@@ -103,7 +105,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
           )}
 
           {/* PIN dos técnicos */}
-          <section className="bg-zinc-100/80 dark:bg-white/[0.06] p-4 rounded-2xl border border-zinc-200/60 dark:border-white/[0.08]">
+          <section className={`${iosModalInsetCard} p-4 sm:p-5`}>
             <div className="flex items-center gap-2 mb-3">
               <KeyRound className="w-5 h-5 text-emerald-500" />
               <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
@@ -126,7 +128,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                   value={patioPin}
                   onChange={(e) => setPatioPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
                   placeholder="Ex: 4366"
-                  className="w-full px-4 py-3 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 text-[15px]"
+                  className={iosInput}
                 />
                 <button
                   type="submit"
@@ -141,7 +143,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
           </section>
 
           {/* Senha para excluir veículos */}
-          <section className="bg-zinc-100/80 dark:bg-white/[0.06] p-4 rounded-2xl border border-zinc-200/60 dark:border-white/[0.08]">
+          <section className={`${iosModalInsetCard} p-4 sm:p-5`}>
             <div className="flex items-center gap-2 mb-3">
               <Trash2 className="w-5 h-5 text-red-500" />
               <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
@@ -157,14 +159,14 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                 value={vehicleDeletePassword}
                 onChange={(e) => setVehicleDeletePassword(e.target.value)}
                 placeholder="Nova senha"
-                className="w-full px-4 py-3 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500/40 text-[15px]"
+                className={iosInput}
               />
               <input
                 type="password"
                 value={vehicleDeleteConfirm}
                 onChange={(e) => setVehicleDeleteConfirm(e.target.value)}
                 placeholder="Confirmar senha"
-                className="w-full px-4 py-3 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500/40 text-[15px]"
+                className={iosInput}
               />
               <button
                 type="submit"
@@ -176,6 +178,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
               </button>
             </form>
           </section>
+        </div>
         </div>
       </div>
     </div>

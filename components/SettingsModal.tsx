@@ -1,5 +1,7 @@
 import React from 'react';
 import { X, Settings } from 'lucide-react';
+import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
+import { IosModalHeader } from './ui/IosModalHeader';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -27,25 +29,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-      <div className="bg-light-elevated/98 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-light-border dark:border-white/[0.08] rounded-[1.5rem] w-full max-w-md shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden animate-modal-sheet flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-light-border dark:border-white/[0.08] bg-light-card dark:bg-white/[0.04] shrink-0">
-          <h2 className="text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
-            <Settings className="w-5 h-5 text-brand-yellow" />
-            Configurações
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-light-border dark:bg-white/10 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className={iosModalOverlay}>
+      <div className={`${iosModalShell} max-w-md max-h-[94vh]`}>
+        <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+          <X className="w-5 h-5" />
+        </button>
 
-        <div className="p-6">
-          <div className="bg-light-card dark:bg-white/[0.06] p-4 rounded-2xl border border-light-border dark:border-white/[0.08]">
-            <label className="block text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Tema do sistema</label>
+        <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
+          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+            <IosModalHeader
+              icon={<Settings className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              title="Configurações"
+              subtitle="Aparência e experiência do app"
+              gradientClass="from-amber-400/90 to-orange-600"
+            />
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8 space-y-6">
+          <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+            <label className="block text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+              Tema do sistema
+            </label>
             <div className="flex bg-zinc-200 dark:bg-black/40 p-1 rounded-xl">
               <button
                 type="button"
@@ -73,7 +77,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           {/* Efeitos de movimento — chave estilo iOS */}
-          <div className="mt-6 bg-light-card dark:bg-white/[0.06] p-4 rounded-2xl border border-light-border dark:border-white/[0.08]">
+          <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
             <div className="flex items-center justify-between gap-4">
               <label className="text-[15px] font-medium text-zinc-900 dark:text-white">
                 Efeitos de Movimento
@@ -101,7 +105,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Modo cinematográfico — embaça placas para gravar tela / redes sociais */}
           {typeof onCinematographicModeChange === 'function' && (
-            <div className="mt-6 bg-light-card dark:bg-white/[0.06] p-4 rounded-2xl border border-light-border dark:border-white/[0.08]">
+            <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <label className="text-[15px] font-medium text-zinc-900 dark:text-white block">
@@ -132,6 +136,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>

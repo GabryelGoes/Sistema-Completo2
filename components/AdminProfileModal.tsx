@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Camera, Loader2, Check, Lock } from 'lucide-react';
+import { X, Camera, Loader2, Check, Lock, User } from 'lucide-react';
+import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard, iosInput } from './ui/iosModalStyles';
+import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopSettings, updateWorkshopSettings, uploadWorkshopAdminPhoto } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 
@@ -103,14 +105,21 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4">
-      <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-zinc-200/60 dark:border-white/10 w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-zinc-200/60 dark:border-white/10">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Perfil do administrador</h2>
-          <button type="button" onClick={onClose} className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-white/10 flex items-center justify-center text-zinc-600 dark:text-zinc-400">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className={iosModalOverlay}>
+      <div className={`${iosModalShell} max-w-md max-h-[94vh]`}>
+        <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
+          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+            <IosModalHeader
+              icon={<User className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              title="Perfil do administrador"
+              subtitle="Nome, foto e senha de acesso total"
+              gradientClass="from-blue-500 to-indigo-700"
+            />
+          </div>
 
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
 
@@ -122,7 +131,7 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
           onCancel={() => setPhotoEditorFile(null)}
         />
 
-        <form onSubmit={handleSave} className="p-6 space-y-6">
+        <form onSubmit={handleSave} className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8 space-y-6">
           {error && (
             <div className="px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-sm">
               {error}
@@ -156,13 +165,13 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                  className={iosInput}
                   placeholder="Ex.: Rei do ABS"
                 />
               </div>
 
               {/* Senha do administrador */}
-              <section className="bg-zinc-100/80 dark:bg-white/[0.06] p-4 rounded-2xl border border-zinc-200/60 dark:border-white/[0.08]">
+              <section className={`${iosModalInsetCard} p-4 sm:p-5`}>
                 <div className="flex items-center gap-2 mb-3">
                   <Lock className="w-5 h-5 text-amber-500" />
                   <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
@@ -189,14 +198,14 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
                     value={adminNewPassword}
                     onChange={(e) => setAdminNewPassword(e.target.value)}
                     placeholder="Nova senha"
-                    className="w-full px-4 py-3 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 text-[15px]"
+                    className={iosInput}
                   />
                   <input
                     type="password"
                     value={adminConfirm}
                     onChange={(e) => setAdminConfirm(e.target.value)}
                     placeholder="Confirmar nova senha"
-                    className="w-full px-4 py-3 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 text-[15px]"
+                    className={iosInput}
                   />
                   <button
                     type="submit"
@@ -221,6 +230,7 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
             </>
           )}
         </form>
+        </div>
       </div>
     </div>
   );

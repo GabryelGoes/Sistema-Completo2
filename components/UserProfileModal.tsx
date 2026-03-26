@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Camera, Loader2, Check, User, Lock } from 'lucide-react';
+import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard, iosInput } from './ui/iosModalStyles';
+import { IosModalHeader } from './ui/IosModalHeader';
 import {
   updateMyProfile,
   changeMyPassword,
@@ -178,14 +180,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4">
-      <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-zinc-200/60 dark:border-white/10 w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between p-4 border-b border-zinc-200/60 dark:border-white/10 shrink-0">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Configurações de perfil</h2>
-          <button type="button" onClick={onClose} className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-white/10 flex items-center justify-center text-zinc-600 dark:text-zinc-400">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className={iosModalOverlay}>
+      <div className={`${iosModalShell} max-w-md max-h-[90vh]`}>
+        <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
+          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+            <IosModalHeader
+              icon={<User className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              title="Configurações de perfil"
+              subtitle="Foto, nome, cor e senha de acesso"
+              gradientClass="from-violet-500 to-fuchsia-700"
+            />
+          </div>
 
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
 
@@ -197,7 +206,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           onCancel={() => setPhotoEditorFile(null)}
         />
 
-        <div className="overflow-y-auto flex-1 p-6 space-y-6">
+        <div className="overflow-y-auto flex-1 px-6 sm:px-8 pb-8 space-y-6 min-h-0">
           {error && (
             <div className="px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-sm">
               {error}
@@ -255,7 +264,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="flex-1 px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                className={`${iosInput} flex-1`}
                 placeholder="Seu nome"
               />
               <button type="submit" disabled={savingName} className="px-4 py-3 rounded-xl bg-violet-500 hover:bg-violet-600 disabled:opacity-50 text-white font-medium flex items-center gap-1">
@@ -268,7 +277,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* Usuário de acesso (somente leitura) */}
           <div>
             <label className="block text-[13px] font-medium text-zinc-600 dark:text-zinc-400 mb-2">Usuário de acesso</label>
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300">
+            <div className={`flex items-center gap-2 px-4 py-3 ${iosModalInsetCard} text-zinc-700 dark:text-zinc-300`}>
               <User className="w-5 h-5 text-zinc-500 dark:text-zinc-400 shrink-0" />
               <span className="text-[15px]">{username}</span>
             </div>
@@ -286,7 +295,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                className={`${iosInput} pl-11`}
                 placeholder="Só necessária para alterar senha abaixo"
                 autoComplete="current-password"
               />
@@ -302,7 +311,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                className={iosInput}
                 placeholder="Mínimo 4 caracteres"
                 autoComplete="new-password"
               />
@@ -313,7 +322,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                className={iosInput}
                 placeholder="Repita a nova senha"
                 autoComplete="new-password"
               />
@@ -323,6 +332,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               Alterar senha
             </button>
           </form>
+        </div>
         </div>
       </div>
     </div>

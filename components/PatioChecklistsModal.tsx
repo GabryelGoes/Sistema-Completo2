@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, ClipboardList, Plus, Pencil, Trash2, Check, Loader2 } from 'lucide-react';
+import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
+import { IosModalHeader } from './ui/IosModalHeader';
 import {
   getChecklistTemplates,
   createChecklistTemplate,
@@ -114,23 +116,23 @@ export const PatioChecklistsModal: React.FC<PatioChecklistsModalProps> = ({ isOp
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-2 sm:p-4 animate-modal-backdrop">
-      <div className="bg-[#FAFAF9] dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] rounded-[1.5rem] w-full max-w-3xl h-[92vh] max-h-[92vh] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden animate-modal-sheet flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/80 dark:bg-white/[0.04] shrink-0">
-          <h2 className="text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
-            Checklists do Pátio
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-white/10 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className={iosModalOverlay}>
+      <div className={`${iosModalShell} w-full max-w-3xl h-[92vh] max-h-[92vh]`}>
+        <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+          <X className="w-5 h-5" />
+        </button>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
+          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+            <IosModalHeader
+              icon={<ClipboardList className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              title="Checklists do pátio"
+              subtitle="Modelos exibidos no modal de cada veículo"
+              gradientClass="from-emerald-400 to-teal-600"
+            />
+          </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8">
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mb-4">
             Crie checklists que aparecerão no modal de cada veículo na página Pátio. Ex.: &quot;Entrada&quot;, &quot;Finalização&quot;. Cada checklist tem itens que o técnico pode marcar por veículo.
           </p>
@@ -142,7 +144,7 @@ export const PatioChecklistsModal: React.FC<PatioChecklistsModalProps> = ({ isOp
           )}
 
           {/* Criar novo */}
-          <div className="rounded-2xl overflow-hidden bg-white/70 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08] shadow-sm mb-6">
+          <div className={`overflow-hidden mb-6 ${iosModalInsetCard}`}>
             <div className="p-4 space-y-3 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
               <input
                 type="text"
@@ -175,17 +177,14 @@ export const PatioChecklistsModal: React.FC<PatioChecklistsModalProps> = ({ isOp
               <Loader2 className="w-8 h-8 animate-spin" />
             </div>
           ) : templates.length === 0 ? (
-            <div className="py-10 px-4 text-center rounded-2xl bg-white/50 dark:bg-white/[0.04] border border-zinc-200/50 dark:border-white/[0.06]">
+            <div className={`py-10 px-4 text-center ${iosModalInsetCard}`}>
               <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhum checklist cadastrado.</p>
               <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">Crie um acima para exibir no modal dos veículos do Pátio.</p>
             </div>
           ) : (
             <div className="space-y-3">
               {templates.map((t) => (
-                <div
-                  key={t.id}
-                  className="rounded-2xl overflow-hidden bg-white/70 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08] shadow-sm"
-                >
+                <div key={t.id} className={`overflow-hidden ${iosModalInsetCard}`}>
                   {editingId === t.id ? (
                     <div className="p-4 space-y-3">
                       <input
@@ -251,6 +250,7 @@ export const PatioChecklistsModal: React.FC<PatioChecklistsModalProps> = ({ isOp
               ))}
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>
