@@ -15,6 +15,7 @@ import {
   ChevronUp,
   ChevronDown,
   Save,
+  Pin,
 } from 'lucide-react';
 import type { TvSlide, TvSlideType } from '../services/apiService';
 import {
@@ -308,6 +309,21 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       await load(adminPassword);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
+    }
+  };
+
+  /** Fixa o slide na TV (sem rotação); só um por vez. Slide pausado não pode. */
+  const togglePinImmediate = async (s: TvSlide) => {
+    if (s.isActive === false && !s.pinImmediate) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await updateTvSlide(adminPassword, s.id, { pinImmediate: !s.pinImmediate });
+      await load(adminPassword);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -756,16 +772,20 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 <section className={`${iosCard} p-5 sm:p-6`}>
                   <p className={iosLabel}>Slides na fila ({slides.length})</p>
                   <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
-                    Edite tipo, textos, mídia, duração e ordem. Cada slide meta pode mostrar só % ou valores em R$, conforme a opção do slide.
+                    Edite tipo, textos, mídia, duração e ordem. A chave{' '}
+                    <span className="font-semibold text-zinc-600 dark:text-zinc-300">Exibir imediatamente</span> fixa o slide na TV
+                    na hora, sem contagem de tempo da rotação, até você desligar (só um slide fixo por vez). Cada slide meta pode mostrar só % ou valores em R$.
                   </p>
                   <ul className="space-y-3">
                     {slides.map((s, idx) => (
                       <li key={s.id} className="space-y-2">
                         <div
-                          className={`flex w-full flex-wrap items-stretch gap-2 rounded-2xl border border-transparent px-3 py-2 transition-colors sm:flex-nowrap ${
-                            libraryPreviewId === s.id && previewTab === 'library'
-                              ? 'bg-[#007AFF]/12 ring-1 ring-[#007AFF]/30'
-                              : 'bg-zinc-50/90 dark:bg-white/[0.04]'
+                          className={`flex w-full flex-wrap items-stretch gap-2 rounded-2xl border px-3 py-2 transition-colors sm:flex-nowrap ${
+                            s.pinImmediate
+                              ? 'border-amber-400/50 bg-amber-50/50 dark:bg-amber-500/10 ring-1 ring-amber-400/35'
+                              : libraryPreviewId === s.id && previewTab === 'library'
+                                ? 'border-transparent bg-[#007AFF]/12 ring-1 ring-[#007AFF]/30'
+                                : 'border-transparent bg-zinc-50/90 dark:bg-white/[0.04]'
                           }`}
                         >
                           <button
@@ -782,7 +802,44 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               {s.durationSeconds}s · ordem {s.sortOrder ?? idx} · {s.isActive === false ? 'pausado' : 'ativo'}
                             </p>
                           </button>
-                          <div className="flex shrink-0 flex-wrap items-center gap-1 justify-end">
+                          <div className="flex shrink-0 flex-wrap items-center gap-1.5 justify-end">
+                            <div
+                              className="flex flex-col items-center gap-0.5 mr-1 max-w-[76px]"
+                              title={
+                                s.isActive === false
+                                  ? 'Reative o slide para usar Exibir imediatamente'
+                                  : 'Ligado: a TV mostra só este slide, sem tempo da rotação, até desligar'
+                              }
+                            >
+                              <Pin
+                                className={`w-3.5 h-3.5 shrink-0 ${s.pinImmediate ? 'text-amber-500' : 'text-zinc-400'}`}
+                                strokeWidth={2.2}
+                              />
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-label={
+                                  s.pinImmediate
+                                    ? 'Desligar exibir imediatamente na TV'
+                                    : 'Exibir imediatamente na TV (fixar até desligar)'
+                                }
+                                aria-checked={s.pinImmediate === true}
+                                disabled={loading || s.isActive === false}
+                                onClick={() => void togglePinImmediate(s)}
+                                className={`relative h-7 w-[44px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40 disabled:opacity-35 ${
+                                  s.pinImmediate ? 'bg-amber-500' : 'bg-zinc-300 dark:bg-zinc-600'
+                                }`}
+                              >
+                                <span
+                                  className={`absolute top-0.5 left-0.5 block h-6 w-6 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                                    s.pinImmediate ? 'translate-x-[18px]' : 'translate-x-0'
+                                  }`}
+                                />
+                              </button>
+                              <span className="text-[7px] font-bold uppercase tracking-tight text-zinc-500 text-center leading-tight">
+                                Exibir imediatamente
+                              </span>
+                            </div>
                             <button
                               type="button"
                               title="Subir"
