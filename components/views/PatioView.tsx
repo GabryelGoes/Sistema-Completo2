@@ -4717,42 +4717,95 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* MODAL DE SELEÇÃO DE ETAPA (MOVE) — vidro iOS alinhado ao TV do pátio */}
       {cardInTransition && (
-        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
-          <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
-            <div className="flex shrink-0 items-center justify-between border-b border-zinc-200/60 px-5 pb-4 pt-5 dark:border-white/[0.07] sm:px-6 sm:pt-6">
-              <div className="min-w-0 flex-1 pr-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Alterar etapa</p>
-                <p className="mt-1 truncate text-xl font-bold tracking-tight text-zinc-900 dark:text-white">{cardInTransition.name.split('-')[0]}</p>
+        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}>
+          <div
+            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+          >
+            <button
+              type="button"
+              onClick={() => setCardInTransition(null)}
+              className={iosModalClose}
+              aria-label="Fechar"
+              disabled={isMoving}
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+              <div className="flex items-start gap-3 pr-10">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF] to-[#5856D6] shadow-lg shadow-blue-500/25">
+                  <ArrowRightLeft className="h-6 w-6 text-white" strokeWidth={2.2} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                    {isModuleMode ? 'Laboratório' : 'Pátio'}
+                  </p>
+                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">
+                    Alterar etapa
+                  </h2>
+                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                    <span className="min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200">
+                      {cardInTransition.name.split('-')[0]}
+                    </span>
+                    <span className="text-zinc-400 dark:text-zinc-500">—</span>
+                    <span>Toque na etapa de destino.</span>
+                  </p>
+                </div>
               </div>
-              <button type="button" onClick={() => setCardInTransition(null)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15">
-                <X className="h-5 w-5" />
-              </button>
             </div>
-            <div className="p-4 overflow-y-auto space-y-2">
-              {lists.map((list) => {
-                const config = getStatusConfig(list.name, list.id);
-                const isCurrent = list.id === cardInTransition.idList;
-                return (
-                  <button
-                    key={list.id}
-                    type="button"
-                    onClick={() => handleMoveCard(list.id)}
-                    disabled={isCurrent || isMoving}
-                    className={`
-                      w-full py-4 px-5 rounded-2xl flex items-center justify-between text-left transition-all duration-200 min-h-[52px]
-                      ${isCurrent 
-                        ? 'opacity-60 cursor-not-allowed border border-zinc-200/60 dark:border-white/[0.08] bg-zinc-100/80 dark:bg-white/[0.06] text-zinc-500 dark:text-zinc-400' 
-                        : `border border-transparent ${config.style} hover:brightness-110 active:scale-[0.99] shadow-[0_2px_12px_-2px_rgba(0,0,0,0.12)]`}
-                    `}
-                  >
-                    <span className="text-[15px] font-semibold uppercase tracking-wide">{list.name}</span>
-                    {isCurrent && <Check className="w-5 h-5 shrink-0 opacity-80" />}
-                  </button>
-                );
-              })}
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
+              <p className={iosLabel}>Etapas</p>
+              {isMoving && (
+                <p className="mb-3 flex items-center gap-2 text-[13px] font-medium text-[#007AFF] dark:text-[#64B5FF]">
+                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
+                  Atualizando etapa…
+                </p>
+              )}
+              <div className="space-y-2.5">
+                {lists.map((list) => {
+                  const config = getStatusConfig(list.name, list.id);
+                  const isCurrent = list.id === cardInTransition.idList;
+                  return (
+                    <button
+                      key={list.id}
+                      type="button"
+                      onClick={() => handleMoveCard(list.id)}
+                      disabled={isCurrent || isMoving}
+                      className={`
+                        group flex min-h-[52px] w-full items-center justify-between gap-3 rounded-[22px] border-2 px-4 py-3.5 text-left transition-all duration-200 sm:px-5
+                        ${
+                          isCurrent
+                            ? `${iosModalInsetCard} cursor-not-allowed border-zinc-200/80 opacity-75 shadow-none dark:border-white/[0.08]`
+                            : `border-transparent ${config.style} shadow-[0_2px_12px_-2px_rgba(0,0,0,0.12)] hover:brightness-110 active:scale-[0.99] disabled:opacity-55 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.35)]`
+                        }
+                      `}
+                    >
+                      <span className="text-[15px] font-semibold uppercase tracking-wide">{list.name}</span>
+                      {isCurrent ? (
+                        <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          <Check className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} />
+                          Atual
+                        </span>
+                      ) : (
+                        <ChevronRight
+                          className={`h-5 w-5 shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5 ${isMoving ? 'opacity-30' : ''}`}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="shrink-0 border-t border-zinc-200/60 bg-white/40 px-4 py-3 dark:border-white/[0.07] dark:bg-zinc-950/30 sm:px-5">
-              <button type="button" onClick={() => setCardInTransition(null)} className="w-full rounded-2xl py-3 text-[15px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white">
+
+            <div className="shrink-0 border-t border-zinc-200/60 px-4 py-3 dark:border-white/[0.07] sm:px-6">
+              <button
+                type="button"
+                onClick={() => setCardInTransition(null)}
+                disabled={isMoving}
+                className="w-full rounded-2xl py-3.5 text-[15px] font-semibold text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+              >
                 Cancelar
               </button>
             </div>
