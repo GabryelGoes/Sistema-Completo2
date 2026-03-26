@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, ClipboardList, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosLabel, iosPageGlass } from '../ui/iosModalStyles';
 import { IosModalHeader } from '../ui/IosModalHeader';
 import { Customer, ProcessingStatus } from '../../types';
@@ -465,8 +465,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       {/* Cabeçalho — mesmo padrão da página Agenda */}
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400/95 to-indigo-600 shadow-lg shadow-indigo-500/25 ring-1 ring-white/20 dark:ring-white/10">
-            <Building2 className="w-7 h-7 text-white" strokeWidth={2.2} />
+          {/* Mesmo ícone e gradiente do tile Recepção na página inicial (HomeView → OPERATIONAL_APPS) */}
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.35rem] bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 shadow-[0_8px_28px_-6px_rgba(0,0,0,0.38),inset_0_1px_0_0_rgba(255,255,255,0.38)]"
+            aria-hidden
+          >
+            <ClipboardList className="w-7 h-7 text-white" strokeWidth={2.2} />
           </div>
           <div className="min-w-0">
             <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
@@ -776,7 +780,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <div className="pt-2 flex justify-center lg:justify-start">
                 <button 
                   type="submit"
-                  className="group relative min-w-[220px] px-8 py-3.5 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 text-white font-semibold text-[15px] tracking-wide shadow-lg shadow-orange-500/35 hover:opacity-95 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="group relative min-w-[220px] px-8 py-3.5 rounded-2xl border border-zinc-300/90 dark:border-white/[0.14] bg-zinc-100/95 dark:bg-zinc-800/80 text-zinc-800 dark:text-zinc-100 font-medium text-[15px] shadow-sm hover:bg-zinc-200/90 dark:hover:bg-zinc-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
                   Criar ficha
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
