@@ -2966,196 +2966,222 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      </div>
                   </div>
 
-                  {/* Dados da ficha — agrupados antes da queixa (minimizado por padrão) */}
+                  {/* Dados da ficha — vidro iOS (agrupado, minimizado por padrão) */}
                   {serviceOrderDetail && (
                     <div ref={customerDataSectionRef} className="p-8 pt-8 md:px-12">
-                      <div className={`${iosModalInsetCard} overflow-hidden`}>
-                        <button
-                          type="button"
-                          onClick={() => setIsDadosFichaExpanded((v) => !v)}
-                          className="flex w-full items-center justify-between border-b border-zinc-200/50 bg-zinc-50/40 px-5 py-4 text-left transition-colors hover:bg-zinc-100/50 dark:border-white/[0.06] dark:bg-white/[0.03] dark:hover:bg-white/[0.06] sm:px-6"
-                        >
-                          <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                            {isDadosFichaExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                            <User className="w-4 h-4" />
-                            Dados da ficha
-                          </h3>
-                          {can('canEditFicha') && (
+                      <div className={`${iosModalInsetCard} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
+                        <div className="flex items-stretch gap-0 border-b border-zinc-200/40 bg-gradient-to-b from-white/80 to-zinc-50/30 dark:border-white/[0.06] dark:from-white/[0.04] dark:to-transparent">
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); openEditFichaModal(); setIsDadosFichaExpanded(true); }}
-                            className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#007AFF]/12 px-3 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-colors hover:bg-[#007AFF]/20 dark:text-[#64B5FF] dark:hover:bg-[#007AFF]/20"
+                            onClick={() => setIsDadosFichaExpanded((v) => !v)}
+                            className="group flex min-w-0 flex-1 items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-zinc-100/30 dark:hover:bg-white/[0.04] sm:px-6"
                           >
-                            <Pencil className="h-3.5 w-3.5" />
-                            Editar em janela
+                            <div className="flex min-w-0 items-center gap-3">
+                              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF]/18 to-[#5AC8FA]/12 text-[#007AFF] shadow-sm dark:from-[#007AFF]/22 dark:to-[#5AC8FA]/10">
+                                <User className="h-4 w-4" strokeWidth={2} />
+                              </span>
+                              <div className="min-w-0 text-left">
+                                <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                                  Dados da ficha
+                                </h3>
+                                <p className="mt-0.5 truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100">
+                                  {serviceOrderDetail.customers?.name?.trim() || 'Cliente'} · {isModuleMode ? (serviceOrderDetail.module_identification || '—') : (serviceOrderDetail.plate || '—').toUpperCase()}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-zinc-500 transition-transform group-hover:scale-105 dark:bg-white/[0.08] dark:text-zinc-300">
+                              {isDadosFichaExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </span>
                           </button>
+                          {can('canEditFicha') && (
+                            <div className="flex shrink-0 items-center border-l border-zinc-200/40 pr-3 dark:border-white/[0.06] sm:pr-4">
+                              <button
+                                type="button"
+                                onClick={() => { openEditFichaModal(); setIsDadosFichaExpanded(true); }}
+                                className="hidden h-full min-h-[3.5rem] items-center gap-1.5 rounded-2xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-3 text-[11px] font-semibold text-[#007AFF] transition-colors hover:bg-[#007AFF]/18 sm:inline-flex dark:border-[#64B5FF]/30 dark:text-[#64B5FF]"
+                                title="Abrir em janela"
+                              >
+                                <Maximize2 className="h-3.5 w-3.5" />
+                                Janela
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { openEditFichaModal(); setIsDadosFichaExpanded(true); }}
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[#007AFF]/25 bg-[#007AFF]/10 text-[#007AFF] transition-colors hover:bg-[#007AFF]/18 sm:hidden dark:border-[#64B5FF]/30 dark:text-[#64B5FF]"
+                                aria-label="Abrir edição da ficha em janela"
+                              >
+                                <Maximize2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           )}
-                        </button>
+                        </div>
                         {isDadosFichaExpanded && (
-                        <div className="p-6 space-y-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {can('canEditFicha') ? (
-                              <>
-                                {serviceOrderDetail.customers && (
-                                  <>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                      <User className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div className="min-w-0 flex-1">
-                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">Nome</label>
-                                        <input value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Nome do cliente" />
+                        <div className="space-y-6 bg-gradient-to-b from-transparent to-zinc-50/20 p-5 dark:to-white/[0.02] sm:p-6">
+                          {can('canEditFicha') ? (
+                            <>
+                              {serviceOrderDetail.customers && (
+                                <div className="space-y-3">
+                                  <p className={`${iosLabel} ml-0.5`}>Cliente</p>
+                                  <div className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
+                                    <div>
+                                      <label className={iosLabel}>Nome</label>
+                                      <input value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className={iosInput} placeholder="Nome do cliente" />
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                      <div>
+                                        <label className={iosLabel}>Telefone</label>
+                                        <input value={editFichaForm.phone} onChange={(e) => setEditFichaForm(f => ({ ...f, phone: e.target.value }))} className={iosInput} placeholder="(11) 99999-9999" />
+                                      </div>
+                                      <div>
+                                        <label className={iosLabel}>E-mail</label>
+                                        <input type="email" value={editFichaForm.email} onChange={(e) => setEditFichaForm(f => ({ ...f, email: e.target.value }))} className={iosInput} placeholder="email@exemplo.com" />
                                       </div>
                                     </div>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                      <Smartphone className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div className="min-w-0 flex-1">
-                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">Telefone</label>
-                                        <input value={editFichaForm.phone} onChange={(e) => setEditFichaForm(f => ({ ...f, phone: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="(11) 99999-9999" />
+                                    <div>
+                                      <label className={iosLabel}>CPF</label>
+                                      <input value={editFichaForm.cpf} onChange={(e) => setEditFichaForm(f => ({ ...f, cpf: e.target.value }))} className={iosInput} placeholder="000.000.000-00" />
+                                    </div>
+                                  </div>
+                                  <p className={`${iosLabel} ml-0.5`}>Endereço</p>
+                                  <div className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
+                                    <div>
+                                      <label className={iosLabel}>Logradouro</label>
+                                      <input value={editFichaForm.address} onChange={(e) => setEditFichaForm(f => ({ ...f, address: e.target.value }))} className={iosInput} placeholder="Rua, bairro..." />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                                      <div>
+                                        <label className={iosLabel}>Nº</label>
+                                        <input value={editFichaForm.addressNumber} onChange={(e) => setEditFichaForm(f => ({ ...f, addressNumber: e.target.value }))} className={iosInput} placeholder="Nº" />
+                                      </div>
+                                      <div>
+                                        <label className={iosLabel}>CEP</label>
+                                        <input value={editFichaForm.cep} onChange={(e) => setEditFichaForm(f => ({ ...f, cep: e.target.value }))} className={iosInput} placeholder="00000-000" />
                                       </div>
                                     </div>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                      <Mail className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div className="min-w-0 flex-1">
-                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">E-mail</label>
-                                        <input type="email" value={editFichaForm.email} onChange={(e) => setEditFichaForm(f => ({ ...f, email: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="email@exemplo.com" />
+                                  </div>
+                                </div>
+                              )}
+                              <div className="space-y-3">
+                                <p className={`${iosLabel} ml-0.5`}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
+                                <div className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
+                                  <div>
+                                    <label className={iosLabel}>{isModuleMode ? 'Veículo / referência' : 'Modelo'}</label>
+                                    <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={iosInput} placeholder={isModuleMode ? 'Ex: BMW 320i' : 'Ex: Gol 1.0'} />
+                                  </div>
+                                  {isModuleMode && (
+                                    <div>
+                                      <label className={iosLabel}>Identificação do módulo</label>
+                                      <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className={iosInput} placeholder="Ex: Módulo ABS XYZ" />
+                                    </div>
+                                  )}
+                                  {!isModuleMode && (
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                      <div>
+                                        <label className={iosLabel}>Placa</label>
+                                        <input value={editFichaForm.plate} onChange={(e) => setEditFichaForm(f => ({ ...f, plate: e.target.value.toUpperCase() }))} maxLength={8} className={`${iosInput} font-mono uppercase`} placeholder="ABC1D23" />
+                                      </div>
+                                      <div>
+                                        <label className={iosLabel}>Quilometragem</label>
+                                        <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className={iosInput} placeholder="45000" />
                                       </div>
                                     </div>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                      <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div className="min-w-0 flex-1">
-                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">CPF</label>
-                                        <input value={editFichaForm.cpf} onChange={(e) => setEditFichaForm(f => ({ ...f, cpf: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="000.000.000-00" />
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="space-y-6">
+                              {serviceOrderDetail.customers && (
+                                <>
+                                  <div className="space-y-3">
+                                    <p className={`${iosLabel} ml-0.5`}>Cliente</p>
+                                    <div className={`${iosModalInsetCard} divide-y divide-zinc-200/60 overflow-hidden p-0 dark:divide-white/[0.06]`}>
+                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                        <User className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Nome</p>
+                                          <p className="mt-0.5 text-[15px] font-medium leading-snug text-zinc-900 dark:text-white">{serviceOrderDetail.customers.name || '—'}</p>
+                                        </div>
                                       </div>
-                                    </div>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20 sm:col-span-2">
-                                      <MapPin className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div className="min-w-0 flex-1 space-y-2">
-                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Endereço</label>
-                                        <input value={editFichaForm.address} onChange={(e) => setEditFichaForm(f => ({ ...f, address: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Rua, bairro..." />
-                                        <div className="grid grid-cols-2 gap-2">
-                                          <input value={editFichaForm.addressNumber} onChange={(e) => setEditFichaForm(f => ({ ...f, addressNumber: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Nº" />
-                                          <input value={editFichaForm.cep} onChange={(e) => setEditFichaForm(f => ({ ...f, cep: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="CEP" />
+                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                        <Smartphone className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Telefone</p>
+                                          <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.customers.phone || '—'}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                        <Mail className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">E-mail</p>
+                                          <p className="mt-0.5 truncate text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.customers.email || '—'}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                        <FileText className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">CPF</p>
+                                          <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.customers.cpf || '—'}</p>
                                         </div>
                                       </div>
                                     </div>
-                                  </>
-                                )}
-                                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                  <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                  <div className="min-w-0 flex-1">
-                                    <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">{isModuleMode ? 'Veículo' : 'Modelo do veículo'}</label>
-                                    <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder={isModuleMode ? 'Ex: BMW 320i' : 'Ex: Gol 1.0'} />
                                   </div>
-                                </div>
-                                {isModuleMode && (
-                                  <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                    <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                    <div className="min-w-0 flex-1">
-                                      <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">Identificação do módulo</label>
-                                      <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Ex: Módulo ABS XYZ" />
-                                    </div>
-                                  </div>
-                                )}
-                                {!isModuleMode && (
-                                  <>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                      <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div className="min-w-0 flex-1">
-                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">Placa</label>
-                                        <input value={editFichaForm.plate} onChange={(e) => setEditFichaForm(f => ({ ...f, plate: e.target.value.toUpperCase() }))} maxLength={8} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="ABC1D23" />
-                                      </div>
-                                    </div>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                      <Hash className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div className="min-w-0 flex-1">
-                                        <label className="block text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider mb-1">Km</label>
-                                        <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="45000" />
-                                      </div>
-                                    </div>
-                                  </>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                {serviceOrderDetail.customers && (
-                                  <>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                      <User className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div>
-                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Nome</p>
-                                        <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.customers.name || '—'}</p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                      <Smartphone className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div>
-                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Telefone</p>
-                                        <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.customers.phone || '—'}</p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                      <Mail className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div>
-                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">E-mail</p>
-                                        <p className="text-zinc-900 dark:text-white font-medium truncate">{serviceOrderDetail.customers.email || '—'}</p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                      <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div>
-                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">CPF</p>
-                                        <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.customers.cpf || '—'}</p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20 sm:col-span-2">
-                                      <MapPin className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div className="min-w-0">
-                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Endereço</p>
-                                        <p className="text-zinc-900 dark:text-white font-medium">
+                                  <div className="space-y-3">
+                                    <p className={`${iosLabel} ml-0.5`}>Endereço</p>
+                                    <div className={`${iosModalInsetCard} px-4 py-4 sm:px-5 sm:py-4`}>
+                                      <div className="flex gap-3">
+                                        <MapPin className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85 mt-0.5" />
+                                        <p className="text-[15px] font-medium leading-relaxed text-zinc-900 dark:text-white">
                                           {[serviceOrderDetail.customers.address, serviceOrderDetail.customers.address_number, serviceOrderDetail.customers.cep].filter(Boolean).join(' · ') || '—'}
                                         </p>
                                       </div>
                                     </div>
-                                  </>
-                                )}
-                                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                  <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                  <div>
-                                    <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Veículo</p>
-                                    <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.vehicle_model || '—'}</p>
                                   </div>
+                                </>
+                              )}
+                              <div className="space-y-3">
+                                <p className={`${iosLabel} ml-0.5`}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
+                                <div className={`${iosModalInsetCard} divide-y divide-zinc-200/60 overflow-hidden p-0 dark:divide-white/[0.06]`}>
+                                  <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                    <PatioCarIcon className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{isModuleMode ? 'Referência' : 'Modelo'}</p>
+                                      <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_model || '—'}</p>
+                                    </div>
+                                  </div>
+                                  {isModuleMode && (
+                                    <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                      <FlaskConical className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Identificação</p>
+                                        <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.module_identification || '—'}</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {!isModuleMode && (
+                                    <>
+                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                        <FileText className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Placa</p>
+                                          <p className="mt-0.5 font-mono text-[16px] font-bold uppercase tracking-wider text-zinc-900 dark:text-white">{(serviceOrderDetail.plate || '—').toUpperCase()}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                        <Hash className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Quilometragem</p>
+                                          <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.mileage_km || '—'}</p>
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
-                                {isModuleMode && (
-                                  <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                    <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                    <div>
-                                      <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Identificação do módulo</p>
-                                      <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.module_identification || '—'}</p>
-                                    </div>
-                                  </div>
-                                )}
-                                {!isModuleMode && (
-                                  <>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                      <FileText className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div>
-                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Placa</p>
-                                        <p className="text-zinc-900 dark:text-white font-mono font-bold uppercase">{(serviceOrderDetail.plate || '—').toUpperCase()}</p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                                      <Hash className="w-4 h-4 text-brand-yellow shrink-0 mt-0.5" />
-                                      <div>
-                                        <p className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">Km</p>
-                                        <p className="text-zinc-900 dark:text-white font-medium">{serviceOrderDetail.mileage_km || '—'}</p>
-                                      </div>
-                                    </div>
-                                  </>
-                                )}
-                              </>
+                              </div>
+                            </div>
                             )}
-                          </div>
                           {can('canEditFicha') && (
-                            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-light-border dark:border-zinc-800">
+                            <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200/50 pt-5 dark:border-white/[0.06]">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -3168,7 +3194,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     plate: (serviceOrderDetail.plate ?? '').toUpperCase(), mileageKm: serviceOrderDetail.mileage_km ?? '',
                                   });
                                 }}
-                                className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                className="flex-1 min-w-[120px] rounded-2xl border border-zinc-200/90 py-3 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06] sm:flex-none sm:px-6"
                               >
                                 Cancelar
                               </button>
@@ -3176,7 +3202,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 type="button"
                                 onClick={handleSaveEditFicha}
                                 disabled={editFichaSaving}
-                                className="px-5 py-2 rounded-xl bg-brand-yellow text-black text-sm font-bold hover:bg-[#fcd61e] transition-colors flex items-center gap-2 disabled:opacity-50"
+                                className={`${iosPrimaryButton} flex flex-1 min-w-[140px] items-center justify-center gap-2 sm:flex-none sm:px-8`}
                               >
                                 {editFichaSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                 Salvar alterações
@@ -4041,81 +4067,117 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
       )}
 
-      {/* MODAL EDITAR DADOS DA FICHA (cliente + veículo) */}
+      {/* MODAL EDITAR DADOS DA FICHA — vidro iOS alinhado ao TV do pátio */}
       {isEditFichaOpen && selectedCard && (
         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
-          <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-lg flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
-            <div className="flex shrink-0 items-center justify-between border-b border-zinc-200/60 px-5 py-4 dark:border-white/[0.07] sm:px-6">
-              <h3 className="flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
-                <Pencil className="h-5 w-5 text-[#007AFF]" />
-                Editar dados da ficha
-              </h3>
-              <button type="button" onClick={() => setIsEditFichaOpen(false)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15">
-                <X className="h-5 w-5" />
+          <div className={`relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-xl min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}>
+            <button
+              type="button"
+              onClick={() => setIsEditFichaOpen(false)}
+              className={iosModalClose}
+              aria-label="Fechar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="shrink-0 border-b border-zinc-200/50 px-6 pb-5 pt-7 pr-14 dark:border-white/[0.06] sm:px-8 sm:pb-6 sm:pt-8">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.1rem] bg-gradient-to-br from-[#007AFF]/22 via-[#5AC8FA]/15 to-[#0A84FF]/10 text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:from-[#0A84FF]/35 dark:via-[#5AC8FA]/15 dark:to-transparent">
+                  <User className="h-6 w-6" strokeWidth={1.75} />
+                </div>
+                <div className="min-w-0 pt-0.5">
+                  <h2 className="text-[22px] font-semibold leading-[1.15] tracking-tight text-zinc-900 dark:text-white">
+                    Dados da ficha
+                  </h2>
+                  <p className="mt-1.5 text-[14px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    Cliente, endereço e {isModuleMode ? 'identificação do módulo' : 'veículo'}. As alterações são salvas nesta ordem de serviço.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 dark:[color-scheme:dark] sm:px-8 sm:py-6 custom-scrollbar">
+              <div className="space-y-7">
+                <section>
+                  <p className={`${iosLabel} mb-3 ml-0.5`}>Cliente</p>
+                  <div className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
+                    <div>
+                      <label className={iosLabel}>Nome</label>
+                      <input value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className={iosInput} placeholder="Nome do cliente" />
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className={iosLabel}>Telefone</label>
+                        <input value={editFichaForm.phone} onChange={(e) => setEditFichaForm(f => ({ ...f, phone: e.target.value }))} className={iosInput} placeholder="(11) 99999-9999" />
+                      </div>
+                      <div>
+                        <label className={iosLabel}>E-mail</label>
+                        <input type="email" value={editFichaForm.email} onChange={(e) => setEditFichaForm(f => ({ ...f, email: e.target.value }))} className={iosInput} placeholder="email@exemplo.com" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={iosLabel}>CPF</label>
+                      <input value={editFichaForm.cpf} onChange={(e) => setEditFichaForm(f => ({ ...f, cpf: e.target.value }))} className={iosInput} placeholder="000.000.000-00" />
+                    </div>
+                  </div>
+                </section>
+                <section>
+                  <p className={`${iosLabel} mb-3 ml-0.5`}>Endereço</p>
+                  <div className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
+                    <div>
+                      <label className={iosLabel}>Logradouro</label>
+                      <input value={editFichaForm.address} onChange={(e) => setEditFichaForm(f => ({ ...f, address: e.target.value }))} className={iosInput} placeholder="Rua, bairro..." />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <label className={iosLabel}>Nº</label>
+                        <input value={editFichaForm.addressNumber} onChange={(e) => setEditFichaForm(f => ({ ...f, addressNumber: e.target.value }))} className={iosInput} placeholder="Nº" />
+                      </div>
+                      <div>
+                        <label className={iosLabel}>CEP</label>
+                        <input value={editFichaForm.cep} onChange={(e) => setEditFichaForm(f => ({ ...f, cep: e.target.value }))} className={iosInput} placeholder="00000-000" />
+                      </div>
+                    </div>
+                  </div>
+                </section>
+                <section>
+                  <p className={`${iosLabel} mb-3 ml-0.5`}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
+                  <div className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
+                    <div>
+                      <label className={iosLabel}>{isModuleMode ? 'Veículo / referência' : 'Modelo'}</label>
+                      <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={iosInput} placeholder={isModuleMode ? 'Ex: BMW 320i' : 'Ex: Gol 1.0'} />
+                    </div>
+                    {isModuleMode && (
+                      <div>
+                        <label className={iosLabel}>Identificação do módulo</label>
+                        <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className={iosInput} placeholder="Ex: Módulo ABS XYZ" />
+                      </div>
+                    )}
+                    {!isModuleMode && (
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className={iosLabel}>Placa</label>
+                          <input value={editFichaForm.plate} onChange={(e) => setEditFichaForm(f => ({ ...f, plate: e.target.value.toUpperCase() }))} maxLength={8} className={`${iosInput} font-mono uppercase`} placeholder="ABC1D23" />
+                        </div>
+                        <div>
+                          <label className={iosLabel}>Quilometragem</label>
+                          <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className={iosInput} placeholder="45000" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </div>
+            </div>
+            <div className="flex shrink-0 gap-3 border-t border-zinc-200/60 bg-white/55 p-5 backdrop-blur-md dark:border-white/[0.07] dark:bg-zinc-950/40 sm:px-8">
+              <button
+                type="button"
+                onClick={() => setIsEditFichaOpen(false)}
+                className="flex-1 rounded-2xl border border-zinc-200/90 py-3.5 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+              >
+                Cancelar
               </button>
-            </div>
-            <div className="overflow-y-auto p-6 space-y-4 custom-scrollbar">
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Nome</label>
-                <input value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Nome do cliente" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Telefone</label>
-                  <input value={editFichaForm.phone} onChange={(e) => setEditFichaForm(f => ({ ...f, phone: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="(11) 99999-9999" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">E-mail</label>
-                  <input type="email" value={editFichaForm.email} onChange={(e) => setEditFichaForm(f => ({ ...f, email: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="email@exemplo.com" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">CPF</label>
-                <input value={editFichaForm.cpf} onChange={(e) => setEditFichaForm(f => ({ ...f, cpf: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="000.000.000-00" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Endereço</label>
-                <input value={editFichaForm.address} onChange={(e) => setEditFichaForm(f => ({ ...f, address: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Rua, bairro..." />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Nº</label>
-                  <input value={editFichaForm.addressNumber} onChange={(e) => setEditFichaForm(f => ({ ...f, addressNumber: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="123" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">CEP</label>
-                  <input value={editFichaForm.cep} onChange={(e) => setEditFichaForm(f => ({ ...f, cep: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="00000-000" />
-                </div>
-              </div>
-              <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-2" />
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">{isModuleMode ? 'Veículo' : 'Modelo do veículo'}</label>
-                <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder={isModuleMode ? 'Ex: BMW 320i' : 'Ex: Gol 1.0'} />
-              </div>
-              {isModuleMode && (
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Identificação do módulo</label>
-                <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="Ex: Módulo ABS XYZ" />
-              </div>
-              )}
-              {!isModuleMode && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Placa</label>
-                  <input value={editFichaForm.plate} onChange={(e) => setEditFichaForm(f => ({ ...f, plate: e.target.value.toUpperCase() }))} maxLength={8} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white font-mono uppercase focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="ABC1D23" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Km</label>
-                  <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-yellow/40" placeholder="45000" />
-                </div>
-              </div>
-              )}
-            </div>
-            <div className="flex shrink-0 gap-3 border-t border-zinc-200/60 bg-white/40 p-5 dark:border-white/[0.07] dark:bg-zinc-950/30">
-              <button type="button" onClick={() => setIsEditFichaOpen(false)} className="flex-1 rounded-2xl border border-zinc-200/90 py-3 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]">Cancelar</button>
               <button type="button" onClick={handleSaveEditFicha} disabled={editFichaSaving} className={`${iosPrimaryButton} flex flex-1 items-center justify-center gap-2 disabled:opacity-50`}>
                 {editFichaSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Salvar
+                Salvar alterações
               </button>
             </div>
           </div>
