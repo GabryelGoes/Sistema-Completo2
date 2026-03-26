@@ -3189,7 +3189,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 gap-10 p-8 pt-8 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(248px,288px)] lg:gap-8 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(260px,300px)]">
+                  <div className="grid grid-cols-1 gap-10 p-8 pt-8 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:gap-8 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(232px,288px)]">
                       
                       <div className="min-w-0 space-y-10">
                         <div ref={descriptionSectionRef}>
@@ -3245,6 +3245,377 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           )}
                         </div>
+
+                        <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
+
+                         {/* Orçamentos: criar + lista */}
+                         {can('canEditBudgets') && (
+                         <div ref={budgetsSectionRef}>
+                            <p className={`${iosLabel} mb-3`}>Orçamentos</p>
+                            <div className="space-y-3">
+                              <button 
+                                  type="button"
+                                  onClick={() => openBudgetModal()}
+                                  className="w-full p-4 bg-[#f0ebe0] border border-[#e2dcd0] hover:bg-[#e8e2d5] rounded-xl flex items-center justify-between group transition-all shadow-sm"
+                                >
+                                  <span className="font-black text-zinc-800">Criar orçamento</span>
+                                  <Calculator className="w-5 h-5 text-zinc-700 group-hover:scale-110 transition-transform" />
+                              </button>
+                              <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-3 space-y-3 max-h-[280px] overflow-y-auto shadow-inner bg-zinc-100/50 dark:bg-zinc-900/30">
+                              {savedBudgets
+                                .filter((b) => b.serviceOrderId === selectedCard.id)
+                                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                                .map((budget, index) => {
+                                  const preview =
+                                    budget.diagnosis?.split('\n')[0]?.slice(0, 42) ||
+                                    budget.services[0]?.description?.slice(0, 42) ||
+                                    (budget.parts[0] ? `${budget.parts[0].quantity}x ${budget.parts[0].description?.slice(0, 30)}` : '') ||
+                                    'Orçamento';
+                                  const dateStr = new Date(budget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                                  const numero = index + 1;
+                                  return (
+                                    <button
+                                      key={budget.id}
+                                      type="button"
+                                      onClick={() => setViewingBudget(budget)}
+                                      className="w-full text-left rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_4px_14px_rgba(0,0,0,0.12),0_2px_6px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 active:translate-y-0"
+                                      style={{
+                                        backgroundColor: '#d9d0bc',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.4)',
+                                        border: '1px solid rgba(0,0,0,0.12)',
+                                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.045'/%3E%3C/svg%3E")`,
+                                      }}
+                                    >
+                                      <div className="relative p-3.5">
+                                      <div className="flex items-center justify-between gap-2 mb-2">
+                                        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#000000' }}>
+                                          Orçamento {numero}
+                                        </span>
+                                        <span className="text-[10px] font-medium tabular-nums" style={{ color: '#000000' }}>
+                                          {dateStr}
+                                        </span>
+                                      </div>
+                                      <p className="text-[13px] font-medium line-clamp-2 leading-snug mb-2" style={{ color: '#000000' }}>
+                                        {preview}
+                                      </p>
+                                      <div className="flex items-center gap-2 text-[11px]" style={{ color: '#000000' }}>
+                                        <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
+                                        <span>·</span>
+                                        <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
+                                      </div>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
+                                <div
+                                  className="rounded-lg p-5 text-center border border-dashed"
+                                  style={{
+                                    backgroundColor: '#d9d0bc',
+                                    borderColor: 'rgba(0,0,0,0.12)',
+                                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)',
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.045'/%3E%3C/svg%3E")`,
+                                  }}
+                                >
+                                  <FileText className="w-9 h-9 mx-auto mb-2" style={{ color: '#000000' }} />
+                                  <p className="text-sm font-medium mt-0.5" style={{ color: '#000000' }}>Nenhum orçamento</p>
+                                  <p className="text-xs mt-0.5" style={{ color: '#000000' }}>Crie um orçamento pelo botão acima</p>
+                                </div>
+                              )}
+                              </div>
+
+                              {/* Aprovar orçamento (somente admin): separado da exibição, dentro de Orçamentos */}
+                              {actorOptions?.actor === 'admin' && savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length > 0 && (
+                                <div className="mt-4 pt-4 border-t border-zinc-200/80 dark:border-zinc-700/80">
+                                  <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Aprovar orçamento</p>
+                                  <p className="text-[11px] text-zinc-500 dark:text-zinc-500 mb-3">Selecione um orçamento para marcar cada serviço e peça como aprovado ou reprovado.</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {savedBudgets
+                                      .filter((b) => b.serviceOrderId === selectedCard.id)
+                                      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                                      .map((budget, idx) => (
+                                        <button
+                                          key={budget.id}
+                                          type="button"
+                                          onClick={() => openBudgetApproval(budget)}
+                                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-500/50 bg-amber-500/10 text-amber-800 dark:text-amber-200 text-sm font-medium hover:bg-amber-500/20 transition-colors"
+                                        >
+                                          <CheckCircle2 className="w-4 h-4" />
+                                          Aprovar orçamento {idx + 1}
+                                        </button>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                         </div>
+                         )}
+
+                        <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
+
+                         {/* Anexos (fotos) + Documentos (arquivos) */}
+                         <div>
+                            <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                                   <Paperclip className="h-3.5 w-3.5" />
+                                   Anexos
+                                </h3>
+                                <div className="grid grid-cols-3 gap-3 sm:gap-2 sm:justify-items-end sm:shrink-0">
+                                    <input 
+                                        type="file" 
+                                        ref={galleryInputRef} 
+                                        className="hidden" 
+                                        accept="image/*,application/pdf"
+                                        multiple
+                                        onChange={handleGallerySelect}
+                                    />
+                                    <input 
+                                        type="file" 
+                                        ref={cameraInputRef} 
+                                        className="hidden" 
+                                        accept="image/*,application/pdf"
+                                        capture="environment"
+                                        onChange={handleCameraFileSelect}
+                                    />
+                                    <button 
+                                        type="button"
+                                        onClick={() => cameraInputRef.current?.click()}
+                                        disabled={isUploading}
+                                        className="flex items-center justify-center w-14 h-14 sm:w-10 sm:h-10 rounded-2xl sm:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
+                                        title="Foto do veículo (câmera ou arquivo)"
+                                    >
+                                        <Camera className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => galleryInputRef.current?.click()}
+                                        disabled={isUploading}
+                                        className="flex items-center justify-center w-14 h-14 sm:w-10 sm:h-10 rounded-2xl sm:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
+                                        title="Galeria / Documentos"
+                                    >
+                                        <ImageIcon className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => galleryInputRef.current?.click()}
+                                        disabled={isUploading}
+                                        className="flex items-center justify-center w-14 h-14 sm:w-10 sm:h-10 rounded-2xl sm:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
+                                        title="Arquivos do dispositivo"
+                                    >
+                                        <FolderOpen className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-3">
+                               {isUploading && (
+                                  <div className="flex justify-center p-4">
+                                     <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
+                                  </div>
+                               )}
+                               {loadingDetails ? (
+                                  <div className="flex justify-center p-4">
+                                     <RefreshCw className="w-4 h-4 text-zinc-500 animate-spin" />
+                                  </div>
+                               ) : cardDetails?.attachments && cardDetails.attachments.length > 0 ? (
+                                  (() => {
+                                    const attachments = cardDetails.attachments;
+                                    const images = attachments.filter(att => att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url));
+                                    const others = attachments.filter(att => !(att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url)));
+                                    const thumbUrl = (att: typeof attachments[0]) => (att.previews && att.previews.length > 0 ? att.previews[att.previews.length > 2 ? 2 : 0].url : att.url);
+                                    return (
+                                      <div className="space-y-8">
+                                        {images.length > 0 && (
+                                          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-1.5 md:gap-3">
+                                            {images.map(att => {
+                                              const isLoadingThis = loadingAttachmentId === att.id;
+                                              const src = thumbUrl(att);
+                                              return (
+                                                <div
+                                                  key={att.id}
+                                                  className="aspect-square rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-900 relative group"
+                                                >
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => !isLoadingThis && setPreviewImages({ urls: images.map(a => a.url), currentIndex: images.findIndex(a => a.url === att.url) })}
+                                                    className="absolute inset-0 w-full h-full focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 rounded-xl"
+                                                  >
+                                                    {isLoadingThis ? (
+                                                      <div className="absolute inset-0 flex items-center justify-center bg-zinc-200/80 dark:bg-zinc-800/80">
+                                                        <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
+                                                      </div>
+                                                    ) : (
+                                                      <>
+                                                        <img
+                                                          src={src || att.url}
+                                                          alt={att.name}
+                                                          className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                                        />
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between pb-2 px-2">
+                                                          <button
+                                                            type="button"
+                                                            onClick={(e) => handleShareImage(e, { url: att.url, name: att.name })}
+                                                            className="p-1.5 rounded-lg bg-black/40 hover:bg-black/60 text-white drop-shadow-lg"
+                                                            title="Compartilhar (ex.: WhatsApp)"
+                                                          >
+                                                            <Share2 className="w-5 h-5" />
+                                                          </button>
+                                                          <ZoomIn className="w-6 h-6 text-white drop-shadow-lg" />
+                                                        </div>
+                                                      </>
+                                                    )}
+                                                  </button>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+                                        {others.length > 0 && (
+                                          <div>
+                                            <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                                              <FileText className="h-3.5 w-3.5" />
+                                              Documentos
+                                            </h3>
+                                            <div className="flex flex-wrap gap-2">
+                                              {others.map(att => {
+                                                const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
+                                                const isLoadingThis = loadingAttachmentId === att.id;
+                                                const isRenamingThis = renamingAttachmentId === att.id;
+                                                const isEditingName = renameAttachmentId === att.id;
+                                                const attachmentPath = att.id;
+                                                // Permite renomear quando temos um path real (vindo da API); id numérico é fallback do índice
+                                                const canRename = attachmentPath && !/^\d+$/.test(String(attachmentPath));
+                                                return (
+                                                  <div key={att.id} className="flex items-center gap-2 min-w-0 max-w-full">
+                                                    {isEditingName ? (
+                                                      <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                                                        <FileText className="w-5 h-5 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                                                        <input
+                                                          type="text"
+                                                          value={renameAttachmentNewName}
+                                                          onChange={(e) => setRenameAttachmentNewName(e.target.value)}
+                                                          onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                              e.preventDefault();
+                                                              if (selectedCard && renameAttachmentNewName.trim()) {
+                                                                setRenamingAttachmentId(att.id);
+                                                                renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
+                                                                  .then(() => getServiceOrderPhotos(selectedCard.id))
+                                                                  .then(photos => {
+                                                                    setCardDetails(prev => prev ? {
+                                                                      ...prev,
+                                                                      attachments: photos.map((p, i) => ({
+                                                                        id: p.path || String(i),
+                                                                        name: p.name,
+                                                                        url: p.url,
+                                                                        mimeType: attachmentMimeType(p.name),
+                                                                        previews: [{ url: p.url, width: 200, height: 200 }],
+                                                                      })),
+                                                                    } : null);
+                                                                  })
+                                                                  .catch(err => alert(err?.message ?? 'Erro ao renomear.'))
+                                                                  .finally(() => { setRenameAttachmentId(null); setRenamingAttachmentId(null); });
+                                                              }
+                                                            }
+                                                            if (e.key === 'Escape') {
+                                                              setRenameAttachmentId(null);
+                                                              setRenameAttachmentNewName('');
+                                                            }
+                                                          }}
+                                                          className="flex-1 min-w-0 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-transparent border-0 focus:ring-0 focus:outline-none p-0"
+                                                          placeholder="Novo nome do arquivo"
+                                                          autoFocus
+                                                        />
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => {
+                                                            if (!selectedCard || !renameAttachmentNewName.trim()) return;
+                                                            setRenamingAttachmentId(att.id);
+                                                            renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
+                                                              .then(() => getServiceOrderPhotos(selectedCard.id))
+                                                              .then(photos => {
+                                                                setCardDetails(prev => prev ? {
+                                                                  ...prev,
+                                                                  attachments: photos.map((p, i) => ({
+                                                                    id: p.path || String(i),
+                                                                    name: p.name,
+                                                                    url: p.url,
+                                                                    mimeType: attachmentMimeType(p.name),
+                                                                    previews: [{ url: p.url, width: 200, height: 200 }],
+                                                                  })),
+                                                                } : null);
+                                                              })
+                                                              .catch(err => alert(err?.message ?? 'Erro ao renomear.'))
+                                                              .finally(() => { setRenameAttachmentId(null); setRenamingAttachmentId(null); });
+                                                          }}
+                                                          disabled={isRenamingThis || !renameAttachmentNewName.trim()}
+                                                          className="shrink-0 p-1 rounded text-brand-yellow hover:bg-brand-yellow/20 disabled:opacity-50"
+                                                          title="Confirmar"
+                                                        >
+                                                          <Check className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => { setRenameAttachmentId(null); setRenameAttachmentNewName(''); }}
+                                                          className="shrink-0 p-1 rounded text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                                          title="Cancelar"
+                                                        >
+                                                          <X className="w-4 h-4" />
+                                                        </button>
+                                                      </div>
+                                                    ) : (
+                                                      <>
+                                                        <a
+                                                          href={att.url}
+                                                          target="_blank"
+                                                          rel="noopener noreferrer"
+                                                          onClick={(e) => {
+                                                            if (isPdf) {
+                                                              e.preventDefault();
+                                                              setPreviewPdf(att.url);
+                                                            }
+                                                          }}
+                                                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors min-w-0 flex-1"
+                                                        >
+                                                          {isLoadingThis ? (
+                                                            <RefreshCw className="w-5 h-5 text-brand-yellow animate-spin shrink-0" />
+                                                          ) : (
+                                                            <FileText className="w-5 h-5 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                                                          )}
+                                                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 truncate">{att.name}</span>
+                                                          {(isPdf || !att.mimeType?.startsWith('image/')) && <ExternalLink className="w-4 h-4 text-zinc-400 shrink-0" />}
+                                                        </a>
+                                                        {canRename && (
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                              setRenameAttachmentId(att.id);
+                                                              setRenameAttachmentNewName(att.name);
+                                                            }}
+                                                            className="shrink-0 p-2 rounded-lg text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                                            title="Renomear arquivo"
+                                                          >
+                                                            <Pencil className="w-4 h-4" />
+                                                          </button>
+                                                        )}
+                                                      </>
+                                                    )}
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()
+                               ) : (
+                                  <div className="text-center py-6 border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl">
+                                     <p className="text-zinc-600 text-sm">Nenhum anexo encontrado.</p>
+                                  </div>
+                               )}
+                            </div>
+                         </div>
 
                       </div>
 
@@ -3394,111 +3765,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </button>
                          </div>
 
-                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
-
-                         {/* Orçamentos: criar + lista */}
-                         {can('canEditBudgets') && (
-                         <div ref={budgetsSectionRef}>
-                            <p className={`${iosLabel} mb-3`}>Orçamentos</p>
-                            <div className="space-y-3">
-                              <button 
-                                  type="button"
-                                  onClick={() => openBudgetModal()}
-                                  className="w-full p-4 bg-[#f0ebe0] border border-[#e2dcd0] hover:bg-[#e8e2d5] rounded-xl flex items-center justify-between group transition-all shadow-sm"
-                                >
-                                  <span className="font-black text-zinc-800">Criar orçamento</span>
-                                  <Calculator className="w-5 h-5 text-zinc-700 group-hover:scale-110 transition-transform" />
-                              </button>
-                              <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-3 space-y-3 max-h-[280px] overflow-y-auto shadow-inner bg-zinc-100/50 dark:bg-zinc-900/30">
-                              {savedBudgets
-                                .filter((b) => b.serviceOrderId === selectedCard.id)
-                                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-                                .map((budget, index) => {
-                                  const preview =
-                                    budget.diagnosis?.split('\n')[0]?.slice(0, 42) ||
-                                    budget.services[0]?.description?.slice(0, 42) ||
-                                    (budget.parts[0] ? `${budget.parts[0].quantity}x ${budget.parts[0].description?.slice(0, 30)}` : '') ||
-                                    'Orçamento';
-                                  const dateStr = new Date(budget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                                  const numero = index + 1;
-                                  return (
-                                    <button
-                                      key={budget.id}
-                                      type="button"
-                                      onClick={() => setViewingBudget(budget)}
-                                      className="w-full text-left rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_4px_14px_rgba(0,0,0,0.12),0_2px_6px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 active:translate-y-0"
-                                      style={{
-                                        backgroundColor: '#d9d0bc',
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.4)',
-                                        border: '1px solid rgba(0,0,0,0.12)',
-                                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.045'/%3E%3C/svg%3E")`,
-                                      }}
-                                    >
-                                      <div className="relative p-3.5">
-                                      <div className="flex items-center justify-between gap-2 mb-2">
-                                        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#000000' }}>
-                                          Orçamento {numero}
-                                        </span>
-                                        <span className="text-[10px] font-medium tabular-nums" style={{ color: '#000000' }}>
-                                          {dateStr}
-                                        </span>
-                                      </div>
-                                      <p className="text-[13px] font-medium line-clamp-2 leading-snug mb-2" style={{ color: '#000000' }}>
-                                        {preview}
-                                      </p>
-                                      <div className="flex items-center gap-2 text-[11px]" style={{ color: '#000000' }}>
-                                        <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
-                                        <span>·</span>
-                                        <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
-                                      </div>
-                                      </div>
-                                    </button>
-                                  );
-                                })}
-                              {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
-                                <div
-                                  className="rounded-lg p-5 text-center border border-dashed"
-                                  style={{
-                                    backgroundColor: '#d9d0bc',
-                                    borderColor: 'rgba(0,0,0,0.12)',
-                                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)',
-                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.045'/%3E%3C/svg%3E")`,
-                                  }}
-                                >
-                                  <FileText className="w-9 h-9 mx-auto mb-2" style={{ color: '#000000' }} />
-                                  <p className="text-sm font-medium mt-0.5" style={{ color: '#000000' }}>Nenhum orçamento</p>
-                                  <p className="text-xs mt-0.5" style={{ color: '#000000' }}>Crie um orçamento pelo botão acima</p>
-                                </div>
-                              )}
-                              </div>
-
-                              {/* Aprovar orçamento (somente admin): separado da exibição, dentro de Orçamentos */}
-                              {actorOptions?.actor === 'admin' && savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length > 0 && (
-                                <div className="mt-4 pt-4 border-t border-zinc-200/80 dark:border-zinc-700/80">
-                                  <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Aprovar orçamento</p>
-                                  <p className="text-[11px] text-zinc-500 dark:text-zinc-500 mb-3">Selecione um orçamento para marcar cada serviço e peça como aprovado ou reprovado.</p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {savedBudgets
-                                      .filter((b) => b.serviceOrderId === selectedCard.id)
-                                      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-                                      .map((budget, idx) => (
-                                        <button
-                                          key={budget.id}
-                                          type="button"
-                                          onClick={() => openBudgetApproval(budget)}
-                                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-500/50 bg-amber-500/10 text-amber-800 dark:text-amber-200 text-sm font-medium hover:bg-amber-500/20 transition-colors"
-                                        >
-                                          <CheckCircle2 className="w-4 h-4" />
-                                          Aprovar orçamento {idx + 1}
-                                        </button>
-                                      ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                         </div>
-                         )}
-
                          <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
 
                          <div>
@@ -3525,268 +3791,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                  ))}
                                </div>
                              )}
-                         </div>
-
-                         <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
-
-                         <div>
-                            <div className="mb-4 flex items-center justify-between">
-                                <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                                   <Paperclip className="h-3.5 w-3.5" />
-                                   Anexos
-                                </h3>
-                                <div className="grid grid-cols-3 gap-3 md:gap-2 w-full justify-items-center">
-                                    <input 
-                                        type="file" 
-                                        ref={galleryInputRef} 
-                                        className="hidden" 
-                                        accept="image/*,application/pdf"
-                                        multiple
-                                        onChange={handleGallerySelect}
-                                    />
-                                    <input 
-                                        type="file" 
-                                        ref={cameraInputRef} 
-                                        className="hidden" 
-                                        accept="image/*,application/pdf"
-                                        capture="environment"
-                                        onChange={handleCameraFileSelect}
-                                    />
-                                    <button 
-                                        type="button"
-                                        onClick={() => cameraInputRef.current?.click()}
-                                        disabled={isUploading}
-                                        className="flex items-center justify-center w-14 h-14 md:w-10 md:h-10 rounded-2xl md:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Foto do veículo (câmera ou arquivo)"
-                                    >
-                                        <Camera className="w-6 h-6 md:w-5 md:h-5 shrink-0" strokeWidth={2} />
-                                    </button>
-                                    <button 
-                                        type="button"
-                                        onClick={() => galleryInputRef.current?.click()}
-                                        disabled={isUploading}
-                                        className="flex items-center justify-center w-14 h-14 md:w-10 md:h-10 rounded-2xl md:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Galeria / Documentos"
-                                    >
-                                        <ImageIcon className="w-6 h-6 md:w-5 md:h-5 shrink-0" strokeWidth={2} />
-                                    </button>
-                                    <button 
-                                        type="button"
-                                        onClick={() => galleryInputRef.current?.click()}
-                                        disabled={isUploading}
-                                        className="flex items-center justify-center w-14 h-14 md:w-10 md:h-10 rounded-2xl md:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Arquivos do dispositivo"
-                                    >
-                                        <FolderOpen className="w-6 h-6 md:w-5 md:h-5 shrink-0" strokeWidth={2} />
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div className="space-y-3">
-                               {isUploading && (
-                                  <div className="flex justify-center p-4">
-                                     <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
-                                  </div>
-                               )}
-                               {loadingDetails ? (
-                                  <div className="flex justify-center p-4">
-                                     <RefreshCw className="w-4 h-4 text-zinc-500 animate-spin" />
-                                  </div>
-                               ) : cardDetails?.attachments && cardDetails.attachments.length > 0 ? (
-                                  (() => {
-                                    const attachments = cardDetails.attachments;
-                                    const images = attachments.filter(att => att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url));
-                                    const others = attachments.filter(att => !(att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url)));
-                                    const thumbUrl = (att: typeof attachments[0]) => (att.previews && att.previews.length > 0 ? att.previews[att.previews.length > 2 ? 2 : 0].url : att.url);
-                                    return (
-                                      <div className="space-y-5">
-                                        {images.length > 0 && (
-                                          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-2 gap-1.5 md:gap-3">
-                                            {images.map(att => {
-                                              const isLoadingThis = loadingAttachmentId === att.id;
-                                              const src = thumbUrl(att);
-                                              return (
-                                                <div
-                                                  key={att.id}
-                                                  className="aspect-square rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-900 relative group"
-                                                >
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => !isLoadingThis && setPreviewImages({ urls: images.map(a => a.url), currentIndex: images.findIndex(a => a.url === att.url) })}
-                                                    className="absolute inset-0 w-full h-full focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 rounded-xl"
-                                                  >
-                                                    {isLoadingThis ? (
-                                                      <div className="absolute inset-0 flex items-center justify-center bg-zinc-200/80 dark:bg-zinc-800/80">
-                                                        <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
-                                                      </div>
-                                                    ) : (
-                                                      <>
-                                                        <img
-                                                          src={src || att.url}
-                                                          alt={att.name}
-                                                          className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                                                        />
-                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between pb-2 px-2">
-                                                          <button
-                                                            type="button"
-                                                            onClick={(e) => handleShareImage(e, { url: att.url, name: att.name })}
-                                                            className="p-1.5 rounded-lg bg-black/40 hover:bg-black/60 text-white drop-shadow-lg"
-                                                            title="Compartilhar (ex.: WhatsApp)"
-                                                          >
-                                                            <Share2 className="w-5 h-5" />
-                                                          </button>
-                                                          <ZoomIn className="w-6 h-6 text-white drop-shadow-lg" />
-                                                        </div>
-                                                      </>
-                                                    )}
-                                                  </button>
-                                                </div>
-                                              );
-                                            })}
-                                          </div>
-                                        )}
-                                        {others.length > 0 && (
-                                          <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700">
-                                            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Documentos</p>
-                                            <div className="flex flex-wrap gap-2">
-                                              {others.map(att => {
-                                                const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
-                                                const isLoadingThis = loadingAttachmentId === att.id;
-                                                const isRenamingThis = renamingAttachmentId === att.id;
-                                                const isEditingName = renameAttachmentId === att.id;
-                                                const attachmentPath = att.id;
-                                                // Permite renomear quando temos um path real (vindo da API); id numérico é fallback do índice
-                                                const canRename = attachmentPath && !/^\d+$/.test(String(attachmentPath));
-                                                return (
-                                                  <div key={att.id} className="flex items-center gap-2 min-w-0 max-w-full">
-                                                    {isEditingName ? (
-                                                      <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-                                                        <FileText className="w-5 h-5 text-zinc-500 dark:text-zinc-400 shrink-0" />
-                                                        <input
-                                                          type="text"
-                                                          value={renameAttachmentNewName}
-                                                          onChange={(e) => setRenameAttachmentNewName(e.target.value)}
-                                                          onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                              e.preventDefault();
-                                                              if (selectedCard && renameAttachmentNewName.trim()) {
-                                                                setRenamingAttachmentId(att.id);
-                                                                renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
-                                                                  .then(() => getServiceOrderPhotos(selectedCard.id))
-                                                                  .then(photos => {
-                                                                    setCardDetails(prev => prev ? {
-                                                                      ...prev,
-                                                                      attachments: photos.map((p, i) => ({
-                                                                        id: p.path || String(i),
-                                                                        name: p.name,
-                                                                        url: p.url,
-                                                                        mimeType: attachmentMimeType(p.name),
-                                                                        previews: [{ url: p.url, width: 200, height: 200 }],
-                                                                      })),
-                                                                    } : null);
-                                                                  })
-                                                                  .catch(err => alert(err?.message ?? 'Erro ao renomear.'))
-                                                                  .finally(() => { setRenameAttachmentId(null); setRenamingAttachmentId(null); });
-                                                              }
-                                                            }
-                                                            if (e.key === 'Escape') {
-                                                              setRenameAttachmentId(null);
-                                                              setRenameAttachmentNewName('');
-                                                            }
-                                                          }}
-                                                          className="flex-1 min-w-0 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-transparent border-0 focus:ring-0 focus:outline-none p-0"
-                                                          placeholder="Novo nome do arquivo"
-                                                          autoFocus
-                                                        />
-                                                        <button
-                                                          type="button"
-                                                          onClick={() => {
-                                                            if (!selectedCard || !renameAttachmentNewName.trim()) return;
-                                                            setRenamingAttachmentId(att.id);
-                                                            renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
-                                                              .then(() => getServiceOrderPhotos(selectedCard.id))
-                                                              .then(photos => {
-                                                                setCardDetails(prev => prev ? {
-                                                                  ...prev,
-                                                                  attachments: photos.map((p, i) => ({
-                                                                    id: p.path || String(i),
-                                                                    name: p.name,
-                                                                    url: p.url,
-                                                                    mimeType: attachmentMimeType(p.name),
-                                                                    previews: [{ url: p.url, width: 200, height: 200 }],
-                                                                  })),
-                                                                } : null);
-                                                              })
-                                                              .catch(err => alert(err?.message ?? 'Erro ao renomear.'))
-                                                              .finally(() => { setRenameAttachmentId(null); setRenamingAttachmentId(null); });
-                                                          }}
-                                                          disabled={isRenamingThis || !renameAttachmentNewName.trim()}
-                                                          className="shrink-0 p-1 rounded text-brand-yellow hover:bg-brand-yellow/20 disabled:opacity-50"
-                                                          title="Confirmar"
-                                                        >
-                                                          <Check className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                          type="button"
-                                                          onClick={() => { setRenameAttachmentId(null); setRenameAttachmentNewName(''); }}
-                                                          className="shrink-0 p-1 rounded text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                                                          title="Cancelar"
-                                                        >
-                                                          <X className="w-4 h-4" />
-                                                        </button>
-                                                      </div>
-                                                    ) : (
-                                                      <>
-                                                        <a
-                                                          href={att.url}
-                                                          target="_blank"
-                                                          rel="noopener noreferrer"
-                                                          onClick={(e) => {
-                                                            if (isPdf) {
-                                                              e.preventDefault();
-                                                              setPreviewPdf(att.url);
-                                                            }
-                                                          }}
-                                                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors min-w-0 flex-1"
-                                                        >
-                                                          {isLoadingThis ? (
-                                                            <RefreshCw className="w-5 h-5 text-brand-yellow animate-spin shrink-0" />
-                                                          ) : (
-                                                            <FileText className="w-5 h-5 text-zinc-500 dark:text-zinc-400 shrink-0" />
-                                                          )}
-                                                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 truncate">{att.name}</span>
-                                                          {(isPdf || !att.mimeType?.startsWith('image/')) && <ExternalLink className="w-4 h-4 text-zinc-400 shrink-0" />}
-                                                        </a>
-                                                        {canRename && (
-                                                          <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                              setRenameAttachmentId(att.id);
-                                                              setRenameAttachmentNewName(att.name);
-                                                            }}
-                                                            className="shrink-0 p-2 rounded-lg text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-300"
-                                                            title="Renomear arquivo"
-                                                          >
-                                                            <Pencil className="w-4 h-4" />
-                                                          </button>
-                                                        )}
-                                                      </>
-                                                    )}
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })()
-                               ) : (
-                                  <div className="text-center py-6 border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl">
-                                     <p className="text-zinc-600 text-sm">Nenhum anexo encontrado.</p>
-                                  </div>
-                               )}
-                            </div>
                          </div>
 
                          {/* Portabilidade: transferir cadastro entre Pátio (veículo) e Laboratório (módulo) */}
