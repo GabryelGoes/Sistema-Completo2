@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Car, Cpu } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical } from 'lucide-react';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
 import { NotificationCenter } from '../NotificationCenter';
@@ -2030,35 +2030,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
       </div>
 
       <div className="relative z-0 mx-auto max-w-[100rem] px-3 pt-2 sm:px-5 md:px-6 md:pt-3">
-        <header className={`${iosPageGlass} ring-1 ring-white/40 dark:ring-white/[0.06] mb-6 overflow-hidden p-5 sm:mb-8 sm:p-6`}>
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between xl:gap-6">
-            <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-zinc-200/60 bg-white/80 p-1 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)] dark:border-white/[0.08] dark:bg-zinc-950/30 sm:h-16 sm:w-16">
-                <img
-                  src="/logo.png"
-                  alt="Logo"
-                  className="h-full w-full rounded-[10px] bg-black object-contain p-1.5"
-                />
-              </div>
-              <div className="flex min-w-0 items-start gap-3 sm:items-center">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/90 to-blue-600 shadow-lg shadow-cyan-500/20">
-                  {isModuleMode ? (
-                    <Cpu className="h-6 w-6 text-white" strokeWidth={2.2} />
-                  ) : (
-                    <Car className="h-6 w-6 text-white" strokeWidth={2.2} />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[26px]">
-                    {isModuleMode ? 'Laboratório' : 'Pátio'}
-                  </h1>
-                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" />
-                    {cards.length} {isModuleMode ? 'módulos' : 'veículos'} na oficina
-                  </p>
-                </div>
-              </div>
+        {/* Cabeçalho — mesmo padrão Recepção/Agenda: sem painel vidro em volta; ícone = tile da Home (Pátio / Laboratório) */}
+        <header className="mb-6 flex flex-col gap-5 sm:mb-8 xl:flex-row xl:items-center xl:justify-between xl:gap-6">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            <div
+              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.35rem] bg-gradient-to-br shadow-[0_8px_28px_-6px_rgba(0,0,0,0.38),inset_0_1px_0_0_rgba(255,255,255,0.38)] ${
+                isModuleMode
+                  ? 'from-violet-400 via-purple-500 to-fuchsia-700'
+                  : 'from-emerald-400 via-teal-500 to-cyan-700'
+              }`}
+              aria-hidden
+            >
+              {isModuleMode ? (
+                <FlaskConical className="h-7 w-7 text-white" strokeWidth={2.2} />
+              ) : (
+                <PatioCarIcon className="h-7 w-7 text-white opacity-95" strokeWidth={2.2} />
+              )}
             </div>
+            <div className="min-w-0">
+              <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
+                {isModuleMode ? 'Laboratório' : 'Pátio'}
+              </h1>
+              <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                {cards.length} {isModuleMode ? 'módulos' : 'veículos'} na oficina
+              </p>
+            </div>
+          </div>
 
             <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center xl:flex-1 xl:justify-center">
               <button
@@ -2099,7 +2097,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <RefreshCw className="h-6 w-6" />
               </button>
             </div>
-          </div>
         </header>
       </div>
 
@@ -2316,11 +2313,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {cards.length === 0 && (
           <div className={`${iosPageGlass} ring-1 ring-white/40 dark:ring-white/[0.06] flex flex-col items-center justify-center py-16 text-center sm:py-20`}>
-            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/90 to-blue-600 shadow-lg shadow-cyan-500/20">
+            <div
+              className={`mb-5 flex h-16 w-16 items-center justify-center rounded-[1.35rem] bg-gradient-to-br shadow-[0_8px_28px_-6px_rgba(0,0,0,0.38),inset_0_1px_0_0_rgba(255,255,255,0.38)] ${
+                isModuleMode
+                  ? 'from-violet-400 via-purple-500 to-fuchsia-700'
+                  : 'from-emerald-400 via-teal-500 to-cyan-700'
+              }`}
+            >
               {isModuleMode ? (
-                <Cpu className="h-8 w-8 text-white" strokeWidth={2} />
+                <FlaskConical className="h-8 w-8 text-white" strokeWidth={2.2} />
               ) : (
-                <PatioCarIcon className="h-9 w-9 text-white opacity-95" strokeWidth={2} />
+                <PatioCarIcon className="h-9 w-9 text-white opacity-95" strokeWidth={2.2} />
               )}
             </div>
             <p className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">
