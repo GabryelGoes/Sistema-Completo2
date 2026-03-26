@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Settings, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2 } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2 } from 'lucide-react';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
 import { NotificationCenter } from '../NotificationCenter';
@@ -4400,96 +4400,90 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </ModalPortal>
       )}
 
-      {/* BUDGET FULL-SCREEN — Fundo claro com textura de papel realista (criar/editar) */}
+      {/* MODAL CRIAR/EDITAR ORÇAMENTO — vidro iOS alinhado ao TV do pátio */}
       {isBudgetOpen && selectedCard && (
         <ModalPortal>
-        <div
-          className="fixed inset-0 z-[200] overflow-auto animate-modal-backdrop"
-          style={{
-            backgroundColor: '#ebe6dc',
-            border: '1px solid rgba(0,0,0,0.08)',
-            boxShadow: '0 0 0 1px rgba(255,255,255,0.5) inset, 0 2px 4px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.1)',
-            backgroundImage: [
-              'linear-gradient(rgba(0,0,0,0.018) 1px, transparent 1px)',
-              'linear-gradient(90deg, rgba(0,0,0,0.012) 1px, transparent 1px)',
-              `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.065'/%3E%3C/svg%3E")`,
-            ].join(', '),
-            backgroundSize: '24px 24px, 24px 24px, 100% 100%',
-            backgroundRepeat: 'repeat, repeat, repeat',
-          }}
-        >
-          <div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)' }} aria-hidden />
-          <div className="min-h-full flex flex-col max-w-[1600px] mx-auto pb-[env(safe-area-inset-bottom)] relative z-10">
-            {/* Header */}
-            <header className="sticky top-0 z-10 flex items-center justify-between px-6 lg:px-10 py-5 backdrop-blur-md border-b border-black/8 shrink-0" style={{ backgroundColor: 'rgba(235,230,220,0.97)' }}>
-              <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-zinc-900 text-white flex items-center justify-center shadow-sm">
-                  <Calculator className="w-6 h-6" />
+        <div className={`${iosModalOverlay} z-[200] animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}>
+          <div
+            className={`relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-2xl min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+          >
+            <button type="button" onClick={closeBudgetModal} className={iosModalClose} aria-label="Fechar orçamento">
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+              <div className="flex items-start gap-3 pr-10">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF] to-[#5856D6] shadow-lg shadow-blue-500/25">
+                  <Calculator className="h-6 w-6 text-white" strokeWidth={2.2} />
                 </div>
-                <div>
-                  <h1 className="text-xl font-semibold tracking-tight" style={{ color: '#000000' }}>{editingBudget ? 'Editar orçamento' : 'Orçamento'}</h1>
-                  <p className="text-sm mt-0.5" style={{ color: '#000000' }}>
-                    {blurPlates ? (() => {
-                      const p = selectedCard.name.split(' - ');
-                      return p.length >= 3 ? <>{p[0]} <span className="blur-plate">{p[1]}</span> {p.slice(2).join(' - ')}</> : selectedCard.name;
-                    })() : selectedCard.name}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                    Orçamento
+                  </p>
+                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[26px]">
+                    {editingBudget ? 'Editar orçamento' : 'Novo orçamento'}
+                  </h2>
+                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                    <span className="min-w-0 break-words">
+                      {blurPlates ? (() => {
+                        const p = selectedCard.name.split(' - ');
+                        return p.length >= 3 ? (
+                          <>
+                            {p[0]} <span className="blur-plate">{p[1]}</span> {p.slice(2).join(' - ')}
+                          </>
+                        ) : (
+                          selectedCard.name
+                        );
+                      })() : (
+                        selectedCard.name
+                      )}
+                    </span>
                   </p>
                 </div>
               </div>
-              <button
-                onClick={closeBudgetModal}
-                className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/10 transition-colors"
-                style={{ color: '#000000' }}
-                aria-label="Fechar"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </header>
+            </div>
 
-            <div className="flex-1 overflow-y-auto flex justify-center relative z-10" style={{ paddingBottom: 'max(8rem, env(safe-area-inset-bottom, 0px))' }}>
-              <main className="w-full max-w-2xl p-6 lg:p-10">
-                  <div className="space-y-8">
-                    <section className="bg-white/80 rounded-2xl border border-zinc-200/80 shadow-sm overflow-hidden">
-                      <div className="px-6 py-4 border-b border-zinc-100">
-                        <h3 className="font-semibold text-zinc-900 flex items-center gap-2">
-                          <ClipboardList className="w-5 h-5 text-zinc-400" />
-                          Descrição do diagnóstico
-                        </h3>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 custom-scrollbar sm:px-8">
+                  <div className="space-y-5">
+                    <div>
+                      <p className={iosLabel}>Descrição do diagnóstico</p>
+                      <div className={`${iosModalInsetCard} overflow-hidden p-0`}>
+                        <textarea
+                          className={`${iosInput} min-h-[120px] resize-y border-0 bg-transparent py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-0 dark:bg-transparent`}
+                          placeholder="Descreva o diagnóstico técnico…"
+                          value={budgetDiagnosis}
+                          onChange={(e) => setBudgetDiagnosis(e.target.value)}
+                        />
                       </div>
-                      <textarea
-                        className="w-full px-6 py-4 bg-transparent border-0 text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-0 min-h-[120px] resize-y text-sm leading-relaxed"
-                        placeholder="Descreva o diagnóstico técnico..."
-                        value={budgetDiagnosis}
-                        onChange={(e) => setBudgetDiagnosis(e.target.value)}
-                      />
-                    </section>
+                    </div>
 
-                    <section className="bg-white/80 rounded-2xl border border-zinc-200/80 shadow-sm overflow-visible">
-                      <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
-                        <h3 className="font-semibold text-zinc-900 flex items-center gap-2">
-                          <Users className="w-5 h-5 text-zinc-400" />
-                          Serviços
-                        </h3>
-                        <div className="flex items-center gap-2">
+                    <div>
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <p className={`${iosLabel} mb-0`}>Serviços</p>
+                        <div className="flex flex-wrap items-center gap-2">
                           {workshopServices.length > 0 && (
                             <button
                               type="button"
                               onClick={() => setIsServiceListOpen(true)}
-                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-300 bg-white text-zinc-700 text-sm font-medium hover:bg-zinc-100 transition-colors shadow-sm"
+                              className="inline-flex items-center gap-1.5 rounded-2xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold text-[#007AFF] shadow-sm transition-colors hover:bg-white dark:border-white/15 dark:bg-white/10 dark:text-[#64B5FF]"
                             >
                               Inserir da lista
-                              <ChevronDown className="w-4 h-4" />
+                              <ChevronDown className="h-4 w-4 opacity-80" />
                             </button>
                           )}
-                          <button type="button" onClick={addServiceRow} className="text-sm font-medium text-zinc-600 hover:text-zinc-900 flex items-center gap-1.5">
-                            <Plus className="w-4 h-4" /> Adicionar
+                          <button
+                            type="button"
+                            onClick={addServiceRow}
+                            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#007AFF] transition-opacity hover:opacity-80 dark:text-[#64B5FF]"
+                          >
+                            <Plus className="h-4 w-4" strokeWidth={2.2} />
+                            Adicionar
                           </button>
                         </div>
                       </div>
-                      <div className="p-4 space-y-3">
+                      <div className="space-y-2.5">
                         {budgetServices.map((item) => {
-                          const suggestions = getServiceSuggestions(item.description);
-                          const showSuggestions = suggestionsForServiceId === item.id && suggestions.length > 0;
                           const isFocused = suggestionsForServiceId === item.id;
                           return (
                             <div
@@ -4497,49 +4491,58 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               ref={isFocused ? focusedServiceInputRef : undefined}
                               className="relative"
                             >
-                              <div className="flex gap-3 items-center">
-                                <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 sm:gap-3">
+                                <div className="min-w-0 flex-1">
                                   <input
                                     type="text"
-                                    placeholder="Digite ou escolha um serviço..."
-                                    className="w-full px-4 py-2.5 rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50 text-sm shadow-sm"
-                                    style={{ caretColor: '#18181b' }}
+                                    placeholder="Digite ou escolha um serviço…"
+                                    className={iosInput}
                                     value={item.description}
                                     onChange={(e) => updateServiceDescription(item.id, e.target.value)}
                                     onFocus={() => handleServiceInputFocus(item.id)}
                                     onBlur={handleServiceInputBlur}
                                   />
                                 </div>
-                                <button type="button" onClick={() => removeServiceRow(item.id)} className="p-2 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
-                                  <Trash2 className="w-5 h-5" />
+                                <button
+                                  type="button"
+                                  onClick={() => removeServiceRow(item.id)}
+                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-zinc-200/80 text-zinc-400 transition-colors hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-600 dark:border-white/[0.1] dark:hover:text-red-400"
+                                  aria-label="Remover serviço"
+                                >
+                                  <Trash2 className="h-5 w-5" />
                                 </button>
                               </div>
                             </div>
                           );
                         })}
                       </div>
-                    </section>
+                    </div>
 
-                    {/* Modal: lista de serviços cadastrados (mesma largura do campo de serviços) */}
+                    {/* Modal: lista de serviços cadastrados */}
                     {isServiceListOpen && (
-                      <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-black/40" onClick={() => setIsServiceListOpen(false)}>
+                      <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm" onClick={() => setIsServiceListOpen(false)}>
                         <div
-                          className="w-full max-w-2xl max-h-[70vh] overflow-hidden rounded-2xl bg-white shadow-xl border border-zinc-200"
+                          className={`flex max-h-[70vh] w-full max-w-lg flex-col overflow-hidden ${iosModalShell}`}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="px-4 py-3 border-b border-zinc-200 flex items-center justify-between bg-zinc-50">
-                            <span className="font-semibold text-zinc-900">Serviços cadastrados</span>
-                            <button type="button" onClick={() => setIsServiceListOpen(false)} className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-200">
-                              <X className="w-5 h-5" />
+                          <div className="flex items-center justify-between border-b border-zinc-200/60 px-5 py-4 dark:border-white/[0.07]">
+                            <span className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">Serviços cadastrados</span>
+                            <button
+                              type="button"
+                              onClick={() => setIsServiceListOpen(false)}
+                              className="flex h-10 w-10 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300"
+                              aria-label="Fechar"
+                            >
+                              <X className="h-5 w-5" />
                             </button>
                           </div>
-                          <div className="overflow-y-auto max-h-[calc(70vh-52px)] py-2">
+                          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2">
                             {workshopServices.map((s) => (
                               <button
                                 key={s.id}
                                 type="button"
                                 onClick={() => addServiceFromList(s.name)}
-                                className="w-full text-left px-4 py-3 text-zinc-900 hover:bg-amber-50 border-b border-zinc-100 last:border-0 transition-colors"
+                                className="w-full border-b border-zinc-100 px-5 py-3.5 text-left text-[15px] text-zinc-900 transition-colors last:border-0 hover:bg-[#007AFF]/8 dark:border-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.06]"
                               >
                                 {s.name}
                               </button>
@@ -4557,9 +4560,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       if (suggestions.length === 0) return null;
                       return (
                         <>
-                          <div className="fixed inset-0 z-[205] bg-black/25" onClick={() => setSuggestionsForServiceId(null)} />
+                          <div className="fixed inset-0 z-[215] bg-black/20 backdrop-blur-[1px]" onClick={() => setSuggestionsForServiceId(null)} />
                           <div
-                            className="fixed z-[206] rounded-xl bg-white border border-zinc-200 shadow-xl overflow-hidden py-1 max-h-[200px] overflow-y-auto"
+                            className="fixed z-[216] max-h-[200px] overflow-y-auto overflow-hidden rounded-[18px] border border-zinc-200/90 bg-white/95 py-1 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:border-white/[0.1] dark:bg-zinc-900/95"
                             style={{
                               top: suggestionBoxPosition.top,
                               left: suggestionBoxPosition.left,
@@ -4572,7 +4575,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 key={s.id}
                                 type="button"
                                 onMouseDown={() => suggestionsForServiceId && applySuggestion(suggestionsForServiceId, s.name)}
-                                className="w-full text-left px-4 py-2.5 text-sm text-zinc-900 hover:bg-amber-100 transition-colors"
+                                className="w-full px-4 py-2.5 text-left text-[14px] text-zinc-900 transition-colors hover:bg-[#007AFF]/10 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
                               >
                                 {s.name}
                               </button>
@@ -4582,49 +4585,72 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       );
                     })()}
 
-                    <section className="bg-white/80 rounded-2xl border border-zinc-200/80 shadow-sm overflow-hidden">
-                      <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
-                        <h3 className="font-semibold text-zinc-900 flex items-center gap-2">
-                          <Settings className="w-5 h-5 text-zinc-400" />
-                          Peças
-                        </h3>
-                        <button type="button" onClick={addPartRow} className="text-sm font-medium text-zinc-600 hover:text-zinc-900 flex items-center gap-1.5">
-                          <Plus className="w-4 h-4" /> Adicionar
+                    <div>
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <p className={`${iosLabel} mb-0`}>Peças</p>
+                        <button
+                          type="button"
+                          onClick={addPartRow}
+                          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#007AFF] transition-opacity hover:opacity-80 dark:text-[#64B5FF]"
+                        >
+                          <Plus className="h-4 w-4" strokeWidth={2.2} />
+                          Adicionar
                         </button>
                       </div>
-                      <div className="p-4 space-y-4">
+                      <div className="space-y-2.5">
                         {budgetParts.map((item) => {
                           const isFocusedPart = suggestionsForPartId === item.id;
                           return (
-                          <div key={item.id} ref={isFocusedPart ? focusedPartInputRef : undefined} className="flex flex-col sm:flex-row gap-3 sm:items-center bg-zinc-50/50 rounded-xl p-3 border border-zinc-100">
-                            <input
-                              type="text"
-                              placeholder="Nome da peça..."
-                              className="flex-1 px-4 py-2.5 rounded-lg border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-300 text-sm"
-                              value={item.description}
-                              onChange={(e) => updatePartDescription(item.id, e.target.value)}
-                              onFocus={() => handlePartInputFocus(item.id)}
-                              onBlur={handlePartInputBlur}
-                            />
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center rounded-lg border border-zinc-200 overflow-hidden bg-white">
-                                <button type="button" onClick={() => updatePartQuantity(item.id, -1)} className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:bg-zinc-100 transition-colors">
-                                  <Minus className="w-4 h-4" />
-                                </button>
-                                <span className="w-10 text-center font-medium text-zinc-900 text-sm">{item.quantity}</span>
-                                <button type="button" onClick={() => updatePartQuantity(item.id, 1)} className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:bg-zinc-100 transition-colors">
-                                  <Plus className="w-4 h-4" />
+                            <div
+                              key={item.id}
+                              ref={isFocusedPart ? focusedPartInputRef : undefined}
+                              className={`${iosModalInsetCard} flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center`}
+                            >
+                              <input
+                                type="text"
+                                placeholder="Nome da peça…"
+                                className={`${iosInput} min-w-0 flex-1`}
+                                value={item.description}
+                                onChange={(e) => updatePartDescription(item.id, e.target.value)}
+                                onFocus={() => handlePartInputFocus(item.id)}
+                                onBlur={handlePartInputBlur}
+                              />
+                              <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-start">
+                                <div className="flex items-center overflow-hidden rounded-2xl border border-zinc-200/90 bg-white/80 dark:border-white/[0.1] dark:bg-zinc-950/40">
+                                  <button
+                                    type="button"
+                                    onClick={() => updatePartQuantity(item.id, -1)}
+                                    className="flex h-10 w-10 items-center justify-center text-zinc-500 transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+                                    aria-label="Diminuir quantidade"
+                                  >
+                                    <Minus className="h-4 w-4" />
+                                  </button>
+                                  <span className="w-10 text-center text-[14px] font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                                    {item.quantity}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => updatePartQuantity(item.id, 1)}
+                                    className="flex h-10 w-10 items-center justify-center text-zinc-500 transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+                                    aria-label="Aumentar quantidade"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </button>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removePartRow(item.id)}
+                                  className="flex h-10 w-10 items-center justify-center rounded-2xl border border-zinc-200/80 text-zinc-400 transition-colors hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-600 dark:border-white/[0.1] dark:hover:text-red-400"
+                                  aria-label="Remover peça"
+                                >
+                                  <Trash2 className="h-5 w-5" />
                                 </button>
                               </div>
-                              <button type="button" onClick={() => removePartRow(item.id)} className="w-10 h-10 flex items-center justify-center rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors">
-                                <Trash2 className="w-5 h-5" />
-                              </button>
                             </div>
-                          </div>
-                        );
+                          );
                         })}
                       </div>
-                    </section>
+                    </div>
 
                     {/* Modal: sugestões de peças ao digitar (igual serviços) */}
                     {partSuggestionBoxPosition && suggestionsForPartId && (() => {
@@ -4634,9 +4660,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       if (suggestions.length === 0) return null;
                       return (
                         <>
-                          <div className="fixed inset-0 z-[205] bg-black/25" onClick={() => setSuggestionsForPartId(null)} />
+                          <div className="fixed inset-0 z-[215] bg-black/20 backdrop-blur-[1px]" onClick={() => setSuggestionsForPartId(null)} />
                           <div
-                            className="fixed z-[206] rounded-xl bg-white border border-zinc-200 shadow-xl overflow-hidden py-1 max-h-[200px] overflow-y-auto"
+                            className="fixed z-[216] max-h-[200px] overflow-y-auto overflow-hidden rounded-[18px] border border-zinc-200/90 bg-white/95 py-1 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:border-white/[0.1] dark:bg-zinc-900/95"
                             style={{
                               top: partSuggestionBoxPosition.top,
                               left: partSuggestionBoxPosition.left,
@@ -4649,7 +4675,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 key={p.id}
                                 type="button"
                                 onMouseDown={() => suggestionsForPartId && applyPartSuggestion(suggestionsForPartId, p.name)}
-                                className="w-full text-left px-4 py-2.5 text-sm text-zinc-900 hover:bg-amber-100 transition-colors"
+                                className="w-full px-4 py-2.5 text-left text-[14px] text-zinc-900 transition-colors hover:bg-[#007AFF]/10 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
                               >
                                 {p.name}
                               </button>
@@ -4659,34 +4685,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       );
                     })()}
 
-                    <section className="bg-white/80 rounded-2xl border border-zinc-200/80 shadow-sm overflow-hidden">
-                      <div className="px-6 py-4 border-b border-zinc-100">
-                        <h3 className="font-semibold text-zinc-900 flex items-center gap-2">
-                          <AlertCircle className="w-5 h-5 text-zinc-400" />
-                          Observações
-                        </h3>
+                    <div>
+                      <p className={iosLabel}>Observações</p>
+                      <div className={`${iosModalInsetCard} overflow-hidden p-0`}>
+                        <textarea
+                          className={`${iosInput} min-h-[88px] resize-y border-0 bg-transparent py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-0 dark:bg-transparent`}
+                          placeholder="Prazos, condições, etc."
+                          value={budgetObservations}
+                          onChange={(e) => setBudgetObservations(e.target.value)}
+                        />
                       </div>
-                      <textarea
-                        className="w-full px-6 py-4 bg-transparent border-0 text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-0 min-h-[88px] resize-y text-sm leading-relaxed"
-                        placeholder="Prazos, condições, etc."
-                        value={budgetObservations}
-                        onChange={(e) => setBudgetObservations(e.target.value)}
-                      />
-                    </section>
-
-                    <div className="flex justify-end pt-6 pb-4">
-                      <button
-                        type="button"
-                        onClick={handleCreateBudget}
-                        disabled={sendingBudget}
-                        className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-xl bg-zinc-900 text-white font-semibold text-sm shadow-lg shadow-zinc-900/20 hover:bg-zinc-800 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
-                      >
-                        {sendingBudget ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                        {editingBudget ? 'Salvar alterações' : 'Criar orçamento'}
-                      </button>
                     </div>
                   </div>
-              </main>
+            </div>
+
+            <div className="shrink-0 border-t border-zinc-200/60 px-5 py-4 dark:border-white/[0.07] sm:px-8">
+              <button
+                type="button"
+                onClick={handleCreateBudget}
+                disabled={sendingBudget}
+                className={`${iosPrimaryButton} flex w-full items-center justify-center gap-2 disabled:pointer-events-none disabled:opacity-50`}
+              >
+                {sendingBudget ? <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.2} /> : <CheckCircle2 className="h-5 w-5" strokeWidth={2} />}
+                {sendingBudget ? 'Salvando…' : editingBudget ? 'Salvar alterações' : 'Criar orçamento'}
+              </button>
             </div>
           </div>
         </div>
