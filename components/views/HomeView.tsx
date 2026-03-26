@@ -67,51 +67,47 @@ const iosSectionTitle =
 const iosSectionHint = 'text-[13px] text-zinc-500 dark:text-zinc-400 mb-4 leading-relaxed';
 
 const iconSquircle =
-  'flex items-center justify-center rounded-2xl shadow-[0_8px_24px_-6px_rgba(0,0,0,0.35),inset_0_1px_0_0_rgba(255,255,255,0.35)]';
+  'flex items-center justify-center rounded-[1.35rem] shadow-[0_8px_28px_-6px_rgba(0,0,0,0.38),inset_0_1px_0_0_rgba(255,255,255,0.38)]';
 
-const opIconClass =
-  'w-[3.25rem] h-[3.25rem] sm:w-16 sm:h-16 transition-transform duration-300 group-hover:scale-105';
+/** Tamanho do quadrado gradiente + ícone branco dentro (estilo app iOS). */
+const opSquircleSize = 'w-[4.75rem] h-[4.75rem] sm:w-[5.5rem] sm:h-[5.5rem]';
+const opGlyphSize = 'w-10 h-10 sm:w-11 sm:h-11';
+
+type AppGradient =
+  | 'from-amber-400 via-amber-500 to-orange-600'
+  | 'from-sky-400 via-blue-500 to-indigo-600'
+  | 'from-emerald-400 via-teal-500 to-cyan-700'
+  | 'from-violet-400 via-purple-500 to-fuchsia-700';
 
 const OPERATIONAL_APPS: {
   id: HomeAppId;
   label: string;
-  description: string;
   icon: React.ReactNode;
+  gradient: AppGradient;
 }[] = [
   {
     id: 'reception',
     label: 'Recepção',
-    description: 'Cadastro de clientes e veículos',
-    icon: (
-      <ClipboardList
-        className={`${opIconClass} text-amber-500 dark:text-amber-400`}
-        strokeWidth={2.2}
-      />
-    ),
+    icon: <ClipboardList className={`${opGlyphSize} text-white`} strokeWidth={2.2} />,
+    gradient: 'from-amber-400 via-amber-500 to-orange-600',
   },
   {
     id: 'agenda',
     label: 'Agenda',
-    description: 'Agendamentos e compromissos',
-    icon: (
-      <Calendar className={`${opIconClass} text-sky-500 dark:text-sky-400`} strokeWidth={2.2} />
-    ),
+    icon: <Calendar className={`${opGlyphSize} text-white`} strokeWidth={2.2} />,
+    gradient: 'from-sky-400 via-blue-500 to-indigo-600',
   },
   {
     id: 'patio',
     label: 'Pátio',
-    description: 'Veículos em atendimento',
-    icon: (
-      <PatioCarIcon className={`${opIconClass} text-emerald-500 dark:text-emerald-400`} strokeWidth={2.2} />
-    ),
+    icon: <PatioCarIcon className={`${opGlyphSize} text-white`} strokeWidth={2.2} />,
+    gradient: 'from-emerald-400 via-teal-500 to-cyan-700',
   },
   {
     id: 'laboratorio',
     label: 'Laboratório',
-    description: 'Módulos e eletrônica',
-    icon: (
-      <FlaskConical className={`${opIconClass} text-violet-500 dark:text-violet-400`} strokeWidth={2.2} />
-    ),
+    icon: <FlaskConical className={`${opGlyphSize} text-white`} strokeWidth={2.2} />,
+    gradient: 'from-violet-400 via-purple-500 to-fuchsia-700',
   },
 ];
 
@@ -241,9 +237,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       key={app.id}
                       type="button"
                       onClick={() => onOpenApp(app.id)}
-                      className={`group flex flex-col items-center gap-4 p-6 ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/20 dark:hover:border-[#0A84FF]/25 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.25)] transition-all duration-300 active:scale-[0.98]`}
+                      className={`group flex flex-col items-center gap-3 p-6 ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/20 dark:hover:border-[#0A84FF]/25 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.25)] transition-all duration-300 active:scale-[0.98]`}
                     >
-                      {app.icon}
+                      <div
+                        className={`${opSquircleSize} bg-gradient-to-br ${app.gradient} ${iconSquircle} group-hover:scale-[1.05] transition-transform duration-300`}
+                      >
+                        {app.icon}
+                      </div>
                       <span className="text-[15px] font-semibold text-zinc-900 dark:text-white text-center tracking-tight">
                         {app.label}
                       </span>
@@ -257,11 +257,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       key={app.id}
                       type="button"
                       onClick={() => onOpenApp(app.id)}
-                      className={`group flex flex-col items-start gap-3 p-4 sm:p-5 text-left ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99]`}
+                      className={`group flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99]`}
                     >
-                      {app.icon}
+                      <div
+                        className={`${opSquircleSize} bg-gradient-to-br ${app.gradient} ${iconSquircle} group-hover:scale-[1.05] transition-transform duration-300`}
+                      >
+                        {app.icon}
+                      </div>
                       <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">{app.label}</span>
-                      <span className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-snug line-clamp-2">{app.description}</span>
                     </button>
                   ))}
                 </div>
