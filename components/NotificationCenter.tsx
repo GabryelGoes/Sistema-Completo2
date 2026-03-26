@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Bell,
   Trash2,
@@ -44,19 +45,16 @@ function formatVehicleLabel(p: Notification['payload']): string {
   return firstName ? `${model} - ${firstName}` : model;
 }
 
-const TYPE_CONFIG: Record<
-  NotificationType,
-  { label: string; icon: React.ReactNode; accent: string }
-> = {
-  comment: { label: 'Comentário', icon: <MessageCircle className="w-5 h-5" />, accent: 'text-brand-yellow' },
-  stage_change: { label: 'Mudança de etapa', icon: <GitBranch className="w-5 h-5" />, accent: 'text-brand-yellow' },
-  budget_created: { label: 'Orçamento criado', icon: <FileText className="w-5 h-5" />, accent: 'text-brand-yellow' },
-  budget_edited: { label: 'Orçamento editado', icon: <Edit3 className="w-5 h-5" />, accent: 'text-brand-yellow' },
-  vehicle_finalized: { label: 'Veículo finalizado', icon: <CheckCircle2 className="w-5 h-5" />, accent: 'text-brand-yellow' },
-  vehicle_scheduled: { label: 'Veículo agendado', icon: <Calendar className="w-5 h-5" />, accent: 'text-brand-yellow' },
-  vehicle_registered: { label: 'Veículo cadastrado', icon: <Car className="w-5 h-5" />, accent: 'text-brand-yellow' },
-  complaint_edited: { label: 'Queixa editada', icon: <AlertCircle className="w-5 h-5" />, accent: 'text-brand-yellow' },
-  delivery_date_changed: { label: 'Data de entrega alterada', icon: <Calendar className="w-5 h-5" />, accent: 'text-brand-yellow' },
+const TYPE_CONFIG: Record<NotificationType, { label: string; icon: React.ReactNode; accent: string }> = {
+  comment: { label: 'Comentário', icon: <MessageCircle className="w-5 h-5" />, accent: 'text-[#007AFF]' },
+  stage_change: { label: 'Mudança de etapa', icon: <GitBranch className="w-5 h-5" />, accent: 'text-[#007AFF]' },
+  budget_created: { label: 'Orçamento criado', icon: <FileText className="w-5 h-5" />, accent: 'text-[#007AFF]' },
+  budget_edited: { label: 'Orçamento editado', icon: <Edit3 className="w-5 h-5" />, accent: 'text-[#007AFF]' },
+  vehicle_finalized: { label: 'Veículo finalizado', icon: <CheckCircle2 className="w-5 h-5" />, accent: 'text-emerald-500' },
+  vehicle_scheduled: { label: 'Veículo agendado', icon: <Calendar className="w-5 h-5" />, accent: 'text-[#007AFF]' },
+  vehicle_registered: { label: 'Veículo cadastrado', icon: <Car className="w-5 h-5" />, accent: 'text-[#007AFF]' },
+  complaint_edited: { label: 'Queixa editada', icon: <AlertCircle className="w-5 h-5" />, accent: 'text-rose-500' },
+  delivery_date_changed: { label: 'Data de entrega alterada', icon: <Calendar className="w-5 h-5" />, accent: 'text-[#007AFF]' },
 };
 
 function formatNotificationTitle(n: Notification, forTechnician?: boolean): string {
@@ -154,11 +152,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const [clearing, setClearing] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   const lastFetchRef = useRef<string | null>(null);
   const lastCreatedAtRef = useRef<string | null>(null);
   const prevUnreadIdsRef = useRef<Set<string>>(new Set());
   const firstFetchDoneRef = useRef(false);
+  const canUseDOM = typeof window !== 'undefined' && typeof document !== 'undefined';
+  const portalTarget = useMemo(() => (canUseDOM ? document.body : null), [canUseDOM]);
 
   /** Só busca notificações do técnico quando slug (userId) estiver definido; senão a API retornaria a lista do admin e o pop-up não apareceria para o técnico. */
   const notifParams =
@@ -278,12 +279,18 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
+    if (!open || !canUseDOM) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('keydown', onKeyDown);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open, canUseDOM]);
 
   const handleMarkRead = async (id: string) => {
     try {
@@ -328,170 +335,200 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   const config = (type: NotificationType) => TYPE_CONFIG[type] || { label: type, icon: <Bell className="w-5 h-5" />, accent: 'text-brand-yellow' };
 
-  const btnClass = isDark
-    ? 'bg-zinc-800/80 border-white/10 text-zinc-300 hover:text-white hover:bg-zinc-700/80'
-    : 'bg-white/90 border-zinc-200 text-zinc-700 hover:text-black hover:bg-white';
+  const bellClass = isDark
+    ? 'bg-white/10 border-white/15 text-zinc-200 hover:text-white hover:bg-white/15'
+    : 'bg-white/70 border-zinc-200/80 text-zinc-700 hover:text-zinc-900 hover:bg-white/90';
+
   const panelClass = isDark
-    ? 'bg-[#0A0A0A] border-white/10 shadow-2xl'
-    : 'bg-white border-zinc-200 shadow-2xl';
-  const headerBorderClass = isDark ? 'border-white/10' : 'border-zinc-200';
+    ? 'bg-zinc-950/70 border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.65)]'
+    : 'bg-white/70 border-zinc-200/70 shadow-[0_30px_90px_rgba(0,0,0,0.22)]';
+
+  const headerBorderClass = isDark ? 'border-white/10' : 'border-zinc-200/70';
   const titleClass = isDark ? 'text-white' : 'text-zinc-900';
-  const linkClass = isDark
-    ? 'text-brand-yellow hover:underline disabled:opacity-50'
-    : 'text-amber-600 font-semibold hover:underline disabled:opacity-50';
-  const dividerClass = isDark ? 'divide-white/10' : 'divide-zinc-200';
-  const itemUnreadClass = isDark ? 'bg-brand-yellow/10' : 'bg-amber-500/10';
-  const itemHoverClass = isDark ? 'hover:bg-white/[0.06]' : 'hover:bg-zinc-100';
-  const iconBgClass = isDark ? 'bg-white/10' : 'bg-zinc-100';
+  const linkClass = 'text-[#007AFF] hover:underline disabled:opacity-50';
+  const dividerClass = isDark ? 'divide-white/8' : 'divide-zinc-200/70';
+  const itemUnreadClass = isDark ? 'bg-[#007AFF]/12' : 'bg-[#007AFF]/8';
+  const itemHoverClass = isDark ? 'hover:bg-white/[0.06]' : 'hover:bg-black/[0.03]';
+  const iconBgClass = isDark ? 'bg-white/10' : 'bg-white/70';
   const textPrimaryClass = isDark ? 'text-white' : 'text-zinc-900';
-  const textSecondaryClass = isDark ? 'text-zinc-400' : 'text-zinc-600';
-  const textMutedClass = isDark ? 'text-zinc-500' : 'text-zinc-500';
+  const textSecondaryClass = isDark ? 'text-zinc-300' : 'text-zinc-600';
+  const textMutedClass = isDark ? 'text-zinc-400' : 'text-zinc-500';
   const chevronClass = isDark ? 'text-zinc-500' : 'text-zinc-400';
-  const dotClass = 'bg-brand-yellow';
-  const emptyClass = isDark ? 'text-zinc-400' : 'text-zinc-500';
-  const loadingClass = isDark ? 'text-zinc-500' : 'text-zinc-400';
+  const dotClass = 'bg-[#007AFF]';
+  const emptyClass = isDark ? 'text-zinc-300' : 'text-zinc-500';
+  const loadingClass = isDark ? 'text-zinc-400' : 'text-zinc-400';
 
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="relative" ref={rootRef}>
       <button
         type="button"
         onClick={() => {
           requestNotificationPermission();
           setOpen((o) => !o);
         }}
-        className={`relative w-11 h-11 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all shadow-sm ${btnClass}`}
+        className={`relative w-11 h-11 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all shadow-[0_8px_24px_rgba(0,0,0,0.10)] active:scale-[0.98] ${bellClass}`}
         aria-label="Central de notificações"
       >
         <Bell className="w-5 h-5" strokeWidth={2} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-brand-yellow text-black text-[11px] font-bold flex items-center justify-center px-1">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center px-1 shadow-sm">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-start justify-center pt-20 bg-black/40"
-          role="presentation"
-          onClick={() => setOpen(false)}
-        >
+      {open &&
+        portalTarget &&
+        createPortal(
           <div
-            className={`w-[min(380px,calc(100vw-24px))] rounded-2xl backdrop-blur-2xl overflow-hidden flex flex-col max-h-[75vh] ${panelClass}`}
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[999999] flex items-start justify-center pt-20 bg-black/35 backdrop-blur-[2px]"
+            role="presentation"
+            onClick={() => setOpen(false)}
           >
-          <div className={`flex items-center justify-between p-4 border-b shrink-0 ${headerBorderClass}`}>
-            <h3 className={`text-lg font-semibold ${titleClass}`}>Notificações</h3>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className={`p-1.5 rounded-full transition-colors ${isDark ? 'hover:bg-white/10 text-zinc-400 hover:text-white' : 'hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900'}`}
-                aria-label="Fechar"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              {unreadCount > 0 && (
-                <button
-                  type="button"
-                  onClick={handleMarkAllRead}
-                  disabled={markingAll}
-                  className={`text-[13px] font-medium flex items-center gap-1 ${linkClass}`}
-                >
-                  {markingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  Marcar como lidas
-                </button>
-              )}
-              {notifications.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearAll}
-                  disabled={clearing}
-                  className={`text-[13px] font-medium flex items-center gap-1.5 ${isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-500 hover:text-zinc-900'}`}
-                  title="Limpar todas as notificações"
-                >
-                  {clearing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                  Limpar
-                </button>
-              )}
-            </div>
-          </div>
-          {typeof Notification !== 'undefined' && (notifPermission ?? Notification.permission) === 'default' && (
-            <div className={`px-4 py-3 text-[12px] flex items-center justify-between gap-2 ${isDark ? 'bg-brand-yellow/15 text-brand-yellow' : 'bg-brand-yellow/20 text-black'}`}>
-              <span>Receba notificações no dispositivo (tablet/PC).</span>
-              <button type="button" onClick={requestNotificationPermission} className="shrink-0 px-3 py-1.5 rounded-lg bg-brand-yellow text-black font-semibold text-[12px]">
-                Ativar
-              </button>
-            </div>
-          )}
-          {typeof Notification !== 'undefined' && (notifPermission ?? Notification.permission) === 'denied' && (
-            <div className={`px-4 py-2 text-[12px] ${isDark ? 'bg-amber-900/30 text-amber-300' : 'bg-amber-50 text-amber-800'}`}>
-              Notificações no dispositivo desativadas. Ative nas configurações do site no navegador.
-            </div>
-          )}
-          <div className="overflow-y-auto overscroll-contain flex-1">
-            {loading && notifications.length === 0 ? (
-              <div className={`flex justify-center py-12 ${loadingClass}`}>
-                <Loader2 className="w-8 h-8 animate-spin" />
-              </div>
-            ) : notifications.length === 0 ? (
-              <div className={`py-12 px-4 text-center text-[14px] ${emptyClass}`}>
-                Nenhuma notificação ainda.
-              </div>
-            ) : (
-              <ul className={`divide-y ${dividerClass}`}>
-                {notifications.map((n) => {
-                  const cfg = config(n.type);
-                  const isUnread = !n.read_at;
-                  return (
-                    <li
-                      key={n.id}
-                      role="button"
-                      tabIndex={0}
-                      className={`flex gap-3 px-4 py-3.5 transition-colors cursor-pointer ${isUnread ? itemUnreadClass : itemHoverClass}`}
-                      onClick={() => {
-                        if (isUnread) handleMarkRead(n.id);
-                        onNotificationClick?.(n);
-                        setOpen(false);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          if (isUnread) handleMarkRead(n.id);
-                          onNotificationClick?.(n);
-                          setOpen(false);
-                        }
-                      }}
+            <div
+              ref={modalRef}
+              className={`w-[min(420px,calc(100vw-24px))] rounded-[28px] backdrop-blur-2xl overflow-hidden flex flex-col max-h-[78vh] border ${panelClass}`}
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Central de notificações"
+            >
+              <div className={`flex items-center justify-between px-5 py-4 border-b shrink-0 ${headerBorderClass}`}>
+                <div className="min-w-0">
+                  <h3 className={`text-[17px] font-semibold tracking-tight ${titleClass}`}>Notificações</h3>
+                  <p className={`mt-0.5 text-[12px] ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                    Toque para abrir e marcar como lida.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleMarkAllRead}
+                      disabled={markingAll}
+                      className={`h-9 px-3 rounded-full border text-[13px] font-semibold tracking-tight backdrop-blur-xl transition-colors ${isDark ? 'border-white/10 bg-white/5 text-white hover:bg-white/10' : 'border-zinc-200/70 bg-white/60 text-zinc-900 hover:bg-white/80'} ${markingAll ? 'opacity-70' : ''}`}
                     >
-                      <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${iconBgClass} ${cfg.accent}`}>
-                        {cfg.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-[14px] font-medium leading-snug ${textPrimaryClass}`}>
-                          {formatNotificationTitle(n, forTechnician)}
-                        </p>
-                        {formatNotificationSubtitle(n) && (
-                          <p className={`text-[13px] mt-0.5 line-clamp-2 ${textSecondaryClass}`}>
-                            {formatNotificationSubtitle(n)}
-                          </p>
-                        )}
-                        <p className={`text-[11px] mt-1 ${textMutedClass}`}>
-                          {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ptBR })}
-                        </p>
-                      </div>
-                      {isUnread && (
-                        <span className={`shrink-0 w-2 h-2 rounded-full ${dotClass} mt-2`} />
+                      {markingAll ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Marcando…
+                        </span>
+                      ) : (
+                        'Marcar tudo'
                       )}
-                      <ChevronRight className={`w-5 h-5 shrink-0 mt-1 ${chevronClass}`} />
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </div>
-      </div>
-      )}
+                    </button>
+                  )}
+                  {notifications.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAll}
+                      disabled={clearing}
+                      className={`h-9 w-9 rounded-full border backdrop-blur-xl grid place-items-center transition-colors ${isDark ? 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10' : 'border-zinc-200/70 bg-white/60 text-zinc-700 hover:bg-white/80'} ${clearing ? 'opacity-70' : ''}`}
+                      title="Limpar todas"
+                      aria-label="Limpar todas"
+                    >
+                      {clearing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className={`h-9 w-9 rounded-full border backdrop-blur-xl grid place-items-center transition-colors ${isDark ? 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10' : 'border-zinc-200/70 bg-white/60 text-zinc-700 hover:bg-white/80'}`}
+                    aria-label="Fechar"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {typeof Notification !== 'undefined' && (notifPermission ?? Notification.permission) === 'default' && (
+                <div className="px-5 pt-4">
+                  <div className={`rounded-2xl border p-4 flex items-center justify-between gap-3 ${isDark ? 'border-white/10 bg-white/5 text-zinc-200' : 'border-zinc-200/70 bg-white/60 text-zinc-700'}`}>
+                    <div className="min-w-0">
+                      <p className={`text-[13px] font-semibold tracking-tight ${textPrimaryClass}`}>Notificações no dispositivo</p>
+                      <p className={`mt-0.5 text-[12px] ${textMutedClass}`}>Ative para receber alertas mesmo fora do app.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={requestNotificationPermission}
+                      className="shrink-0 h-9 px-4 rounded-full bg-[#007AFF] text-white text-[13px] font-semibold tracking-tight shadow-sm active:scale-[0.98]"
+                    >
+                      Ativar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {typeof Notification !== 'undefined' && (notifPermission ?? Notification.permission) === 'denied' && (
+                <div className="px-5 pt-4">
+                  <div className={`rounded-2xl border p-4 text-[12px] ${isDark ? 'border-amber-500/20 bg-amber-500/10 text-amber-200' : 'border-amber-300/50 bg-amber-50 text-amber-900'}`}>
+                    Notificações no dispositivo desativadas. Ative nas configurações do site no navegador.
+                  </div>
+                </div>
+              )}
+
+              <div className="overflow-y-auto overscroll-contain flex-1 mt-4">
+                {loading && notifications.length === 0 ? (
+                  <div className={`flex justify-center py-12 ${loadingClass}`}>
+                    <Loader2 className="w-8 h-8 animate-spin" />
+                  </div>
+                ) : notifications.length === 0 ? (
+                  <div className={`py-12 px-5 text-center text-[14px] ${emptyClass}`}>Nenhuma notificação ainda.</div>
+                ) : (
+                  <ul className={`divide-y ${dividerClass}`}>
+                    {notifications.map((n) => {
+                      const cfg = config(n.type);
+                      const isUnread = !n.read_at;
+                      return (
+                        <li
+                          key={n.id}
+                          role="button"
+                          tabIndex={0}
+                          className={`flex gap-3 px-5 py-4 transition-colors cursor-pointer ${isUnread ? itemUnreadClass : itemHoverClass}`}
+                          onClick={() => {
+                            if (isUnread) handleMarkRead(n.id);
+                            onNotificationClick?.(n);
+                            setOpen(false);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              if (isUnread) handleMarkRead(n.id);
+                              onNotificationClick?.(n);
+                              setOpen(false);
+                            }
+                          }}
+                        >
+                          <div className={`shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center border ${iconBgClass} ${isDark ? 'border-white/10' : 'border-zinc-200/70'} ${cfg.accent}`}>
+                            {cfg.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-[14px] font-semibold leading-snug tracking-tight ${textPrimaryClass}`}>
+                              {formatNotificationTitle(n, forTechnician)}
+                            </p>
+                            {formatNotificationSubtitle(n) && (
+                              <p className={`text-[13px] mt-0.5 line-clamp-2 ${textSecondaryClass}`}>
+                                {formatNotificationSubtitle(n)}
+                              </p>
+                            )}
+                            <p className={`text-[11px] mt-1 ${textMutedClass}`}>
+                              {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ptBR })}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isUnread && <span className={`shrink-0 w-2 h-2 rounded-full ${dotClass}`} />}
+                            <ChevronRight className={`w-5 h-5 shrink-0 ${chevronClass}`} />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>,
+          portalTarget
+        )}
     </div>
   );
 }
