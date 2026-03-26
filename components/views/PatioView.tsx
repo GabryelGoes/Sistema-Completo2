@@ -51,6 +51,7 @@ import { PatioCarIcon } from '../ui/PatioCarIcon';
 import {
   iosModalClose,
   iosModalInsetCard,
+  iosModalOverlay,
   iosModalShell,
   iosInput,
   iosLabel,
@@ -2691,36 +2692,38 @@ export const PatioView: React.FC<PatioViewProps> = ({
           ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a] border-2 border-red-500/30'
           : `${modalStatusConfig.ringClass} border border-zinc-200/60 dark:border-white/[0.08]`;
         return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-xl p-4 animate-modal-backdrop">
-           <div className={`bg-zinc-50/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl w-full max-w-[96vw] xl:max-w-[92vw] 2xl:max-w-[88vw] h-[90vh] rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08),0_12px_40px_-8px_rgba(0,0,0,0.12)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-modal-sheet relative ${modalRingClass}`}>
+        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-4 sm:p-6`}>
+           <div className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-[96vw] xl:max-w-[92vw] 2xl:max-w-[88vw] min-h-0 flex-col ${iosModalShell} animate-in zoom-in-95 duration-200 ${modalRingClass}`}>
               
-              <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
+              <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
                 {can('canDeleteCards') && (
                 <button
                   type="button"
                   onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setIsDeleteVehicleOpen(true); }}
-                  className="w-10 h-10 rounded-full bg-light-card dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-red-600 hover:bg-red-500/10 dark:hover:bg-red-500/10 transition-all active:scale-95"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-red-500/15 hover:text-red-600 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-red-500/20"
                   title="Excluir veículo do sistema"
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <Trash2 className="h-5 w-5" />
                 </button>
                 )}
-                <button 
+                <button
+                  type="button"
                   onClick={() => setSelectedCard(null)}
-                  className="w-10 h-10 rounded-full bg-light-card dark:bg-zinc-800/80 backdrop-blur-md flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15"
+                  aria-label="Fechar"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
               {can('canDeleteCards') && isDeleteVehicleOpen && (
-                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 rounded-[1.5rem] p-4">
-                  <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 p-6 rounded-2xl shadow-xl max-w-sm w-full">
-                    <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-2">
-                      <Trash2 className="w-5 h-5 text-red-500" />
+                <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] bg-black/50 p-4 backdrop-blur-sm sm:rounded-[2.25rem]">
+                  <div className={`${iosModalInsetCard} w-full max-w-sm p-6 shadow-xl`}>
+                    <h3 className="mb-2 flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
+                      <Trash2 className="h-5 w-5 text-red-500" />
                       Excluir veículo do sistema
                     </h3>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                    <p className="mb-4 text-[14px] leading-relaxed text-zinc-600 dark:text-zinc-400">
                       Este veículo será arquivado (OS cancelada). Digite a senha configurada em &quot;Alterar senhas&quot; para confirmar.
                     </p>
                     <input
@@ -2728,7 +2731,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       value={deleteVehiclePassword}
                       onChange={(e) => setDeleteVehiclePassword(e.target.value)}
                       placeholder="Senha"
-                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500/40 mb-3"
+                      className={`${iosInput} mb-3`}
                       autoFocus
                     />
                     {deleteVehicleError && (
@@ -2738,7 +2741,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <button
                         type="button"
                         onClick={() => { setIsDeleteVehicleOpen(false); setDeleteVehiclePassword(''); setDeleteVehicleError(null); }}
-                        className="flex-1 py-2.5 rounded-xl border border-zinc-300 dark:border-white/20 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium"
+                        className="flex-1 rounded-2xl border border-zinc-200/90 py-3 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
                       >
                         Cancelar
                       </button>
@@ -2746,9 +2749,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         type="button"
                         onClick={handleConfirmDeleteVehicle}
                         disabled={deleteVehicleSaving || !deleteVehiclePassword.trim()}
-                        className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-semibold flex items-center justify-center gap-2"
+                        className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-red-500 py-3 text-[15px] font-semibold text-white transition-opacity hover:opacity-95 disabled:opacity-50"
                       >
-                        {deleteVehicleSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        {deleteVehicleSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                         Excluir
                       </button>
                     </div>
@@ -3949,15 +3952,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* MODAL EDITAR DADOS DA FICHA (cliente + veículo) */}
       {isEditFichaOpen && selectedCard && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-          <div className="bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-white/10 w-full max-w-lg max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-modal-sheet">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-white/10 bg-brand-yellow/10">
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                <Pencil className="w-5 h-5 text-brand-yellow" />
+        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
+          <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-lg flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
+            <div className="flex shrink-0 items-center justify-between border-b border-zinc-200/60 px-5 py-4 dark:border-white/[0.07] sm:px-6">
+              <h3 className="flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
+                <Pencil className="h-5 w-5 text-[#007AFF]" />
                 Editar dados da ficha
               </h3>
-              <button type="button" onClick={() => setIsEditFichaOpen(false)} className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
-                <X className="w-5 h-5" />
+              <button type="button" onClick={() => setIsEditFichaOpen(false)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15">
+                <X className="h-5 w-5" />
               </button>
             </div>
             <div className="overflow-y-auto p-6 space-y-4 custom-scrollbar">
@@ -4017,10 +4020,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
               )}
             </div>
-            <div className="flex gap-3 p-6 border-t border-zinc-200 dark:border-white/10 bg-zinc-50/50 dark:bg-white/[0.03]">
-              <button type="button" onClick={() => setIsEditFichaOpen(false)} className="flex-1 py-3 rounded-xl border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300 font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">Cancelar</button>
-              <button type="button" onClick={handleSaveEditFicha} disabled={editFichaSaving} className="flex-1 py-3 rounded-xl bg-brand-yellow text-black font-bold hover:bg-[#fcd61e] transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
-                {editFichaSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <div className="flex shrink-0 gap-3 border-t border-zinc-200/60 bg-white/40 p-5 dark:border-white/[0.07] dark:bg-zinc-950/30">
+              <button type="button" onClick={() => setIsEditFichaOpen(false)} className="flex-1 rounded-2xl border border-zinc-200/90 py-3 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]">Cancelar</button>
+              <button type="button" onClick={handleSaveEditFicha} disabled={editFichaSaving} className={`${iosPrimaryButton} flex flex-1 items-center justify-center gap-2 disabled:opacity-50`}>
+                {editFichaSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Salvar
               </button>
             </div>
@@ -4028,16 +4031,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
       )}
 
-      {/* MODAL EDITAR NOME DO VEÍCULO / PLACA */}
+      {/* MODAL EDITAR NOME DO VEÍCULO / PLACA — tipografia do nome nos inputs inalterada pelo usuário */}
       {isVehicleEditOpen && selectedCard && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-          <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md rounded-[1.5rem] shadow-xl overflow-hidden animate-modal-sheet">
-            <div className="p-6 border-b border-zinc-200/60 dark:border-white/[0.08]">
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                <Pencil className="w-5 h-5 text-brand-yellow" />
+        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
+          <div className={`relative flex max-h-[90vh] w-full max-w-md flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
+            <div className="border-b border-zinc-200/60 px-5 py-5 dark:border-white/[0.07] sm:px-6">
+              <h3 className="flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
+                <Pencil className="h-5 w-5 text-[#007AFF]" />
                 Editar veículo
               </h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Corrija o nome do veículo ou a placa, se estiver errado.</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">Corrija o nome do veículo ou a placa, se estiver errado.</p>
             </div>
             <div className="p-6 space-y-4">
               <div>
@@ -4062,11 +4065,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 />
               </div>
             </div>
-            <div className="p-6 pt-0 flex gap-3 justify-end">
+            <div className="flex justify-end gap-3 px-5 pb-5 pt-2 sm:px-6">
               <button
                 type="button"
                 onClick={() => setIsVehicleEditOpen(false)}
-                className="px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors"
+                className="rounded-2xl border border-zinc-200/90 px-5 py-2.5 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
               >
                 Cancelar
               </button>
@@ -4074,9 +4077,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 type="button"
                 onClick={handleSaveVehicleEdit}
                 disabled={savingVehicleEdit || !vehicleEditModel.trim() || !vehicleEditPlate.trim()}
-                className="px-4 py-2.5 rounded-xl bg-brand-yellow hover:bg-amber-500 disabled:opacity-50 text-black font-semibold flex items-center gap-2 transition-colors"
+                className={`${iosPrimaryButton} flex items-center gap-2 px-5 py-2.5 disabled:opacity-50`}
               >
-                {savingVehicleEdit ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {savingVehicleEdit ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Salvar
               </button>
             </div>
@@ -4228,12 +4231,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* Modal: Aprovar orçamento (admin) — toggles por serviço e peça */}
       {budgetApprovalTarget && selectedCard && (
         <ModalPortal>
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-lg max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] min-h-0 flex flex-col shadow-xl">
-            <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-700">
-              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Aprovar orçamento</h2>
-              <button type="button" onClick={closeBudgetApproval} className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                <X className="w-5 h-5" />
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6 animate-in fade-in duration-200">
+          <div className={`relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-full max-w-lg min-h-0 flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
+            <div className="flex shrink-0 items-center justify-between border-b border-zinc-200/60 px-5 py-4 dark:border-white/[0.07] sm:px-6">
+              <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-white">Aprovar orçamento</h2>
+              <button type="button" onClick={closeBudgetApproval} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15">
+                <X className="h-5 w-5" />
               </button>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-6">
@@ -4602,17 +4605,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </ModalPortal>
       )}
 
-      {/* MODAL DE SELEÇÃO DE ETAPA (MOVE) — estilo iOS 26 */}
+      {/* MODAL DE SELEÇÃO DE ETAPA (MOVE) — vidro iOS alinhado ao TV do pátio */}
       {cardInTransition && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-          <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md rounded-[1.5rem] shadow-[0_4px_32px_-4px_rgba(0,0,0,0.12),0_16px_48px_-12px_rgba(0,0,0,0.18)] dark:shadow-[0_4px_40px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh] animate-modal-sheet">
-            <div className="flex items-center justify-between p-6 pb-5 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/60 dark:bg-white/[0.03]">
-              <div className="flex-1 min-w-0 pr-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Alterar etapa</p>
-                <p className="text-xl font-bold text-zinc-900 dark:text-white truncate mt-1 tracking-tight">{cardInTransition.name.split('-')[0]}</p>
+        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
+          <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
+            <div className="flex shrink-0 items-center justify-between border-b border-zinc-200/60 px-5 pb-4 pt-5 dark:border-white/[0.07] sm:px-6 sm:pt-6">
+              <div className="min-w-0 flex-1 pr-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Alterar etapa</p>
+                <p className="mt-1 truncate text-xl font-bold tracking-tight text-zinc-900 dark:text-white">{cardInTransition.name.split('-')[0]}</p>
               </div>
-              <button type="button" onClick={() => setCardInTransition(null)} className="w-10 h-10 rounded-full bg-zinc-200/80 dark:bg-white/10 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-300/80 dark:hover:bg-white/15 transition-colors shrink-0">
-                <X className="w-5 h-5" />
+              <button type="button" onClick={() => setCardInTransition(null)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15">
+                <X className="h-5 w-5" />
               </button>
             </div>
             <div className="p-4 overflow-y-auto space-y-2">
@@ -4638,8 +4641,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 );
               })}
             </div>
-            <div className="p-4 pt-3 bg-zinc-50/60 dark:bg-white/[0.03] border-t border-zinc-200/60 dark:border-white/[0.08]">
-              <button type="button" onClick={() => setCardInTransition(null)} className="w-full py-3 text-[15px] font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors rounded-xl hover:bg-zinc-200/50 dark:hover:bg-white/[0.06]">
+            <div className="shrink-0 border-t border-zinc-200/60 bg-white/40 px-4 py-3 dark:border-white/[0.07] dark:bg-zinc-950/30 sm:px-5">
+              <button type="button" onClick={() => setCardInTransition(null)} className="w-full rounded-2xl py-3 text-[15px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white">
                 Cancelar
               </button>
             </div>
@@ -4649,20 +4652,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* MODAL DE SELEÇÃO DE MECÂNICO */}
       {cardForMemberAssignment && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-           <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-md rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh] animate-modal-sheet">
-            <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-light-card/80 dark:bg-white/[0.04]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-brand-yellow/10 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-brand-yellow" />
+        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
+           <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
+            <div className="flex shrink-0 items-center justify-between border-b border-zinc-200/60 px-5 py-4 dark:border-white/[0.07] sm:px-6 sm:py-5">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 text-white dark:bg-white/15">
+                  <Users className="h-5 w-5" />
                 </div>
-                <div>
-                  <h3 className="text-zinc-900 dark:text-white font-bold text-lg">Selecionar Técnico</h3>
-                  <p className="text-zinc-500 text-xs mt-0.5">Responsável pelo veículo</p>
+                <div className="min-w-0">
+                  <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Selecionar técnico</h3>
+                  <p className="mt-0.5 text-[13px] text-zinc-500 dark:text-zinc-400">Responsável pelo veículo</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setCardForMemberAssignment(null)} className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors">
-                <X className="w-5 h-5" />
+              <button type="button" onClick={() => setCardForMemberAssignment(null)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15">
+                <X className="h-5 w-5" />
               </button>
             </div>
             
@@ -4695,8 +4698,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
               ))}
             </div>
 
-            <div className="p-4 bg-light-card/80 dark:bg-white/[0.04] border-t border-zinc-200/60 dark:border-white/[0.08] text-center">
-                <button onClick={() => setCardForMemberAssignment(null)} className="text-zinc-500 text-sm hover:text-zinc-900 dark:hover:text-white transition-colors">Cancelar</button>
+            <div className="shrink-0 border-t border-zinc-200/60 bg-white/40 px-4 py-3 text-center dark:border-white/[0.07] dark:bg-zinc-950/30 sm:px-5">
+                <button type="button" onClick={() => setCardForMemberAssignment(null)} className="text-[15px] font-semibold text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white">Cancelar</button>
             </div>
            </div>
         </div>
@@ -4704,27 +4707,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* MODAL DE CHECKLIST (templates criados pelo admin) */}
       {activeChecklistCard && activeChecklistTemplate && (
-         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-modal-backdrop">
-           <div className="bg-[#FAFAF9] dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] w-full max-w-lg rounded-[1.5rem] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh] animate-modal-sheet">
+         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
+           <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-lg flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
              
              {/* Header Checklist */}
-             <div className="relative p-8 pb-4 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-b from-zinc-50 to-white dark:from-[#242426] dark:to-[#1C1C1E]">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg bg-brand-yellow shadow-brand-yellow/20">
-                        <ClipboardList className="w-6 h-6 text-black" />
+             <div className="relative shrink-0 border-b border-zinc-200/60 px-5 pb-4 pt-6 dark:border-white/[0.07] sm:px-7 sm:pt-7">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-amber-500/25">
+                        <ClipboardList className="h-6 w-6 text-white" strokeWidth={2.2} />
                      </div>
-                     <div>
-                       <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Checklist {activeChecklistTemplate.name}</h2>
-                       <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">{activeChecklistCard.name.split('-')[0]}</p>
+                     <div className="min-w-0">
+                       <h2 className="text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">Checklist {activeChecklistTemplate.name}</h2>
+                       <p className="mt-0.5 text-[13px] font-medium text-zinc-500 dark:text-zinc-400">{activeChecklistCard.name.split('-')[0]}</p>
                      </div>
                   </div>
                   <button 
                     type="button"
                     onClick={closeChecklistModal} 
-                    className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
                 
@@ -4754,7 +4757,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
              </div>
 
              {/* Itens do Checklist */}
-             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-light-page dark:bg-[#121212]">
+             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-zinc-50/80 p-4 dark:bg-black/25 custom-scrollbar">
                 {checklistStateLoading ? (
                   <div className="flex justify-center py-12">
                     <RefreshCw className="w-8 h-8 text-brand-yellow animate-spin" />
@@ -4796,13 +4799,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
              </div>
 
              {/* Footer Modal */}
-             <div className="p-4 bg-light-card/80 dark:bg-white/[0.04] border-t border-zinc-200/60 dark:border-white/[0.08] text-center">
+             <div className="shrink-0 border-t border-zinc-200/60 bg-white/40 px-4 py-3 text-center dark:border-white/[0.07] dark:bg-zinc-950/30 sm:px-5">
                <button 
                  type="button"
                  onClick={closeChecklistModal}
-                 className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors"
+                 className="w-full rounded-2xl bg-zinc-900 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white/15 dark:hover:bg-white/20"
                >
-                 Fechar Checklist
+                 Fechar checklist
                </button>
              </div>
 
