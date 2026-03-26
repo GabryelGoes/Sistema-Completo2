@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format, startOfWeek, addDays, startOfMonth, endOfMonth, endOfWeek, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, User, Car, AlertCircle, X, CalendarDays, RefreshCw, ArrowRight, FileText, Edit2, ExternalLink, Trash2, Phone, Mail, Sparkles } from 'lucide-react';
-import { iosModalShell, iosModalClose, iosLabel, iosPageGlass, iosInput, iosPrimaryButton } from '../ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosLabel, iosPageGlass, iosInput, iosPrimaryButton, iosModalInsetCard } from '../ui/iosModalStyles';
 import { IosModalHeader } from '../ui/IosModalHeader';
 import { Customer, Appointment } from '../../types';
 import { getAppointments, createAppointment, updateAppointment, deleteAppointment } from '../../services/apiService';
@@ -414,99 +414,174 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
             <div className={`${iosPageGlass} p-6 sm:p-8 relative overflow-hidden`}>
                 <div className="pointer-events-none absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-indigo-400/10 to-transparent rounded-full blur-2xl" />
                 <div className="relative z-10">
-                <div className="flex items-center justify-between mb-6 gap-3">
-                    <h3 className="text-[17px] sm:text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2.5">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-md shadow-indigo-500/20">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+                    <div className="min-w-0">
+                      <h3 className="text-[17px] sm:text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2.5">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-md shadow-indigo-500/20 shrink-0">
                           <CalendarDays className="w-5 h-5 text-white" strokeWidth={2} />
                         </span>
-                        Agendamentos do dia
-                    </h3>
-                    <span className="text-zinc-500 dark:text-zinc-400 text-[13px] font-medium tabular-nums px-3 py-1 rounded-full bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08]">
-                        {dayAppointments.length} {dayAppointments.length === 1 ? 'compromisso' : 'compromissos'}
+                        <span className="leading-tight">
+                          Agendamentos do dia
+                          <span className="block text-[13px] font-normal text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500/90 shrink-0" strokeWidth={2} />
+                            Veículos agendados para esta data
+                          </span>
+                        </span>
+                      </h3>
+                    </div>
+                    <span className="text-zinc-500 dark:text-zinc-400 text-[13px] font-medium tabular-nums px-3 py-1.5 rounded-full bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08] self-start sm:self-center shrink-0">
+                        {dayAppointments.length} {dayAppointments.length === 1 ? 'veículo' : 'veículos'}
                     </span>
                 </div>
 
                 {dayAppointments.length > 0 ? (
-                    <div className="space-y-4">
-                        {dayAppointments.map(app => (
-                            <div 
-                                key={app.id} 
-                                onClick={() => handleEditClick(app)}
-                                className="bg-white/70 dark:bg-white/[0.04] backdrop-blur-md border border-zinc-200/70 dark:border-white/[0.08] rounded-[22px] p-5 hover:border-[#007AFF]/35 transition-all flex flex-col sm:flex-row items-start sm:items-center gap-4 cursor-pointer shadow-[0_2px_16px_-4px_rgba(0,0,0,0.06)]"
+                    <div className="space-y-3 sm:space-y-4">
+                        {dayAppointments.map((app) => {
+                          const statusDone = app.status === 'completed';
+                          const statusCancelled = app.status === 'cancelled';
+                          const statusLabel = statusDone ? 'Concluído' : statusCancelled ? 'Cancelado' : 'Agendado';
+                          return (
+                            <div
+                              key={app.id}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => handleEditClick(app)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  handleEditClick(app);
+                                }
+                              }}
+                              className={`group ${iosModalInsetCard} overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-[0_8px_28px_-6px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.45)] active:scale-[0.995] border-zinc-200/80 dark:border-white/[0.1]`}
                             >
-                                <div className="flex flex-row sm:flex-col items-center gap-3 sm:gap-1 min-w-[80px]">
-                                    <span className="text-xl font-bold text-zinc-900 dark:text-white tabular-nums">{app.time}</span>
-                                    <div className={`w-2.5 h-2.5 rounded-full shadow-sm ${app.status === 'completed' ? 'bg-emerald-500' : app.status === 'cancelled' ? 'bg-red-500' : 'bg-[#007AFF]'}`} />
-                                </div>
-                                
-                                <div className="flex-1">
-                                    <h4 className="font-black text-zinc-900 dark:text-white text-xl uppercase tracking-tight">
-                                        {app.vehicleModel || 'Veículo não informado'}
-                                    </h4>
-                                    <p className="text-[#007AFF] dark:text-sky-400 font-semibold text-sm mt-0.5">{app.title}</p>
-                                    <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3 text-sm text-zinc-500 dark:text-zinc-300">
-                                        <div className="flex items-center gap-2">
-                                            <User className="w-4 h-4 text-zinc-400" />
-                                            <span className="font-medium">{app.customerName}</span>
-                                        </div>
-                                        {app.plate && (
-                                            <div className="flex items-center gap-2">
-                                                <FileText className="w-4 h-4 text-zinc-400" />
-                                                <span className={`font-mono uppercase ${blurPlates ? 'blur-plate' : ''}`}>{app.plate ? app.plate.toUpperCase() : ''}</span>
-                                            </div>
-                                        )}
-                                        {app.notes && (
-                                            <div className="flex items-start gap-2 w-full mt-2 bg-zinc-50/90 dark:bg-white/[0.04] p-3 rounded-2xl border border-zinc-200/50 dark:border-white/[0.06]">
-                                                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                                                <p className="text-sm text-zinc-700 dark:text-zinc-200 whitespace-pre-wrap break-words">{app.notes}</p>
-                                            </div>
-                                        )}
+                              <div className="p-4 sm:p-5">
+                                <div className="flex gap-2 sm:gap-4">
+                                  <div className="flex flex-col items-center gap-2 shrink-0">
+                                    <div className="rounded-2xl bg-gradient-to-b from-zinc-100 to-zinc-50/90 dark:from-white/[0.09] dark:to-white/[0.04] border border-zinc-200/70 dark:border-white/[0.1] px-3 py-2 min-w-[4.75rem] text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-none">
+                                      <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400 block leading-none mb-1">
+                                        Horário
+                                      </span>
+                                      <span className="text-lg font-semibold text-zinc-900 dark:text-white tabular-nums tracking-tight">
+                                        {app.time}
+                                      </span>
                                     </div>
-                                </div>
-                                
-                                <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto mt-4 sm:mt-0 pt-4 sm:pt-0 border-t sm:border-t-0 border-zinc-200/60 dark:border-white/[0.08]">
-                                    <button 
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); handleChegouAoPatio(app); }}
-                                        className="flex-1 sm:flex-none px-4 py-2.5 rounded-2xl bg-amber-400 text-zinc-950 hover:bg-amber-300 transition-all flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wide shadow-md shadow-amber-500/20 active:scale-[0.98]"
-                                        title="Chegou ao Pátio"
+                                    <span
+                                      className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400"
+                                      title={statusLabel}
                                     >
-                                        <ArrowRight className="w-4 h-4" />
-                                        Chegou ao pátio
-                                    </button>
-                                    
-                                    <button 
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); exportToGoogleCalendar(app); }}
-                                        className="p-2.5 rounded-2xl bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-[#007AFF]/15 hover:text-[#007AFF] transition-colors"
-                                        title="Exportar para Google Agenda"
-                                    >
-                                        <ExternalLink className="w-5 h-5" />
-                                    </button>
+                                      <span
+                                        className={`inline-block w-2 h-2 rounded-full mr-1 align-middle ${
+                                          statusDone ? 'bg-emerald-500' : statusCancelled ? 'bg-red-500' : 'bg-[#007AFF]'
+                                        }`}
+                                      />
+                                      {statusLabel}
+                                    </span>
+                                  </div>
 
-                                    <button 
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); handleEditClick(app); }}
-                                        className="p-2.5 rounded-2xl bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-white/15 transition-colors"
-                                        title="Editar agendamento"
-                                    >
-                                        <Edit2 className="w-5 h-5" />
-                                    </button>
+                                  <div className="flex-1 min-w-0 space-y-3">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="min-w-0">
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 mb-0.5">
+                                          Veículo
+                                        </p>
+                                        <h4 className="text-[17px] sm:text-[19px] font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug">
+                                          {app.vehicleModel || 'Veículo não informado'}
+                                        </h4>
+                                        <p className="text-[15px] font-medium text-[#007AFF] dark:text-sky-400 mt-0.5 truncate">
+                                          {app.title}
+                                        </p>
+                                      </div>
+                                      <ChevronRight className="w-5 h-5 text-zinc-300 dark:text-zinc-600 group-hover:text-[#007AFF] dark:group-hover:text-sky-400 shrink-0 mt-0.5 transition-colors" aria-hidden />
+                                    </div>
 
-                                    <button 
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteAppointment(app.id);
-                                        }}
-                                        className="p-2.5 rounded-2xl bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:text-red-600 hover:bg-red-500/10 transition-colors"
-                                        title="Excluir"
-                                    >
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
+                                    <div className="flex flex-wrap gap-2">
+                                      <span className="inline-flex items-center gap-2 rounded-full bg-zinc-100/90 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08] px-3 py-1.5 text-[13px] font-medium text-zinc-800 dark:text-zinc-200 max-w-full">
+                                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200/80 dark:bg-white/10 shrink-0">
+                                          <User className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-300" />
+                                        </span>
+                                        <span className="truncate">{app.customerName}</span>
+                                      </span>
+                                      {app.plate ? (
+                                        <span className="inline-flex items-center gap-2 rounded-full bg-zinc-100/90 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08] px-3 py-1.5 text-[13px] font-semibold text-zinc-800 dark:text-zinc-100 font-mono uppercase max-w-full">
+                                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200/80 dark:bg-white/10 shrink-0">
+                                            <Car className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-300" />
+                                          </span>
+                                          <span className={`truncate ${blurPlates ? 'blur-plate' : ''}`}>
+                                            {app.plate.toUpperCase()}
+                                          </span>
+                                        </span>
+                                      ) : null}
+                                    </div>
+
+                                    {app.notes ? (
+                                      <div className={`${iosModalInsetCard} p-3 sm:p-3.5`}>
+                                        <div className="flex items-start gap-2.5">
+                                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/15">
+                                            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                          </span>
+                                          <p className="text-[13px] sm:text-sm text-zinc-700 dark:text-zinc-200 whitespace-pre-wrap break-words leading-relaxed">
+                                            {app.notes}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
                                 </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 border-t border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/60 dark:bg-black/20 px-3 py-3 sm:px-4 sm:py-3.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleChegouAoPatio(app);
+                                  }}
+                                  className="flex-1 min-w-[140px] sm:flex-initial px-4 py-2.5 rounded-2xl bg-amber-400 text-zinc-950 hover:bg-amber-300 transition-all flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wide shadow-md shadow-amber-500/20 active:scale-[0.98]"
+                                  title="Chegou ao Pátio"
+                                >
+                                  <ArrowRight className="w-4 h-4" />
+                                  Chegou ao pátio
+                                </button>
+
+                                <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      exportToGoogleCalendar(app);
+                                    }}
+                                    className="p-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-[#007AFF]/15 hover:text-[#007AFF] transition-colors"
+                                    title="Exportar para Google Agenda"
+                                  >
+                                    <ExternalLink className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditClick(app);
+                                    }}
+                                    className="p-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-white/15 transition-colors"
+                                    title="Editar agendamento"
+                                  >
+                                    <Edit2 className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteAppointment(app.id);
+                                    }}
+                                    className="p-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:text-red-600 hover:bg-red-500/10 transition-colors"
+                                    title="Excluir"
+                                  >
+                                    <Trash2 className="w-5 h-5" />
+                                  </button>
+                                </div>
+                              </div>
                             </div>
-                        ))}
+                          );
+                        })}
                     </div>
                 ) : (
                     <div className="text-center py-14 border border-dashed border-zinc-300/80 dark:border-white/[0.1] rounded-[22px] bg-zinc-50/50 dark:bg-white/[0.02]">
