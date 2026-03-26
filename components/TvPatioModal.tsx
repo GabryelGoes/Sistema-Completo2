@@ -52,6 +52,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const [weeklyCurrentStr, setWeeklyCurrentStr] = useState('');
   const [weeklyTargetStr, setWeeklyTargetStr] = useState('');
   const [showWeeklyBar, setShowWeeklyBar] = useState(true);
+  const [slidesSoundEnabled, setSlidesSoundEnabled] = useState(false);
+  const [goalSlideShowValues, setGoalSlideShowValues] = useState(false);
 
   const [newType, setNewType] = useState<TvSlideType>('notice');
   const [newTitle, setNewTitle] = useState('');
@@ -91,6 +93,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         setWeeklyTargetStr(String(data.weeklyGoal.targetAmount ?? 0));
         setShowWeeklyBar(data.weeklyGoal.showWeeklyBar !== false);
       }
+      setSlidesSoundEnabled(data.tvPreferences.slidesSoundEnabled);
+      setGoalSlideShowValues(data.tvPreferences.goalSlideShowValues);
       setUnlocked(true);
       if (data.slides.length > 0) {
         setLibraryPreviewId(data.slides[0].id);
@@ -229,6 +233,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         currentAmount: weeklyCurrentNum,
         targetAmount: weeklyTargetNum,
         showWeeklyBar,
+        slidesSoundEnabled,
+        goalSlideShowValues,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
@@ -506,6 +512,52 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       />
                     </button>
                   </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 p-3 rounded-2xl bg-zinc-100/80 dark:bg-white/[0.04]">
+                    <div>
+                      <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Som ao exibir slide</p>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                        Bip ao entrar em aviso, alerta, imagem ou meta (vídeo não). Na TV também precisa do som ligado no canto.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={slidesSoundEnabled}
+                      onClick={() => setSlidesSoundEnabled((v) => !v)}
+                      className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 ${
+                        slidesSoundEnabled ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-600'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                          slidesSoundEnabled ? 'translate-x-[22px]' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 p-3 rounded-2xl bg-zinc-100/80 dark:bg-white/[0.04]">
+                    <div>
+                      <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Slide meta: valores em R$</p>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                        Ligado mostra atual e meta em reais; desligado mostra só a porcentagem na TV.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={goalSlideShowValues}
+                      onClick={() => setGoalSlideShowValues((v) => !v)}
+                      className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 ${
+                        goalSlideShowValues ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-600'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                          goalSlideShowValues ? 'translate-x-[22px]' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-1.5 block">Rótulo</label>
@@ -552,7 +604,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                     disabled={loading}
                     className="mt-4 text-[14px] font-semibold text-[#007AFF] hover:opacity-80"
                   >
-                    Salvar meta
+                    Salvar meta e preferências da TV
                   </button>
                 </section>
 
@@ -969,6 +1021,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 weeklyCurrent={weeklyCurrentNum}
                 weeklyTarget={weeklyTargetNum}
                 showWeeklyStrip={previewShowsWeeklyStrip}
+                goalSlideShowValues={goalSlideShowValues}
                 slide={previewSlide}
                 showVehiclesPlaceholder={previewTab === 'draft' && !draftSlide}
               />

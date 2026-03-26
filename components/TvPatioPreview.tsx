@@ -31,12 +31,22 @@ function buildYoutubePreviewEmbedUrl(videoId: string): string {
   return `https://www.youtube.com/embed/${videoId}?${q.toString()}`;
 }
 
+function formatMoney(n: number): string {
+  try {
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+  } catch {
+    return String(n);
+  }
+}
+
 interface TvPatioPreviewProps {
   weeklyLabel: string;
   weeklyCurrent: number;
   weeklyTarget: number;
   /** Se false, não desenha a faixa da meta semanal (ex.: preview de slide). */
   showWeeklyStrip?: boolean;
+  /** Slide tipo meta no preview: true = R$, false = %. */
+  goalSlideShowValues?: boolean;
   slide: TvSlide | null;
   /** Quando não há slide, mostra placeholder dos veículos */
   showVehiclesPlaceholder?: boolean;
@@ -50,6 +60,7 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
   weeklyCurrent,
   weeklyTarget,
   showWeeklyStrip = true,
+  goalSlideShowValues = false,
   slide,
   showVehiclesPlaceholder = true,
 }) => {
@@ -127,7 +138,14 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
             {slide.goalLabel || slide.title || 'Meta'}
           </p>
           <div className="w-full max-w-[200px] space-y-1">
-            <p className="text-center text-[14px] font-black tabular-nums text-yellow-400">{Math.round(p)}%</p>
+            {goalSlideShowValues ? (
+              <div className="flex justify-between gap-1 text-[8px] font-bold text-yellow-400 tabular-nums">
+                <span className="truncate">{formatMoney(cur)}</span>
+                <span className="truncate text-right">{formatMoney(tgt)}</span>
+              </div>
+            ) : (
+              <p className="text-center text-[14px] font-black tabular-nums text-yellow-400">{Math.round(p)}%</p>
+            )}
             <div className="h-2 rounded-full bg-white/10 overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-yellow-400 to-orange-500"

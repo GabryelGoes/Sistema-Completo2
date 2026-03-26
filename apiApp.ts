@@ -985,6 +985,24 @@ export function createApiApp() {
   });
 
   // ----------------- TV DO PÁTIO (playlist pública + gestão admin) -----------------
+  async function fetchTvPreferencesForWorkshop(): Promise<{
+    slidesSoundEnabled: boolean;
+    goalSlideShowValues: boolean;
+  }> {
+    const defaults = { slidesSoundEnabled: false, goalSlideShowValues: false };
+    if (!supabaseAdmin || !WORKSHOP_ID) return defaults;
+    const { data: rows } = await supabaseAdmin
+      .from("workshop_settings")
+      .select("key, value")
+      .eq("workshop_id", WORKSHOP_ID)
+      .in("key", ["tv_slides_sound_enabled", "tv_goal_slide_show_values"]);
+    const map = new Map((rows ?? []).map((r: { key: string; value: string | null }) => [r.key, r.value]));
+    return {
+      slidesSoundEnabled: map.get("tv_slides_sound_enabled") === "true",
+      goalSlideShowValues: map.get("tv_goal_slide_show_values") === "true",
+    };
+  }
+
   async function fetchTvPlaylistForWorkshop(): Promise<{
     slides: Array<Record<string, unknown>>;
     weeklyGoal: {
@@ -993,9 +1011,11 @@ export function createApiApp() {
       targetAmount: number;
       showWeeklyBar: boolean;
     } | null;
+    tvPreferences: { slidesSoundEnabled: boolean; goalSlideShowValues: boolean };
   }> {
     if (!supabaseAdmin || !WORKSHOP_ID) {
-      return { slides: [], weeklyGoal: null };
+      const tvPreferences = await fetchTvPreferencesForWorkshop();
+      return { slides: [], weeklyGoal: null, tvPreferences };
     }
     const { data: slideRows, error: slideErr } = await supabaseAdmin
       .from("workshop_tv_slides")
@@ -1039,14 +1059,15 @@ export function createApiApp() {
         }
       : null;
 
-    return { slides, weeklyGoal };
+    const tvPreferences = await fetchTvPreferencesForWorkshop();
+    return { slides, weeklyGoal, tvPreferences };
   }
 
   /** Playlist para o painel da TV (sem autenticação; CORS já limita origem do Patio-View). */
   app.get("/api/tv/playlist", async (_req, res) => {
     try {
-      const { slides, weeklyGoal } = await fetchTvPlaylistForWorkshop();
-      return res.json({ slides, weeklyGoal });
+      const { slides, weeklyGoal, tvPreferences } = await fetchTvPlaylistForWorkshop();
+      return res.json({ slides, weeklyGoal, tvPreferences });
     } catch (err: any) {
       console.error("[API] GET /api/tv/playlist:", err);
       return res.status(500).json({ error: err?.message ?? "Erro ao carregar playlist da TV." });
@@ -1101,7 +1122,8 @@ export function createApiApp() {
           }
         : null;
 
-      return res.json({ slides, weeklyGoal });
+      const tvPreferences = await fetchTvPreferencesForWorkshop();
+      return res.json({ slides, weeklyGoal, tvPreferences });
     } catch (err: any) {
       console.error("[API] GET /api/tv/manage:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
@@ -1110,7 +1132,15 @@ export function createApiApp() {
 
   app.put("/api/tv/weekly-goal", async (req, res) => {
     try {
-      const { adminPassword, label, currentAmount, targetAmount, showWeeklyBar } = req.body || {};
+      const {
+        adminPassword,
+        label,
+        currentAmount,
+        targetAmount,
+        showWeeklyBar,
+        slidesSoundEnabled,
+        goalSlideShowValues,
+      } = req.body || {};
       const pwd = typeof adminPassword === "string" ? adminPassword : "";
       if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, pwd))) {
         return res.status(403).json({ error: "Senha de administrador inválida." });
@@ -1131,6 +1161,35 @@ export function createApiApp() {
       });
       if (error) {
         return res.status(500).json({ error: error.message });
+      }
+      const ts = new Date().toISOString();
+      if (typeof slidesSoundEnabled === "boolean") {
+        const { error: e1 } = await supabaseAdmin.from("workshop_settings").upsert(
+          {
+            workshop_id: WORKSHOP_ID,
+            key: "tv_slides_sound_enabled",
+            value: slidesSoundEnabled ? "true" : "false",
+            updated_at: ts,
+          },
+          { onConflict: "workshop_id,key" }
+        );
+        if (e1) {
+          return res.status(500).json({ error: e1.message });
+        }
+      }
+      if (typeof goalSlideShowValues === "boolean") {
+        const { error: e2 } = await supabaseAdmin.from("workshop_settings").upsert(
+          {
+            workshop_id: WORKSHOP_ID,
+            key: "tv_goal_slide_show_values",
+            value: goalSlideShowValues ? "true" : "false",
+            updated_at: ts,
+          },
+          { onConflict: "workshop_id,key" }
+        );
+        if (e2) {
+          return res.status(500).json({ error: e2.message });
+        }
       }
       return res.json({ ok: true });
     } catch (err: any) {
