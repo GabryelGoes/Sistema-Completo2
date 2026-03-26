@@ -2759,9 +2759,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               )}
 
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                  <div className="p-8 md:p-12 pb-24">
-                     <div className="flex flex-col gap-3 mb-6">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
+                  <div className="border-b border-zinc-200/50 p-8 pb-8 dark:border-white/[0.06] md:px-12 md:pb-10">
+                     <div className="mb-6 flex flex-col gap-3">
                         <div className="flex flex-wrap items-center gap-2">
                           {(serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null && (
                             <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-600/60">
@@ -2795,7 +2795,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <button
                             type="button"
                             onClick={() => setCardForMemberAssignment(selectedCard)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-light-card dark:bg-white/[0.06] border border-light-border dark:border-white/10 shadow-sm active:scale-[0.99] transition-all duration-200 text-left hover:bg-zinc-200/80 dark:hover:bg-white/[0.09]"
+                            className={`${iosModalInsetCard} flex w-full items-center gap-3 px-3 py-2.5 text-left shadow-none transition-all duration-200 active:scale-[0.99] hover:border-[#007AFF]/25 dark:hover:border-white/12`}
                           >
                             {selectedCard.members && selectedCard.members.length > 0 ? (
                               <>
@@ -2831,7 +2831,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </button>
                           )}
                           {can('canEditDeliveryDate') && (
-                          <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-xl bg-light-card dark:bg-white/[0.06] border border-light-border dark:border-white/10">
+                          <div className={`${iosModalInsetCard} flex flex-wrap items-center gap-2 px-3 py-2.5 shadow-none`}>
                             <Calendar className="w-5 h-5 text-brand-yellow shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
@@ -2922,18 +2922,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      </div>
                   </div>
 
-                  <div className="w-full h-px bg-zinc-200 dark:bg-zinc-800/50 mx-auto max-w-[90%]"></div>
-
                   {/* Dados da ficha — agrupados antes da queixa (minimizado por padrão) */}
                   {serviceOrderDetail && (
-                    <div ref={customerDataSectionRef} className="p-8 md:p-12 pt-8">
-                      <div className="bg-gradient-to-br from-light-elevated to-white dark:from-zinc-900/80 dark:to-[#1C1C1E] rounded-2xl border border-light-border dark:border-zinc-800 overflow-hidden shadow-sm">
+                    <div ref={customerDataSectionRef} className="p-8 pt-8 md:px-12">
+                      <div className={`${iosModalInsetCard} overflow-hidden`}>
                         <button
                           type="button"
                           onClick={() => setIsDadosFichaExpanded((v) => !v)}
-                          className="flex w-full items-center justify-between px-6 py-4 border-b border-light-border dark:border-zinc-800 bg-brand-yellow/5 dark:bg-brand-yellow/10 hover:bg-brand-yellow/10 dark:hover:bg-brand-yellow/15 transition-colors text-left"
+                          className="flex w-full items-center justify-between border-b border-zinc-200/50 bg-zinc-50/40 px-5 py-4 text-left transition-colors hover:bg-zinc-100/50 dark:border-white/[0.06] dark:bg-white/[0.03] dark:hover:bg-white/[0.06] sm:px-6"
                         >
-                          <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                          <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
                             {isDadosFichaExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                             <User className="w-4 h-4" />
                             Dados da ficha
@@ -2942,9 +2940,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); openEditFichaModal(); setIsDadosFichaExpanded(true); }}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-yellow/20 dark:bg-brand-yellow/20 text-brand-yellow hover:bg-brand-yellow/30 dark:hover:bg-brand-yellow/30 font-bold text-xs uppercase tracking-wider transition-colors"
+                            className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#007AFF]/12 px-3 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-colors hover:bg-[#007AFF]/20 dark:text-[#64B5FF] dark:hover:bg-[#007AFF]/20"
                           >
-                            <Pencil className="w-3.5 h-3.5" />
+                            <Pencil className="h-3.5 w-3.5" />
                             Editar em janela
                           </button>
                           )}
@@ -3147,53 +3145,56 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </div>
                   )}
 
-                  <div className="p-8 md:p-12 pt-8 grid grid-cols-1 lg:grid-cols-3 gap-10">
+                  <div className="grid grid-cols-1 gap-10 p-8 pt-8 md:px-12 lg:grid-cols-3 lg:gap-12">
                       
-                      <div className="lg:col-span-2 space-y-10">
+                      <div className="space-y-10 lg:col-span-2">
                         <div ref={descriptionSectionRef}>
-                          <div className="flex items-center justify-between mb-4">
-                             <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                                <FileText className="w-4 h-4" />
+                          <div className="mb-4 flex items-center justify-between">
+                             <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                                <FileText className="h-3.5 w-3.5" />
                                 Queixa do cliente
                              </h3>
                              {can('canEditQueixa') && !isEditingDesc && (
                                <button 
+                                 type="button"
                                  onClick={() => { setIsEditingDesc(true); setDescText(selectedCard.desc || ''); }}
-                                 className="text-xs font-bold text-brand-yellow hover:text-zinc-900 dark:hover:text-white transition-colors flex items-center gap-1"
+                                 className="flex items-center gap-1 text-[12px] font-semibold text-[#007AFF] transition-colors hover:opacity-80 dark:text-[#64B5FF]"
                                >
-                                 <Pencil className="w-3 h-3" /> Editar
+                                 <Pencil className="h-3 w-3" /> Editar
                                </button>
                              )}
                           </div>
                           
                           {isEditingDesc ? (
-                             <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl p-4 border border-brand-yellow/50 animate-in fade-in duration-200">
+                             <div className={`${iosModalInsetCard} animate-in p-4 fade-in duration-200 sm:p-5`}>
                                 <textarea 
                                   value={descText}
                                   onChange={(e) => setDescText(e.target.value)}
-                                  className="w-full bg-light-elevated dark:bg-zinc-900/50 text-zinc-900 dark:text-zinc-300 text-lg font-light focus:outline-none resize-none min-h-[200px] p-2 rounded-lg"
+                                  className={`${iosInput} min-h-[200px] resize-none text-[15px] leading-relaxed`}
                                   placeholder="Digite a queixa do cliente..."
                                 />
-                                <div className="flex justify-end gap-3 mt-4">
+                                <div className="mt-4 flex justify-end gap-2">
                                    <button 
+                                     type="button"
                                      onClick={() => setIsEditingDesc(false)}
                                      disabled={isSavingDesc}
-                                     className="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white font-bold transition-colors"
+                                     className="rounded-2xl px-4 py-2.5 text-[14px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
                                    >
                                      Cancelar
                                    </button>
                                    <button 
+                                     type="button"
                                      onClick={handleSaveDescription}
                                      disabled={isSavingDesc}
-                                     className="px-6 py-2 bg-brand-yellow text-black rounded-lg text-sm font-bold hover:bg-[#fcd61e] transition-colors flex items-center gap-2"
+                                     className={`${iosPrimaryButton} flex items-center gap-2 px-5 py-2.5`}
                                    >
-                                     {isSavingDesc ? <RefreshCw className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4" />}
-                                     Salvar Alterações
+                                     {isSavingDesc ? <RefreshCw className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4" />}
+                                     Salvar
                                    </button>
                                 </div>
                              </div>
                           ) : (
-                            <div className="bg-light-elevated dark:bg-[#1C1C1E] rounded-2xl p-6 border border-light-border dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 leading-relaxed font-light text-lg">
+                            <div className={`${iosModalInsetCard} p-5 text-[17px] font-light leading-relaxed text-zinc-800 dark:text-zinc-200 sm:p-6 md:text-lg`}>
                                <ReactMarkdown components={MarkdownComponents}>
                                  {selectedCard.desc || "Nenhuma descrição disponível para este veículo."}
                                </ReactMarkdown>
@@ -3202,16 +3203,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </div>
                         
                         <div ref={commentsSectionRef}>
-                           <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
-                             <MessageSquare className="w-4 h-4" />
+                           <h3 className="mb-4 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                             <MessageSquare className="h-3.5 w-3.5" />
                              Comentários
                           </h3>
 
-                          <div className="bg-light-elevated dark:bg-[#1C1C1E] rounded-2xl border border-light-border dark:border-zinc-800 overflow-hidden">
-                             <div ref={commentsListRef} className="p-6 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar bg-white dark:bg-[#121212]">
+                          <div className={`${iosModalInsetCard} overflow-hidden`}>
+                             <div ref={commentsListRef} className="custom-scrollbar max-h-[400px] space-y-6 overflow-y-auto bg-zinc-50/40 p-5 dark:bg-black/25 sm:p-6">
                                 {loadingDetails ? (
                                    <div className="flex justify-center py-8">
-                                      <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
+                                      <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF]" />
                                    </div>
                                 ) : cardDetails?.actions && cardDetails.actions.length > 0 ? (
                                    cardDetails.actions.map(action => {
@@ -3308,22 +3309,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              </div>
 
                              {can('canAddComments') && (
-                             <div className="p-4 bg-zinc-50/80 dark:bg-white/[0.03] border-t border-zinc-200/60 dark:border-white/[0.06] flex gap-2.5 items-end">
+                             <div className="flex items-end gap-2 border-t border-zinc-200/50 bg-white/50 p-3 dark:border-white/[0.06] dark:bg-white/[0.03] sm:p-4">
                                 <input 
                                    type="text" 
                                    value={newComment}
                                    onChange={(e) => setNewComment(e.target.value)}
                                    placeholder="Escreva um comentário..."
-                                   className="flex-1 bg-white dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/[0.08] rounded-2xl px-4 py-3 text-[15px] text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-brand-yellow/50 focus:ring-2 focus:ring-brand-yellow/20 transition-all"
+                                   className={`${iosInput} min-h-[48px] flex-1 py-3 text-[15px]`}
                                    onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) handleSendComment() }}
                                 />
                                 <button 
                                    type="button"
                                    onClick={handleSendComment}
                                    disabled={sendingComment || !newComment.trim()}
-                                   className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed bg-brand-yellow text-black hover:bg-[#fcd61e] active:scale-95 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.15)] disabled:shadow-none disabled:hover:bg-brand-yellow"
+                                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#007AFF] text-white shadow-lg shadow-blue-500/25 transition-all duration-200 hover:opacity-95 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                                 >
-                                   {sendingComment ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" strokeWidth={2.2} />}
+                                   {sendingComment ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" strokeWidth={2.2} />}
                                 </button>
                              </div>
                              )}
@@ -3335,7 +3336,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className="space-y-8">
                          
                          <div>
-                            <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4">Alterar status</h3>
+                            <p className={`${iosLabel} mb-3`}>Alterar status</p>
                             <button 
                                 type="button"
                                 onClick={(e) => {
@@ -3343,19 +3344,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   e.stopPropagation();
                                   handleOpenMoveModal(selectedCard, e);
                                 }}
-                                className={`w-full p-4 border-2 rounded-xl flex items-center justify-between group transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).style}`}
+                                className={`group flex w-full items-center justify-between rounded-2xl border-2 p-4 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).style}`}
                               >
                                 <span className="font-bold">{getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).label}</span>
-                                <ChevronDown className="w-5 h-5 opacity-90" />
+                                <ChevronDown className="h-5 w-5 opacity-90" />
                             </button>
                          </div>
 
-                         <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
+                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
 
                          {/* Orçamentos: criar + lista */}
                          {can('canEditBudgets') && (
                          <div ref={budgetsSectionRef}>
-                            <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4">Orçamentos</h3>
+                            <p className={`${iosLabel} mb-3`}>Orçamentos</p>
                             <div className="space-y-3">
                               <button 
                                   type="button"
@@ -3458,7 +3459,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
 
                          <div>
-                             <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4">Checklists</h3>
+                             <p className={`${iosLabel} mb-3`}>Checklists</p>
                              {checklistTemplates.length === 0 ? (
                                <p className="text-sm text-zinc-500 dark:text-zinc-400">Nenhum checklist configurado. Crie na página inicial em Administração → Checklists do Pátio.</p>
                              ) : (
@@ -3486,9 +3487,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
 
                          <div>
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                                   <Paperclip className="w-4 h-4" />
+                            <div className="mb-4 flex items-center justify-between">
+                                <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                                   <Paperclip className="h-3.5 w-3.5" />
                                    Anexos
                                 </h3>
                                 <div className="grid grid-cols-3 gap-3 md:gap-2 w-full justify-items-center">
@@ -3748,8 +3749,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          {/* Portabilidade: transferir cadastro entre Pátio (veículo) e Laboratório (módulo) */}
                          <div className="h-px bg-zinc-200 dark:bg-zinc-800 mt-6"></div>
                          <div className="pt-6">
-                            <h3 className="text-brand-yellow text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-2">
-                               <ArrowRightLeft className="w-4 h-4" />
+                            <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                               <ArrowRightLeft className="h-3.5 w-3.5" />
                                Portabilidade
                             </h3>
                             <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
