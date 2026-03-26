@@ -45,8 +45,6 @@ interface TvPatioPreviewProps {
   weeklyTarget: number;
   /** Se false, não desenha a faixa da meta semanal (ex.: preview de slide). */
   showWeeklyStrip?: boolean;
-  /** Slide tipo meta no preview: true = R$, false = %. */
-  goalSlideShowValues?: boolean;
   slide: TvSlide | null;
   /** Quando não há slide, mostra placeholder dos veículos */
   showVehiclesPlaceholder?: boolean;
@@ -60,7 +58,6 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
   weeklyCurrent,
   weeklyTarget,
   showWeeklyStrip = true,
-  goalSlideShowValues = false,
   slide,
   showVehiclesPlaceholder = true,
 }) => {
@@ -138,7 +135,7 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
             {slide.goalLabel || slide.title || 'Meta'}
           </p>
           <div className="w-full max-w-[200px] space-y-1">
-            {goalSlideShowValues ? (
+            {slide.goalShowValues === true ? (
               <div className="flex justify-between gap-1 text-[8px] font-bold text-yellow-400 tabular-nums">
                 <span className="truncate">{formatMoney(cur)}</span>
                 <span className="truncate text-right">{formatMoney(tgt)}</span>

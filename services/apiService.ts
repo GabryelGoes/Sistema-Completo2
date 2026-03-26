@@ -1771,6 +1771,10 @@ export interface TvSlide {
   goalCurrent: number | null;
   goalTarget: number | null;
   goalLabel: string | null;
+  /** Bip ao exibir este slide na TV. */
+  playSound?: boolean;
+  /** Só para tipo goal: true = R$, false = %. */
+  goalShowValues?: boolean;
 }
 
 export interface TvWeeklyGoal {
@@ -1781,17 +1785,9 @@ export interface TvWeeklyGoal {
   showWeeklyBar?: boolean;
 }
 
-export interface TvPreferences {
-  /** Bip ao exibir slides aviso/alerta/imagem/meta (respeita também o mudo do header na TV). */
-  slidesSoundEnabled: boolean;
-  /** Slide tipo meta: true = valores em R$, false = só %. */
-  goalSlideShowValues: boolean;
-}
-
 export async function getTvManage(adminPassword: string): Promise<{
   slides: TvSlide[];
   weeklyGoal: TvWeeklyGoal | null;
-  tvPreferences: TvPreferences;
 }> {
   const url = `${API_BASE}/tv/manage?adminPassword=${encodeURIComponent(adminPassword)}`;
   const response = await fetch(url);
@@ -1802,28 +1798,16 @@ export async function getTvManage(adminPassword: string): Promise<{
   const d = (await response.json()) as {
     slides: TvSlide[];
     weeklyGoal: TvWeeklyGoal | null;
-    tvPreferences?: Partial<TvPreferences>;
   };
   return {
     slides: d.slides ?? [],
     weeklyGoal: d.weeklyGoal ?? null,
-    tvPreferences: {
-      slidesSoundEnabled: d.tvPreferences?.slidesSoundEnabled === true,
-      goalSlideShowValues: d.tvPreferences?.goalSlideShowValues === true,
-    },
   };
 }
 
 export async function putTvWeeklyGoal(
   adminPassword: string,
-  data: {
-    label: string;
-    currentAmount: number;
-    targetAmount: number;
-    showWeeklyBar?: boolean;
-    slidesSoundEnabled?: boolean;
-    goalSlideShowValues?: boolean;
-  }
+  data: { label: string; currentAmount: number; targetAmount: number; showWeeklyBar?: boolean }
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/tv/weekly-goal`, {
     method: "PUT",
@@ -1834,8 +1818,6 @@ export async function putTvWeeklyGoal(
       currentAmount: data.currentAmount,
       targetAmount: data.targetAmount,
       showWeeklyBar: data.showWeeklyBar !== false,
-      slidesSoundEnabled: data.slidesSoundEnabled === true,
-      goalSlideShowValues: data.goalSlideShowValues === true,
     }),
   });
   const err = await response.json().catch(() => ({}));

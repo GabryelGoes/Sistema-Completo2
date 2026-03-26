@@ -985,24 +985,6 @@ export function createApiApp() {
   });
 
   // ----------------- TV DO PÁTIO (playlist pública + gestão admin) -----------------
-  async function fetchTvPreferencesForWorkshop(): Promise<{
-    slidesSoundEnabled: boolean;
-    goalSlideShowValues: boolean;
-  }> {
-    const defaults = { slidesSoundEnabled: false, goalSlideShowValues: false };
-    if (!supabaseAdmin || !WORKSHOP_ID) return defaults;
-    const { data: rows } = await supabaseAdmin
-      .from("workshop_settings")
-      .select("key, value")
-      .eq("workshop_id", WORKSHOP_ID)
-      .in("key", ["tv_slides_sound_enabled", "tv_goal_slide_show_values"]);
-    const map = new Map((rows ?? []).map((r: { key: string; value: string | null }) => [r.key, r.value]));
-    return {
-      slidesSoundEnabled: map.get("tv_slides_sound_enabled") === "true",
-      goalSlideShowValues: map.get("tv_goal_slide_show_values") === "true",
-    };
-  }
-
   async function fetchTvPlaylistForWorkshop(): Promise<{
     slides: Array<Record<string, unknown>>;
     weeklyGoal: {
@@ -1011,16 +993,14 @@ export function createApiApp() {
       targetAmount: number;
       showWeeklyBar: boolean;
     } | null;
-    tvPreferences: { slidesSoundEnabled: boolean; goalSlideShowValues: boolean };
   }> {
     if (!supabaseAdmin || !WORKSHOP_ID) {
-      const tvPreferences = await fetchTvPreferencesForWorkshop();
-      return { slides: [], weeklyGoal: null, tvPreferences };
+      return { slides: [], weeklyGoal: null };
     }
     const { data: slideRows, error: slideErr } = await supabaseAdmin
       .from("workshop_tv_slides")
       .select(
-        "id, slide_type, title, body, media_url, duration_seconds, sort_order, is_active, goal_current, goal_target, goal_label"
+        "id, slide_type, title, body, media_url, duration_seconds, sort_order, is_active, goal_current, goal_target, goal_label, play_sound, goal_show_values"
       )
       .eq("workshop_id", WORKSHOP_ID)
       .eq("is_active", true)
@@ -1042,6 +1022,8 @@ export function createApiApp() {
       goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
       goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
       goalLabel: row.goal_label ?? null,
+      playSound: (row as { play_sound?: boolean }).play_sound === true,
+      goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
     }));
 
     const { data: goalRow } = await supabaseAdmin
@@ -1059,15 +1041,14 @@ export function createApiApp() {
         }
       : null;
 
-    const tvPreferences = await fetchTvPreferencesForWorkshop();
-    return { slides, weeklyGoal, tvPreferences };
+    return { slides, weeklyGoal };
   }
 
   /** Playlist para o painel da TV (sem autenticação; CORS já limita origem do Patio-View). */
   app.get("/api/tv/playlist", async (_req, res) => {
     try {
-      const { slides, weeklyGoal, tvPreferences } = await fetchTvPlaylistForWorkshop();
-      return res.json({ slides, weeklyGoal, tvPreferences });
+      const { slides, weeklyGoal } = await fetchTvPlaylistForWorkshop();
+      return res.json({ slides, weeklyGoal });
     } catch (err: any) {
       console.error("[API] GET /api/tv/playlist:", err);
       return res.status(500).json({ error: err?.message ?? "Erro ao carregar playlist da TV." });
@@ -1105,6 +1086,8 @@ export function createApiApp() {
         goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
         goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
         goalLabel: row.goal_label ?? null,
+        playSound: (row as { play_sound?: boolean }).play_sound === true,
+        goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
       }));
 
       const { data: goalRow } = await supabaseAdmin
@@ -1122,8 +1105,7 @@ export function createApiApp() {
           }
         : null;
 
-      const tvPreferences = await fetchTvPreferencesForWorkshop();
-      return res.json({ slides, weeklyGoal, tvPreferences });
+      return res.json({ slides, weeklyGoal });
     } catch (err: any) {
       console.error("[API] GET /api/tv/manage:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
@@ -1132,15 +1114,7 @@ export function createApiApp() {
 
   app.put("/api/tv/weekly-goal", async (req, res) => {
     try {
-      const {
-        adminPassword,
-        label,
-        currentAmount,
-        targetAmount,
-        showWeeklyBar,
-        slidesSoundEnabled,
-        goalSlideShowValues,
-      } = req.body || {};
+      const { adminPassword, label, currentAmount, targetAmount, showWeeklyBar } = req.body || {};
       const pwd = typeof adminPassword === "string" ? adminPassword : "";
       if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, pwd))) {
         return res.status(403).json({ error: "Senha de administrador inválida." });
@@ -1161,35 +1135,6 @@ export function createApiApp() {
       });
       if (error) {
         return res.status(500).json({ error: error.message });
-      }
-      const ts = new Date().toISOString();
-      if (typeof slidesSoundEnabled === "boolean") {
-        const { error: e1 } = await supabaseAdmin.from("workshop_settings").upsert(
-          {
-            workshop_id: WORKSHOP_ID,
-            key: "tv_slides_sound_enabled",
-            value: slidesSoundEnabled ? "true" : "false",
-            updated_at: ts,
-          },
-          { onConflict: "workshop_id,key" }
-        );
-        if (e1) {
-          return res.status(500).json({ error: e1.message });
-        }
-      }
-      if (typeof goalSlideShowValues === "boolean") {
-        const { error: e2 } = await supabaseAdmin.from("workshop_settings").upsert(
-          {
-            workshop_id: WORKSHOP_ID,
-            key: "tv_goal_slide_show_values",
-            value: goalSlideShowValues ? "true" : "false",
-            updated_at: ts,
-          },
-          { onConflict: "workshop_id,key" }
-        );
-        if (e2) {
-          return res.status(500).json({ error: e2.message });
-        }
       }
       return res.json({ ok: true });
     } catch (err: any) {
@@ -1225,6 +1170,8 @@ export function createApiApp() {
         goal_current: s.goalCurrent != null ? Number(s.goalCurrent) : null,
         goal_target: s.goalTarget != null ? Number(s.goalTarget) : null,
         goal_label: s.goalLabel != null ? String(s.goalLabel) : null,
+        play_sound: s.playSound === true,
+        goal_show_values: s.goalShowValues === true,
       };
       const { data, error } = await supabaseAdmin.from("workshop_tv_slides").insert(insert).select("id").single();
       if (error) {
@@ -1260,6 +1207,8 @@ export function createApiApp() {
       if (s.goalCurrent !== undefined) updates.goal_current = s.goalCurrent != null ? Number(s.goalCurrent) : null;
       if (s.goalTarget !== undefined) updates.goal_target = s.goalTarget != null ? Number(s.goalTarget) : null;
       if (s.goalLabel !== undefined) updates.goal_label = s.goalLabel != null ? String(s.goalLabel) : null;
+      if (s.playSound !== undefined) updates.play_sound = Boolean(s.playSound);
+      if (s.goalShowValues !== undefined) updates.goal_show_values = Boolean(s.goalShowValues);
 
       const { error } = await supabaseAdmin
         .from("workshop_tv_slides")
