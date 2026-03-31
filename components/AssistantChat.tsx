@@ -1636,6 +1636,10 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           : 0;
     if (n > lastRelayPendingCountRef.current) {
       setRelayRedeliveryTick((t) => t + 1);
+      /** Novo recado: abre o modal da Zaya no destinatário para entregar voz/texto. */
+      if (n > 0) {
+        setOpen(true);
+      }
     }
     lastRelayPendingCountRef.current = n;
   }, [relayPendingTech, relayPendingMgmt, relaySessionRole]);
