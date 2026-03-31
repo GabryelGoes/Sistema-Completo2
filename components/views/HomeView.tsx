@@ -275,10 +275,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsTvPatioOpen(true)}
-                className={`mt-5 w-full flex items-center gap-4 p-4 sm:p-5 text-left ${iosCard} border-emerald-400/20 dark:border-emerald-500/20 bg-gradient-to-br from-emerald-50/90 to-white/80 dark:from-emerald-950/50 dark:to-zinc-900/50 hover:border-emerald-400/35 dark:hover:border-emerald-400/30 hover:shadow-[0_12px_36px_-10px_rgba(16,185,129,0.35)] transition-all duration-300 active:scale-[0.995]`}
+                className={`mt-5 w-full flex items-center gap-4 p-4 sm:p-5 text-left ${iosCard} border-[#007AFF]/20 dark:border-[#0A84FF]/25 bg-gradient-to-br from-sky-50/95 to-white/80 dark:from-blue-950/45 dark:to-zinc-900/50 hover:border-[#007AFF]/35 dark:hover:border-[#0A84FF]/35 hover:shadow-[0_12px_36px_-10px_rgba(0,122,255,0.28)] transition-all duration-300 active:scale-[0.995]`}
               >
                 <div
-                  className={`w-12 h-12 shrink-0 bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-700 ${iconSquircle}`}
+                  className={`w-12 h-12 shrink-0 bg-gradient-to-br from-sky-400 via-[#007AFF] to-indigo-600 ${iconSquircle}`}
                 >
                   <Monitor className="w-6 h-6 text-white" strokeWidth={2.2} />
                 </div>
