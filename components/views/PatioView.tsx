@@ -131,6 +131,13 @@ function firstTwoNames(fullName: string): string {
   return parts.slice(0, 2).join(' ');
 }
 
+/** Nome amigável do anexo (remove prefixo numérico tipo 1712000000000_ gerado pelo storage). */
+function attachmentDisplayName(fileName: string): string {
+  const base = fileName.split("/").pop() || fileName;
+  const cleaned = base.replace(/^\d+_/, "");
+  return cleaned || base;
+}
+
 function buildTechnicianNameMap(technicians: SystemUserTechnician[]): Record<string, string> {
   const map: Record<string, string> = {};
   technicians.forEach((t) => {
@@ -707,6 +714,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  /** Nome opcional ao enviar foto tirada na câmera (modal de prévia). */
+  const [photoUploadLabel, setPhotoUploadLabel] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -2010,7 +2019,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!selectedCard || !photoBlob) return;
     setIsUploading(true);
     try {
-      const fileName = `foto_patio_${new Date().getTime()}.jpg`;
+      const raw = photoUploadLabel.trim();
+      let fileName: string;
+      if (!raw) {
+        fileName = `foto_patio_${Date.now()}.jpg`;
+      } else {
+        let s = raw
+          .normalize("NFD")
+          .replace(/\p{M}/gu, "")
+          .replace(/\s+/g, "_")
+          .replace(/[^\w.\-]/g, "_");
+        if (!/\.(jpe?g|png|webp)$/i.test(s)) s += ".jpg";
+        fileName = s;
+      }
       await uploadServiceOrderPhoto(selectedCard.id, photoBlob, fileName);
       const photos = await getServiceOrderPhotos(selectedCard.id);
       setCardDetails(prev => ({
@@ -2025,6 +2046,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       }));
       setPhotoBlob(null);
       setPhotoPreview(null);
+      setPhotoUploadLabel("");
     } catch (err: any) {
       alert(err?.message ?? "Erro ao enviar foto.");
     } finally {
@@ -2035,6 +2057,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const clearPhoto = () => {
     setPhotoBlob(null);
     setPhotoPreview(null);
+    setPhotoUploadLabel("");
   };
 
   if (initialLoading) {
@@ -2722,7 +2745,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               </div>
                                            </div>
                                            <div className="border-t border-zinc-200/60 p-2 dark:border-white/[0.06]">
-                                              <p className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-200">{att.name}</p>
+                                              <p className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-200">{attachmentDisplayName(att.name)}</p>
                                            </div>
                                         </a>
                                      );})}
@@ -3406,11 +3429,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                          {/* Anexos (fotos) + Documentos (arquivos) */}
                          <div>
-                            <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                                   <Paperclip className="h-3.5 w-3.5" />
-                                   Anexos
-                                </h3>
+                            <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0">
+                                  <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                                     <Paperclip className="h-3.5 w-3.5" />
+                                     Anexos
+                                  </h3>
+                                  <p className="mt-1.5 max-w-md text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+                                    Cada foto pode ter um nome — aparece abaixo da miniatura. Toque no lápis para editar (ou renomeie PDFs na lista de documentos).
+                                  </p>
+                                </div>
                                 <div className="grid grid-cols-3 gap-3 sm:gap-2 sm:justify-items-end sm:shrink-0">
                                     <input 
                                         type="file" 
@@ -3477,48 +3505,185 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     return (
                                       <div className="space-y-8">
                                         {images.length > 0 && (
-                                          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-1.5 md:gap-3">
+                                          <div>
+                                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400">
+                                              Fotos
+                                            </p>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
                                             {images.map(att => {
                                               const isLoadingThis = loadingAttachmentId === att.id;
                                               const src = thumbUrl(att);
+                                              const attachmentPath = att.id;
+                                              const canRename = attachmentPath && !/^\d+$/.test(String(attachmentPath));
+                                              const isEditingName = renameAttachmentId === att.id;
+                                              const isRenamingThis = renamingAttachmentId === att.id;
+                                              const label = attachmentDisplayName(att.name);
                                               return (
                                                 <div
                                                   key={att.id}
-                                                  className="aspect-square rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-900 relative group"
+                                                  className="flex min-w-0 flex-col gap-1"
                                                 >
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => !isLoadingThis && setPreviewImages({ urls: images.map(a => a.url), currentIndex: images.findIndex(a => a.url === att.url) })}
-                                                    className="absolute inset-0 w-full h-full focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 rounded-xl"
-                                                  >
-                                                    {isLoadingThis ? (
-                                                      <div className="absolute inset-0 flex items-center justify-center bg-zinc-200/80 dark:bg-zinc-800/80">
-                                                        <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
+                                                  {isEditingName ? (
+                                                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-900">
+                                                      <input
+                                                        type="text"
+                                                        value={renameAttachmentNewName}
+                                                        onChange={(e) => setRenameAttachmentNewName(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                          if (e.key === "Enter") {
+                                                            e.preventDefault();
+                                                            if (selectedCard && renameAttachmentNewName.trim()) {
+                                                              setRenamingAttachmentId(att.id);
+                                                              renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
+                                                                .then(() => getServiceOrderPhotos(selectedCard.id))
+                                                                .then((photos) => {
+                                                                  setCardDetails((prev) =>
+                                                                    prev
+                                                                      ? {
+                                                                          ...prev,
+                                                                          attachments: photos.map((p, i) => ({
+                                                                            id: p.path || String(i),
+                                                                            name: p.name,
+                                                                            url: p.url,
+                                                                            mimeType: attachmentMimeType(p.name),
+                                                                            previews: [{ url: p.url, width: 200, height: 200 }],
+                                                                          })),
+                                                                        }
+                                                                      : null
+                                                                  );
+                                                                })
+                                                                .catch((err) => alert(err?.message ?? "Erro ao renomear."))
+                                                                .finally(() => {
+                                                                  setRenameAttachmentId(null);
+                                                                  setRenamingAttachmentId(null);
+                                                                });
+                                                            }
+                                                          }
+                                                          if (e.key === "Escape") {
+                                                            setRenameAttachmentId(null);
+                                                            setRenameAttachmentNewName("");
+                                                          }
+                                                        }}
+                                                        className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-[12px] text-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                                        placeholder="Nome da foto"
+                                                        autoFocus
+                                                        disabled={isRenamingThis}
+                                                      />
+                                                      <div className="mt-1.5 flex justify-end gap-1">
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => {
+                                                            setRenameAttachmentId(null);
+                                                            setRenameAttachmentNewName("");
+                                                          }}
+                                                          className="rounded-lg px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                                        >
+                                                          Cancelar
+                                                        </button>
+                                                        <button
+                                                          type="button"
+                                                          disabled={isRenamingThis || !renameAttachmentNewName.trim()}
+                                                          onClick={() => {
+                                                            if (!selectedCard || !renameAttachmentNewName.trim()) return;
+                                                            setRenamingAttachmentId(att.id);
+                                                            renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
+                                                              .then(() => getServiceOrderPhotos(selectedCard.id))
+                                                              .then((photos) => {
+                                                                setCardDetails((prev) =>
+                                                                  prev
+                                                                    ? {
+                                                                        ...prev,
+                                                                        attachments: photos.map((p, i) => ({
+                                                                          id: p.path || String(i),
+                                                                          name: p.name,
+                                                                          url: p.url,
+                                                                          mimeType: attachmentMimeType(p.name),
+                                                                          previews: [{ url: p.url, width: 200, height: 200 }],
+                                                                        })),
+                                                                      }
+                                                                    : null
+                                                                );
+                                                              })
+                                                              .catch((err) => alert(err?.message ?? "Erro ao renomear."))
+                                                              .finally(() => {
+                                                                setRenameAttachmentId(null);
+                                                                setRenamingAttachmentId(null);
+                                                              });
+                                                          }}
+                                                          className="rounded-lg bg-brand-yellow px-2 py-1 text-[11px] font-semibold text-black disabled:opacity-50"
+                                                        >
+                                                          {isRenamingThis ? "…" : "OK"}
+                                                        </button>
                                                       </div>
-                                                    ) : (
-                                                      <>
-                                                        <img
-                                                          src={src || att.url}
-                                                          alt={att.name}
-                                                          className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                                                        />
-                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between pb-2 px-2">
+                                                    </div>
+                                                  ) : (
+                                                    <>
+                                                      <div className="aspect-square overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-900 relative group">
+                                                        <button
+                                                          type="button"
+                                                          onClick={() =>
+                                                            !isLoadingThis &&
+                                                            setPreviewImages({
+                                                              urls: images.map((a) => a.url),
+                                                              currentIndex: images.findIndex((a) => a.url === att.url),
+                                                            })
+                                                          }
+                                                          className="absolute inset-0 h-full w-full rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
+                                                        >
+                                                          {isLoadingThis ? (
+                                                            <div className="absolute inset-0 flex items-center justify-center bg-zinc-200/80 dark:bg-zinc-800/80">
+                                                              <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
+                                                            </div>
+                                                          ) : (
+                                                            <>
+                                                              <img
+                                                                src={src || att.url}
+                                                                alt={label}
+                                                                className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                                              />
+                                                              <div className="absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/50 via-transparent to-transparent px-2 pb-2 opacity-0 transition-opacity group-hover:opacity-100">
+                                                                <button
+                                                                  type="button"
+                                                                  onClick={(e) => handleShareImage(e, { url: att.url, name: att.name })}
+                                                                  className="rounded-lg bg-black/40 p-1.5 text-white drop-shadow-lg hover:bg-black/60"
+                                                                  title="Compartilhar (ex.: WhatsApp)"
+                                                                >
+                                                                  <Share2 className="w-5 h-5" />
+                                                                </button>
+                                                                <ZoomIn className="h-6 w-6 text-white drop-shadow-lg" />
+                                                              </div>
+                                                            </>
+                                                          )}
+                                                        </button>
+                                                      </div>
+                                                      <div className="flex min-h-[2rem] items-start gap-1">
+                                                        <span
+                                                          className="min-w-0 flex-1 break-words text-[10px] font-medium leading-tight text-zinc-600 dark:text-zinc-300 sm:text-[11px]"
+                                                          title={label}
+                                                        >
+                                                          {label}
+                                                        </span>
+                                                        {canRename && (
                                                           <button
                                                             type="button"
-                                                            onClick={(e) => handleShareImage(e, { url: att.url, name: att.name })}
-                                                            className="p-1.5 rounded-lg bg-black/40 hover:bg-black/60 text-white drop-shadow-lg"
-                                                            title="Compartilhar (ex.: WhatsApp)"
+                                                            onClick={() => {
+                                                              setRenameAttachmentId(att.id);
+                                                              setRenameAttachmentNewName(attachmentDisplayName(att.name));
+                                                            }}
+                                                            className="shrink-0 rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                                                            title="Nomear ou renomear foto"
+                                                            aria-label="Nomear ou renomear foto"
                                                           >
-                                                            <Share2 className="w-5 h-5" />
+                                                            <Pencil className="h-3.5 w-3.5" />
                                                           </button>
-                                                          <ZoomIn className="w-6 h-6 text-white drop-shadow-lg" />
-                                                        </div>
-                                                      </>
-                                                    )}
-                                                  </button>
+                                                        )}
+                                                      </div>
+                                                    </>
+                                                  )}
                                                 </div>
                                               );
                                             })}
+                                            </div>
                                           </div>
                                         )}
                                         {others.length > 0 && (
@@ -3633,7 +3798,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                           ) : (
                                                             <FileText className="w-5 h-5 text-zinc-500 dark:text-zinc-400 shrink-0" />
                                                           )}
-                                                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 truncate">{att.name}</span>
+                                                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 truncate">{attachmentDisplayName(att.name)}</span>
                                                           {(isPdf || !att.mimeType?.startsWith('image/')) && <ExternalLink className="w-4 h-4 text-zinc-400 shrink-0" />}
                                                         </a>
                                                         {canRename && (
@@ -3641,7 +3806,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                             type="button"
                                                             onClick={() => {
                                                               setRenameAttachmentId(att.id);
-                                                              setRenameAttachmentNewName(att.name);
+                                                              setRenameAttachmentNewName(attachmentDisplayName(att.name));
                                                             }}
                                                             className="shrink-0 p-2 rounded-lg text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-300"
                                                             title="Renomear arquivo"
@@ -5173,21 +5338,35 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <div className="relative flex-1 bg-black flex items-center justify-center">
                 <img src={photoPreview} alt="Preview" className="max-w-full max-h-full object-contain" />
                 
-                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent flex justify-between items-end">
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/85 to-transparent px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-16 sm:px-6">
+                    <label className="mx-auto mb-3 block max-w-md text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                      Nome da foto (opcional)
+                      <input
+                        type="text"
+                        value={photoUploadLabel}
+                        onChange={(e) => setPhotoUploadLabel(e.target.value)}
+                        placeholder="Ex.: Frente, placa, detalhe do freio…"
+                        className="mt-1.5 w-full rounded-xl border border-white/15 bg-zinc-900/90 px-3 py-2.5 text-[15px] font-normal normal-case text-white placeholder:text-zinc-500 focus:border-brand-yellow/50 focus:outline-none focus:ring-2 focus:ring-brand-yellow/30"
+                      />
+                    </label>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                     <button 
+                        type="button"
                         onClick={clearPhoto}
                         className="px-6 py-3 rounded-xl bg-zinc-800 text-white font-bold hover:bg-zinc-700 transition-colors"
                     >
                         Descartar
                     </button>
                     <button 
+                        type="button"
                         onClick={uploadPhoto}
                         disabled={isUploading}
                         className="px-6 py-3 rounded-xl bg-brand-yellow text-black font-bold hover:bg-[#fcd61e] transition-colors flex items-center gap-2"
                     >
                         {isUploading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                        Usar Foto
+                        Enviar foto
                     </button>
+                    </div>
                 </div>
             </div>
         </div>
