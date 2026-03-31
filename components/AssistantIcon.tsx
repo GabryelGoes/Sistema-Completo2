@@ -28,11 +28,11 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
     >
       <defs>
         <filter id={filterBloom} x="-35%" y="-35%" width="170%" height="170%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="1.35" result="b" />
+          <feGaussianBlur in="SourceGraphic" stdDeviation="1.1" result="b" />
           <feColorMatrix
             in="b"
             type="matrix"
-            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.92 0"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.76 0"
             result="glow"
           />
           <feMerge>
@@ -50,22 +50,22 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
         </filter>
 
         <radialGradient id={g1} cx="32%" cy="28%" r="72%">
-          <stop offset="0%" stopColor="#7dd3fc" />
+          <stop offset="0%" stopColor="#38bdf8" />
           <stop offset="40%" stopColor="#38bdf8" />
           <stop offset="100%" stopColor="#0c4a6e" />
         </radialGradient>
         <radialGradient id={g2} cx="28%" cy="32%" r="75%">
-          <stop offset="0%" stopColor="#c4b5fd" />
+          <stop offset="0%" stopColor="#a78bfa" />
           <stop offset="45%" stopColor="#a78bfa" />
           <stop offset="100%" stopColor="#4c1d95" />
         </radialGradient>
         <radialGradient id={g3} cx="38%" cy="22%" r="68%">
-          <stop offset="0%" stopColor="#fda4af" />
+          <stop offset="0%" stopColor="#fb7185" />
           <stop offset="50%" stopColor="#fb7185" />
           <stop offset="100%" stopColor="#881337" />
         </radialGradient>
         <radialGradient id={g4} cx="45%" cy="40%" r="58%">
-          <stop offset="0%" stopColor="#fde047" />
+          <stop offset="0%" stopColor="#facc15" />
           <stop offset="100%" stopColor="#b45309" />
         </radialGradient>
 
@@ -108,8 +108,8 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
       <circle cx="24" cy="24" r="22" fill={`url(#${bgVignette})`} />
 
       {/* Camada de bloom (aura difusa atrás dos orbs) */}
-      <g opacity="0.42" filter={`url(#${filterSoft})`}>
-        <circle r="12" fill={`url(#${g1})`} opacity="0.5">
+      <g opacity="0.3" filter={`url(#${filterSoft})`}>
+        <circle r="12" fill={`url(#${g1})`} opacity="0.34">
           <animate
             attributeName="cx"
             values="16;19;16;14;16"
@@ -129,7 +129,7 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
             repeatCount="indefinite"
           />
         </circle>
-        <circle r="10" fill={`url(#${g2})`} opacity="0.38">
+        <circle r="10" fill={`url(#${g2})`} opacity="0.26">
           <animate
             attributeName="cx"
             values="28;25;29;28;28"
@@ -153,7 +153,7 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
 
       {/* Orbs principais + bloom */}
       <g filter={`url(#${filterBloom})`}>
-        <circle r="10.5" fill={`url(#${g1})`} opacity="0.78">
+        <circle r="10.5" fill={`url(#${g1})`} opacity="0.62">
           <animate
             attributeName="cx"
             values="17;20;17;15;17"
@@ -174,7 +174,7 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
           />
         </circle>
 
-        <circle r="9" fill={`url(#${g2})`} opacity="0.74">
+        <circle r="9" fill={`url(#${g2})`} opacity="0.58">
           <animate
             attributeName="cx"
             values="27;24;28;27;27"
@@ -195,7 +195,7 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
           />
         </circle>
 
-        <circle r="7.5" fill={`url(#${g3})`} opacity="0.72">
+        <circle r="7.5" fill={`url(#${g3})`} opacity="0.56">
           <animate
             attributeName="cx"
             values="22;25;21;22;22"
@@ -216,7 +216,7 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
           />
         </circle>
 
-        <circle r="4.2" fill={`url(#${g4})`} opacity="0.76">
+        <circle r="4.2" fill={`url(#${g4})`} opacity="0.6">
           <animate
             attributeName="cx"
             values="24;26;23;24;24"
