@@ -1729,9 +1729,12 @@ export interface ZayaRelayPendingRow {
   from_technician_user_id?: string | null;
 }
 
+const relayFetchInit: RequestInit = { cache: "no-store" };
+
 export async function getZayaRelayPendingCountForTechnician(userId: string): Promise<number> {
   const response = await fetch(
-    `${API_BASE}/zaya-relay/pending-count?${new URLSearchParams({ userId })}`
+    `${API_BASE}/zaya-relay/pending-count?${new URLSearchParams({ userId })}`,
+    relayFetchInit
   );
   if (!response.ok) return 0;
   const data = (await response.json()) as { toTechnician?: number };
@@ -1739,20 +1742,29 @@ export async function getZayaRelayPendingCountForTechnician(userId: string): Pro
 }
 
 export async function getZayaRelayPendingCountForManagement(): Promise<number> {
-  const response = await fetch(`${API_BASE}/zaya-relay/pending-count?for=management`);
+  const response = await fetch(
+    `${API_BASE}/zaya-relay/pending-count?${new URLSearchParams({ target: "management" })}`,
+    relayFetchInit
+  );
   if (!response.ok) return 0;
   const data = (await response.json()) as { toManagement?: number };
   return typeof data.toManagement === "number" ? data.toManagement : 0;
 }
 
 export async function getZayaRelayPendingForTechnician(userId: string): Promise<ZayaRelayPendingRow[]> {
-  const response = await fetch(`${API_BASE}/zaya-relay/pending?${new URLSearchParams({ userId })}`);
+  const response = await fetch(
+    `${API_BASE}/zaya-relay/pending?${new URLSearchParams({ userId })}`,
+    relayFetchInit
+  );
   if (!response.ok) return [];
   return response.json();
 }
 
 export async function getZayaRelayPendingForManagement(): Promise<ZayaRelayPendingRow[]> {
-  const response = await fetch(`${API_BASE}/zaya-relay/pending?for=management`);
+  const response = await fetch(
+    `${API_BASE}/zaya-relay/pending?${new URLSearchParams({ target: "management" })}`,
+    relayFetchInit
+  );
   if (!response.ok) return [];
   return response.json();
 }

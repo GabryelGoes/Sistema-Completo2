@@ -2723,11 +2723,18 @@ export function createApiApp() {
   // ----------------- RECADOS ZAYA (gerência ↔ técnicos) -----------------
   app.get("/api/zaya-relay/pending-count", async (req, res) => {
     try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
       const userId = typeof req.query.userId === "string" ? req.query.userId.trim() : "";
-      const forManagement = req.query.for === "management";
+      const qFor = req.query.for;
+      const qTarget = req.query.target;
+      const forManagement =
+        qFor === "management" ||
+        qTarget === "management" ||
+        (Array.isArray(qFor) && qFor[0] === "management") ||
+        (Array.isArray(qTarget) && qTarget[0] === "management");
       if (forManagement) {
         const { count, error } = await supabaseAdmin
           .from("zaya_relay_messages")
@@ -2736,7 +2743,8 @@ export function createApiApp() {
           .eq("direction", "to_management")
           .is("opened_at", null);
         if (error) return res.status(500).json({ error: error.message });
-        return res.json({ toManagement: count ?? 0 });
+        const n = count ?? 0;
+        return res.json({ toManagement: typeof n === "number" ? n : 0 });
       }
       if (userId) {
         const { count, error } = await supabaseAdmin
@@ -2758,11 +2766,18 @@ export function createApiApp() {
 
   app.get("/api/zaya-relay/pending", async (req, res) => {
     try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
       const userId = typeof req.query.userId === "string" ? req.query.userId.trim() : "";
-      const forManagement = req.query.for === "management";
+      const qFor = req.query.for;
+      const qTarget = req.query.target;
+      const forManagement =
+        qFor === "management" ||
+        qTarget === "management" ||
+        (Array.isArray(qFor) && qFor[0] === "management") ||
+        (Array.isArray(qTarget) && qTarget[0] === "management");
       if (forManagement) {
         const { data, error } = await supabaseAdmin
           .from("zaya_relay_messages")

@@ -212,6 +212,22 @@ function buildRelayMarkBatches(
   return batches;
 }
 
+function relayItemsToAssistantMessages(items: RelayPendingQueueItem[]): AssistantApiMessage[] {
+  return items.map(({ row, scope }) =>
+    scope === "technician"
+      ? {
+          role: "assistant" as const,
+          content:
+            `**Recado da gerência**\n\n${row.body}\n\n---\nPara responder, diga ou escreva sua resposta; o id deste recado é \`${row.id}\` (uso na ferramenta zaya_submit_relay_reply).`,
+        }
+      : {
+          role: "assistant" as const,
+          content:
+            `**Recado do técnico ${row.sender_label}**\n\n${row.body}\n\n---\nPara responder a este recado, use a ferramenta de resposta com o id \`${row.id}\` e o texto da sua resposta.`,
+        }
+  );
+}
+
 function speakAssistantResponse(text: string): void {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
   const plain = markdownToSpeechText(text);
@@ -1776,19 +1792,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
         .sort()
         .join(",");
       if (batchKey === relayClassicBatchKeyRef.current) return;
-      const delivery: AssistantApiMessage[] = items.map(({ row, scope }) =>
-        scope === "technician"
-          ? {
-              role: "assistant" as const,
-              content:
-                `**Recado da gerência**\n\n${row.body}\n\n---\nPara responder, diga ou escreva sua resposta; o id deste recado é \`${row.id}\` (uso na ferramenta zaya_submit_relay_reply).`,
-            }
-          : {
-              role: "assistant" as const,
-              content:
-                `**Recado do técnico ${row.sender_label}**\n\n${row.body}\n\n---\nPara responder a este recado, use a ferramenta de resposta com o id \`${row.id}\` e o texto da sua resposta.`,
-            }
-      );
+      const delivery = relayItemsToAssistantMessages(items);
       setMessages((prev) => [...delivery, ...prev]);
       relayClassicBatchKeyRef.current = batchKey;
       const batches = buildRelayMarkBatches(items, currentTechnicianUserId);
@@ -1854,7 +1858,23 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
         const voiceParts = items.map(({ row, scope }) =>
           combineRelayRowsForVoice([row], scope)
         );
-        const voice = voiceParts.join(". ");
+        const voice = voiceParts.join(". ").trim();
+        if (!voice) {
+          const delivery = relayItemsToAssistantMessages(items);
+          const batches = buildRelayMarkBatches(items, currentTechnicianUserId);
+          setMessages((prev) => [...delivery, ...prev]);
+          try {
+            await Promise.all(batches.map((b) => markZayaRelayOpened(b.ids, b.scope, b.userId)));
+          } catch {
+            /* ignore */
+          }
+          if (!cancelled) {
+            if (batches.some((b) => b.scope === "technician")) setRelayPendingTech(0);
+            if (batches.some((b) => b.scope === "management")) setRelayPendingMgmt(0);
+            refreshRelayPendingCount();
+          }
+          return;
+        }
         relayMarkAfterResponseRef.current = buildRelayMarkBatches(items, currentTechnicianUserId);
         const userLabel =
           items.length === 1 && items[0].scope === "technician"
