@@ -272,3 +272,26 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
     </svg>
   );
 };
+
+/** Mesmas cores do linearGradient `aurora` do ícone — borda do modal da Zaya. */
+export const ZAYA_AURORA_CONIC =
+  "conic-gradient(from 0deg, #22d3ee, #a78bfa, #f472b6, #34d399, #22d3ee)";
+
+/** Moldura com aro colorido (gradiente girando), alinhada ao anel do ícone. */
+export const ZayaAuroraModalFrame: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+}> = ({ children, className }) => (
+  <div
+    className={`relative w-full overflow-hidden rounded-[2rem] p-[2px] sm:rounded-[2.25rem] ${className ?? ""}`}
+  >
+    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
+      <div
+        aria-hidden
+        className="absolute left-1/2 top-1/2 h-[250%] min-h-[600px] w-[250%] min-w-[600px] -translate-x-1/2 -translate-y-1/2 opacity-[0.82] [animation:zayaAuroraModalSpin_16s_linear_infinite] motion-reduce:opacity-55 motion-reduce:[animation:none]"
+        style={{ background: ZAYA_AURORA_CONIC }}
+      />
+    </div>
+    <div className="relative z-[1] flex min-h-0 w-full min-w-0 flex-col">{children}</div>
+  </div>
+);

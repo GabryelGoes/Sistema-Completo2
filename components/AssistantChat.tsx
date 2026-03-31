@@ -4,10 +4,10 @@ import { Mic, Send, Sparkles, Volume2, VolumeX, X } from "lucide-react";
 import {
   iosModalClose,
   iosModalInsetCard,
-  iosModalShell,
+  iosModalShellZayaInner,
   iosInput,
 } from "./ui/iosModalStyles";
-import { AssistantIcon } from "./AssistantIcon";
+import { AssistantIcon, ZayaAuroraModalFrame } from "./AssistantIcon";
 import { ASSISTANT_NAME } from "../constants/assistant";
 import type { TabId } from "./TabBar";
 import {
@@ -2038,6 +2038,10 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           animation: assist-relay-green 1.55s ease-in-out infinite;
           animation-delay: 0.38s;
         }
+        @keyframes zayaAuroraModalSpin {
+          from { transform: translate(-50%, -50%) rotate(0deg); }
+          to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
       `}</style>
       <div className="fixed bottom-24 right-4 z-[90]">
         <div className="relative h-14 w-14">
@@ -2084,9 +2088,10 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
 
       {open && (
         <div className="fixed inset-0 z-[110] flex flex-col justify-end bg-black/45 backdrop-blur-[20px] p-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))] sm:items-end sm:justify-end sm:p-6 sm:pb-28">
-          <div
-            className={`relative flex max-h-[min(560px,78vh)] w-full max-w-md flex-col overflow-hidden ${iosModalShell} animate-in fade-in zoom-in-95 duration-200`}
-          >
+          <ZayaAuroraModalFrame className="max-w-md animate-in fade-in zoom-in-95 duration-200">
+            <div
+              className={`relative flex max-h-[min(560px,78vh)] w-full flex-col overflow-hidden ${iosModalShellZayaInner}`}
+            >
             <button
               type="button"
               onClick={() => {
@@ -2271,7 +2276,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                 </button>
               </div>
             </div>
-          </div>
+            </div>
+          </ZayaAuroraModalFrame>
         </div>
       )}
     </>
