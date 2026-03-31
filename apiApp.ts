@@ -45,6 +45,23 @@ export function createApiApp() {
   const WORKSHOP_ID = process.env.WORKSHOP_ID;
   app.use(express.json());
 
+  /** Atualiza `updated_at` na OS para disparar Realtime/SSE (ex.: após mudança só no Storage). */
+  async function touchServiceOrderUpdatedAt(serviceOrderId: string): Promise<void> {
+    if (!supabaseAdmin) return;
+    const { error } = await supabaseAdmin
+      .from("service_orders")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", serviceOrderId);
+    if (error) console.warn("[API] touchServiceOrderUpdatedAt:", error.message);
+  }
+
+  function reqOrderId(req: express.Request): string {
+    const raw = req.params.id;
+    if (typeof raw === "string") return raw;
+    if (Array.isArray(raw)) return raw[0] ?? "";
+    return "";
+  }
+
   // CORS: permitir requisições do painel do pátio (outro domínio)
   app.use((_req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", PATIO_VIEW_ORIGIN);
@@ -1547,11 +1564,15 @@ export function createApiApp() {
           });
         }
 
-        const serviceOrderId = req.params.id;
+        const serviceOrderId = reqOrderId(req);
         const file = req.file;
 
         if (!file) {
           return res.status(400).json({ error: "Arquivo não enviado." });
+        }
+
+        if (!serviceOrderId) {
+          return res.status(400).json({ error: "ID da OS inválido." });
         }
 
         // Garante que a OS pertence à oficina
@@ -1585,6 +1606,8 @@ export function createApiApp() {
           data: { publicUrl },
         } = supabaseAdmin.storage.from(bucket).getPublicUrl(pathInBucket);
 
+        await touchServiceOrderUpdatedAt(serviceOrderId);
+
         return res.status(201).json({
           url: publicUrl,
           path: pathInBucket,
@@ -1600,6 +1623,128 @@ export function createApiApp() {
       }
     }
   );
+
+  // SSE + Supabase Realtime: notifica o front para recarregar o modal da OS quando algo mudar no banco
+  app.get("/api/service-orders/:id/live", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const serviceOrderId = reqOrderId(req);
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "ID da OS inválido." });
+      }
+
+      const { data: so, error: soErr } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, customer_id")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+
+      if (soErr || !so) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      const customerId = so.customer_id;
+
+      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      const flush = (res as { flushHeaders?: () => void }).flushHeaders;
+      if (typeof flush === "function") flush();
+
+      const send = (reason: string) => {
+        try {
+          res.write(`data: ${JSON.stringify({ source: reason, t: Date.now() })}\n\n`);
+        } catch {
+          /* resposta já fechada */
+        }
+      };
+
+      const channelName = `live-os-${serviceOrderId}-${Date.now()}`;
+      let heartbeat: ReturnType<typeof setInterval> | null = null;
+
+      const channel = supabaseAdmin
+        .channel(channelName)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "service_orders", filter: `id=eq.${serviceOrderId}` },
+          () => send("service_orders")
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "customers", filter: `id=eq.${customerId}` },
+          () => send("customers")
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "service_order_comments", filter: `service_order_id=eq.${serviceOrderId}` },
+          () => send("service_order_comments")
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "budgets", filter: `service_order_id=eq.${serviceOrderId}` },
+          () => send("budgets")
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "service_order_checklist_checks", filter: `service_order_id=eq.${serviceOrderId}` },
+          () => send("service_order_checklist_checks")
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "workshop_reminders", filter: `workshop_id=eq.${WORKSHOP_ID}` },
+          () => send("workshop_reminders")
+        )
+        .subscribe((status, err) => {
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            console.error("[SSE] Realtime falhou para OS", serviceOrderId, err);
+            if (heartbeat) {
+              clearInterval(heartbeat);
+              heartbeat = null;
+            }
+            try {
+              void supabaseAdmin.removeChannel(channel);
+            } catch {
+              /* ignore */
+            }
+            if (!res.writableEnded) res.end();
+          }
+        });
+
+      heartbeat = setInterval(() => {
+        try {
+          res.write(`: ping\n\n`);
+        } catch {
+          if (heartbeat) clearInterval(heartbeat);
+          heartbeat = null;
+        }
+      }, 25000);
+
+      req.on("close", () => {
+        if (heartbeat) {
+          clearInterval(heartbeat);
+          heartbeat = null;
+        }
+        try {
+          void supabaseAdmin.removeChannel(channel);
+        } catch {
+          /* ignore */
+        }
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/service-orders/:id/live:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+      }
+    }
+  });
 
   // Detalhe de uma OS (com cliente completo para "Usar na Recepção")
   app.get("/api/service-orders/:id", async (req, res) => {
@@ -1692,8 +1837,12 @@ export function createApiApp() {
         });
       }
 
-      const { id: serviceOrderId } = req.params;
+      const serviceOrderId = reqOrderId(req);
       const { path: currentPath, newName } = req.body as { path?: string; newName?: string };
+
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "ID da OS inválido." });
+      }
 
       if (!currentPath || typeof currentPath !== "string" || !newName || typeof newName !== "string") {
         return res.status(400).json({ error: "Corpo inválido: envie path e newName." });
@@ -1752,6 +1901,8 @@ export function createApiApp() {
         .from(bucket)
         .getPublicUrl(newPath);
 
+      await touchServiceOrderUpdatedAt(serviceOrderId);
+
       return res.json({
         url: publicUrl,
         name: safeName,
@@ -1773,8 +1924,12 @@ export function createApiApp() {
         });
       }
 
-      const { id: serviceOrderId } = req.params;
+      const serviceOrderId = reqOrderId(req);
       const { path: objectPath } = req.body as { path?: string };
+
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "ID da OS inválido." });
+      }
 
       if (!objectPath || typeof objectPath !== "string") {
         return res.status(400).json({ error: "Corpo inválido: envie path." });
@@ -1805,6 +1960,8 @@ export function createApiApp() {
         console.error("[API] Erro ao excluir anexo no Storage:", removeError);
         return res.status(500).json({ error: removeError.message });
       }
+
+      await touchServiceOrderUpdatedAt(serviceOrderId);
 
       return res.status(204).send();
     } catch (err: any) {

@@ -64,6 +64,7 @@ import {
   iosPageGlass,
   iosPrimaryButton,
 } from '../ui/iosModalStyles';
+import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 
 /** Modal de orçamento: papel branco-amarelado (mesmo tom em tema claro ou escuro do app). */
 const budgetModalPaperInset =
@@ -181,6 +182,36 @@ function buildTechnicianNameMap(technicians: SystemUserTechnician[]): Record<str
     map[t.id] = (t.display_name || t.username || '').trim() || t.username;
   });
   return map;
+}
+
+function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderListItem {
+  const d = detail as ServiceOrderDetail & {
+    assigned_technician?: string | null;
+    garantia_tag?: boolean;
+  };
+  return {
+    id: detail.id,
+    os_number: detail.os_number,
+    customer_id: detail.customer_id,
+    vehicle_model: detail.vehicle_model,
+    module_identification: detail.module_identification,
+    plate: detail.plate,
+    mileage_km: detail.mileage_km,
+    delivery_date: detail.delivery_date,
+    issue_description: detail.issue_description,
+    ai_analysis: detail.ai_analysis,
+    status: detail.status as ServiceOrderStatus,
+    assigned_technician: d.assigned_technician ?? null,
+    garantia_tag: d.garantia_tag,
+    order_type: detail.order_type,
+    vehicle_category: detail.vehicle_category,
+    created_at: detail.created_at,
+    updated_at: detail.updated_at,
+    customers: detail.customers
+      ? { id: detail.customers.id, name: detail.customers.name, phone: detail.customers.phone }
+      : null,
+    customer_name: detail.customers?.name ?? null,
+  };
 }
 
 function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string, string>, orderType: ServiceOrderType = 'vehicle'): TrelloCard {
@@ -563,6 +594,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [descText, setDescText] = useState('');
   const [isSavingDesc, setIsSavingDesc] = useState(false);
+  const isEditingDescRef = useRef(false);
+  const selectedCardRef = useRef<TrelloCard | null>(null);
+  isEditingDescRef.current = isEditingDesc;
+  selectedCardRef.current = selectedCard;
 
   // Visualização de Imagem (Lightbox) — lista de URLs e índice para navegar entre fotos
   const [previewImages, setPreviewImages] = useState<{ urls: string[]; currentIndex: number } | null>(null);
@@ -747,6 +782,45 @@ export const PatioView: React.FC<PatioViewProps> = ({
     window.addEventListener('workshop-reminders-updated', onSync);
     return () => window.removeEventListener('workshop-reminders-updated', onSync);
   }, [fetchReminders, orderType]);
+
+  const syncOpenVehicleModalFromServer = React.useCallback(async () => {
+    const id = selectedCardRef.current?.id;
+    if (!id) return;
+    if (isEditingDescRef.current) return;
+    try {
+      const [order, photos, budgets, comments] = await Promise.all([
+        getServiceOrderById(id),
+        getServiceOrderPhotos(id),
+        getServiceOrderBudgets(id),
+        getServiceOrderComments(id),
+      ]);
+      setServiceOrderDetail(order);
+      const listItem = serviceOrderDetailToListItem(order);
+      const nameMap = buildTechnicianNameMap(systemTechnicians);
+      const freshCard = orderToCard(listItem, nameMap, orderType);
+      setSelectedCard((prev) => (prev?.id === id ? freshCard : prev));
+      setCards((prev) => prev.map((c) => (c.id === id ? freshCard : c)));
+      setCardDetails({
+        actions: (comments ?? []).map(commentToAction),
+        attachments: photos.map((p, i) => ({
+          id: p.path || String(i),
+          name: p.name,
+          url: p.url,
+          mimeType: attachmentMimeType(p.name),
+          previews: [{ url: p.url, width: 200, height: 200 }],
+        })),
+      });
+      setSavedBudgets(budgets);
+      setDescText(stripLegacyVehicleCategoryFromComplaint(order.issue_description || ""));
+      void fetchReminders();
+    } catch (e) {
+      console.error("syncOpenVehicleModalFromServer", e);
+    }
+  }, [orderType, systemTechnicians, fetchReminders]);
+
+  useServiceOrderLiveSync(selectedCard?.id ?? null, syncOpenVehicleModalFromServer, {
+    enabled: !!selectedCard,
+  });
 
   // --- Attachment States ---
   const [isUploading, setIsUploading] = useState(false);

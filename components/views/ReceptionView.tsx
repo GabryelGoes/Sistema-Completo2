@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, ClipboardList, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosLabel, iosPageGlass } from '../ui/iosModalStyles';
@@ -24,6 +24,7 @@ import {
 } from '../../services/apiService';
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
 import { ModalPortal } from '../ui/ModalPortal';
+import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 
 const RECEPTION_MODE_KEY = 'app_reception_mode';
 const VEHICLE_CATEGORIES = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
@@ -453,6 +454,33 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setArchivedDetailPhotos([]);
     setArchivedDetailComments([]);
   };
+
+  const silentReloadArchivedDetail = useCallback(async () => {
+    if (!archivedDetailOrderId) return;
+    try {
+      const [detail, photos, comments] = await Promise.all([
+        getServiceOrderById(archivedDetailOrderId),
+        getServiceOrderPhotos(archivedDetailOrderId),
+        getServiceOrderComments(archivedDetailOrderId).catch(() => [] as ServiceOrderComment[]),
+      ]);
+      setArchivedDetailData(detail);
+      setArchivedDetailPhotos(
+        photos.map((p, i) => ({
+          id: p.path || String(i),
+          name: p.name,
+          url: p.url,
+          mimeType: attachmentMimeType(p.name),
+        }))
+      );
+      setArchivedDetailComments(comments);
+    } catch {
+      /* mantém estado anterior */
+    }
+  }, [archivedDetailOrderId]);
+
+  useServiceOrderLiveSync(archivedDetailOrderId, silentReloadArchivedDetail, {
+    enabled: !!archivedDetailOrderId,
+  });
 
   return (
     <div className="min-h-[min(100dvh,100%)] w-full bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90">
