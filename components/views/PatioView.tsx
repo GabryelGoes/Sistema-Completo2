@@ -243,6 +243,13 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
   };
 }
 
+/** Lista de arquivados: mais recentemente atualizado (arquivado) primeiro. */
+function sortArchivedOrdersNewestFirst(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
+  return [...orders].sort(
+    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+  );
+}
+
 // Interfaces separadas para Serviços (só descrição) e Peças (descrição + quantidade)
 interface BudgetServiceItem {
   id: string;
@@ -1084,7 +1091,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     try {
       const orders = await getServiceOrders('CANCELLED', orderType);
       const nameMap = buildTechnicianNameMap(systemTechnicians);
-      const list = orders.map((o) => orderToCard(o, nameMap, orderType));
+      const list = sortArchivedOrdersNewestFirst(orders).map((o) => orderToCard(o, nameMap, orderType));
       setRecentArchivedCards(list);
       setArchivedCards(list);
     } catch (err) {
@@ -1104,7 +1111,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const orders = await getServiceOrders('CANCELLED', orderType);
       const nameMap = buildTechnicianNameMap(systemTechnicians);
       if (!term) {
-        const list = orders.map((o) => orderToCard(o, nameMap, orderType));
+        const list = sortArchivedOrdersNewestFirst(orders).map((o) => orderToCard(o, nameMap, orderType));
         setRecentArchivedCards(list);
         setArchivedCards(list);
         return;
@@ -1116,9 +1123,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
           (o.vehicle_model && o.vehicle_model.toLowerCase().includes(term.toLowerCase())) ||
           (o.module_identification && o.module_identification.toLowerCase().includes(term.toLowerCase()))
       );
-      const cards = cancelled.map((o) => orderToCard(o, nameMap, orderType));
+      const cards = sortArchivedOrdersNewestFirst(cancelled).map((o) => orderToCard(o, nameMap, orderType));
       if (cards.length === 0) {
-        const list = orders.map((o) => orderToCard(o, nameMap, orderType));
+        const list = sortArchivedOrdersNewestFirst(orders).map((o) => orderToCard(o, nameMap, orderType));
         setRecentArchivedCards(list);
         setArchivedCards(list);
         setHistoryShowingFallback(list.length > 0);

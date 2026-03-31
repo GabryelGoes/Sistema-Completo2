@@ -46,6 +46,12 @@ function getModelTitleClass(modelName: string) {
   return 'text-3xl md:text-5xl lg:text-3xl';
 }
 
+function sortArchivedOrdersNewestFirst(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
+  return [...orders].sort(
+    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+  );
+}
+
 interface ReceptionViewProps {
   initialData?: Customer | null;
   onDataLoaded?: () => void;
@@ -300,7 +306,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             (o.customer_name || o.customers?.name || '').toLowerCase().includes(t)
           )
         : rows;
-      setArchivedOrders(filtered);
+      setArchivedOrders(sortArchivedOrdersNewestFirst(filtered));
     } catch (e) {
       console.error(e);
       setArchivedOrders([]);
