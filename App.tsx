@@ -160,6 +160,13 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    if (
+      !window.confirm(
+        "Deseja sair do app?\n\nVocê precisará entrar de novo com usuário e senha para acessar o sistema."
+      )
+    ) {
+      return;
+    }
     try {
       clearStoredAuth();
     } catch (_) {}
