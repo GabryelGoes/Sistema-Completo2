@@ -819,7 +819,11 @@ export type NotificationType =
   | "vehicle_scheduled"
   | "vehicle_registered"
   | "complaint_edited"
-  | "delivery_date_changed";
+  | "delivery_date_changed"
+  | "zaya_stage_aguardando_aprovacao"
+  | "zaya_stage_finalizado"
+  | "zaya_orcamento_com_aprovacao"
+  | "zaya_orcamento_com_reprovacao";
 
 export interface NotificationPayload {
   service_order_id?: string;
@@ -1751,6 +1755,51 @@ export async function updateWorkshopSettings(
     throw new Error(err.error || "Falha ao salvar configurações.");
   }
   return response.json();
+}
+
+// ---------- Avisos da Zaya (destinatários e tipos) ----------
+
+export interface ZayaAlertsSubscriberRow {
+  systemUserId: string;
+  alertTypes: string[];
+  displayName: string;
+}
+
+export interface ZayaAlertsAvailableUser {
+  id: string;
+  username: string;
+  displayName: string;
+}
+
+export interface ZayaAlertsConfig {
+  adminAlertTypes: string[];
+  subscribers: ZayaAlertsSubscriberRow[];
+  availableUsers: ZayaAlertsAvailableUser[];
+}
+
+export async function getZayaAlerts(): Promise<ZayaAlertsConfig> {
+  const response = await fetch(`${API_BASE}/workshop/zaya-alerts`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao carregar avisos da Zaya.");
+  }
+  return response.json();
+}
+
+export async function saveZayaAlerts(body: {
+  adminPassword: string;
+  adminAlertTypes: string[];
+  subscribers: { systemUserId: string; alertTypes: string[] }[];
+}): Promise<void> {
+  const response = await fetch(`${API_BASE}/workshop/zaya-alerts`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao salvar avisos da Zaya.");
+  }
 }
 
 /** Exclui o veículo do sistema (marca OS como CANCELLED). Exige a senha configurada em Alterar senhas. */

@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Loader2,
   X,
+  Sparkles,
 } from 'lucide-react';
 import {
   getNotifications,
@@ -55,6 +56,10 @@ const TYPE_CONFIG: Record<NotificationType, { label: string; icon: React.ReactNo
   vehicle_registered: { label: 'Veículo cadastrado', icon: <Car className="w-5 h-5" />, accent: 'text-[#007AFF]' },
   complaint_edited: { label: 'Queixa editada', icon: <AlertCircle className="w-5 h-5" />, accent: 'text-rose-500' },
   delivery_date_changed: { label: 'Data de entrega alterada', icon: <Calendar className="w-5 h-5" />, accent: 'text-[#007AFF]' },
+  zaya_stage_aguardando_aprovacao: { label: 'Zaya · Aguardando aprovação', icon: <Sparkles className="w-5 h-5" />, accent: 'text-violet-500' },
+  zaya_stage_finalizado: { label: 'Zaya · Finalizado', icon: <Sparkles className="w-5 h-5" />, accent: 'text-violet-500' },
+  zaya_orcamento_com_aprovacao: { label: 'Zaya · Orçamento aprovado', icon: <Sparkles className="w-5 h-5" />, accent: 'text-violet-500' },
+  zaya_orcamento_com_reprovacao: { label: 'Zaya · Orçamento reprovado', icon: <Sparkles className="w-5 h-5" />, accent: 'text-violet-500' },
 };
 
 function formatNotificationTitle(n: Notification, forTechnician?: boolean): string {
@@ -82,6 +87,14 @@ function formatNotificationTitle(n: Notification, forTechnician?: boolean): stri
       return forTechnician ? `${adminLabel} editou a queixa · ${vehicle}` : `${who} editou a queixa · ${vehicle}`;
     case 'delivery_date_changed':
       return `Data de entrega alterada · ${vehicle}`;
+    case 'zaya_stage_aguardando_aprovacao':
+      return `Zaya · Etapa: aguardando aprovação · ${vehicle}`;
+    case 'zaya_stage_finalizado':
+      return `Zaya · Etapa: finalizado · ${vehicle}`;
+    case 'zaya_orcamento_com_aprovacao':
+      return `Zaya · Itens aprovados no orçamento · ${vehicle}`;
+    case 'zaya_orcamento_com_reprovacao':
+      return `Zaya · Itens reprovados no orçamento · ${vehicle}`;
     default:
       return cfg.label;
   }

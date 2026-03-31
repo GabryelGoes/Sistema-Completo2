@@ -10,6 +10,7 @@ import {
   SERVICE_ORDER_STAGES,
   CANCELLED_STATUS,
 } from "./constants/serviceOrderStages.js";
+import { ZAYA_ALERT_IDS } from "./constants/zayaAlertTypes.js";
 import { ASSISTANT_NAME } from "./constants/assistant.js";
 import OpenAI from "openai";
 import {
@@ -235,6 +236,104 @@ export function createApiApp() {
     if (normalized.toLowerCase() !== ADMIN_USERNAME.toLowerCase()) return false;
     const expected = await getAdminPassword();
     return String(password).trim() === expected;
+  }
+
+  const DEFAULT_ZAYA_ADMIN_ALERTS: string[] = ["zaya_stage_aguardando_aprovacao", "zaya_stage_finalizado"];
+
+  async function getZayaAdminAlertTypes(): Promise<string[]> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return [...DEFAULT_ZAYA_ADMIN_ALERTS];
+    const { data } = await supabaseAdmin
+      .from("workshop_settings")
+      .select("value")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("key", "zaya_admin_alert_types")
+      .maybeSingle();
+    if (!data?.value) return [...DEFAULT_ZAYA_ADMIN_ALERTS];
+    try {
+      const parsed = JSON.parse(String(data.value));
+      if (!Array.isArray(parsed)) return [...DEFAULT_ZAYA_ADMIN_ALERTS];
+      return parsed.filter((x: unknown) => typeof x === "string");
+    } catch {
+      return [...DEFAULT_ZAYA_ADMIN_ALERTS];
+    }
+  }
+
+  function isValidZayaAlertKey(key: string): boolean {
+    return (ZAYA_ALERT_IDS as readonly string[]).includes(key);
+  }
+
+  async function notifyZayaSubscribers(alertKey: string, payload: Record<string, unknown>): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID || !isValidZayaAlertKey(alertKey)) return;
+    try {
+      const adminTypes = await getZayaAdminAlertTypes();
+      if (adminTypes.includes(alertKey)) {
+        const { error: e } = await supabaseAdmin.from("notifications").insert({
+          workshop_id: WORKSHOP_ID,
+          type: alertKey,
+          payload,
+          target_type: "admin",
+          target_slug: null,
+        });
+        if (e) console.error("[API] Zaya (gerência):", e);
+      }
+      const { data: subs, error: subsErr } = await supabaseAdmin
+        .from("zaya_alert_subscribers")
+        .select("system_user_id, alert_types")
+        .eq("workshop_id", WORKSHOP_ID);
+      if (subsErr) {
+        if (!String(subsErr.message || "").includes("does not exist")) {
+          console.warn("[API] Zaya subscribers:", subsErr.message);
+        }
+        return;
+      }
+      for (const row of subs || []) {
+        const types = Array.isArray((row as { alert_types?: unknown }).alert_types)
+          ? (row as { alert_types: string[] }).alert_types
+          : [];
+        if (!types.includes(alertKey)) continue;
+        const uid = (row as { system_user_id: string }).system_user_id;
+        const { error: e } = await supabaseAdmin.from("notifications").insert({
+          workshop_id: WORKSHOP_ID,
+          type: alertKey,
+          payload,
+          target_type: "technician",
+          target_slug: uid,
+        });
+        if (e) console.error("[API] Zaya (usuário):", e);
+      }
+    } catch (err) {
+      console.error("[API] notifyZayaSubscribers:", err);
+    }
+  }
+
+  /** Detecta se algum item passou a aprovado/reprovado neste save (compara por índice). */
+  function budgetApprovalDelta(
+    prevServices: unknown,
+    prevParts: unknown,
+    nextServices: unknown,
+    nextParts: unknown
+  ): { hasNewApproval: boolean; hasNewRejection: boolean } {
+    const out = { hasNewApproval: false, hasNewRejection: false };
+    const compare = (oldArr: unknown, newArr: unknown) => {
+      const o = Array.isArray(oldArr) ? oldArr : [];
+      const n = Array.isArray(newArr) ? newArr : [];
+      const len = Math.max(o.length, n.length);
+      for (let i = 0; i < len; i++) {
+        const ov =
+          o[i] && typeof o[i] === "object" && "approved" in (o[i] as object)
+            ? (o[i] as { approved?: boolean }).approved
+            : undefined;
+        const nv =
+          n[i] && typeof n[i] === "object" && "approved" in (n[i] as object)
+            ? (n[i] as { approved?: boolean }).approved
+            : undefined;
+        if (nv === true && ov !== true) out.hasNewApproval = true;
+        if (nv === false && ov !== false) out.hasNewRejection = true;
+      }
+    };
+    compare(prevServices, nextServices);
+    compare(prevParts, nextParts);
+    return out;
   }
 
   app.post("/api/auth/login", async (req, res) => {
@@ -645,6 +744,94 @@ export function createApiApp() {
       });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop-settings:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Avisos da Zaya: destinatários (gerência + usuários do sistema) e tipos por pessoa */
+  app.get("/api/workshop/zaya-alerts", async (_req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const adminAlertTypes = await getZayaAdminAlertTypes();
+      const { data: subs, error: subsErr } = await supabaseAdmin
+        .from("zaya_alert_subscribers")
+        .select("system_user_id, alert_types")
+        .eq("workshop_id", WORKSHOP_ID);
+      if (subsErr && !String(subsErr.message || "").includes("does not exist")) {
+        return res.status(500).json({ error: subsErr.message });
+      }
+      const { data: users } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("id, username, display_name")
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("display_name", { ascending: true })
+        .order("username");
+      const userMap = new Map(
+        (users || []).map((u: { id: string; username: string; display_name: string | null }) => [u.id, u])
+      );
+      return res.json({
+        adminAlertTypes,
+        subscribers: (subs || []).map((s: { system_user_id: string; alert_types: string[] }) => {
+          const u = userMap.get(s.system_user_id);
+          return {
+            systemUserId: s.system_user_id,
+            alertTypes: Array.isArray(s.alert_types) ? s.alert_types : [],
+            displayName: (u?.display_name || u?.username || s.system_user_id) as string,
+          };
+        }),
+        availableUsers: (users || []).map((u: { id: string; username: string; display_name: string | null }) => ({
+          id: u.id,
+          username: u.username,
+          displayName: u.display_name || u.username,
+        })),
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/workshop/zaya-alerts:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.put("/api/workshop/zaya-alerts", async (req, res) => {
+    try {
+      const { adminPassword, adminAlertTypes, subscribers } = req.body || {};
+      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+        return res.status(403).json({ error: "Acesso negado." });
+      }
+      if (!supabaseAdmin) return res.status(500).json({ error: "Servidor não configurado." });
+      const adminArr = Array.isArray(adminAlertTypes) ? adminAlertTypes.filter((x: unknown) => typeof x === "string") : [];
+      const filteredAdmin = adminArr.filter((x: string) => isValidZayaAlertKey(x));
+      await supabaseAdmin.from("workshop_settings").upsert(
+        {
+          workshop_id: WORKSHOP_ID,
+          key: "zaya_admin_alert_types",
+          value: JSON.stringify(filteredAdmin),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "workshop_id,key" }
+      );
+      await supabaseAdmin.from("zaya_alert_subscribers").delete().eq("workshop_id", WORKSHOP_ID);
+      const rows = Array.isArray(subscribers) ? subscribers : [];
+      for (const s of rows) {
+        const sid = typeof s.systemUserId === "string" ? s.systemUserId.trim() : "";
+        const atypes = Array.isArray(s.alertTypes) ? s.alertTypes.filter((x: unknown) => typeof x === "string") : [];
+        const ft = atypes.filter((x: string) => isValidZayaAlertKey(x));
+        if (!sid || ft.length === 0) continue;
+        const { error: insErr } = await supabaseAdmin.from("zaya_alert_subscribers").insert({
+          workshop_id: WORKSHOP_ID,
+          system_user_id: sid,
+          alert_types: ft,
+          updated_at: new Date().toISOString(),
+        });
+        if (insErr) {
+          console.error("[API] Zaya insert subscriber:", insErr);
+          return res.status(500).json({ error: insErr.message });
+        }
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] Erro em PUT /api/workshop/zaya-alerts:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
@@ -2154,6 +2341,14 @@ export function createApiApp() {
         ? String((so.customers as { name: string }).name ?? "")
         : "";
 
+      const { data: prevBudgetRow } = await supabaseAdmin
+        .from("budgets")
+        .select("services, parts")
+        .eq("id", budgetId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+
       const updatePayload: Record<string, unknown> = {
         card_name: cardName ?? null,
         diagnosis: typeof diagnosis === "string" ? diagnosis : "",
@@ -2261,6 +2456,18 @@ export function createApiApp() {
             target_type: "technician",
             target_slug: techId,
           }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited (técnico):", e); });
+        }
+        const delta = budgetApprovalDelta(
+          prevBudgetRow?.services,
+          prevBudgetRow?.parts,
+          updated.services,
+          updated.parts
+        );
+        if (delta.hasNewApproval) {
+          await notifyZayaSubscribers("zaya_orcamento_com_aprovacao", budgetEditPayload);
+        }
+        if (delta.hasNewRejection) {
+          await notifyZayaSubscribers("zaya_orcamento_com_reprovacao", budgetEditPayload);
         }
       }
 
@@ -4106,6 +4313,21 @@ export function createApiApp() {
               target_slug: null,
             }).then(({ error: e }) => { if (e) console.error("[API] Notificação delivery_date_changed (admin):", e); });
           }
+        }
+      }
+
+      if (previous && updatePayload.status !== undefined && previous.status !== data?.status) {
+        const ns = data?.status;
+        if (ns === "AGUARDANDO_APROVACAO") {
+          await notifyZayaSubscribers("zaya_stage_aguardando_aprovacao", {
+            ...payloadBase,
+            new_status: ns,
+          });
+        } else if (ns === "FINALIZADO") {
+          await notifyZayaSubscribers("zaya_stage_finalizado", {
+            ...payloadBase,
+            new_status: ns,
+          });
         }
       }
 

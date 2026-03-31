@@ -22,6 +22,7 @@ import { ChangePasswordsModal } from '../ChangePasswordsModal';
 import { TechnicianProfileModal } from '../TechnicianProfileModal';
 import { AdminProfileModal } from '../AdminProfileModal';
 import { SystemUsersModal } from '../SystemUsersModal';
+import { ZayaAlertsModal } from '../ZayaAlertsModal';
 import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import type { SystemUserPermissions } from '../../services/apiService';
@@ -174,6 +175,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isPatioChecklistsOpen, setIsPatioChecklistsOpen] = useState(false);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
+  const [isZayaAlertsOpen, setIsZayaAlertsOpen] = useState(false);
 
   const perms = systemUserPermissions || {};
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
@@ -341,6 +343,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       }
                     />
                     <SettingsRow
+                      onClick={() => setIsZayaAlertsOpen(true)}
+                      title="Avisos da Zaya"
+                      subtitle="Etapas, orçamentos e destinatários"
+                      icon={
+                        <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-fuchsia-500 to-violet-800 ${iconSquircle}`}>
+                          <Sparkles className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
+                        </div>
+                      }
+                    />
+                    <SettingsRow
                       onClick={() => onOpenApp('settings')}
                       title="Configurações"
                       subtitle="Oficina e integrações"
@@ -457,6 +469,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {!isTechnician && (
         <>
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />
+          <ZayaAlertsModal isOpen={isZayaAlertsOpen} onClose={() => setIsZayaAlertsOpen(false)} />
           <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
           <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
           <PatioChecklistsModal isOpen={isPatioChecklistsOpen} onClose={() => setIsPatioChecklistsOpen(false)} />
