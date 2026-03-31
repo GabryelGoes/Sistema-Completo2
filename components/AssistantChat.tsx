@@ -2179,52 +2179,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           to { transform: translate(-50%, -50%) rotate(360deg); }
         }
       `}</style>
-      <div className="fixed bottom-24 right-4 z-[90]">
-        <div className="relative h-14 w-14">
-          {relaySessionRole === "technician" && relayPendingTech > 0 && (
-            <>
-              <span
-                className="pointer-events-none absolute inset-0 -m-[2px] rounded-full border-2 border-emerald-500 assist-relay-green-a"
-                aria-hidden
-              />
-              <span
-                className="pointer-events-none absolute inset-0 -m-[5px] rounded-full border border-emerald-400/55 assist-relay-green-b"
-                aria-hidden
-              />
-            </>
-          )}
-          {relaySessionRole === "management" && relayPendingMgmt > 0 && (
-            <>
-              <span
-                className="pointer-events-none absolute inset-0 -m-[2px] rounded-full border-2 border-emerald-500 assist-relay-green-a"
-                aria-hidden
-              />
-              <span
-                className="pointer-events-none absolute inset-0 -m-[5px] rounded-full border border-emerald-400/55 assist-relay-green-b"
-                aria-hidden
-              />
-            </>
-          )}
-          <button
-            type="button"
-            aria-label={`Abrir ${ASSISTANT_NAME}${
-              relaySessionRole === "technician" && relayPendingTech > 0
-                ? " — há recado da gerência"
-                : relaySessionRole === "management" && relayPendingMgmt > 0
-                  ? " — há recado de técnico"
-                  : ""
-            }`}
-            onClick={() => setOpen(true)}
-            className={`relative z-10 flex h-14 w-14 items-center justify-center ${zayaIconWrap} transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/40`}
-          >
-            <AssistantIcon className="h-14 w-14" />
-          </button>
-        </div>
-      </div>
-
       {open && (
-        <div className="fixed inset-0 z-[110] flex flex-col justify-end bg-black/45 backdrop-blur-[20px] p-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))] sm:items-end sm:justify-end sm:p-6 sm:pb-28">
-          <ZayaAuroraModalFrame className="max-w-md animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[280] flex flex-col justify-end p-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))] pointer-events-none sm:items-end sm:justify-end sm:p-6 sm:pb-28">
+          <ZayaAuroraModalFrame className="pointer-events-auto max-w-md animate-in fade-in zoom-in-95 duration-200">
             <div
               className={`relative flex max-h-[min(560px,78vh)] w-full flex-col overflow-hidden ${iosModalShellZayaInner}`}
             >
@@ -2416,6 +2373,50 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           </ZayaAuroraModalFrame>
         </div>
       )}
+
+      {/* Acima de modais do app (z~100–200); sem blur no fundo — painel Zaya com pointer-events-auto */}
+      <div className="pointer-events-none fixed bottom-24 right-4 z-[320]">
+        <div className="pointer-events-auto relative h-14 w-14">
+          {relaySessionRole === "technician" && relayPendingTech > 0 && (
+            <>
+              <span
+                className="pointer-events-none absolute inset-0 -m-[2px] rounded-full border-2 border-emerald-500 assist-relay-green-a"
+                aria-hidden
+              />
+              <span
+                className="pointer-events-none absolute inset-0 -m-[5px] rounded-full border border-emerald-400/55 assist-relay-green-b"
+                aria-hidden
+              />
+            </>
+          )}
+          {relaySessionRole === "management" && relayPendingMgmt > 0 && (
+            <>
+              <span
+                className="pointer-events-none absolute inset-0 -m-[2px] rounded-full border-2 border-emerald-500 assist-relay-green-a"
+                aria-hidden
+              />
+              <span
+                className="pointer-events-none absolute inset-0 -m-[5px] rounded-full border border-emerald-400/55 assist-relay-green-b"
+                aria-hidden
+              />
+            </>
+          )}
+          <button
+            type="button"
+            aria-label={`Abrir ${ASSISTANT_NAME}${
+              relaySessionRole === "technician" && relayPendingTech > 0
+                ? " — há recado da gerência"
+                : relaySessionRole === "management" && relayPendingMgmt > 0
+                  ? " — há recado de técnico"
+                  : ""
+            }`}
+            onClick={() => setOpen(true)}
+            className={`relative z-10 flex h-14 w-14 items-center justify-center ${zayaIconWrap} transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/40`}
+          >
+            <AssistantIcon className="h-14 w-14" />
+          </button>
+        </div>
+      </div>
     </>
   );
 };
