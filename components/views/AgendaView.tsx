@@ -803,7 +803,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
       {/* Modal Novo Agendamento */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 sm:p-6 animate-modal-backdrop">
-            <div className={`${iosModalShell} w-full max-w-md max-h-[90vh] animate-modal-sheet`}>
+            <div className={`${iosModalShell} w-full max-w-md md:max-w-3xl xl:max-w-4xl max-h-[90vh] animate-modal-sheet`}>
                 <button
                   type="button"
                   onClick={() => {
