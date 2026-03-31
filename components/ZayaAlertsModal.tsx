@@ -171,7 +171,7 @@ export const ZayaAlertsModal: React.FC<ZayaAlertsModalProps> = ({ isOpen, onClos
 
   return (
     <div className={iosModalOverlay}>
-      <div className={`${iosModalShell} max-w-lg max-h-[92vh] overflow-y-auto`}>
+      <div className={`${iosModalShell} w-full max-w-lg sm:max-w-2xl lg:max-w-4xl max-h-[92vh] overflow-y-auto`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
         </button>
