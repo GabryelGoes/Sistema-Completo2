@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag } from 'lucide-react';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
 import { NotificationCenter } from '../NotificationCenter';
@@ -548,7 +548,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [serviceOrderDetail, setServiceOrderDetail] = useState<ServiceOrderDetail | null>(null);
   const [cardDetails, setCardDetails] = useState<{ actions: TrelloAction[], attachments: TrelloAttachment[] } | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [isEditFichaOpen, setIsEditFichaOpen] = useState(false);
   const [editFichaSaving, setEditFichaSaving] = useState(false);
   /** Seção "Dados da ficha" no modal: começa minimizada. */
   const [isDadosFichaExpanded, setIsDadosFichaExpanded] = useState(false);
@@ -1495,25 +1494,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  const openEditFichaModal = () => {
-    if (!serviceOrderDetail) return;
-    const c = serviceOrderDetail.customers;
-    setEditFichaForm({
-      name: c?.name ?? '',
-      cpf: c?.cpf ?? '',
-      phone: c?.phone ?? '',
-      email: c?.email ?? '',
-      cep: c?.cep ?? '',
-      address: c?.address ?? '',
-      addressNumber: c?.address_number ?? '',
-      vehicleModel: serviceOrderDetail.vehicle_model ?? '',
-      moduleIdentification: serviceOrderDetail.module_identification ?? '',
-      plate: (serviceOrderDetail.plate ?? '').toUpperCase(),
-      mileageKm: serviceOrderDetail.mileage_km ?? '',
-    });
-    setIsEditFichaOpen(true);
-  };
-
   const handleSaveEditFicha = async () => {
     if (!selectedCard || !serviceOrderDetail?.customers?.id) return;
     setEditFichaSaving(true);
@@ -1550,7 +1530,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       };
       setSelectedCard(updatedCard);
       setCards((prev) => prev.map((c) => (c.id === selectedCard.id ? updatedCard : c)));
-      setIsEditFichaOpen(false);
+      setIsDadosFichaExpanded(false);
     } catch (err: any) {
       alert(err?.message ?? "Erro ao salvar alterações.");
     } finally {
@@ -3280,27 +3260,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               {isDadosFichaExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                             </span>
                           </button>
-                          {can('canEditFicha') && (
-                            <div className="flex shrink-0 items-center border-l border-zinc-200/40 pr-3 dark:border-white/[0.06] sm:pr-4">
-                              <button
-                                type="button"
-                                onClick={() => { openEditFichaModal(); setIsDadosFichaExpanded(true); }}
-                                className="hidden h-full min-h-[3.5rem] items-center gap-1.5 rounded-2xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-3 text-[11px] font-semibold text-[#007AFF] transition-colors hover:bg-[#007AFF]/18 sm:inline-flex dark:border-[#64B5FF]/30 dark:text-[#64B5FF]"
-                                title="Abrir em janela"
-                              >
-                                <Maximize2 className="h-3.5 w-3.5" />
-                                Janela
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => { openEditFichaModal(); setIsDadosFichaExpanded(true); }}
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[#007AFF]/25 bg-[#007AFF]/10 text-[#007AFF] transition-colors hover:bg-[#007AFF]/18 sm:hidden dark:border-[#64B5FF]/30 dark:text-[#64B5FF]"
-                                aria-label="Abrir edição da ficha em janela"
-                              >
-                                <Maximize2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          )}
                         </div>
                         {isDadosFichaExpanded && (
                         <div className="space-y-6 bg-gradient-to-b from-transparent to-zinc-50/20 p-5 dark:to-white/[0.02] sm:p-6">
@@ -4561,123 +4520,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
           </div>
         </div>
         </ModalPortal>
-      )}
-
-      {/* MODAL EDITAR DADOS DA FICHA — vidro iOS alinhado ao TV do pátio */}
-      {isEditFichaOpen && selectedCard && (
-        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
-          <div className={`relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-xl min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}>
-            <button
-              type="button"
-              onClick={() => setIsEditFichaOpen(false)}
-              className={iosModalClose}
-              aria-label="Fechar"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <div className="shrink-0 border-b border-zinc-200/50 px-6 pb-5 pt-7 pr-14 dark:border-white/[0.06] sm:px-8 sm:pb-6 sm:pt-8">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.1rem] bg-gradient-to-br from-[#007AFF]/22 via-[#5AC8FA]/15 to-[#0A84FF]/10 text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:from-[#0A84FF]/35 dark:via-[#5AC8FA]/15 dark:to-transparent">
-                  <User className="h-6 w-6" strokeWidth={1.75} />
-                </div>
-                <div className="min-w-0 pt-0.5">
-                  <h2 className="text-[22px] font-semibold leading-[1.15] tracking-tight text-zinc-900 dark:text-white">
-                    Dados da ficha
-                  </h2>
-                  <p className="mt-1.5 text-[14px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                    Cliente, endereço e {isModuleMode ? 'identificação do módulo' : 'veículo'}. As alterações são salvas nesta ordem de serviço.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 dark:[color-scheme:dark] sm:px-8 sm:py-6 custom-scrollbar">
-              <div className="space-y-7">
-                <section>
-                  <p className={`${iosLabel} mb-3 ml-0.5`}>Cliente</p>
-                  <div className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
-                    <div>
-                      <label className={iosLabel}>Nome</label>
-                      <input value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className={iosInput} placeholder="Nome do cliente" />
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className={iosLabel}>Telefone</label>
-                        <input value={editFichaForm.phone} onChange={(e) => setEditFichaForm(f => ({ ...f, phone: e.target.value }))} className={iosInput} placeholder="(11) 99999-9999" />
-                      </div>
-                      <div>
-                        <label className={iosLabel}>E-mail</label>
-                        <input type="email" value={editFichaForm.email} onChange={(e) => setEditFichaForm(f => ({ ...f, email: e.target.value }))} className={iosInput} placeholder="email@exemplo.com" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className={iosLabel}>CPF</label>
-                      <input value={editFichaForm.cpf} onChange={(e) => setEditFichaForm(f => ({ ...f, cpf: e.target.value }))} className={iosInput} placeholder="000.000.000-00" />
-                    </div>
-                  </div>
-                </section>
-                <section>
-                  <p className={`${iosLabel} mb-3 ml-0.5`}>Endereço</p>
-                  <div className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
-                    <div>
-                      <label className={iosLabel}>Logradouro</label>
-                      <input value={editFichaForm.address} onChange={(e) => setEditFichaForm(f => ({ ...f, address: e.target.value }))} className={iosInput} placeholder="Rua, bairro..." />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                      <div>
-                        <label className={iosLabel}>Nº</label>
-                        <input value={editFichaForm.addressNumber} onChange={(e) => setEditFichaForm(f => ({ ...f, addressNumber: e.target.value }))} className={iosInput} placeholder="Nº" />
-                      </div>
-                      <div>
-                        <label className={iosLabel}>CEP</label>
-                        <input value={editFichaForm.cep} onChange={(e) => setEditFichaForm(f => ({ ...f, cep: e.target.value }))} className={iosInput} placeholder="00000-000" />
-                      </div>
-                    </div>
-                  </div>
-                </section>
-                <section>
-                  <p className={`${iosLabel} mb-3 ml-0.5`}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
-                  <div className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
-                    <div>
-                      <label className={iosLabel}>{isModuleMode ? 'Veículo / referência' : 'Modelo'}</label>
-                      <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={iosInput} placeholder={isModuleMode ? 'Ex: BMW 320i' : 'Ex: Gol 1.0'} />
-                    </div>
-                    {isModuleMode && (
-                      <div>
-                        <label className={iosLabel}>Identificação do módulo</label>
-                        <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className={iosInput} placeholder="Ex: Módulo ABS XYZ" />
-                      </div>
-                    )}
-                    {!isModuleMode && (
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                          <label className={iosLabel}>Placa</label>
-                          <input value={editFichaForm.plate} onChange={(e) => setEditFichaForm(f => ({ ...f, plate: e.target.value.toUpperCase() }))} maxLength={8} className={`${iosInput} font-mono uppercase`} placeholder="ABC1D23" />
-                        </div>
-                        <div>
-                          <label className={iosLabel}>Quilometragem</label>
-                          <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className={iosInput} placeholder="45000" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </section>
-              </div>
-            </div>
-            <div className="flex shrink-0 gap-3 border-t border-zinc-200/60 bg-white/55 p-5 backdrop-blur-md dark:border-white/[0.07] dark:bg-zinc-950/40 sm:px-8">
-              <button
-                type="button"
-                onClick={() => setIsEditFichaOpen(false)}
-                className="flex-1 rounded-2xl border border-zinc-200/90 py-3.5 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
-              >
-                Cancelar
-              </button>
-              <button type="button" onClick={handleSaveEditFicha} disabled={editFichaSaving} className={`${iosPrimaryButton} flex flex-1 items-center justify-center gap-2 disabled:opacity-50`}>
-                {editFichaSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Salvar alterações
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* MODAL EDITAR NOME DO VEÍCULO / PLACA — tipografia do nome nos inputs inalterada pelo usuário */}
