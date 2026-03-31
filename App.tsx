@@ -515,13 +515,20 @@ export default function App() {
         assistantCommentActor={authSession?.role === 'admin' ? 'admin' : 'technician'}
         currentTechnicianUserId={authSession?.role === 'user' ? authSession.userId : undefined}
         relaySessionRole={
-          authSession?.role === 'admin' || (authSession?.role === 'user' && hasFullAccess)
+          authSession?.role === 'admin'
             ? 'management'
             : authSession?.role === 'user' &&
-                authSession.isTechnician &&
-                authSession.userId
-              ? 'technician'
-              : 'none'
+                authSession.userId &&
+                hasFullAccess &&
+                authSession.isTechnician
+              ? 'both'
+              : authSession?.role === 'user' && hasFullAccess
+                ? 'management'
+                : authSession?.role === 'user' &&
+                    authSession.isTechnician &&
+                    authSession.userId
+                  ? 'technician'
+                  : 'none'
         }
         onOpenPatioVehicle={(id, opts) => {
           setCurrentTab('patio');

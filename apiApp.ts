@@ -4468,7 +4468,9 @@ export function createApiApp() {
         typeof rawDisplay === "string" ? rawDisplay.trim() : undefined;
       const rawRelay = req.body?.relaySessionRole;
       const relaySessionRole =
-        rawRelay === "management" || rawRelay === "technician" ? rawRelay : "none";
+        rawRelay === "management" || rawRelay === "technician" || rawRelay === "both"
+          ? rawRelay
+          : "none";
       const assistantUserKey = buildAssistantUserKey({
         assistantIsAdmin,
         assistantUserId,
@@ -4563,7 +4565,9 @@ export function createApiApp() {
         typeof rawDisplay === "string" ? rawDisplay.trim() : undefined;
       const rawRelayChat = req.body?.relaySessionRole;
       const relaySessionRoleChat =
-        rawRelayChat === "management" || rawRelayChat === "technician" ? rawRelayChat : "none";
+        rawRelayChat === "management" || rawRelayChat === "technician" || rawRelayChat === "both"
+          ? rawRelayChat
+          : "none";
 
       const assistantUserKeyChat = buildAssistantUserKey({
         assistantIsAdmin,

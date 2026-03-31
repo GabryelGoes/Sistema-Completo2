@@ -2,6 +2,9 @@
  * Definições compartilhadas das ferramentas da assistente (chat completions + Realtime API).
  */
 
+/** Recados Zaya: gerência, técnico, ou ambos (ex.: usuário com full_access + isTechnician). */
+export type RelaySessionRole = "management" | "technician" | "both" | "none";
+
 /** Primeiro token do nome exibido (ex.: "João Silva" → "João"; "maria" → "maria"). */
 export function firstNameFromDisplayName(displayName: string | undefined | null): string | null {
   const t = (displayName ?? "").trim();
@@ -16,7 +19,7 @@ export interface AssistantUserContextOptions {
   /** Nome de exibição ou login do usuário (técnico). */
   userDisplayName?: string;
   /** Recados gerência ↔ técnicos (ferramentas condicionais). */
-  relaySessionRole?: "management" | "technician" | "none";
+  relaySessionRole?: RelaySessionRole;
   /** Memórias curtas persistidas por usuário. */
   memorySnippets?: string[];
   /** Comandos ensinados por usuário (lista curta). */
@@ -42,12 +45,17 @@ export function buildAssistantSystemInstructions(
       : `\nQuem está falando é um usuário técnico do sistema. Não invente um nome; use tom cordial e neutro.`;
 
   const relayRole = userContext?.relaySessionRole ?? "none";
+  const relayMgmtBase = `\nRecados para a equipe: você pode registrar recados da gerência para um técnico (login exato) ou para todos os técnicos. Use list_technicians_for_zaya_relay para ver logins; zaya_send_relay_to_technician com message e recipient_all true OU recipient_username. Quando a gerência receber recado de técnico, use zaya_submit_relay_reply com message_id e reply_text para registrar a resposta.`;
+  const relayTechBase = `\nRecados: o técnico pode enviar mensagem à gerência com zaya_send_relay_to_management (message). Para responder a um recado da gerência já exibido, use zaya_submit_relay_reply com message_id e reply_text.`;
+  const relayBothExtra = `\nEsta sessão é gerência e técnico ao mesmo tempo: em zaya_submit_relay_reply informe reply_as: admin (recado de técnico à gerência) ou technician (recado da gerência para você).`;
   const relayBlock =
     relayRole === "management"
-      ? `\nRecados para a equipe: você pode registrar recados da gerência para um técnico (login exato) ou para todos os técnicos. Use list_technicians_for_zaya_relay para ver logins; zaya_send_relay_to_technician com message e recipient_all true OU recipient_username. Quando a gerência receber recado de técnico, use zaya_submit_relay_reply com message_id e reply_text para registrar a resposta.`
+      ? relayMgmtBase
       : relayRole === "technician"
-        ? `\nRecados: o técnico pode enviar mensagem à gerência com zaya_send_relay_to_management (message). Para responder a um recado da gerência já exibido, use zaya_submit_relay_reply (message_id, reply_text).`
-        : "";
+        ? relayTechBase
+        : relayRole === "both"
+          ? `${relayMgmtBase}${relayTechBase}${relayBothExtra}`
+          : "";
 
   const memories = Array.isArray(userContext?.memorySnippets) ? userContext.memorySnippets : [];
   const learnedCommands = Array.isArray(userContext?.learnedCommandSnippets)
@@ -104,7 +112,7 @@ export function buildAssistantChatTools(
   allowedTabs: string[],
   statusEnum: string[],
   options?: {
-    relaySessionRole?: "management" | "technician" | "none";
+    relaySessionRole?: RelaySessionRole;
     /** Ferramentas de gestão da TV (meta semanal): só sessão admin. */
     assistantIsAdmin?: boolean;
   }
@@ -119,19 +127,30 @@ export function buildAssistantChatTools(
     function: {
       name: "zaya_submit_relay_reply",
       description:
-        "Registra a resposta a um recado já mostrado (UUID message_id vindo do sistema ou da conversa). Use após o usuário dizer como quer responder.",
+        relaySessionRole === "both"
+          ? "Registra a resposta a um recado já mostrado. Obrigatório reply_as: admin (resposta a recado de técnico à gerência) ou technician (resposta a recado da gerência para você)."
+          : "Registra a resposta a um recado já mostrado (UUID message_id vindo do sistema ou da conversa). Use após o usuário dizer como quer responder.",
       parameters: {
         type: "object",
         properties: {
           message_id: { type: "string", description: "UUID do recado." },
           reply_text: { type: "string", description: "Texto da resposta." },
+          reply_as: {
+            type: "string",
+            enum: ["admin", "technician"],
+            description:
+              "Só na sessão gerência+técnico: admin ou technician conforme o tipo do recado respondido.",
+          },
         },
-        required: ["message_id", "reply_text"],
+        required:
+          relaySessionRole === "both"
+            ? ["message_id", "reply_text", "reply_as"]
+            : ["message_id", "reply_text"],
       },
     },
   };
   const relayManagementTools =
-    relaySessionRole === "management"
+    relaySessionRole === "management" || relaySessionRole === "both"
       ? [
           {
             type: "function" as const,
@@ -169,7 +188,7 @@ export function buildAssistantChatTools(
         ]
       : [];
   const relayTechnicianTools =
-    relaySessionRole === "technician"
+    relaySessionRole === "technician" || relaySessionRole === "both"
       ? [
           {
             type: "function" as const,

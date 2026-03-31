@@ -1,5 +1,7 @@
 import type { TabId } from "../components/TabBar";
 
+import type { RelaySessionRole } from "../assistantOpenAiTools";
+
 const API_BASE = "/api";
 
 /** Mensagens no formato compatível com a API OpenAI (histórico completo). */
@@ -35,7 +37,7 @@ export interface AssistantSessionIdentityPayload {
   /** Nome de exibição ou usuário (técnico); ignorado no servidor quando admin. */
   assistantUserDisplayName?: string;
   /** Ferramentas de recado gerência↔técnicos na Zaya. */
-  relaySessionRole?: "management" | "technician" | "none";
+  relaySessionRole?: RelaySessionRole;
 }
 
 export async function postAssistantChat(

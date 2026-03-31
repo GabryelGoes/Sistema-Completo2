@@ -23,6 +23,9 @@ import {
 } from "./apiService";
 import { listVehiclesInStageJson, resolveServiceOrderId } from "./assistantPatioTools";
 import { ASSISTANT_NAME } from "../constants/assistant";
+import type { RelaySessionRole } from "../assistantOpenAiTools";
+
+export type { RelaySessionRole };
 
 export interface AssistantContext {
   allowedTabs: TabId[];
@@ -31,7 +34,7 @@ export interface AssistantContext {
   commentActor: "admin" | "technician";
   currentTechnicianUserId?: string | null;
   /** Recados gerência ↔ técnicos (Zaya); `none` desativa as ferramentas de recado. */
-  relaySessionRole?: "management" | "technician" | "none";
+  relaySessionRole?: RelaySessionRole;
   /** Sessão login admin (Gerência): ferramentas sensíveis da TV / meta semanal. */
   isAdminSession?: boolean;
 }
