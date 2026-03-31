@@ -4181,6 +4181,266 @@ export function createApiApp() {
   const OPENAI_REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || "gpt-4o-realtime-preview-2024-12-17";
   const ALL_TAB_IDS = ["home", "reception", "agenda", "patio", "laboratorio"] as const;
 
+  function normalizeAssistantText(value: string): string {
+    return String(value || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+  }
+
+  function hasSensitiveSecret(text: string): boolean {
+    const t = normalizeAssistantText(text);
+    if (!t) return false;
+    const keywordHit =
+      /(senha|password|passcode|pin|token|secret|segredo|api key|apikey|chave|cvv|cartao|cartao de credito|credit card)/i.test(
+        t
+      );
+    const possibleCard = /\b(?:\d[ -]*?){13,19}\b/.test(t);
+    return keywordHit || possibleCard;
+  }
+
+  function buildAssistantUserKey(input: {
+    assistantIsAdmin: boolean;
+    assistantUserId?: string;
+    assistantUserDisplayName?: string;
+  }): string {
+    if (input.assistantIsAdmin) return "admin";
+    const id = typeof input.assistantUserId === "string" ? input.assistantUserId.trim() : "";
+    if (id) return `tech:${id}`;
+    const display = typeof input.assistantUserDisplayName === "string" ? input.assistantUserDisplayName.trim() : "";
+    if (display) return `tech-name:${normalizeAssistantText(display).slice(0, 80)}`;
+    return "tech:anon";
+  }
+
+  type ZayaMemoryRow = { memory_text: string; category: "preference" | "routine" | "context"; updated_at: string };
+  type ZayaCommandRow = {
+    trigger_phrase: string;
+    behavior_text: string;
+    behavior_kind: "action_text" | "action_only" | "text_only";
+    enabled: boolean;
+    updated_at: string;
+  };
+
+  async function listZayaUserMemories(userKey: string, limit = 12): Promise<ZayaMemoryRow[]> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return [];
+    const { data, error } = await supabaseAdmin
+      .from("zaya_user_memories")
+      .select("memory_text, category, updated_at")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("user_key", userKey)
+      .order("updated_at", { ascending: false })
+      .limit(Math.max(1, Math.min(limit, 50)));
+    if (error) throw new Error(`Falha ao listar memórias da Zaya: ${error.message}`);
+    return (data || []) as ZayaMemoryRow[];
+  }
+
+  async function listZayaLearnedCommands(userKey: string, limit = 20): Promise<ZayaCommandRow[]> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return [];
+    const { data, error } = await supabaseAdmin
+      .from("zaya_learned_commands")
+      .select("trigger_phrase, behavior_text, behavior_kind, enabled, updated_at")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("user_key", userKey)
+      .eq("enabled", true)
+      .order("updated_at", { ascending: false })
+      .limit(Math.max(1, Math.min(limit, 80)));
+    if (error) throw new Error(`Falha ao listar comandos da Zaya: ${error.message}`);
+    return (data || []) as ZayaCommandRow[];
+  }
+
+  function findMatchedLearnedCommands(
+    commands: Array<Pick<ZayaCommandRow, "trigger_phrase" | "behavior_text" | "behavior_kind">>,
+    lastUserText: string
+  ): string[] {
+    const text = normalizeAssistantText(lastUserText);
+    if (!text) return [];
+    const out: string[] = [];
+    for (const c of commands) {
+      const trigger = normalizeAssistantText(c.trigger_phrase);
+      if (!trigger || trigger.length < 2) continue;
+      if (!text.includes(trigger)) continue;
+      out.push(
+        `gatilho "${c.trigger_phrase}" -> ${c.behavior_kind}: ${String(c.behavior_text || "").trim().slice(0, 220)}`
+      );
+      if (out.length >= 6) break;
+    }
+    return out;
+  }
+
+  app.post("/api/assistant/memory/save", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase/WORKSHOP_ID não configurados." });
+      }
+      const assistantIsAdmin = req.body?.assistantIsAdmin === true;
+      const assistantUserId =
+        typeof req.body?.assistantUserId === "string" ? req.body.assistantUserId.trim() : undefined;
+      const assistantUserDisplayName =
+        typeof req.body?.assistantUserDisplayName === "string"
+          ? req.body.assistantUserDisplayName.trim()
+          : undefined;
+      const memoryText = typeof req.body?.memoryText === "string" ? req.body.memoryText.trim() : "";
+      const categoryRaw = String(req.body?.category ?? "").trim();
+      const category =
+        categoryRaw === "routine" || categoryRaw === "context" ? categoryRaw : "preference";
+      if (!memoryText) return res.status(400).json({ error: "memoryText obrigatório." });
+      if (memoryText.length > 400) return res.status(400).json({ error: "memoryText muito longo (máx. 400)." });
+      if (hasSensitiveSecret(memoryText)) {
+        return res
+          .status(400)
+          .json({ error: "Não salvo senha, PIN, token, chave API, CVV ou dados de cartão na memória." });
+      }
+      const userKey = buildAssistantUserKey({
+        assistantIsAdmin,
+        assistantUserId,
+        assistantUserDisplayName,
+      });
+      const { error } = await supabaseAdmin.from("zaya_user_memories").upsert(
+        {
+          workshop_id: WORKSHOP_ID,
+          user_key: userKey,
+          memory_text: memoryText,
+          category,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "workshop_id,user_key,memory_text" }
+      );
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ ok: true, message: "Memória pessoal salva." });
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/assistant/memory/list", async (req, res) => {
+    try {
+      const assistantIsAdmin = req.body?.assistantIsAdmin === true;
+      const assistantUserId =
+        typeof req.body?.assistantUserId === "string" ? req.body.assistantUserId.trim() : undefined;
+      const assistantUserDisplayName =
+        typeof req.body?.assistantUserDisplayName === "string"
+          ? req.body.assistantUserDisplayName.trim()
+          : undefined;
+      const userKey = buildAssistantUserKey({
+        assistantIsAdmin,
+        assistantUserId,
+        assistantUserDisplayName,
+      });
+      const memories = await listZayaUserMemories(userKey, 20);
+      return res.json({
+        ok: true,
+        memories: memories.map((m) => ({ memory_text: m.memory_text, category: m.category })),
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/assistant/commands/save", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase/WORKSHOP_ID não configurados." });
+      }
+      const assistantIsAdmin = req.body?.assistantIsAdmin === true;
+      const assistantUserId =
+        typeof req.body?.assistantUserId === "string" ? req.body.assistantUserId.trim() : undefined;
+      const assistantUserDisplayName =
+        typeof req.body?.assistantUserDisplayName === "string"
+          ? req.body.assistantUserDisplayName.trim()
+          : undefined;
+      const triggerPhrase = typeof req.body?.triggerPhrase === "string" ? req.body.triggerPhrase.trim() : "";
+      const behaviorText = typeof req.body?.behaviorText === "string" ? req.body.behaviorText.trim() : "";
+      const behaviorRaw = String(req.body?.behaviorKind ?? "").trim();
+      const behaviorKind =
+        behaviorRaw === "action_only" || behaviorRaw === "text_only" ? behaviorRaw : "action_text";
+      if (!triggerPhrase || !behaviorText) {
+        return res.status(400).json({ error: "triggerPhrase e behaviorText são obrigatórios." });
+      }
+      if (triggerPhrase.length > 120) {
+        return res.status(400).json({ error: "triggerPhrase muito longo (máx. 120)." });
+      }
+      if (behaviorText.length > 500) {
+        return res.status(400).json({ error: "behaviorText muito longo (máx. 500)." });
+      }
+      if (hasSensitiveSecret(triggerPhrase) || hasSensitiveSecret(behaviorText)) {
+        return res
+          .status(400)
+          .json({ error: "Não salvo comandos com senha, PIN, token, chave API, CVV ou dados de cartão." });
+      }
+      const userKey = buildAssistantUserKey({
+        assistantIsAdmin,
+        assistantUserId,
+        assistantUserDisplayName,
+      });
+      const { data: existing, error: existingError } = await supabaseAdmin
+        .from("zaya_learned_commands")
+        .select("id")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("user_key", userKey)
+        .ilike("trigger_phrase", triggerPhrase)
+        .limit(1)
+        .maybeSingle();
+      if (existingError) return res.status(500).json({ error: existingError.message });
+
+      if (existing?.id) {
+        const { error: updateErr } = await supabaseAdmin
+          .from("zaya_learned_commands")
+          .update({
+            trigger_phrase: triggerPhrase,
+            behavior_text: behaviorText,
+            behavior_kind: behaviorKind,
+            enabled: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+        if (updateErr) return res.status(500).json({ error: updateErr.message });
+      } else {
+        const { error: insertErr } = await supabaseAdmin.from("zaya_learned_commands").insert({
+          workshop_id: WORKSHOP_ID,
+          user_key: userKey,
+          trigger_phrase: triggerPhrase,
+          behavior_text: behaviorText,
+          behavior_kind: behaviorKind,
+          enabled: true,
+          updated_at: new Date().toISOString(),
+        });
+        if (insertErr) return res.status(500).json({ error: insertErr.message });
+      }
+      return res.json({ ok: true, message: "Comando aprendido salvo." });
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/assistant/commands/list", async (req, res) => {
+    try {
+      const assistantIsAdmin = req.body?.assistantIsAdmin === true;
+      const assistantUserId =
+        typeof req.body?.assistantUserId === "string" ? req.body.assistantUserId.trim() : undefined;
+      const assistantUserDisplayName =
+        typeof req.body?.assistantUserDisplayName === "string"
+          ? req.body.assistantUserDisplayName.trim()
+          : undefined;
+      const userKey = buildAssistantUserKey({
+        assistantIsAdmin,
+        assistantUserId,
+        assistantUserDisplayName,
+      });
+      const commands = await listZayaLearnedCommands(userKey, 30);
+      return res.json({
+        ok: true,
+        commands: commands.map((c) => ({
+          trigger_phrase: c.trigger_phrase,
+          behavior_text: c.behavior_text,
+          behavior_kind: c.behavior_kind,
+        })),
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : "Erro desconhecido" });
+    }
+  });
+
   /** Sessão efêmera para o cliente conectar na Realtime API (voz natural). */
   app.post("/api/assistant/realtime/session", async (req, res) => {
     try {
@@ -4201,12 +4461,27 @@ export function createApiApp() {
       }
 
       const assistantIsAdmin = req.body?.assistantIsAdmin === true;
+      const rawUserId = req.body?.assistantUserId;
+      const assistantUserId = typeof rawUserId === "string" ? rawUserId.trim() : undefined;
       const rawDisplay = req.body?.assistantUserDisplayName;
       const assistantUserDisplayName =
         typeof rawDisplay === "string" ? rawDisplay.trim() : undefined;
       const rawRelay = req.body?.relaySessionRole;
       const relaySessionRole =
         rawRelay === "management" || rawRelay === "technician" ? rawRelay : "none";
+      const assistantUserKey = buildAssistantUserKey({
+        assistantIsAdmin,
+        assistantUserId,
+        assistantUserDisplayName,
+      });
+      const [memoryRows, commandRows] = await Promise.all([
+        listZayaUserMemories(assistantUserKey, 10),
+        listZayaLearnedCommands(assistantUserKey, 12),
+      ]);
+      const memorySnippets = memoryRows.map((m) => `[${m.category}] ${m.memory_text}`).slice(0, 8);
+      const learnedCommandSnippets = commandRows
+        .map((c) => `"${c.trigger_phrase}" -> ${c.behavior_kind}: ${c.behavior_text}`)
+        .slice(0, 8);
 
       const stageCatalog = [
         ...SERVICE_ORDER_STAGES.map((s) => `${s.name} → ${s.id}`),
@@ -4218,6 +4493,8 @@ export function createApiApp() {
           isAdminSession: assistantIsAdmin,
           userDisplayName: assistantUserDisplayName,
           relaySessionRole,
+          memorySnippets,
+          learnedCommandSnippets,
         }) + ASSISTANT_REALTIME_VOICE_ADDENDUM;
 
       const statusEnum = [...ALL_STATUSES];
@@ -4279,6 +4556,8 @@ export function createApiApp() {
       }
 
       const assistantIsAdmin = req.body?.assistantIsAdmin === true;
+      const rawUserIdChat = req.body?.assistantUserId;
+      const assistantUserIdChat = typeof rawUserIdChat === "string" ? rawUserIdChat.trim() : undefined;
       const rawDisplay = req.body?.assistantUserDisplayName;
       const assistantUserDisplayName =
         typeof rawDisplay === "string" ? rawDisplay.trim() : undefined;
@@ -4286,16 +4565,16 @@ export function createApiApp() {
       const relaySessionRoleChat =
         rawRelayChat === "management" || rawRelayChat === "technician" ? rawRelayChat : "none";
 
+      const assistantUserKeyChat = buildAssistantUserKey({
+        assistantIsAdmin,
+        assistantUserId: assistantUserIdChat,
+        assistantUserDisplayName,
+      });
+
       const stageCatalog = [
         ...SERVICE_ORDER_STAGES.map((s) => `${s.name} → ${s.id}`),
         `Entregue/arquivado → ${CANCELLED_STATUS}`,
       ].join("\n");
-
-      const systemContent = buildAssistantSystemInstructions(ASSISTANT_NAME, allowedTabs, stageCatalog, {
-        isAdminSession: assistantIsAdmin,
-        userDisplayName: assistantUserDisplayName,
-        relaySessionRole: relaySessionRoleChat,
-      });
 
       const statusEnum = [...ALL_STATUSES];
       const tools = buildAssistantChatTools(allowedTabs, statusEnum, {
@@ -4309,10 +4588,31 @@ export function createApiApp() {
         return role === "user" || role === "assistant" || role === "tool";
       }) as Array<Record<string, unknown>>;
 
-      const openaiMessages: Array<Record<string, unknown>> = [
-        { role: "system", content: systemContent },
-        ...filteredMessages,
-      ];
+      const [memoryRowsChat, commandRowsChat] = await Promise.all([
+        listZayaUserMemories(assistantUserKeyChat, 12),
+        listZayaLearnedCommands(assistantUserKeyChat, 20),
+      ]);
+      const memorySnippetsChat = memoryRowsChat
+        .map((m) => `[${m.category}] ${m.memory_text}`)
+        .slice(0, 10);
+      const learnedCommandSnippetsChat = commandRowsChat
+        .map((c) => `"${c.trigger_phrase}" -> ${c.behavior_kind}: ${c.behavior_text}`)
+        .slice(0, 12);
+      const lastUserText =
+        [...filteredMessages]
+          .reverse()
+          .find((m) => m?.role === "user" && typeof m?.content === "string")?.content ?? "";
+      const matchedCommandSnippets = findMatchedLearnedCommands(commandRowsChat, String(lastUserText)).slice(0, 6);
+      const systemContent = buildAssistantSystemInstructions(ASSISTANT_NAME, allowedTabs, stageCatalog, {
+        isAdminSession: assistantIsAdmin,
+        userDisplayName: assistantUserDisplayName,
+        relaySessionRole: relaySessionRoleChat,
+        memorySnippets: memorySnippetsChat,
+        learnedCommandSnippets: learnedCommandSnippetsChat,
+        matchedCommandSnippets,
+      });
+
+      const openaiMessages: Array<Record<string, unknown>> = [{ role: "system", content: systemContent }, ...filteredMessages];
 
       const r = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",

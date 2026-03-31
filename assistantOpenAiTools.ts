@@ -17,6 +17,12 @@ export interface AssistantUserContextOptions {
   userDisplayName?: string;
   /** Recados gerência ↔ técnicos (ferramentas condicionais). */
   relaySessionRole?: "management" | "technician" | "none";
+  /** Memórias curtas persistidas por usuário. */
+  memorySnippets?: string[];
+  /** Comandos ensinados por usuário (lista curta). */
+  learnedCommandSnippets?: string[];
+  /** Comandos ensinados acionados na mensagem atual. */
+  matchedCommandSnippets?: string[];
 }
 
 export function buildAssistantSystemInstructions(
@@ -43,6 +49,26 @@ export function buildAssistantSystemInstructions(
         ? `\nRecados: o técnico pode enviar mensagem à gerência com zaya_send_relay_to_management (message). Para responder a um recado da gerência já exibido, use zaya_submit_relay_reply (message_id, reply_text).`
         : "";
 
+  const memories = Array.isArray(userContext?.memorySnippets) ? userContext.memorySnippets : [];
+  const learnedCommands = Array.isArray(userContext?.learnedCommandSnippets)
+    ? userContext.learnedCommandSnippets
+    : [];
+  const matchedCommands = Array.isArray(userContext?.matchedCommandSnippets)
+    ? userContext.matchedCommandSnippets
+    : [];
+  const memoryBlock =
+    memories.length > 0
+      ? `\nMemória pessoal deste usuário (preferências/rotina/contexto):\n- ${memories.join("\n- ")}`
+      : "";
+  const learnedCommandsBlock =
+    learnedCommands.length > 0
+      ? `\nComandos ensinados deste usuário (gatilho -> comportamento):\n- ${learnedCommands.join("\n- ")}`
+      : "";
+  const matchedCommandsBlock =
+    matchedCommands.length > 0
+      ? `\nComandos ensinados acionados nesta mensagem (priorize estes):\n- ${matchedCommands.join("\n- ")}`
+      : "";
+
   return `Você é ${assistantName}, a assistente virtual do app Rei do ABS (gestão de oficina). Apresente-se pelo nome quando fizer sentido. Responda em português do Brasil, de forma breve, direta e útil. Evite despedidas longas ou ofertas genéricas de ajuda (ex.: "se precisar de mais alguma coisa", "estou à disposição", "qualquer coisa é só chamar"); quando a resposta estiver completa, pode encerrar sem frase de fechamento ou com uma linha só se fizer sentido.${nameBlock}${relayBlock}
 O usuário só pode acessar estas abas: ${allowedTabs.join(", ")}.
 Use navigate_to_tab para mudar de tela; open_settings para tema/efeitos.
@@ -62,6 +88,10 @@ Veículos por modelo (open_patio_vehicle_modal, orçamento, queixa, técnico): i
 Histórico de arquivados (entregues): use open_patio_vehicle_history para abrir a mesma tela do botão de histórico no Pátio/Laboratório. Para só listar dados no chat, use list_archived_vehicle_orders ou list_vehicles_in_stage com status CANCELLED. Para desarquivar uma OS (voltar ao fluxo ativo na etapa Finalizado), use unarchive_vehicle_service_order com id, número da OS ou placa.
 Quando a pergunta for “quais carros estão na etapa X?” (ferramenta list_vehicles_in_stage): liste apenas o nome do veículo e o primeiro nome do cliente; não mencione os_number nem placa, mesmo que estejam no retorno.
 Não invente dados: use só retorno das ferramentas. Datas em ISO AAAA-MM-DD.
+Privacidade: nunca peça para salvar nem repita senha, PIN, token, chave de API, dados de cartão ou CVV. Se o usuário tentar ensinar algo com esses dados, recuse salvar e explique em uma frase.
+Memória pessoal: quando o usuário pedir para guardar preferências/rotina/contexto, use zaya_save_user_memory.
+Comandos ensinados: quando o usuário disser "quando eu falar X faça Y", use zaya_teach_command.
+Você também pode consultar com zaya_list_user_memories e zaya_list_learned_commands.${memoryBlock}${learnedCommandsBlock}${matchedCommandsBlock}
 Meta semanal da TV do Pátio: use get_tv_weekly_goal para consultar (título, valor atual, meta, barra visível).${isAdmin ? " Só administrador altera ou remove: update_tv_weekly_goal com admin_password (mesma senha do login Gerência e da gestão da TV); campos opcionais; delta_current soma ao valor atual (negativo subtrai). clear_tv_weekly_goal com admin_password apaga a meta do sistema. Nunca peça senha em voz alta." : ""}`;
 }
 
@@ -166,6 +196,66 @@ export function buildAssistantChatTools(
   const assistantIsAdmin = options?.assistantIsAdmin === true;
 
   return [
+    {
+      type: "function" as const,
+      function: {
+        name: "zaya_save_user_memory",
+        description:
+          "Salva uma memória pessoal do usuário para próximas conversas (preferência, rotina ou contexto). Nunca use para senha/PIN/token/chaves/cartão.",
+        parameters: {
+          type: "object",
+          properties: {
+            memory_text: { type: "string", description: "Memória curta e objetiva para lembrar depois." },
+            category: {
+              type: "string",
+              enum: ["preference", "routine", "context"],
+              description: "Tipo da memória: preferência, rotina do dia a dia ou contexto recorrente.",
+            },
+          },
+          required: ["memory_text"],
+        },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "zaya_list_user_memories",
+        description: "Lista memórias pessoais salvas para este usuário.",
+        parameters: { type: "object", properties: {} },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "zaya_teach_command",
+        description:
+          "Ensina um comando personalizado (gatilho -> comportamento) para o usuário atual. Pode envolver ação no app e/ou texto.",
+        parameters: {
+          type: "object",
+          properties: {
+            trigger_phrase: { type: "string", description: "Frase gatilho que o usuário vai falar." },
+            behavior_text: {
+              type: "string",
+              description: "Comportamento esperado quando o gatilho ocorrer.",
+            },
+            behavior_kind: {
+              type: "string",
+              enum: ["action_text", "action_only", "text_only"],
+              description: "action_text = ação e resposta, action_only = só ação, text_only = só texto.",
+            },
+          },
+          required: ["trigger_phrase", "behavior_text"],
+        },
+      },
+    },
+    {
+      type: "function" as const,
+      function: {
+        name: "zaya_list_learned_commands",
+        description: "Lista comandos ensinados para o usuário atual.",
+        parameters: { type: "object", properties: {} },
+      },
+    },
     {
       type: "function" as const,
       function: {

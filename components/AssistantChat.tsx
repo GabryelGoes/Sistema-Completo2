@@ -11,7 +11,11 @@ import { AssistantIcon, ZayaAuroraModalFrame } from "./AssistantIcon";
 import { ASSISTANT_NAME } from "../constants/assistant";
 import type { TabId } from "./TabBar";
 import {
+  listAssistantLearnedCommands,
+  listAssistantMemories,
   postAssistantChat,
+  saveAssistantLearnedCommand,
+  saveAssistantMemory,
   type AssistantApiMessage,
   type AssistantToolCall,
 } from "../services/assistantApi";
@@ -192,6 +196,13 @@ async function executeToolCalls(
   onOpenPatioHistory?: (target: "patio" | "laboratorio") => void
 ): Promise<{ id: string; content: string }[]> {
   const results: { id: string; content: string }[] = [];
+  const assistantIsAdmin = assistantCtx.isAdminSession === true;
+  const assistantUserId = assistantIsAdmin
+    ? "admin"
+    : typeof assistantCtx.currentTechnicianUserId === "string"
+      ? assistantCtx.currentTechnicianUserId
+      : undefined;
+  const assistantUserDisplayName = assistantCtx.authorDisplayName;
   for (const tc of calls) {
     if (tc.type !== "function") continue;
     const name = tc.function.name;
@@ -220,6 +231,123 @@ async function executeToolCalls(
     if (name === "open_settings") {
       onOpenSettings();
       results.push({ id: tc.id, content: JSON.stringify({ ok: true, opened: "settings" }) });
+      continue;
+    }
+    if (name === "zaya_save_user_memory") {
+      const memoryText = String(payload.memory_text ?? "").trim();
+      const category =
+        payload.category === "routine" || payload.category === "context" ? payload.category : "preference";
+      if (!memoryText) {
+        results.push({ id: tc.id, content: JSON.stringify({ ok: false, error: "memory_text obrigatório." }) });
+        continue;
+      }
+      try {
+        const out = await saveAssistantMemory({
+          assistantIsAdmin,
+          assistantUserId,
+          assistantUserDisplayName,
+          memoryText,
+          category,
+        });
+        results.push({ id: tc.id, content: JSON.stringify({ ok: out.ok, message: out.message }) });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao salvar memória.",
+          }),
+        });
+      }
+      continue;
+    }
+    if (name === "zaya_teach_command") {
+      const triggerPhrase = String(payload.trigger_phrase ?? "").trim();
+      const behaviorText = String(payload.behavior_text ?? "").trim();
+      const behaviorKind =
+        payload.behavior_kind === "action_only" || payload.behavior_kind === "text_only"
+          ? payload.behavior_kind
+          : "action_text";
+      if (!triggerPhrase || !behaviorText) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({ ok: false, error: "trigger_phrase e behavior_text são obrigatórios." }),
+        });
+        continue;
+      }
+      try {
+        const out = await saveAssistantLearnedCommand({
+          assistantIsAdmin,
+          assistantUserId,
+          assistantUserDisplayName,
+          triggerPhrase,
+          behaviorText,
+          behaviorKind,
+        });
+        results.push({ id: tc.id, content: JSON.stringify({ ok: out.ok, message: out.message }) });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao ensinar comando.",
+          }),
+        });
+      }
+      continue;
+    }
+    if (name === "zaya_list_user_memories") {
+      try {
+        const out = await listAssistantMemories({
+          assistantIsAdmin,
+          assistantUserId,
+          assistantUserDisplayName,
+        });
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: out.ok,
+            total: out.memories?.length ?? 0,
+            memories: out.memories ?? [],
+            message: out.message,
+          }),
+        });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao listar memórias.",
+          }),
+        });
+      }
+      continue;
+    }
+    if (name === "zaya_list_learned_commands") {
+      try {
+        const out = await listAssistantLearnedCommands({
+          assistantIsAdmin,
+          assistantUserId,
+          assistantUserDisplayName,
+        });
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: out.ok,
+            total: out.commands?.length ?? 0,
+            commands: out.commands ?? [],
+            message: out.message,
+          }),
+        });
+      } catch (e) {
+        results.push({
+          id: tc.id,
+          content: JSON.stringify({
+            ok: false,
+            error: e instanceof Error ? e.message : "Falha ao listar comandos ensinados.",
+          }),
+        });
+      }
       continue;
     }
     if (name === "list_notifications") {
@@ -1428,6 +1556,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
         };
         const assistantIdentity = {
           assistantIsAdmin: assistantCommentActor === "admin",
+          assistantUserId:
+            assistantCommentActor === "admin" ? "admin" : currentTechnicianUserId ?? undefined,
           assistantUserDisplayName: assistantAuthorDisplayName,
           relaySessionRole,
         };
@@ -1689,6 +1819,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       try {
         const assistantIdentity = {
           assistantIsAdmin: assistantCommentActor === "admin",
+          assistantUserId:
+            assistantCommentActor === "admin" ? "admin" : currentTechnicianUserId ?? undefined,
           assistantUserDisplayName: assistantAuthorDisplayName,
           relaySessionRole,
         };

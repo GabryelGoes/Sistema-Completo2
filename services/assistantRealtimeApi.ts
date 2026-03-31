@@ -19,6 +19,9 @@ export async function postAssistantRealtimeSession(
     body: JSON.stringify({
       allowedTabs,
       assistantIsAdmin: identity?.assistantIsAdmin ?? false,
+      ...(identity?.assistantUserId != null && identity.assistantUserId !== ""
+        ? { assistantUserId: identity.assistantUserId }
+        : {}),
       ...(identity?.assistantUserDisplayName != null && identity.assistantUserDisplayName !== ""
         ? { assistantUserDisplayName: identity.assistantUserDisplayName }
         : {}),
