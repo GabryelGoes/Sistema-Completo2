@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Car, CarFront, Truck, Gem } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag } from 'lucide-react';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
 import { NotificationCenter } from '../NotificationCenter';
@@ -16,6 +16,7 @@ import {
   updateServiceOrderDeliveryDate,
   updateServiceOrderVehicle,
   updateServiceOrderType,
+  updateServiceOrderVehicleCategory,
   getServiceOrderPhotos,
   uploadServiceOrderPhoto,
   renameServiceOrderPhoto,
@@ -170,24 +171,8 @@ function resolveVehicleCategoryLabel(
   return parseLegacyVehicleCategoryFromIssue(issue);
 }
 
-/** Ícone da categoria escolhida na recepção (ao lado de "Alterar etapa"). */
-function VehicleCategoryHeaderIcon({ label }: { label: string }) {
-  const k = label.trim();
-  let Icon = Car;
-  if (k.startsWith("Médio") || k.includes("SUV")) Icon = CarFront;
-  else if (k.includes("Pick")) Icon = Truck;
-  else if (k === "Premium") Icon = Gem;
-  else Icon = Car;
-  return (
-    <span
-      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/90 text-zinc-700 shadow-sm dark:border-white/10 dark:bg-white/[0.08] dark:text-zinc-200"
-      title={label}
-      aria-label={`Categoria: ${label}`}
-    >
-      <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
-    </span>
-  );
-}
+/** Mesmas opções da Recepção — categoria do veículo. */
+const VEHICLE_CATEGORIES_MODAL = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
 
 function buildTechnicianNameMap(technicians: SystemUserTechnician[]): Record<string, string> {
   const map: Record<string, string> = {};
@@ -619,6 +604,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // Card em transição de COLUNA (Status)
   const [cardInTransition, setCardInTransition] = useState<BoardCard | null>(null);
   const [isMoving, setIsMoving] = useState(false);
+  const [isVehicleCategoryModalOpen, setIsVehicleCategoryModalOpen] = useState(false);
+  const [savingVehicleCategory, setSavingVehicleCategory] = useState(false);
 
   // Card em transição de MEMBRO (Mecânico)
   const [cardForMemberAssignment, setCardForMemberAssignment] = useState<BoardCard | null>(null);
@@ -966,6 +953,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [selectedCard]);
 
+  useEffect(() => {
+    if (!selectedCard) setIsVehicleCategoryModalOpen(false);
+  }, [selectedCard]);
+
   /** Atualiza os detalhes da OS no modal (serviceOrderDetail) sem fechar o modal nem mostrar loading. */
   const refreshModalDetails = React.useCallback(async () => {
     if (!selectedCard) return;
@@ -1157,6 +1148,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
     } finally {
       setIsMoving(false);
       fetchData(true);
+    }
+  };
+
+  const handleSelectVehicleCategory = async (category: string) => {
+    if (!selectedCard) return;
+    setSavingVehicleCategory(true);
+    try {
+      await updateServiceOrderVehicleCategory(selectedCard.id, category, actorOptions);
+      const next = { ...selectedCard, vehicleCategory: category };
+      setSelectedCard(next);
+      setCards((prev) => prev.map((c) => (c.id === selectedCard.id ? next : c)));
+      setServiceOrderDetail((prev) => (prev ? { ...prev, vehicle_category: category } : null));
+      setIsVehicleCategoryModalOpen(false);
+      await refreshModalDetails();
+    } catch (err: any) {
+      alert(err?.message ?? "Erro ao salvar categoria.");
+    } finally {
+      setSavingVehicleCategory(false);
     }
   };
 
@@ -2925,8 +2934,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {lists.find(l => l.id === selectedCard.idList)?.name}
                             <ChevronDown className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
                           </button>
-                          {headerVehicleCategoryLabel && (
-                            <VehicleCategoryHeaderIcon label={headerVehicleCategoryLabel} />
+                          {!isModuleMode && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIsVehicleCategoryModalOpen(true);
+                              }}
+                              title="Alterar categoria do veículo"
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest shadow-xl border-2 border-zinc-300/70 bg-zinc-100/95 text-zinc-900 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0a0a0a] dark:border-zinc-600/70 dark:bg-zinc-800/95 dark:text-zinc-100"
+                            >
+                              {headerVehicleCategoryLabel || 'Categoria'}
+                              <ChevronDown className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+                            </button>
                           )}
                           {selectedCard.garantiaTag && (
                             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 border-2 border-red-500/50">
@@ -5161,6 +5182,115 @@ export const PatioView: React.FC<PatioViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* MODAL CATEGORIA DO VEÍCULO — mesmo padrão do modal de etapas */}
+      {isVehicleCategoryModalOpen &&
+        selectedCard &&
+        !isModuleMode &&
+        (() => {
+          const currentCat =
+            resolveVehicleCategoryLabel(
+              serviceOrderDetail?.vehicle_category ?? null,
+              serviceOrderDetail?.issue_description ?? null
+            ) ?? selectedCard.vehicleCategory ?? null;
+          return (
+            <div
+              className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}
+            >
+              <div
+                className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setIsVehicleCategoryModalOpen(false)}
+                  className={iosModalClose}
+                  aria-label="Fechar"
+                  disabled={savingVehicleCategory}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+
+                <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+                  <div className="flex items-start gap-3 pr-10">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF] to-[#5856D6] shadow-lg shadow-blue-500/25">
+                      <Tag className="h-6 w-6 text-white" strokeWidth={2.2} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                        Pátio
+                      </p>
+                      <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">
+                        Categoria do veículo
+                      </h2>
+                      <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                        <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                        <span className="min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200">
+                          {selectedCard.name.split('-')[0]}
+                        </span>
+                        <span className="text-zinc-400 dark:text-zinc-500">—</span>
+                        <span>Toque na categoria desejada.</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
+                  <p className={iosLabel}>Categorias</p>
+                  {savingVehicleCategory && (
+                    <p className="mb-3 flex items-center gap-2 text-[13px] font-medium text-[#007AFF] dark:text-[#64B5FF]">
+                      <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
+                      Salvando…
+                    </p>
+                  )}
+                  <div className="space-y-2.5">
+                    {VEHICLE_CATEGORIES_MODAL.map((cat) => {
+                      const isCurrent = currentCat === cat;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => handleSelectVehicleCategory(cat)}
+                          disabled={isCurrent || savingVehicleCategory}
+                          className={`
+                        group flex min-h-[52px] w-full items-center justify-between gap-3 rounded-[22px] border-2 px-4 py-3.5 text-left transition-all duration-200 sm:px-5
+                        ${
+                          isCurrent
+                            ? `${iosModalInsetCard} cursor-not-allowed border-zinc-200/80 opacity-75 shadow-none dark:border-white/[0.08]`
+                            : 'border-transparent bg-zinc-100/90 text-zinc-900 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.12)] hover:brightness-110 active:scale-[0.99] disabled:opacity-55 dark:bg-zinc-800/90 dark:text-zinc-100 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.35)]'
+                        }
+                      `}
+                        >
+                          <span className="text-[15px] font-semibold uppercase tracking-wide">{cat}</span>
+                          {isCurrent ? (
+                            <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                              <Check className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} />
+                              Atual
+                            </span>
+                          ) : (
+                            <ChevronRight
+                              className={`h-5 w-5 shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5 ${savingVehicleCategory ? 'opacity-30' : ''}`}
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="shrink-0 border-t border-zinc-200/60 px-4 py-3 dark:border-white/[0.07] sm:px-6">
+                  <button
+                    type="button"
+                    onClick={() => setIsVehicleCategoryModalOpen(false)}
+                    disabled={savingVehicleCategory}
+                    className="w-full rounded-2xl py-3.5 text-[15px] font-semibold text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       {/* MODAL DE SELEÇÃO DE MECÂNICO — vidro iOS alinhado ao TV do pátio */}
       {cardForMemberAssignment && (

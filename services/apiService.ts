@@ -639,6 +639,33 @@ export async function updateServiceOrderType(
   return response.json();
 }
 
+/** Atualiza a categoria do veículo (Compacto, Médio/SUV, Pick-Up, Premium). Só modo veículo. */
+export async function updateServiceOrderVehicleCategory(
+  id: string,
+  vehicleCategory: string | null,
+  options?: ServiceOrderUpdateActor
+): Promise<ApiServiceOrder> {
+  const body = mergeActorIntoBody(
+    {
+      vehicleCategory:
+        vehicleCategory == null || String(vehicleCategory).trim() === ""
+          ? null
+          : String(vehicleCategory).trim(),
+    },
+    options
+  );
+  const response = await fetch(`${API_BASE}/service-orders/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar categoria (${response.status})`);
+  }
+  return response.json();
+}
+
 export interface ServiceOrderPhoto {
   url: string;
   name: string;

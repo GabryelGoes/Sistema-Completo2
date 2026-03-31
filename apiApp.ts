@@ -3712,7 +3712,23 @@ export function createApiApp() {
       }
 
       const { id } = req.params;
-      const { status, issueDescription, aiAnalysis, assignedTechnician, garantiaTag, mileageKm, deliveryDate, vehicleModel, moduleIdentification, plate, orderType: bodyOrderType, actor, actorTechnicianSlug, actorTechnicianName } = req.body;
+      const {
+        status,
+        issueDescription,
+        aiAnalysis,
+        assignedTechnician,
+        garantiaTag,
+        mileageKm,
+        deliveryDate,
+        vehicleModel,
+        moduleIdentification,
+        plate,
+        orderType: bodyOrderType,
+        vehicleCategory: bodyVehicleCategoryPut,
+        actor,
+        actorTechnicianSlug,
+        actorTechnicianName,
+      } = req.body;
       const isAdminActor = actor !== "technician";
 
       const updatePayload: any = {};
@@ -3770,6 +3786,13 @@ export function createApiApp() {
         if (bodyOrderType === "module") {
           updatePayload.plate = null;
           updatePayload.mileage_km = null;
+        }
+      }
+      if (bodyVehicleCategoryPut !== undefined) {
+        if (bodyVehicleCategoryPut === null || bodyVehicleCategoryPut === "") {
+          updatePayload.vehicle_category = null;
+        } else if (typeof bodyVehicleCategoryPut === "string") {
+          updatePayload.vehicle_category = bodyVehicleCategoryPut.trim() || null;
         }
       }
 
