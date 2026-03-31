@@ -637,7 +637,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
           onClick={() => setDetailAppointment(null)}
         >
           <div
-            className={`${iosModalShell} w-full max-w-lg max-h-[92vh] overflow-y-auto`}
+            className={`${iosModalShell} w-full max-w-lg md:max-w-3xl xl:max-w-4xl max-h-[92vh] overflow-y-auto`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="agenda-detail-title"
