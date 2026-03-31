@@ -46,6 +46,7 @@ import {
   getTvPlaylist,
   putTvWeeklyGoal,
   type ServiceOrderUpdateActor,
+  type Notification,
   type ZayaRelayPendingRow,
 } from "../services/apiService";
 import {
@@ -98,6 +99,9 @@ interface AssistantChatProps {
   onOpenPatioHistory?: (target: "patio" | "laboratorio") => void;
   /** Recados entre gerência e técnicos (ferramentas + indicador). */
   relaySessionRole?: RelaySessionRole;
+  /** Aviso da central (tipo zaya_*): abre o modal e fala o texto. */
+  pendingZayaNotification?: Notification | null;
+  onPendingZayaConsumed?: () => void;
 }
 
 /** API Web Speech (tipos podem não estar no tsconfig). */
@@ -242,6 +246,27 @@ function speakAssistantResponse(text: string): void {
   if (ptBr) u.voice = ptBr;
   u.rate = 0.98;
   window.speechSynthesis.speak(u);
+}
+
+/** Frase falada pela Zaya ao receber aviso da central de notificações. */
+function zayaAlertToSpokenLine(n: Notification): string {
+  const p = n.payload;
+  const model = (p.vehicle_model && String(p.vehicle_model).trim()) || "Veículo";
+  const fullName = typeof p.customer_name === "string" ? p.customer_name.trim() : "";
+  const firstName = fullName ? fullName.split(/\s+/)[0] : "";
+  const vehicle = firstName ? `${model}, cliente ${firstName}` : model;
+  switch (n.type) {
+    case "zaya_stage_aguardando_aprovacao":
+      return `${ASSISTANT_NAME}: ${vehicle} entrou na etapa aguardando aprovação.`;
+    case "zaya_stage_finalizado":
+      return `${ASSISTANT_NAME}: ${vehicle} está na etapa finalizado.`;
+    case "zaya_orcamento_com_aprovacao":
+      return `${ASSISTANT_NAME}: no orçamento de ${vehicle}, a gerência aprovou itens.`;
+    case "zaya_orcamento_com_reprovacao":
+      return `${ASSISTANT_NAME}: no orçamento de ${vehicle}, a gerência reprovou itens.`;
+    default:
+      return `${ASSISTANT_NAME}: alerta sobre ${vehicle}.`;
+  }
 }
 
 function parseOsNumber(raw: unknown): number | undefined {
@@ -1512,6 +1537,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   onOpenPatioVehicle,
   onOpenPatioHistory,
   relaySessionRole: relaySessionRoleProp = "none",
+  pendingZayaNotification,
+  onPendingZayaConsumed,
 }) => {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -1594,6 +1621,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   const relayClassicBatchKeyRef = useRef<string>("");
   /** Evita duas buscas paralelas de recados antes de enviar ao Realtime. */
   const relayRealtimeDeliveryLockRef = useRef(false);
+  /** Evita entregar o mesmo aviso zaya duas vezes (ex.: Strict Mode). */
+  const deliveredZayaNotificationIdsRef = useRef<Set<string>>(new Set());
   /** Fila de áudio da assistente no Realtime terminou (evita eco em respostas longas). */
   const [assistantPlaybackIdle, setAssistantPlaybackIdle] = useState(true);
   const assistantPlaybackIdleRef = useRef(true);
@@ -1735,6 +1764,26 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     }
     lastRelayPendingCountRef.current = n;
   }, [relayPendingTech, relayPendingMgmt, relaySessionRole]);
+
+  /** Avisos zaya_* da API: abre o modal da Zaya e fala o texto (como recados). */
+  useEffect(() => {
+    if (!pendingZayaNotification) return;
+    const id = pendingZayaNotification.id;
+    if (deliveredZayaNotificationIdsRef.current.has(id)) {
+      onPendingZayaConsumed?.();
+      return;
+    }
+    deliveredZayaNotificationIdsRef.current.add(id);
+    setOpen(true);
+    const text = zayaAlertToSpokenLine(pendingZayaNotification);
+    const bubble = `🔔 ${text}`;
+    setMessages((prev) => [{ role: "assistant", content: bubble }, ...prev]);
+    if (ttsEnabledRef.current) {
+      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+      speakAssistantResponse(text);
+    }
+    onPendingZayaConsumed?.();
+  }, [pendingZayaNotification, onPendingZayaConsumed]);
 
   /** Polling: recados pendentes (indicador no botão). */
   useEffect(() => {
@@ -2282,17 +2331,6 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
           animation: assist-mic-pulse 1.35s ease-in-out infinite;
           animation-delay: 0.4s;
         }
-        @keyframes assist-relay-green {
-          0%, 100% { transform: scale(1); opacity: 0.88; }
-          50% { transform: scale(1.2); opacity: 0.2; }
-        }
-        .assist-relay-green-a {
-          animation: assist-relay-green 1.55s ease-in-out infinite;
-        }
-        .assist-relay-green-b {
-          animation: assist-relay-green 1.55s ease-in-out infinite;
-          animation-delay: 0.38s;
-        }
         @keyframes zayaAuroraModalSpin {
           from { transform: translate(-50%, -50%) rotate(0deg); }
           to { transform: translate(-50%, -50%) rotate(360deg); }
@@ -2496,30 +2534,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
       {/* Acima de modais do app (z~100–200); sem blur no fundo — painel Zaya com pointer-events-auto */}
       <div className="pointer-events-none fixed bottom-24 right-4 z-[320]">
         <div className="pointer-events-auto relative h-14 w-14">
-          {((relayIsTechnician(relaySessionRole) && relayPendingTech > 0) ||
-            (relayIsManagement(relaySessionRole) && relayPendingMgmt > 0)) && (
-            <>
-              <span
-                className="pointer-events-none absolute inset-0 -m-[2px] rounded-full border-2 border-emerald-500 assist-relay-green-a"
-                aria-hidden
-              />
-              <span
-                className="pointer-events-none absolute inset-0 -m-[5px] rounded-full border border-emerald-400/55 assist-relay-green-b"
-                aria-hidden
-              />
-            </>
-          )}
           <button
             type="button"
-            aria-label={`Abrir ${ASSISTANT_NAME}${
-              relayIsTechnician(relaySessionRole) && relayPendingTech > 0
-                ? relayIsManagement(relaySessionRole) && relayPendingMgmt > 0
-                  ? " — há recados da gerência e de técnicos"
-                  : " — há recado da gerência"
-                : relayIsManagement(relaySessionRole) && relayPendingMgmt > 0
-                  ? " — há recado de técnico"
-                  : ""
-            }`}
+            aria-label={`Abrir ${ASSISTANT_NAME}`}
             onClick={() => setOpen(true)}
             className={`relative z-10 flex h-14 w-14 items-center justify-center ${zayaIconWrap} transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/40`}
           >

@@ -25,6 +25,11 @@ import {
   type Notification,
   type NotificationType,
 } from '../services/apiService';
+
+/** Avisos entregues pela Zaya (modal + voz), não só na central. */
+export function isZayaNotificationType(type: string): boolean {
+  return typeof type === 'string' && type.startsWith('zaya_');
+}
 import { playOtherNotificationSound } from '../utils/notificationSound';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -138,6 +143,8 @@ function showNativeDeviceNotification(n: Notification, forTechnician?: boolean):
 interface NotificationCenterProps {
   /** Callback quando há novo comentário (para pop-up + som) */
   onNewCommentNotification?: (notification: Notification) => void;
+  /** Novo aviso configurável da Zaya (abre o modal dela + voz) */
+  onNewZayaAlert?: (notification: Notification) => void;
   /** Callback ao clicar numa notificação (ex.: ir ao veículo/comentários no Pátio) */
   onNotificationClick?: (notification: Notification) => void;
   /** Se true, usa API de notificações do técnico (for=technician&slug=...) */
@@ -150,6 +157,7 @@ interface NotificationCenterProps {
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   onNewCommentNotification,
+  onNewZayaAlert,
   onNotificationClick,
   forTechnician,
   technicianSlug,
@@ -211,6 +219,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             const shownNative = showNativeDeviceNotification(n, !!forTechnician);
             if (n.type === 'comment') {
               onNewCommentNotification?.(n);
+            } else if (isZayaNotificationType(n.type)) {
+              onNewZayaAlert?.(n);
             } else if (!shownNative) {
               playOtherNotificationSound();
             }
@@ -249,6 +259,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           const shownNative = showNativeDeviceNotification(n, !!forTechnician);
           if (n.type === 'comment') {
             onNewCommentNotification?.(n);
+          } else if (isZayaNotificationType(n.type)) {
+            onNewZayaAlert?.(n);
           } else if (!shownNative) {
             playOtherNotificationSound();
           }

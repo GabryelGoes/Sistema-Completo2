@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { ChangePasswordsModal } from './components/ChangePasswordsModal';
@@ -6,14 +6,13 @@ import { TabBar, type TabId } from './components/TabBar';
 import { NotificationCenter } from './components/NotificationCenter';
 import { CommentPopUp } from './components/CommentPopUp';
 import { playNotificationSound } from './utils/notificationSound';
-import type { Notification } from './services/apiService';
 import { ReceptionView } from './components/views/ReceptionView';
 import { PatioView } from './components/views/PatioView';
 import { AgendaView } from './components/views/AgendaView';
 import { HomeView, type HomeAppId } from './components/views/HomeView';
 import { LoginView, getStoredAuth, setStoredAuth, clearStoredAuth } from './components/views/LoginView';
 import { useOrientation } from './components/views/useOrientation';
-import type { AuthSession, SystemUserPermissions } from './services/apiService';
+import type { AuthSession, Notification, SystemUserPermissions } from './services/apiService';
 import { getWorkshopSettings } from './services/apiService';
 import { AssistantChat } from './components/AssistantChat';
 
@@ -30,6 +29,8 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUserChangePasswordsOpen, setIsUserChangePasswordsOpen] = useState(false);
   const [commentPopUpNotification, setCommentPopUpNotification] = useState<Notification | null>(null);
+  /** Dispara entrega do aviso pela Zaya (modal + voz). */
+  const [pendingZayaNotification, setPendingZayaNotification] = useState<Notification | null>(null);
   /** Abrir modal do Pátio via assistente (Zaya). */
   const [assistantPatioOpenOrderId, setAssistantPatioOpenOrderId] = useState<string | null>(null);
   /** Quando definido com orderId, abre o modal de leitura deste orçamento após carregar. */
@@ -41,6 +42,13 @@ export default function App() {
     playNotificationSound();
     setCommentPopUpNotification(n);
   };
+
+  const handleNewZayaAlert = (n: Notification) => {
+    playNotificationSound();
+    setPendingZayaNotification(n);
+  };
+
+  const clearPendingZayaNotification = useCallback(() => setPendingZayaNotification(null), []);
 
   // Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -299,6 +307,7 @@ export default function App() {
           <NotificationCenter
             theme={theme}
             onNewCommentNotification={handleNewCommentNotification}
+            onNewZayaAlert={handleNewZayaAlert}
             forTechnician={!!authSession.userId}
             technicianSlug={authSession.userId}
           />
@@ -354,6 +363,8 @@ export default function App() {
             setUserTab(target);
             setAssistantPatioOpenHistoryTrigger((n) => n + 1);
           }}
+          pendingZayaNotification={pendingZayaNotification}
+          onPendingZayaConsumed={clearPendingZayaNotification}
         />
       </div>
     );
@@ -479,6 +490,7 @@ export default function App() {
         <NotificationCenter
           theme={theme}
           onNewCommentNotification={handleNewCommentNotification}
+          onNewZayaAlert={handleNewZayaAlert}
           forTechnician={authSession?.role === 'user' && !!authSession?.userId}
           technicianSlug={authSession?.role === 'user' ? authSession.userId : undefined}
         />
@@ -539,6 +551,8 @@ export default function App() {
           setCurrentTab(target);
           setAssistantPatioOpenHistoryTrigger((n) => n + 1);
         }}
+        pendingZayaNotification={pendingZayaNotification}
+        onPendingZayaConsumed={clearPendingZayaNotification}
       />
     </div>
   );
