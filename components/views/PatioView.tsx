@@ -2126,6 +2126,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   if (initialLoading) {
     const loadLabel = isModuleMode ? 'laboratório' : 'pátio';
+    const dotClass = isModuleMode
+      ? 'bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-[0_0_18px_-2px_rgba(139,92,246,0.55)] dark:from-violet-400 dark:to-fuchsia-400 dark:shadow-[0_0_22px_-4px_rgba(167,139,250,0.4)]'
+      : 'bg-gradient-to-br from-[#007AFF] to-[#5AC8FA] shadow-[0_0_18px_-2px_rgba(0,122,255,0.5)] dark:from-[#0A84FF] dark:to-[#64B5FF] dark:shadow-[0_0_22px_-4px_rgba(10,132,255,0.4)]';
     return (
       <div
         className="relative flex min-h-[70vh] w-full flex-col items-center justify-center px-4 py-16"
@@ -2134,26 +2137,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
         aria-busy="true"
       >
         <style>{`
-          @keyframes patio-load-wave {
-            0%, 100% { transform: scaleY(0.28); opacity: 0.45; }
-            50% { transform: scaleY(1); opacity: 1; }
+          @keyframes patio-load-bob {
+            0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.35; }
+            50% { transform: translate3d(0, -14px, 0); opacity: 1; }
           }
-          .patio-load-bar {
-            transform-origin: center bottom;
-            animation: patio-load-wave 1.1s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+          .patio-load-dot {
+            animation: patio-load-bob 0.95s cubic-bezier(0.45, 0, 0.3, 1) infinite;
             will-change: transform, opacity;
           }
         `}</style>
-        <div className="flex h-11 items-end justify-center gap-[7px]" aria-hidden>
-          {[0, 1, 2, 3, 4].map((i) => (
+        <div className="flex h-14 items-center justify-center gap-3.5" aria-hidden>
+          {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="patio-load-bar block h-11 w-[5px] shrink-0 rounded-full bg-gradient-to-t from-[#007AFF] via-[#3FA9FF] to-[#5AC8FA] shadow-[0_0_20px_-4px_rgba(0,122,255,0.55)] dark:from-[#0A84FF] dark:via-[#409CFF] dark:to-[#64B5FF] dark:shadow-[0_0_24px_-6px_rgba(10,132,255,0.45)]"
-              style={{ animationDelay: `${i * 0.09}s` }}
+              className={`patio-load-dot block h-2.5 w-2.5 shrink-0 rounded-full ${dotClass}`}
+              style={{ animationDelay: `${i * 0.14}s` }}
             />
           ))}
         </div>
-        <p className="mt-12 text-[15px] font-medium tracking-[-0.01em] text-zinc-700 dark:text-zinc-200">
+        <p className="mt-11 text-[15px] font-medium tracking-[-0.01em] text-zinc-700 dark:text-zinc-200">
           Carregando o {loadLabel}…
         </p>
         <p className="mt-2 max-w-[16rem] text-center text-[13px] font-normal leading-relaxed text-zinc-400 dark:text-zinc-500">
