@@ -229,14 +229,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
     try {
       setStatus({ step: 'creating', message: 'Criando cadastro' });
-      const issueDescriptionWithCategory =
-        receptionMode === 'vehicle'
-          ? `Categoria do veículo: ${vehicleCategory}${customer.issueDescription?.trim() ? `\n\n${customer.issueDescription}` : ''}`
-          : customer.issueDescription;
-
       const { customer: savedCustomer, serviceOrder } = await saveReceptionIntake(
-        { ...customer, issueDescription: issueDescriptionWithCategory },
-        receptionMode
+        { ...customer, issueDescription: customer.issueDescription },
+        receptionMode,
+        receptionMode === 'vehicle' ? vehicleCategory : null
       );
 
       // 2) Se houver foto, enviar (com compressão automática para evitar 413 no Vercel)

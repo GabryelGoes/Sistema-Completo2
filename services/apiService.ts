@@ -38,6 +38,7 @@ interface ApiServiceOrder {
   issue_description: string | null;
   ai_analysis: string | null;
   status: string;
+  vehicle_category?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -61,6 +62,8 @@ export interface ServiceOrderListItem {
   assigned_technician: string | null;
   garantia_tag?: boolean;
   order_type?: ServiceOrderType;
+  /** Recepção — veículo: Compacto, Médio/SUV, Pick-Up, Premium */
+  vehicle_category?: string | null;
   created_at: string;
   updated_at: string;
   customers: { id: string; name: string; phone: string | null } | null;
@@ -82,6 +85,7 @@ export interface ServiceOrderDetail {
   ai_analysis: string | null;
   status: string;
   order_type?: ServiceOrderType;
+  vehicle_category?: string | null;
   created_at: string;
   updated_at: string;
   customers: ApiCustomer | null;
@@ -285,6 +289,8 @@ export async function createServiceOrder(params: {
   issueDescription?: string;
   aiAnalysis?: string;
   orderType?: ServiceOrderType;
+  /** Só veículo: categoria escolhida na recepção */
+  vehicleCategory?: string | null;
 }): Promise<ApiServiceOrder> {
   const orderType = params.orderType === "module" ? "module" : "vehicle";
   const body: Record<string, unknown> = {
@@ -294,6 +300,9 @@ export async function createServiceOrder(params: {
     aiAnalysis: params.aiAnalysis ?? null,
     orderType,
   };
+  if (orderType === "vehicle" && params.vehicleCategory !== undefined) {
+    body.vehicleCategory = params.vehicleCategory?.trim() || null;
+  }
   if (orderType === "vehicle") {
     body.plate = (params.plate || '').toUpperCase();
     body.mileageKm = params.mileageKm ?? null;
@@ -323,7 +332,8 @@ export async function createServiceOrder(params: {
 
 export async function saveReceptionIntake(
   customer: Customer,
-  orderType: ServiceOrderType = "vehicle"
+  orderType: ServiceOrderType = "vehicle",
+  vehicleCategory?: string | null
 ) {
   const createdCustomer = await createCustomer(customer);
 
@@ -336,6 +346,7 @@ export async function saveReceptionIntake(
     issueDescription: customer.issueDescription,
     aiAnalysis: customer.aiAnalysis,
     orderType,
+    vehicleCategory: orderType === "vehicle" ? vehicleCategory ?? null : null,
   });
 
   return {

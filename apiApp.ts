@@ -1363,7 +1363,7 @@ export function createApiApp() {
       let query = supabaseAdmin
         .from("service_orders")
         .select(
-          "id, os_number, customer_id, vehicle_model, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, created_at, updated_at"
+          "id, os_number, customer_id, vehicle_model, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, created_at, updated_at"
         )
         .eq("workshop_id", WORKSHOP_ID)
         .order("created_at", { ascending: false });
@@ -1465,6 +1465,7 @@ export function createApiApp() {
         issueDescription,
         aiAnalysis,
         orderType: bodyOrderType,
+        vehicleCategory: bodyVehicleCategory,
       } = req.body;
 
       const orderType = bodyOrderType === "module" ? "module" : "vehicle";
@@ -1497,6 +1498,11 @@ export function createApiApp() {
         });
       }
 
+      const vehicleCategoryTrimmed =
+        orderType === "vehicle" && typeof bodyVehicleCategory === "string"
+          ? bodyVehicleCategory.trim() || null
+          : null;
+
       const { data, error } = await supabaseAdmin
         .from("service_orders")
         .insert({
@@ -1511,6 +1517,7 @@ export function createApiApp() {
           ai_analysis: aiAnalysis ?? null,
           status: FIRST_STAGE,
           order_type: orderType,
+          vehicle_category: vehicleCategoryTrimmed,
         })
         .select("*")
         .single();

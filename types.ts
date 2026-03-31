@@ -92,6 +92,8 @@ export interface BoardCard {
   deliveryDate?: string | null;
   /** Número da OS na oficina (ex: 1, 2, 3). */
   osNumber?: number | null;
+  /** Categoria do veículo na recepção (Compacto, Médio/SUV, Pick-Up, Premium). Só Pátio (veículo). */
+  vehicleCategory?: string | null;
 }
 
 export interface Appointment {

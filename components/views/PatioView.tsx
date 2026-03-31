@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2 } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Maximize2, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Car, CarFront, Truck, Gem } from 'lucide-react';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
 import { NotificationCenter } from '../NotificationCenter';
@@ -138,6 +138,57 @@ function attachmentDisplayName(fileName: string): string {
   return cleaned || base;
 }
 
+/** Remove texto legado "Categoria do veículo: ..." do início da queixa (antes era salvo junto). */
+function stripLegacyVehicleCategoryFromComplaint(text: string | null | undefined): string {
+  if (!text) return "";
+  const lines = text.split("\n");
+  const first = lines[0]?.trim() ?? "";
+  if (first.startsWith("Categoria do veículo:")) {
+    const rest = lines.slice(1);
+    while (rest.length && rest[0].trim() === "") rest.shift();
+    return rest.join("\n").trim();
+  }
+  return text;
+}
+
+/** Lê categoria legada só do texto da queixa (OS antigas). */
+function parseLegacyVehicleCategoryFromIssue(issue: string | null | undefined): string | null {
+  if (!issue) return null;
+  const line = issue.split("\n")[0]?.trim() ?? "";
+  const prefix = "Categoria do veículo:";
+  if (!line.startsWith(prefix)) return null;
+  const cat = line.slice(prefix.length).trim();
+  return cat || null;
+}
+
+function resolveVehicleCategoryLabel(
+  dbCategory: string | null | undefined,
+  issue: string | null | undefined
+): string | null {
+  const c = (dbCategory ?? "").trim();
+  if (c) return c;
+  return parseLegacyVehicleCategoryFromIssue(issue);
+}
+
+/** Ícone da categoria escolhida na recepção (ao lado de "Alterar etapa"). */
+function VehicleCategoryHeaderIcon({ label }: { label: string }) {
+  const k = label.trim();
+  let Icon = Car;
+  if (k.startsWith("Médio") || k.includes("SUV")) Icon = CarFront;
+  else if (k.includes("Pick")) Icon = Truck;
+  else if (k === "Premium") Icon = Gem;
+  else Icon = Car;
+  return (
+    <span
+      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/90 text-zinc-700 shadow-sm dark:border-white/10 dark:bg-white/[0.08] dark:text-zinc-200"
+      title={label}
+      aria-label={`Categoria: ${label}`}
+    >
+      <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
+    </span>
+  );
+}
+
 function buildTechnicianNameMap(technicians: SystemUserTechnician[]): Record<string, string> {
   const map: Record<string, string> = {};
   technicians.forEach((t) => {
@@ -158,7 +209,11 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     id: o.id,
     name,
     osNumber: o.os_number ?? null,
-    desc: o.issue_description || '',
+    desc: stripLegacyVehicleCategoryFromComplaint(o.issue_description || ''),
+    vehicleCategory:
+      orderType === "vehicle"
+        ? resolveVehicleCategoryLabel(o.vehicle_category ?? null, o.issue_description ?? null)
+        : null,
     idList: o.status,
     url: '',
     dateLastActivity: o.updated_at,
@@ -2773,6 +2828,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const modalRingClass = selectedCard.garantiaTag
           ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a] border-2 border-red-500/30'
           : `${modalStatusConfig.ringClass} border border-zinc-200/60 dark:border-white/[0.08]`;
+        const headerVehicleCategoryLabel =
+          !isModuleMode
+            ? resolveVehicleCategoryLabel(
+                serviceOrderDetail?.vehicle_category ?? null,
+                serviceOrderDetail?.issue_description ?? null
+              ) ?? selectedCard.vehicleCategory ?? null
+            : null;
         return (
         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-4 sm:p-6`}>
            <div className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-[96vw] xl:max-w-[92vw] 2xl:max-w-[88vw] min-h-0 flex-col ${iosModalShell} animate-in zoom-in-95 duration-200 ${modalRingClass}`}>
@@ -2863,6 +2925,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {lists.find(l => l.id === selectedCard.idList)?.name}
                             <ChevronDown className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
                           </button>
+                          {headerVehicleCategoryLabel && (
+                            <VehicleCategoryHeaderIcon label={headerVehicleCategoryLabel} />
+                          )}
                           {selectedCard.garantiaTag && (
                             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 border-2 border-red-500/50">
                               Garantia
