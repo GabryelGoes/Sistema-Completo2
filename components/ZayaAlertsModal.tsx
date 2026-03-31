@@ -11,34 +11,68 @@ function toggle(arr: string[], id: string): string[] {
   return arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
 }
 
-function AlertTypeCheckboxes(props: {
+/** Interruptor estilo iOS (Settings). */
+function IosSwitch({
+  checked,
+  onChange,
+  id,
+  ariaLabel,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  id: string;
+  ariaLabel: string;
+}) {
+  return (
+    <label htmlFor={id} className="relative inline-flex h-[31px] w-[51px] shrink-0 cursor-pointer items-center">
+      <input
+        id={id}
+        type="checkbox"
+        role="switch"
+        checked={checked}
+        onChange={onChange}
+        className="peer sr-only"
+        aria-checked={checked}
+        aria-label={ariaLabel}
+      />
+      <span
+        className="absolute inset-0 rounded-full bg-[#E9E9EA] transition-colors duration-200 ease-out dark:bg-zinc-600 peer-checked:bg-[#34C759] peer-focus-visible:ring-2 peer-focus-visible:ring-[#34C759]/40 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-white dark:peer-focus-visible:ring-offset-zinc-900"
+        aria-hidden
+      />
+      <span
+        className="pointer-events-none absolute left-[2px] top-[2px] h-[27px] w-[27px] rounded-full bg-white shadow-[0_3px_8px_rgba(0,0,0,0.12),0_1.5px_1px_rgba(0,0,0,0.08)] transition-transform duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-transform peer-checked:translate-x-[20px]"
+        aria-hidden
+      />
+    </label>
+  );
+}
+
+function AlertTypeSwitches(props: {
   selected: string[];
   onToggle: (id: string) => void;
   idPrefix: string;
 }) {
   return (
-    <div className="space-y-2.5">
+    <div className="divide-y divide-zinc-200/80 dark:divide-white/[0.08] rounded-xl overflow-hidden border border-zinc-200/60 dark:border-white/[0.08] bg-white/50 dark:bg-zinc-950/30">
       {ZAYA_ALERT_OPTIONS.map((opt) => {
         const checked = props.selected.includes(opt.id);
         const cid = `${props.idPrefix}-${opt.id}`;
         return (
-          <label
+          <div
             key={opt.id}
-            htmlFor={cid}
-            className="flex items-start gap-3 cursor-pointer rounded-xl px-2 py-1.5 -mx-2 hover:bg-zinc-100/80 dark:hover:bg-white/[0.06]"
+            className="flex items-center justify-between gap-3 px-3 py-3 sm:px-3.5 sm:py-3.5 min-h-[3.25rem]"
           >
-            <input
+            <div className="min-w-0 flex-1 pr-1">
+              <p className="text-[14px] font-medium text-zinc-900 dark:text-white leading-snug">{opt.label}</p>
+              <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{opt.description}</p>
+            </div>
+            <IosSwitch
               id={cid}
-              type="checkbox"
               checked={checked}
               onChange={() => props.onToggle(opt.id)}
-              className="mt-1 h-4 w-4 rounded border-zinc-300 text-violet-600 focus:ring-violet-500"
+              ariaLabel={checked ? `${opt.label}: ativado` : `${opt.label}: desativado`}
             />
-            <span className="min-w-0">
-              <span className="block text-[14px] font-medium text-zinc-900 dark:text-white">{opt.label}</span>
-              <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">{opt.description}</span>
-            </span>
-          </label>
+          </div>
         );
       })}
     </div>
@@ -160,7 +194,7 @@ export const ZayaAlertsModal: React.FC<ZayaAlertsModalProps> = ({ isOpen, onClos
                 <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
                   Alertas na central quando você estiver logado como administrador.
                 </p>
-                <AlertTypeCheckboxes
+                <AlertTypeSwitches
                   idPrefix="admin"
                   selected={adminAlertTypes}
                   onToggle={(id) => setAdminAlertTypes((prev) => toggle(prev, id))}
@@ -217,7 +251,7 @@ export const ZayaAlertsModal: React.FC<ZayaAlertsModalProps> = ({ isOpen, onClos
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                      <AlertTypeCheckboxes
+                      <AlertTypeSwitches
                         idPrefix={`sub-${s.systemUserId}`}
                         selected={s.alertTypes}
                         onToggle={(id) => updateSubTypes(s.systemUserId, id)}
