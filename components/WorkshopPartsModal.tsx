@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Package, Plus, Pencil, Trash2, Check, Loader2, Camera } from 'lucide-react';
+import { X, Package, Plus, Pencil, Trash2, Check, Loader2, Camera, Hash } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
@@ -32,6 +32,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [editingPrice, setEditingPrice] = useState('');
   const [editingStock, setEditingStock] = useState('');
   const [uploadingPhotoId, setUploadingPhotoId] = useState<string | null>(null);
+  const [detailPart, setDetailPart] = useState<WorkshopPart | null>(null);
   const createPhotoInputRef = useRef<HTMLInputElement>(null);
   const editPhotoInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,6 +58,27 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   useEffect(() => {
     if (isOpen) fetchParts();
   }, [isOpen, fetchParts]);
+
+  useEffect(() => {
+    if (!isOpen) setDetailPart(null);
+  }, [isOpen]);
+
+  useEffect(() => {
+    setDetailPart((prev) => {
+      if (!prev) return null;
+      const fresh = parts.find((x) => x.id === prev.id);
+      return fresh ?? null;
+    });
+  }, [parts]);
+
+  useEffect(() => {
+    if (!detailPart) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDetailPart(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [detailPart]);
 
   const handleAdd = async () => {
     const name = newName.trim();
@@ -131,6 +153,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     try {
       await deleteWorkshopPart(id);
       setParts((prev) => prev.filter((p) => p.id !== id));
+      setDetailPart((prev) => (prev?.id === id ? null : prev));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao excluir peça.');
     }
@@ -152,7 +175,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
   if (!isOpen) return null;
 
+  const detail = detailPart;
+
   return (
+    <>
     <div className={iosModalOverlay}>
       <div className={`${iosModalShell} w-full max-w-[95vw] h-[94vh] max-h-[94vh]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
@@ -333,16 +359,21 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       </>
                     ) : (
                       <>
-                        <div className="flex-[2] min-w-0 flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 overflow-hidden shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setDetailPart(p)}
+                          className="flex-[2] min-w-0 flex items-center gap-3 text-left rounded-xl -my-1 -ml-2 pl-2 pr-2 py-1.5 hover:bg-zinc-200/70 dark:hover:bg-white/[0.07] transition-colors cursor-pointer"
+                          title="Ver detalhes do produto"
+                        >
+                          <div className="w-10 h-10 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 overflow-hidden shrink-0 pointer-events-none">
                             {p.photo_url ? (
-                              <img src={p.photo_url} alt={p.name} className="w-full h-full object-cover" />
+                              <img src={p.photo_url} alt="" className="w-full h-full object-cover" />
                             ) : null}
                           </div>
                           <span className="min-w-0 text-[16px] font-medium text-zinc-900 dark:text-white truncate">
                             {p.name}
                           </span>
-                        </div>
+                        </button>
                         <span className="flex-1 min-w-0 text-[14px] text-zinc-700 dark:text-zinc-300">
                           R$ {Number(p.unit_price ?? 0).toFixed(2)}
                         </span>
@@ -404,6 +435,115 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         </div>
       </div>
     </div>
+
+    {detail && (
+      <div
+        className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-[12px]"
+        onClick={() => setDetailPart(null)}
+      >
+        <div
+          className={`${iosModalShell} w-full max-w-md md:max-w-2xl xl:max-w-3xl max-h-[92vh] overflow-y-auto`}
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="workshop-part-detail-title"
+        >
+          <button type="button" onClick={() => setDetailPart(null)} className={iosModalClose} aria-label="Fechar">
+            <X className="w-5 h-5" />
+          </button>
+          <p id="workshop-part-detail-title" className="sr-only">
+            Produto no estoque: {detail.name}
+          </p>
+          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
+            <IosModalHeader
+              icon={<Package className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              title="Produto no estoque"
+              subtitle={detail.name}
+              gradientClass="from-emerald-500 to-teal-700"
+            />
+          </div>
+          <div className="px-6 sm:px-8 py-6 space-y-5">
+            <div className="flex justify-center">
+              <div className="w-full max-w-[280px] aspect-square rounded-[22px] border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-100 dark:bg-white/[0.05] overflow-hidden flex items-center justify-center">
+                {detail.photo_url ? (
+                  <img src={detail.photo_url} alt={detail.name} className="w-full h-full object-cover" />
+                ) : (
+                  <Package className="w-20 h-20 text-zinc-300 dark:text-zinc-600" strokeWidth={1.25} />
+                )}
+              </div>
+            </div>
+            <dl className="grid gap-3 text-[15px]">
+              <div className="flex justify-between gap-4 border-b border-zinc-200/40 dark:border-white/[0.06] pb-3">
+                <dt className="text-zinc-500 dark:text-zinc-400">Preço unitário</dt>
+                <dd className="font-semibold text-zinc-900 dark:text-white tabular-nums">
+                  R$ {Number(detail.unit_price ?? 0).toFixed(2)}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4 border-b border-zinc-200/40 dark:border-white/[0.06] pb-3">
+                <dt className="text-zinc-500 dark:text-zinc-400">Quantidade em estoque</dt>
+                <dd className="font-semibold text-zinc-900 dark:text-white tabular-nums">
+                  {Number(detail.stock_qty ?? 0).toFixed(3)}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4 border-b border-zinc-200/40 dark:border-white/[0.06] pb-3">
+                <dt className="text-zinc-500 dark:text-zinc-400">Valor em estoque</dt>
+                <dd className="font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                  R$ {(Number(detail.unit_price ?? 0) * Number(detail.stock_qty ?? 0)).toFixed(2)}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4 items-start">
+                <dt className="text-zinc-500 dark:text-zinc-400 shrink-0">Cadastrado em</dt>
+                <dd className="text-right text-zinc-800 dark:text-zinc-200 text-[14px]">
+                  {detail.created_at
+                    ? new Date(detail.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+                    : '—'}
+                </dd>
+              </div>
+              <div className="flex items-start gap-2 pt-1 text-[13px] text-zinc-500 dark:text-zinc-500">
+                <Hash className="w-4 h-4 shrink-0 mt-0.5" aria-hidden />
+                <span className="font-mono break-all">{detail.id}</span>
+              </div>
+            </dl>
+            <div className="flex flex-wrap gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const p = detail;
+                  setDetailPart(null);
+                  startEdit(p);
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-yellow px-4 py-3 text-[15px] font-semibold text-black hover:brightness-110 transition-colors"
+              >
+                <Pencil className="w-4 h-4" />
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!editPhotoInputRef.current) return;
+                  editPhotoInputRef.current.dataset.partId = detail.id;
+                  editPhotoInputRef.current.click();
+                }}
+                disabled={uploadingPhotoId === detail.id}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-200 dark:bg-white/10 px-4 py-3 text-[15px] font-semibold text-zinc-900 dark:text-white hover:bg-zinc-300 dark:hover:bg-white/15 transition-colors disabled:opacity-50"
+              >
+                {uploadingPhotoId === detail.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                Foto
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(detail.id)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-300 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-[15px] font-semibold text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 
