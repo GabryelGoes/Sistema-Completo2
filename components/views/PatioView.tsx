@@ -592,6 +592,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [remindersLoading, setRemindersLoading] = useState(false);
   const [reminderSubmitting, setReminderSubmitting] = useState(false);
+  const [reminderSaveError, setReminderSaveError] = useState<string | null>(null);
   const [newReminder, setNewReminder] = useState('');
   const remindersStorageKey = orderType === 'module' ? 'patio-reminders-module' : 'patio-reminders-vehicle';
   const isModuleMode = orderType === 'module';
@@ -2117,7 +2118,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
           <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:shrink-0 lg:justify-end">
             <button
               type="button"
-              onClick={() => setIsRemindersOpen(true)}
+              onClick={() => {
+                setReminderSaveError(null);
+                setIsRemindersOpen(true);
+              }}
               className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-zinc-200/80 bg-white/80 px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white sm:px-5 sm:py-3"
             >
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/15 text-[#007AFF] dark:bg-[#007AFF]/25 dark:text-[#64B5FF]">
@@ -3895,15 +3899,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
       );
       })()}
 
-      {/* --- MODAL DE LEMBRETES (PÁTIO / LABORATÓRIO) — vidro iOS alinhado ao TV do pátio --- */}
+      {/* --- MODAL DE LEMBRETES (PÁTIO / LABORATÓRIO) — portal em body + z acima da TabBar (igual orçamento) --- */}
       {isRemindersOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
           <div
             className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-xl min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
           >
             <button
               type="button"
-              onClick={() => setIsRemindersOpen(false)}
+              onClick={() => {
+                setReminderSaveError(null);
+                setIsRemindersOpen(false);
+              }}
               className={iosModalClose}
               aria-label="Fechar lembretes"
             >
@@ -3939,12 +3947,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   if (!trimmed || reminderSubmitting) return;
                   const createdBy = (commentAuthorName && commentAuthorName.trim()) || (isModuleMode ? 'Laboratório' : 'Pátio');
                   setReminderSubmitting(true);
+                  setReminderSaveError(null);
                   try {
-                    await createWorkshopReminder({
+                    const created = await createWorkshopReminder({
                       scope: remindersScopeApi,
                       text: trimmed,
                       createdBy,
                     });
+                    const next: Reminder = {
+                      id: created.id,
+                      text: created.text,
+                      createdAt: created.createdAt,
+                      done: created.done,
+                      createdBy:
+                        created.createdBy ||
+                        commentAuthorName ||
+                        (isModuleMode ? 'Laboratório' : 'Pátio'),
+                    };
+                    setReminders((prev) => [next, ...prev.filter((r) => r.id !== next.id)]);
                     setNewReminder('');
                     window.dispatchEvent(
                       new CustomEvent('workshop-reminders-updated', {
@@ -3952,20 +3972,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       })
                     );
                     await fetchReminders();
-                  } catch {
-                    // falha silenciosa; usuário pode tentar de novo
+                  } catch (err) {
+                    const msg =
+                      err instanceof Error ? err.message : 'Não foi possível salvar o lembrete.';
+                    setReminderSaveError(msg);
                   } finally {
                     setReminderSubmitting(false);
                   }
                 }}
                 className={`${iosModalInsetCard} p-4 sm:p-5`}
               >
+                {reminderSaveError && (
+                  <p className="mb-3 text-[13px] font-medium text-red-600 dark:text-red-400" role="alert">
+                    {reminderSaveError}
+                  </p>
+                )}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
                   <div className="min-w-0 flex-1">
                     <input
                       type="text"
                       value={newReminder}
-                      onChange={(e) => setNewReminder(e.target.value)}
+                      onChange={(e) => {
+                        setNewReminder(e.target.value);
+                        if (reminderSaveError) setReminderSaveError(null);
+                      }}
                       placeholder={isModuleMode ? 'Algo importante para os módulos…' : 'Algo importante para o pátio…'}
                       className={iosInput}
                       disabled={reminderSubmitting}
@@ -4086,6 +4116,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* MODAL EDITAR DADOS DA FICHA — vidro iOS alinhado ao TV do pátio */}
