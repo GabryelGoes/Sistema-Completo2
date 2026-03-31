@@ -396,7 +396,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       }
                     />
                     <a
-                      href="https://sistema-rda.com/"
+                      href="https://patio-view.vercel.app/"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="group w-full flex items-center gap-3 px-3 py-3 sm:px-4 sm:py-3.5 text-left rounded-2xl transition-all duration-200 hover:bg-zinc-100/90 dark:hover:bg-white/[0.06] active:scale-[0.99]"

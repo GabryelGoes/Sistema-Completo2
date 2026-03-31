@@ -29,5 +29,8 @@ Para o login e a API funcionarem no deploy, configure no projeto Vercel as **var
 | `SUPABASE_SERVICE_ROLE_KEY` | Sim | Chave "service role" do Supabase (APIs) |
 | `WORKSHOP_ID` | Sim | ID da oficina (UUID em `workshops`) |
 | `ADMIN_PASSWORD` | Não | Senha da Gerência (se não definida no Supabase, usa a padrão) |
+| `PATIO_VIEW_ORIGINS` | Não | CORS: origens extras além de `https://patio-view.vercel.app` (separadas por vírgula) |
 
 Em **Vercel → Project → Settings → Environment Variables**, adicione essas variáveis e faça um novo deploy. Sem elas, as chamadas a `/api/auth/admin` e `/api/auth/patio` falham e o login não funciona.
+
+**Patio-View (TV do pátio)** — projeto separado no Vercel (`patio-view.vercel.app`). Ele chama a API no **domínio do app principal**. Se você mudou o domínio (ex.: para `sistema-rda.com`), atualize no **projeto Patio-View** a variável que define a URL da API (ex.: `VITE_API_URL` ou como estiver no código) para `https://sistema-rda.com`, faça novo deploy do Patio-View e redeploy do app principal se alterou CORS.

@@ -39,19 +39,21 @@ function verifyPassword(password: string, stored: string): boolean {
 }
 
 /**
- * Origens do painel da TV (Patio-View) permitidas no browser — CORS.
- * Use PATIO_VIEW_ORIGINS com URLs separadas por vírgula (ex.: https://tv.sistema-rda.com,https://sistema-rda.com).
- * PATIO_VIEW_ORIGIN (singular) continua válido para um único domínio.
+ * Origens do painel da TV (Patio-View em patio-view.vercel.app) — CORS.
+ * PATIO_VIEW_ORIGINS / PATIO_VIEW_ORIGIN: lista extra (domínios adicionais).
+ * https://patio-view.vercel.app é sempre incluído (painel da TV).
  */
+const PATIO_VIEW_TV_ORIGIN = "https://patio-view.vercel.app";
+
 function parsePatioViewOrigins(): string[] {
-  const raw =
-    process.env.PATIO_VIEW_ORIGINS ||
-    process.env.PATIO_VIEW_ORIGIN ||
-    "https://patio-view.vercel.app,https://sistema-rda.com,https://www.sistema-rda.com,https://tv.sistema-rda.com";
-  return raw
+  const raw = process.env.PATIO_VIEW_ORIGINS || process.env.PATIO_VIEW_ORIGIN || PATIO_VIEW_TV_ORIGIN;
+  const list = raw
     .split(",")
     .map((s) => s.trim().replace(/\/$/, ""))
     .filter(Boolean);
+  const merged = [...list];
+  if (!merged.includes(PATIO_VIEW_TV_ORIGIN)) merged.push(PATIO_VIEW_TV_ORIGIN);
+  return merged;
 }
 
 export function createApiApp() {
