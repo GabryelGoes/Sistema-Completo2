@@ -1976,9 +1976,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
 
   const connectingRealtime = open && !useClassicChat && !realtimeReady;
 
-  /** Alinhado ao FAB / tiles da home e ao modal TV do pátio (vidro + gradiente âmbar). */
-  const zayaFabSquircle =
-    "rounded-[1.35rem] bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 shadow-[0_8px_28px_-6px_rgba(0,0,0,0.38),inset_0_1px_0_0_rgba(255,255,255,0.38)]";
+  /** Só o ícone da Zaya (bola escura animada), sem moldura âmbar/laranja. */
+  const zayaIconWrap = "rounded-full bg-transparent p-0 shadow-none";
 
   const isRealtimeVoice = realtimeReady && !useClassicChat;
 
@@ -2076,9 +2075,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                   : ""
             }`}
             onClick={() => setOpen(true)}
-            className={`relative z-10 flex h-14 w-14 items-center justify-center ${zayaFabSquircle} transition-transform hover:scale-[1.03] active:scale-[0.97]`}
+            className={`relative z-10 flex h-14 w-14 items-center justify-center ${zayaIconWrap} transition-transform hover:scale-[1.03] active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/40`}
           >
-            <AssistantIcon className="h-7 w-7 drop-shadow-sm" />
+            <AssistantIcon className="h-14 w-14" />
           </button>
         </div>
       </div>
@@ -2105,10 +2104,8 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
 
             <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-4 pt-6 dark:border-white/[0.07] sm:px-7 sm:pt-7">
               <div className="flex items-start gap-3 pr-10">
-                <div
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center ${zayaFabSquircle}`}
-                >
-                  <AssistantIcon className="h-7 w-7" />
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center ${zayaIconWrap}`}>
+                  <AssistantIcon className="h-12 w-12" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white">
