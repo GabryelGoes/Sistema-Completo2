@@ -1763,6 +1763,56 @@ export function createApiApp() {
     }
   });
 
+  // Excluir um anexo (foto/documento) da OS no Storage
+  app.delete("/api/service-orders/:id/photos", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const { id: serviceOrderId } = req.params;
+      const { path: objectPath } = req.body as { path?: string };
+
+      if (!objectPath || typeof objectPath !== "string") {
+        return res.status(400).json({ error: "Corpo inválido: envie path." });
+      }
+
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+
+      if (!so) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      const folderPath = `${WORKSHOP_ID}/${serviceOrderId}`;
+      if (!objectPath.startsWith(folderPath + "/")) {
+        return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
+      }
+
+      const bucket = VEHICLE_PHOTOS_BUCKET;
+      const { error: removeError } = await supabaseAdmin.storage
+        .from(bucket)
+        .remove([objectPath]);
+
+      if (removeError) {
+        console.error("[API] Erro ao excluir anexo no Storage:", removeError);
+        return res.status(500).json({ error: removeError.message });
+      }
+
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] Erro em DELETE /api/service-orders/:id/photos:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   // Listar orçamentos de uma OS
   app.get("/api/service-orders/:id/budgets", async (req, res) => {
     try {

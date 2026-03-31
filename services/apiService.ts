@@ -719,6 +719,18 @@ export async function renameServiceOrderPhoto(
   return response.json();
 }
 
+export async function deleteServiceOrderPhoto(serviceOrderId: string, path: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/photos`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir anexo (${response.status})`);
+  }
+}
+
 // ---------- Comentários do modal do veículo ----------
 
 export interface ServiceOrderComment {

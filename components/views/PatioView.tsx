@@ -20,6 +20,7 @@ import {
   getServiceOrderPhotos,
   uploadServiceOrderPhoto,
   renameServiceOrderPhoto,
+  deleteServiceOrderPhoto,
   getServiceOrderBudgets,
   createServiceOrderBudget,
   updateServiceOrderBudget,
@@ -569,7 +570,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [renameAttachmentId, setRenameAttachmentId] = useState<string | null>(null);
   const [renameAttachmentNewName, setRenameAttachmentNewName] = useState('');
   const [renamingAttachmentId, setRenamingAttachmentId] = useState<string | null>(null);
-  
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
+
   // Visualização de PDF
   const [previewPdf, setPreviewPdf] = useState<string | null>(null);
 
@@ -1925,6 +1927,50 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (n.endsWith(".pdf")) return "application/pdf";
     if (/\.(jpg|jpeg|png|gif|webp)$/.test(n)) return "image/*";
     return "application/octet-stream";
+  };
+
+  const handleDeleteAttachment = async (path: string, attId: string, url: string) => {
+    if (!selectedCard) return;
+    if (!window.confirm("Excluir este anexo permanentemente?")) return;
+    setDeletingAttachmentId(attId);
+    try {
+      await deleteServiceOrderPhoto(selectedCard.id, path);
+      const photos = await getServiceOrderPhotos(selectedCard.id);
+      setCardDetails((prev) =>
+        prev
+          ? {
+              ...prev,
+              attachments: photos.map((p, i) => ({
+                id: p.path || String(i),
+                name: p.name,
+                url: p.url,
+                mimeType: attachmentMimeType(p.name),
+                previews: [{ url: p.url, width: 200, height: 200 }],
+              })),
+            }
+          : null
+      );
+      if (renameAttachmentId === attId) {
+        setRenameAttachmentId(null);
+        setRenameAttachmentNewName("");
+      }
+      setPreviewImages((prev) => {
+        if (!prev) return null;
+        const newUrls = prev.urls.filter((u) => u !== url);
+        if (newUrls.length === 0) return null;
+        const oldIdx = prev.urls.indexOf(url);
+        if (oldIdx === -1) return { urls: newUrls, currentIndex: Math.min(prev.currentIndex, newUrls.length - 1) };
+        let newIndex = prev.currentIndex;
+        if (oldIdx < prev.currentIndex) newIndex = prev.currentIndex - 1;
+        else if (oldIdx === prev.currentIndex) newIndex = Math.min(prev.currentIndex, newUrls.length - 1);
+        return { urls: newUrls, currentIndex: newIndex };
+      });
+      setPreviewPdf((prev) => (prev === url ? null : prev));
+    } catch (err: any) {
+      alert(err?.message ?? "Erro ao excluir anexo.");
+    } finally {
+      setDeletingAttachmentId(null);
+    }
   };
 
   /** Compartilha imagem via Web Share API (WhatsApp, etc.). Tenta enviar como arquivo; fallback para URL. */
@@ -3548,7 +3594,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                      Anexos
                                   </h3>
                                   <p className="mt-1.5 max-w-md text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
-                                    Cada foto pode ter um nome — aparece abaixo da miniatura. Toque no lápis para editar (ou renomeie PDFs na lista de documentos).
+                                    Cada foto pode ter um nome — aparece abaixo da miniatura. Use o lápis para renomear e a lixeira para excluir (fotos e documentos).
                                   </p>
                                 </div>
                                 <div className="grid grid-cols-3 gap-3 sm:gap-2 sm:justify-items-end sm:shrink-0">
@@ -3624,6 +3670,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
                                             {images.map(att => {
                                               const isLoadingThis = loadingAttachmentId === att.id;
+                                              const isDeletingThis = deletingAttachmentId === att.id;
                                               const src = thumbUrl(att);
                                               const attachmentPath = att.id;
                                               const canRename = attachmentPath && !/^\d+$/.test(String(attachmentPath));
@@ -3776,18 +3823,37 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                           {label}
                                                         </span>
                                                         {canRename && (
-                                                          <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                              setRenameAttachmentId(att.id);
-                                                              setRenameAttachmentNewName(attachmentDisplayName(att.name));
-                                                            }}
-                                                            className="shrink-0 rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-                                                            title="Nomear ou renomear foto"
-                                                            aria-label="Nomear ou renomear foto"
-                                                          >
-                                                            <Pencil className="h-3.5 w-3.5" />
-                                                          </button>
+                                                          <>
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => {
+                                                                setRenameAttachmentId(att.id);
+                                                                setRenameAttachmentNewName(attachmentDisplayName(att.name));
+                                                              }}
+                                                              className="shrink-0 rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                                                              title="Nomear ou renomear foto"
+                                                              aria-label="Nomear ou renomear foto"
+                                                              disabled={isDeletingThis}
+                                                            >
+                                                              <Pencil className="h-3.5 w-3.5" />
+                                                            </button>
+                                                            <button
+                                                              type="button"
+                                                              onClick={() =>
+                                                                handleDeleteAttachment(String(attachmentPath), att.id, att.url)
+                                                              }
+                                                              disabled={isDeletingThis}
+                                                              className="shrink-0 rounded-md p-1 text-red-500/90 transition-colors hover:bg-red-500/15 hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
+                                                              title="Excluir foto"
+                                                              aria-label="Excluir foto"
+                                                            >
+                                                              {isDeletingThis ? (
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                              ) : (
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                              )}
+                                                            </button>
+                                                          </>
                                                         )}
                                                       </div>
                                                     </>
@@ -3808,6 +3874,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               {others.map(att => {
                                                 const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
                                                 const isLoadingThis = loadingAttachmentId === att.id;
+                                                const isDeletingThis = deletingAttachmentId === att.id;
                                                 const isRenamingThis = renamingAttachmentId === att.id;
                                                 const isEditingName = renameAttachmentId === att.id;
                                                 const attachmentPath = att.id;
@@ -3914,17 +3981,36 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                           {(isPdf || !att.mimeType?.startsWith('image/')) && <ExternalLink className="w-4 h-4 text-zinc-400 shrink-0" />}
                                                         </a>
                                                         {canRename && (
-                                                          <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                              setRenameAttachmentId(att.id);
-                                                              setRenameAttachmentNewName(attachmentDisplayName(att.name));
-                                                            }}
-                                                            className="shrink-0 p-2 rounded-lg text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-300"
-                                                            title="Renomear arquivo"
-                                                          >
-                                                            <Pencil className="w-4 h-4" />
-                                                          </button>
+                                                          <>
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => {
+                                                                setRenameAttachmentId(att.id);
+                                                                setRenameAttachmentNewName(attachmentDisplayName(att.name));
+                                                              }}
+                                                              className="shrink-0 p-2 rounded-lg text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-300 disabled:opacity-50"
+                                                              title="Renomear arquivo"
+                                                              disabled={isDeletingThis}
+                                                            >
+                                                              <Pencil className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                              type="button"
+                                                              onClick={() =>
+                                                                handleDeleteAttachment(String(attachmentPath), att.id, att.url)
+                                                              }
+                                                              disabled={isDeletingThis}
+                                                              className="shrink-0 p-2 rounded-lg text-red-500/90 hover:bg-red-500/15 hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
+                                                              title="Excluir arquivo"
+                                                              aria-label="Excluir arquivo"
+                                                            >
+                                                              {isDeletingThis ? (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                              ) : (
+                                                                <Trash2 className="w-4 h-4" />
+                                                              )}
+                                                            </button>
+                                                          </>
                                                         )}
                                                       </>
                                                     )}
