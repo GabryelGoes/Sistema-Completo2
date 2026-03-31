@@ -272,23 +272,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
               )}
 
-              <a
-                href="https://patio-view.vercel.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`mt-5 flex items-center gap-4 p-4 sm:p-5 ${iosCard} border-emerald-400/20 dark:border-emerald-500/20 bg-gradient-to-br from-emerald-50/90 to-white/80 dark:from-emerald-950/50 dark:to-zinc-900/50 hover:border-emerald-400/35 dark:hover:border-emerald-400/30 hover:shadow-[0_12px_36px_-10px_rgba(16,185,129,0.35)] transition-all duration-300 active:scale-[0.995]`}
+              <button
+                type="button"
+                onClick={() => setIsTvPatioOpen(true)}
+                className={`mt-5 w-full flex items-center gap-4 p-4 sm:p-5 text-left ${iosCard} border-emerald-400/20 dark:border-emerald-500/20 bg-gradient-to-br from-emerald-50/90 to-white/80 dark:from-emerald-950/50 dark:to-zinc-900/50 hover:border-emerald-400/35 dark:hover:border-emerald-400/30 hover:shadow-[0_12px_36px_-10px_rgba(16,185,129,0.35)] transition-all duration-300 active:scale-[0.995]`}
               >
                 <div
                   className={`w-12 h-12 shrink-0 bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-700 ${iconSquircle}`}
                 >
-                  <PatioCarIcon className="w-6 h-6 text-white" strokeWidth={2.2} />
+                  <Monitor className="w-6 h-6 text-white" strokeWidth={2.2} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span className="text-[15px] font-semibold text-zinc-900 dark:text-white block leading-tight">Painel do Pátio (TV)</span>
-                  <span className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">Abrir em nova aba</span>
+                  <span className="text-[15px] font-semibold text-zinc-900 dark:text-white block leading-tight">
+                    Configurações da TV do Pátio
+                  </span>
+                  <span className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">Slides e meta semanal</span>
                 </div>
-                <ExternalLink className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
-              </a>
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
+              </button>
             </section>
           </div>
 
@@ -394,16 +395,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         </div>
                       }
                     />
-                    <SettingsRow
-                      onClick={() => setIsTvPatioOpen(true)}
-                      title="Conteúdo da TV do pátio"
-                      subtitle="Slides e meta semanal"
-                      icon={
-                        <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-cyan-400 to-blue-600 ${iconSquircle}`}>
-                          <Monitor className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
-                        </div>
-                      }
-                    />
+                    <a
+                      href="https://patio-view.vercel.app/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group w-full flex items-center gap-3 px-3 py-3 sm:px-4 sm:py-3.5 text-left rounded-2xl transition-all duration-200 hover:bg-zinc-100/90 dark:hover:bg-white/[0.06] active:scale-[0.99]"
+                    >
+                      <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-700 ${iconSquircle}`}>
+                        <PatioCarIcon className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
+                      </div>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[15px] font-medium text-zinc-900 dark:text-white leading-snug">
+                          Painel do Pátio (TV)
+                        </span>
+                        <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">Abrir em nova aba</span>
+                      </span>
+                      <ExternalLink className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500 group-hover:text-[#007AFF] dark:group-hover:text-[#0A84FF] transition-colors" />
+                    </a>
                     <SettingsRow
                       onClick={() => setIsChangePasswordsOpen(true)}
                       title="Alterar senhas"
@@ -473,10 +481,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
           <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
           <PatioChecklistsModal isOpen={isPatioChecklistsOpen} onClose={() => setIsPatioChecklistsOpen(false)} />
-          <TvPatioModal isOpen={isTvPatioOpen} onClose={() => setIsTvPatioOpen(false)} />
           <ChangePasswordsModal isOpen={isChangePasswordsOpen} onClose={() => setIsChangePasswordsOpen(false)} />
         </>
       )}
+      <TvPatioModal isOpen={isTvPatioOpen} onClose={() => setIsTvPatioOpen(false)} />
       {technicianId && (
         <TechnicianProfileModal
           isOpen={isTechnicianProfileOpen}
