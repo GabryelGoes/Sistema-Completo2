@@ -2,7 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { format, startOfWeek, addDays, startOfMonth, endOfMonth, endOfWeek, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, User, Car, AlertCircle, X, CalendarDays, RefreshCw, ArrowRight, FileText, Edit2, ExternalLink, Trash2, Phone, Mail, Sparkles } from 'lucide-react';
-import { iosModalShell, iosModalClose, iosLabel, iosPageGlass, iosInput, iosPrimaryButton, iosModalInsetCard } from '../ui/iosModalStyles';
+import {
+  iosModalShell,
+  iosModalClose,
+  iosLabel,
+  iosPageGlass,
+  iosInput,
+  iosPrimaryButton,
+  iosModalInsetCard,
+  iosModalOverlay,
+} from '../ui/iosModalStyles';
 import { IosModalHeader } from '../ui/IosModalHeader';
 import { Customer, Appointment } from '../../types';
 import { getAppointments, createAppointment, updateAppointment, deleteAppointment } from '../../services/apiService';
@@ -36,6 +45,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
     notes: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  /** Modal somente leitura ao tocar no veículo no calendário (ou na lista do dia). */
+  const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null);
 
   const exportToGoogleCalendar = (app: Appointment) => {
     const [hours, minutes] = app.time.split(':').map(Number);
@@ -56,6 +67,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
   };
 
   const handleEditClick = (app: Appointment) => {
+    setDetailAppointment(null);
     const date = app.date instanceof Date ? app.date : (app.date ? new Date(app.date) : new Date());
     setNewAppointment({ ...app, date });
     setIsEditing(true);
@@ -78,6 +90,15 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
   useEffect(() => {
     fetchAppointments();
   }, []);
+
+  useEffect(() => {
+    if (!detailAppointment) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDetailAppointment(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [detailAppointment]);
 
   // Load appointments from localStorage on mount (Removed as it's now in App.tsx)
   // Save appointments to localStorage whenever they change (Removed as it's now in App.tsx)
@@ -167,6 +188,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
     if (!window.confirm('Tem certeza que deseja excluir este agendamento?')) return;
     try {
       await deleteAppointment(id);
+      setDetailAppointment((d) => (d?.id === id ? null : d));
       await fetchAppointments();
     } catch (err) {
       console.error("Erro ao excluir agendamento", err);
@@ -361,14 +383,19 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
 
             <div className="space-y-1 overflow-y-auto max-h-[80px] custom-scrollbar">
               {dayAppointments.map((app) => (
-                <div
+                <button
                   key={app.id}
-                  className="text-[10px] bg-white/70 dark:bg-white/[0.06] p-1.5 rounded-lg border-l-2 border-[#007AFF]/70 truncate hover:bg-white dark:hover:bg-white/10 transition-colors shadow-sm"
-                  title={`${app.time} - ${app.title}`}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDetailAppointment(app);
+                  }}
+                  className="w-full text-left text-[10px] bg-white/70 dark:bg-white/[0.06] p-1.5 rounded-lg border-l-2 border-[#007AFF]/70 truncate hover:bg-white dark:hover:bg-white/10 transition-colors shadow-sm cursor-pointer"
+                  title={`${app.time} — ${app.vehicleModel || app.title}`}
                 >
                   <span className="font-bold text-zinc-900 dark:text-zinc-200 mr-1">{app.time}</span>
                   <span className="text-zinc-600 dark:text-zinc-300">{app.title}</span>
-                </div>
+                </button>
               ))}
             </div>
 
@@ -445,11 +472,11 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                               key={app.id}
                               role="button"
                               tabIndex={0}
-                              onClick={() => handleEditClick(app)}
+                              onClick={() => setDetailAppointment(app)}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ') {
                                   e.preventDefault();
-                                  handleEditClick(app);
+                                  setDetailAppointment(app);
                                 }
                               }}
                               className={`group ${iosModalInsetCard} overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-[0_8px_28px_-6px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.45)] active:scale-[0.995] border-zinc-200/80 dark:border-white/[0.1]`}
@@ -602,6 +629,157 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
       {renderDays()}
       {renderCells()}
       {renderSelectedDayDetails()}
+
+      {/* Modal detalhe do agendamento (calendário ou lista do dia) */}
+      {detailAppointment && (
+        <div
+          className={iosModalOverlay}
+          onClick={() => setDetailAppointment(null)}
+        >
+          <div
+            className={`${iosModalShell} w-full max-w-lg max-h-[92vh] overflow-y-auto`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="agenda-detail-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setDetailAppointment(null)}
+              className={iosModalClose}
+              aria-label="Fechar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+              <IosModalHeader
+                icon={<Car className="w-6 h-6 text-white" strokeWidth={2.2} />}
+                title="Veículo agendado"
+                subtitle={(() => {
+                  const d =
+                    detailAppointment.date instanceof Date
+                      ? detailAppointment.date
+                      : new Date(detailAppointment.date);
+                  return `${format(d, "EEEE, d 'de' MMMM yyyy", { locale: ptBR })} · ${detailAppointment.time}`;
+                })()}
+                gradientClass="from-sky-500 to-indigo-600"
+              />
+            </div>
+            <div className="px-6 sm:px-8 pb-8 space-y-5">
+              {(() => {
+                const app = detailAppointment;
+                const statusDone = app.status === 'completed';
+                const statusCancelled = app.status === 'cancelled';
+                const statusLabel = statusDone ? 'Concluído' : statusCancelled ? 'Cancelado' : 'Agendado';
+                return (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full border ${
+                          statusDone
+                            ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400'
+                            : statusCancelled
+                              ? 'border-red-500/40 text-red-700 dark:text-red-400'
+                              : 'border-[#007AFF]/40 text-[#007AFF] dark:text-sky-400'
+                        }`}
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            statusDone ? 'bg-emerald-500' : statusCancelled ? 'bg-red-500' : 'bg-[#007AFF]'
+                          }`}
+                        />
+                        {statusLabel}
+                      </span>
+                    </div>
+
+                    <div className={`${iosModalInsetCard} p-4 sm:p-5 space-y-4`}>
+                      <div>
+                        <p className={iosLabel}>Serviço</p>
+                        <p id="agenda-detail-title" className="text-[17px] font-semibold text-zinc-900 dark:text-white">
+                          {app.title || 'Sem título'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className={iosLabel}>Veículo</p>
+                        <p className="text-[16px] font-medium text-zinc-800 dark:text-zinc-100">
+                          {app.vehicleModel || '—'}
+                        </p>
+                        {app.plate ? (
+                          <p className={`text-[15px] font-mono font-semibold text-zinc-700 dark:text-zinc-200 mt-1 ${blurPlates ? 'blur-plate' : ''}`}>
+                            {app.plate.toUpperCase()}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div>
+                        <p className={iosLabel}>Cliente</p>
+                        <p className="text-[15px] text-zinc-800 dark:text-zinc-100">{app.customerName}</p>
+                        {app.phone ? (
+                          <a href={`tel:${app.phone}`} className="text-[14px] text-[#007AFF] hover:underline mt-1 block">
+                            {app.phone}
+                          </a>
+                        ) : null}
+                        {app.email ? (
+                          <a href={`mailto:${app.email}`} className="text-[14px] text-[#007AFF] hover:underline mt-0.5 block break-all">
+                            {app.email}
+                          </a>
+                        ) : null}
+                      </div>
+                      {app.notes ? (
+                        <div>
+                          <p className={iosLabel}>Observações</p>
+                          <p className="text-[14px] text-zinc-700 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">
+                            {app.notes}
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleChegouAoPatio(app);
+                          setDetailAppointment(null);
+                        }}
+                        className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 text-zinc-950 hover:bg-amber-300 px-4 py-3 text-[13px] font-bold uppercase tracking-wide shadow-md shadow-amber-500/20"
+                      >
+                        <ArrowRight className="w-4 h-4" />
+                        Chegou ao pátio
+                      </button>
+                      <div className="flex flex-wrap gap-2 sm:ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => exportToGoogleCalendar(app)}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-200/80 dark:border-white/[0.12] px-4 py-3 text-[14px] font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100/80 dark:hover:bg-white/10"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Google Agenda
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEditClick(app)}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#007AFF] text-white px-4 py-3 text-[14px] font-semibold hover:opacity-95"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAppointment(app.id)}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-500/30 text-red-600 dark:text-red-400 px-4 py-3 text-[14px] font-medium hover:bg-red-500/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Excluir
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Chegou ao Pátio — recepção preenchida com dados do agendamento */}
       <ReceptionModal
