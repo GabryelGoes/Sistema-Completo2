@@ -1540,9 +1540,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const newName = isModuleMode
         ? `${updated.vehicle_model || '—'} - ${updated.module_identification || '—'} - ${updated.customers?.name || 'Cliente'}`
         : `${updated.vehicle_model || 'Veículo'} - ${(updated.plate || '---').toUpperCase()} - ${updated.customers?.name || 'Cliente'}`;
-      const updatedCard = { ...selectedCard, name: newName, osNumber: updated.os_number ?? selectedCard.osNumber };
+      const updatedCard = {
+        ...selectedCard,
+        name: newName,
+        osNumber: updated.os_number ?? selectedCard.osNumber,
+        mileageKm: updated.mileage_km ?? null,
+        deliveryDate: updated.delivery_date ?? selectedCard.deliveryDate,
+        dateLastActivity: updated.updated_at,
+      };
       setSelectedCard(updatedCard);
-      setCards(prev => prev.map(c => c.id === selectedCard.id ? { ...c, name: newName } : c));
+      setCards((prev) => prev.map((c) => (c.id === selectedCard.id ? updatedCard : c)));
       setIsEditFichaOpen(false);
     } catch (err: any) {
       alert(err?.message ?? "Erro ao salvar alterações.");
