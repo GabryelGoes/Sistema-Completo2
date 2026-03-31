@@ -38,12 +38,26 @@ function verifyPassword(password: string, stored: string): boolean {
   return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(computed, "hex"));
 }
 
-/** Origin do painel do pátio (TV) para CORS. Use variável ou padrão. */
-const PATIO_VIEW_ORIGIN = process.env.PATIO_VIEW_ORIGIN || "https://patio-view.vercel.app";
+/**
+ * Origens do painel da TV (Patio-View) permitidas no browser — CORS.
+ * Use PATIO_VIEW_ORIGINS com URLs separadas por vírgula (ex.: https://tv.sistema-rda.com,https://sistema-rda.com).
+ * PATIO_VIEW_ORIGIN (singular) continua válido para um único domínio.
+ */
+function parsePatioViewOrigins(): string[] {
+  const raw =
+    process.env.PATIO_VIEW_ORIGINS ||
+    process.env.PATIO_VIEW_ORIGIN ||
+    "https://patio-view.vercel.app,https://sistema-rda.com,https://www.sistema-rda.com,https://tv.sistema-rda.com";
+  return raw
+    .split(",")
+    .map((s) => s.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+}
 
 export function createApiApp() {
   const app = express();
   const WORKSHOP_ID = process.env.WORKSHOP_ID;
+  const patioViewOrigins = parsePatioViewOrigins();
   app.use(express.json());
 
   /** Atualiza `updated_at` na OS para disparar Realtime/SSE (ex.: após mudança só no Storage). */
@@ -63,12 +77,18 @@ export function createApiApp() {
     return "";
   }
 
-  // CORS: permitir requisições do painel do pátio (outro domínio)
-  app.use((_req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", PATIO_VIEW_ORIGIN);
+  // CORS: painel da TV (Patio-View) em outro domínio — ecoa Origin só se estiver na lista permitida
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (typeof origin === "string" && patioViewOrigins.includes(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+    } else if (patioViewOrigins.length === 1 && origin === undefined) {
+      res.setHeader("Access-Control-Allow-Origin", patioViewOrigins[0]);
+    }
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    if (_req.method === "OPTIONS") return res.sendStatus(204);
+    if (req.method === "OPTIONS") return res.sendStatus(204);
     next();
   });
 
