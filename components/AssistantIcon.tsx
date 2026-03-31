@@ -28,11 +28,11 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
     >
       <defs>
         <filter id={filterBloom} x="-35%" y="-35%" width="170%" height="170%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="1.8" result="b" />
+          <feGaussianBlur in="SourceGraphic" stdDeviation="1.35" result="b" />
           <feColorMatrix
             in="b"
             type="matrix"
-            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1.15 0"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.92 0"
             result="glow"
           />
           <feMerge>
@@ -50,23 +50,23 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
         </filter>
 
         <radialGradient id={g1} cx="32%" cy="28%" r="72%">
-          <stop offset="0%" stopColor="#ecfeff" />
-          <stop offset="40%" stopColor="#67e8f9" />
-          <stop offset="100%" stopColor="#0e7490" />
+          <stop offset="0%" stopColor="#7dd3fc" />
+          <stop offset="40%" stopColor="#38bdf8" />
+          <stop offset="100%" stopColor="#0c4a6e" />
         </radialGradient>
         <radialGradient id={g2} cx="28%" cy="32%" r="75%">
-          <stop offset="0%" stopColor="#f5f3ff" />
-          <stop offset="45%" stopColor="#c4b5fd" />
-          <stop offset="100%" stopColor="#5b21b6" />
+          <stop offset="0%" stopColor="#c4b5fd" />
+          <stop offset="45%" stopColor="#a78bfa" />
+          <stop offset="100%" stopColor="#4c1d95" />
         </radialGradient>
         <radialGradient id={g3} cx="38%" cy="22%" r="68%">
-          <stop offset="0%" stopColor="#ffe4e6" />
-          <stop offset="50%" stopColor="#fda4af" />
-          <stop offset="100%" stopColor="#9f1239" />
+          <stop offset="0%" stopColor="#fda4af" />
+          <stop offset="50%" stopColor="#fb7185" />
+          <stop offset="100%" stopColor="#881337" />
         </radialGradient>
         <radialGradient id={g4} cx="45%" cy="40%" r="58%">
-          <stop offset="0%" stopColor="#fef9c3" />
-          <stop offset="100%" stopColor="#d97706" />
+          <stop offset="0%" stopColor="#fde047" />
+          <stop offset="100%" stopColor="#b45309" />
         </radialGradient>
 
         <radialGradient id={bg} cx="50%" cy="45%" r="65%">
@@ -80,8 +80,8 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
         </radialGradient>
 
         <linearGradient id={shine} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.45" />
-          <stop offset="35%" stopColor="#ffffff" stopOpacity="0.12" />
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
+          <stop offset="35%" stopColor="#ffffff" stopOpacity="0.06" />
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
         </linearGradient>
 
@@ -108,8 +108,8 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
       <circle cx="24" cy="24" r="22" fill={`url(#${bgVignette})`} />
 
       {/* Camada de bloom (aura difusa atrás dos orbs) */}
-      <g opacity="0.55" filter={`url(#${filterSoft})`}>
-        <circle r="12" fill={`url(#${g1})`} opacity="0.65">
+      <g opacity="0.42" filter={`url(#${filterSoft})`}>
+        <circle r="12" fill={`url(#${g1})`} opacity="0.5">
           <animate
             attributeName="cx"
             values="16;19;16;14;16"
@@ -129,7 +129,7 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
             repeatCount="indefinite"
           />
         </circle>
-        <circle r="10" fill={`url(#${g2})`} opacity="0.5">
+        <circle r="10" fill={`url(#${g2})`} opacity="0.38">
           <animate
             attributeName="cx"
             values="28;25;29;28;28"
@@ -153,7 +153,7 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
 
       {/* Orbs principais + bloom */}
       <g filter={`url(#${filterBloom})`}>
-        <circle r="10.5" fill={`url(#${g1})`} opacity="0.94">
+        <circle r="10.5" fill={`url(#${g1})`} opacity="0.78">
           <animate
             attributeName="cx"
             values="17;20;17;15;17"
@@ -174,7 +174,7 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
           />
         </circle>
 
-        <circle r="9" fill={`url(#${g2})`} opacity="0.9">
+        <circle r="9" fill={`url(#${g2})`} opacity="0.74">
           <animate
             attributeName="cx"
             values="27;24;28;27;27"
@@ -195,7 +195,7 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
           />
         </circle>
 
-        <circle r="7.5" fill={`url(#${g3})`} opacity="0.88">
+        <circle r="7.5" fill={`url(#${g3})`} opacity="0.72">
           <animate
             attributeName="cx"
             values="22;25;21;22;22"
@@ -216,7 +216,7 @@ export const AssistantIcon: React.FC<{ className?: string }> = ({ className }) =
           />
         </circle>
 
-        <circle r="4.2" fill={`url(#${g4})`} opacity="0.96">
+        <circle r="4.2" fill={`url(#${g4})`} opacity="0.76">
           <animate
             attributeName="cx"
             values="24;26;23;24;24"
