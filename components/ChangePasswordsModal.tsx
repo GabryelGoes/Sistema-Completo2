@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, KeyRound, Loader2, Check, Trash2 } from 'lucide-react';
+import { X, Lock, KeyRound, Loader2, Check, Trash2, Eye, EyeOff } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard, iosInput } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
@@ -18,10 +18,12 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
   const [vehicleDeleteConfirm, setVehicleDeleteConfirm] = useState('');
   const [savingVehicleDelete, setSavingVehicleDelete] = useState(false);
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [showPatioPin, setShowPatioPin] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setMessage(null);
+      setShowPatioPin(false);
       setLoadingSettings(true);
       getWorkshopSettings()
         .then((s) => setPatioPin(s.patioPin || '4366'))
@@ -121,15 +123,26 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
               </div>
             ) : (
               <form onSubmit={handleSavePin} className="space-y-3">
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={patioPin}
-                  onChange={(e) => setPatioPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                  placeholder="Ex: 4366"
-                  className={iosInput}
-                />
+                <div className="relative">
+                  <input
+                    type={showPatioPin ? 'text' : 'password'}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={patioPin}
+                    onChange={(e) => setPatioPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                    placeholder="Ex: 4366"
+                    className={`${iosInput} pr-12`}
+                    aria-label="PIN dos técnicos"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPatioPin((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-zinc-100/80 dark:hover:bg-white/10 transition-colors"
+                    aria-label={showPatioPin ? 'Ocultar PIN' : 'Mostrar PIN'}
+                  >
+                    {showPatioPin ? <EyeOff className="w-5 h-5" strokeWidth={2} /> : <Eye className="w-5 h-5" strokeWidth={2} />}
+                  </button>
+                </div>
                 <button
                   type="submit"
                   disabled={savingPin || patioPin.length < 4}
