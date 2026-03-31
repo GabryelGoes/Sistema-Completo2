@@ -2125,16 +2125,40 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   if (initialLoading) {
+    const loadLabel = isModuleMode ? 'laboratório' : 'pátio';
     return (
-      <div className="relative flex min-h-[70vh] w-full flex-col items-center justify-center px-4 py-12" aria-hidden="true">
-        <div className={`${iosPageGlass} flex flex-col items-center px-10 py-12 sm:px-14 sm:py-14`}>
-          <div className="relative h-12 w-12">
-            <div className="absolute inset-0 rounded-full border-2 border-zinc-200/80 dark:border-white/10" />
-            <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-[#007AFF]" />
-          </div>
-          <p className="mt-5 text-[15px] font-medium text-zinc-600 dark:text-zinc-300">Carregando o pátio…</p>
-          <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">Sincronizando ordens de serviço</p>
+      <div
+        className="relative flex min-h-[70vh] w-full flex-col items-center justify-center px-4 py-16"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <style>{`
+          @keyframes patio-load-wave {
+            0%, 100% { transform: scaleY(0.28); opacity: 0.45; }
+            50% { transform: scaleY(1); opacity: 1; }
+          }
+          .patio-load-bar {
+            transform-origin: center bottom;
+            animation: patio-load-wave 1.1s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+            will-change: transform, opacity;
+          }
+        `}</style>
+        <div className="flex h-11 items-end justify-center gap-[7px]" aria-hidden>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <span
+              key={i}
+              className="patio-load-bar block h-11 w-[5px] shrink-0 rounded-full bg-gradient-to-t from-[#007AFF] via-[#3FA9FF] to-[#5AC8FA] shadow-[0_0_20px_-4px_rgba(0,122,255,0.55)] dark:from-[#0A84FF] dark:via-[#409CFF] dark:to-[#64B5FF] dark:shadow-[0_0_24px_-6px_rgba(10,132,255,0.45)]"
+              style={{ animationDelay: `${i * 0.09}s` }}
+            />
+          ))}
         </div>
+        <p className="mt-12 text-[15px] font-medium tracking-[-0.01em] text-zinc-700 dark:text-zinc-200">
+          Carregando o {loadLabel}…
+        </p>
+        <p className="mt-2 max-w-[16rem] text-center text-[13px] font-normal leading-relaxed text-zinc-400 dark:text-zinc-500">
+          Sincronizando ordens de serviço
+        </p>
       </div>
     );
   }
