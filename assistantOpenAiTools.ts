@@ -100,7 +100,7 @@ Privacidade: nunca peça para salvar nem repita senha, PIN, token, chave de API,
 Memória pessoal: quando o usuário pedir para guardar preferências/rotina/contexto, use zaya_save_user_memory.
 Comandos ensinados: quando o usuário disser "quando eu falar X faça Y", use zaya_teach_command.
 Você também pode consultar com zaya_list_user_memories e zaya_list_learned_commands.${memoryBlock}${learnedCommandsBlock}${matchedCommandsBlock}
-Meta semanal da TV do Pátio: use get_tv_weekly_goal para consultar (título, valor atual, meta, barra visível).${isAdmin ? " Só administrador altera ou remove: update_tv_weekly_goal com admin_password (mesma senha do login Gerência e da gestão da TV); campos opcionais; delta_current soma ao valor atual (negativo subtrai). clear_tv_weekly_goal com admin_password apaga a meta do sistema. Nunca peça senha em voz alta." : ""}`;
+Meta semanal da TV do Pátio: use get_tv_weekly_goal para consultar (título, valor atual, meta, barra visível).${isAdmin ? " Só administrador altera ou remove: update_tv_weekly_goal (campos opcionais; delta_current soma ao valor atual, negativo subtrai). clear_tv_weekly_goal apaga a meta do sistema." : ""}`;
 }
 
 /** Instruções extras para voz na Realtime API (tom mais humano). */
@@ -941,14 +941,10 @@ export function buildAssistantChatTools(
             function: {
               name: "update_tv_weekly_goal",
               description:
-                "Cria ou atualiza a meta semanal da TV. Exige admin_password. Informe só o que mudar; use delta_current para somar ou subtrair do valor atual.",
+                "Cria ou atualiza a meta semanal da TV. Informe só o que mudar; use delta_current para somar ou subtrair do valor atual.",
               parameters: {
                 type: "object",
                 properties: {
-                  admin_password: {
-                    type: "string",
-                    description: "Senha do administrador (login Gerência ou gestão da TV).",
-                  },
                   label: { type: "string", description: "Título (ex.: Meta semanal)." },
                   current_amount: { type: "number", description: "Valor já alcançado (R$)." },
                   target_amount: { type: "number", description: "Meta em R$." },
@@ -961,7 +957,7 @@ export function buildAssistantChatTools(
                     description: "Soma ao valor atual (negativo reduz). Ignorado se current_amount for informado.",
                   },
                 },
-                required: ["admin_password"],
+                required: [],
               },
             },
           },
@@ -970,16 +966,11 @@ export function buildAssistantChatTools(
             function: {
               name: "clear_tv_weekly_goal",
               description:
-                "Remove a meta semanal do sistema (a TV deixa de ter registro, como não configurado). Exige admin_password.",
+                "Remove a meta semanal do sistema (a TV deixa de ter registro, como não configurado).",
               parameters: {
                 type: "object",
-                properties: {
-                  admin_password: {
-                    type: "string",
-                    description: "Senha do administrador.",
-                  },
-                },
-                required: ["admin_password"],
+                properties: {},
+                required: [],
               },
             },
           },

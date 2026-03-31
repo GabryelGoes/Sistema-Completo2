@@ -5,7 +5,6 @@ import {
   Monitor,
   Trash2,
   Plus,
-  Lock,
   ImagePlus,
   Sparkles,
   ChevronRight,
@@ -42,8 +41,7 @@ interface TvPatioModalProps {
 }
 
 export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) => {
-  const [adminPassword, setAdminPassword] = useState('');
-  const [unlocked, setUnlocked] = useState(false);
+  const [dataReady, setDataReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,11 +82,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     goalShowValues: boolean;
   } | null>(null);
 
-  const load = async (pwd: string) => {
+  const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getTvManage(pwd);
+      const data = await getTvManage();
       setSlides(data.slides);
       if (data.weeklyGoal) {
         setWeeklyLabel(data.weeklyGoal.label);
@@ -96,13 +94,13 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         setWeeklyTargetStr(String(data.weeklyGoal.targetAmount ?? 0));
         setShowWeeklyBar(data.weeklyGoal.showWeeklyBar !== false);
       }
-      setUnlocked(true);
+      setDataReady(true);
       if (data.slides.length > 0) {
         setLibraryPreviewId(data.slides[0].id);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar.');
-      setUnlocked(false);
+      setDataReady(false);
     } finally {
       setLoading(false);
     }
@@ -110,13 +108,14 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
   useEffect(() => {
     if (!isOpen) {
-      setUnlocked(false);
-      setAdminPassword('');
+      setDataReady(false);
       setError(null);
       setPreviewTab('draft');
       setEditingSlideId(null);
       setEditForm(null);
+      return;
     }
+    void load();
   }, [isOpen]);
 
   const draftSlide = useMemo((): TvSlide | null => {
@@ -239,16 +238,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
   if (!isOpen) return null;
 
-  const handleUnlock = (e: React.FormEvent) => {
-    e.preventDefault();
-    void load(adminPassword);
-  };
-
   const saveWeekly = async () => {
     setLoading(true);
     setError(null);
     try {
-      await putTvWeeklyGoal(adminPassword, {
+      await putTvWeeklyGoal({
         label: weeklyLabel,
         currentAmount: weeklyCurrentNum,
         targetAmount: weeklyTargetNum,
@@ -265,7 +259,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setLoading(true);
     setError(null);
     try {
-      await createTvSlide(adminPassword, {
+      await createTvSlide({
         slideType: newType,
         title: newTitle,
         body: newBody,
@@ -282,7 +276,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       setNewTitle('');
       setNewBody('');
       setNewMediaUrl('');
-      await load(adminPassword);
+      await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
     } finally {
@@ -294,8 +288,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     if (!confirm('Excluir este slide da TV?')) return;
     setLoading(true);
     try {
-      await deleteTvSlide(adminPassword, id);
-      await load(adminPassword);
+      await deleteTvSlide(id);
+      await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
     } finally {
@@ -305,8 +299,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
   const toggleActive = async (s: TvSlide) => {
     try {
-      await updateTvSlide(adminPassword, s.id, { isActive: !s.isActive });
-      await load(adminPassword);
+      await updateTvSlide(s.id, { isActive: !s.isActive });
+      await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
     }
@@ -319,8 +313,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setLoading(true);
     setError(null);
     try {
-      await updateTvSlide(adminPassword, s.id, { pinImmediate: !currentlyPinned });
-      await load(adminPassword);
+      await updateTvSlide(s.id, { pinImmediate: !currentlyPinned });
+      await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
     } finally {
@@ -331,11 +325,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (!file || !unlocked) return;
+    if (!file || !dataReady) return;
     setUploading(true);
     setError(null);
     try {
-      const { url } = await uploadTvPatioMedia(adminPassword, file);
+      const { url } = await uploadTvPatioMedia(file);
       setNewMediaUrl(url);
       if (file.type.startsWith('video/')) setNewType('video');
       else if (file.type.startsWith('image/')) setNewType('image');
@@ -394,10 +388,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         patch.goalShowValues = false;
       }
       patch.playSound = editForm.playSound === true;
-      await updateTvSlide(adminPassword, editingSlideId, patch);
+      await updateTvSlide(editingSlideId, patch);
       setEditingSlideId(null);
       setEditForm(null);
-      await load(adminPassword);
+      await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
     } finally {
@@ -415,9 +409,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setLoading(true);
     setError(null);
     try {
-      await updateTvSlide(adminPassword, a.id, { sortOrder: orderB });
-      await updateTvSlide(adminPassword, b.id, { sortOrder: orderA });
-      await load(adminPassword);
+      await updateTvSlide(a.id, { sortOrder: orderB });
+      await updateTvSlide(b.id, { sortOrder: orderA });
+      await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
     } finally {
@@ -428,11 +422,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const handleEditFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (!file || !unlocked) return;
+    if (!file || !dataReady) return;
     setUploading(true);
     setError(null);
     try {
-      const { url } = await uploadTvPatioMedia(adminPassword, file);
+      const { url } = await uploadTvPatioMedia(file);
       setEditForm((prev) => {
         if (!prev) return prev;
         const next = { ...prev, mediaUrl: url };
@@ -489,40 +483,25 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
           </div>
 
           <div className="px-6 sm:px-8 pb-8 lg:pr-12 space-y-6 flex-1">
-            {!unlocked ? (
-              <form onSubmit={handleUnlock} className={`${iosCard} p-6 sm:p-8 space-y-5`}>
-                <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10">
-                    <Lock className="w-5 h-5 text-zinc-600 dark:text-zinc-300" />
-                  </div>
-                  <div>
-                    <p className="text-[15px] font-medium text-zinc-900 dark:text-white">Acesso de gerência</p>
-                    <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
-                      Use a senha do usuário <span className="font-semibold text-zinc-700 dark:text-zinc-300">Gerência</span> para
-                      editar slides e meta na TV.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <input
-                    type="password"
-                    value={adminPassword}
-                    onChange={(e) => setAdminPassword(e.target.value)}
-                    className={`${iosInput} flex-1`}
-                    placeholder="Senha"
-                    autoComplete="current-password"
-                  />
+            {!dataReady &&
+              (error ? (
+                <div className={`${iosCard} p-6 sm:p-8 space-y-4 text-center`}>
+                  <p className="text-[14px] text-red-600 dark:text-red-400">{error}</p>
                   <button
-                    type="submit"
-                    disabled={loading || !adminPassword.trim()}
-                    className="shrink-0 rounded-2xl bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 disabled:opacity-45 active:scale-[0.98] transition-transform"
+                    type="button"
+                    onClick={() => void load()}
+                    className="rounded-2xl bg-[#007AFF] px-6 py-3 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25"
                   >
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Continuar'}
+                    Tentar novamente
                   </button>
                 </div>
-                {error && <p className="text-[13px] text-red-600 dark:text-red-400">{error}</p>}
-              </form>
-            ) : (
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <Loader2 className="w-10 h-10 animate-spin text-cyan-500" />
+                  <p className="text-[14px] text-zinc-500 dark:text-zinc-400">Carregando configurações da TV…</p>
+                </div>
+              ))}
+            {dataReady && (
               <>
                 {/* Meta semanal */}
                 <section className={`${iosCard} p-5 sm:p-6`}>
@@ -1117,7 +1096,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         </div>
 
         {/* Preview — coluna fixa estilo iOS */}
-        {unlocked && (
+        {dataReady && (
           <div className="lg:w-[min(420px,100%)] shrink-0 border-t lg:border-t-0 lg:border-l border-zinc-200/60 dark:border-white/[0.06] bg-gradient-to-b from-zinc-100/90 via-white/95 to-zinc-50/90 dark:from-zinc-950/95 dark:via-zinc-900/90 dark:to-black/80 px-5 py-8 lg:py-10 flex flex-col">
             <div className="flex items-center gap-2 mb-4">
               <Eye className="w-4 h-4 text-[#007AFF]" />

@@ -585,14 +585,6 @@ async function executeToolCalls(
         });
         continue;
       }
-      const adminPassword = String(payload.admin_password ?? "").trim();
-      if (!adminPassword) {
-        results.push({
-          id: tc.id,
-          content: JSON.stringify({ ok: false, error: "Informe admin_password (senha do administrador)." }),
-        });
-        continue;
-      }
       try {
         const { weeklyGoal } = await getTvPlaylist();
         const base = weeklyGoal ?? {
@@ -620,7 +612,7 @@ async function executeToolCalls(
         if (typeof payload.show_weekly_bar === "boolean") {
           showBar = payload.show_weekly_bar;
         }
-        await putTvWeeklyGoal(adminPassword, {
+        await putTvWeeklyGoal({
           label,
           currentAmount: current,
           targetAmount: target,
@@ -658,16 +650,8 @@ async function executeToolCalls(
         });
         continue;
       }
-      const adminPassword = String(payload.admin_password ?? "").trim();
-      if (!adminPassword) {
-        results.push({
-          id: tc.id,
-          content: JSON.stringify({ ok: false, error: "Informe admin_password." }),
-        });
-        continue;
-      }
       try {
-        await deleteTvWeeklyGoal(adminPassword);
+        await deleteTvWeeklyGoal();
         results.push({
           id: tc.id,
           content: JSON.stringify({ ok: true, removida: true }),

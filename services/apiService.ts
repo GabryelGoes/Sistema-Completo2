@@ -1973,12 +1973,11 @@ export interface TvWeeklyGoal {
   showWeeklyBar?: boolean;
 }
 
-export async function getTvManage(adminPassword: string): Promise<{
+export async function getTvManage(): Promise<{
   slides: TvSlide[];
   weeklyGoal: TvWeeklyGoal | null;
 }> {
-  const url = `${API_BASE}/tv/manage?adminPassword=${encodeURIComponent(adminPassword)}`;
-  const response = await fetch(url);
+  const response = await fetch(`${API_BASE}/tv/manage`);
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error || "Falha ao carregar dados da TV.");
@@ -1993,15 +1992,16 @@ export async function getTvManage(adminPassword: string): Promise<{
   };
 }
 
-export async function putTvWeeklyGoal(
-  adminPassword: string,
-  data: { label: string; currentAmount: number; targetAmount: number; showWeeklyBar?: boolean }
-): Promise<void> {
+export async function putTvWeeklyGoal(data: {
+  label: string;
+  currentAmount: number;
+  targetAmount: number;
+  showWeeklyBar?: boolean;
+}): Promise<void> {
   const response = await fetch(`${API_BASE}/tv/weekly-goal`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      adminPassword,
       label: data.label,
       currentAmount: data.currentAmount,
       targetAmount: data.targetAmount,
@@ -2034,11 +2034,11 @@ export async function getTvPlaylist(): Promise<{
   };
 }
 
-export async function deleteTvWeeklyGoal(adminPassword: string): Promise<void> {
+export async function deleteTvWeeklyGoal(): Promise<void> {
   const response = await fetch(`${API_BASE}/tv/weekly-goal`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ adminPassword }),
+    body: JSON.stringify({}),
   });
   const err = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -2046,14 +2046,11 @@ export async function deleteTvWeeklyGoal(adminPassword: string): Promise<void> {
   }
 }
 
-export async function createTvSlide(
-  adminPassword: string,
-  slide: Omit<TvSlide, "id"> & { isActive?: boolean }
-): Promise<string> {
+export async function createTvSlide(slide: Omit<TvSlide, "id"> & { isActive?: boolean }): Promise<string> {
   const response = await fetch(`${API_BASE}/tv/slides`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ adminPassword, slide }),
+    body: JSON.stringify({ slide }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -2062,15 +2059,11 @@ export async function createTvSlide(
   return (data as { id?: string }).id ?? "";
 }
 
-export async function updateTvSlide(
-  adminPassword: string,
-  id: string,
-  slide: Partial<Omit<TvSlide, "id">>
-): Promise<void> {
+export async function updateTvSlide(id: string, slide: Partial<Omit<TvSlide, "id">>): Promise<void> {
   const response = await fetch(`${API_BASE}/tv/slides/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ adminPassword, slide }),
+    body: JSON.stringify({ slide }),
   });
   const err = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -2078,9 +2071,8 @@ export async function updateTvSlide(
   }
 }
 
-export async function deleteTvSlide(adminPassword: string, id: string): Promise<void> {
-  const url = `${API_BASE}/tv/slides/${encodeURIComponent(id)}?adminPassword=${encodeURIComponent(adminPassword)}`;
-  const response = await fetch(url, { method: "DELETE" });
+export async function deleteTvSlide(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/tv/slides/${encodeURIComponent(id)}`, { method: "DELETE" });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error || "Falha ao excluir slide.");
@@ -2088,10 +2080,9 @@ export async function deleteTvSlide(adminPassword: string, id: string): Promise<
 }
 
 /** Upload de imagem ou vídeo para o Storage da TV (retorna URL pública). */
-export async function uploadTvPatioMedia(adminPassword: string, file: File): Promise<{ url: string }> {
+export async function uploadTvPatioMedia(file: File): Promise<{ url: string }> {
   const fd = new FormData();
   fd.append("file", file);
-  fd.append("adminPassword", adminPassword);
   const response = await fetch(`${API_BASE}/tv/media/upload`, {
     method: "POST",
     body: fd,

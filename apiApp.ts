@@ -1260,12 +1260,11 @@ export function createApiApp() {
     }
   });
 
-  /** Lista completa (inclui inativos) para tela de gestão — requer senha de administrador. */
-  app.get("/api/tv/manage", async (req, res) => {
+  /** Lista completa (inclui inativos) para tela de gestão — mesmo acesso do app logado (sem senha extra). */
+  app.get("/api/tv/manage", async (_req, res) => {
     try {
-      const adminPassword = typeof req.query.adminPassword === "string" ? req.query.adminPassword : "";
-      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
-        return res.status(403).json({ error: "Senha de administrador inválida." });
+      if (!WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
       }
       if (!supabaseAdmin) {
         return res.status(500).json({ error: "Supabase não configurado." });
@@ -1320,10 +1319,9 @@ export function createApiApp() {
 
   app.put("/api/tv/weekly-goal", async (req, res) => {
     try {
-      const { adminPassword, label, currentAmount, targetAmount, showWeeklyBar } = req.body || {};
-      const pwd = typeof adminPassword === "string" ? adminPassword : "";
-      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, pwd))) {
-        return res.status(403).json({ error: "Senha de administrador inválida." });
+      const { label, currentAmount, targetAmount, showWeeklyBar } = req.body || {};
+      if (!WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
       }
       if (!supabaseAdmin) {
         return res.status(500).json({ error: "Supabase não configurado." });
@@ -1349,11 +1347,10 @@ export function createApiApp() {
     }
   });
 
-  app.delete("/api/tv/weekly-goal", async (req, res) => {
+  app.delete("/api/tv/weekly-goal", async (_req, res) => {
     try {
-      const adminPassword = typeof req.body?.adminPassword === "string" ? req.body.adminPassword : "";
-      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
-        return res.status(403).json({ error: "Senha de administrador inválida." });
+      if (!WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
       }
       if (!supabaseAdmin) {
         return res.status(500).json({ error: "Supabase não configurado." });
@@ -1374,10 +1371,9 @@ export function createApiApp() {
 
   app.post("/api/tv/slides", async (req, res) => {
     try {
-      const { adminPassword, slide } = req.body || {};
-      const pwd = typeof adminPassword === "string" ? adminPassword : "";
-      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, pwd))) {
-        return res.status(403).json({ error: "Senha de administrador inválida." });
+      const { slide } = req.body || {};
+      if (!WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
       }
       if (!supabaseAdmin || !slide || typeof slide !== "object") {
         return res.status(400).json({ error: "Dados inválidos." });
@@ -1416,10 +1412,9 @@ export function createApiApp() {
 
   app.patch("/api/tv/slides/:id", async (req, res) => {
     try {
-      const { adminPassword, slide } = req.body || {};
-      const pwd = typeof adminPassword === "string" ? adminPassword : "";
-      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, pwd))) {
-        return res.status(403).json({ error: "Senha de administrador inválida." });
+      const { slide } = req.body || {};
+      if (!WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
       }
       if (!supabaseAdmin || !slide || typeof slide !== "object") {
         return res.status(400).json({ error: "Dados inválidos." });
@@ -1479,9 +1474,8 @@ export function createApiApp() {
 
   app.delete("/api/tv/slides/:id", async (req, res) => {
     try {
-      const adminPassword = typeof req.query.adminPassword === "string" ? req.query.adminPassword : "";
-      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
-        return res.status(403).json({ error: "Senha de administrador inválida." });
+      if (!WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
       }
       if (!supabaseAdmin) {
         return res.status(500).json({ error: "Supabase não configurado." });
@@ -1502,12 +1496,11 @@ export function createApiApp() {
     }
   });
 
-  /** Upload de imagem ou vídeo para a TV (Storage público). Multipart: file + adminPassword */
+  /** Upload de imagem ou vídeo para a TV (Storage público). Multipart: file */
   app.post("/api/tv/media/upload", tvMediaUpload.single("file"), async (req, res) => {
     try {
-      const adminPassword = typeof req.body?.adminPassword === "string" ? req.body.adminPassword : "";
-      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
-        return res.status(403).json({ error: "Senha de administrador inválida." });
+      if (!WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
       }
       if (!supabaseAdmin) {
         return res.status(500).json({ error: "Supabase não configurado." });
