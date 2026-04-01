@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Wrench, Plus, Pencil, Trash2, Check, Loader2, Clock3, Tag } from 'lucide-react';
+import { X, Wrench, Plus, Pencil, Trash2, Check, Loader2, Clock3, Tag, Search } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
@@ -62,6 +62,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
   const [editingHoursWhole, setEditingHoursWhole] = useState('');
   const [editingMinutes, setEditingMinutes] = useState('');
   const [editingCategory, setEditingCategory] = useState<string>(baseCategory);
+  const [serviceSearch, setServiceSearch] = useState('');
 
   const categories = useMemo(() => {
     const source = managedCategories.length > 0 ? managedCategories : DEFAULT_CATEGORIES;
@@ -107,6 +108,10 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
   useEffect(() => {
     if (isOpen) fetchServices();
   }, [isOpen, fetchServices]);
+
+  useEffect(() => {
+    if (!isOpen) setServiceSearch('');
+  }, [isOpen]);
 
   useEffect(() => {
     try {
@@ -328,6 +333,46 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
     return map;
   }, [categories, services, parseServiceName]);
 
+  const { isSearchActive, visibleRows } = useMemo(() => {
+    const q = serviceSearch.trim().toLowerCase();
+    const active = q.length > 0;
+    if (!active) {
+      const bucket = servicesByCategory.get(selectedCategory) ?? [];
+      return {
+        isSearchActive: false as const,
+        visibleRows: bucket.map((s) => ({ service: s, listCategory: selectedCategory })),
+      };
+    }
+    const rows: { service: WorkshopService; listCategory: string }[] = [];
+    for (const s of services) {
+      const parsed = parseServiceName(s.name);
+      const cat = (s.category || parsed.category || baseCategory).trim();
+      const displayTitle = ((parsed.title || '').trim() || (s.name || '').trim()).toLowerCase();
+      const nameLower = (s.name || '').toLowerCase();
+      const laborRaw =
+        s.labor_hours != null && Number.isFinite(Number(s.labor_hours))
+          ? Number(s.labor_hours)
+          : parsed.hours
+            ? Number(String(parsed.hours).replace(',', '.'))
+            : null;
+      const durLabel = laborRaw != null && laborRaw > 0 ? formatLaborLabel(laborRaw).toLowerCase() : '';
+      if (
+        displayTitle.includes(q) ||
+        nameLower.includes(q) ||
+        cat.toLowerCase().includes(q) ||
+        durLabel.includes(q)
+      ) {
+        rows.push({ service: s, listCategory: cat });
+      }
+    }
+    rows.sort(
+      (a, b) =>
+        a.listCategory.localeCompare(b.listCategory, 'pt') ||
+        a.service.name.localeCompare(b.service.name, 'pt')
+    );
+    return { isSearchActive: true as const, visibleRows: rows };
+  }, [serviceSearch, services, servicesByCategory, selectedCategory, parseServiceName, baseCategory]);
+
   if (!isOpen) return null;
 
   return (
@@ -497,6 +542,29 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
               </div>
             </div>
 
+            {!loading && services.length > 0 && (
+              <div className="px-3 py-2.5 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/40 dark:bg-white/[0.02]">
+                <label htmlFor="workshop-service-search" className="sr-only">
+                  Pesquisar serviços cadastrados
+                </label>
+                <div className="relative">
+                  <Search
+                    className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+                    aria-hidden
+                  />
+                  <input
+                    id="workshop-service-search"
+                    type="search"
+                    value={serviceSearch}
+                    onChange={(e) => setServiceSearch(e.target.value)}
+                    placeholder="Pesquisar por nome, categoria ou duração…"
+                    autoComplete="off"
+                    className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 py-2.5 pl-10 pr-3 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  />
+                </div>
+              </div>
+            )}
+
             {loading ? (
               <div className="flex items-center justify-center py-12 text-zinc-500 dark:text-zinc-400">
                 <Loader2 className="w-8 h-8 animate-spin" />
@@ -508,30 +576,45 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
               </div>
             ) : (
               <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
-                {(() => {
-                  const bucket = servicesByCategory.get(selectedCategory) ?? [];
-                  return (
-                    <div key={selectedCategory}>
-                      <div className="px-4 py-2.5 bg-zinc-100/70 dark:bg-white/[0.05] border-y border-zinc-200/60 dark:border-white/[0.06]">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-300">
-                          {selectedCategory} ({bucket.length})
-                        </p>
-                      </div>
-                      {bucket.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">Nenhum serviço nesta categoria.</div>
+                <div key={isSearchActive ? `search-${serviceSearch}` : selectedCategory}>
+                  <div className="px-4 py-2.5 bg-zinc-100/70 dark:bg-white/[0.05] border-y border-zinc-200/60 dark:border-white/[0.06]">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-300">
+                      {isSearchActive ? (
+                        <>
+                          Busca · “{serviceSearch.trim()}”{' '}
+                          <span className="font-normal normal-case tracking-normal text-zinc-500 dark:text-zinc-400">
+                            ({visibleRows.length} {visibleRows.length === 1 ? 'resultado' : 'resultados'})
+                          </span>
+                        </>
                       ) : (
                         <>
-                          <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
-                            <span className="col-span-8 pl-1">Serviço</span>
-                            <span className="col-span-2 text-center leading-tight">
-                              Duração
-                              <span className="block text-[9px] font-normal normal-case tracking-normal text-zinc-500/90 dark:text-zinc-500">
-                                horas · min
-                              </span>
-                            </span>
-                            <span className="col-span-2 text-right pr-1">Ações</span>
-                          </div>
-                          {bucket.map((s) => {
+                          {selectedCategory}{' '}
+                          <span className="font-normal normal-case tracking-normal text-zinc-500 dark:text-zinc-400">
+                            ({visibleRows.length})
+                          </span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  {visibleRows.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
+                      {isSearchActive
+                        ? `Nenhum serviço encontrado para “${serviceSearch.trim()}”.`
+                        : 'Nenhum serviço nesta categoria.'}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
+                        <span className="col-span-8 pl-1">Serviço</span>
+                        <span className="col-span-2 text-center leading-tight">
+                          Duração
+                          <span className="block text-[9px] font-normal normal-case tracking-normal text-zinc-500/90 dark:text-zinc-500">
+                            horas · min
+                          </span>
+                        </span>
+                        <span className="col-span-2 text-right pr-1">Ações</span>
+                      </div>
+                      {visibleRows.map(({ service: s }) => {
                           const parsed = parseServiceName(s.name);
                           const serviceCategory = (s.category || parsed.category || baseCategory).trim();
                           const laborRaw =
@@ -625,7 +708,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                                     <p className="text-[16px] font-medium text-zinc-900 dark:text-white truncate">
                                       {displayTitle}
                                     </p>
-                                    {serviceCategory !== selectedCategory ? (
+                                    {(isSearchActive || serviceCategory !== selectedCategory) ? (
                                       <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
                                         {serviceCategory}
                                       </p>
@@ -661,12 +744,10 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                               )}
                             </div>
                           );
-                        })}
-                        </>
-                      )}
-                    </div>
-                  );
-                })()}
+                      })}
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>
