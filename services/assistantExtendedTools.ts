@@ -510,10 +510,19 @@ export async function updateServiceOrderBudgetJson(
               if (!description) return null;
               const approved =
                 typeof s?.approved === "boolean" ? s.approved : existing.services[i]?.approved;
-              return { description, approved };
+              const raw = s as { labor_hours?: unknown };
+              const labor_hours =
+                typeof raw.labor_hours === "number" || raw.labor_hours === null
+                  ? (raw.labor_hours as number | null)
+                  : existing.services[i]?.labor_hours ?? null;
+              return { description, approved, labor_hours };
             })
             .filter(Boolean)
-        : existing.services.map((s) => ({ description: s.description, approved: s.approved }));
+        : existing.services.map((s) => ({
+            description: s.description,
+            approved: s.approved,
+            labor_hours: s.labor_hours ?? null,
+          }));
 
     const parts =
       Array.isArray(payload.parts)
@@ -529,6 +538,14 @@ export async function updateServiceOrderBudgetJson(
             .filter(Boolean)
         : existing.parts.map((p) => ({ description: p.description, quantity: p.quantity, approved: p.approved }));
 
+    /** Aprovação/reprovação pela Zaya deve usar actor admin para notificações e fluxo de gerência (API). */
+    const explicitApprovalInPayload =
+      (Array.isArray(payload.services) &&
+        payload.services.some((s) => typeof (s as { approved?: unknown }).approved === "boolean")) ||
+      (Array.isArray(payload.parts) &&
+        payload.parts.some((p) => typeof (p as { approved?: unknown }).approved === "boolean"));
+    const budgetActor = explicitApprovalInPayload ? { actor: "admin" as const } : ctx.serviceOrderActor;
+
     const updated = await updateServiceOrderBudget(
       id,
       budgetId,
@@ -539,7 +556,7 @@ export async function updateServiceOrderBudgetJson(
         parts,
         observations: nextObservations ?? "",
       },
-      ctx.serviceOrderActor
+      budgetActor
     );
 
     return JSON.stringify({
