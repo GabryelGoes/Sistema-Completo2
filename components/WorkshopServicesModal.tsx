@@ -15,6 +15,33 @@ interface WorkshopServicesModalProps {
   onClose: () => void;
 }
 
+/** API usa horas decimais (ex.: 1,5). Na UI usamos horas inteiras + minutos para evitar confusão com decimais. */
+function laborHoursToParts(laborHours: number): { h: number; m: number } {
+  const safe = Math.max(0, Number(laborHours) || 0);
+  const totalMin = Math.round(safe * 60);
+  return { h: Math.floor(totalMin / 60), m: totalMin % 60 };
+}
+
+/** Converte campos “horas” + “minutos” em horas decimais para a API. */
+function parseDurationParts(hoursStr: string, minutesStr: string): number {
+  let hh = parseInt(String(hoursStr).trim(), 10);
+  let mm = parseInt(String(minutesStr).trim(), 10);
+  if (!Number.isFinite(hh)) hh = 0;
+  if (!Number.isFinite(mm)) mm = 0;
+  hh = Math.max(0, hh);
+  mm = Math.max(0, mm);
+  return (hh * 60 + mm) / 60;
+}
+
+function formatLaborLabel(laborHours: number | null | undefined): string {
+  if (laborHours == null || !Number.isFinite(Number(laborHours))) return '—';
+  const { h, m } = laborHoursToParts(Number(laborHours));
+  if (h === 0 && m === 0) return '0';
+  if (m === 0) return `${h}h`;
+  if (h === 0) return `${m} min`;
+  return `${h}h ${m}min`;
+}
+
 export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ isOpen, onClose }) => {
   const DEFAULT_CATEGORIES = useMemo(() => ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'], []);
   const CATEGORIES_STORAGE_KEY = 'workshop_service_categories';
@@ -25,12 +52,15 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newServiceName, setNewServiceName] = useState('');
-  const [newHours, setNewHours] = useState('');
+  /** Partes inteiras da duração ao adicionar (evita confundir 0,5h com “5 minutos”). */
+  const [newHoursWhole, setNewHoursWhole] = useState('');
+  const [newMinutes, setNewMinutes] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingServiceName, setEditingServiceName] = useState('');
-  const [editingHours, setEditingHours] = useState('');
+  const [editingHoursWhole, setEditingHoursWhole] = useState('');
+  const [editingMinutes, setEditingMinutes] = useState('');
   const [editingCategory, setEditingCategory] = useState<string>(baseCategory);
 
   const categories = useMemo(() => {
@@ -111,11 +141,10 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
   const handleAdd = async () => {
     const serviceName = newServiceName.trim();
     const category = selectedCategory.trim();
-    const hours = newHours.trim().replace(',', '.');
-    if (!serviceName || !category || !hours || adding) return;
-    const hoursNum = Number(hours);
-    if (!Number.isFinite(hoursNum) || hoursNum <= 0) {
-      setError('Informe horas válidas (ex.: 1.5).');
+    const hoursNum = parseDurationParts(newHoursWhole, newMinutes);
+    if (!serviceName || !category || adding) return;
+    if (hoursNum <= 0) {
+      setError('Informe a duração em horas e/ou minutos (ex.: 1 hora e 30 minutos).');
       return;
     }
     setAdding(true);
@@ -128,7 +157,8 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
       });
       setServices((prev) => [...prev, created].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)));
       setNewServiceName('');
-      setNewHours('');
+      setNewHoursWhole('');
+      setNewMinutes('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao adicionar.');
     } finally {
@@ -140,28 +170,36 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
     const parsed = parseServiceName(s.name);
     setEditingId(s.id);
     setEditingServiceName((s.name || parsed.title || '').trim());
-    setEditingHours(s.labor_hours != null ? String(s.labor_hours) : parsed.hours);
+    const lhRaw =
+      s.labor_hours != null && Number.isFinite(Number(s.labor_hours))
+        ? Number(s.labor_hours)
+        : parsed.hours
+          ? Number(String(parsed.hours).replace(',', '.'))
+          : 0;
+    const { h, m } = laborHoursToParts(lhRaw);
+    setEditingHoursWhole(String(h));
+    setEditingMinutes(String(m));
     setEditingCategory((s.category || parsed.category || baseCategory).trim());
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditingServiceName('');
-    setEditingHours('');
+    setEditingHoursWhole('');
+    setEditingMinutes('');
     setEditingCategory(baseCategory);
   };
 
   const handleSaveEdit = async () => {
     const serviceName = editingServiceName.trim();
     const category = editingCategory.trim();
-    const hours = editingHours.trim().replace(',', '.');
-    if (!editingId || !serviceName || !category || !hours) {
+    const hoursNum = parseDurationParts(editingHoursWhole, editingMinutes);
+    if (!editingId || !serviceName || !category) {
       cancelEdit();
       return;
     }
-    const hoursNum = Number(hours);
-    if (!Number.isFinite(hoursNum) || hoursNum <= 0) {
-      setError('Informe horas válidas para o serviço.');
+    if (hoursNum <= 0) {
+      setError('Informe duração em horas e/ou minutos (ex.: 1h e 30min).');
       return;
     }
     setError(null);
@@ -311,7 +349,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8">
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mb-4">
-            Organize serviços por categoria de veículo e defina horas padrão. Isso facilita a seleção no orçamento.
+            Organize serviços por categoria e informe a duração em horas e minutos separados (ex.: 1 hora e 30 minutos). Cada hora tem 60 minutos — use o campo “Min” para o restante, em vez de números decimais no campo de horas.
           </p>
 
           {error && (
@@ -382,7 +420,12 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
             </div>
             <div className="hidden md:grid grid-cols-12 gap-2 px-3 pt-1 pb-0 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-transparent">
               <span className="col-span-8 pl-1">Serviço</span>
-              <span className="col-span-2 text-center">Horas</span>
+              <span className="col-span-2 text-center leading-tight">
+                Duração
+                <span className="block text-[9px] font-normal normal-case tracking-normal text-zinc-500/90 dark:text-zinc-500">
+                  horas · minutos
+                </span>
+              </span>
               <span className="col-span-2 text-right pr-1">Adicionar</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-2 p-3 border-b border-zinc-200/50 dark:border-white/[0.06] items-center">
@@ -401,27 +444,50 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
               </div>
               <div className="md:col-span-2">
                 <label className="md:sr-only text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">
-                  Horas
+                  Duração em horas e minutos
                 </label>
-                <div className="relative w-full md:max-w-[7.5rem] md:mx-auto">
-                  <Clock3 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
-                  <input
-                    type="number"
-                    min="0.1"
-                    step="0.1"
-                    value={newHours}
-                    onChange={(e) => setNewHours(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                    placeholder="Horas"
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] tabular-nums text-right focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                  />
+                <div className="flex gap-1.5 items-end w-full md:justify-center">
+                  <div className="min-w-0 flex-1">
+                    <span className="flex items-center gap-3 sm:gap-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-0.5">
+                      <Clock3 className="w-3.5 h-3.5 shrink-0 text-zinc-400" aria-hidden />
+                      Horas
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      inputMode="numeric"
+                      value={newHoursWhole}
+                      onChange={(e) => setNewHoursWhole(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                      placeholder="0"
+                      className="w-full min-w-0 px-2.5 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] tabular-nums text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                    />
+                  </div>
+                  <div className="min-w-0 w-[4.25rem] shrink-0">
+                    <span className="block text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-0.5">Min</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      inputMode="numeric"
+                      value={newMinutes}
+                      onChange={(e) => setNewMinutes(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                      placeholder="0"
+                      className="w-full px-2.5 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] tabular-nums text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                    />
+                  </div>
                 </div>
+                <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-500">
+                  1h = 60min · ex.: 1h + 30min
+                </p>
               </div>
               <div className="md:col-span-2 flex justify-stretch md:justify-end">
                 <button
                   type="button"
                   onClick={handleAdd}
-                  disabled={!newServiceName.trim() || !newHours.trim() || adding}
+                  disabled={!newServiceName.trim() || parseDurationParts(newHoursWhole, newMinutes) <= 0 || adding}
                   title="Adicionar serviço"
                   aria-label="Adicionar serviço"
                   className="h-[42px] w-full md:w-[42px] md:shrink-0 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:pointer-events-none text-white flex items-center justify-center transition-colors"
@@ -457,16 +523,25 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                         <>
                           <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
                             <span className="col-span-8 pl-1">Serviço</span>
-                            <span className="col-span-2 text-center">Horas</span>
+                            <span className="col-span-2 text-center leading-tight">
+                              Duração
+                              <span className="block text-[9px] font-normal normal-case tracking-normal text-zinc-500/90 dark:text-zinc-500">
+                                horas · min
+                              </span>
+                            </span>
                             <span className="col-span-2 text-right pr-1">Ações</span>
                           </div>
                           {bucket.map((s) => {
                           const parsed = parseServiceName(s.name);
                           const serviceCategory = (s.category || parsed.category || baseCategory).trim();
-                          const serviceHours =
+                          const laborRaw =
                             s.labor_hours != null && Number.isFinite(Number(s.labor_hours))
-                              ? String(s.labor_hours)
-                              : parsed.hours || '?';
+                              ? Number(s.labor_hours)
+                              : parsed.hours
+                                ? Number(String(parsed.hours).replace(',', '.'))
+                                : null;
+                          const durationLabel =
+                            laborRaw != null && laborRaw > 0 ? formatLaborLabel(laborRaw) : '—';
                           const displayTitle =
                             (parsed.title || '').trim() || (s.name || '').trim();
                           return (
@@ -487,14 +562,32 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                                     className="md:col-span-8 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px]"
                                     autoFocus
                                   />
-                                  <input
-                                    type="number"
-                                    min="0.1"
-                                    step="0.1"
-                                    value={editingHours}
-                                    onChange={(e) => setEditingHours(e.target.value)}
-                                    className="md:col-span-2 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] tabular-nums text-right md:max-w-[7.5rem] md:mx-auto w-full"
-                                  />
+                                  <div className="md:col-span-2 flex gap-1.5 items-end min-w-0 w-full md:max-w-[11rem] md:mx-auto">
+                                    <div className="min-w-0 flex-1">
+                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-0.5">Horas</span>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        step={1}
+                                        inputMode="numeric"
+                                        value={editingHoursWhole}
+                                        onChange={(e) => setEditingHoursWhole(e.target.value)}
+                                        className="w-full min-w-0 px-2 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[13px] tabular-nums text-center"
+                                      />
+                                    </div>
+                                    <div className="w-14 shrink-0">
+                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-0.5">Min</span>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        step={1}
+                                        inputMode="numeric"
+                                        value={editingMinutes}
+                                        onChange={(e) => setEditingMinutes(e.target.value)}
+                                        className="w-full px-2 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[13px] tabular-nums text-center"
+                                      />
+                                    </div>
+                                  </div>
                                   <div className="md:col-span-2 flex flex-wrap items-center gap-1 justify-stretch md:justify-end min-w-0">
                                     <select
                                       value={editingCategory}
@@ -540,10 +633,10 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                                   </div>
                                   <div className="md:col-span-2 flex flex-row md:flex-col items-center justify-between md:justify-center gap-2 min-h-[2.25rem]">
                                     <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 md:hidden shrink-0">
-                                      Horas
+                                      Duração
                                     </p>
-                                    <span className="text-[16px] font-semibold tabular-nums text-zinc-900 dark:text-white md:min-w-[4.5rem] md:text-center">
-                                      {serviceHours}h
+                                    <span className="text-[15px] font-semibold text-zinc-900 dark:text-white md:min-w-[4.5rem] md:text-center leading-snug">
+                                      {durationLabel}
                                     </span>
                                   </div>
                                   <div className="md:col-span-2 flex justify-end gap-1">
