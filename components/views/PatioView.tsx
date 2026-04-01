@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag } from 'lucide-react';
+import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
 import { NotificationCenter } from '../NotificationCenter';
@@ -464,47 +465,6 @@ const Lightbox = ({
           Toque duplo para zoom ou use pinça
         </div>
       )}
-    </div>
-  );
-};
-
-// --- Componente Visualizador de PDF ---
-const PdfViewer = ({ src, onClose }: { src: string; onClose: () => void }) => {
-  return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-xl animate-modal-backdrop">
-      {/* Header do PDF Viewer */}
-      <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/80">
-        <div className="flex items-center gap-3">
-          <FileText className="w-6 h-6 text-brand-yellow" />
-          <h3 className="text-white font-bold">Visualização de Documento</h3>
-        </div>
-        <div className="flex items-center gap-3">
-           <a 
-            href={src} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-            title="Abrir Externamente / Baixar"
-           >
-             <Download className="w-5 h-5" />
-           </a>
-           <button 
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors border border-zinc-700"
-           >
-            <X className="w-5 h-5" />
-           </button>
-        </div>
-      </div>
-      
-      {/* Área do PDF */}
-      <div className="flex-1 w-full h-full bg-[#1e1e1e] relative">
-         <iframe 
-           src={src} 
-           className="w-full h-full border-0"
-           title="PDF Preview"
-         />
-      </div>
     </div>
   );
 };
@@ -1169,13 +1129,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
       .then(([, photos]) =>
         setHistoryCardDetails({
           actions: [],
-          attachments: photos.map((p, i) => ({
-            id: p.path || String(i),
-            name: p.name,
-            url: p.url,
-            mimeType: attachmentMimeType(p.name),
-            previews: [{ url: p.url, width: 200, height: 200 }],
-          })),
+          attachments: photos.map((p, i) => {
+            const mime = attachmentMimeType(p.name);
+            const isPdf = mime === 'application/pdf' || p.url.toLowerCase().endsWith('.pdf');
+            return {
+              id: p.path || String(i),
+              name: p.name,
+              url: p.url,
+              mimeType: mime,
+              previews: isPdf ? [] : [{ url: p.url, width: 200, height: 200 }],
+            };
+          }),
         })
       )
       .catch(err => console.error(err))
@@ -2956,18 +2920,49 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                ) : historyCardDetails?.attachments && historyCardDetails.attachments.length > 0 ? (
                                   <div className="grid grid-cols-2 gap-2">
                                      {historyCardDetails.attachments.map(att => {
-                                       return (
+                                       const isPdf =
+                                         att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
+                                       const isImage =
+                                         att.mimeType.startsWith('image/') ||
+                                         /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url);
+                                       const showImgThumb =
+                                         !isPdf &&
+                                         isImage &&
+                                         att.previews &&
+                                         att.previews.length > 0;
+                                       const cardClass = `group block w-full overflow-hidden ${iosModalInsetCard} transition-all hover:border-[#007AFF]/35`;
+                                       return isPdf ? (
+                                         <button
+                                           key={att.id}
+                                           type="button"
+                                           onClick={() => setPreviewPdf(att.url)}
+                                           className={cardClass}
+                                         >
+                                           <div className="relative flex h-24 items-center justify-center overflow-hidden bg-zinc-100/80 dark:bg-white/[0.04]">
+                                              <div className="flex flex-col items-center justify-center gap-1">
+                                                 <FileText className="h-8 w-8 text-red-500" />
+                                                 <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">PDF</span>
+                                              </div>
+                                              <div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity group-hover:opacity-100">
+                                                 <Eye className="h-5 w-5 text-white" />
+                                              </div>
+                                           </div>
+                                           <div className="border-t border-zinc-200/60 p-2 dark:border-white/[0.06] text-left">
+                                              <p className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-200">{attachmentDisplayName(att.name)}</p>
+                                           </div>
+                                         </button>
+                                       ) : (
                                         <a
                                           key={att.id}
                                           href={att.url}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className={`group block overflow-hidden ${iosModalInsetCard} transition-all hover:border-[#007AFF]/35`}
+                                          className={cardClass}
                                         >
                                            <div className="relative flex h-24 items-center justify-center overflow-hidden bg-zinc-100/80 dark:bg-white/[0.04]">
-                                              {att.previews && att.previews.length > 0 ? (
+                                              {showImgThumb ? (
                                                  <img
-                                                   src={att.previews[att.previews.length > 2 ? 2 : 0].url}
+                                                   src={att.previews![att.previews!.length > 2 ? 2 : 0].url}
                                                    alt={att.name}
                                                    className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
                                                  />
@@ -4626,10 +4621,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* PDF VIEWER MODAL */}
       {previewPdf && (
-        <PdfViewer 
-          src={previewPdf}
-          onClose={() => setPreviewPdf(null)}
-        />
+        <PdfViewerModal src={previewPdf} onClose={() => setPreviewPdf(null)} />
       )}
 
       {/* MODAL VISUALIZAR ORÇAMENTO — papel envelhecido no modal inteiro, textos em preto (portal: acima da TabBar) */}

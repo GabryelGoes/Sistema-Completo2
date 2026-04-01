@@ -24,6 +24,7 @@ import {
 } from '../../services/apiService';
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
 import { ModalPortal } from '../ui/ModalPortal';
+import { PdfViewerModal } from '../PdfViewerModal';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 
@@ -168,6 +169,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   >([]);
   const [archivedDetailComments, setArchivedDetailComments] = useState<ServiceOrderComment[]>([]);
   const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
+  const [previewPdf, setPreviewPdf] = useState<string | null>(null);
 
   // Efeito para carregar dados iniciais vindos do Pátio ou Histórico (todos editáveis, inclusive placa)
   useEffect(() => {
@@ -1216,13 +1218,33 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                     const isImage =
                                       att.mimeType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url);
                                     const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
+                                    const cardClass =
+                                      'block w-full bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden group hover:border-brand-yellow transition-all';
+                                    if (isPdf) {
+                                      return (
+                                        <button
+                                          key={att.id}
+                                          type="button"
+                                          onClick={() => setPreviewPdf(att.url)}
+                                          className={cardClass}
+                                        >
+                                          <div className="p-4 flex flex-col items-center gap-2 text-center">
+                                            <FileText className="w-8 h-8 text-red-500" />
+                                            <span className="text-xs font-medium text-zinc-700 dark:text-zinc-200 break-all line-clamp-2">
+                                              {att.name}
+                                            </span>
+                                            <span className="text-[10px] text-red-500 font-bold">PDF · toque para ver</span>
+                                          </div>
+                                        </button>
+                                      );
+                                    }
                                     return (
                                       <a
                                         key={att.id}
                                         href={att.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="block bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden group hover:border-brand-yellow transition-all"
+                                        className={cardClass}
                                       >
                                         {isImage ? (
                                           <div className="aspect-square relative bg-zinc-100 dark:bg-black">
@@ -1241,7 +1263,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                             <span className="text-xs font-medium text-zinc-700 dark:text-zinc-200 break-all line-clamp-2">
                                               {att.name}
                                             </span>
-                                            {isPdf && <span className="text-[10px] text-red-500 font-bold">PDF</span>}
                                           </div>
                                         )}
                                       </a>
@@ -1392,6 +1413,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           </div>
         </div>
         </ModalPortal>
+      )}
+
+      {previewPdf && (
+        <PdfViewerModal src={previewPdf} onClose={() => setPreviewPdf(null)} />
       )}
 
       <ProcessingOverlay 
