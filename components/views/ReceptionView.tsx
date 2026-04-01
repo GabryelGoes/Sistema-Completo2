@@ -25,6 +25,7 @@ import {
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
+import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 
 const RECEPTION_MODE_KEY = 'app_reception_mode';
 const VEHICLE_CATEGORIES = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
@@ -1339,13 +1340,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Serviços</h3>
                   <ul className="list-none space-y-1.5 text-sm">
                     {historyBudgetDetail.services.map((s, i) => (
-                      <li key={i} className="flex items-start gap-2">
+                      <li key={i} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                         {s.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" aria-hidden />}
                         {s.approved === false && <X className="w-4 h-4 shrink-0 text-red-600 mt-0.5" aria-hidden />}
                         {s.approved !== true && s.approved !== false && (
                           <span className="w-4 h-4 shrink-0 text-center font-bold text-zinc-400 mt-0.5" aria-hidden>—</span>
                         )}
                         <span>{s.description}</span>
+                        {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
+                          <span className="text-[13px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">
+                            ({formatLaborLabel(Number(s.labor_hours))})
+                          </span>
+                        ) : null}
                       </li>
                     ))}
                   </ul>

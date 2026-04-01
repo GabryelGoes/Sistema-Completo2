@@ -66,6 +66,7 @@ import {
 } from '../ui/iosModalStyles';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { printHtmlDocument } from '../../utils/printHtml';
+import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 
 /** Modal de orçamento: papel branco-amarelado (mesmo tom em tema claro ou escuro do app). */
 const budgetModalPaperInset =
@@ -255,6 +256,8 @@ function sortArchivedOrdersNewestFirst(orders: ServiceOrderListItem[]): ServiceO
 interface BudgetServiceItem {
   id: string;
   description: string;
+  /** Horas de mão de obra (lista da oficina), exibidas no orçamento */
+  laborHours: number | null;
 }
 
 interface BudgetPartItem {
@@ -270,7 +273,7 @@ export interface SavedBudget {
   serviceOrderId: string;
   cardName: string;
   diagnosis: string;
-  services: { description: string; approved?: boolean }[];
+  services: { description: string; approved?: boolean; labor_hours?: number | null }[];
   parts: { description: string; quantity: string; approved?: boolean }[];
   observations: string;
 }
@@ -1554,15 +1557,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setEditingBudget(budgetToEdit);
       setBudgetDiagnosis(budgetToEdit.diagnosis ?? '');
       setBudgetServices(budgetToEdit.services.length > 0
-        ? budgetToEdit.services.map((s, i) => ({ id: `s-${budgetToEdit.id}-${i}`, description: s.description }))
-        : [{ id: '1', description: '' }]);
+        ? budgetToEdit.services.map((s, i) => ({
+            id: `s-${budgetToEdit.id}-${i}`,
+            description: s.description,
+            laborHours:
+              s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? Number(s.labor_hours) : null,
+          }))
+        : [{ id: '1', description: '', laborHours: null }]);
       setBudgetParts(budgetToEdit.parts.length > 0
         ? budgetToEdit.parts.map((p, i) => ({ id: `p-${budgetToEdit.id}-${i}`, description: p.description, quantity: p.quantity || '1' }))
         : [{ id: '1', description: '', quantity: '1' }]);
       setBudgetObservations(budgetToEdit.observations ?? '');
     } else {
       setEditingBudget(null);
-      setBudgetServices([{ id: '1', description: '' }]);
+      setBudgetServices([{ id: '1', description: '', laborHours: null }]);
       setBudgetParts([{ id: '1', description: '', quantity: '1' }]);
       setBudgetDiagnosis('');
       setBudgetObservations('');
@@ -1576,7 +1584,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsBudgetOpen(false);
     setEditingBudget(null);
     setBudgetDiagnosis('');
-    setBudgetServices([{ id: String(Date.now()), description: '' }]);
+    setBudgetServices([{ id: String(Date.now()), description: '', laborHours: null }]);
     setBudgetParts([{ id: String(Date.now() + 1), description: '', quantity: '1' }]);
     setBudgetObservations('');
   };
@@ -1616,6 +1624,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const services = budgetApprovalTarget.services.map((s, i) => ({
         description: s.description,
         approved: approvalServices[i] ?? false,
+        labor_hours: s.labor_hours ?? null,
       }));
       const parts = budgetApprovalTarget.parts.map((p, i) => ({
         description: p.description,
@@ -1660,7 +1669,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
     });
     const sym = (approved: boolean | undefined) => approved === true ? '✓ ' : approved === false ? '✗ ' : '— ';
     const servicesHtml = budget.services.length > 0
-      ? `<h3 class="sec">Serviços</h3><ul>${budget.services.map((s) => `<li>${sym(s.approved)}${esc(s.description)}</li>`).join('')}</ul>`
+      ? `<h3 class="sec">Serviços</h3><ul>${budget.services.map((s) => {
+          const dur =
+            s.labor_hours != null && Number.isFinite(Number(s.labor_hours))
+              ? ` <span class="meta">(${formatLaborLabel(Number(s.labor_hours))})</span>`
+              : '';
+          return `<li>${sym(s.approved)}${esc(s.description)}${dur}</li>`;
+        }).join('')}</ul>`
       : '';
     const partsHtml = budget.parts.length > 0
       ? `<h3 class="sec">Peças</h3><ul>${budget.parts.map((p) => `<li>${sym(p.approved)}<strong>(${esc(p.quantity)}x)</strong> ${esc(p.description)}</li>`).join('')}</ul>`
@@ -1703,7 +1718,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const addServiceRow = () => {
-    setBudgetServices([...budgetServices, { id: Date.now().toString(), description: '' }]);
+    setBudgetServices([...budgetServices, { id: Date.now().toString(), description: '', laborHours: null }]);
   };
 
   const addPartRow = () => {
@@ -1719,7 +1734,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const updateServiceDescription = (id: string, value: string) => {
-    setBudgetServices(budgetServices.map(item => item.id === id ? { ...item, description: value } : item));
+    setBudgetServices((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const trimmed = value.trim();
+        const match = workshopServices.find((ws) => ws.name.trim() === trimmed);
+        return {
+          ...item,
+          description: value,
+          laborHours: match ? (match.labor_hours ?? null) : null,
+        };
+      })
+    );
   };
 
   const updatePartDescription = (id: string, value: string) => {
@@ -1737,8 +1763,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }));
   };
 
-  const addServiceFromList = (name: string) => {
-    setBudgetServices(prev => [...prev, { id: Date.now().toString(), description: name }]);
+  const addServiceFromList = (svc: WorkshopService) => {
+    setBudgetServices((prev) => [
+      ...prev,
+      { id: Date.now().toString(), description: svc.name, laborHours: svc.labor_hours ?? null },
+    ]);
     setIsServiceListOpen(false);
   };
 
@@ -1796,8 +1825,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
     partSuggestionCloseTimerRef.current = setTimeout(() => setSuggestionsForPartId(null), 180);
   };
 
-  const applySuggestion = (itemId: string, name: string) => {
-    updateServiceDescription(itemId, name);
+  const applySuggestion = (itemId: string, svc: WorkshopService) => {
+    setBudgetServices((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? { ...item, description: svc.name, laborHours: svc.labor_hours ?? null }
+          : item
+      )
+    );
     setSuggestionsForServiceId(null);
   };
 
@@ -1821,8 +1856,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
       cardName: selectedCard.name,
       diagnosis: budgetDiagnosis.trim(),
       services: editingBudget
-        ? validServices.map((s, i) => ({ description: s.description.trim(), approved: editingBudget.services[i]?.approved }))
-        : validServices.map(s => ({ description: s.description.trim() })),
+        ? validServices.map((s, i) => ({
+            description: s.description.trim(),
+            approved: editingBudget.services[i]?.approved,
+            labor_hours: s.laborHours != null && Number.isFinite(Number(s.laborHours)) ? Number(s.laborHours) : null,
+          }))
+        : validServices.map((s) => ({
+            description: s.description.trim(),
+            labor_hours: s.laborHours != null && Number.isFinite(Number(s.laborHours)) ? Number(s.laborHours) : null,
+          })),
       parts: editingBudget
         ? validParts.map((p, i) => ({ description: p.description.trim(), quantity: (p.quantity || '1').trim(), approved: editingBudget.parts[i]?.approved }))
         : validParts.map(p => ({ description: p.description.trim(), quantity: (p.quantity || '1').trim() })),
@@ -4646,11 +4688,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Serviços</h3>
                   <ul className="list-none space-y-1.5 text-sm">
                     {viewingBudget.services.map((s, i) => (
-                      <li key={i} className="flex items-center gap-2" style={{ color: '#000000' }}>
+                      <li key={i} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5" style={{ color: '#000000' }}>
                         {s.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-700" aria-label="Aprovado" />}
                         {s.approved === false && <X className="w-4 h-4 shrink-0 text-red-700" aria-label="Reprovado" />}
                         {s.approved !== true && s.approved !== false && <span className="w-4 h-4 shrink-0 font-bold" style={{ color: '#000000' }} aria-label="Pendente">—</span>}
                         <span style={{ color: '#000000' }}>{s.description}</span>
+                        {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
+                          <span className="text-[13px] font-semibold tabular-nums opacity-90" style={{ color: '#000000' }}>
+                            ({formatLaborLabel(Number(s.labor_hours))})
+                          </span>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -4746,8 +4793,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         >
                           <span className="absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 left-0.5" style={{ transform: approvalServices[i] ? 'translateX(20px)' : 'translateX(0)' }} />
                         </button>
-                        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 flex-1">{s.description}</span>
-                        <span className={`text-xs font-semibold ${approvalServices[i] ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 block">{s.description}</span>
+                          {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
+                            <span className="text-[12px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400 mt-0.5 block">
+                              {formatLaborLabel(Number(s.labor_hours))}
+                            </span>
+                          ) : null}
+                        </div>
+                        <span className={`text-xs font-semibold shrink-0 ${approvalServices[i] ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                           {approvalServices[i] ? 'Aprovado' : 'Reprovado'}
                         </span>
                       </li>
@@ -4891,7 +4945,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="relative"
                             >
                               <div className="flex items-center gap-2 sm:gap-3">
-                                <div className="min-w-0 flex-1">
+                                <div className="min-w-0 flex-1 space-y-1">
                                   <input
                                     type="text"
                                     placeholder="Digite ou escolha um serviço…"
@@ -4901,6 +4955,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     onFocus={() => handleServiceInputFocus(item.id)}
                                     onBlur={handleServiceInputBlur}
                                   />
+                                  {item.laborHours != null && Number.isFinite(Number(item.laborHours)) ? (
+                                    <p className="text-[12px] font-semibold tabular-nums text-[#7a6f5f]">
+                                      Duração: {formatLaborLabel(Number(item.laborHours))}
+                                    </p>
+                                  ) : null}
                                 </div>
                                 <button
                                   type="button"
@@ -4940,10 +4999,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <button
                                 key={s.id}
                                 type="button"
-                                onClick={() => addServiceFromList(s.name)}
-                                className="w-full border-b border-[#e8dfd0] px-5 py-3.5 text-left text-[15px] text-[#2d2820] transition-colors last:border-0 hover:bg-[#f5efe0]"
+                                onClick={() => addServiceFromList(s)}
+                                className="flex w-full items-start justify-between gap-3 border-b border-[#e8dfd0] px-5 py-3.5 text-left text-[15px] text-[#2d2820] transition-colors last:border-0 hover:bg-[#f5efe0]"
                               >
-                                {s.name}
+                                <span className="min-w-0 flex-1 leading-snug">{s.name}</span>
+                                {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
+                                  <span className="shrink-0 text-[13px] font-semibold tabular-nums text-[#5c534c]">
+                                    {formatLaborLabel(Number(s.labor_hours))}
+                                  </span>
+                                ) : null}
                               </button>
                             ))}
                           </div>
@@ -4973,10 +5037,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <button
                                 key={s.id}
                                 type="button"
-                                onMouseDown={() => suggestionsForServiceId && applySuggestion(suggestionsForServiceId, s.name)}
-                                className="w-full px-4 py-2.5 text-left text-[14px] text-[#2d2820] transition-colors hover:bg-[#f5efe0]"
+                                onMouseDown={() => suggestionsForServiceId && applySuggestion(suggestionsForServiceId, s)}
+                                className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-[14px] text-[#2d2820] transition-colors hover:bg-[#f5efe0]"
                               >
-                                {s.name}
+                                <span className="min-w-0 flex-1">{s.name}</span>
+                                {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
+                                  <span className="shrink-0 text-[12px] font-semibold tabular-nums text-[#7a6f5f]">
+                                    {formatLaborLabel(Number(s.labor_hours))}
+                                  </span>
+                                ) : null}
                               </button>
                             ))}
                           </div>

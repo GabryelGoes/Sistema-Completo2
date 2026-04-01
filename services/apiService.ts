@@ -1063,7 +1063,7 @@ interface ApiBudget {
   service_order_id: string;
   card_name: string | null;
   diagnosis: string;
-  services: { description: string; approved?: boolean }[];
+  services: { description: string; approved?: boolean; labor_hours?: number | null }[];
   parts: { description: string; quantity: string; approved?: boolean }[];
   observations: string;
   created_at: string;
@@ -1076,7 +1076,7 @@ export interface SavedBudgetFromApi {
   serviceOrderId: string;
   cardName: string;
   diagnosis: string;
-  services: { description: string; approved?: boolean }[];
+  services: { description: string; approved?: boolean; labor_hours?: number | null }[];
   parts: { description: string; quantity: string; approved?: boolean }[];
   observations: string;
 }
@@ -1111,7 +1111,7 @@ export async function createServiceOrderBudget(
   payload: {
     cardName: string;
     diagnosis: string;
-    services: { description: string }[];
+    services: { description: string; labor_hours?: number | null }[];
     parts: { description: string; quantity: string }[];
     observations: string;
   },
@@ -1143,7 +1143,7 @@ export async function updateServiceOrderBudget(
   payload: {
     cardName: string;
     diagnosis: string;
-    services: { description: string; approved?: boolean }[];
+    services: { description: string; approved?: boolean; labor_hours?: number | null }[];
     parts: { description: string; quantity: string; approved?: boolean }[];
     observations: string;
   },
