@@ -207,7 +207,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           )}
 
           <div className={`overflow-hidden ${iosModalInsetCard}`}>
-            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto_auto] gap-3 p-3 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
+            <div className="grid grid-cols-1 md:grid-cols-[4fr_1fr_1fr_auto_auto] gap-3 p-3 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                   Nome da peça
@@ -221,8 +221,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                   className="w-full min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              <div className="space-y-1 md:text-right">
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 md:text-right">
                   Preço (R$)
                 </label>
                 <input
@@ -232,11 +232,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                   value={newPrice}
                   onChange={(e) => setNewPrice(e.target.value)}
                   placeholder="0,00"
-                  className="w-full min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60"
+                  className="w-full min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60 md:text-right"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              <div className="space-y-1 md:text-right">
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 md:text-right">
                   Quantidade em estoque
                 </label>
                 <input
@@ -246,7 +246,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                   value={newStock}
                   onChange={(e) => setNewStock(e.target.value)}
                   placeholder="0"
-                  className="w-full min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60"
+                  className="w-full min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60 md:text-right"
                 />
               </div>
               <div className="space-y-1">
@@ -303,19 +303,22 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               </div>
             ) : (
               <>
-                <div className="px-4 pt-3 pb-2 grid grid-cols-[2fr_1fr_1fr_auto_auto_auto] gap-3 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
-                  <span>Nome da peça</span>
-                  <span>Preço</span>
-                  <span>Quantidade</span>
-                  <span className="text-center">Editar</span>
-                  <span className="text-center">Foto</span>
-                  <span className="text-center">Excluir</span>
+                <div className="hidden md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto_auto] md:gap-3 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
+                  <span className="min-w-0">Nome da peça</span>
+                  <span className="text-right tabular-nums">Preço</span>
+                  <span className="text-right tabular-nums">Quantidade</span>
+                  <span className="text-center justify-self-center">Editar</span>
+                  <span className="text-center justify-self-center">Foto</span>
+                  <span className="text-center justify-self-center">Excluir</span>
+                </div>
+                <div className="md:hidden px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
+                  Lista de peças
                 </div>
                 <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
                 {parts.map((p) => (
                   <div
                     key={p.id}
-                    className="min-h-[52px] flex items-center gap-3 px-4 py-3 bg-transparent hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors"
+                    className="min-h-[52px] flex flex-wrap items-center gap-3 px-4 py-3 bg-transparent hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto_auto] md:flex-nowrap md:gap-3 md:items-center"
                   >
                     {editingId === p.id ? (
                       <>
@@ -323,46 +326,51 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           type="text"
                           value={editingName}
                           onChange={(e) => setEditingName(e.target.value)}
-                          className="flex-[2] min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40"
+                          className="w-full min-w-0 basis-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:basis-auto md:min-w-0"
                           autoFocus
                         />
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={editingPrice}
-                          onChange={(e) => setEditingPrice(e.target.value)}
-                          className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40"
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.001"
-                          value={editingStock}
-                          onChange={(e) => setEditingStock(e.target.value)}
-                          className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleSaveEdit}
-                          className="w-9 h-9 rounded-lg bg-brand-yellow text-black flex items-center justify-center hover:brightness-110"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={cancelEdit}
-                          className="w-9 h-9 rounded-lg bg-zinc-200 dark:bg-white/10 text-zinc-600 dark:text-zinc-400 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-white/20"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                        <div className="grid w-full basis-full grid-cols-2 gap-2 md:contents">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={editingPrice}
+                            onChange={(e) => setEditingPrice(e.target.value)}
+                            className="min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:min-w-0"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.001"
+                            value={editingStock}
+                            onChange={(e) => setEditingStock(e.target.value)}
+                            className="min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:min-w-0"
+                          />
+                        </div>
+                        <div className="flex w-full basis-full items-center justify-end gap-2 md:contents">
+                          <button
+                            type="button"
+                            onClick={handleSaveEdit}
+                            className="w-9 h-9 shrink-0 rounded-lg bg-brand-yellow text-black flex items-center justify-center justify-self-center hover:brightness-110"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEdit}
+                            className="w-9 h-9 shrink-0 rounded-lg bg-zinc-200 dark:bg-white/10 text-zinc-600 dark:text-zinc-400 flex items-center justify-center justify-self-center hover:bg-zinc-300 dark:hover:bg-white/20"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <span className="hidden md:block min-w-[2.25rem]" aria-hidden />
                       </>
                     ) : (
                       <>
                         <button
                           type="button"
                           onClick={() => setDetailPart(p)}
-                          className="flex-[2] min-w-0 flex items-center gap-3 text-left rounded-xl -my-1 -ml-2 pl-2 pr-2 py-1.5 hover:bg-zinc-200/70 dark:hover:bg-white/[0.07] transition-colors cursor-pointer"
+                          className="w-full min-w-0 flex flex-[1_1_100%] items-center gap-3 text-left rounded-xl -my-1 -ml-2 pl-2 pr-2 py-1.5 hover:bg-zinc-200/70 dark:hover:bg-white/[0.07] transition-colors cursor-pointer md:col-span-1 md:flex-[unset] md:w-auto"
                           title="Ver detalhes do produto"
                         >
                           <div className="w-10 h-10 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 overflow-hidden shrink-0 pointer-events-none">
@@ -374,16 +382,16 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                             {p.name}
                           </span>
                         </button>
-                        <span className="flex-1 min-w-0 text-[14px] text-zinc-700 dark:text-zinc-300">
+                        <span className="min-w-0 flex-1 text-[14px] text-zinc-700 dark:text-zinc-300 text-right tabular-nums md:flex-[unset] md:min-w-0 md:justify-self-end">
                           R$ {Number(p.unit_price ?? 0).toFixed(2)}
                         </span>
-                        <span className="flex-1 min-w-0 text-[14px] text-zinc-700 dark:text-zinc-300">
+                        <span className="min-w-0 flex-1 text-[14px] text-zinc-700 dark:text-zinc-300 text-right tabular-nums md:flex-[unset] md:min-w-0 md:justify-self-end">
                           {Number(p.stock_qty ?? 0).toFixed(3)}
                         </span>
                         <button
                           type="button"
                           onClick={() => startEdit(p)}
-                          className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-brand-yellow/10 transition-colors"
+                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center justify-self-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-brand-yellow/10 transition-colors"
                           aria-label="Editar"
                         >
                           <Pencil className="w-4 h-4" />
@@ -395,7 +403,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                             editPhotoInputRef.current.dataset.partId = p.id;
                             editPhotoInputRef.current.click();
                           }}
-                          className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-brand-yellow/10 transition-colors"
+                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center justify-self-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-brand-yellow/10 transition-colors"
                           aria-label="Foto"
                           title="Adicionar/alterar foto"
                         >
@@ -404,7 +412,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         <button
                           type="button"
                           onClick={() => handleDelete(p.id)}
-                          className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-red-600 hover:bg-red-500/10 transition-colors"
+                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center justify-self-center text-zinc-500 dark:text-zinc-400 hover:text-red-600 hover:bg-red-500/10 transition-colors"
                           aria-label="Excluir"
                         >
                           <Trash2 className="w-4 h-4" />
