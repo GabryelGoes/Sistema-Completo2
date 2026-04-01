@@ -65,6 +65,7 @@ import {
   iosPrimaryButton,
 } from '../ui/iosModalStyles';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
+import { printHtmlDocument } from '../../utils/printHtml';
 
 /** Modal de orçamento: papel branco-amarelado (mesmo tom em tema claro ou escuro do app). */
 const budgetModalPaperInset =
@@ -1696,22 +1697,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   ${servicesHtml}
   ${partsHtml}
   ${obsHtml}
-  <script>
-    window.onload = function() {
-      window.focus();
-      window.print();
-      window.onafterprint = function() { window.close(); };
-    };
-  </script>
 </body>
 </html>`;
-    const w = window.open('', '_blank', 'noopener,noreferrer');
-    if (w) {
-      w.document.write(html);
-      w.document.close();
-    } else {
-      alert('Permita pop-ups para esta página para poder imprimir.');
-    }
+    printHtmlDocument(html);
   };
 
   const addServiceRow = () => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Wrench, Plus, Pencil, Trash2, Check, Loader2, Clock3, Tag, Search } from 'lucide-react';
+import { X, Wrench, Plus, Pencil, Trash2, Check, Loader2, Clock3, Tag, Search, FileText, FileDown } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
@@ -9,6 +9,7 @@ import {
   deleteWorkshopService,
   type WorkshopService,
 } from '../services/apiService';
+import { downloadWorkshopServicesPdf, downloadWorkshopServicesText } from '../utils/workshopServicesExport';
 
 interface WorkshopServicesModalProps {
   isOpen: boolean;
@@ -393,9 +394,33 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
           </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8">
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mb-4">
-            Organize serviços por categoria e informe a duração em horas e minutos separados (ex.: 1 hora e 30 minutos). Cada hora tem 60 minutos — use o campo “Min” para o restante, em vez de números decimais no campo de horas.
-          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:flex-1 sm:min-w-0">
+              Organize serviços por categoria e informe a duração em horas e minutos separados (ex.: 1 hora e 30 minutos). Cada hora tem 60 minutos — use o campo “Min” para o restante, em vez de números decimais no campo de horas.
+            </p>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => downloadWorkshopServicesText(services)}
+                disabled={loading || services.length === 0}
+                title="Baixar lista em arquivo de texto"
+                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/[0.06] px-3 py-2 text-[13px] font-semibold text-zinc-800 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-white/10 disabled:opacity-45 disabled:pointer-events-none transition-colors"
+              >
+                <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                Salvar .txt
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadWorkshopServicesPdf(services)}
+                disabled={loading || services.length === 0}
+                title="Baixar lista em PDF"
+                className="inline-flex items-center gap-2 rounded-xl border border-amber-500/50 bg-amber-500/15 dark:bg-amber-500/20 px-3 py-2 text-[13px] font-semibold text-amber-900 dark:text-amber-100 hover:bg-amber-500/25 disabled:opacity-45 disabled:pointer-events-none transition-colors"
+              >
+                <FileDown className="w-4 h-4" />
+                Salvar PDF
+              </button>
+            </div>
+          </div>
 
           {error && (
             <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-sm">
