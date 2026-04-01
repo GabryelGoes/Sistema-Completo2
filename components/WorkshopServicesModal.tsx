@@ -380,13 +380,13 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                 </button>
               </div>
             </div>
-            <div className="hidden md:grid grid-cols-12 gap-3 px-3 pt-1 pb-0 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-transparent">
-              <span className="col-span-7 pl-1">Serviço</span>
+            <div className="hidden md:grid grid-cols-12 gap-2 px-3 pt-1 pb-0 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-transparent">
+              <span className="col-span-8 pl-1">Serviço</span>
               <span className="col-span-2 text-center">Horas</span>
-              <span className="col-span-3 text-right pr-1">Adicionar</span>
+              <span className="col-span-2 text-right pr-1">Adicionar</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-3 p-3 border-b border-zinc-200/50 dark:border-white/[0.06] items-center">
-              <div className="md:col-span-7">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-2 p-3 border-b border-zinc-200/50 dark:border-white/[0.06] items-center">
+              <div className="md:col-span-8">
                 <label className="md:sr-only text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">
                   Serviço
                 </label>
@@ -417,7 +417,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                   />
                 </div>
               </div>
-              <div className="md:col-span-3 flex justify-stretch md:justify-end">
+              <div className="md:col-span-2 flex justify-stretch md:justify-end">
                 <button
                   type="button"
                   onClick={handleAdd}
@@ -455,10 +455,10 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                         <div className="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">Nenhum serviço nesta categoria.</div>
                       ) : (
                         <>
-                          <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
-                            <span className="col-span-7 pl-1">Serviço</span>
+                          <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
+                            <span className="col-span-8 pl-1">Serviço</span>
                             <span className="col-span-2 text-center">Horas</span>
-                            <span className="col-span-3 text-right pr-1">Ações</span>
+                            <span className="col-span-2 text-right pr-1">Ações</span>
                           </div>
                           {bucket.map((s) => {
                           const parsed = parseServiceName(s.name);
@@ -475,7 +475,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                               className="min-h-[52px] px-4 py-3 bg-transparent hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors"
                             >
                               {editingId === s.id ? (
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-3 items-center">
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-2 items-center">
                                   <input
                                     type="text"
                                     value={editingServiceName}
@@ -484,7 +484,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                                       if (e.key === 'Enter') handleSaveEdit();
                                       if (e.key === 'Escape') cancelEdit();
                                     }}
-                                    className="md:col-span-7 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px]"
+                                    className="md:col-span-8 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px]"
                                     autoFocus
                                   />
                                   <input
@@ -495,7 +495,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                                     onChange={(e) => setEditingHours(e.target.value)}
                                     className="md:col-span-2 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] tabular-nums text-right md:max-w-[7.5rem] md:mx-auto w-full"
                                   />
-                                  <div className="md:col-span-3 flex flex-wrap items-center gap-1 justify-stretch md:justify-end">
+                                  <div className="md:col-span-2 flex flex-wrap items-center gap-1 justify-stretch md:justify-end min-w-0">
                                     <select
                                       value={editingCategory}
                                       onChange={(e) => setEditingCategory(e.target.value)}
@@ -524,8 +524,8 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                                   </div>
                                 </div>
                               ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-3 items-center">
-                                  <div className="md:col-span-7 min-w-0">
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-2 items-center">
+                                  <div className="md:col-span-8 min-w-0">
                                     <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 md:hidden mb-0.5">
                                       Serviço
                                     </p>
@@ -546,7 +546,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                                       {serviceHours}h
                                     </span>
                                   </div>
-                                  <div className="md:col-span-3 flex justify-end gap-1">
+                                  <div className="md:col-span-2 flex justify-end gap-1">
                                     <button
                                       type="button"
                                       onClick={() => startEdit(s)}
