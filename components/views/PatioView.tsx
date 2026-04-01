@@ -4313,12 +4313,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                            setIsConvertingType(false);
                                         }
                                      }}
-                                     className="flex items-center gap-3 w-full px-4 py-3 rounded-xl border-2 border-amber-500/50 dark:border-amber-500/50 bg-amber-500/10 dark:bg-amber-500/10 hover:bg-amber-500/20 dark:hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                     className="inline-flex items-center gap-2 max-w-full self-start px-3 py-2 rounded-lg border border-amber-500/45 dark:border-amber-500/45 bg-amber-500/10 dark:bg-amber-500/10 hover:bg-amber-500/18 dark:hover:bg-amber-500/18 text-sm text-amber-800 dark:text-amber-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                   >
                                      {isConvertingType ? (
-                                        <RefreshCw className="w-5 h-5 shrink-0 animate-spin" />
+                                        <RefreshCw className="w-4 h-4 shrink-0 animate-spin" />
                                      ) : (
-                                        <ArrowRightLeft className="w-5 h-5 shrink-0" />
+                                        <ArrowRightLeft className="w-4 h-4 shrink-0" />
                                      )}
                                      <span>Transferir para o {targetLabel}</span>
                                   </button>
