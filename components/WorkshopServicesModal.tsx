@@ -380,8 +380,16 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                 </button>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-2 p-3 border-b border-zinc-200/50 dark:border-white/[0.06]">
-              <div className="md:col-span-8">
+            <div className="hidden md:grid grid-cols-12 gap-3 px-3 pt-1 pb-0 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-transparent">
+              <span className="col-span-7 pl-1">Serviço</span>
+              <span className="col-span-2 text-center">Horas</span>
+              <span className="col-span-3 text-right pr-1">Adicionar</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-3 p-3 border-b border-zinc-200/50 dark:border-white/[0.06] items-center">
+              <div className="md:col-span-7">
+                <label className="md:sr-only text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">
+                  Serviço
+                </label>
                 <input
                   type="text"
                   value={newServiceName}
@@ -392,8 +400,11 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                 />
               </div>
               <div className="md:col-span-2">
-                <div className="relative">
-                  <Clock3 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <label className="md:sr-only text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">
+                  Horas
+                </label>
+                <div className="relative w-full md:max-w-[7.5rem] md:mx-auto">
+                  <Clock3 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
                   <input
                     type="number"
                     min="0.1"
@@ -402,16 +413,18 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                     onChange={(e) => setNewHours(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
                     placeholder="Horas"
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] tabular-nums text-right focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                   />
                 </div>
               </div>
-              <div className="md:col-span-2">
+              <div className="md:col-span-3 flex justify-stretch md:justify-end">
                 <button
                   type="button"
                   onClick={handleAdd}
                   disabled={!newServiceName.trim() || !newHours.trim() || adding}
-                  className="w-full h-full min-h-[42px] rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:pointer-events-none text-white flex items-center justify-center transition-colors"
+                  title="Adicionar serviço"
+                  aria-label="Adicionar serviço"
+                  className="h-[42px] w-full md:w-[42px] md:shrink-0 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:pointer-events-none text-white flex items-center justify-center transition-colors"
                 >
                   {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
                 </button>
@@ -441,44 +454,52 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                       {bucket.length === 0 ? (
                         <div className="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">Nenhum serviço nesta categoria.</div>
                       ) : (
-                        bucket.map((s) => {
+                        <>
+                          <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
+                            <span className="col-span-7 pl-1">Serviço</span>
+                            <span className="col-span-2 text-center">Horas</span>
+                            <span className="col-span-3 text-right pr-1">Ações</span>
+                          </div>
+                          {bucket.map((s) => {
                           const parsed = parseServiceName(s.name);
                           const serviceCategory = (s.category || parsed.category || baseCategory).trim();
                           const serviceHours =
                             s.labor_hours != null && Number.isFinite(Number(s.labor_hours))
                               ? String(s.labor_hours)
                               : parsed.hours || '?';
+                          const displayTitle =
+                            (parsed.title || '').trim() || (s.name || '').trim();
                           return (
                             <div
                               key={s.id}
-                              className="min-h-[52px] flex items-center gap-3 px-4 py-3 bg-transparent hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors"
+                              className="min-h-[52px] px-4 py-3 bg-transparent hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors"
                             >
                               {editingId === s.id ? (
-                                <>
-                                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 flex-1 min-w-0">
-                                    <input
-                                      type="text"
-                                      value={editingServiceName}
-                                      onChange={(e) => setEditingServiceName(e.target.value)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleSaveEdit();
-                                        if (e.key === 'Escape') cancelEdit();
-                                      }}
-                                      className="sm:col-span-7 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px]"
-                                      autoFocus
-                                    />
-                                    <input
-                                      type="number"
-                                      min="0.1"
-                                      step="0.1"
-                                      value={editingHours}
-                                      onChange={(e) => setEditingHours(e.target.value)}
-                                      className="sm:col-span-2 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px]"
-                                    />
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-3 items-center">
+                                  <input
+                                    type="text"
+                                    value={editingServiceName}
+                                    onChange={(e) => setEditingServiceName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleSaveEdit();
+                                      if (e.key === 'Escape') cancelEdit();
+                                    }}
+                                    className="md:col-span-7 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px]"
+                                    autoFocus
+                                  />
+                                  <input
+                                    type="number"
+                                    min="0.1"
+                                    step="0.1"
+                                    value={editingHours}
+                                    onChange={(e) => setEditingHours(e.target.value)}
+                                    className="md:col-span-2 min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] tabular-nums text-right md:max-w-[7.5rem] md:mx-auto w-full"
+                                  />
+                                  <div className="md:col-span-3 flex flex-wrap items-center gap-1 justify-stretch md:justify-end">
                                     <select
                                       value={editingCategory}
                                       onChange={(e) => setEditingCategory(e.target.value)}
-                                      className="sm:col-span-3 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[14px]"
+                                      className="min-w-0 flex-1 md:flex-1 md:min-w-0 px-2 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[13px]"
                                     >
                                       {categories.map((c) => (
                                         <option key={c} value={c}>
@@ -486,51 +507,69 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                                         </option>
                                       ))}
                                     </select>
+                                    <button
+                                      type="button"
+                                      onClick={handleSaveEdit}
+                                      className="w-9 h-9 shrink-0 rounded-lg bg-amber-500 text-white flex items-center justify-center hover:bg-amber-600"
+                                    >
+                                      <Check className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={cancelEdit}
+                                      className="w-9 h-9 shrink-0 rounded-lg bg-zinc-200 dark:bg-white/10 text-zinc-600 dark:text-zinc-400 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-white/20"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={handleSaveEdit}
-                                    className="w-9 h-9 rounded-lg bg-amber-500 text-white flex items-center justify-center hover:bg-amber-600"
-                                  >
-                                    <Check className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={cancelEdit}
-                                    className="w-9 h-9 rounded-lg bg-zinc-200 dark:bg-white/10 text-zinc-600 dark:text-zinc-400 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-white/20"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </>
+                                </div>
                               ) : (
-                                <>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-[16px] font-medium text-zinc-900 dark:text-white truncate">{s.name}</p>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                      {serviceCategory} • {serviceHours}h
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-3 items-center">
+                                  <div className="md:col-span-7 min-w-0">
+                                    <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 md:hidden mb-0.5">
+                                      Serviço
                                     </p>
+                                    <p className="text-[16px] font-medium text-zinc-900 dark:text-white truncate">
+                                      {displayTitle}
+                                    </p>
+                                    {serviceCategory !== selectedCategory ? (
+                                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
+                                        {serviceCategory}
+                                      </p>
+                                    ) : null}
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => startEdit(s)}
-                                    className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-amber-600 hover:bg-amber-500/10 transition-colors"
-                                    aria-label="Editar"
-                                  >
-                                    <Pencil className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDelete(s.id)}
-                                    className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-red-600 hover:bg-red-500/10 transition-colors"
-                                    aria-label="Excluir"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </>
+                                  <div className="md:col-span-2 flex flex-row md:flex-col items-center justify-between md:justify-center gap-2 min-h-[2.25rem]">
+                                    <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 md:hidden shrink-0">
+                                      Horas
+                                    </p>
+                                    <span className="text-[16px] font-semibold tabular-nums text-zinc-900 dark:text-white md:min-w-[4.5rem] md:text-center">
+                                      {serviceHours}h
+                                    </span>
+                                  </div>
+                                  <div className="md:col-span-3 flex justify-end gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => startEdit(s)}
+                                      className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-amber-600 hover:bg-amber-500/10 transition-colors"
+                                      aria-label="Editar"
+                                    >
+                                      <Pencil className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDelete(s.id)}
+                                      className="w-9 h-9 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-red-600 hover:bg-red-500/10 transition-colors"
+                                      aria-label="Excluir"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
                               )}
                             </div>
                           );
-                        })
+                        })}
+                        </>
                       )}
                     </div>
                   );
