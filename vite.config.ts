@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
+      /** Necessário para o APK (Capacitor): assets com caminhos relativos. */
+      base: './',
       server: {
         port: 3000,
         host: '0.0.0.0',

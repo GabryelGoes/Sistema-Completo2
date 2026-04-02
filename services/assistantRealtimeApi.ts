@@ -1,7 +1,6 @@
 import type { TabId } from "../components/TabBar";
 import type { AssistantSessionIdentityPayload } from "./assistantApi";
-
-const API_BASE = "/api";
+import { API_BASE } from "./apiConfig";
 
 export interface AssistantRealtimeSessionResponse {
   client_secret: string;

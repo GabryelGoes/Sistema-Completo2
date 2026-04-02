@@ -1,8 +1,7 @@
 import { Customer } from "../types";
 import type { Appointment } from "../types";
 import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
-
-const API_BASE = "/api";
+import { API_BASE } from "./apiConfig";
 
 export interface ApiCustomer {
   id: string;
