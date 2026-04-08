@@ -176,6 +176,21 @@ function resolveVehicleCategoryLabel(
   return parseLegacyVehicleCategoryFromIssue(issue);
 }
 
+/** Delimitador do título: "modelo - placa - cliente". Não usar só "-" para não quebrar modelos como HR-V. */
+const PATIO_CARD_TITLE_SEP = ' - ';
+
+function parsePatioCardTitle(name: string): { vehicle: string; plateOrModule: string; customer: string } {
+  const parts = name.split(PATIO_CARD_TITLE_SEP).map((s) => s.trim());
+  if (parts.length === 0) return { vehicle: name.trim(), plateOrModule: '', customer: '' };
+  if (parts.length === 1) return { vehicle: parts[0] ?? '', plateOrModule: '', customer: '' };
+  if (parts.length === 2) return { vehicle: parts[0] ?? '', plateOrModule: parts[1] ?? '', customer: '' };
+  return {
+    vehicle: parts[0] ?? '',
+    plateOrModule: parts[1] ?? '',
+    customer: parts.slice(2).join(PATIO_CARD_TITLE_SEP),
+  };
+}
+
 /** Mesmas opções da Recepção — categoria do veículo. */
 const VEHICLE_CATEGORIES_MODAL = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
 
@@ -220,8 +235,8 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
 function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string, string>, orderType: ServiceOrderType = 'vehicle'): TrelloCard {
   const clientName = (o.customer_name ?? o.customers?.name ?? '').trim() || 'Cliente';
   const name = orderType === 'module'
-    ? `${o.vehicle_model || '—'} - ${o.module_identification || '—'} - ${clientName}`
-    : `${o.vehicle_model || 'Veículo'} - ${(o.plate || '---').toUpperCase()} - ${clientName}`;
+    ? `${o.vehicle_model || '—'}${PATIO_CARD_TITLE_SEP}${o.module_identification || '—'}${PATIO_CARD_TITLE_SEP}${clientName}`
+    : `${o.vehicle_model || 'Veículo'}${PATIO_CARD_TITLE_SEP}${(o.plate || '---').toUpperCase()}${PATIO_CARD_TITLE_SEP}${clientName}`;
   const techId = o.assigned_technician ?? null;
   const nameMap = technicianNameMap ?? {};
   const techName = techId ? (nameMap[techId] ?? techId) : null;
@@ -654,6 +669,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const isModuleMode = orderType === 'module';
   const remindersScopeApi = orderType === 'module' ? ('module' as const) : ('vehicle' as const);
 
+  const selectedCardTitleParts = selectedCard ? parsePatioCardTitle(selectedCard.name) : null;
+  const historyCardTitleParts = selectedHistoryCard ? parsePatioCardTitle(selectedHistoryCard.name) : null;
+  const cardInTransitionTitleParts = cardInTransition ? parsePatioCardTitle(cardInTransition.name) : null;
+
   const fetchReminders = useCallback(async () => {
     setRemindersLoading(true);
     try {
@@ -1047,6 +1066,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // Deriva o cartão ativo e o template ativo
   const activeChecklistCard = cards.find(c => c.id === activeChecklistCardId);
   const activeChecklistTemplate = checklistTemplates.find(t => t.id === activeChecklistTemplateId);
+  const activeChecklistCardTitleParts = activeChecklistCard
+    ? parsePatioCardTitle(activeChecklistCard.name)
+    : null;
 
   /** Carrega os últimos veículos arquivados (sem filtro de busca). */
   const loadRecentArchived = async () => {
@@ -1278,9 +1300,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const openVehicleEditModal = () => {
     if (!selectedCard) return;
-    const parts = selectedCard.name.split('-').map((s) => s.trim());
-    setVehicleEditModel(parts[0] || '');
-    setVehicleEditPlate(parts[1] || '');
+    const { vehicle, plateOrModule } = parsePatioCardTitle(selectedCard.name);
+    setVehicleEditModel(vehicle);
+    setVehicleEditPlate(plateOrModule);
     setIsVehicleEditOpen(true);
   };
 
@@ -1299,9 +1321,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setSavingVehicleEdit(true);
     try {
       await updateServiceOrderVehicle(selectedCard.id, { vehicleModel: model, plate }, actorOptions);
-      const parts = selectedCard.name.split('-').map((s) => s.trim());
-      const customerPart = parts[2] ?? 'Cliente';
-      const newName = `${model} - ${plate} - ${customerPart}`;
+      const { customer } = parsePatioCardTitle(selectedCard.name);
+      const customerPart = customer || 'Cliente';
+      const newName = `${model}${PATIO_CARD_TITLE_SEP}${plate}${PATIO_CARD_TITLE_SEP}${customerPart}`;
       setCards((prev) =>
         prev.map((c) => (c.id === selectedCard.id ? { ...c, name: newName } : c))
       );
@@ -2393,10 +2415,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
       <>
       <div className="relative z-0 grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-5 lg:grid-cols-3 lg:gap-6" style={{ perspective: '1400px' }}>
         {sortedCards.map(card => {
-          const parts = card.name.split('-').map(s => s.trim());
-          const model = parts[0] || card.name;
-          const plate = isModuleMode ? '' : (parts[1] || '---');
-          const customerName = parts[2] || '';
+          const titleParts = parsePatioCardTitle(card.name);
+          const model = titleParts.vehicle || card.name;
+          const plate = isModuleMode ? '' : (titleParts.plateOrModule || '---');
+          const customerName = titleParts.customer || '';
           
           const currentList = lists.find(l => l.id === card.idList);
           const listName = currentList ? currentList.name : 'Desconhecido';
@@ -2683,10 +2705,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         )}
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {archivedCards.map(card => {
-                           const parts = card.name.split('-');
-                           const model = parts[0]?.trim() || card.name;
-                           const plate = parts[1]?.trim() || '---';
-                           const customerName = parts[2]?.trim() || '';
+                           const t = parsePatioCardTitle(card.name);
+                           const model = t.vehicle || card.name;
+                           const plate = t.plateOrModule || '---';
+                           const customerName = t.customer || '';
 
                            return (
                               <div
@@ -2796,7 +2818,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           Arquivado
                         </span>
                         <h1 className="text-3xl font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-5xl">
-                          {selectedHistoryCard.name.split('-')[0]}
+                          {historyCardTitleParts?.vehicle}
                         </h1>
                         <p className="flex items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
                           <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" />
@@ -2814,7 +2836,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                  </div>
                                  <div className="flex h-10 items-center justify-center bg-white">
                                     <span className="font-mono text-2xl font-bold tracking-widest leading-none text-black">
-                                       {(selectedHistoryCard.name.split('-')[1]?.trim() || '---').toUpperCase()}
+                                       {(historyCardTitleParts?.plateOrModule || '---').toUpperCase()}
                                     </span>
                                  </div>
                               </div>
@@ -2822,7 +2844,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          )}
                          <div className={`${iosModalInsetCard} flex items-center gap-2 px-4 py-2.5`}>
                             <User className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
-                            <span className="text-[16px] font-medium text-zinc-900 dark:text-white">{selectedHistoryCard.name.split('-')[2]?.trim()}</span>
+                            <span className="text-[16px] font-medium text-zinc-900 dark:text-white">{historyCardTitleParts?.customer}</span>
                          </div>
                          {selectedHistoryCard.due && (
                            <div className={`${iosModalInsetCard} flex items-center gap-2 px-4 py-2.5`}>
@@ -3130,7 +3152,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           )}
                         </div>
                         <h1 className="text-5xl md:text-7xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none">
-                          {selectedCard.name.split('-')[0]}
+                          {selectedCardTitleParts?.vehicle}
                         </h1>
                         {/* Técnico + Data de entrega — duas colunas no mesmo bloco */}
                         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -3220,7 +3242,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                </div>
                                <div className="h-10 flex items-center justify-center bg-white">
                                   <span className={`text-black font-mono text-2xl font-black tracking-widest leading-none ${blurPlates ? 'blur-plate' : ''}`}>
-                                     {(selectedCard.name.split('-')[1]?.trim() || '---').toUpperCase()}
+                                     {(selectedCardTitleParts?.plateOrModule || '---').toUpperCase()}
                                   </span>
                                </div>
                             </div>
@@ -3229,7 +3251,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          <div className="flex items-center gap-2 px-4 py-2">
                             <User className="w-5 h-5 text-brand-yellow" />
                             <span className="text-lg font-medium text-zinc-700 dark:text-white">
-                              {selectedCard.name.split('-').map((s) => s.trim())[2] ?? '—'}
+                              {selectedCardTitleParts?.customer || '—'}
                             </span>
                          </div>
                          {!isModuleMode && can('canEditMileage') && (
@@ -5207,7 +5229,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
                     <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
                     <span className="min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200">
-                      {cardInTransition.name.split('-')[0]}
+                      {cardInTransitionTitleParts?.vehicle}
                     </span>
                     <span className="text-zinc-400 dark:text-zinc-500">—</span>
                     <span>Toque na etapa de destino.</span>
@@ -5316,7 +5338,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
                         <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
                         <span className="min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200">
-                          {selectedCard.name.split('-')[0]}
+                          {selectedCardTitleParts?.vehicle}
                         </span>
                         <span className="text-zinc-400 dark:text-zinc-500">—</span>
                         <span>Toque na categoria desejada.</span>
@@ -5493,7 +5515,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      </div>
                      <div className="min-w-0">
                        <h2 className="text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">Checklist {activeChecklistTemplate.name}</h2>
-                       <p className="mt-0.5 text-[13px] font-medium text-zinc-500 dark:text-zinc-400">{activeChecklistCard.name.split('-')[0]}</p>
+                       <p className="mt-0.5 text-[13px] font-medium text-zinc-500 dark:text-zinc-400">{activeChecklistCardTitleParts?.vehicle}</p>
                      </div>
                   </div>
                   <button 
