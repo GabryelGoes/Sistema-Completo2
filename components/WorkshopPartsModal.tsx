@@ -211,6 +211,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       onSave={handlePhotoEditorSave}
       onCancel={handlePhotoEditorCancel}
       overlayZIndexClass="z-[125]"
+      cropShape="square"
     />
 
     <div className={iosModalOverlay}>

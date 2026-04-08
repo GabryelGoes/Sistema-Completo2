@@ -20,6 +20,8 @@ interface TechnicianPhotoEditorModalProps {
   onCancel: () => void;
   /** z-index da sobreposição (ex.: z-[125] quando o editor abre sobre outro modal). */
   overlayZIndexClass?: string;
+  /** `circle` = perfis; `square` = produtos/peças no estoque. */
+  cropShape?: 'circle' | 'square';
 }
 
 export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProps> = ({
@@ -29,7 +31,9 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
   onSave,
   onCancel,
   overlayZIndexClass = 'z-[100]',
+  cropShape = 'circle',
 }) => {
+  const isSquare = cropShape === 'square';
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -221,10 +225,12 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
       const ty = posY * posScale;
 
       ctx.save();
-      ctx.beginPath();
-      ctx.arc(cx, cy, cx, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
+      if (!isSquare) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, cx, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+      }
 
       ctx.translate(cx, cy);
       ctx.rotate(angleRad);
@@ -280,7 +286,9 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
           <div className="flex justify-center mb-4">
             <div
               ref={previewRef}
-              className="rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800 shrink-0 relative touch-none select-none cursor-grab active:cursor-grabbing"
+              className={`overflow-hidden bg-zinc-200 dark:bg-zinc-800 shrink-0 relative touch-none select-none cursor-grab active:cursor-grabbing ${
+                isSquare ? 'rounded-2xl' : 'rounded-full'
+              }`}
               style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
@@ -291,7 +299,7 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
             >
               {imageSrc && (
                 <div
-                  className="absolute inset-0 rounded-full overflow-hidden"
+                  className={`absolute inset-0 overflow-hidden ${isSquare ? 'rounded-2xl' : 'rounded-full'}`}
                   style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
                 >
                   <img
