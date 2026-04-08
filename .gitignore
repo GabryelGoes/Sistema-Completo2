@@ -31,3 +31,6 @@ dist-ssr
 # Supabase (pastas temporárias / geradas)
 supabase/.temp/
 .supabase/
+
+# Clone local do repositório Patio-View (deploy separado em github.com/GabryelGoes/Patio-View)
+Patio-View/
