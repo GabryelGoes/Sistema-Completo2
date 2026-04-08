@@ -14,9 +14,12 @@ function getTouchDistance(t1: Touch, t2: Touch): number {
 interface TechnicianPhotoEditorModalProps {
   isOpen: boolean;
   imageFile: File | null;
+  /** Texto exibido no título após "Ajustar foto —" (ex.: nome do técnico ou da peça). */
   technicianName: string;
   onSave: (blob: Blob) => void;
   onCancel: () => void;
+  /** z-index da sobreposição (ex.: z-[125] quando o editor abre sobre outro modal). */
+  overlayZIndexClass?: string;
 }
 
 export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProps> = ({
@@ -25,6 +28,7 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
   technicianName,
   onSave,
   onCancel,
+  overlayZIndexClass = 'z-[100]',
 }) => {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
@@ -252,7 +256,9 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-3 sm:p-4 safe-area-inset">
+    <div
+      className={`fixed inset-0 ${overlayZIndexClass} flex items-center justify-center bg-black/90 backdrop-blur-sm p-3 sm:p-4 safe-area-inset`}
+    >
       <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-zinc-200/60 dark:border-white/10 w-full max-w-md max-h-[90vh] shadow-2xl overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-zinc-200/60 dark:border-white/10 shrink-0">
           <h3 className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-white truncate pr-2">

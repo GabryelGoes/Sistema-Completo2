@@ -10,6 +10,7 @@ import {
   uploadWorkshopPartPhoto,
   type WorkshopPart,
 } from '../services/apiService';
+import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 
 interface WorkshopPartsModalProps {
   isOpen: boolean;
@@ -33,6 +34,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [editingStock, setEditingStock] = useState('');
   const [uploadingPhotoId, setUploadingPhotoId] = useState<string | null>(null);
   const [detailPart, setDetailPart] = useState<WorkshopPart | null>(null);
+  /** 'new' = foto para peça ainda não cadastrada; string = id da peça existente */
+  const [photoEditorTarget, setPhotoEditorTarget] = useState<'new' | string | null>(null);
+  const [photoEditorFile, setPhotoEditorFile] = useState<File | null>(null);
   const createPhotoInputRef = useRef<HTMLInputElement>(null);
   const editPhotoInputRef = useRef<HTMLInputElement>(null);
 
@@ -159,18 +163,39 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     }
   };
 
-  const handleUploadPhotoForPart = async (partId: string, file: File | null) => {
-    if (!file) return;
-    setUploadingPhotoId(partId);
-    setError(null);
-    try {
-      const updated = await uploadWorkshopPartPhoto(partId, file, file.name);
-      setParts((prev) => prev.map((p) => (p.id === partId ? updated : p)));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao enviar foto da peça.');
-    } finally {
-      setUploadingPhotoId(null);
+  const photoEditorDisplayName =
+    photoEditorTarget === 'new'
+      ? newName.trim() || 'Nova peça'
+      : photoEditorTarget
+        ? parts.find((x) => x.id === photoEditorTarget)?.name ?? 'Peça'
+        : '';
+
+  const handlePhotoEditorSave = async (blob: Blob) => {
+    const target = photoEditorTarget;
+    setPhotoEditorFile(null);
+    setPhotoEditorTarget(null);
+    const file = new File([blob], 'foto.jpg', { type: 'image/jpeg' });
+    if (target === 'new') {
+      setNewPhoto(file);
+      return;
     }
+    if (target) {
+      setUploadingPhotoId(target);
+      setError(null);
+      try {
+        const updated = await uploadWorkshopPartPhoto(target, file, file.name);
+        setParts((prev) => prev.map((p) => (p.id === target ? updated : p)));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Erro ao enviar foto da peça.');
+      } finally {
+        setUploadingPhotoId(null);
+      }
+    }
+  };
+
+  const handlePhotoEditorCancel = () => {
+    setPhotoEditorFile(null);
+    setPhotoEditorTarget(null);
   };
 
   if (!isOpen) return null;
@@ -179,6 +204,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
   return (
     <>
+    <TechnicianPhotoEditorModal
+      isOpen={!!photoEditorFile}
+      imageFile={photoEditorFile}
+      technicianName={photoEditorDisplayName}
+      onSave={handlePhotoEditorSave}
+      onCancel={handlePhotoEditorCancel}
+      overlayZIndexClass="z-[125]"
+    />
+
     <div className={iosModalOverlay}>
       <div className={`${iosModalShell} w-full max-w-[95vw] h-[94vh] max-h-[94vh]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
@@ -282,13 +316,16 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0] ?? null;
-                  setNewPhoto(f);
+                  e.target.value = '';
+                  if (!f || !f.type.startsWith('image/')) return;
+                  setPhotoEditorTarget('new');
+                  setPhotoEditorFile(f);
                 }}
               />
             </div>
             {newPhoto && (
               <div className="px-3 pb-3 text-[12px] text-zinc-500 dark:text-zinc-400">
-                Foto selecionada: <span className="text-zinc-800 dark:text-zinc-200 font-medium">{newPhoto.name}</span>
+                Foto pronta para salvar com a peça (ajuste feito no editor).
               </div>
             )}
 
@@ -429,10 +466,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                   onChange={(e) => {
                     const f = e.target.files?.[0] ?? null;
                     const partId = editPhotoInputRef.current?.dataset.partId;
-                    if (partId) handleUploadPhotoForPart(partId, f);
-                    if (editPhotoInputRef.current) {
-                      editPhotoInputRef.current.value = '';
-                    }
+                    if (editPhotoInputRef.current) editPhotoInputRef.current.value = '';
+                    if (!f || !f.type.startsWith('image/') || !partId) return;
+                    setPhotoEditorTarget(partId);
+                    setPhotoEditorFile(f);
                   }}
                 />
                 </div>
