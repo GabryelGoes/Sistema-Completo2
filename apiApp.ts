@@ -79,6 +79,22 @@ export function createApiApp() {
     return "";
   }
 
+  /**
+   * Chave segura para Supabase Storage (object path). Acentos, parênteses e caracteres especiais
+   * causam "Invalid key"; alinhar com PATCH .../photos/rename.
+   */
+  function sanitizeVehiclePhotoFileName(originalName: string): string {
+    const trimmed = String(originalName || "").trim() || "arquivo";
+    const safe = trimmed
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .replace(/[^\w\s.-]/g, "_")
+      .replace(/\s+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    return safe || "arquivo";
+  }
+
   // CORS: painel da TV (Patio-View) em outro domínio — ecoa Origin só se estiver na lista permitida
   app.use((req, res, next) => {
     const origin = req.headers.origin;
@@ -1789,7 +1805,7 @@ export function createApiApp() {
         }
 
         const bucket = VEHICLE_PHOTOS_BUCKET;
-        const safeName = file.originalname.replace(/\s+/g, "_");
+        const safeName = sanitizeVehiclePhotoFileName(file.originalname);
         const pathInBucket = `${WORKSHOP_ID}/${serviceOrderId}/${Date.now()}_${safeName}`;
 
         const { error: uploadError } = await supabaseAdmin.storage
@@ -1813,6 +1829,7 @@ export function createApiApp() {
         return res.status(201).json({
           url: publicUrl,
           path: pathInBucket,
+          name: safeName,
         });
       } catch (err: any) {
         console.error(
@@ -2079,13 +2096,7 @@ export function createApiApp() {
         trimmedNewName = trimmedNewName + ext;
       }
 
-      // Normalizar nome para ASCII (evitar "Invalid key" no Supabase Storage com acentos)
-      const safeName = trimmedNewName
-        .normalize("NFD")
-        .replace(/\p{M}/gu, "")
-        .replace(/[^\w\s.-]/g, "_")
-        .replace(/\s+/g, "_")
-        .trim() || trimmedNewName;
+      const safeName = sanitizeVehiclePhotoFileName(trimmedNewName);
 
       const newPath = `${folderPath}/${safeName}`;
       const bucket = VEHICLE_PHOTOS_BUCKET;
