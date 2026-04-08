@@ -2459,7 +2459,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]
                   hover:border-[#007AFF]/28 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:hover:border-white/[0.12] dark:hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.5)]
                   active:scale-[0.99]
-                  ${isGarantia ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-white dark:ring-offset-[#0a0a0a] border-red-500/30' : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-white/35 dark:ring-white/[0.06]'}
+                  ${isGarantia ? 'ring-2 ring-red-500 ring-offset-0 border-red-500/40' : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-zinc-400/30 ring-offset-0 dark:ring-white/[0.08]'}
                 `}
                 style={{
                   transform: isFloating
