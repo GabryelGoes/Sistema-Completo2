@@ -2459,7 +2459,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]
                   hover:border-[#007AFF]/28 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:hover:border-white/[0.12] dark:hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.5)]
                   active:scale-[0.99]
-                  ${isGarantia ? 'ring-2 ring-red-500 ring-offset-0 border-red-500/40' : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-zinc-400/30 ring-offset-0 dark:ring-white/[0.08]'}
+                  ${isGarantia ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40' : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'}
                 `}
                 style={{
                   transform: isFloating
@@ -2471,7 +2471,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               >
               {/* Overlay de Loading (Geral para Card) */}
               {(isMoving && cardInTransition?.id === card.id) || (isAssigning && cardForMemberAssignment?.id === card.id) || (archivingId === card.id) || (removingGarantiaId === card.id) ? (
-                <div className="absolute inset-0 z-30 flex items-center justify-center overflow-hidden rounded-[2rem] bg-white/75 backdrop-blur-md dark:bg-black/50 sm:rounded-[2.25rem]">
+                <div className="absolute inset-0 z-30 flex items-center justify-center overflow-hidden rounded-[inherit] bg-white/95 dark:bg-zinc-950/90">
                    <RefreshCw className="h-8 w-8 animate-spin text-[#007AFF]" />
                 </div>
               ) : null}
