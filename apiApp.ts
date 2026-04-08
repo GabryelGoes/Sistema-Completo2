@@ -260,7 +260,7 @@ export function createApiApp() {
     return String(password).trim() === expected;
   }
 
-  const DEFAULT_ZAYA_ADMIN_ALERTS: string[] = ["zaya_stage_aguardando_aprovacao", "zaya_stage_finalizado"];
+  const DEFAULT_ZAYA_ADMIN_ALERTS: string[] = [];
 
   async function getZayaAdminAlertTypes(): Promise<string[]> {
     if (!supabaseAdmin || !WORKSHOP_ID) return [...DEFAULT_ZAYA_ADMIN_ALERTS];
@@ -274,7 +274,7 @@ export function createApiApp() {
     try {
       const parsed = JSON.parse(String(data.value));
       if (!Array.isArray(parsed)) return [...DEFAULT_ZAYA_ADMIN_ALERTS];
-      return parsed.filter((x: unknown) => typeof x === "string");
+      return parsed.filter((x: unknown) => typeof x === "string" && isValidZayaAlertKey(x as string));
     } catch {
       return [...DEFAULT_ZAYA_ADMIN_ALERTS];
     }
@@ -4328,21 +4328,6 @@ export function createApiApp() {
               target_slug: null,
             }).then(({ error: e }) => { if (e) console.error("[API] Notificação delivery_date_changed (admin):", e); });
           }
-        }
-      }
-
-      if (previous && updatePayload.status !== undefined && previous.status !== data?.status) {
-        const ns = data?.status;
-        if (ns === "AGUARDANDO_APROVACAO") {
-          await notifyZayaSubscribers("zaya_stage_aguardando_aprovacao", {
-            ...payloadBase,
-            new_status: ns,
-          });
-        } else if (ns === "FINALIZADO") {
-          await notifyZayaSubscribers("zaya_stage_finalizado", {
-            ...payloadBase,
-            new_status: ns,
-          });
         }
       }
 
