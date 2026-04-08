@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Package, Plus, Pencil, Trash2, Check, Loader2, Camera, Hash } from 'lucide-react';
+import { X, Package, Plus, Pencil, Trash2, Check, Loader2, Camera, Hash, SlidersHorizontal } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
@@ -15,6 +15,63 @@ import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 interface WorkshopPartsModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+/** Carrega imagem pública (ex.: Storage) para o editor; tenta fetch CORS e, se falhar, Image + canvas. */
+async function fetchImageUrlAsFileForEditor(imageUrl: string): Promise<File> {
+  const withBust = (base: string) =>
+    base + (base.includes('?') ? '&' : '?') + `cb=${Date.now()}`;
+  const busted = withBust(imageUrl.trim());
+  try {
+    const res = await fetch(busted, { mode: 'cors', credentials: 'omit' });
+    if (!res.ok) throw new Error(String(res.status));
+    const blob = await res.blob();
+    if (!blob.type.startsWith('image/')) throw new Error('not image');
+    const type =
+      blob.type.includes('jpeg') || blob.type.includes('jpg')
+        ? 'image/jpeg'
+        : blob.type.includes('png')
+          ? 'image/png'
+          : blob.type.includes('webp')
+            ? 'image/webp'
+            : 'image/jpeg';
+    return new File([blob], 'foto_existente.jpg', { type });
+  } catch {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth;
+          c.height = img.naturalHeight;
+          const ctx = c.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas não disponível.'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          c.toBlob(
+            (b) => {
+              if (b) resolve(new File([b], 'foto_existente.jpg', { type: 'image/jpeg' }));
+              else reject(new Error('Falha ao gerar arquivo da imagem.'));
+            },
+            'image/jpeg',
+            0.92
+          );
+        } catch (err) {
+          reject(err instanceof Error ? err : new Error('Falha ao processar imagem.'));
+        }
+      };
+      img.onerror = () =>
+        reject(
+          new Error(
+            'Não foi possível carregar a foto para edição. Verifique a conexão ou envie uma nova imagem pela câmera.'
+          )
+        );
+      img.src = busted;
+    });
+  }
 }
 
 export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, onClose }) => {
@@ -33,6 +90,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [editingPrice, setEditingPrice] = useState('');
   const [editingStock, setEditingStock] = useState('');
   const [uploadingPhotoId, setUploadingPhotoId] = useState<string | null>(null);
+  const [loadingExistingPhotoId, setLoadingExistingPhotoId] = useState<string | null>(null);
   const [detailPart, setDetailPart] = useState<WorkshopPart | null>(null);
   /** 'new' = foto para peça ainda não cadastrada; string = id da peça existente */
   const [photoEditorTarget, setPhotoEditorTarget] = useState<'new' | string | null>(null);
@@ -198,6 +256,22 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     setPhotoEditorTarget(null);
   };
 
+  const openExistingPartPhotoInEditor = async (p: WorkshopPart) => {
+    const url = p.photo_url?.trim();
+    if (!url) return;
+    setLoadingExistingPhotoId(p.id);
+    setError(null);
+    try {
+      const file = await fetchImageUrlAsFileForEditor(url);
+      setPhotoEditorTarget(p.id);
+      setPhotoEditorFile(file);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Não foi possível abrir a foto para edição.');
+    } finally {
+      setLoadingExistingPhotoId(null);
+    }
+  };
+
   if (!isOpen) return null;
 
   const detail = detailPart;
@@ -341,12 +415,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               </div>
             ) : (
               <>
-                <div className="hidden md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto_auto] md:gap-3 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
+                <div className="hidden md:grid md:grid-cols-[4fr_1fr_1fr_auto_minmax(4.5rem,auto)_auto] md:gap-3 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
                   <span className="min-w-0">Nome da peça</span>
                   <span className="text-right tabular-nums">Preço</span>
                   <span className="text-right tabular-nums">Quantidade</span>
                   <span className="text-center justify-self-center">Editar</span>
-                  <span className="text-center justify-self-center">Foto</span>
+                  <span className="text-center justify-self-center min-w-[5rem]">Foto</span>
                   <span className="text-center justify-self-center">Excluir</span>
                 </div>
                 <div className="md:hidden px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
@@ -356,7 +430,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 {parts.map((p) => (
                   <div
                     key={p.id}
-                    className="min-h-[52px] flex flex-wrap items-center gap-3 px-4 py-3 bg-transparent hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto_auto] md:flex-nowrap md:gap-3 md:items-center"
+                    className="min-h-[52px] flex flex-wrap items-center gap-3 px-4 py-3 bg-transparent hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors md:grid md:grid-cols-[4fr_1fr_1fr_auto_minmax(4.5rem,auto)_auto] md:flex-nowrap md:gap-3 md:items-center"
                   >
                     {editingId === p.id ? (
                       <>
@@ -434,19 +508,41 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!editPhotoInputRef.current) return;
-                            editPhotoInputRef.current.dataset.partId = p.id;
-                            editPhotoInputRef.current.click();
-                          }}
-                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center justify-self-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-brand-yellow/10 transition-colors"
-                          aria-label="Foto"
-                          title="Adicionar/alterar foto"
-                        >
-                          {uploadingPhotoId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                        </button>
+                        <div className="flex flex-col items-center justify-center gap-1 justify-self-center sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!editPhotoInputRef.current) return;
+                              editPhotoInputRef.current.dataset.partId = p.id;
+                              editPhotoInputRef.current.click();
+                            }}
+                            className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-brand-yellow/10 transition-colors"
+                            aria-label="Nova foto do arquivo"
+                            title="Nova foto do arquivo"
+                          >
+                            {uploadingPhotoId === p.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Camera className="w-4 h-4" />
+                            )}
+                          </button>
+                          {p.photo_url ? (
+                            <button
+                              type="button"
+                              onClick={() => void openExistingPartPhotoInEditor(p)}
+                              disabled={loadingExistingPhotoId === p.id || uploadingPhotoId === p.id}
+                              className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/10 transition-colors disabled:opacity-50"
+                              aria-label="Ajustar foto atual"
+                              title="Ajustar foto atual (zoom, rotação, recorte)"
+                            >
+                              {loadingExistingPhotoId === p.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <SlidersHorizontal className="w-4 h-4" />
+                              )}
+                            </button>
+                          ) : null}
+                        </div>
                         <button
                           type="button"
                           onClick={() => handleDelete(p.id)}
@@ -570,12 +666,27 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                   editPhotoInputRef.current.dataset.partId = detail.id;
                   editPhotoInputRef.current.click();
                 }}
-                disabled={uploadingPhotoId === detail.id}
+                disabled={uploadingPhotoId === detail.id || loadingExistingPhotoId === detail.id}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-200 dark:bg-white/10 px-4 py-3 text-[15px] font-semibold text-zinc-900 dark:text-white hover:bg-zinc-300 dark:hover:bg-white/15 transition-colors disabled:opacity-50"
               >
                 {uploadingPhotoId === detail.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                Foto
+                Nova foto
               </button>
+              {detail.photo_url ? (
+                <button
+                  type="button"
+                  onClick={() => void openExistingPartPhotoInEditor(detail)}
+                  disabled={loadingExistingPhotoId === detail.id || uploadingPhotoId === detail.id}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-violet-300/80 dark:border-violet-500/40 bg-violet-50 dark:bg-violet-950/40 px-4 py-3 text-[15px] font-semibold text-violet-800 dark:text-violet-200 hover:bg-violet-100 dark:hover:bg-violet-950/60 transition-colors disabled:opacity-50"
+                >
+                  {loadingExistingPhotoId === detail.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <SlidersHorizontal className="w-4 h-4" />
+                  )}
+                  Ajustar foto
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => handleDelete(detail.id)}
