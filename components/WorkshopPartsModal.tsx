@@ -612,16 +612,30 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             <IosModalHeader
               icon={<Package className="w-6 h-6 text-white" strokeWidth={2.2} />}
               title="Novo produto"
-              subtitle="Nome, preço, estoque e foto opcional"
+              subtitle="Preço, estoque e foto"
               gradientClass="from-emerald-500 to-teal-700"
             />
+          </div>
+          <div className="px-6 sm:px-8 py-5 border-b border-zinc-200/50 dark:border-white/[0.06] bg-gradient-to-b from-emerald-500/[0.06] to-transparent dark:from-emerald-400/[0.08]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700/90 dark:text-emerald-400/90 mb-2">
+              Nome do produto
+            </p>
+            {newName.trim() ? (
+              <p className="text-[1.5rem] sm:text-[1.875rem] font-bold tracking-tight text-zinc-900 dark:text-white leading-[1.2] break-words">
+                {newName.trim()}
+              </p>
+            ) : (
+              <p className="text-[1.125rem] sm:text-[1.25rem] text-zinc-400 dark:text-zinc-500 leading-snug">
+                Digite abaixo — o nome aparecerá aqui em destaque
+              </p>
+            )}
           </div>
           <div className="px-6 sm:px-8 py-6">
             <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-10">
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                    Nome da peça
+                    Definir nome
                   </label>
                   <input
                     type="text"
@@ -762,13 +776,20 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           <p id="workshop-part-detail-title" className="sr-only">
             Produto no estoque: {detail.name}
           </p>
-          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
-            <IosModalHeader
-              icon={<Package className="w-6 h-6 text-white" strokeWidth={2.2} />}
-              title="Produto no estoque"
-              subtitle={detail.name}
-              gradientClass="from-emerald-500 to-teal-700"
-            />
+          <div className="px-6 sm:px-8 pt-8 pb-5 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06] bg-gradient-to-b from-emerald-500/[0.07] to-transparent dark:from-emerald-400/[0.09]">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 shadow-lg shadow-emerald-900/20 dark:shadow-black/30">
+                <Package className="h-7 w-7 text-white" strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700/90 dark:text-emerald-400/90 mb-1.5">
+                  Produto no estoque
+                </p>
+                <h2 className="text-[1.65rem] sm:text-[2.125rem] font-bold tracking-tight text-zinc-900 dark:text-white leading-[1.12] break-words">
+                  {detail.name}
+                </h2>
+              </div>
+            </div>
           </div>
           <div className="px-6 sm:px-8 py-6 space-y-5">
             <div className="flex justify-center">
