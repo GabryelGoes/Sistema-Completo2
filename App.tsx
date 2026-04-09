@@ -295,7 +295,7 @@ export default function App() {
             tabId="reception"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+            className="flex-1 min-h-0 w-full overflow-y-auto p-0"
           >
             <ReceptionView
               initialData={prefillData}
@@ -313,7 +313,7 @@ export default function App() {
             tabId="agenda"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+            className="flex-1 min-h-0 w-full overflow-y-auto p-0"
           >
             <AgendaView
               appointments={appointments}
@@ -481,7 +481,7 @@ export default function App() {
           tabId="reception"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+          className="flex-1 min-h-0 w-full overflow-y-auto p-0"
         >
           <ReceptionView
             initialData={prefillData}
@@ -504,7 +504,7 @@ export default function App() {
           tabId="agenda"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+          className="flex-1 min-h-0 w-full overflow-y-auto p-0"
         >
           <AgendaView
             appointments={appointments}

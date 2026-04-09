@@ -492,8 +492,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   });
 
   return (
-    <div className="min-h-[min(100dvh,100%)] w-full bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90">
-    <div className="w-full max-w-2xl lg:max-w-5xl mx-auto px-4 md:px-6 pb-24 md:pb-28 pt-3 md:pt-8 animate-in fade-in duration-500">
+    <div className="min-h-full w-full bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90">
+    <div className="w-full max-w-none mx-auto px-3 sm:px-4 md:px-6 pb-24 md:pb-28 pt-3 md:pt-6 animate-in fade-in duration-500">
 
       {/* Cabeçalho — mesmo padrão da página Agenda */}
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">

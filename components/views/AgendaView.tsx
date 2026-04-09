@@ -623,8 +623,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
   };
 
   return (
-    <div className="min-h-[min(100dvh,100%)] w-full bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90">
-    <div className="w-full max-w-6xl mx-auto pb-24 md:pb-28 pt-3 md:pt-8 px-4 md:px-6 animate-in fade-in duration-500">
+    <div className="min-h-full w-full bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90">
+    <div className="w-full max-w-none mx-auto pb-24 md:pb-28 pt-3 md:pt-6 px-3 sm:px-4 md:px-6 animate-in fade-in duration-500">
       {renderHeader()}
       {renderDays()}
       {renderCells()}
