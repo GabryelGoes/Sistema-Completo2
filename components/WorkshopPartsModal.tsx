@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Package, Plus, Pencil, Trash2, Check, Loader2, Camera, Hash, SlidersHorizontal } from 'lucide-react';
+import { X, Package, Plus, Pencil, Trash2, Check, Loader2, Camera, Hash, SlidersHorizontal, Images } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
@@ -96,11 +96,20 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [photoEditorTarget, setPhotoEditorTarget] = useState<'new' | string | null>(null);
   const [photoEditorFile, setPhotoEditorFile] = useState<File | null>(null);
   const createPhotoInputRef = useRef<HTMLInputElement>(null);
+  const createCameraInputRef = useRef<HTMLInputElement>(null);
   const editPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const parseNumber = (value: string): number => {
     const n = Number(String(value).replace(',', '.'));
     return Number.isFinite(n) ? n : 0;
+  };
+
+  const handleNewPartImageSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    e.target.value = '';
+    if (!f || !f.type.startsWith('image/')) return;
+    setPhotoEditorTarget('new');
+    setPhotoEditorFile(f);
   };
 
   const fetchParts = useCallback(async () => {
@@ -316,7 +325,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           )}
 
           <div className={`overflow-hidden ${iosModalInsetCard}`}>
-            <div className="grid grid-cols-1 md:grid-cols-[4fr_1fr_1fr_auto_auto] gap-3 p-3 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
+            <div className="grid grid-cols-1 md:grid-cols-[4fr_1fr_1fr_auto_minmax(5.5rem,auto)] gap-3 p-3 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                   Nome da peça
@@ -375,27 +384,39 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 text-center">
                   Foto
                 </label>
-                <button
-                  type="button"
-                  onClick={() => createPhotoInputRef.current?.click()}
-                  className="w-10 h-10 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-white flex items-center justify-center transition-colors mx-auto"
-                  title="Selecionar foto da peça"
-                >
-                  <Camera className="w-5 h-5" />
-                </button>
+                <div className="flex items-center justify-center gap-1.5 mx-auto">
+                  <button
+                    type="button"
+                    onClick={() => createPhotoInputRef.current?.click()}
+                    className="w-10 h-10 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-white flex items-center justify-center transition-colors shrink-0"
+                    title="Galeria ou arquivo"
+                  >
+                    <Images className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => createCameraInputRef.current?.click()}
+                    className="w-10 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center transition-colors shrink-0"
+                    title="Câmera do aparelho"
+                  >
+                    <Camera className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
               <input
                 ref={createPhotoInputRef}
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0] ?? null;
-                  e.target.value = '';
-                  if (!f || !f.type.startsWith('image/')) return;
-                  setPhotoEditorTarget('new');
-                  setPhotoEditorFile(f);
-                }}
+                onChange={handleNewPartImageSelected}
+              />
+              <input
+                ref={createCameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleNewPartImageSelected}
               />
             </div>
             {newPhoto && (
