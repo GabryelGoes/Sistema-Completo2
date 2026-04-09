@@ -1264,6 +1264,15 @@ export interface WorkshopPart {
   photo_url?: string | null;
   sort_order: number;
   created_at: string;
+  /** IDs das categorias do estoque vinculadas a este produto. */
+  category_ids?: string[];
+}
+
+export interface WorkshopPartCategory {
+  id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
 }
 
 export async function getWorkshopParts(): Promise<WorkshopPart[]> {
@@ -1272,7 +1281,8 @@ export async function getWorkshopParts(): Promise<WorkshopPart[]> {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao listar peças (${response.status})`);
   }
-  return response.json();
+  const list = (await response.json()) as WorkshopPart[];
+  return list.map((p) => ({ ...p, category_ids: Array.isArray(p.category_ids) ? p.category_ids : [] }));
 }
 
 export async function createWorkshopPart(input: {
@@ -1293,7 +1303,11 @@ export async function createWorkshopPart(input: {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao criar peça (${response.status})`);
   }
-  return response.json();
+  const row = await response.json();
+  return {
+    ...row,
+    category_ids: Array.isArray(row.category_ids) ? row.category_ids : [],
+  };
 }
 
 export async function updateWorkshopPart(
@@ -1313,7 +1327,11 @@ export async function updateWorkshopPart(
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao atualizar peça (${response.status})`);
   }
-  return response.json();
+  const row = await response.json();
+  return {
+    ...row,
+    category_ids: Array.isArray(row.category_ids) ? row.category_ids : [],
+  };
 }
 
 export async function deleteWorkshopPart(id: string): Promise<void> {
@@ -1339,7 +1357,86 @@ export async function uploadWorkshopPartPhoto(
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao enviar foto da peça (${response.status})`);
   }
+  const row = await response.json();
+  return {
+    ...row,
+    category_ids: Array.isArray(row.category_ids) ? row.category_ids : [],
+  };
+}
+
+export async function getWorkshopPartCategories(): Promise<WorkshopPartCategory[]> {
+  const response = await fetch(`${API_BASE}/workshop-part-categories`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar categorias (${response.status})`);
+  }
   return response.json();
+}
+
+export async function createWorkshopPartCategory(input: {
+  name: string;
+  sort_order?: number;
+}): Promise<WorkshopPartCategory> {
+  const response = await fetch(`${API_BASE}/workshop-part-categories`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: input.name.trim(),
+      sort_order: input.sort_order ?? 0,
+    }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao criar categoria (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function updateWorkshopPartCategory(
+  id: string,
+  input: { name?: string; sort_order?: number }
+): Promise<WorkshopPartCategory> {
+  const body: Record<string, unknown> = {};
+  if (input.name !== undefined) body.name = input.name.trim();
+  if (input.sort_order !== undefined) body.sort_order = input.sort_order;
+  const response = await fetch(`${API_BASE}/workshop-part-categories/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar categoria (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteWorkshopPartCategory(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/workshop-part-categories/${id}`, { method: "DELETE" });
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir categoria (${response.status})`);
+  }
+}
+
+export async function setWorkshopPartCategories(
+  partId: string,
+  categoryIds: string[]
+): Promise<WorkshopPart> {
+  const response = await fetch(`${API_BASE}/workshop-parts/${partId}/categories`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ categoryIds }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao salvar categorias do produto (${response.status})`);
+  }
+  const row = await response.json();
+  return {
+    ...row,
+    category_ids: Array.isArray(row.category_ids) ? row.category_ids : [],
+  };
 }
 
 // ---------- Técnicos da oficina (atribuição nos cards) ----------

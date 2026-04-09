@@ -3642,6 +3642,38 @@ export function createApiApp() {
     }
   });
 
+  /** Mapa part_id -> lista de category_id (estoque). */
+  async function loadWorkshopPartCategoryMap(partIds: string[]): Promise<Map<string, string[]>> {
+    const map = new Map<string, string[]>();
+    if (!supabaseAdmin || partIds.length === 0) return map;
+    const { data, error } = await supabaseAdmin
+      .from("workshop_part_category_members")
+      .select("part_id, category_id")
+      .in("part_id", partIds);
+    if (error) {
+      console.error("[API] Erro ao carregar categorias das peças:", error);
+      return map;
+    }
+    for (const row of data ?? []) {
+      const pid = row.part_id as string;
+      const cid = row.category_id as string;
+      const arr = map.get(pid) ?? [];
+      arr.push(cid);
+      map.set(pid, arr);
+    }
+    return map;
+  }
+
+  function workshopPartsWithCategories(
+    rows: Record<string, unknown>[],
+    catMap: Map<string, string[]>
+  ) {
+    return rows.map((p) => ({
+      ...p,
+      category_ids: catMap.get(p.id as string) ?? [],
+    }));
+  }
+
   // ----------------- ESTOQUE DE PEÇAS (para orçamentos) -----------------
   app.get("/api/workshop-parts", async (_req, res) => {
     try {
@@ -3664,7 +3696,9 @@ export function createApiApp() {
         return res.status(500).json({ error: error.message });
       }
 
-      return res.json(data ?? []);
+      const list = data ?? [];
+      const catMap = await loadWorkshopPartCategoryMap(list.map((p: { id: string }) => p.id));
+      return res.json(workshopPartsWithCategories(list as Record<string, unknown>[], catMap));
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop-parts:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -3716,7 +3750,8 @@ export function createApiApp() {
         return res.status(500).json({ error: error.message });
       }
 
-      return res.status(201).json(data);
+      const catMap = await loadWorkshopPartCategoryMap([data.id]);
+      return res.status(201).json({ ...data, category_ids: catMap.get(data.id) ?? [] });
     } catch (err: any) {
       console.error("[API] Erro em POST /api/workshop-parts:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -3776,7 +3811,8 @@ export function createApiApp() {
       }
 
       if (!data) return res.status(404).json({ error: "Peça não encontrada." });
-      return res.json(data);
+      const catMap = await loadWorkshopPartCategoryMap([data.id]);
+      return res.json({ ...data, category_ids: catMap.get(data.id) ?? [] });
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/workshop-parts/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -3853,9 +3889,219 @@ export function createApiApp() {
         console.error("[API] Erro ao atualizar foto da peça:", error);
         return res.status(500).json({ error: error.message });
       }
-      return res.json(data);
+      const catMap = await loadWorkshopPartCategoryMap([data.id]);
+      return res.json({ ...data, category_ids: catMap.get(data.id) ?? [] });
     } catch (err: any) {
       console.error("[API] Erro em POST /api/workshop-parts/:id/photo:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // ----------------- CATEGORIAS DO ESTOQUE DE PEÇAS -----------------
+  app.get("/api/workshop-part-categories", async (_req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("workshop_part_categories")
+        .select("id, name, sort_order, created_at")
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true });
+      if (error) {
+        console.error("[API] Erro ao listar categorias do estoque:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json(data ?? []);
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/workshop-part-categories:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/workshop-part-categories", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const { name, sort_order } = req.body || {};
+      const trimmed = typeof name === "string" ? name.trim() : "";
+      if (!trimmed) {
+        return res.status(400).json({ error: "Nome da categoria é obrigatório." });
+      }
+      const sortOrder = Number(sort_order ?? 0);
+      const { data, error } = await supabaseAdmin
+        .from("workshop_part_categories")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          name: trimmed,
+          sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
+        })
+        .select("id, name, sort_order, created_at")
+        .single();
+      if (error) {
+        if (error.code === "23505") {
+          return res.status(409).json({ error: "Já existe uma categoria com este nome." });
+        }
+        console.error("[API] Erro ao criar categoria do estoque:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(201).json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/workshop-part-categories:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.put("/api/workshop-part-categories/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const { id } = req.params;
+      const { name, sort_order } = req.body || {};
+      const patch: Record<string, unknown> = {};
+      if (name !== undefined) {
+        const trimmed = String(name).trim();
+        if (!trimmed) return res.status(400).json({ error: "Nome da categoria é obrigatório." });
+        patch.name = trimmed;
+      }
+      if (sort_order !== undefined) {
+        const n = Number(sort_order);
+        if (!Number.isFinite(n)) {
+          return res.status(400).json({ error: "Ordem inválida." });
+        }
+        patch.sort_order = n;
+      }
+      if (Object.keys(patch).length === 0) {
+        return res.status(400).json({ error: "Nada para atualizar." });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("workshop_part_categories")
+        .update(patch)
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("id, name, sort_order, created_at")
+        .single();
+      if (error) {
+        if (error.code === "23505") {
+          return res.status(409).json({ error: "Já existe uma categoria com este nome." });
+        }
+        console.error("[API] Erro ao atualizar categoria do estoque:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      if (!data) return res.status(404).json({ error: "Categoria não encontrada." });
+      return res.json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em PUT /api/workshop-part-categories/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.delete("/api/workshop-part-categories/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const { id } = req.params;
+      const { error } = await supabaseAdmin
+        .from("workshop_part_categories")
+        .delete()
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (error) {
+        console.error("[API] Erro ao excluir categoria do estoque:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] Erro em DELETE /api/workshop-part-categories/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.put("/api/workshop-parts/:partId/categories", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const { partId } = req.params;
+      const { categoryIds } = req.body || {};
+      if (!Array.isArray(categoryIds)) {
+        return res.status(400).json({ error: "categoryIds deve ser um array de IDs." });
+      }
+      const ids = categoryIds.map((x: unknown) => String(x)).filter(Boolean);
+      const { data: partRow, error: partErr } = await supabaseAdmin
+        .from("workshop_parts")
+        .select("id")
+        .eq("id", partId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (partErr || !partRow) {
+        return res.status(404).json({ error: "Peça não encontrada." });
+      }
+      if (ids.length > 0) {
+        const { data: cats, error: catErr } = await supabaseAdmin
+          .from("workshop_part_categories")
+          .select("id")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("id", ids);
+        if (catErr) {
+          console.error("[API] Erro ao validar categorias da peça:", catErr);
+          return res.status(500).json({ error: catErr.message });
+        }
+        const valid = new Set((cats ?? []).map((c: { id: string }) => c.id));
+        for (const cid of ids) {
+          if (!valid.has(cid)) {
+            return res.status(400).json({ error: "Categoria inválida ou de outra oficina." });
+          }
+        }
+      }
+      const { error: delErr } = await supabaseAdmin
+        .from("workshop_part_category_members")
+        .delete()
+        .eq("part_id", partId);
+      if (delErr) {
+        console.error("[API] Erro ao limpar categorias da peça:", delErr);
+        return res.status(500).json({ error: delErr.message });
+      }
+      if (ids.length > 0) {
+        const rows = ids.map((category_id: string) => ({ part_id: partId, category_id }));
+        const { error: insErr } = await supabaseAdmin.from("workshop_part_category_members").insert(rows);
+        if (insErr) {
+          console.error("[API] Erro ao vincular categorias da peça:", insErr);
+          return res.status(500).json({ error: insErr.message });
+        }
+      }
+      const { data: fullPart, error: fullErr } = await supabaseAdmin
+        .from("workshop_parts")
+        .select("id, name, unit_price, stock_qty, photo_url, sort_order, created_at")
+        .eq("id", partId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (fullErr || !fullPart) {
+        return res.status(500).json({ error: fullErr?.message ?? "Peça não encontrada após atualizar." });
+      }
+      const catMap = await loadWorkshopPartCategoryMap([partId]);
+      return res.json({ ...fullPart, category_ids: catMap.get(partId) ?? [] });
+    } catch (err: any) {
+      console.error("[API] Erro em PUT /api/workshop-parts/:partId/categories:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });

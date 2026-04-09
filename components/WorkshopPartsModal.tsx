@@ -1,5 +1,19 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { X, Package, Plus, Pencil, Trash2, Check, Loader2, Camera, Hash, SlidersHorizontal, Images, Search } from 'lucide-react';
+import {
+  X,
+  Package,
+  Plus,
+  Pencil,
+  Trash2,
+  Check,
+  Loader2,
+  Camera,
+  Hash,
+  SlidersHorizontal,
+  Images,
+  Search,
+  Tags,
+} from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
@@ -8,7 +22,13 @@ import {
   updateWorkshopPart,
   deleteWorkshopPart,
   uploadWorkshopPartPhoto,
+  getWorkshopPartCategories,
+  createWorkshopPartCategory,
+  updateWorkshopPartCategory,
+  deleteWorkshopPartCategory,
+  setWorkshopPartCategories,
   type WorkshopPart,
+  type WorkshopPartCategory,
 } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 
@@ -103,6 +123,17 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [loadingExistingPhotoId, setLoadingExistingPhotoId] = useState<string | null>(null);
   const [detailPart, setDetailPart] = useState<WorkshopPart | null>(null);
   const [partsSearchQuery, setPartsSearchQuery] = useState('');
+  /** `all` | `uncategorized` | id da categoria */
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
+  const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categoryCreating, setCategoryCreating] = useState(false);
+  const [categoryEditingId, setCategoryEditingId] = useState<string | null>(null);
+  const [categoryEditingName, setCategoryEditingName] = useState('');
+  const [newProductCategoryIds, setNewProductCategoryIds] = useState<string[]>([]);
+  const [partDetailCategoryIds, setPartDetailCategoryIds] = useState<string[]>([]);
+  const [savingDetailCategories, setSavingDetailCategories] = useState(false);
   /** 'new' = foto para peça ainda não cadastrada; string = id da peça existente */
   const [photoEditorTarget, setPhotoEditorTarget] = useState<'new' | string | null>(null);
   const [photoEditorFile, setPhotoEditorFile] = useState<File | null>(null);
@@ -138,8 +169,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     setLoading(true);
     setError(null);
     try {
-      const list = await getWorkshopParts();
+      const [list, cats] = await Promise.all([
+        getWorkshopParts(),
+        getWorkshopPartCategories().catch(() => [] as WorkshopPartCategory[]),
+      ]);
       setParts(list);
+      setCategories(cats);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar peças.');
     } finally {
@@ -156,8 +191,23 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen) setPartsSearchQuery('');
+    if (!isOpen) {
+      setPartsSearchQuery('');
+      setCategoryFilter('all');
+      setIsCategoriesModalOpen(false);
+      setNewCategoryName('');
+      setCategoryEditingId(null);
+      setCategoryEditingName('');
+    }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!detailPart) {
+      setPartDetailCategoryIds([]);
+      return;
+    }
+    setPartDetailCategoryIds([...(detailPart.category_ids ?? [])]);
+  }, [detailPart]);
 
   useEffect(() => {
     setDetailPart((prev) => {
@@ -193,6 +243,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     setNewPhoto(null);
     setPhotoEditorFile(null);
     setPhotoEditorTarget(null);
+    setNewProductCategoryIds([]);
   }, []);
 
   const closeAddProductModal = useCallback(() => {
@@ -226,6 +277,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       let created = await createWorkshopPart({ name, unit_price, stock_qty });
       if (newPhoto) {
         created = await uploadWorkshopPartPhoto(created.id, newPhoto, newPhoto.name);
+      }
+      if (newProductCategoryIds.length > 0) {
+        created = await setWorkshopPartCategories(created.id, newProductCategoryIds);
       }
       setParts((prev) => [...prev, created].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)));
       setIsAddProductModalOpen(false);
@@ -339,24 +393,144 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     }
   };
 
+  const partsInCategoryScope = useMemo(() => {
+    if (categoryFilter === 'all') return parts;
+    if (categoryFilter === 'uncategorized') {
+      return parts.filter((p) => !(p.category_ids && p.category_ids.length > 0));
+    }
+    return parts.filter((p) => p.category_ids?.includes(categoryFilter));
+  }, [parts, categoryFilter]);
+
   const filteredParts = useMemo(() => {
     const raw = partsSearchQuery.trim();
-    if (!raw) return parts;
+    if (!raw) return partsInCategoryScope;
     const q = normalizePartSearch(raw);
-    if (!q) return parts;
-    return parts.filter((p) => {
+    if (!q) return partsInCategoryScope;
+    return partsInCategoryScope.filter((p) => {
       const name = normalizePartSearch(p.name || '');
       const id = (p.id || '').toLowerCase();
       const price = String(p.unit_price ?? '').replace(',', '.');
       const stock = String(p.stock_qty ?? '').replace(',', '.');
+      const catNames = (p.category_ids ?? [])
+        .map((cid) => categories.find((c) => c.id === cid)?.name)
+        .filter(Boolean)
+        .join(' ');
       return (
         name.includes(q) ||
         id.includes(raw.toLowerCase().replace(/\s/g, '')) ||
         normalizePartSearch(price).includes(q) ||
-        stock.replace(/\s/g, '').includes(raw.replace(/\s/g, '').replace(',', '.'))
+        stock.replace(/\s/g, '').includes(raw.replace(/\s/g, '').replace(',', '.')) ||
+        normalizePartSearch(catNames).includes(q)
       );
     });
-  }, [parts, partsSearchQuery]);
+  }, [partsInCategoryScope, partsSearchQuery, categories]);
+
+  const categoryLineForPart = useCallback(
+    (p: WorkshopPart) => {
+      const names = (p.category_ids ?? [])
+        .map((cid) => categories.find((c) => c.id === cid)?.name)
+        .filter(Boolean) as string[];
+      if (names.length === 0) return null;
+      return names.join(' · ');
+    },
+    [categories]
+  );
+
+  const toggleNewProductCategory = (id: string) => {
+    setNewProductCategoryIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleDetailCategory = (id: string) => {
+    setPartDetailCategoryIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSaveDetailCategories = async () => {
+    if (!detailPart) return;
+    setSavingDetailCategories(true);
+    setError(null);
+    try {
+      const updated = await setWorkshopPartCategories(detailPart.id, partDetailCategoryIds);
+      setParts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      setDetailPart(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao salvar categorias.');
+    } finally {
+      setSavingDetailCategories(false);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    const n = newCategoryName.trim();
+    if (!n || categoryCreating) return;
+    setCategoryCreating(true);
+    setError(null);
+    try {
+      const c = await createWorkshopPartCategory({ name: n });
+      setCategories((prev) => [...prev, c].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)));
+      setNewCategoryName('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao criar categoria.');
+    } finally {
+      setCategoryCreating(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!window.confirm('Excluir esta categoria? Os produtos não serão apagados; apenas o vínculo com a categoria.')) return;
+    setError(null);
+    try {
+      await deleteWorkshopPartCategory(id);
+      setCategories((prev) => prev.filter((c) => c.id !== id));
+      setParts((prev) =>
+        prev.map((p) => ({
+          ...p,
+          category_ids: (p.category_ids ?? []).filter((cid) => cid !== id),
+        }))
+      );
+      setPartDetailCategoryIds((prev) => prev.filter((cid) => cid !== id));
+      setNewProductCategoryIds((prev) => prev.filter((cid) => cid !== id));
+      if (categoryFilter === id) setCategoryFilter('all');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao excluir categoria.');
+    }
+  };
+
+  const saveCategoryRename = async () => {
+    if (!categoryEditingId) return;
+    const trimmed = categoryEditingName.trim();
+    if (!trimmed) return;
+    setError(null);
+    try {
+      const updated = await updateWorkshopPartCategory(categoryEditingId, { name: trimmed });
+      setCategories((prev) =>
+        prev.map((c) => (c.id === updated.id ? updated : c)).sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+      );
+      setCategoryEditingId(null);
+      setCategoryEditingName('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao renomear categoria.');
+    }
+  };
+
+  const closeCategoriesModal = useCallback(() => {
+    setIsCategoriesModalOpen(false);
+    setNewCategoryName('');
+    setCategoryEditingId(null);
+    setCategoryEditingName('');
+  }, []);
+
+  useEffect(() => {
+    if (!isCategoriesModalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeCategoriesModal();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isCategoriesModalOpen, closeCategoriesModal]);
 
   useEffect(() => {
     if (!editingId) return;
@@ -403,18 +577,29 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:max-w-xl">
-              Gerencie preço e estoque. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Adicionar produto</span>{' '}
-              para cadastrar. Para <span className="font-medium text-zinc-600 dark:text-zinc-300">foto e ajustes</span>, abra o item
-              tocando no nome.
+              Gerencie preço e estoque. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Categorias</span> para
+              organizar o catálogo. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Adicionar produto</span> para
+              cadastrar. Para <span className="font-medium text-zinc-600 dark:text-zinc-300">foto e ajustes</span>, abra o item tocando
+              no nome.
             </p>
-            <button
-              type="button"
-              onClick={() => setIsAddProductModalOpen(true)}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white shadow-md shadow-emerald-900/20 hover:bg-emerald-500 transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              Adicionar produto
-            </button>
+            <div className="flex flex-wrap gap-2 justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsCategoriesModalOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-300 dark:border-white/15 bg-white dark:bg-white/5 px-4 py-3 text-[15px] font-semibold text-zinc-800 dark:text-white hover:bg-zinc-50 dark:hover:bg-white/10 transition-colors"
+              >
+                <Tags className="w-5 h-5" />
+                Categorias
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAddProductModalOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white shadow-md shadow-emerald-900/20 hover:bg-emerald-500 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                Adicionar produto
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -425,34 +610,53 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
           <div className={`overflow-hidden ${iosModalInsetCard}`}>
             {!loading && parts.length > 0 && (
-              <div className="border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/40 dark:bg-white/[0.02] px-3 py-3 sm:px-4">
-                <label htmlFor="workshop-parts-search" className="sr-only">
-                  Pesquisar peças
-                </label>
-                <div className="relative">
-                  <Search
-                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
-                    aria-hidden
-                  />
-                  <input
-                    id="workshop-parts-search"
-                    type="search"
-                    value={partsSearchQuery}
-                    onChange={(e) => setPartsSearchQuery(e.target.value)}
-                    placeholder="Pesquisar por nome, código, preço ou quantidade…"
-                    autoComplete="off"
-                    className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 py-2.5 pl-10 pr-10 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/50"
-                  />
-                  {partsSearchQuery ? (
-                    <button
-                      type="button"
-                      onClick={() => setPartsSearchQuery('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:bg-white/10"
-                      aria-label="Limpar pesquisa"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  ) : null}
+              <div className="border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/40 dark:bg-white/[0.02] px-3 py-3 sm:px-4 space-y-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3">
+                  <label htmlFor="workshop-parts-category-filter" className="sr-only">
+                    Filtrar por categoria
+                  </label>
+                  <select
+                    id="workshop-parts-category-filter"
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="w-full sm:w-[min(100%,240px)] shrink-0 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 py-2.5 px-3 text-[15px] text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/50"
+                  >
+                    <option value="all">Todos os produtos</option>
+                    <option value="uncategorized">Sem categoria</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="relative flex-1 min-w-0">
+                    <label htmlFor="workshop-parts-search" className="sr-only">
+                      Pesquisar peças
+                    </label>
+                    <Search
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
+                      aria-hidden
+                    />
+                    <input
+                      id="workshop-parts-search"
+                      type="search"
+                      value={partsSearchQuery}
+                      onChange={(e) => setPartsSearchQuery(e.target.value)}
+                      placeholder="Pesquisar nesta seleção (nome, preço, categorias…)"
+                      autoComplete="off"
+                      className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 py-2.5 pl-10 pr-10 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/50"
+                    />
+                    {partsSearchQuery ? (
+                      <button
+                        type="button"
+                        onClick={() => setPartsSearchQuery('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:bg-white/10"
+                        aria-label="Limpar pesquisa"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             )}
@@ -479,16 +683,41 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                   peça.
                 </p>
               </div>
+            ) : partsInCategoryScope.length === 0 ? (
+              <div className="py-10 px-4 text-center">
+                <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhum produto nesta seleção.</p>
+                <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">
+                  Escolha <span className="font-medium text-zinc-600 dark:text-zinc-300">Todos os produtos</span> ou outra categoria, ou
+                  vincule produtos em <span className="font-medium text-zinc-600 dark:text-zinc-300">Categorias</span> / detalhe do item.
+                </p>
+                <button
+                  type="button"
+                  className="mt-3 text-[14px] font-semibold text-emerald-600 dark:text-emerald-400 underline"
+                  onClick={() => setCategoryFilter('all')}
+                >
+                  Ver todos os produtos
+                </button>
+              </div>
             ) : filteredParts.length === 0 ? (
               <div className="py-10 px-4 text-center">
-                <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhum resultado para a pesquisa.</p>
+                <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhum resultado para a pesquisa nesta seleção.</p>
                 <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">
-                  Ajuste os termos ou <button type="button" className="font-medium text-emerald-600 dark:text-emerald-400 underline" onClick={() => setPartsSearchQuery('')}>limpar a busca</button>.
+                  Ajuste os termos ou{' '}
+                  <button
+                    type="button"
+                    className="font-medium text-emerald-600 dark:text-emerald-400 underline"
+                    onClick={() => setPartsSearchQuery('')}
+                  >
+                    limpar a busca
+                  </button>
+                  .
                 </p>
               </div>
             ) : (
               <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
-                {filteredParts.map((p) => (
+                {filteredParts.map((p) => {
+                  const catLine = categoryLineForPart(p);
+                  return (
                   <div
                     key={p.id}
                     className="min-h-[52px] flex flex-wrap items-center gap-3 px-4 py-3 bg-transparent hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto] md:flex-nowrap md:gap-3 md:items-center"
@@ -551,8 +780,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                               <img src={p.photo_url} alt="" className="w-full h-full object-cover" />
                             ) : null}
                           </div>
-                          <span className="min-w-0 text-[16px] font-medium text-zinc-900 dark:text-white truncate">
-                            {p.name}
+                          <span className="min-w-0 flex flex-col gap-0.5 text-left">
+                            <span className="text-[16px] font-medium text-zinc-900 dark:text-white truncate">{p.name}</span>
+                            {catLine ? (
+                              <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{catLine}</span>
+                            ) : null}
                           </span>
                         </button>
                         <span className="min-w-0 flex-1 text-[14px] text-zinc-700 dark:text-zinc-300 text-right tabular-nums md:flex-[unset] md:min-w-0 md:justify-self-end">
@@ -580,7 +812,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       </>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -734,6 +967,32 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 />
               </div>
             </div>
+            {categories.length > 0 ? (
+              <div className="mt-6 pt-6 border-t border-zinc-200/50 dark:border-white/[0.06] space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  Categorias (opcional)
+                </p>
+                <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+                  Marque em quais grupos este produto deve aparecer ao filtrar a lista.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((c) => (
+                    <label
+                      key={c.id}
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50/80 dark:bg-white/[0.04] px-3 py-2 text-[14px] text-zinc-800 dark:text-zinc-200 has-[:checked]:border-emerald-500/50 has-[:checked]:bg-emerald-500/10 dark:has-[:checked]:bg-emerald-500/15"
+                    >
+                      <input
+                        type="checkbox"
+                        className="rounded border-zinc-300 dark:border-white/20 text-emerald-600 focus:ring-emerald-500/40"
+                        checked={newProductCategoryIds.includes(c.id)}
+                        onChange={() => toggleNewProductCategory(c.id)}
+                      />
+                      {c.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <div className="mt-8 flex flex-col-reverse gap-3 border-t border-zinc-200/50 dark:border-white/[0.06] pt-6 sm:flex-row sm:justify-end">
               <button
                 type="button"
@@ -833,6 +1092,46 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 <span className="font-mono break-all">{detail.id}</span>
               </div>
             </dl>
+            {categories.length > 0 ? (
+              <div className="rounded-2xl border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50/50 dark:bg-white/[0.03] p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Tags className="w-4 h-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
+                    Categorias deste produto
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((c) => (
+                    <label
+                      key={c.id}
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2 text-[14px] text-zinc-800 dark:text-zinc-200 has-[:checked]:border-emerald-500/50 has-[:checked]:bg-emerald-500/10 dark:has-[:checked]:bg-emerald-500/15"
+                    >
+                      <input
+                        type="checkbox"
+                        className="rounded border-zinc-300 dark:border-white/20 text-emerald-600 focus:ring-emerald-500/40"
+                        checked={partDetailCategoryIds.includes(c.id)}
+                        onChange={() => toggleDetailCategory(c.id)}
+                      />
+                      {c.name}
+                    </label>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleSaveDetailCategories()}
+                  disabled={savingDetailCategories}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors"
+                >
+                  {savingDetailCategories ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  Salvar categorias
+                </button>
+              </div>
+            ) : (
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+                Crie categorias em <span className="font-medium text-zinc-700 dark:text-zinc-300">Categorias</span> no estoque para
+                organizar este produto.
+              </p>
+            )}
             <div className="flex flex-wrap gap-2 pt-2">
               <button
                 type="button"
@@ -915,6 +1214,132 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               className="hidden"
               onChange={handleExistingPartImageSelected}
             />
+          </div>
+        </div>
+      </div>
+    )}
+
+    {isCategoriesModalOpen && (
+      <div
+        className="fixed inset-0 z-[118] flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-[12px]"
+        onClick={closeCategoriesModal}
+        role="presentation"
+      >
+        <div
+          className={`${iosModalShell} w-full max-w-lg max-h-[88vh] overflow-hidden flex flex-col`}
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="workshop-part-categories-title"
+        >
+          <button type="button" onClick={closeCategoriesModal} className={iosModalClose} aria-label="Fechar">
+            <X className="w-5 h-5" />
+          </button>
+          <p id="workshop-part-categories-title" className="sr-only">
+            Categorias do estoque
+          </p>
+          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
+            <IosModalHeader
+              icon={<Tags className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              title="Categorias do estoque"
+              subtitle="Grupos para filtrar e organizar produtos"
+              gradientClass="from-emerald-500 to-teal-700"
+            />
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-5 space-y-4">
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+              Crie categorias e depois vincule cada produto pelo detalhe do item ou ao cadastrar. Excluir uma categoria não apaga produtos.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void handleCreateCategory();
+                  }
+                }}
+                placeholder="Nome da nova categoria"
+                className="flex-1 min-w-0 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-4 py-3 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35"
+              />
+              <button
+                type="button"
+                onClick={() => void handleCreateCategory()}
+                disabled={!newCategoryName.trim() || categoryCreating}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-[15px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors"
+              >
+                {categoryCreating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                Criar
+              </button>
+            </div>
+            <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.08] rounded-xl border border-zinc-200/60 dark:border-white/[0.08] overflow-hidden">
+              {categories.length === 0 ? (
+                <li className="px-4 py-8 text-center text-[14px] text-zinc-500 dark:text-zinc-400">Nenhuma categoria ainda.</li>
+              ) : (
+                categories.map((c) => (
+                  <li
+                    key={c.id}
+                    className="flex flex-wrap items-center gap-2 px-4 py-3 bg-zinc-50/30 dark:bg-white/[0.02] hover:bg-zinc-100/50 dark:hover:bg-white/[0.04]"
+                  >
+                    {categoryEditingId === c.id ? (
+                      <>
+                        <input
+                          type="text"
+                          value={categoryEditingName}
+                          onChange={(e) => setCategoryEditingName(e.target.value)}
+                          className="flex-1 min-w-[120px] rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2 text-[15px] text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/35"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void saveCategoryRename()}
+                          className="w-9 h-9 shrink-0 rounded-lg bg-brand-yellow text-black flex items-center justify-center hover:brightness-110"
+                          aria-label="Confirmar nome"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCategoryEditingId(null);
+                            setCategoryEditingName('');
+                          }}
+                          className="w-9 h-9 shrink-0 rounded-lg bg-zinc-200 dark:bg-white/10 flex items-center justify-center"
+                          aria-label="Cancelar edição"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 min-w-0 text-[15px] font-medium text-zinc-900 dark:text-white truncate">{c.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCategoryEditingId(c.id);
+                            setCategoryEditingName(c.name);
+                          }}
+                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-200 dark:hover:bg-white/10 dark:text-zinc-400"
+                          aria-label="Renomear"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteCategory(c.id)}
+                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-zinc-500 hover:text-red-600 hover:bg-red-500/10 dark:text-zinc-400"
+                          aria-label="Excluir categoria"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </li>
+                ))
+              )}
+            </ul>
           </div>
         </div>
       </div>
