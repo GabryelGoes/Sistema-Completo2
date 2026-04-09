@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Package, Plus, Pencil, Trash2, Check, Loader2, Camera, Hash, SlidersHorizontal, Images } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { X, Package, Plus, Pencil, Trash2, Check, Loader2, Camera, Hash, SlidersHorizontal, Images, Search } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
@@ -74,6 +74,14 @@ async function fetchImageUrlAsFileForEditor(imageUrl: string): Promise<File> {
   }
 }
 
+function normalizePartSearch(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .trim();
+}
+
 export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, onClose }) => {
   const [parts, setParts] = useState<WorkshopPart[]>([]);
   const [loading, setLoading] = useState(false);
@@ -94,6 +102,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [uploadingPhotoId, setUploadingPhotoId] = useState<string | null>(null);
   const [loadingExistingPhotoId, setLoadingExistingPhotoId] = useState<string | null>(null);
   const [detailPart, setDetailPart] = useState<WorkshopPart | null>(null);
+  const [partsSearchQuery, setPartsSearchQuery] = useState('');
   /** 'new' = foto para peça ainda não cadastrada; string = id da peça existente */
   const [photoEditorTarget, setPhotoEditorTarget] = useState<'new' | string | null>(null);
   const [photoEditorFile, setPhotoEditorFile] = useState<File | null>(null);
@@ -144,6 +153,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
   useEffect(() => {
     if (!isOpen) setDetailPart(null);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) setPartsSearchQuery('');
   }, [isOpen]);
 
   useEffect(() => {
@@ -326,6 +339,35 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     }
   };
 
+  const filteredParts = useMemo(() => {
+    const raw = partsSearchQuery.trim();
+    if (!raw) return parts;
+    const q = normalizePartSearch(raw);
+    if (!q) return parts;
+    return parts.filter((p) => {
+      const name = normalizePartSearch(p.name || '');
+      const id = (p.id || '').toLowerCase();
+      const price = String(p.unit_price ?? '').replace(',', '.');
+      const stock = String(p.stock_qty ?? '').replace(',', '.');
+      return (
+        name.includes(q) ||
+        id.includes(raw.toLowerCase().replace(/\s/g, '')) ||
+        normalizePartSearch(price).includes(q) ||
+        stock.replace(/\s/g, '').includes(raw.replace(/\s/g, '').replace(',', '.'))
+      );
+    });
+  }, [parts, partsSearchQuery]);
+
+  useEffect(() => {
+    if (!editingId) return;
+    if (!filteredParts.some((p) => p.id === editingId)) {
+      setEditingId(null);
+      setEditingName('');
+      setEditingPrice('');
+      setEditingStock('');
+    }
+  }, [filteredParts, editingId]);
+
   if (!isOpen) return null;
 
   const detail = detailPart;
@@ -382,6 +424,38 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           )}
 
           <div className={`overflow-hidden ${iosModalInsetCard}`}>
+            {!loading && parts.length > 0 && (
+              <div className="border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/40 dark:bg-white/[0.02] px-3 py-3 sm:px-4">
+                <label htmlFor="workshop-parts-search" className="sr-only">
+                  Pesquisar peças
+                </label>
+                <div className="relative">
+                  <Search
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
+                    aria-hidden
+                  />
+                  <input
+                    id="workshop-parts-search"
+                    type="search"
+                    value={partsSearchQuery}
+                    onChange={(e) => setPartsSearchQuery(e.target.value)}
+                    placeholder="Pesquisar por nome, código, preço ou quantidade…"
+                    autoComplete="off"
+                    className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 py-2.5 pl-10 pr-10 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/50"
+                  />
+                  {partsSearchQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => setPartsSearchQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:bg-white/10"
+                      aria-label="Limpar pesquisa"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            )}
             <div className="hidden md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto] md:gap-3 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
               <span className="min-w-0">Nome da peça</span>
               <span className="text-right tabular-nums">Preço</span>
@@ -405,9 +479,16 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                   peça.
                 </p>
               </div>
+            ) : filteredParts.length === 0 ? (
+              <div className="py-10 px-4 text-center">
+                <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhum resultado para a pesquisa.</p>
+                <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">
+                  Ajuste os termos ou <button type="button" className="font-medium text-emerald-600 dark:text-emerald-400 underline" onClick={() => setPartsSearchQuery('')}>limpar a busca</button>.
+                </p>
+              </div>
             ) : (
               <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
-                {parts.map((p) => (
+                {filteredParts.map((p) => (
                   <div
                     key={p.id}
                     className="min-h-[52px] flex flex-wrap items-center gap-3 px-4 py-3 bg-transparent hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto] md:flex-nowrap md:gap-3 md:items-center"
