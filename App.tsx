@@ -12,8 +12,13 @@ import { AgendaView } from './components/views/AgendaView';
 import { HomeView, type HomeAppId } from './components/views/HomeView';
 import { LoginView, getStoredAuth, setStoredAuth, clearStoredAuth } from './components/views/LoginView';
 import { useOrientation } from './components/views/useOrientation';
-import type { AuthSession, Notification, SystemUserPermissions } from './services/apiService';
-import { getWorkshopSettings } from './services/apiService';
+import {
+  type AuthSession,
+  type Notification,
+  type SystemUserPermissions,
+  effectivePatioApproveBudgetItems,
+  getWorkshopSettings,
+} from './services/apiService';
 import { AssistantChat } from './components/AssistantChat';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
 
@@ -239,6 +244,7 @@ export default function App() {
       canEditDeliveryDate: perms.patio_edit_delivery_date,
       canEditMileage: perms.patio_edit_mileage,
       canEditBudgets: perms.patio_edit_budgets,
+      canApproveBudgetItems: effectivePatioApproveBudgetItems(perms),
       canAddComments: perms.patio_add_comments,
       canArchiveCard: perms.patio_archive_card,
     };

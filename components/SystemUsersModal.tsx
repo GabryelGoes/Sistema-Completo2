@@ -8,6 +8,7 @@ import {
   createSystemUser,
   updateSystemUser,
   deleteSystemUser,
+  effectivePatioApproveBudgetItems,
 } from '../services/apiService';
 
 /** Switch reutilizável para permissões */
@@ -402,6 +403,18 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                       {PATIO_OTHER_LABELS.map(({ key, label }) => (
                         <PermSwitch key={key} label={label} checked={!!formPermissions[key]} onChange={(v) => setPerm(key, v)} />
                       ))}
+                      {formPermissions.full_access ? (
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 pt-2 border-t border-zinc-200 dark:border-zinc-600 mt-2">
+                          Com acesso completo, aprovar itens do orçamento fica sempre permitido (igual ao administrador).
+                        </p>
+                      ) : (
+                        <PermSwitch
+                          label="Aprovar itens do orçamento"
+                          description="Permite aprovar ou reprovar cada serviço e peça no modal de orçamento. Desligado e salvo: bloqueia essa ação mesmo com «Criar e editar orçamentos». Se nunca foi salvo, vale a mesma regra de editar orçamentos."
+                          checked={effectivePatioApproveBudgetItems(formPermissions)}
+                          onChange={(v) => setPerm('patio_approve_budget_items', v)}
+                        />
+                      )}
                     </div>
                   </section>
 

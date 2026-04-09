@@ -113,6 +113,8 @@ interface PatioViewProps {
     canEditDeliveryDate?: boolean;
     canEditMileage?: boolean;
     canEditBudgets?: boolean;
+    /** Aprovar/reprovar serviços e peças no orçamento (modal de aprovação). */
+    canApproveBudgetItems?: boolean;
     canAddComments?: boolean;
     canArchiveCard?: boolean;
   };
@@ -1651,8 +1653,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  /** Abre o modal de aprovação do orçamento (só admin). */
+  /** Abre o modal de aprovação do orçamento (quem tem permissão de aprovar itens). */
   const openBudgetApproval = (budget: SavedBudget) => {
+    if (!can('canApproveBudgetItems')) return;
     setBudgetApprovalTarget(budget);
     setApprovalServices(budget.services.map((s) => s.approved === true));
     setApprovalParts(budget.parts.map((p) => p.approved === true));
@@ -1666,6 +1669,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const handleSaveApproval = async () => {
     if (!selectedCard || !budgetApprovalTarget) return;
+    if (!can('canApproveBudgetItems')) return;
     setSavingApproval(true);
     try {
       const services = budgetApprovalTarget.services.map((s, i) => ({
@@ -3711,8 +3715,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               )}
                               </div>
 
-                              {/* Aprovar orçamento (somente admin): separado da exibição, dentro de Orçamentos */}
-                              {actorOptions?.actor === 'admin' && savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length > 0 && (
+                              {/* Aprovar itens do orçamento (permissão patio_approve_budget_items / legado) */}
+                              {can('canApproveBudgetItems') && savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length > 0 && (
                                 <div className="mt-4 pt-4 border-t border-zinc-200/80 dark:border-zinc-700/80">
                                   <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Aprovar orçamento</p>
                                   <p className="text-[11px] text-zinc-500 dark:text-zinc-500 mb-3">Selecione um orçamento para marcar cada serviço e peça como aprovado ou reprovado.</p>
@@ -4800,21 +4804,40 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </section>
               )}
             </div>
-            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-black/10 shrink-0 relative z-10">
-              <button
-                type="button"
-                onClick={handleDeleteBudget}
-                disabled={!!deletingBudgetId}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-red-400 text-red-800 font-medium text-sm hover:bg-red-100 disabled:opacity-50 transition-colors"
-              >
-                {deletingBudgetId ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                {deletingBudgetId ? 'Excluindo…' : 'Excluir orçamento'}
-              </button>
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-black/10 shrink-0 relative z-10 flex-wrap">
+              {can('canEditBudgets') ? (
+                <button
+                  type="button"
+                  onClick={handleDeleteBudget}
+                  disabled={!!deletingBudgetId}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-red-400 text-red-800 font-medium text-sm hover:bg-red-100 disabled:opacity-50 transition-colors"
+                >
+                  {deletingBudgetId ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {deletingBudgetId ? 'Excluindo…' : 'Excluir orçamento'}
+                </button>
+              ) : (
+                <span />
+              )}
+              <div className="flex items-center gap-3 flex-wrap justify-end">
+                {can('canApproveBudgetItems') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const b = viewingBudget;
+                      setViewingBudget(null);
+                      openBudgetApproval(b);
+                    }}
+                    disabled={!!deletingBudgetId}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-amber-600/40 bg-amber-500/15 font-medium text-sm hover:bg-amber-500/25 transition-colors disabled:opacity-50"
+                    style={{ color: '#000000' }}
+                  >
+                    <CheckCircle2 className="w-4 h-4" /> Aprovar itens
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => { setViewingBudget(null); openBudgetModal(viewingBudget); }}
-                  disabled={!!deletingBudgetId}
+                  disabled={!!deletingBudgetId || !can('canEditBudgets')}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-black/20 font-medium text-sm hover:bg-black/5 transition-colors disabled:opacity-50"
                   style={{ color: '#000000' }}
                 >
@@ -4836,7 +4859,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </ModalPortal>
       )}
 
-      {/* Modal: Aprovar orçamento (admin) — toggles por serviço e peça */}
+      {/* Modal: Aprovar orçamento — toggles por serviço e peça */}
       {budgetApprovalTarget && selectedCard && (
         <ModalPortal>
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6 animate-in fade-in duration-200">

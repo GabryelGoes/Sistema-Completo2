@@ -1564,8 +1564,19 @@ export interface SystemUserPermissions {
   patio_edit_delivery_date?: boolean;
   patio_edit_mileage?: boolean;
   patio_edit_budgets?: boolean;
+  /** Aprovar/reprovar itens (serviços e peças) no orçamento. Se omitido, vale o mesmo que patio_edit_budgets (compatibilidade). */
+  patio_approve_budget_items?: boolean;
   patio_add_comments?: boolean;
   patio_archive_card?: boolean;
+}
+
+/** Se o usuário pode aprovar/reprovar itens do orçamento no Pátio/Laboratório (respeita legado quando a chave não existe no JSON). */
+export function effectivePatioApproveBudgetItems(perms: SystemUserPermissions | undefined): boolean {
+  if (!perms) return true;
+  if (perms.full_access) return true;
+  if (perms.patio_approve_budget_items === true) return true;
+  if (perms.patio_approve_budget_items === false) return false;
+  return !!perms.patio_edit_budgets;
 }
 
 export type AuthRole = "admin" | "user";
