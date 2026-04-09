@@ -15,6 +15,7 @@ import { useOrientation } from './components/views/useOrientation';
 import type { AuthSession, Notification, SystemUserPermissions } from './services/apiService';
 import { getWorkshopSettings } from './services/apiService';
 import { AssistantChat } from './components/AssistantChat';
+import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
 
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
@@ -25,6 +26,10 @@ export default function App() {
     }
   });
   const [currentTab, setCurrentTab] = useState<TabId>('home');
+  /** Abas já visitadas (admin / full access): mantém views montadas para preservar estado. */
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set(['home']));
+  /** Abas já visitadas (usuário limitado). */
+  const [visitedUserTabs, setVisitedUserTabs] = useState<Set<TabId>>(() => new Set(['home']));
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUserChangePasswordsOpen, setIsUserChangePasswordsOpen] = useState(false);
@@ -170,6 +175,8 @@ export default function App() {
     try {
       clearStoredAuth();
     } catch (_) {}
+    setVisitedTabs(new Set(['home']));
+    setVisitedUserTabs(new Set(['home']));
     setAuthSession(null);
   };
 
@@ -178,6 +185,34 @@ export default function App() {
     if (authSession?.role !== 'user' || userAllowedTabs.length === 0) return;
     setUserTab((current) => (userAllowedTabs.includes(current) ? current : userAllowedTabs[0]));
   }, [authSession?.role, userAllowedTabs.join(',')]);
+
+  // Memória de telas: registrar aba ativa (admin / usuário com acesso total)
+  useEffect(() => {
+    if (!authSession || (authSession.role === 'user' && !hasFullAccess)) return;
+    setVisitedTabs((prev) => {
+      if (prev.has(currentTab)) return prev;
+      const next = new Set(prev);
+      next.add(currentTab);
+      return next;
+    });
+  }, [authSession, currentTab, hasFullAccess]);
+
+  // Memória de telas: usuário limitado
+  useEffect(() => {
+    if (!authSession || authSession.role !== 'user' || hasFullAccess) return;
+    setVisitedUserTabs((prev) => {
+      if (prev.has(userTab)) return prev;
+      const next = new Set(prev);
+      next.add(userTab);
+      return next;
+    });
+  }, [authSession, userTab, hasFullAccess]);
+
+  useEffect(() => {
+    if (authSession) return;
+    setVisitedTabs(new Set(['home']));
+    setVisitedUserTabs(new Set(['home']));
+  }, [authSession]);
 
   // Tela de login (antes de entrar no app)
   if (!authSession) {
@@ -218,8 +253,13 @@ export default function App() {
             <span />
           </header>
         )}
-        <main className={`flex-1 overflow-y-auto ${userTab === 'home' ? 'p-0' : 'p-4 md:p-8 pt-8'}`}>
-          {userTab === 'home' && (
+        <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <KeepAliveTabPanel
+            tabId="home"
+            activeTab={userTab}
+            visitedTabs={visitedUserTabs}
+            className="flex-1 min-h-0 overflow-y-auto p-0"
+          >
             <HomeView
               isTechnician
               technicianName={authSession.displayName ?? 'Usuário'}
@@ -250,8 +290,13 @@ export default function App() {
               onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
             />
-          )}
-          {userTab === 'reception' && (
+          </KeepAliveTabPanel>
+          <KeepAliveTabPanel
+            tabId="reception"
+            activeTab={userTab}
+            visitedTabs={visitedUserTabs}
+            className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+          >
             <ReceptionView
               initialData={prefillData}
               onDataLoaded={() => setPrefillData(null)}
@@ -263,15 +308,25 @@ export default function App() {
                 actorTechnicianName: authSession.displayName ?? authSession.username,
               }}
             />
-          )}
-          {userTab === 'agenda' && (
+          </KeepAliveTabPanel>
+          <KeepAliveTabPanel
+            tabId="agenda"
+            activeTab={userTab}
+            visitedTabs={visitedUserTabs}
+            className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+          >
             <AgendaView
               appointments={appointments}
               setAppointments={setAppointments}
               blurPlates={cinematographicMode}
             />
-          )}
-          {userTab === 'patio' && (
+          </KeepAliveTabPanel>
+          <KeepAliveTabPanel
+            tabId="patio"
+            activeTab={userTab}
+            visitedTabs={visitedUserTabs}
+            className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+          >
             <PatioView
               onUseCustomerData={handleUseCustomerData}
               effectsEnabled={effectsEnabled}
@@ -288,8 +343,13 @@ export default function App() {
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
-          )}
-          {userTab === 'laboratorio' && (
+          </KeepAliveTabPanel>
+          <KeepAliveTabPanel
+            tabId="laboratorio"
+            activeTab={userTab}
+            visitedTabs={visitedUserTabs}
+            className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+          >
             <PatioView
               orderType="module"
               onUseCustomerData={handleUseCustomerData}
@@ -303,7 +363,7 @@ export default function App() {
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
-          )}
+          </KeepAliveTabPanel>
         </main>
         <TabBar
           currentTab={userTab}
@@ -386,10 +446,13 @@ export default function App() {
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
 
       {/* Main Content Area */}
-      <main
-        className={`flex-1 overflow-y-auto ${currentTab === 'home' ? 'p-0 pt-4' : 'p-4 md:p-8 pt-8'}`}
-      >
-        {currentTab === 'home' && (
+      <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <KeepAliveTabPanel
+          tabId="home"
+          activeTab={currentTab}
+          visitedTabs={visitedTabs}
+          className="flex-1 min-h-0 overflow-y-auto p-0 pt-4"
+        >
           <HomeView
             onOpenApp={handleHomeOpenApp}
             onLogout={handleLogout}
@@ -412,9 +475,14 @@ export default function App() {
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
           />
-        )}
+        </KeepAliveTabPanel>
 
-        {currentTab === 'reception' && (
+        <KeepAliveTabPanel
+          tabId="reception"
+          activeTab={currentTab}
+          visitedTabs={visitedTabs}
+          className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+        >
           <ReceptionView
             initialData={prefillData}
             onDataLoaded={() => setPrefillData(null)}
@@ -430,17 +498,27 @@ export default function App() {
                   }
             }
           />
-        )}
+        </KeepAliveTabPanel>
 
-        {currentTab === 'agenda' && (
+        <KeepAliveTabPanel
+          tabId="agenda"
+          activeTab={currentTab}
+          visitedTabs={visitedTabs}
+          className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+        >
           <AgendaView
             appointments={appointments}
             setAppointments={setAppointments}
             blurPlates={cinematographicMode}
           />
-        )}
-        
-        {currentTab === 'patio' && (
+        </KeepAliveTabPanel>
+
+        <KeepAliveTabPanel
+          tabId="patio"
+          activeTab={currentTab}
+          visitedTabs={visitedTabs}
+          className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+        >
           <PatioView
             onUseCustomerData={handleUseCustomerData}
             effectsEnabled={effectsEnabled}
@@ -456,9 +534,14 @@ export default function App() {
             openHistoryRequested={assistantPatioOpenHistoryTrigger}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
-        )}
+        </KeepAliveTabPanel>
 
-        {currentTab === 'laboratorio' && (
+        <KeepAliveTabPanel
+          tabId="laboratorio"
+          activeTab={currentTab}
+          visitedTabs={visitedTabs}
+          className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+        >
           <PatioView
             orderType="module"
             onUseCustomerData={handleUseCustomerData}
@@ -471,8 +554,7 @@ export default function App() {
             openHistoryRequested={assistantPatioOpenHistoryTrigger}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
-        )}
-
+        </KeepAliveTabPanel>
       </main>
 
       {/* Navigation - sempre visível, inclusive na home */}
