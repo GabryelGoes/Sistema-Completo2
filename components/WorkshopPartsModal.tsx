@@ -610,9 +610,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             />
           </div>
 
-        <div
-          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 sm:px-8 pb-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-        >
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 sm:px-8 pb-8 custom-scrollbar">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:max-w-xl">
               Gerencie preço e estoque. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Categorias</span> para
