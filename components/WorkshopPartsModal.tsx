@@ -98,6 +98,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const createPhotoInputRef = useRef<HTMLInputElement>(null);
   const createCameraInputRef = useRef<HTMLInputElement>(null);
   const editPhotoInputRef = useRef<HTMLInputElement>(null);
+  const editCameraInputRef = useRef<HTMLInputElement>(null);
 
   const parseNumber = (value: string): number => {
     const n = Number(String(value).replace(',', '.'));
@@ -109,6 +110,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     e.target.value = '';
     if (!f || !f.type.startsWith('image/')) return;
     setPhotoEditorTarget('new');
+    setPhotoEditorFile(f);
+  };
+
+  const handleExistingPartImageSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    const partId = e.currentTarget.dataset.partId;
+    e.target.value = '';
+    if (!f || !f.type.startsWith('image/') || !partId) return;
+    setPhotoEditorTarget(partId);
     setPhotoEditorFile(f);
   };
 
@@ -315,7 +325,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8">
           <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mb-4">
-            Cadastre as peças com preço e quantidade em estoque para facilitar a montagem de orçamentos.
+            Cadastre as peças com preço e quantidade em estoque para facilitar a montagem de orçamentos. Para{' '}
+            <span className="font-medium text-zinc-600 dark:text-zinc-300">foto, galeria e ajuste</span>, abra o produto
+            tocando no nome.
           </p>
 
           {error && (
@@ -436,12 +448,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               </div>
             ) : (
               <>
-                <div className="hidden md:grid md:grid-cols-[4fr_1fr_1fr_auto_minmax(4.5rem,auto)_auto] md:gap-3 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
+                <div className="hidden md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto] md:gap-3 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
                   <span className="min-w-0">Nome da peça</span>
                   <span className="text-right tabular-nums">Preço</span>
                   <span className="text-right tabular-nums">Quantidade</span>
                   <span className="text-center justify-self-center">Editar</span>
-                  <span className="text-center justify-self-center min-w-[5rem]">Foto</span>
                   <span className="text-center justify-self-center">Excluir</span>
                 </div>
                 <div className="md:hidden px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
@@ -451,7 +462,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 {parts.map((p) => (
                   <div
                     key={p.id}
-                    className="min-h-[52px] flex flex-wrap items-center gap-3 px-4 py-3 bg-transparent hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors md:grid md:grid-cols-[4fr_1fr_1fr_auto_minmax(4.5rem,auto)_auto] md:flex-nowrap md:gap-3 md:items-center"
+                    className="min-h-[52px] flex flex-wrap items-center gap-3 px-4 py-3 bg-transparent hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto] md:flex-nowrap md:gap-3 md:items-center"
                   >
                     {editingId === p.id ? (
                       <>
@@ -496,7 +507,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                             <X className="w-4 h-4" />
                           </button>
                         </div>
-                        <span className="hidden md:block min-w-[2.25rem]" aria-hidden />
+                        <span className="hidden md:block" aria-hidden />
                       </>
                     ) : (
                       <>
@@ -504,7 +515,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           type="button"
                           onClick={() => setDetailPart(p)}
                           className="w-full min-w-0 flex flex-[1_1_100%] items-center gap-3 text-left rounded-xl -my-1 -ml-2 pl-2 pr-2 py-1.5 hover:bg-zinc-200/70 dark:hover:bg-white/[0.07] transition-colors cursor-pointer md:col-span-1 md:flex-[unset] md:w-auto"
-                          title="Ver detalhes do produto"
+                          title="Abrir produto — foto e ajustes"
                         >
                           <div className="w-10 h-10 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 overflow-hidden shrink-0 pointer-events-none">
                             {p.photo_url ? (
@@ -529,41 +540,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <div className="flex flex-col items-center justify-center gap-1 justify-self-center sm:flex-row">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!editPhotoInputRef.current) return;
-                              editPhotoInputRef.current.dataset.partId = p.id;
-                              editPhotoInputRef.current.click();
-                            }}
-                            className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-brand-yellow/10 transition-colors"
-                            aria-label="Nova foto do arquivo"
-                            title="Nova foto do arquivo"
-                          >
-                            {uploadingPhotoId === p.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Camera className="w-4 h-4" />
-                            )}
-                          </button>
-                          {p.photo_url ? (
-                            <button
-                              type="button"
-                              onClick={() => void openExistingPartPhotoInEditor(p)}
-                              disabled={loadingExistingPhotoId === p.id || uploadingPhotoId === p.id}
-                              className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/10 transition-colors disabled:opacity-50"
-                              aria-label="Ajustar foto atual"
-                              title="Ajustar foto atual (zoom, rotação, recorte)"
-                            >
-                              {loadingExistingPhotoId === p.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <SlidersHorizontal className="w-4 h-4" />
-                              )}
-                            </button>
-                          ) : null}
-                        </div>
                         <button
                           type="button"
                           onClick={() => handleDelete(p.id)}
@@ -576,20 +552,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                     )}
                   </div>
                 ))}
-                <input
-                  ref={editPhotoInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] ?? null;
-                    const partId = editPhotoInputRef.current?.dataset.partId;
-                    if (editPhotoInputRef.current) editPhotoInputRef.current.value = '';
-                    if (!f || !f.type.startsWith('image/') || !partId) return;
-                    setPhotoEditorTarget(partId);
-                    setPhotoEditorFile(f);
-                  }}
-                />
                 </div>
               </>
             )}
@@ -683,15 +645,32 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <button
                 type="button"
                 onClick={() => {
-                  if (!editPhotoInputRef.current) return;
+                  if (!editPhotoInputRef.current || !detail) return;
                   editPhotoInputRef.current.dataset.partId = detail.id;
                   editPhotoInputRef.current.click();
                 }}
                 disabled={uploadingPhotoId === detail.id || loadingExistingPhotoId === detail.id}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-200 dark:bg-white/10 px-4 py-3 text-[15px] font-semibold text-zinc-900 dark:text-white hover:bg-zinc-300 dark:hover:bg-white/15 transition-colors disabled:opacity-50"
               >
-                {uploadingPhotoId === detail.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                Nova foto
+                {uploadingPhotoId === detail.id ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Images className="w-4 h-4" />
+                )}
+                Galeria
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!editCameraInputRef.current || !detail) return;
+                  editCameraInputRef.current.dataset.partId = detail.id;
+                  editCameraInputRef.current.click();
+                }}
+                disabled={uploadingPhotoId === detail.id || loadingExistingPhotoId === detail.id}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 px-4 py-3 text-[15px] font-semibold text-white transition-colors disabled:opacity-50"
+              >
+                <Camera className="w-4 h-4" />
+                Câmera
               </button>
               {detail.photo_url ? (
                 <button
@@ -717,6 +696,21 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 Excluir
               </button>
             </div>
+            <input
+              ref={editPhotoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleExistingPartImageSelected}
+            />
+            <input
+              ref={editCameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleExistingPartImageSelected}
+            />
           </div>
         </div>
       </div>
