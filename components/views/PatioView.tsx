@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
@@ -68,7 +68,7 @@ import {
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { printHtmlDocument } from '../../utils/printHtml';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
-import { budgetReadRowClass } from '../../utils/budgetItemDisplay';
+import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
 
 /** Modal de orçamento: papel branco-amarelado (mesmo tom em tema claro ou escuro do app). */
 const budgetModalPaperInset =
@@ -614,6 +614,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [approvalServices, setApprovalServices] = useState<boolean[]>([]);
   const [approvalParts, setApprovalParts] = useState<boolean[]>([]);
   const [savingApproval, setSavingApproval] = useState(false);
+  const viewingBudgetApprovalContrast = useMemo(
+    () =>
+      viewingBudget != null &&
+      budgetHasExplicitApprovalDecisions(viewingBudget.services, viewingBudget.parts),
+    [viewingBudget]
+  );
   const [workshopServices, setWorkshopServices] = useState<WorkshopService[]>([]);
   const [workshopParts, setWorkshopParts] = useState<WorkshopPart[]>([]);
   const [systemTechnicians, setSystemTechnicians] = useState<SystemUserTechnician[]>([]);
@@ -4770,13 +4776,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     {viewingBudget.services.map((s, i) => (
                       <li
                         key={i}
-                        className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 ${budgetReadRowClass(s.approved, 'paper')}`}
+                        className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 ${budgetReadRowClass(s.approved, 'paper', viewingBudgetApprovalContrast)}`}
                         style={{ color: '#000000' }}
                       >
                         {s.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-700" aria-label="Aprovado" />}
                         {s.approved === false && <X className="w-4 h-4 shrink-0 text-red-700" aria-label="Reprovado" />}
                         {s.approved !== true && s.approved !== false && <span className="w-4 h-4 shrink-0 font-bold" style={{ color: '#000000' }} aria-label="Pendente">—</span>}
-                        <span className={s.approved === true ? 'font-medium' : ''} style={{ color: '#000000' }}>{s.description}</span>
+                        <span className={viewingBudgetApprovalContrast && s.approved === true ? 'font-medium' : ''} style={{ color: '#000000' }}>{s.description}</span>
                         {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
                           <span className="text-[13px] font-semibold tabular-nums opacity-90" style={{ color: '#000000' }}>
                             ({formatLaborLabel(Number(s.labor_hours))})
@@ -4794,14 +4800,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     {viewingBudget.parts.map((p, i) => (
                       <li
                         key={i}
-                        className={`flex items-center gap-2 ${budgetReadRowClass(p.approved, 'paper')}`}
+                        className={`flex items-center gap-2 ${budgetReadRowClass(p.approved, 'paper', viewingBudgetApprovalContrast)}`}
                         style={{ color: '#000000' }}
                       >
                         {p.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-700" aria-label="Aprovado" />}
                         {p.approved === false && <X className="w-4 h-4 shrink-0 text-red-700" aria-label="Reprovado" />}
                         {p.approved !== true && p.approved !== false && <span className="w-4 h-4 shrink-0 font-bold" style={{ color: '#000000' }} aria-label="Pendente">—</span>}
                         <span style={{ color: '#000000' }}>
-                          <span className={p.approved === true ? 'font-semibold' : 'font-medium'}>({p.quantity}x)</span>{' '}
+                          <span
+                            className={
+                              viewingBudgetApprovalContrast && p.approved === true
+                                ? 'font-semibold'
+                                : 'font-medium'
+                            }
+                          >
+                            ({p.quantity}x)
+                          </span>{' '}
                           {p.description}
                         </span>
                       </li>

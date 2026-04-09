@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, ClipboardList, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosLabel, iosPageGlass } from '../ui/iosModalStyles';
@@ -27,7 +27,7 @@ import { ModalPortal } from '../ui/ModalPortal';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
-import { budgetReadRowClass } from '../../utils/budgetItemDisplay';
+import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
 
 const RECEPTION_MODE_KEY = 'app_reception_mode';
 const VEHICLE_CATEGORIES = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
@@ -166,6 +166,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [historyBudgetDetail, setHistoryBudgetDetail] = useState<SavedBudgetFromApi | null>(null);
   const historyBudgetDetailRef = useRef(historyBudgetDetail);
   historyBudgetDetailRef.current = historyBudgetDetail;
+  const historyBudgetApprovalContrast = useMemo(
+    () =>
+      historyBudgetDetail != null &&
+      budgetHasExplicitApprovalDecisions(historyBudgetDetail.services, historyBudgetDetail.parts),
+    [historyBudgetDetail]
+  );
   const [archivedDetailOrderId, setArchivedDetailOrderId] = useState<string | null>(null);
   const [archivedDetailLoading, setArchivedDetailLoading] = useState(false);
   const [archivedDetailData, setArchivedDetailData] = useState<ServiceOrderDetail | null>(null);
@@ -1399,14 +1405,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     {historyBudgetDetail.services.map((s, i) => (
                       <li
                         key={i}
-                        className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 ${budgetReadRowClass(s.approved, 'ios')}`}
+                        className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 ${budgetReadRowClass(s.approved, 'ios', historyBudgetApprovalContrast)}`}
                       >
                         {s.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" aria-hidden />}
                         {s.approved === false && <X className="w-4 h-4 shrink-0 text-red-600 mt-0.5" aria-hidden />}
                         {s.approved !== true && s.approved !== false && (
                           <span className="w-4 h-4 shrink-0 text-center font-bold text-zinc-400 mt-0.5" aria-hidden>—</span>
                         )}
-                        <span className={s.approved === true ? 'font-medium' : ''}>{s.description}</span>
+                        <span className={historyBudgetApprovalContrast && s.approved === true ? 'font-medium' : ''}>{s.description}</span>
                         {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
                           <span className="text-[13px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">
                             ({formatLaborLabel(Number(s.labor_hours))})
@@ -1424,7 +1430,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     {historyBudgetDetail.parts.map((p, i) => (
                       <li
                         key={i}
-                        className={`flex items-start gap-2 ${budgetReadRowClass(p.approved, 'ios')}`}
+                        className={`flex items-start gap-2 ${budgetReadRowClass(p.approved, 'ios', historyBudgetApprovalContrast)}`}
                       >
                         {p.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" aria-hidden />}
                         {p.approved === false && <X className="w-4 h-4 shrink-0 text-red-600 mt-0.5" aria-hidden />}
@@ -1432,7 +1438,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           <span className="w-4 h-4 shrink-0 text-center font-bold text-zinc-400 mt-0.5" aria-hidden>—</span>
                         )}
                         <span>
-                          <span className={p.approved === true ? 'font-bold' : 'font-semibold'}>({p.quantity}x)</span> {p.description}
+                          <span
+                            className={
+                              historyBudgetApprovalContrast && p.approved === true ? 'font-bold' : 'font-semibold'
+                            }
+                          >
+                            ({p.quantity}x)
+                          </span>{' '}
+                          {p.description}
                         </span>
                       </li>
                     ))}
