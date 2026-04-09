@@ -83,7 +83,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [newPrice, setNewPrice] = useState('');
   const [newStock, setNewStock] = useState('');
   const [newPhoto, setNewPhoto] = useState<File | null>(null);
+  const [newPhotoPreviewUrl, setNewPhotoPreviewUrl] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -161,6 +163,41 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     return () => window.removeEventListener('keydown', onKey);
   }, [detailPart]);
 
+  useEffect(() => {
+    if (!newPhoto) {
+      setNewPhotoPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(newPhoto);
+    setNewPhotoPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [newPhoto]);
+
+  const resetNewProductDraft = useCallback(() => {
+    setNewName('');
+    setNewPrice('');
+    setNewStock('');
+    setNewPhoto(null);
+    setPhotoEditorFile(null);
+    setPhotoEditorTarget(null);
+  }, []);
+
+  const closeAddProductModal = useCallback(() => {
+    setIsAddProductModalOpen(false);
+    resetNewProductDraft();
+  }, [resetNewProductDraft]);
+
+  useEffect(() => {
+    if (!isAddProductModalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (photoEditorFile) return;
+      closeAddProductModal();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isAddProductModalOpen, closeAddProductModal, photoEditorFile]);
+
   const handleAdd = async () => {
     const name = newName.trim();
     if (!name || adding) return;
@@ -178,10 +215,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         created = await uploadWorkshopPartPhoto(created.id, newPhoto, newPhoto.name);
       }
       setParts((prev) => [...prev, created].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)));
-      setNewName('');
-      setNewPrice('');
-      setNewStock('');
-      setNewPhoto(null);
+      setIsAddProductModalOpen(false);
+      resetNewProductDraft();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao adicionar peça.');
     } finally {
@@ -324,11 +359,21 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8">
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mb-4">
-            Cadastre as peças com preço e quantidade em estoque para facilitar a montagem de orçamentos. Para{' '}
-            <span className="font-medium text-zinc-600 dark:text-zinc-300">foto, galeria e ajuste</span>, abra o produto
-            tocando no nome.
-          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:max-w-xl">
+              Gerencie preço e estoque. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Adicionar produto</span>{' '}
+              para cadastrar. Para <span className="font-medium text-zinc-600 dark:text-zinc-300">foto e ajustes</span>, abra o item
+              tocando no nome.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsAddProductModalOpen(true)}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white shadow-md shadow-emerald-900/20 hover:bg-emerald-500 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Adicionar produto
+            </button>
+          </div>
 
           {error && (
             <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-sm">
@@ -337,105 +382,16 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           )}
 
           <div className={`overflow-hidden ${iosModalInsetCard}`}>
-            <div className="grid grid-cols-1 md:grid-cols-[4fr_1fr_1fr_auto_minmax(5.5rem,auto)] gap-3 p-3 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Nome da peça
-                </label>
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                  placeholder="Ex.: Sensor ABS"
-                  className="w-full min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60"
-                />
-              </div>
-              <div className="space-y-1 md:text-right">
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 md:text-right">
-                  Preço (R$)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={newPrice}
-                  onChange={(e) => setNewPrice(e.target.value)}
-                  placeholder="0,00"
-                  className="w-full min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60 md:text-right"
-                />
-              </div>
-              <div className="space-y-1 md:text-right">
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 md:text-right">
-                  Quantidade em estoque
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.001"
-                  value={newStock}
-                  onChange={(e) => setNewStock(e.target.value)}
-                  placeholder="0"
-                  className="w-full min-w-0 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 focus:border-brand-yellow/60 md:text-right"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 text-center">
-                  Salvar
-                </label>
-                <button
-                  type="button"
-                  onClick={handleAdd}
-                  disabled={!newName.trim() || adding}
-                  className="w-10 h-10 rounded-xl bg-brand-yellow hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none text-black flex items-center justify-center transition-colors mx-auto"
-                >
-                  {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                </button>
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 text-center">
-                  Foto
-                </label>
-                <div className="flex items-center justify-center gap-1.5 mx-auto">
-                  <button
-                    type="button"
-                    onClick={() => createPhotoInputRef.current?.click()}
-                    className="w-10 h-10 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-white flex items-center justify-center transition-colors shrink-0"
-                    title="Galeria ou arquivo"
-                  >
-                    <Images className="w-5 h-5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => createCameraInputRef.current?.click()}
-                    className="w-10 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center transition-colors shrink-0"
-                    title="Câmera do aparelho"
-                  >
-                    <Camera className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-              <input
-                ref={createPhotoInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleNewPartImageSelected}
-              />
-              <input
-                ref={createCameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleNewPartImageSelected}
-              />
+            <div className="hidden md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto] md:gap-3 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
+              <span className="min-w-0">Nome da peça</span>
+              <span className="text-right tabular-nums">Preço</span>
+              <span className="text-right tabular-nums">Quantidade</span>
+              <span className="text-center justify-self-center">Editar</span>
+              <span className="text-center justify-self-center">Excluir</span>
             </div>
-            {newPhoto && (
-              <div className="px-3 pb-3 text-[12px] text-zinc-500 dark:text-zinc-400">
-                Foto pronta para salvar com a peça (ajuste feito no editor).
-              </div>
-            )}
+            <div className="md:hidden px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
+              Lista de peças
+            </div>
 
             {loading ? (
               <div className="flex items-center justify-center py-12 text-zinc-500 dark:text-zinc-400">
@@ -444,21 +400,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             ) : parts.length === 0 ? (
               <div className="py-10 px-4 text-center">
                 <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhuma peça cadastrada.</p>
-                <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">Adicione acima para montar seu estoque.</p>
+                <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">
+                  Toque em <span className="font-medium text-zinc-600 dark:text-zinc-300">Adicionar produto</span> para incluir a primeira
+                  peça.
+                </p>
               </div>
             ) : (
-              <>
-                <div className="hidden md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto] md:gap-3 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
-                  <span className="min-w-0">Nome da peça</span>
-                  <span className="text-right tabular-nums">Preço</span>
-                  <span className="text-right tabular-nums">Quantidade</span>
-                  <span className="text-center justify-self-center">Editar</span>
-                  <span className="text-center justify-self-center">Excluir</span>
-                </div>
-                <div className="md:hidden px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06]">
-                  Lista de peças
-                </div>
-                <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
+              <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
                 {parts.map((p) => (
                   <div
                     key={p.id}
@@ -552,14 +500,168 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                     )}
                   </div>
                 ))}
-                </div>
-              </>
+              </div>
             )}
           </div>
         </div>
         </div>
       </div>
     </div>
+
+    {isAddProductModalOpen && (
+      <div
+        className="fixed inset-0 z-[115] flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-[12px]"
+        onClick={closeAddProductModal}
+        role="presentation"
+      >
+        <div
+          className={`${iosModalShell} w-full max-w-lg md:max-w-3xl xl:max-w-4xl max-h-[92vh] overflow-y-auto`}
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="workshop-add-product-title"
+        >
+          <button type="button" onClick={closeAddProductModal} className={iosModalClose} aria-label="Fechar">
+            <X className="w-5 h-5" />
+          </button>
+          <p id="workshop-add-product-title" className="sr-only">
+            Cadastrar novo produto no estoque
+          </p>
+          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
+            <IosModalHeader
+              icon={<Package className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              title="Novo produto"
+              subtitle="Nome, preço, estoque e foto opcional"
+              gradientClass="from-emerald-500 to-teal-700"
+            />
+          </div>
+          <div className="px-6 sm:px-8 py-6">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-10">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    Nome da peça
+                  </label>
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="Ex.: Sensor ABS"
+                    className="w-full min-w-0 px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/50"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                      Preço (R$)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={newPrice}
+                      onChange={(e) => setNewPrice(e.target.value)}
+                      placeholder="0,00"
+                      className="w-full min-w-0 px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                      Quantidade em estoque
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      value={newStock}
+                      onChange={(e) => setNewStock(e.target.value)}
+                      placeholder="0"
+                      className="w-full min-w-0 px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/50"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Pré-visualização</p>
+                <div className="mx-auto w-full max-w-[280px] md:max-w-none md:mx-0">
+                  <div className="aspect-square w-full rounded-[22px] border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-100 dark:bg-white/[0.05] overflow-hidden flex items-center justify-center">
+                    {newPhotoPreviewUrl ? (
+                      <img src={newPhotoPreviewUrl} alt="Prévia da foto do produto" className="h-full w-full object-cover" />
+                    ) : (
+                      <Package className="w-16 h-16 text-zinc-300 dark:text-zinc-600 sm:w-20 sm:h-20" strokeWidth={1.25} />
+                    )}
+                  </div>
+                </div>
+                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 text-center md:text-left">
+                  A foto passa pelo editor (recorte quadrado) antes de ser usada.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
+                  <button
+                    type="button"
+                    onClick={() => createPhotoInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 rounded-xl bg-zinc-700 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-zinc-600 transition-colors"
+                  >
+                    <Images className="w-4 h-4" />
+                    Galeria
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => createCameraInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-emerald-500 transition-colors"
+                  >
+                    <Camera className="w-4 h-4" />
+                    Câmera
+                  </button>
+                  {newPhoto ? (
+                    <button
+                      type="button"
+                      onClick={() => setNewPhoto(null)}
+                      className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 dark:border-white/15 bg-transparent px-4 py-2.5 text-[14px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+                    >
+                      Remover foto
+                    </button>
+                  ) : null}
+                </div>
+                <input
+                  ref={createPhotoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleNewPartImageSelected}
+                />
+                <input
+                  ref={createCameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleNewPartImageSelected}
+                />
+              </div>
+            </div>
+            <div className="mt-8 flex flex-col-reverse gap-3 border-t border-zinc-200/50 dark:border-white/[0.06] pt-6 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeAddProductModal}
+                disabled={adding}
+                className="rounded-2xl px-5 py-3 text-[15px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleAdd()}
+                disabled={!newName.trim() || adding}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-yellow px-6 py-3 text-[15px] font-semibold text-black hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none transition-[filter]"
+              >
+                {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                Salvar produto
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
 
     {detail && (
       <div
