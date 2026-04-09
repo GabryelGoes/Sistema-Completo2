@@ -152,6 +152,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [cameraOrientation, setCameraOrientation] = useState<{alpha: number | null, beta: number | null, gamma: number | null} | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
+  const historySearchRef = useRef(historySearch);
+  historySearchRef.current = historySearch;
   const [historyLoading, setHistoryLoading] = useState(false);
   const [archivedOrders, setArchivedOrders] = useState<ServiceOrderListItem[]>([]);
   const [expandedHistoryOrderId, setExpandedHistoryOrderId] = useState<string | null>(null);
@@ -161,6 +163,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [historyBudgetsLoadingId, setHistoryBudgetsLoadingId] = useState<string | null>(null);
   const [historyBudgetErrorByOrder, setHistoryBudgetErrorByOrder] = useState<Record<string, string>>({});
   const [historyBudgetDetail, setHistoryBudgetDetail] = useState<SavedBudgetFromApi | null>(null);
+  const historyBudgetDetailRef = useRef(historyBudgetDetail);
+  historyBudgetDetailRef.current = historyBudgetDetail;
   const [archivedDetailOrderId, setArchivedDetailOrderId] = useState<string | null>(null);
   const [archivedDetailLoading, setArchivedDetailLoading] = useState(false);
   const [archivedDetailData, setArchivedDetailData] = useState<ServiceOrderDetail | null>(null);
@@ -296,7 +300,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   };
 
   // --- Funções de Histórico ---
-  const loadVehicleHistory = async (term = '') => {
+  const loadVehicleHistory = useCallback(async (term = '') => {
     setHistoryLoading(true);
     try {
       const rows = await getServiceOrders('CANCELLED', receptionMode);
@@ -316,12 +320,25 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     } finally {
       setHistoryLoading(false);
     }
-  };
+  }, [receptionMode]);
+
+  const loadVehicleHistoryRef = useRef(loadVehicleHistory);
+  loadVehicleHistoryRef.current = loadVehicleHistory;
 
   useEffect(() => {
-    if (isHistoryOpen) loadVehicleHistory(historySearch);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHistoryOpen, receptionMode]);
+    if (isHistoryOpen) void loadVehicleHistory(historySearchRef.current ?? '');
+  }, [isHistoryOpen, receptionMode, loadVehicleHistory]);
+
+  /** Mantém lista / filtro do histórico atualizados com o modal aberto. */
+  useEffect(() => {
+    if (!isHistoryOpen) return;
+    const tick = () => {
+      const term = historySearchRef.current ?? '';
+      void loadVehicleHistoryRef.current(term);
+    };
+    const id = window.setInterval(tick, 8000);
+    return () => window.clearInterval(id);
+  }, [isHistoryOpen]);
 
   useEffect(() => {
     if (!isHistoryOpen) {
@@ -489,6 +506,24 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   useServiceOrderLiveSync(archivedDetailOrderId, silentReloadArchivedDetail, {
     enabled: !!archivedDetailOrderId,
+  });
+
+  const syncHistoryBudgetDetailFromServer = useCallback(async () => {
+    const b = historyBudgetDetailRef.current;
+    if (!b) return;
+    try {
+      const budgets = await getServiceOrderBudgets(b.serviceOrderId);
+      setHistoryBudgetsByOrder((prev) => ({ ...prev, [b.serviceOrderId]: budgets }));
+      const updated = budgets.find((x) => x.id === b.id);
+      if (updated) setHistoryBudgetDetail(updated);
+      else setHistoryBudgetDetail(null);
+    } catch {
+      /* mantém estado anterior */
+    }
+  }, []);
+
+  useServiceOrderLiveSync(historyBudgetDetail?.serviceOrderId ?? null, syncHistoryBudgetDetailFromServer, {
+    enabled: !!historyBudgetDetail,
   });
 
   return (

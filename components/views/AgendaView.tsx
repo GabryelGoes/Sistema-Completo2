@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { format, startOfWeek, addDays, startOfMonth, endOfMonth, endOfWeek, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, User, Car, AlertCircle, X, CalendarDays, RefreshCw, ArrowRight, FileText, Edit2, ExternalLink, Trash2, Phone, Mail, Sparkles } from 'lucide-react';
@@ -87,6 +87,18 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
     }
   };
 
+  /** Atualiza a lista sem overlay de carregamento (ex.: modal de detalhe aberto). */
+  const refreshAppointmentsSilent = useCallback(async () => {
+    try {
+      const list = await getAppointments();
+      setAppointments(list);
+      return list;
+    } catch (err) {
+      console.error("Falha ao atualizar agendamentos", err);
+      return null;
+    }
+  }, [setAppointments]);
+
   useEffect(() => {
     fetchAppointments();
   }, []);
@@ -99,6 +111,23 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [detailAppointment]);
+
+  /** Mantém o modal de detalhe alinhado aos dados da API enquanto estiver aberto. */
+  useEffect(() => {
+    if (!detailAppointment) return;
+    const detailId = detailAppointment.id;
+    const tick = async () => {
+      const list = await refreshAppointmentsSilent();
+      if (!list) return;
+      setDetailAppointment((prev) => {
+        if (!prev || prev.id !== detailId) return prev;
+        const found = list.find((a) => a.id === detailId);
+        return found ?? null;
+      });
+    };
+    const id = window.setInterval(tick, 8000);
+    return () => window.clearInterval(id);
+  }, [detailAppointment?.id, refreshAppointmentsSilent]);
 
   // Load appointments from localStorage on mount (Removed as it's now in App.tsx)
   // Save appointments to localStorage whenever they change (Removed as it's now in App.tsx)

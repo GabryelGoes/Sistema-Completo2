@@ -648,6 +648,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // Estados para HISTÓRICO (Search & Use)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historySearchPlate, setHistorySearchPlate] = useState('');
+  const historySearchPlateRef = useRef(historySearchPlate);
+  historySearchPlateRef.current = historySearchPlate;
   const [archivedCards, setArchivedCards] = useState<TrelloCard[]>([]);
   /** Últimos veículos arquivados (carregados ao abrir o modal); usados quando a busca não retorna resultados. */
   const [recentArchivedCards, setRecentArchivedCards] = useState<TrelloCard[]>([]);
@@ -656,6 +658,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [selectedHistoryCard, setSelectedHistoryCard] = useState<BoardCard | null>(null);
   const [loadingHistoryDetails, setLoadingHistoryDetails] = useState(false);
   const [historyCardDetails, setHistoryCardDetails] = useState<{ actions: BoardAction[], attachments: BoardAttachment[] } | null>(null);
+  const selectedHistoryCardRef = useRef<BoardCard | null>(null);
+  selectedHistoryCardRef.current = selectedHistoryCard;
 
   // Lembretes do Pátio/Laboratório — persistidos na API (Supabase), visíveis para toda a oficina
   type Reminder = { id: string; text: string; createdAt: string; done: boolean; createdBy?: string };
@@ -775,7 +779,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const syncOpenVehicleModalFromServer = React.useCallback(async () => {
     const id = selectedCardRef.current?.id;
     if (!id) return;
-    if (isEditingDescRef.current) return;
     try {
       const [order, photos, budgets, comments] = await Promise.all([
         getServiceOrderById(id),
@@ -800,7 +803,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
         })),
       });
       setSavedBudgets(budgets);
-      setDescText(stripLegacyVehicleCategoryFromComplaint(order.issue_description || ""));
+      setViewingBudget((prev) => {
+        if (!prev) return null;
+        const next = budgets.find((b) => b.id === prev.id);
+        return next ?? null;
+      });
+      setBudgetApprovalTarget((prev) => {
+        if (!prev) return null;
+        const next = budgets.find((b) => b.id === prev.id);
+        return next ?? null;
+      });
+      if (!isEditingDescRef.current) {
+        setDescText(stripLegacyVehicleCategoryFromComplaint(order.issue_description || ""));
+      }
       void fetchReminders();
     } catch (e) {
       console.error("syncOpenVehicleModalFromServer", e);
@@ -810,6 +825,36 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useServiceOrderLiveSync(selectedCard?.id ?? null, syncOpenVehicleModalFromServer, {
     enabled: !!selectedCard,
   });
+
+  const syncHistoryDetailFromServer = React.useCallback(async () => {
+    const card = selectedHistoryCardRef.current;
+    if (!card?.id) return;
+    try {
+      const photos = await getServiceOrderPhotos(card.id);
+      setHistoryCardDetails({
+        actions: [],
+        attachments: photos.map((p, i) => {
+          const mime = attachmentMimeType(p.name);
+          const isPdf = mime === 'application/pdf' || p.url.toLowerCase().endsWith('.pdf');
+          return {
+            id: p.path || String(i),
+            name: p.name,
+            url: p.url,
+            mimeType: mime,
+            previews: isPdf ? [] : [{ url: p.url, width: 200, height: 200 }],
+          };
+        }),
+      });
+    } catch (e) {
+      console.error('syncHistoryDetailFromServer', e);
+    }
+  }, []);
+
+  useServiceOrderLiveSync(
+    selectedHistoryCard && isHistoryOpen ? selectedHistoryCard.id : null,
+    syncHistoryDetailFromServer,
+    { enabled: !!selectedHistoryCard && isHistoryOpen }
+  );
 
   // --- Attachment States ---
   const [isUploading, setIsUploading] = useState(false);
@@ -1071,7 +1116,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     : null;
 
   /** Carrega os últimos veículos arquivados (sem filtro de busca). */
-  const loadRecentArchived = async () => {
+  const loadRecentArchived = useCallback(async () => {
     setIsLoadingHistory(true);
     setHistoryShowingFallback(false);
     try {
@@ -1087,7 +1132,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     } finally {
       setIsLoadingHistory(false);
     }
-  };
+  }, [orderType, systemTechnicians]);
+
+  const handleSearchHistoryRef = useRef<(term?: string) => Promise<void>>(async () => {});
 
   const handleSearchHistory = async (termToSearch: string = historySearchPlate) => {
     const term = (termToSearch ?? historySearchPlate).trim();
@@ -1128,13 +1175,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
+  handleSearchHistoryRef.current = handleSearchHistory;
+
   // Ao abrir o modal de histórico, carregar os últimos veículos arquivados
   useEffect(() => {
     if (isHistoryOpen) {
       setHistoryShowingFallback(false);
-      loadRecentArchived();
+      void loadRecentArchived();
     }
-  }, [isHistoryOpen]);
+  }, [isHistoryOpen, loadRecentArchived]);
+
+  /** Atualiza lista / busca do histórico enquanto o modal está aberto (alinhado ao tempo real do restante do app). */
+  useEffect(() => {
+    if (!isHistoryOpen) return;
+    const tick = () => {
+      const term = (historySearchPlateRef.current ?? '').trim();
+      if (term) void handleSearchHistoryRef.current(term);
+      else void loadRecentArchived();
+    };
+    const id = window.setInterval(tick, 8000);
+    return () => window.clearInterval(id);
+  }, [isHistoryOpen, loadRecentArchived]);
 
   // Abrir histórico quando solicitado pela Recepção
   useEffect(() => {
