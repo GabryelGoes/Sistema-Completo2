@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Pencil, Trash2, Loader2, LayoutGrid, Settings, Car, User, ShieldCheck } from 'lucide-react';
+import { X, Plus, Pencil, Trash2, Loader2, LayoutGrid, Settings, Car, User, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosInput } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import type { SystemUserPermissions, SystemUser } from '../services/apiService';
@@ -17,14 +17,16 @@ function PermSwitch({
   onChange,
   label,
   description,
+  disabled,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   label: string;
   description?: string;
+  disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-2">
+    <div className={`flex items-center justify-between gap-3 py-2 ${disabled ? 'opacity-60' : ''}`}>
       <div className="min-w-0">
         <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 block">{label}</span>
         {description && <span className="text-xs text-zinc-500 dark:text-zinc-400 block mt-0.5">{description}</span>}
@@ -33,10 +35,11 @@ function PermSwitch({
         type="button"
         role="switch"
         aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-0 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/50 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900 ${
+        disabled={disabled}
+        onClick={() => !disabled && onChange(!checked)}
+        className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border-0 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/50 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900 disabled:cursor-not-allowed ${
           checked ? 'bg-[#34C759] dark:bg-[#30D158]' : 'bg-zinc-300 dark:bg-zinc-600'
-        }`}
+        } ${disabled ? '' : 'cursor-pointer'}`}
       >
         <span
           className={`pointer-events-none inline-block h-6 w-6 shrink-0 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ${
@@ -104,6 +107,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
   const [formPermissions, setFormPermissions] = useState<SystemUserPermissions>({ ...DEFAULT_PERMISSIONS });
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingApproveUserId, setTogglingApproveUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -220,6 +224,26 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
     }
   };
 
+  const handleQuickApprovePermission = async (u: SystemUser, enabled: boolean) => {
+    if (!adminPassword) return;
+    setTogglingApproveUserId(u.id);
+    setError(null);
+    try {
+      const nextPerms: SystemUserPermissions = { ...(u.permissions || {}), patio_approve_budget_items: enabled };
+      const updated = await updateSystemUser(u.id, adminPassword, {
+        permissions: nextPerms,
+        displayName: u.display_name?.trim() || undefined,
+        isTechnician: u.is_technician ?? false,
+        jobTitle: u.job_title ?? null,
+      });
+      setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao atualizar permissão de aprovação.');
+    } finally {
+      setTogglingApproveUserId(null);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!adminPassword || !confirm('Excluir este usuário? Ele não poderá mais entrar no sistema.')) return;
     setDeletingId(id);
@@ -249,7 +273,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
             <IosModalHeader
               icon={<ShieldCheck className="w-6 h-6 text-white" strokeWidth={2.2} />}
               title="Usuários do sistema"
-              subtitle="Logins, permissões e acesso ao painel"
+              subtitle="Logins, permissões, aprovação de orçamentos e acesso ao painel"
               gradientClass="from-violet-500 to-indigo-700"
             />
           </div>
@@ -440,6 +464,58 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                       Novo usuário
                     </button>
                   </div>
+
+                  {users.length > 0 && (
+                    <section className="rounded-xl border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/30 p-4 space-y-3">
+                      <div className="flex items-start gap-2">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-sm">
+                          <CheckCircle2 className="w-4 h-4 text-white" strokeWidth={2.2} />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Quem pode aprovar itens do orçamento</h3>
+                          <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 leading-snug">
+                            Escolha quais logins podem aprovar ou reprovar serviços e peças no Pátio e no Laboratório. Quem tem{' '}
+                            <strong className="font-semibold text-zinc-800 dark:text-zinc-200">acesso completo</strong> já pode sempre; não precisa ligar o interruptor abaixo.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-600 bg-white/70 dark:bg-zinc-900/40 p-2 space-y-0">
+                        {users.map((u) => {
+                          const label = (u.display_name || '').trim() || u.username;
+                          const sub =
+                            label !== u.username
+                              ? u.username
+                              : u.job_title || undefined;
+                          if (u.permissions?.full_access) {
+                            return (
+                              <div
+                                key={u.id}
+                                className="flex items-center justify-between gap-3 py-2.5 px-1 border-b border-zinc-100 dark:border-zinc-700/80 last:border-0"
+                              >
+                                <div className="min-w-0">
+                                  <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 block">{label}</span>
+                                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Acesso completo — pode aprovar itens sem configuração extra</span>
+                                </div>
+                                <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" aria-hidden />
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={u.id} className="border-b border-zinc-100 dark:border-zinc-700/80 last:border-0">
+                              <PermSwitch
+                                label={label}
+                                description={sub}
+                                checked={effectivePatioApproveBudgetItems(u.permissions || {})}
+                                onChange={(v) => void handleQuickApprovePermission(u, v)}
+                                disabled={togglingApproveUserId === u.id}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  )}
+
                   <ul className="space-y-2">
                     {users.length === 0 ? (
                       <li className="text-sm text-zinc-500 dark:text-zinc-400 py-6 text-center rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
