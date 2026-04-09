@@ -1161,11 +1161,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           </div>
           <div className="px-6 sm:px-8 py-6 space-y-5">
             <div className="flex justify-center sm:justify-start">
-              <div className="w-full max-w-[min(100%,380px)] sm:max-w-[min(100%,440px)] aspect-square rounded-[22px] border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-100 dark:bg-white/[0.05] overflow-hidden flex items-center justify-center">
+              <div className="w-full max-w-[min(100%,190px)] sm:max-w-[min(100%,220px)] aspect-square rounded-[22px] border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-100 dark:bg-white/[0.05] overflow-hidden flex items-center justify-center">
                 {detail.photo_url ? (
                   <img src={detail.photo_url} alt={detail.name} className="w-full h-full object-cover" />
                 ) : (
-                  <Package className="w-20 h-20 text-zinc-300 dark:text-zinc-600" strokeWidth={1.25} />
+                  <Package className="w-10 h-10 text-zinc-300 dark:text-zinc-600" strokeWidth={1.25} />
                 )}
               </div>
             </div>
