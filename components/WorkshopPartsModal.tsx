@@ -13,6 +13,7 @@ import {
   Images,
   Search,
   Tags,
+  ChevronDown,
 } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
@@ -141,6 +142,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const createCameraInputRef = useRef<HTMLInputElement>(null);
   const editPhotoInputRef = useRef<HTMLInputElement>(null);
   const editCameraInputRef = useRef<HTMLInputElement>(null);
+  const categoryFilterDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [categoryFilterMenuOpen, setCategoryFilterMenuOpen] = useState(false);
 
   const parseNumber = (value: string): number => {
     const n = Number(String(value).replace(',', '.'));
@@ -194,6 +198,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     if (!isOpen) {
       setPartsSearchQuery('');
       setCategoryFilter('all');
+      setCategoryFilterMenuOpen(false);
       setIsCategoriesModalOpen(false);
       setNewCategoryName('');
       setCategoryEditingId(null);
@@ -201,11 +206,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     }
   }, [isOpen]);
 
-  /** Evita filtro preso em categoria que foi excluída (select sem opção válida). */
+  /** Evita filtro preso em categoria que foi excluída. */
   useEffect(() => {
     if (categoryFilter === 'all' || categoryFilter === 'uncategorized') return;
     if (categories.some((c) => c.id === categoryFilter)) return;
     setCategoryFilter('all');
+    setCategoryFilterMenuOpen(false);
   }, [categories, categoryFilter]);
 
   useEffect(() => {
@@ -540,6 +546,29 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   }, [isCategoriesModalOpen, closeCategoriesModal]);
 
   useEffect(() => {
+    if (!categoryFilterMenuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      const el = categoryFilterDropdownRef.current;
+      if (el && !el.contains(e.target as Node)) setCategoryFilterMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCategoryFilterMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [categoryFilterMenuOpen]);
+
+  const categoryFilterLabel = useMemo(() => {
+    if (categoryFilter === 'all') return 'Todos os produtos';
+    if (categoryFilter === 'uncategorized') return 'Sem categoria';
+    return categories.find((c) => c.id === categoryFilter)?.name ?? 'Categoria';
+  }, [categoryFilter, categories]);
+
+  useEffect(() => {
     if (!editingId) return;
     if (!filteredParts.some((p) => p.id === editingId)) {
       setEditingId(null);
@@ -615,27 +644,77 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             </div>
           )}
 
-          <div className={`overflow-hidden ${iosModalInsetCard}`}>
+          <div className={`overflow-visible ${iosModalInsetCard}`}>
             {!loading && parts.length > 0 && (
               <div className="border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/40 dark:bg-white/[0.02] px-3 py-3 sm:px-4 space-y-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3">
-                  <label htmlFor="workshop-parts-category-filter" className="sr-only">
-                    Filtrar por categoria
-                  </label>
-                  <select
-                    id="workshop-parts-category-filter"
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="w-full sm:w-[min(100%,240px)] shrink-0 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 py-2.5 px-3 text-[15px] text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/50"
-                  >
-                    <option value="all">Todos os produtos</option>
-                    <option value="uncategorized">Sem categoria</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div ref={categoryFilterDropdownRef} className="relative z-20 w-full sm:w-[min(100%,280px)] shrink-0">
+                    <span id="workshop-parts-category-filter-label" className="sr-only">
+                      Filtrar por categoria
+                    </span>
+                    <button
+                      type="button"
+                      id="workshop-parts-category-filter"
+                      aria-haspopup="listbox"
+                      aria-expanded={categoryFilterMenuOpen}
+                      aria-controls="workshop-parts-category-listbox"
+                      onClick={() => setCategoryFilterMenuOpen((open) => !open)}
+                      className="flex w-full min-h-[46px] items-center justify-between gap-2 rounded-xl border border-zinc-200/90 dark:border-white/[0.12] bg-white/95 dark:bg-zinc-950/90 py-2.5 pl-3 pr-2 text-left text-[15px] font-semibold text-zinc-900 dark:text-white shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50 transition-colors"
+                    >
+                      <span className="min-w-0 truncate">{categoryFilterLabel}</span>
+                      <ChevronDown
+                        className={`h-5 w-5 shrink-0 text-zinc-500 dark:text-zinc-400 transition-transform duration-200 ${
+                          categoryFilterMenuOpen ? 'rotate-180' : ''
+                        }`}
+                        aria-hidden
+                      />
+                    </button>
+                    {categoryFilterMenuOpen ? (
+                      <ul
+                        id="workshop-parts-category-listbox"
+                        role="listbox"
+                        aria-label="Opções de filtro por categoria"
+                        className="absolute left-0 right-0 top-full z-[60] mt-1.5 max-h-[min(280px,45vh)] overflow-y-auto rounded-xl border border-zinc-200/90 dark:border-white/[0.14] bg-white dark:bg-zinc-900 py-1.5 shadow-xl shadow-zinc-900/12 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)] ring-1 ring-zinc-900/5 dark:ring-white/10"
+                      >
+                        {(
+                          [
+                            { value: 'all' as const, label: 'Todos os produtos' },
+                            { value: 'uncategorized' as const, label: 'Sem categoria' },
+                            ...categories.map((c) => ({ value: c.id as string, label: c.name })),
+                          ] as { value: string; label: string }[]
+                        ).map((opt) => {
+                          const selected = categoryFilter === opt.value;
+                          return (
+                            <li key={opt.value} role="none">
+                              <button
+                                type="button"
+                                role="option"
+                                aria-selected={selected}
+                                onClick={() => {
+                                  setCategoryFilter(opt.value);
+                                  setCategoryFilterMenuOpen(false);
+                                }}
+                                className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-[15px] transition-colors ${
+                                  selected
+                                    ? 'bg-emerald-500/14 font-semibold text-emerald-950 dark:bg-emerald-400/18 dark:text-emerald-50'
+                                    : 'font-medium text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-white/[0.08]'
+                                }`}
+                              >
+                                <span className="min-w-0 truncate">{opt.label}</span>
+                                {selected ? (
+                                  <Check
+                                    className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                                    strokeWidth={2.5}
+                                    aria-hidden
+                                  />
+                                ) : null}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
+                  </div>
                   <div className="relative flex-1 min-w-0">
                     <label htmlFor="workshop-parts-search" className="sr-only">
                       Pesquisar peças
@@ -701,6 +780,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                     onClick={() => {
                       setCategoryFilter('all');
                       setPartsSearchQuery('');
+                      setCategoryFilterMenuOpen(false);
                     }}
                   >
                     Todos os produtos
@@ -721,6 +801,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                   onClick={() => {
                     setCategoryFilter('all');
                     setPartsSearchQuery('');
+                    setCategoryFilterMenuOpen(false);
                   }}
                 >
                   Ver todos os produtos
