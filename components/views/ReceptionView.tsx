@@ -27,6 +27,7 @@ import { ModalPortal } from '../ui/ModalPortal';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
+import { budgetReadRowClass } from '../../utils/budgetItemDisplay';
 
 const RECEPTION_MODE_KEY = 'app_reception_mode';
 const VEHICLE_CATEGORIES = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
@@ -1394,15 +1395,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               {historyBudgetDetail.services.length > 0 && (
                 <section>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Serviços</h3>
-                  <ul className="list-none space-y-1.5 text-sm">
+                  <ul className="list-none space-y-2 text-sm">
                     {historyBudgetDetail.services.map((s, i) => (
-                      <li key={i} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <li
+                        key={i}
+                        className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 ${budgetReadRowClass(s.approved, 'ios')}`}
+                      >
                         {s.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" aria-hidden />}
                         {s.approved === false && <X className="w-4 h-4 shrink-0 text-red-600 mt-0.5" aria-hidden />}
                         {s.approved !== true && s.approved !== false && (
                           <span className="w-4 h-4 shrink-0 text-center font-bold text-zinc-400 mt-0.5" aria-hidden>—</span>
                         )}
-                        <span>{s.description}</span>
+                        <span className={s.approved === true ? 'font-medium' : ''}>{s.description}</span>
                         {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
                           <span className="text-[13px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">
                             ({formatLaborLabel(Number(s.labor_hours))})
@@ -1416,16 +1420,19 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               {historyBudgetDetail.parts.length > 0 && (
                 <section>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Peças</h3>
-                  <ul className="space-y-1.5 text-sm">
+                  <ul className="space-y-2 text-sm">
                     {historyBudgetDetail.parts.map((p, i) => (
-                      <li key={i} className="flex items-start gap-2">
+                      <li
+                        key={i}
+                        className={`flex items-start gap-2 ${budgetReadRowClass(p.approved, 'ios')}`}
+                      >
                         {p.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" aria-hidden />}
                         {p.approved === false && <X className="w-4 h-4 shrink-0 text-red-600 mt-0.5" aria-hidden />}
                         {p.approved !== true && p.approved !== false && (
                           <span className="w-4 h-4 shrink-0 text-center font-bold text-zinc-400 mt-0.5" aria-hidden>—</span>
                         )}
                         <span>
-                          <span className="font-semibold">({p.quantity}x)</span> {p.description}
+                          <span className={p.approved === true ? 'font-bold' : 'font-semibold'}>({p.quantity}x)</span> {p.description}
                         </span>
                       </li>
                     ))}
