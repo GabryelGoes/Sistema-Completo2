@@ -201,6 +201,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     }
   }, [isOpen]);
 
+  /** Evita filtro preso em categoria que foi excluída (select sem opção válida). */
+  useEffect(() => {
+    if (categoryFilter === 'all' || categoryFilter === 'uncategorized') return;
+    if (categories.some((c) => c.id === categoryFilter)) return;
+    setCategoryFilter('all');
+  }, [categories, categoryFilter]);
+
   useEffect(() => {
     if (!detailPart) {
       setPartDetailCategoryIds([]);
@@ -687,13 +694,34 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <div className="py-10 px-4 text-center">
                 <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhum produto nesta seleção.</p>
                 <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">
-                  Escolha <span className="font-medium text-zinc-600 dark:text-zinc-300">Todos os produtos</span> ou outra categoria, ou
-                  vincule produtos em <span className="font-medium text-zinc-600 dark:text-zinc-300">Categorias</span> / detalhe do item.
+                  Escolha{' '}
+                  <button
+                    type="button"
+                    className="font-medium text-emerald-600 dark:text-emerald-400 underline hover:brightness-110"
+                    onClick={() => {
+                      setCategoryFilter('all');
+                      setPartsSearchQuery('');
+                    }}
+                  >
+                    Todos os produtos
+                  </button>{' '}
+                  no filtro acima, ou outra categoria, ou vincule produtos em{' '}
+                  <button
+                    type="button"
+                    className="font-medium text-emerald-600 dark:text-emerald-400 underline hover:brightness-110"
+                    onClick={() => setIsCategoriesModalOpen(true)}
+                  >
+                    Categorias
+                  </button>{' '}
+                  / detalhe do item.
                 </p>
                 <button
                   type="button"
-                  className="mt-3 text-[14px] font-semibold text-emerald-600 dark:text-emerald-400 underline"
-                  onClick={() => setCategoryFilter('all')}
+                  className="mt-3 text-[14px] font-semibold text-emerald-600 dark:text-emerald-400 underline hover:brightness-110"
+                  onClick={() => {
+                    setCategoryFilter('all');
+                    setPartsSearchQuery('');
+                  }}
                 >
                   Ver todos os produtos
                 </button>
