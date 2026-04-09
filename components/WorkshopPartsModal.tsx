@@ -1132,7 +1132,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         onClick={() => setDetailPart(null)}
       >
         <div
-          className={`${iosModalShell} w-full max-w-md md:max-w-2xl xl:max-w-3xl max-h-[92vh] overflow-y-auto`}
+          className={`${iosModalShell} w-full max-w-[min(96vw,720px)] sm:max-w-[min(94vw,900px)] lg:max-w-[min(92vw,1100px)] max-h-[92vh] overflow-y-auto overscroll-contain [scrollbar-width:thin] [scrollbar-color:rgb(200_200_204/0.7)_transparent] dark:[scrollbar-color:rgba(255,255,255,0.22)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300/45 [&::-webkit-scrollbar-thumb]:hover:bg-zinc-400/55 dark:[&::-webkit-scrollbar-thumb]:bg-white/12 dark:[&::-webkit-scrollbar-thumb]:hover:bg-white/22`}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -1160,8 +1160,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             </div>
           </div>
           <div className="px-6 sm:px-8 py-6 space-y-5">
-            <div className="flex justify-center">
-              <div className="w-full max-w-[280px] aspect-square rounded-[22px] border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-100 dark:bg-white/[0.05] overflow-hidden flex items-center justify-center">
+            <div className="flex justify-center sm:justify-start">
+              <div className="w-full max-w-[min(100%,380px)] sm:max-w-[min(100%,440px)] aspect-square rounded-[22px] border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-100 dark:bg-white/[0.05] overflow-hidden flex items-center justify-center">
                 {detail.photo_url ? (
                   <img src={detail.photo_url} alt={detail.name} className="w-full h-full object-cover" />
                 ) : (
