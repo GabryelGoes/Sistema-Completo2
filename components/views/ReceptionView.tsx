@@ -1295,7 +1295,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                               src={att.url}
                                               alt={att.name}
                                               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                              sizes="(max-width: 1024px) 50vw, 200px"
+                                              sizes="(max-width: 1024px) 45vw, 180px"
+                                              thumbMaxWidth={240}
+                                              thumbQuality={60}
                                             />
                                             <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/60 text-[10px] text-white truncate">
                                               {att.name}

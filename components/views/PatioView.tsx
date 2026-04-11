@@ -3058,7 +3058,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                    src={att.url}
                                                    alt={att.name}
                                                    className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
-                                                   sizes="120px"
+                                                   sizes="96px"
+                                                   thumbMaxWidth={168}
+                                                   thumbQuality={56}
                                                  />
                                               ) : (
                                                  <FileText className="h-8 w-8 text-zinc-400" />
@@ -3963,7 +3965,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                                 src={att.url}
                                                                 alt={label}
                                                                 className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                                                                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                                                                sizes="(max-width: 640px) 45vw, (max-width: 1024px) 28vw, 220px"
+                                                                thumbMaxWidth={280}
+                                                                thumbQuality={64}
                                                               />
                                                               <div className="absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/50 via-transparent to-transparent px-2 pb-2 opacity-0 transition-opacity group-hover:opacity-100">
                                                                 <button
