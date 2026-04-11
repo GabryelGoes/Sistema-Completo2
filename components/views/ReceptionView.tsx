@@ -23,6 +23,7 @@ import {
   type ServiceOrderUpdateActor,
 } from '../../services/apiService';
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
+import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { ModalPortal } from '../ui/ModalPortal';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
@@ -1290,10 +1291,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                       >
                                         {isImage ? (
                                           <div className="aspect-square relative bg-zinc-100 dark:bg-black">
-                                            <img
+                                            <StorageThumbImg
                                               src={att.url}
                                               alt={att.name}
                                               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                              sizes="(max-width: 1024px) 50vw, 200px"
                                             />
                                             <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/60 text-[10px] text-white truncate">
                                               {att.name}

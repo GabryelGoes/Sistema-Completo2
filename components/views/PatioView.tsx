@@ -52,6 +52,7 @@ import {
 } from '../../services/apiService';
 import type { ServiceOrderDetail } from '../../services/apiService';
 import { SERVICE_ORDER_STAGES, getStageStyle, getStageRingClass, type ServiceOrderStatus } from '../../constants/serviceOrderStages';
+import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
 import { ModalPortal } from '../ui/ModalPortal';
 import { PatioCarIcon } from '../ui/PatioCarIcon';
@@ -458,6 +459,8 @@ const Lightbox = ({
           ref={imageRef}
           src={src}
           alt="Preview"
+          decoding="async"
+          loading="eager"
           onDoubleClick={handleDoubleTap}
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
@@ -3019,11 +3022,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                        const isImage =
                                          att.mimeType.startsWith('image/') ||
                                          /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url);
-                                       const showImgThumb =
-                                         !isPdf &&
-                                         isImage &&
-                                         att.previews &&
-                                         att.previews.length > 0;
+                                       const showImgThumb = !isPdf && isImage;
                                        const cardClass = `group block w-full overflow-hidden ${iosModalInsetCard} transition-all hover:border-[#007AFF]/35`;
                                        return isPdf ? (
                                          <button
@@ -3055,10 +3054,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         >
                                            <div className="relative flex h-24 items-center justify-center overflow-hidden bg-zinc-100/80 dark:bg-white/[0.04]">
                                               {showImgThumb ? (
-                                                 <img
-                                                   src={att.previews![att.previews!.length > 2 ? 2 : 0].url}
+                                                 <StorageThumbImg
+                                                   src={att.url}
                                                    alt={att.name}
                                                    className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
+                                                   sizes="120px"
                                                  />
                                               ) : (
                                                  <FileText className="h-8 w-8 text-zinc-400" />
@@ -3825,7 +3825,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     const attachments = cardDetails.attachments;
                                     const images = attachments.filter(att => att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url));
                                     const others = attachments.filter(att => !(att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url)));
-                                    const thumbUrl = (att: typeof attachments[0]) => (att.previews && att.previews.length > 0 ? att.previews[att.previews.length > 2 ? 2 : 0].url : att.url);
                                     return (
                                       <div className="space-y-8">
                                         {images.length > 0 && (
@@ -3837,7 +3836,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             {images.map(att => {
                                               const isLoadingThis = loadingAttachmentId === att.id;
                                               const isDeletingThis = deletingAttachmentId === att.id;
-                                              const src = thumbUrl(att);
                                               const attachmentPath = att.id;
                                               const canRename = attachmentPath && !/^\d+$/.test(String(attachmentPath));
                                               const isEditingName = renameAttachmentId === att.id;
@@ -3961,10 +3959,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                             </div>
                                                           ) : (
                                                             <>
-                                                              <img
-                                                                src={src || att.url}
+                                                              <StorageThumbImg
+                                                                src={att.url}
                                                                 alt={label}
                                                                 className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                                                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                                                               />
                                                               <div className="absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/50 via-transparent to-transparent px-2 pb-2 opacity-0 transition-opacity group-hover:opacity-100">
                                                                 <button
