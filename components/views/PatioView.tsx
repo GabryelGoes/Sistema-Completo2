@@ -607,10 +607,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setVehicleModalPhotoVisibleCount(VEHICLE_MODAL_PHOTOS_BATCH);
   }, [selectedCard?.id]);
 
-  useEffect(() => {
-    setHistoryAttachVisibleCount(HISTORY_ATTACHMENTS_BATCH);
-  }, [selectedHistoryCard?.id]);
-
   // Visualização de PDF
   const [previewPdf, setPreviewPdf] = useState<string | null>(null);
 
@@ -685,6 +681,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [historyCardDetails, setHistoryCardDetails] = useState<{ actions: BoardAction[], attachments: BoardAttachment[] } | null>(null);
   const selectedHistoryCardRef = useRef<BoardCard | null>(null);
   selectedHistoryCardRef.current = selectedHistoryCard;
+
+  useEffect(() => {
+    setHistoryAttachVisibleCount(HISTORY_ATTACHMENTS_BATCH);
+  }, [selectedHistoryCard?.id]);
 
   // Lembretes do Pátio/Laboratório — persistidos na API (Supabase), visíveis para toda a oficina
   type Reminder = { id: string; text: string; createdAt: string; done: boolean; createdBy?: string };
