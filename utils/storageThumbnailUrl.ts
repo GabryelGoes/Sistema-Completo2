@@ -1,5 +1,8 @@
 export type StorageThumbOptions = {
   maxWidth?: number;
+  /** Com `resize=cover`, limita também a altura decodificada (miniaturas quadradas menores). */
+  maxHeight?: number;
+  resize?: "cover" | "contain" | "fill";
   /** 20–100; valores menores = arquivo menor (padrão mais agressivo para miniaturas). */
   quality?: number;
   /** WebP costuma ser bem menor que JPEG; use `origin` para manter formato original. */
@@ -13,8 +16,9 @@ export type StorageThumbOptions = {
  */
 export function storageThumbnailUrl(publicUrl: string, options?: StorageThumbOptions): string {
   if (!publicUrl || publicUrl.startsWith("blob:")) return publicUrl;
-  const maxW = options?.maxWidth ?? 260;
-  const q = options?.quality ?? 62;
+  const maxW = options?.maxWidth ?? 200;
+  const maxH = options?.maxHeight;
+  const q = options?.quality ?? 52;
   const format = options?.format ?? "webp";
   const marker = "/storage/v1/object/public/";
   const i = publicUrl.indexOf(marker);
@@ -25,5 +29,11 @@ export function storageThumbnailUrl(publicUrl: string, options?: StorageThumbOpt
   const rest = baseNoQuery.slice(originEnd + marker.length);
   if (!rest) return publicUrl;
   const fmt = format === "origin" ? "origin" : "webp";
-  return `${origin}/storage/v1/render/image/public/${rest}?width=${maxW}&quality=${q}&format=${fmt}`;
+  let query = `width=${maxW}&quality=${q}&format=${fmt}`;
+  if (maxH != null && Number.isFinite(maxH)) {
+    const h = Math.round(maxH);
+    const resize = options?.resize ?? "cover";
+    query += `&height=${h}&resize=${resize}`;
+  }
+  return `${origin}/storage/v1/render/image/public/${rest}?${query}`;
 }

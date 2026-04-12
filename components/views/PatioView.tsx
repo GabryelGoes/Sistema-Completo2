@@ -506,6 +506,9 @@ function commentToAction(c: { id: string; author_display_name: string; text: str
   };
 }
 
+const VEHICLE_MODAL_PHOTOS_BATCH = 8;
+const HISTORY_ATTACHMENTS_BATCH = 8;
+
 export const PatioView: React.FC<PatioViewProps> = ({
   onUseCustomerData,
   effectsEnabled = true,
@@ -597,6 +600,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [renameAttachmentNewName, setRenameAttachmentNewName] = useState('');
   const [renamingAttachmentId, setRenamingAttachmentId] = useState<string | null>(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
+  const [vehicleModalPhotoVisibleCount, setVehicleModalPhotoVisibleCount] = useState(VEHICLE_MODAL_PHOTOS_BATCH);
+  const [historyAttachVisibleCount, setHistoryAttachVisibleCount] = useState(HISTORY_ATTACHMENTS_BATCH);
+
+  useEffect(() => {
+    setVehicleModalPhotoVisibleCount(VEHICLE_MODAL_PHOTOS_BATCH);
+  }, [selectedCard?.id]);
+
+  useEffect(() => {
+    setHistoryAttachVisibleCount(HISTORY_ATTACHMENTS_BATCH);
+  }, [selectedHistoryCard?.id]);
 
   // Visualização de PDF
   const [previewPdf, setPreviewPdf] = useState<string | null>(null);
@@ -3015,8 +3028,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                      <RefreshCw className="h-4 w-4 animate-spin text-[#007AFF]" />
                                   </div>
                                ) : historyCardDetails?.attachments && historyCardDetails.attachments.length > 0 ? (
+                                  (() => {
+                                    const histAll = historyCardDetails.attachments;
+                                    const histVisible = histAll.slice(0, historyAttachVisibleCount);
+                                    const histHidden = histAll.length - histVisible.length;
+                                    return (
+                                      <div className="space-y-2">
                                   <div className="grid grid-cols-2 gap-2">
-                                     {historyCardDetails.attachments.map(att => {
+                                     {histVisible.map(att => {
                                        const isPdf =
                                          att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
                                        const isImage =
@@ -3059,8 +3078,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                    alt={att.name}
                                                    className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
                                                    sizes="96px"
-                                                   thumbMaxWidth={168}
-                                                   thumbQuality={56}
+                                                   thumbMaxWidth={128}
+                                                   thumbMaxHeight={96}
+                                                   thumbQuality={50}
                                                  />
                                               ) : (
                                                  <FileText className="h-8 w-8 text-zinc-400" />
@@ -3075,6 +3095,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         </a>
                                      );})}
                                   </div>
+                                  {histHidden > 0 && (
+                                    <button
+                                      type="button"
+                                      className="w-full rounded-xl border border-zinc-200/80 bg-zinc-50 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-200 dark:hover:bg-white/[0.08]"
+                                      onClick={() =>
+                                        setHistoryAttachVisibleCount((n) => n + HISTORY_ATTACHMENTS_BATCH)
+                                      }
+                                    >
+                                      Mostrar mais ({histHidden} {histHidden === 1 ? 'anexo' : 'anexos'})
+                                    </button>
+                                  )}
+                                      </div>
+                                    );
+                                  })()
                                ) : (
                                   <div className={`${iosModalInsetCard} py-8 text-center`}>
                                      <p className="text-[14px] text-zinc-500 dark:text-zinc-400">Nenhum anexo encontrado.</p>
@@ -3827,6 +3861,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     const attachments = cardDetails.attachments;
                                     const images = attachments.filter(att => att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url));
                                     const others = attachments.filter(att => !(att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url)));
+                                    const visibleImages = images.slice(0, vehicleModalPhotoVisibleCount);
+                                    const hiddenPhotoCount = images.length - visibleImages.length;
                                     return (
                                       <div className="space-y-8">
                                         {images.length > 0 && (
@@ -3835,7 +3871,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               Fotos
                                             </p>
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
-                                            {images.map(att => {
+                                            {visibleImages.map(att => {
                                               const isLoadingThis = loadingAttachmentId === att.id;
                                               const isDeletingThis = deletingAttachmentId === att.id;
                                               const attachmentPath = att.id;
@@ -3965,9 +4001,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                                 src={att.url}
                                                                 alt={label}
                                                                 className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                                                                sizes="(max-width: 640px) 45vw, (max-width: 1024px) 28vw, 220px"
-                                                                thumbMaxWidth={280}
-                                                                thumbQuality={64}
+                                                                sizes="(max-width: 640px) 45vw, (max-width: 1024px) 28vw, 180px"
+                                                                thumbMaxWidth={200}
+                                                                thumbMaxHeight={200}
+                                                                thumbQuality={50}
                                                               />
                                                               <div className="absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/50 via-transparent to-transparent px-2 pb-2 opacity-0 transition-opacity group-hover:opacity-100">
                                                                 <button
@@ -4031,6 +4068,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               );
                                             })}
                                             </div>
+                                            {hiddenPhotoCount > 0 && (
+                                              <button
+                                                type="button"
+                                                className="mt-2 w-full rounded-xl border border-zinc-200/80 bg-zinc-50 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-200 dark:hover:bg-white/[0.08]"
+                                                onClick={() =>
+                                                  setVehicleModalPhotoVisibleCount((n) => n + VEHICLE_MODAL_PHOTOS_BATCH)
+                                                }
+                                              >
+                                                Mostrar mais ({hiddenPhotoCount}{' '}
+                                                {hiddenPhotoCount === 1 ? 'foto' : 'fotos'})
+                                              </button>
+                                            )}
                                           </div>
                                         )}
                                         {others.length > 0 && (

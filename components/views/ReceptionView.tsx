@@ -30,6 +30,8 @@ import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
 
+const ARCHIVED_PHOTOS_BATCH = 8;
+
 const RECEPTION_MODE_KEY = 'app_reception_mode';
 const VEHICLE_CATEGORIES = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
 type VehicleCategory = (typeof VEHICLE_CATEGORIES)[number];
@@ -180,8 +182,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     { id: string; name: string; url: string; mimeType: string }[]
   >([]);
   const [archivedDetailComments, setArchivedDetailComments] = useState<ServiceOrderComment[]>([]);
+  const [archivedPhotosVisibleCount, setArchivedPhotosVisibleCount] = useState(ARCHIVED_PHOTOS_BATCH);
   const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
   const [previewPdf, setPreviewPdf] = useState<string | null>(null);
+
+  useEffect(() => {
+    setArchivedPhotosVisibleCount(ARCHIVED_PHOTOS_BATCH);
+  }, [archivedDetailOrderId]);
 
   // Efeito para carregar dados iniciais vindos do Pátio ou Histórico (todos editáveis, inclusive placa)
   useEffect(() => {
@@ -1256,8 +1263,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                               {archivedDetailPhotos.length === 0 ? (
                                 <p className="text-sm text-zinc-500 italic">Nenhum anexo nesta OS.</p>
                               ) : (
+                                (() => {
+                                  const archivedPhotosToShow = archivedDetailPhotos.slice(0, archivedPhotosVisibleCount);
+                                  const archivedPhotosHidden = archivedDetailPhotos.length - archivedPhotosToShow.length;
+                                  return (
+                                <div className="space-y-2">
                                 <div className="grid grid-cols-2 gap-2">
-                                  {archivedDetailPhotos.map((att) => {
+                                  {archivedPhotosToShow.map((att) => {
                                     const isImage =
                                       att.mimeType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url);
                                     const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
@@ -1295,9 +1307,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                               src={att.url}
                                               alt={att.name}
                                               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                              sizes="(max-width: 1024px) 45vw, 180px"
-                                              thumbMaxWidth={240}
-                                              thumbQuality={60}
+                                              sizes="(max-width: 1024px) 45vw, 160px"
+                                              thumbMaxWidth={180}
+                                              thumbMaxHeight={180}
+                                              thumbQuality={50}
                                             />
                                             <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/60 text-[10px] text-white truncate">
                                               {att.name}
@@ -1315,6 +1328,21 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                     );
                                   })}
                                 </div>
+                                {archivedPhotosHidden > 0 && (
+                                  <button
+                                    type="button"
+                                    className="w-full rounded-lg border border-zinc-200 bg-zinc-50 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700/80"
+                                    onClick={() =>
+                                      setArchivedPhotosVisibleCount((n) => n + ARCHIVED_PHOTOS_BATCH)
+                                    }
+                                  >
+                                    Mostrar mais ({archivedPhotosHidden}{' '}
+                                    {archivedPhotosHidden === 1 ? 'anexo' : 'anexos'})
+                                  </button>
+                                )}
+                                </div>
+                                  );
+                                })()
                               )}
                             </div>
 
