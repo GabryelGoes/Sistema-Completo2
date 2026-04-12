@@ -534,6 +534,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const descriptionSectionRef = useRef<HTMLDivElement>(null);
   const budgetsSectionRef = useRef<HTMLDivElement>(null);
   const openServiceOrderHandledRef = useRef(false);
+  /** OS id: após mover para "Orçamento aprovado", abre o modal de aprovação quando os orçamentos terminarem de carregar. */
+  const pendingBudgetApprovalAfterModalLoadRef = useRef<string | null>(null);
   const [allMembers, setAllMembers] = useState<TrelloMember[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1079,6 +1081,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
             })),
           });
           setSavedBudgets(budgets);
+          const pendingApprovalId = pendingBudgetApprovalAfterModalLoadRef.current;
+          if (pendingApprovalId && pendingApprovalId === order.id) {
+            pendingBudgetApprovalAfterModalLoadRef.current = null;
+            const stillThisCard = selectedCardRef.current?.id === order.id;
+            const canApproveItems =
+              patioPermissions === undefined ? true : patioPermissions.canApproveBudgetItems === true;
+            if (stillThisCard && canApproveItems && budgets.length > 0) {
+              const first = budgets[0];
+              const lineCount = first.services.length + first.parts.length;
+              if (
+                lineCount > 0 &&
+                !budgetHasExplicitApprovalDecisions(first.services, first.parts)
+              ) {
+                setBudgetApprovalTarget(first);
+                setApprovalServices(first.services.map((s) => s.approved === true));
+                setApprovalParts(first.parts.map((p) => p.approved === true));
+              }
+            }
+          }
         })
         .catch(err => console.error("Erro ao carregar detalhes", err))
         .finally(() => setLoadingDetails(false));
@@ -1295,9 +1316,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsMoving(true);
     try {
       await updateServiceOrderStatus(cardId, newListId as ServiceOrderStatus, actorOptions);
-      setCards(prev => prev.map(c => c.id === cardId ? { ...c, idList: newListId, garantiaTag: newListId === 'GARANTIA' || c.garantiaTag } : c));
-      if (selectedCard?.id === cardId) {
-        setSelectedCard(prev => prev && prev.id === cardId ? { ...prev, idList: newListId, garantiaTag: newListId === 'GARANTIA' || prev.garantiaTag } : prev);
+      const updatedCard = {
+        ...cardInTransition,
+        idList: newListId,
+        garantiaTag: newListId === 'GARANTIA' || cardInTransition.garantiaTag,
+      };
+      setCards((prev) =>
+        prev.map((c) =>
+          c.id === cardId ? { ...c, idList: newListId, garantiaTag: newListId === 'GARANTIA' || c.garantiaTag } : c
+        )
+      );
+      const shouldAutoOpenBudgetApproval =
+        newListId === 'ORCAMENTO_APROVADO' && can('canApproveBudgetItems');
+      if (shouldAutoOpenBudgetApproval) {
+        pendingBudgetApprovalAfterModalLoadRef.current = cardId;
+      }
+      if (selectedCard?.id === cardId || shouldAutoOpenBudgetApproval) {
+        setSelectedCard(updatedCard);
       }
       setCardInTransition(null);
     } catch (err: any) {
