@@ -770,6 +770,15 @@ export function createApiApp() {
         acc[r.key] = r.value ?? "";
         return acc;
       }, {});
+      let appAppearance: unknown = null;
+      const rawAppearance = map.app_appearance?.trim();
+      if (rawAppearance) {
+        try {
+          appAppearance = JSON.parse(rawAppearance);
+        } catch {
+          appAppearance = null;
+        }
+      }
       return res.json({
         patioLoginEnabled: map.patio_login_enabled !== "false",
         patioPin: map.patio_pin ?? "",
@@ -779,6 +788,7 @@ export function createApiApp() {
         adminDisplayName: map.admin_display_name || "Rei do ABS",
         adminPhotoUrl: map.admin_photo_url || null,
         vehicleDeletePassword: map.vehicle_delete_password || "",
+        appAppearance,
       });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop-settings:", err);
@@ -879,7 +889,18 @@ export function createApiApp() {
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
-      const { patioLoginEnabled, patioPin, adminPassword, adminDisplayName, adminPhotoUrl, technicianAccessReception, technicianAccessAgenda, technicianAccessPatio, vehicleDeletePassword } = req.body || {};
+      const {
+        patioLoginEnabled,
+        patioPin,
+        adminPassword,
+        adminDisplayName,
+        adminPhotoUrl,
+        technicianAccessReception,
+        technicianAccessAgenda,
+        technicianAccessPatio,
+        vehicleDeletePassword,
+        appAppearance,
+      } = req.body || {};
       const updates: { key: string; value: string; updated_at: string }[] = [];
       if (typeof patioLoginEnabled === "boolean") {
         updates.push({ key: "patio_login_enabled", value: String(patioLoginEnabled), updated_at: new Date().toISOString() });
@@ -908,6 +929,13 @@ export function createApiApp() {
       if (typeof vehicleDeletePassword === "string") {
         updates.push({ key: "vehicle_delete_password", value: vehicleDeletePassword.trim(), updated_at: new Date().toISOString() });
       }
+      if (appAppearance !== undefined && appAppearance !== null && typeof appAppearance === "object") {
+        updates.push({
+          key: "app_appearance",
+          value: JSON.stringify(appAppearance),
+          updated_at: new Date().toISOString(),
+        });
+      }
       if (updates.length === 0) {
         return res.status(400).json({ error: "Nada para atualizar." });
       }
@@ -925,11 +953,30 @@ export function createApiApp() {
         .from("workshop_settings")
         .select("key, value")
         .eq("workshop_id", WORKSHOP_ID)
-        .in("key", ["patio_login_enabled", "patio_pin", "technician_access_reception", "technician_access_agenda", "technician_access_patio", "admin_display_name", "admin_photo_url", "vehicle_delete_password"]);
+        .in("key", [
+          "patio_login_enabled",
+          "patio_pin",
+          "technician_access_reception",
+          "technician_access_agenda",
+          "technician_access_patio",
+          "admin_display_name",
+          "admin_photo_url",
+          "vehicle_delete_password",
+          "app_appearance",
+        ]);
       const map = (data || []).reduce((acc: Record<string, string>, r: { key: string; value: string | null }) => {
         acc[r.key] = r.value ?? "";
         return acc;
       }, {});
+      let appAppearanceOut: unknown = null;
+      const rawApp = map.app_appearance?.trim();
+      if (rawApp) {
+        try {
+          appAppearanceOut = JSON.parse(rawApp);
+        } catch {
+          appAppearanceOut = null;
+        }
+      }
       return res.json({
         patioLoginEnabled: map.patio_login_enabled !== "false",
         patioPin: map.patio_pin || "",
@@ -939,6 +986,7 @@ export function createApiApp() {
         adminDisplayName: map.admin_display_name || "Rei do ABS",
         adminPhotoUrl: map.admin_photo_url || null,
         vehicleDeletePassword: map.vehicle_delete_password || "",
+        appAppearance: appAppearanceOut,
       });
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/workshop-settings:", err);

@@ -1,7 +1,9 @@
 import React from 'react';
-import { X, Settings } from 'lucide-react';
+import { X, Settings, RefreshCw } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
+import { AppearanceSettingsSection } from './AppearanceSettingsSection';
+import type { AppAppearance } from '../utils/appAppearance';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -14,6 +16,12 @@ interface SettingsModalProps {
   onCinematographicModeChange?: (enabled: boolean) => void;
   orientation?: 'portrait' | 'landscape';
   showPatioAccess?: boolean;
+  /** Aparência da oficina (cor + wallpapers) — admin e usuários com acesso total */
+  showWorkspaceAppearance?: boolean;
+  workspaceAppearance?: AppAppearance;
+  onWorkspaceAppearanceChange?: (next: AppAppearance) => void;
+  onSaveWorkspaceAppearance?: () => void | Promise<void>;
+  workspaceAppearanceSaving?: boolean;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -25,12 +33,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onEffectsChange,
   cinematographicMode = false,
   onCinematographicModeChange,
+  showWorkspaceAppearance = false,
+  workspaceAppearance,
+  onWorkspaceAppearanceChange,
+  onSaveWorkspaceAppearance,
+  workspaceAppearanceSaving = false,
 }) => {
   if (!isOpen) return null;
 
   return (
     <div className={iosModalOverlay}>
-      <div className={`${iosModalShell} max-w-md max-h-[94vh]`}>
+      <div className={`${iosModalShell} ${showWorkspaceAppearance ? 'max-w-xl' : 'max-w-md'} max-h-[94vh]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
         </button>
@@ -136,6 +149,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
           )}
+
+          {showWorkspaceAppearance &&
+            workspaceAppearance &&
+            onWorkspaceAppearanceChange &&
+            onSaveWorkspaceAppearance && (
+              <div className="space-y-4">
+                <AppearanceSettingsSection
+                  value={workspaceAppearance}
+                  onChange={onWorkspaceAppearanceChange}
+                  disabled={workspaceAppearanceSaving}
+                />
+                <button
+                  type="button"
+                  onClick={() => void onSaveWorkspaceAppearance()}
+                  disabled={workspaceAppearanceSaving}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-yellow py-3.5 text-[15px] font-bold text-black shadow-sm transition-opacity hover:opacity-95 disabled:opacity-50"
+                >
+                  {workspaceAppearanceSaving ? (
+                    <>
+                      <RefreshCw className="h-5 w-5 animate-spin" />
+                      Salvando…
+                    </>
+                  ) : (
+                    'Salvar aparência da oficina'
+                  )}
+                </button>
+                <p className="text-center text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-500">
+                  As alterações ficam visíveis para todos os usuários desta oficina. Imagens muito grandes em base64 podem
+                  deixar o salvamento lento — prefira hospedar a imagem e colar apenas o link.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

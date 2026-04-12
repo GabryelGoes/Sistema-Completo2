@@ -1829,6 +1829,9 @@ export async function uploadMyProfilePhoto(
 
 // ---------- Configurações da oficina (acesso pátio) ----------
 
+/** Aparência global (JSON no banco); formato em `utils/appAppearance`. */
+export type WorkshopAppAppearance = Record<string, unknown>;
+
 export interface WorkshopSettings {
   patioLoginEnabled: boolean;
   patioPin: string;
@@ -1838,6 +1841,8 @@ export interface WorkshopSettings {
   adminDisplayName?: string;
   adminPhotoUrl?: string | null;
   vehicleDeletePassword?: string;
+  /** Configuração visual da oficina (cor de destaque, wallpapers); null se nunca salvo. */
+  appAppearance?: WorkshopAppAppearance | null;
 }
 
 export async function getWorkshopSettings(): Promise<WorkshopSettings> {
@@ -1850,7 +1855,13 @@ export async function getWorkshopSettings(): Promise<WorkshopSettings> {
 }
 
 export async function updateWorkshopSettings(
-  updates: Partial<WorkshopSettings> & { adminPassword?: string; adminDisplayName?: string; adminPhotoUrl?: string | null; vehicleDeletePassword?: string }
+  updates: Partial<WorkshopSettings> & {
+    adminPassword?: string;
+    adminDisplayName?: string;
+    adminPhotoUrl?: string | null;
+    vehicleDeletePassword?: string;
+    appAppearance?: WorkshopAppAppearance | null;
+  }
 ): Promise<WorkshopSettings> {
   const response = await fetch(`${API_BASE}/workshop-settings`, {
     method: "PUT",

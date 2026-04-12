@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { ChangePasswordsModal } from './components/ChangePasswordsModal';
@@ -18,9 +18,17 @@ import {
   type SystemUserPermissions,
   effectivePatioApproveBudgetItems,
   getWorkshopSettings,
+  updateWorkshopSettings,
 } from './services/apiService';
 import { AssistantChat } from './components/AssistantChat';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
+import { AppWallpaperLayers } from './components/AppWallpaperLayers';
+import {
+  applyAccentToRoot,
+  defaultAppAppearance,
+  parseAppAppearance,
+  type AppAppearance,
+} from './utils/appAppearance';
 
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
@@ -83,6 +91,26 @@ export default function App() {
   // Dispara refresh da lista em "Usuários do sistema" quando o admin salva o perfil
   const [systemUsersRefreshTrigger, setSystemUsersRefreshTrigger] = useState(0);
 
+  /** Aparência da oficina (cor + wallpapers); sincronizada via API para todos os usuários */
+  const [appAppearance, setAppAppearance] = useState<AppAppearance>(() => defaultAppAppearance());
+  const [settingsAppearanceDraft, setSettingsAppearanceDraft] = useState<AppAppearance>(() => defaultAppAppearance());
+  const [workspaceAppearanceSaving, setWorkspaceAppearanceSaving] = useState(false);
+  const settingsWasOpenRef = useRef(false);
+
+  const saveWorkspaceAppearance = useCallback(async () => {
+    setWorkspaceAppearanceSaving(true);
+    try {
+      const normalized = parseAppAppearance(settingsAppearanceDraft);
+      await updateWorkshopSettings({ appAppearance: normalized as Record<string, unknown> });
+      setAppAppearance(normalized);
+      applyAccentToRoot(document.documentElement, normalized.accentHex);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Erro ao salvar aparência.');
+    } finally {
+      setWorkspaceAppearanceSaving(false);
+    }
+  }, [settingsAppearanceDraft]);
+
   // Usuário limitado: abas conforme permissões (full_access = todas as abas)
   function permissionsToTabs(perms: SystemUserPermissions | undefined): TabId[] {
     if (!perms) return ['home'];
@@ -97,6 +125,8 @@ export default function App() {
   }
   const userAllowedTabs = authSession?.role === 'user' ? permissionsToTabs(authSession.permissions) : [];
   const hasFullAccess = authSession?.role === 'user' && !!authSession?.permissions?.full_access;
+  const canEditWorkspaceAppearance =
+    authSession?.role === 'admin' || (authSession?.role === 'user' && hasFullAccess);
   const [userTab, setUserTab] = useState<TabId>('home');
 
   // Agenda é carregada pela AgendaView via API (Supabase); não usa mais localStorage.
@@ -136,13 +166,38 @@ export default function App() {
     localStorage.setItem('app_cinematographic_mode', String(cinematographicMode));
   }, [cinematographicMode]);
 
-  // Carregar nome do admin das configurações quando estiver logado como admin
+  // Configurações da oficina (nome do admin + aparência global) após login
   useEffect(() => {
-    if (authSession?.role !== 'admin') return;
+    if (!authSession) return;
+    let cancelled = false;
     getWorkshopSettings()
-      .then((s) => setAdminDisplayName(s.adminDisplayName ?? 'Rei do ABS'))
+      .then((s) => {
+        if (cancelled) return;
+        if (authSession.role === 'admin') {
+          setAdminDisplayName(s.adminDisplayName ?? 'Rei do ABS');
+        }
+        if (s.appAppearance) {
+          const p = parseAppAppearance(s.appAppearance);
+          setAppAppearance(p);
+          applyAccentToRoot(document.documentElement, p.accentHex);
+        }
+      })
       .catch(() => {});
-  }, [authSession?.role]);
+    return () => {
+      cancelled = true;
+    };
+  }, [authSession]);
+
+  useEffect(() => {
+    applyAccentToRoot(document.documentElement, appAppearance.accentHex);
+  }, [appAppearance.accentHex]);
+
+  useEffect(() => {
+    if (isSettingsOpen && !settingsWasOpenRef.current) {
+      setSettingsAppearanceDraft(appAppearance);
+    }
+    settingsWasOpenRef.current = isSettingsOpen;
+  }, [isSettingsOpen, appAppearance]);
 
   const handleAdminProfileSaved = () => {
     getWorkshopSettings()
@@ -250,16 +305,16 @@ export default function App() {
     };
     return (
       <div
-        className="min-h-screen flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
+        className="min-h-screen flex flex-col relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
         data-effects={effectsEnabled ? 'on' : 'off'}
       >
-        <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
+        <AppWallpaperLayers activeTab={userTab} appearance={appAppearance} theme={theme} />
         {userTab !== 'home' && (
           <header className="relative z-20 flex items-center justify-between px-4 py-3 bg-light-card/95 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-light-border dark:border-white/10">
             <span />
           </header>
         )}
-        <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
           <KeepAliveTabPanel
             tabId="home"
             activeTab={userTab}
@@ -406,6 +461,11 @@ export default function App() {
           onCinematographicModeChange={setCinematographicMode}
           orientation={orientation}
           showPatioAccess={false}
+          showWorkspaceAppearance={canEditWorkspaceAppearance}
+          workspaceAppearance={settingsAppearanceDraft}
+          onWorkspaceAppearanceChange={setSettingsAppearanceDraft}
+          onSaveWorkspaceAppearance={saveWorkspaceAppearance}
+          workspaceAppearanceSaving={workspaceAppearanceSaving}
         />
         <ChangePasswordsModal isOpen={isUserChangePasswordsOpen} onClose={() => setIsUserChangePasswordsOpen(false)} />
         <AssistantChat
@@ -445,14 +505,12 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
+      className="min-h-screen flex flex-col relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
       data-effects={effectsEnabled ? 'on' : 'off'}
     >
-      {/* Background Ambience - Global */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
+      <AppWallpaperLayers activeTab={currentTab} appearance={appAppearance} theme={theme} />
 
-      {/* Main Content Area */}
-      <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
         <KeepAliveTabPanel
           tabId="home"
           activeTab={currentTab}
@@ -578,6 +636,11 @@ export default function App() {
         onCinematographicModeChange={setCinematographicMode}
         orientation={orientation}
         showPatioAccess={authSession?.role === 'admin' || hasFullAccess}
+        showWorkspaceAppearance={canEditWorkspaceAppearance}
+        workspaceAppearance={settingsAppearanceDraft}
+        onWorkspaceAppearanceChange={setSettingsAppearanceDraft}
+        onSaveWorkspaceAppearance={saveWorkspaceAppearance}
+        workspaceAppearanceSaving={workspaceAppearanceSaving}
       />
 
       {/* Central de notificações: admin vê notificações do admin; técnicos veem as deles (target_slug = userId). Só ativa modo técnico quando userId existe para o pop-up de comentários aparecer. */}

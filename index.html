@@ -27,7 +27,8 @@
             },
             colors: {
               brand: {
-                yellow: '#F5D00B',
+                /** Controlado por --app-accent-rgb (Configurações → Aparência) */
+                yellow: 'rgb(var(--app-accent-rgb) / <alpha-value>)',
                 dark: '#0A0A0A',
                 surface: '#121212',
                 surfaceHighlight: '#1C1C1E',
@@ -45,6 +46,11 @@
       }
     </script>
     <style>
+      :root {
+        --app-accent: #F5D00B;
+        --app-accent-rgb: 245 208 11;
+        --app-accent-hover: #fcd61e;
+      }
       body {
         background-color: #f2f2f7;
         color: #1c1c1e;
