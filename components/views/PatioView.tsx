@@ -426,8 +426,9 @@ const Lightbox = ({
   if (!src) return null;
 
   return (
+    <ModalPortal>
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-modal-backdrop overflow-hidden"
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-modal-backdrop overflow-hidden"
       onClick={onClose}
     >
       <button
@@ -497,6 +498,7 @@ const Lightbox = ({
         </div>
       )}
     </div>
+    </ModalPortal>
   );
 };
 
