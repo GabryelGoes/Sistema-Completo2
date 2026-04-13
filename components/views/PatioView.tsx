@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2 } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
 import { NotificationCenter } from '../NotificationCenter';
-import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer } from '../../types';
+import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer, type VehicleReferenceLink } from '../../types';
 import {
   getServiceOrders,
   getServiceOrderById,
@@ -18,6 +18,7 @@ import {
   updateServiceOrderVehicle,
   updateServiceOrderType,
   updateServiceOrderVehicleCategory,
+  updateServiceOrderReferenceLinks,
   getServiceOrderPhotos,
   uploadServiceOrderPhoto,
   renameServiceOrderPhoto,
@@ -70,6 +71,7 @@ import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { printHtmlDocument } from '../../utils/printHtml';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
+import { parseReferenceLinksFromApi } from '../../utils/vehicleReferenceLinks';
 
 /** Modal de orçamento: papel branco-amarelado (mesmo tom em tema claro ou escuro do app). */
 const budgetModalPaperInset =
@@ -227,6 +229,7 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     garantia_tag: d.garantia_tag,
     order_type: detail.order_type,
     vehicle_category: detail.vehicle_category,
+    reference_links: parseReferenceLinksFromApi(detail.reference_links),
     created_at: detail.created_at,
     updated_at: detail.updated_at,
     customers: detail.customers
@@ -262,6 +265,7 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     garantiaTag: o.garantia_tag === true,
     mileageKm: o.mileage_km ?? null,
     deliveryDate: o.delivery_date ?? null,
+    referenceLinks: parseReferenceLinksFromApi(o.reference_links),
   };
 }
 
@@ -546,6 +550,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [cardDetails, setCardDetails] = useState<{ actions: TrelloAction[], attachments: TrelloAttachment[] } | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [editFichaSaving, setEditFichaSaving] = useState(false);
+  const [referenceLinksDraft, setReferenceLinksDraft] = useState<VehicleReferenceLink[]>([]);
+  const [referenceLinksSaving, setReferenceLinksSaving] = useState(false);
   /** Seção "Dados da ficha" no modal: começa minimizada. */
   const [isDadosFichaExpanded, setIsDadosFichaExpanded] = useState(false);
   /** Portabilidade Pátio ↔ Laboratório: em progresso */
@@ -1110,6 +1116,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [selectedCard]);
 
   useEffect(() => {
+    if (!serviceOrderDetail) {
+      setReferenceLinksDraft([]);
+      return;
+    }
+    setReferenceLinksDraft(parseReferenceLinksFromApi(serviceOrderDetail.reference_links));
+  }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at]);
+
+  useEffect(() => {
     if (!selectedCard) setIsVehicleCategoryModalOpen(false);
   }, [selectedCard]);
 
@@ -1645,6 +1659,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         mileageKm: updated.mileage_km ?? null,
         deliveryDate: updated.delivery_date ?? selectedCard.deliveryDate,
         dateLastActivity: updated.updated_at,
+        referenceLinks: parseReferenceLinksFromApi(updated.reference_links),
       };
       setSelectedCard(updatedCard);
       setCards((prev) => prev.map((c) => (c.id === selectedCard.id ? updatedCard : c)));
@@ -1653,6 +1668,35 @@ export const PatioView: React.FC<PatioViewProps> = ({
       alert(err?.message ?? "Erro ao salvar alterações.");
     } finally {
       setEditFichaSaving(false);
+    }
+  };
+
+  const handleSaveReferenceLinks = async () => {
+    if (!selectedCard || !serviceOrderDetail) return;
+    const filtered = referenceLinksDraft
+      .map((l) => ({
+        id: l.id,
+        label: l.label.trim(),
+        url: l.url.trim(),
+      }))
+      .filter((l) => l.url.length > 0);
+    setReferenceLinksSaving(true);
+    try {
+      await updateServiceOrderReferenceLinks(selectedCard.id, filtered, actorOptions);
+      const updated = await getServiceOrderById(selectedCard.id);
+      setServiceOrderDetail(updated);
+      setReferenceLinksDraft(parseReferenceLinksFromApi(updated.reference_links));
+      const updatedCard = {
+        ...selectedCard,
+        referenceLinks: parseReferenceLinksFromApi(updated.reference_links),
+        dateLastActivity: updated.updated_at,
+      };
+      setSelectedCard(updatedCard);
+      setCards((prev) => prev.map((c) => (c.id === selectedCard.id ? updatedCard : c)));
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao salvar links.');
+    } finally {
+      setReferenceLinksSaving(false);
     }
   };
 
@@ -3653,6 +3697,147 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           )}
                         </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {serviceOrderDetail && (referenceLinksDraft.length > 0 || can('canEditFicha')) && (
+                    <div className="px-8 pb-2 pt-0 md:px-12">
+                      <div
+                        className={`${iosModalInsetCard} overflow-hidden p-4 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-5`}
+                      >
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                          <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                            <Link2 className="h-3.5 w-3.5" />
+                            Links úteis
+                          </h3>
+                          {can('canEditFicha') && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setReferenceLinksDraft((prev) => [
+                                  ...prev,
+                                  { id: crypto.randomUUID(), label: '', url: '' },
+                                ])
+                              }
+                              className="inline-flex items-center gap-1 rounded-xl border border-zinc-200/90 px-3 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:hover:bg-white/[0.06]"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Adicionar link
+                            </button>
+                          )}
+                        </div>
+                        {referenceLinksDraft.length === 0 ? (
+                          <p className="text-[14px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                            Nenhum link anexado. Use &quot;Adicionar link&quot; para guardar manuais, catálogos ou páginas de referência.
+                          </p>
+                        ) : (
+                          <ul className="space-y-3">
+                            {referenceLinksDraft.map((link) => (
+                              <li
+                                key={link.id}
+                                className="flex flex-col gap-2 rounded-2xl border border-zinc-200/70 bg-zinc-50/50 p-3 dark:border-white/[0.08] dark:bg-white/[0.03] sm:flex-row sm:items-end sm:gap-3"
+                              >
+                                {can('canEditFicha') ? (
+                                  <>
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                      <div>
+                                        <label className={`${iosLabel} !mb-1`}>Título</label>
+                                        <input
+                                          value={link.label}
+                                          onChange={(e) => {
+                                            const v = e.target.value;
+                                            setReferenceLinksDraft((prev) =>
+                                              prev.map((x) => (x.id === link.id ? { ...x, label: v } : x))
+                                            );
+                                          }}
+                                          placeholder="Ex.: Manual do proprietário"
+                                          className={iosInput}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className={`${iosLabel} !mb-1`}>URL</label>
+                                        <input
+                                          value={link.url}
+                                          onChange={(e) => {
+                                            const v = e.target.value;
+                                            setReferenceLinksDraft((prev) =>
+                                              prev.map((x) => (x.id === link.id ? { ...x, url: v } : x))
+                                            );
+                                          }}
+                                          placeholder="https://..."
+                                          inputMode="url"
+                                          autoComplete="off"
+                                          className={iosInput}
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="flex shrink-0 gap-2 sm:flex-col">
+                                      {link.url.trim() && /^https?:\/\//i.test(link.url.trim()) ? (
+                                        <a
+                                          href={link.url.trim()}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center justify-center gap-1 rounded-xl border border-zinc-200/90 px-3 py-2 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-white dark:border-white/[0.12] dark:text-zinc-200 dark:hover:bg-white/[0.06]"
+                                        >
+                                          <ExternalLink className="h-4 w-4" />
+                                          Abrir
+                                        </a>
+                                      ) : null}
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setReferenceLinksDraft((prev) => prev.filter((x) => x.id !== link.id))
+                                        }
+                                        className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200/90 px-3 py-2 text-[13px] font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-950/40"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                        Remover
+                                      </button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2">
+                                    <span className="text-[15px] font-medium text-zinc-900 dark:text-white">
+                                      {link.label?.trim() || link.url}
+                                    </span>
+                                    {link.url.trim() ? (
+                                      <a
+                                        href={
+                                          link.url.trim().match(/^https?:\/\//i)
+                                            ? link.url.trim()
+                                            : `https://${link.url.trim().replace(/^\/+/, '')}`
+                                        }
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-[14px] font-semibold text-[#007AFF] hover:underline dark:text-[#64B5FF]"
+                                      >
+                                        Abrir <ExternalLink className="h-4 w-4" />
+                                      </a>
+                                    ) : null}
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {can('canEditFicha') && referenceLinksDraft.length > 0 && (
+                          <div className="mt-4 flex justify-end border-t border-zinc-200/60 pt-4 dark:border-white/[0.06]">
+                            <button
+                              type="button"
+                              onClick={handleSaveReferenceLinks}
+                              disabled={referenceLinksSaving}
+                              className={`${iosPrimaryButton} inline-flex items-center gap-2 px-6 py-2.5`}
+                            >
+                              {referenceLinksSaving ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Save className="h-4 w-4" />
+                              )}
+                              Salvar links
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>

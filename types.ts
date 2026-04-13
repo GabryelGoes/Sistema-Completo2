@@ -74,6 +74,13 @@ export interface BoardAttachment {
   previews?: { url: string; height: number; width: number }[];
 }
 
+/** Link anexado ao modal da OS (manual, peça, etc.). */
+export interface VehicleReferenceLink {
+  id: string;
+  label: string;
+  url: string;
+}
+
 export interface BoardCard {
   id: string;
   name: string;
@@ -94,7 +101,16 @@ export interface BoardCard {
   osNumber?: number | null;
   /** Categoria do veículo na recepção (Compacto, Médio/SUV, Pick-Up, Premium). Só Pátio (veículo). */
   vehicleCategory?: string | null;
+  /** Links úteis salvos no modal do veículo/módulo. */
+  referenceLinks?: VehicleReferenceLink[];
 }
+
+/** Aliases usados pelo Pátio / quadro. */
+export type TrelloCard = BoardCard;
+export type TrelloList = BoardList;
+export type TrelloMember = BoardMember;
+export type TrelloAction = BoardAction;
+export type TrelloAttachment = BoardAttachment;
 
 export interface Appointment {
   id: string;

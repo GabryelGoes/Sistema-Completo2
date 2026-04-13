@@ -1,4 +1,4 @@
-import { Customer } from "../types";
+import { Customer, type VehicleReferenceLink } from "../types";
 import type { Appointment } from "../types";
 import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
 import { API_BASE } from "./apiConfig";
@@ -63,6 +63,8 @@ export interface ServiceOrderListItem {
   order_type?: ServiceOrderType;
   /** Recepção — veículo: Compacto, Médio/SUV, Pick-Up, Premium */
   vehicle_category?: string | null;
+  /** Links anexados ao modal (JSON no banco). */
+  reference_links?: VehicleReferenceLink[] | null;
   created_at: string;
   updated_at: string;
   customers: { id: string; name: string; phone: string | null } | null;
@@ -85,6 +87,7 @@ export interface ServiceOrderDetail {
   status: string;
   order_type?: ServiceOrderType;
   vehicle_category?: string | null;
+  reference_links?: VehicleReferenceLink[] | null;
   created_at: string;
   updated_at: string;
   customers: ApiCustomer | null;
@@ -661,6 +664,25 @@ export async function updateServiceOrderVehicleCategory(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao atualizar categoria (${response.status})`);
+  }
+  return response.json();
+}
+
+/** Atualiza os links de referência exibidos no modal da OS (substitui a lista inteira). */
+export async function updateServiceOrderReferenceLinks(
+  id: string,
+  links: VehicleReferenceLink[],
+  options?: ServiceOrderUpdateActor
+): Promise<ApiServiceOrder> {
+  const body = mergeActorIntoBody({ referenceLinks: links }, options);
+  const response = await fetch(`${API_BASE}/service-orders/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao salvar links (${response.status})`);
   }
   return response.json();
 }

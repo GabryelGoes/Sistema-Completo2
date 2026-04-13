@@ -1646,7 +1646,7 @@ export function createApiApp() {
       let query = supabaseAdmin
         .from("service_orders")
         .select(
-          "id, os_number, customer_id, vehicle_model, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, created_at, updated_at"
+          "id, os_number, customer_id, vehicle_model, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, reference_links, created_at, updated_at"
         )
         .eq("workshop_id", WORKSHOP_ID)
         .order("created_at", { ascending: false });
@@ -4459,6 +4459,7 @@ export function createApiApp() {
         plate,
         orderType: bodyOrderType,
         vehicleCategory: bodyVehicleCategoryPut,
+        referenceLinks: bodyReferenceLinks,
         actor,
         actorTechnicianSlug,
         actorTechnicianName,
@@ -4528,6 +4529,37 @@ export function createApiApp() {
         } else if (typeof bodyVehicleCategoryPut === "string") {
           updatePayload.vehicle_category = bodyVehicleCategoryPut.trim() || null;
         }
+      }
+      if (bodyReferenceLinks !== undefined) {
+        if (!Array.isArray(bodyReferenceLinks)) {
+          return res.status(400).json({ error: "referenceLinks deve ser um array." });
+        }
+        const normalized: { id: string; label: string; url: string }[] = [];
+        for (const item of bodyReferenceLinks.slice(0, 30)) {
+          if (!item || typeof item !== "object") continue;
+          const o = item as Record<string, unknown>;
+          const labelRaw = typeof o.label === "string" ? o.label.trim().slice(0, 120) : "";
+          let urlStr = typeof o.url === "string" ? o.url.trim() : "";
+          if (!urlStr) continue;
+          if (!/^https?:\/\//i.test(urlStr)) {
+            urlStr = urlStr.startsWith("//") ? `https:${urlStr}` : `https://${urlStr.replace(/^\/+/, "")}`;
+          }
+          let href: string;
+          try {
+            const u = new URL(urlStr);
+            if (u.protocol !== "http:" && u.protocol !== "https:") continue;
+            href = u.href;
+          } catch {
+            continue;
+          }
+          const id =
+            typeof o.id === "string" && o.id.trim()
+              ? o.id.trim().slice(0, 80)
+              : crypto.randomUUID();
+          const label = labelRaw || href;
+          normalized.push({ id, label, url: href });
+        }
+        updatePayload.reference_links = normalized;
       }
 
       if (Object.keys(updatePayload).length === 0) {
