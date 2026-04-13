@@ -1,53 +1,19 @@
 /**
- * Aparência global do app (cor de destaque + wallpapers estilo iPhone:
- * tela inicial separada das demais telas).
+ * Aparência global do app: cor de destaque (substitui o amarelo padrão em brand-yellow).
  */
 
-export type WallpaperFit = "cover" | "contain" | "fill";
-
-export type WallpaperConfig = {
-  /** URL https ou data:; vazio = sem imagem */
-  url: string;
-  /** Escurecer sobre a imagem (0 = nenhum, 1 = quase preto) — como "escurecer papel de parede" no iOS */
-  dim: number;
-  /** Desfoque na própria imagem (0–24 px) */
-  blur: number;
-  /** Escala da imagem (100–140%) */
-  scalePercent: number;
-  fit: WallpaperFit;
-};
-
 export type AppAppearance = {
-  /** Cor principal (#RRGGBB), ex.: amarelo da marca */
+  /** Cor principal (#RRGGBB) */
   accentHex: string;
-  /** Brilho difuso com a cor de destaque (como “vignette” da marca) */
-  accentOrbEnabled: boolean;
-  wallpaperHome: WallpaperConfig;
-  wallpaperApps: WallpaperConfig;
 };
 
 export const DEFAULT_ACCENT = "#F5D00B";
 
-export const defaultWallpaper = (): WallpaperConfig => ({
-  url: "",
-  dim: 0.35,
-  blur: 0,
-  scalePercent: 100,
-  fit: "cover",
-});
-
 export const defaultAppAppearance = (): AppAppearance => ({
   accentHex: DEFAULT_ACCENT,
-  accentOrbEnabled: true,
-  wallpaperHome: defaultWallpaper(),
-  wallpaperApps: { ...defaultWallpaper(), dim: 0.45 },
 });
 
-function clamp(n: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, n));
-}
-
-/** Normaliza JSON vindo do servidor ou versões antigas. */
+/** Normaliza JSON vindo do servidor (ignora campos antigos, ex.: wallpapers). */
 export function parseAppAppearance(raw: unknown): AppAppearance {
   const d = defaultAppAppearance();
   if (!raw || typeof raw !== "object") return d;
@@ -55,24 +21,6 @@ export function parseAppAppearance(raw: unknown): AppAppearance {
   if (typeof o.accentHex === "string" && /^#[0-9A-Fa-f]{6}$/.test(o.accentHex.trim())) {
     d.accentHex = o.accentHex.trim().toUpperCase();
   }
-  if (typeof o.accentOrbEnabled === "boolean") {
-    d.accentOrbEnabled = o.accentOrbEnabled;
-  }
-  const parseLayer = (x: unknown, fallback: WallpaperConfig): WallpaperConfig => {
-    if (!x || typeof x !== "object") return { ...fallback };
-    const w = x as Record<string, unknown>;
-    const url = typeof w.url === "string" ? w.url.trim() : "";
-    const dim = typeof w.dim === "number" && Number.isFinite(w.dim) ? clamp(w.dim, 0, 0.92) : fallback.dim;
-    const blur = typeof w.blur === "number" && Number.isFinite(w.blur) ? clamp(w.blur, 0, 24) : fallback.blur;
-    const scalePercent =
-      typeof w.scalePercent === "number" && Number.isFinite(w.scalePercent)
-        ? clamp(w.scalePercent, 100, 140)
-        : fallback.scalePercent;
-    const fit = w.fit === "contain" || w.fit === "fill" ? w.fit : "cover";
-    return { url, dim, blur, scalePercent, fit };
-  };
-  d.wallpaperHome = parseLayer(o.wallpaperHome, d.wallpaperHome);
-  d.wallpaperApps = parseLayer(o.wallpaperApps, d.wallpaperApps);
   return d;
 }
 
@@ -86,10 +34,7 @@ export function hexToRgbSpaceSeparated(hex: string): string {
   return `${r} ${g} ${b}`;
 }
 
-/**
- * Aplica cor de destaque e variáveis auxiliares no :root.
- * Wallpapers são aplicados pelo componente React `AppWallpaperLayers`.
- */
+/** Aplica cor de destaque no :root (Tailwind `brand-yellow` usa `--app-accent-rgb`). */
 export function applyAccentToRoot(root: HTMLElement, accentHex: string): void {
   const hex = /^#[0-9A-Fa-f]{6}$/.test(accentHex.trim()) ? accentHex.trim().toUpperCase() : DEFAULT_ACCENT;
   const rgb = hexToRgbSpaceSeparated(hex);

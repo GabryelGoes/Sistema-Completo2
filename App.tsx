@@ -22,7 +22,6 @@ import {
 } from './services/apiService';
 import { AssistantChat } from './components/AssistantChat';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
-import { AppWallpaperLayers } from './components/AppWallpaperLayers';
 import {
   applyAccentToRoot,
   defaultAppAppearance,
@@ -91,7 +90,7 @@ export default function App() {
   // Dispara refresh da lista em "Usuários do sistema" quando o admin salva o perfil
   const [systemUsersRefreshTrigger, setSystemUsersRefreshTrigger] = useState(0);
 
-  /** Aparência da oficina (cor + wallpapers); sincronizada via API para todos os usuários */
+  /** Cor de destaque da oficina; sincronizada via API para todos os usuários */
   const [appAppearance, setAppAppearance] = useState<AppAppearance>(() => defaultAppAppearance());
   const [settingsAppearanceDraft, setSettingsAppearanceDraft] = useState<AppAppearance>(() => defaultAppAppearance());
   const [workspaceAppearanceSaving, setWorkspaceAppearanceSaving] = useState(false);
@@ -305,10 +304,10 @@ export default function App() {
     };
     return (
       <div
-        className="min-h-screen flex flex-col relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
+        className="min-h-screen flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
         data-effects={effectsEnabled ? 'on' : 'off'}
       >
-        <AppWallpaperLayers activeTab={userTab} appearance={appAppearance} theme={theme} />
+        <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
         {userTab !== 'home' && (
           <header className="relative z-20 flex items-center justify-between px-4 py-3 bg-light-card/95 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-light-border dark:border-white/10">
             <span />
@@ -505,10 +504,10 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen flex flex-col relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
+      className="min-h-screen flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
       data-effects={effectsEnabled ? 'on' : 'off'}
     >
-      <AppWallpaperLayers activeTab={currentTab} appearance={appAppearance} theme={theme} />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
 
       <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
         <KeepAliveTabPanel

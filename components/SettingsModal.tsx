@@ -1,8 +1,7 @@
 import React from 'react';
-import { X, Settings, RefreshCw } from 'lucide-react';
+import { X, Settings, RefreshCw, Palette } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
-import { AppearanceSettingsSection } from './AppearanceSettingsSection';
 import type { AppAppearance } from '../utils/appAppearance';
 
 interface SettingsModalProps {
@@ -16,7 +15,7 @@ interface SettingsModalProps {
   onCinematographicModeChange?: (enabled: boolean) => void;
   orientation?: 'portrait' | 'landscape';
   showPatioAccess?: boolean;
-  /** Aparência da oficina (cor + wallpapers) — admin e usuários com acesso total */
+  /** Cor de destaque da oficina — admin e usuários com acesso total */
   showWorkspaceAppearance?: boolean;
   workspaceAppearance?: AppAppearance;
   onWorkspaceAppearanceChange?: (next: AppAppearance) => void;
@@ -43,7 +42,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className={iosModalOverlay}>
-      <div className={`${iosModalShell} ${showWorkspaceAppearance ? 'max-w-xl' : 'max-w-md'} max-h-[94vh]`}>
+      <div className={`${iosModalShell} max-w-md max-h-[94vh]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
         </button>
@@ -155,11 +154,50 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onWorkspaceAppearanceChange &&
             onSaveWorkspaceAppearance && (
               <div className="space-y-4">
-                <AppearanceSettingsSection
-                  value={workspaceAppearance}
-                  onChange={onWorkspaceAppearanceChange}
-                  disabled={workspaceAppearanceSaving}
-                />
+                <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+                  <div className="mb-3 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <Palette className="h-4 w-4" />
+                    Cor de destaque
+                  </div>
+                  <p className="mb-3 text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    Substitui o amarelo padrão em botões, destaques e ícones da marca em todo o app.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input
+                      type="color"
+                      value={workspaceAppearance.accentHex}
+                      disabled={workspaceAppearanceSaving}
+                      onChange={(e) =>
+                        onWorkspaceAppearanceChange({
+                          ...workspaceAppearance,
+                          accentHex: e.target.value.toUpperCase(),
+                        })
+                      }
+                      className="h-12 w-20 cursor-pointer rounded-xl border border-zinc-200 bg-transparent p-1 dark:border-white/15"
+                    />
+                    <input
+                      type="text"
+                      value={workspaceAppearance.accentHex}
+                      disabled={workspaceAppearanceSaving}
+                      onChange={(e) => {
+                        const v = e.target.value.trim();
+                        if (/^#[0-9A-Fa-f]{0,6}$/.test(v))
+                          onWorkspaceAppearanceChange({
+                            ...workspaceAppearance,
+                            accentHex: v.length === 7 ? v.toUpperCase() : v,
+                          });
+                      }}
+                      className="min-w-[7.5rem] rounded-xl border border-zinc-200 bg-white px-3 py-2 font-mono text-[14px] text-zinc-900 dark:border-white/10 dark:bg-zinc-900 dark:text-white"
+                      placeholder="#F5D00B"
+                    />
+                    <span
+                      className="rounded-lg px-3 py-1.5 text-[13px] font-semibold text-black"
+                      style={{ backgroundColor: workspaceAppearance.accentHex }}
+                    >
+                      Prévia
+                    </span>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => void onSaveWorkspaceAppearance()}
@@ -172,12 +210,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       Salvando…
                     </>
                   ) : (
-                    'Salvar aparência da oficina'
+                    'Salvar cor da oficina'
                   )}
                 </button>
                 <p className="text-center text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-500">
-                  As alterações ficam visíveis para todos os usuários desta oficina. Imagens muito grandes em base64 podem
-                  deixar o salvamento lento — prefira hospedar a imagem e colar apenas o link.
+                  Visível para todos os usuários desta oficina.
                 </p>
               </div>
             )}
