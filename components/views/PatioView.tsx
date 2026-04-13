@@ -2701,6 +2701,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   >
                     {model}
                   </h3>
+                  {!isModuleMode && (card.vehicleColor ?? '').trim() ? (
+                    <p
+                      className="mt-1 max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400/75 dark:text-zinc-500/85"
+                      title={`Cor: ${(card.vehicleColor ?? '').trim()}`}
+                    >
+                      {(card.vehicleColor ?? '').trim()}
+                    </p>
+                  ) : null}
                 </div>
 
                 {/* Cliente logo abaixo do carro */}
@@ -2932,6 +2940,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                        <h3 className="break-words text-xl font-semibold leading-snug tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
                                          {model}
                                        </h3>
+                                       {!isModuleMode && (card.vehicleColor ?? '').trim() ? (
+                                         <p className="mt-1 max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400/75 dark:text-zinc-500/85">
+                                           {(card.vehicleColor ?? '').trim()}
+                                         </p>
+                                       ) : null}
                                        <div className="mt-1 flex min-w-0 items-center gap-2">
                                           <User className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
                                           <p className="truncate text-[14px] font-medium text-zinc-600 dark:text-zinc-300">
@@ -3033,6 +3046,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <h1 className="text-3xl font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-5xl">
                           {historyCardTitleParts?.vehicle}
                         </h1>
+                        {!isModuleMode && (selectedHistoryCard?.vehicleColor ?? '').trim() ? (
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
+                            Cor · {(selectedHistoryCard?.vehicleColor ?? '').trim()}
+                          </p>
+                        ) : null}
                         <p className="flex items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
                           <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" />
                           Registro encerrado — leitura, anexos e reabertura
@@ -3388,6 +3406,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <h1 className="text-5xl md:text-7xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none">
                           {selectedCardTitleParts?.vehicle}
                         </h1>
+                        {!isModuleMode &&
+                        (serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor)?.trim() ? (
+                          <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
+                            Cor ·{' '}
+                            {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '').trim()}
+                          </p>
+                        ) : null}
                         {/* Técnico + Data de entrega — duas colunas no mesmo bloco */}
                         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {can('canAssignTechnician') && (
@@ -3540,7 +3565,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   Dados da ficha
                                 </h3>
                                 <p className="mt-0.5 truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100">
-                                  {serviceOrderDetail.customers?.name?.trim() || 'Cliente'} · {isModuleMode ? (serviceOrderDetail.module_identification || '—') : (serviceOrderDetail.plate || '—').toUpperCase()}
+                                  {serviceOrderDetail.customers?.name?.trim() || 'Cliente'} ·{' '}
+                                  {isModuleMode
+                                    ? serviceOrderDetail.module_identification || '—'
+                                    : (serviceOrderDetail.plate || '—').toUpperCase()}
+                                  {!isModuleMode && serviceOrderDetail.vehicle_color?.trim()
+                                    ? ` · ${serviceOrderDetail.vehicle_color.trim()}`
+                                    : ''}
                                 </p>
                               </div>
                             </div>
@@ -5031,6 +5062,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 Editar veículo
               </h3>
               <p className="mt-1 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">Corrija o nome do veículo ou a placa, se estiver errado.</p>
+              {(selectedCard.vehicleColor ?? '').trim() ? (
+                <p className="mt-2 text-[12px] text-zinc-500/90 dark:text-zinc-400">
+                  Cor no cadastro:{' '}
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+                    {(selectedCard.vehicleColor ?? '').trim()}
+                  </span>{' '}
+                  (edição completa em Dados da ficha)
+                </p>
+              ) : null}
             </div>
             <div className="p-6 space-y-4">
               <div>
@@ -5389,6 +5429,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       })() : (
                         selectedCard.name
                       )}
+                      {(selectedCard.vehicleColor ?? '').trim() ? (
+                        <span className="text-[#7a6f5f]/90">
+                          {' '}
+                          · {(selectedCard.vehicleColor ?? '').trim()}
+                        </span>
+                      ) : null}
                     </span>
                   </p>
                 </div>

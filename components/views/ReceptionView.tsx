@@ -1080,6 +1080,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         >
                           {model}
                         </h3>
+                        {receptionMode === 'vehicle' && (o.vehicle_color ?? '').trim() ? (
+                          <p className="mt-1 max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400/75 dark:text-zinc-500/85">
+                            {(o.vehicle_color ?? '').trim()}
+                          </p>
+                        ) : null}
                         <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
                           <User className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
                           <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
@@ -1276,6 +1281,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           >
                             {(d.vehicle_model || '—').trim()}
                           </h1>
+                          {!isModuleDetail && (d.vehicle_color ?? '').trim() ? (
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
+                              Cor · {(d.vehicle_color ?? '').trim()}
+                            </p>
+                          ) : null}
                         </div>
 
                         <div className="flex flex-wrap items-center gap-4 text-zinc-700 dark:text-zinc-300 mb-8">

@@ -181,9 +181,16 @@ export const PatioViewSupabase: React.FC<PatioViewSupabaseProps> = ({
                     className="bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 hover:border-brand-yellow/30 transition-colors"
                   >
                     <div className="flex justify-between items-start gap-2 mb-2">
-                      <span className="font-black text-zinc-900 dark:text-white uppercase tracking-tight text-sm truncate">
-                        {order.vehicle_model || "Veículo"}
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span className="font-black text-zinc-900 dark:text-white uppercase tracking-tight text-sm truncate block">
+                          {order.vehicle_model || "Veículo"}
+                        </span>
+                        {(order.vehicle_color ?? "").trim() ? (
+                          <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400/75 dark:text-zinc-500/85">
+                            {(order.vehicle_color ?? "").trim()}
+                          </p>
+                        ) : null}
+                      </div>
                       <span className="shrink-0 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-mono text-xs font-bold px-2 py-0.5 rounded">
                         {(order.plate || "—").toUpperCase()}
                       </span>
