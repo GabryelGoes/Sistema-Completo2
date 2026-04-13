@@ -2796,8 +2796,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
       </div>
 
-      {/* --- MODAL DE HISTÓRICO (BUSCA) — vidro iOS alinhado ao TV do pátio --- */}
+      {/* --- MODAL DE HISTÓRICO (BUSCA) — portal em body para ficar acima da TabBar --- */}
       {isHistoryOpen && (
+         <ModalPortal>
          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
             <div
               className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
@@ -2941,10 +2942,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
             </div>
          </div>
+         </ModalPortal>
       )}
 
-      {/* --- DETALHES DO CARD ARQUIVADO — vidro iOS (lista + detalhe coerentes) --- */}
+      {/* --- DETALHES DO CARD ARQUIVADO — portal em body para ficar acima da TabBar --- */}
       {selectedHistoryCard && (
+         <ModalPortal>
          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
             <div
               className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
@@ -3202,6 +3205,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
             </div>
          </div>
+         </ModalPortal>
       )}
 
       {/* MODAL DETALHE DO VEÍCULO */}
@@ -3219,6 +3223,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               ) ?? selectedCard.vehicleCategory ?? null
             : null;
         return (
+        <ModalPortal>
         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-4 sm:p-6`}>
            <div className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-[96vw] xl:max-w-[92vw] 2xl:max-w-[88vw] min-h-0 flex-col ${iosModalShell} animate-in zoom-in-95 duration-200 ${modalRingClass}`}>
               
@@ -4697,6 +4702,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
            </div>
         </div>
+        </ModalPortal>
       );
       })()}
 
@@ -4922,6 +4928,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* MODAL EDITAR NOME DO VEÍCULO / PLACA — tipografia do nome nos inputs inalterada pelo usuário */}
       {isVehicleEditOpen && selectedCard && (
+        <ModalPortal>
         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
           <div className={`relative flex max-h-[90vh] w-full max-w-md flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
             <div className="border-b border-zinc-200/60 px-5 py-5 dark:border-white/[0.07] sm:px-6">
@@ -4974,6 +4981,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* LIGHTBOX MODAL (IMAGE PREVIEW) WITH ZOOM E NAVEGAÇÃO */}
@@ -5580,8 +5588,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </ModalPortal>
       )}
 
-      {/* MODAL DE SELEÇÃO DE ETAPA (MOVE) — vidro iOS alinhado ao TV do pátio */}
+      {/* MODAL DE SELEÇÃO DE ETAPA (MOVE) — portal em body para ficar acima da TabBar */}
       {cardInTransition && (
+        <ModalPortal>
         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}>
           <div
             className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
@@ -5676,6 +5685,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* MODAL CATEGORIA DO VEÍCULO — mesmo padrão do modal de etapas */}
@@ -5689,6 +5699,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               serviceOrderDetail?.issue_description ?? null
             ) ?? selectedCard.vehicleCategory ?? null;
           return (
+            <ModalPortal>
             <div
               className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}
             >
@@ -5784,11 +5795,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               </div>
             </div>
+            </ModalPortal>
           );
         })()}
 
-      {/* MODAL DE SELEÇÃO DE MECÂNICO — vidro iOS alinhado ao TV do pátio */}
+      {/* MODAL DE SELEÇÃO DE MECÂNICO — portal em body para ficar acima da TabBar */}
       {cardForMemberAssignment && (
+        <ModalPortal>
         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
           <div
             className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
@@ -5881,10 +5894,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
-      {/* MODAL DE CHECKLIST (templates criados pelo admin) */}
+      {/* MODAL DE CHECKLIST (templates criados pelo admin) — portal em body */}
       {activeChecklistCard && activeChecklistTemplate && (
+         <ModalPortal>
          <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
            <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-lg flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
              
@@ -5989,10 +6004,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
            </div>
          </div>
+         </ModalPortal>
       )}
 
-      {/* CAMERA MODAL */}
+      {/* CAMERA MODAL — portal em body */}
       {isCameraOpen && (
+        <ModalPortal>
         <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-modal-backdrop">
             <div className="relative flex-1 bg-black">
                 <video 
@@ -6020,10 +6037,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
             </div>
         </div>
+        </ModalPortal>
       )}
 
-      {/* PHOTO PREVIEW MODAL */}
+      {/* PHOTO PREVIEW MODAL — portal em body */}
       {photoPreview && (
+        <ModalPortal>
         <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-modal-backdrop">
             <div className="relative flex-1 bg-black flex items-center justify-center">
                 <img src={photoPreview} alt="Preview" className="max-w-full max-h-full object-contain" />
@@ -6060,6 +6079,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
             </div>
         </div>
+        </ModalPortal>
       )}
 
     </div>
