@@ -235,6 +235,7 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     garantia_tag: d.garantia_tag,
     order_type: detail.order_type,
     vehicle_category: detail.vehicle_category,
+    vehicle_brand: detail.vehicle_brand ?? null,
     vehicle_color: detail.vehicle_color ?? null,
     vehicle_year: detail.vehicle_year ?? null,
     vehicle_engine_info: detail.vehicle_engine_info ?? null,
@@ -265,6 +266,7 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
       orderType === "vehicle"
         ? resolveVehicleCategoryLabel(o.vehicle_category ?? null, o.issue_description ?? null)
         : null,
+    vehicleBrand: o.vehicle_brand ?? null,
     idList: o.status,
     url: '',
     dateLastActivity: o.updated_at,
@@ -588,6 +590,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       address: c?.address ?? '',
       addressNumber: c?.address_number ?? '',
       vehicleModel: serviceOrderDetail.vehicle_model ?? '',
+      vehicleBrand: serviceOrderDetail.vehicle_brand ?? '',
       moduleIdentification: serviceOrderDetail.module_identification ?? '',
       plate: (serviceOrderDetail.plate ?? '').toUpperCase(),
       mileageKm: serviceOrderDetail.mileage_km ?? '',
@@ -599,7 +602,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const [editFichaForm, setEditFichaForm] = useState<{
     name: string; cpf: string; phone: string; email: string; cep: string; address: string; addressNumber: string;
-    vehicleModel: string; moduleIdentification: string; plate: string; mileageKm: string;
+    vehicleModel: string; vehicleBrand: string; moduleIdentification: string; plate: string; mileageKm: string;
     vehicleColor: string; vehicleYear: string; vehicleEngineInfo: string;
   }>({
     name: '',
@@ -610,6 +613,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     address: '',
     addressNumber: '',
     vehicleModel: '',
+    vehicleBrand: '',
     moduleIdentification: '',
     plate: '',
     mileageKm: '',
@@ -1247,6 +1251,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           (o.plate && o.plate.toUpperCase().includes(term.toUpperCase())) ||
           (o.customers?.name && o.customers.name.toLowerCase().includes(term.toLowerCase())) ||
           (o.vehicle_model && o.vehicle_model.toLowerCase().includes(term.toLowerCase())) ||
+          (o.vehicle_brand && o.vehicle_brand.toLowerCase().includes(term.toLowerCase())) ||
           (o.module_identification && o.module_identification.toLowerCase().includes(term.toLowerCase()))
       );
       const cards = sortArchivedOrdersNewestFirst(cancelled).map((o) => orderToCard(o, nameMap, orderType));
@@ -1336,6 +1341,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         city: c?.city ?? '',
         addressNumber: c?.address_number ?? '',
         vehicleModel: detail.vehicle_model ?? '',
+        vehicleBrand: detail.vehicle_brand ?? '',
         moduleIdentification: detail.module_identification ?? undefined,
         plate: (detail.plate || '').toUpperCase(),
         vehicleColor: detail.vehicle_color ?? '',
@@ -1678,6 +1684,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       });
       await updateServiceOrderVehicle(selectedCard.id, {
         vehicleModel: editFichaForm.vehicleModel.trim(),
+        vehicleBrand: isModuleMode ? undefined : editFichaForm.vehicleBrand.trim() || null,
         moduleIdentification: isModuleMode ? (editFichaForm.moduleIdentification.trim() || null) : undefined,
         plate: isModuleMode ? undefined : editFichaForm.plate.trim().toUpperCase(),
         vehicleColor: isModuleMode ? undefined : editFichaForm.vehicleColor.trim() || null,
@@ -1702,6 +1709,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         vehicleColor: updated.vehicle_color ?? null,
         vehicleYear: updated.vehicle_year ?? null,
         vehicleEngineInfo: updated.vehicle_engine_info ?? null,
+        vehicleBrand: updated.vehicle_brand ?? null,
         referenceLinks: parseReferenceLinksFromApi(updated.reference_links),
       };
       setSelectedCard(updatedCard);
@@ -3046,6 +3054,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <h1 className="text-3xl font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-5xl">
                           {historyCardTitleParts?.vehicle}
                         </h1>
+                        {!isModuleMode && (selectedHistoryCard?.vehicleBrand ?? '').trim() ? (
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
+                            {(selectedHistoryCard?.vehicleBrand ?? '').trim()}
+                          </p>
+                        ) : null}
                         {!isModuleMode && (selectedHistoryCard?.vehicleColor ?? '').trim() ? (
                           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
                             Cor · {(selectedHistoryCard?.vehicleColor ?? '').trim()}
@@ -3403,6 +3416,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </span>
                           )}
                         </div>
+                        {!isModuleMode &&
+                        (serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand)?.trim() ? (
+                          <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
+                            {(serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand || '').trim()}
+                          </p>
+                        ) : null}
                         <h1 className="text-5xl md:text-7xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none">
                           {selectedCardTitleParts?.vehicle}
                         </h1>
@@ -3629,15 +3648,29 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <div className="space-y-3">
                                 <p className={`${iosLabel} ml-0.5`}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
                                 <div className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
-                                  <div>
-                                    <label className={iosLabel}>{isModuleMode ? 'Veículo / referência' : 'Modelo'}</label>
-                                    <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={iosInput} placeholder={isModuleMode ? 'Ex: BMW 320i' : 'Ex: Gol 1.0'} />
-                                  </div>
-                                  {isModuleMode && (
-                                    <div>
-                                      <label className={iosLabel}>Identificação do módulo</label>
-                                      <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className={iosInput} placeholder="Ex: Módulo ABS XYZ" />
+                                  {!isModuleMode && (
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                      <div>
+                                        <label className={iosLabel}>Marca / montadora</label>
+                                        <input value={editFichaForm.vehicleBrand} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleBrand: e.target.value }))} className={iosInput} placeholder="Ex: Renault" />
+                                      </div>
+                                      <div>
+                                        <label className={iosLabel}>Modelo (no card)</label>
+                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={iosInput} placeholder="Ex: Logan 1.6" />
+                                      </div>
                                     </div>
+                                  )}
+                                  {isModuleMode && (
+                                    <>
+                                      <div>
+                                        <label className={iosLabel}>Veículo / referência</label>
+                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={iosInput} placeholder="Ex: BMW 320i" />
+                                      </div>
+                                      <div>
+                                        <label className={iosLabel}>Identificação do módulo</label>
+                                        <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className={iosInput} placeholder="Ex: Módulo ABS XYZ" />
+                                      </div>
+                                    </>
                                   )}
                                   {!isModuleMode && (
                                     <>
@@ -3723,6 +3756,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <div className="space-y-3">
                                 <p className={`${iosLabel} ml-0.5`}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
                                 <div className={`${iosModalInsetCard} divide-y divide-zinc-200/60 overflow-hidden p-0 dark:divide-white/[0.06]`}>
+                                  {!isModuleMode && serviceOrderDetail.vehicle_brand?.trim() ? (
+                                    <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                      <Tag className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Marca</p>
+                                        <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_brand.trim()}</p>
+                                      </div>
+                                    </div>
+                                  ) : null}
                                   <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
                                     <PatioCarIcon className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
                                     <div className="min-w-0 flex-1">
@@ -3804,7 +3846,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   setEditFichaForm({
                                     name: c?.name ?? '', cpf: c?.cpf ?? '', phone: c?.phone ?? '', email: c?.email ?? '',
                                     cep: c?.cep ?? '', address: c?.address ?? '', addressNumber: c?.address_number ?? '',
-                                    vehicleModel: serviceOrderDetail.vehicle_model ?? '', moduleIdentification: serviceOrderDetail.module_identification ?? '',
+                                    vehicleModel: serviceOrderDetail.vehicle_model ?? '', vehicleBrand: serviceOrderDetail.vehicle_brand ?? '', moduleIdentification: serviceOrderDetail.module_identification ?? '',
                                     plate: (serviceOrderDetail.plate ?? '').toUpperCase(), mileageKm: serviceOrderDetail.mileage_km ?? '',
                                     vehicleColor: serviceOrderDetail.vehicle_color ?? '',
                                     vehicleYear: serviceOrderDetail.vehicle_year ?? '',
@@ -5062,12 +5104,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 Editar veículo
               </h3>
               <p className="mt-1 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">Corrija o nome do veículo ou a placa, se estiver errado.</p>
-              {(selectedCard.vehicleColor ?? '').trim() ? (
+              {(selectedCard.vehicleBrand ?? '').trim() || (selectedCard.vehicleColor ?? '').trim() ? (
                 <p className="mt-2 text-[12px] text-zinc-500/90 dark:text-zinc-400">
-                  Cor no cadastro:{' '}
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-200">
-                    {(selectedCard.vehicleColor ?? '').trim()}
-                  </span>{' '}
+                  {(selectedCard.vehicleBrand ?? '').trim() ? (
+                    <>
+                      Marca:{' '}
+                      <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+                        {(selectedCard.vehicleBrand ?? '').trim()}
+                      </span>
+                      {(selectedCard.vehicleColor ?? '').trim() ? ' · ' : ''}
+                    </>
+                  ) : null}
+                  {(selectedCard.vehicleColor ?? '').trim() ? (
+                    <>
+                      Cor:{' '}
+                      <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+                        {(selectedCard.vehicleColor ?? '').trim()}
+                      </span>
+                    </>
+                  ) : null}{' '}
                   (edição completa em Dados da ficha)
                 </p>
               ) : null}
@@ -5417,6 +5472,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-[#5c534c]">
                     <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#9a928c]" strokeWidth={2} />
                     <span className="min-w-0 break-words">
+                      {(selectedCard.vehicleBrand ?? '').trim() ? (
+                        <span className="text-[#7a6f5f]/90">
+                          {(selectedCard.vehicleBrand ?? '').trim()}
+                          {' · '}
+                        </span>
+                      ) : null}
+                      {(selectedCard.vehicleColor ?? '').trim() ? (
+                        <span className="text-[#7a6f5f]/90">
+                          {(selectedCard.vehicleColor ?? '').trim()}
+                          {' · '}
+                        </span>
+                      ) : null}
                       {blurPlates ? (() => {
                         const p = selectedCard.name.split(' - ');
                         return p.length >= 3 ? (
@@ -5429,12 +5496,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       })() : (
                         selectedCard.name
                       )}
-                      {(selectedCard.vehicleColor ?? '').trim() ? (
-                        <span className="text-[#7a6f5f]/90">
-                          {' '}
-                          · {(selectedCard.vehicleColor ?? '').trim()}
-                        </span>
-                      ) : null}
                     </span>
                   </p>
                 </div>

@@ -15,6 +15,7 @@ const emptyCustomer: Customer = {
   address: '',
   city: '',
   addressNumber: '',
+  vehicleBrand: '',
   vehicleModel: '',
   plate: '',
   vehicleColor: '',
@@ -67,6 +68,7 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
         address: initialData.address ?? '',
         city: initialData.city ?? '',
         addressNumber: initialData.addressNumber ?? '',
+        vehicleBrand: initialData.vehicleBrand ?? '',
         vehicleModel: initialData.vehicleModel ?? '',
         plate: initialData.plate ?? '',
         vehicleColor: initialData.vehicleColor ?? '',
@@ -107,6 +109,7 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
         setCustomer((prev) => ({
           ...prev,
           plate: (result.plate || p).toUpperCase(),
+          vehicleBrand: result.vehicleBrand?.trim() || prev.vehicleBrand,
           vehicleModel: result.vehicleModel?.trim() || prev.vehicleModel,
           vehicleColor: result.vehicleColor?.trim() || prev.vehicleColor,
           vehicleYear: result.vehicleYear?.trim() || prev.vehicleYear,
@@ -308,56 +311,70 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={iosLabel}>Modelo do veículo</label>
+                <label className={iosLabel}>Marca / montadora</label>
+                <div className="relative">
+                  <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    name="vehicleBrand"
+                    placeholder="Ex.: Renault"
+                    value={customer.vehicleBrand ?? ''}
+                    onChange={handleInputChange}
+                    className={`${iosInput} pl-10`}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={iosLabel}>Modelo (no card)</label>
                 <div className="relative">
                   <Car className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
                   <input
                     type="text"
                     name="vehicleModel"
-                    placeholder="Ex.: BMW 320i ou pela placa"
+                    placeholder="Ex.: Logan 1.6 ou pela placa"
                     value={customer.vehicleModel}
                     onChange={handleInputChange}
                     className={`${iosInput} pl-10`}
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className={iosLabel}>Placa</label>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-                  <div className="relative flex-1 min-w-0">
-                    <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-                    <input
-                      type="text"
-                      name="plate"
-                      placeholder="ABC1D23"
-                      value={customer.plate ? customer.plate.toUpperCase() : ''}
-                      onChange={handlePlateChange}
-                      onBlur={() => void runPlacaLookup(false)}
-                      maxLength={8}
-                      className={`${iosInput} pl-10 uppercase w-full`}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => void runPlacaLookup(true)}
-                    disabled={plateLookupLoading}
-                    className="shrink-0 flex items-center justify-center gap-2 rounded-xl border border-zinc-200/90 px-3 py-2.5 text-sm font-semibold text-zinc-800 dark:border-white/[0.12] dark:text-zinc-100 disabled:opacity-50"
-                  >
-                    {plateLookupLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-                    ) : (
-                      <Search className="w-4 h-4" aria-hidden />
-                    )}
-                    Buscar placa
-                  </button>
+            </div>
+            <div className="space-y-2">
+              <label className={iosLabel}>Placa</label>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                <div className="relative flex-1 min-w-0">
+                  <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    name="plate"
+                    placeholder="ABC1D23"
+                    value={customer.plate ? customer.plate.toUpperCase() : ''}
+                    onChange={handlePlateChange}
+                    onBlur={() => void runPlacaLookup(false)}
+                    maxLength={8}
+                    className={`${iosInput} pl-10 uppercase w-full`}
+                  />
                 </div>
-                {plateLookupError ? (
-                  <p className="text-xs text-red-600 dark:text-red-400">{plateLookupError}</p>
-                ) : (
-                  <p className="text-[11px] text-zinc-500">Token da API fica só no servidor (Vercel).</p>
-                )}
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => void runPlacaLookup(true)}
+                  disabled={plateLookupLoading}
+                  className="shrink-0 flex items-center justify-center gap-2 rounded-xl border border-zinc-200/90 px-3 py-2.5 text-sm font-semibold text-zinc-800 dark:border-white/[0.12] dark:text-zinc-100 disabled:opacity-50"
+                >
+                  {plateLookupLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Search className="w-4 h-4" aria-hidden />
+                  )}
+                  Buscar placa
+                </button>
               </div>
+              {plateLookupError ? (
+                <p className="text-xs text-red-600 dark:text-red-400">{plateLookupError}</p>
+              ) : (
+                <p className="text-[11px] text-zinc-500">Token da API fica só no servidor (Vercel).</p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -103,6 +103,7 @@ export const PatioViewSupabase: React.FC<PatioViewSupabaseProps> = ({
         city: c?.city ?? "",
         addressNumber: c?.address_number ?? "",
         vehicleModel: detail.vehicle_model,
+        vehicleBrand: detail.vehicle_brand ?? "",
         plate: (detail.plate || '').toUpperCase(),
         vehicleColor: detail.vehicle_color ?? "",
         vehicleYear: detail.vehicle_year ?? "",

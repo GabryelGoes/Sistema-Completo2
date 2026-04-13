@@ -1686,7 +1686,8 @@ export function createApiApp() {
 
       const marca = str(info.marca);
       const modelo = str(info.modelo);
-      const vehicleModel = [marca, modelo].filter(Boolean).join(" ").trim() || null;
+      const vehicleBrand = marca || null;
+      const vehicleModel = modelo || null;
 
       const anoModelo = str(info.ano_modelo);
       const ano = str(info.ano);
@@ -1712,6 +1713,7 @@ export function createApiApp() {
 
       return res.json({
         plate: plateApi,
+        vehicleBrand,
         vehicleModel,
         vehicleColor: cor || null,
         vehicleYear,
@@ -1741,7 +1743,7 @@ export function createApiApp() {
       let query = supabaseAdmin
         .from("service_orders")
         .select(
-          "id, os_number, customer_id, vehicle_model, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, created_at, updated_at"
+          "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, created_at, updated_at"
         )
         .eq("workshop_id", WORKSHOP_ID)
         .order("created_at", { ascending: false });
@@ -1847,6 +1849,7 @@ export function createApiApp() {
         vehicleColor: bodyVehicleColor,
         vehicleYear: bodyVehicleYear,
         vehicleEngineInfo: bodyVehicleEngineInfo,
+        vehicleBrand: bodyVehicleBrand,
       } = req.body;
 
       const orderType = bodyOrderType === "module" ? "module" : "vehicle";
@@ -1895,6 +1898,8 @@ export function createApiApp() {
         orderType === "vehicle" ? trimOrNull(bodyVehicleYear) : null;
       const vehicleEngineInfoIns =
         orderType === "vehicle" ? trimOrNull(bodyVehicleEngineInfo) : null;
+      const vehicleBrandIns =
+        orderType === "vehicle" ? trimOrNull(bodyVehicleBrand) : null;
 
       const { data, error } = await supabaseAdmin
         .from("service_orders")
@@ -1903,6 +1908,7 @@ export function createApiApp() {
           os_number: nextOsNumber,
           customer_id: customerId,
           vehicle_model: vehicleModel ?? null,
+          vehicle_brand: vehicleBrandIns,
           module_identification: orderType === "module" ? (moduleIdentification ?? null) : null,
           plate: orderType === "vehicle" ? String(plate || '').toUpperCase() : null,
           mileage_km: orderType === "vehicle" && mileageKm != null && String(mileageKm).trim() !== '' ? String(mileageKm).trim() : null,
@@ -4576,6 +4582,7 @@ export function createApiApp() {
         vehicleColor: bodyVehicleColorPut,
         vehicleYear: bodyVehicleYearPut,
         vehicleEngineInfo: bodyVehicleEngineInfoPut,
+        vehicleBrand: bodyVehicleBrandPut,
         actor,
         actorTechnicianSlug,
         actorTechnicianName,
@@ -4585,6 +4592,12 @@ export function createApiApp() {
       const updatePayload: any = {};
       if (vehicleModel !== undefined) {
         updatePayload.vehicle_model = typeof vehicleModel === "string" ? vehicleModel.trim() : "";
+      }
+      if (bodyVehicleBrandPut !== undefined) {
+        updatePayload.vehicle_brand =
+          bodyVehicleBrandPut == null || String(bodyVehicleBrandPut).trim() === ""
+            ? null
+            : String(bodyVehicleBrandPut).trim();
       }
       if (moduleIdentification !== undefined) {
         updatePayload.module_identification = typeof moduleIdentification === "string" ? moduleIdentification.trim() : null;
@@ -4640,6 +4653,7 @@ export function createApiApp() {
           updatePayload.vehicle_color = null;
           updatePayload.vehicle_year = null;
           updatePayload.vehicle_engine_info = null;
+          updatePayload.vehicle_brand = null;
         }
       }
       if (bodyVehicleCategoryPut !== undefined) {

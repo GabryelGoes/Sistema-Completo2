@@ -235,6 +235,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
       address: '',
       addressNumber: '',
       vehicleModel: app.vehicleModel ?? '',
+      vehicleBrand: '',
       plate: app.plate ?? '',
       vehicleColor: '',
       vehicleYear: '',

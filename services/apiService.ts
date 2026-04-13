@@ -31,6 +31,7 @@ interface ApiServiceOrder {
   os_number?: number | null;
   customer_id: string;
   vehicle_model: string;
+  vehicle_brand?: string | null;
   plate: string;
   mileage_km: string | null;
   delivery_date: string | null;
@@ -66,6 +67,7 @@ export interface ServiceOrderListItem {
   order_type?: ServiceOrderType;
   /** Recepção — veículo: Compacto, Médio/SUV, Pick-Up, Premium */
   vehicle_category?: string | null;
+  vehicle_brand?: string | null;
   vehicle_color?: string | null;
   vehicle_year?: string | null;
   vehicle_engine_info?: string | null;
@@ -93,6 +95,7 @@ export interface ServiceOrderDetail {
   status: string;
   order_type?: ServiceOrderType;
   vehicle_category?: string | null;
+  vehicle_brand?: string | null;
   vehicle_color?: string | null;
   vehicle_year?: string | null;
   vehicle_engine_info?: string | null;
@@ -105,6 +108,7 @@ export interface ServiceOrderDetail {
 /** Resposta de POST /api/consulta-placa (PlacaFipe via servidor). */
 export interface PlacaFipeLookupResult {
   plate: string;
+  vehicleBrand: string | null;
   vehicleModel: string | null;
   vehicleColor: string | null;
   vehicleYear: string | null;
@@ -330,6 +334,7 @@ export async function createServiceOrder(params: {
   orderType?: ServiceOrderType;
   /** Só veículo: categoria escolhida na recepção */
   vehicleCategory?: string | null;
+  vehicleBrand?: string | null;
   vehicleColor?: string | null;
   vehicleYear?: string | null;
   vehicleEngineInfo?: string | null;
@@ -348,6 +353,7 @@ export async function createServiceOrder(params: {
   if (orderType === "vehicle") {
     body.plate = (params.plate || '').toUpperCase();
     body.mileageKm = params.mileageKm ?? null;
+    if (params.vehicleBrand !== undefined) body.vehicleBrand = params.vehicleBrand?.trim() || null;
     if (params.vehicleColor !== undefined) body.vehicleColor = params.vehicleColor?.trim() || null;
     if (params.vehicleYear !== undefined) body.vehicleYear = params.vehicleYear?.trim() || null;
     if (params.vehicleEngineInfo !== undefined)
@@ -393,6 +399,7 @@ export async function saveReceptionIntake(
     aiAnalysis: customer.aiAnalysis,
     orderType,
     vehicleCategory: orderType === "vehicle" ? vehicleCategory ?? null : null,
+    vehicleBrand: orderType === "vehicle" ? customer.vehicleBrand?.trim() || null : undefined,
     vehicleColor: orderType === "vehicle" ? customer.vehicleColor?.trim() || null : undefined,
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
     vehicleEngineInfo:
@@ -654,6 +661,7 @@ export async function updateServiceOrderVehicle(
     vehicleModel?: string;
     moduleIdentification?: string | null;
     plate?: string;
+    vehicleBrand?: string | null;
     vehicleColor?: string | null;
     vehicleYear?: string | null;
     vehicleEngineInfo?: string | null;
@@ -664,6 +672,12 @@ export async function updateServiceOrderVehicle(
   if (data.vehicleModel !== undefined) body.vehicleModel = data.vehicleModel.trim();
   if (data.moduleIdentification !== undefined) body.moduleIdentification = data.moduleIdentification === null || data.moduleIdentification === "" ? null : String(data.moduleIdentification).trim();
   if (data.plate !== undefined) body.plate = data.plate.trim().toUpperCase();
+  if (data.vehicleBrand !== undefined) {
+    body.vehicleBrand =
+      data.vehicleBrand == null || String(data.vehicleBrand).trim() === ""
+        ? null
+        : String(data.vehicleBrand).trim();
+  }
   if (data.vehicleColor !== undefined) {
     body.vehicleColor =
       data.vehicleColor == null || String(data.vehicleColor).trim() === ""

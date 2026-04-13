@@ -139,6 +139,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     address: '',
     city: '',
     addressNumber: '',
+    vehicleBrand: '',
     vehicleModel: '',
     moduleIdentification: '',
     plate: '',
@@ -217,6 +218,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         address: initialData.address ?? prev.address,
         city: initialData.city ?? prev.city ?? '',
         addressNumber: initialData.addressNumber ?? prev.addressNumber,
+        vehicleBrand: initialData.vehicleBrand ?? prev.vehicleBrand,
         vehicleModel: initialData.vehicleModel ?? prev.vehicleModel,
         moduleIdentification: initialData.moduleIdentification ?? prev.moduleIdentification,
         plate: initialData.plate ?? prev.plate,
@@ -311,6 +313,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       address: '',
       city: '',
       addressNumber: '',
+      vehicleBrand: '',
       vehicleModel: '',
       moduleIdentification: '',
       plate: '',
@@ -347,6 +350,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         setCustomer((prev) => ({
           ...prev,
           plate: (result.plate || p).toUpperCase(),
+          vehicleBrand: result.vehicleBrand?.trim() || prev.vehicleBrand,
           vehicleModel: result.vehicleModel?.trim() || prev.vehicleModel,
           vehicleColor: result.vehicleColor?.trim() || prev.vehicleColor,
           vehicleYear: result.vehicleYear?.trim() || prev.vehicleYear,
@@ -390,6 +394,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             (o.plate || '').toLowerCase().includes(t) ||
             (o.module_identification || '').toLowerCase().includes(t) ||
             (o.vehicle_model || '').toLowerCase().includes(t) ||
+            (o.vehicle_brand || '').toLowerCase().includes(t) ||
             (o.customer_name || o.customers?.name || '').toLowerCase().includes(t)
           )
         : rows;
@@ -535,6 +540,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       address: c?.address ?? '',
       addressNumber: c?.address_number ?? '',
       city: c?.city ?? '',
+      vehicleBrand: detail.vehicle_brand ?? '',
       vehicleModel: detail.vehicle_model ?? '',
       moduleIdentification: detail.module_identification ?? undefined,
       plate: (detail.plate || '').toUpperCase(),
@@ -791,13 +797,23 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
-                      label="Modelo do Veículo"
+                      label="Marca / montadora"
+                      name="vehicleBrand"
+                      placeholder="Ex: Renault"
+                      value={customer.vehicleBrand ?? ''}
+                      onChange={handleInputChange}
+                      icon={<FileText className="w-4 h-4" />}
+                    />
+                    <Input
+                      label="Modelo (aparece no card)"
                       name="vehicleModel"
-                      placeholder="Ex: BMW 320i ou preencha pela placa"
+                      placeholder="Ex: Logan 1.6 — ou preencha pela placa"
                       value={customer.vehicleModel}
                       onChange={handleInputChange}
                       icon={<Car className="w-4 h-4" />}
                     />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                         <div className="flex-1 min-w-0">
@@ -1281,6 +1297,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           >
                             {(d.vehicle_model || '—').trim()}
                           </h1>
+                          {!isModuleDetail && (d.vehicle_brand ?? '').trim() ? (
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
+                              {(d.vehicle_brand ?? '').trim()}
+                            </p>
+                          ) : null}
                           {!isModuleDetail && (d.vehicle_color ?? '').trim() ? (
                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
                               Cor · {(d.vehicle_color ?? '').trim()}

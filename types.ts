@@ -7,6 +7,9 @@ export interface Customer {
   address: string;
   city?: string;
   addressNumber: string;
+  /** Marca / montadora (no card do Pátio entra só o modelo em vehicleModel) */
+  vehicleBrand?: string;
+  /** Nome do modelo / veículo (exibido no card) */
   vehicleModel: string;
   /** Apenas modo módulo (Laboratório): identificação do módulo */
   moduleIdentification?: string;
@@ -109,6 +112,8 @@ export interface BoardCard {
   osNumber?: number | null;
   /** Categoria do veículo na recepção (Compacto, Médio/SUV, Pick-Up, Premium). Só Pátio (veículo). */
   vehicleCategory?: string | null;
+  /** Marca/montadora (não entra no título do card). */
+  vehicleBrand?: string | null;
   /** Cor / ano / motor (texto) vindos da recepção ou consulta placa. */
   vehicleColor?: string | null;
   vehicleYear?: string | null;
