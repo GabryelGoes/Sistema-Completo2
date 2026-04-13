@@ -38,6 +38,9 @@ interface ApiServiceOrder {
   ai_analysis: string | null;
   status: string;
   vehicle_category?: string | null;
+  vehicle_color?: string | null;
+  vehicle_year?: string | null;
+  vehicle_engine_info?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -63,6 +66,9 @@ export interface ServiceOrderListItem {
   order_type?: ServiceOrderType;
   /** Recepção — veículo: Compacto, Médio/SUV, Pick-Up, Premium */
   vehicle_category?: string | null;
+  vehicle_color?: string | null;
+  vehicle_year?: string | null;
+  vehicle_engine_info?: string | null;
   /** Links anexados ao modal (JSON no banco). */
   reference_links?: VehicleReferenceLink[] | null;
   created_at: string;
@@ -87,10 +93,41 @@ export interface ServiceOrderDetail {
   status: string;
   order_type?: ServiceOrderType;
   vehicle_category?: string | null;
+  vehicle_color?: string | null;
+  vehicle_year?: string | null;
+  vehicle_engine_info?: string | null;
   reference_links?: VehicleReferenceLink[] | null;
   created_at: string;
   updated_at: string;
   customers: ApiCustomer | null;
+}
+
+/** Resposta de POST /api/consulta-placa (PlacaFipe via servidor). */
+export interface PlacaFipeLookupResult {
+  plate: string;
+  vehicleModel: string | null;
+  vehicleColor: string | null;
+  vehicleYear: string | null;
+  vehicleEngineInfo: string | null;
+  /** Sugestão para o campo cidade (município — UF) */
+  citySuggestion: string | null;
+}
+
+export async function consultPlacaFipe(placa: string): Promise<PlacaFipeLookupResult> {
+  const response = await fetch(`${API_BASE}/consulta-placa`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ placa }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      typeof body.error === "string" && body.error.trim()
+        ? body.error
+        : `Falha na consulta da placa (${response.status})`
+    );
+  }
+  return body as PlacaFipeLookupResult;
 }
 
 /** Linha da tabela workshop_appointments (API) */
@@ -293,6 +330,9 @@ export async function createServiceOrder(params: {
   orderType?: ServiceOrderType;
   /** Só veículo: categoria escolhida na recepção */
   vehicleCategory?: string | null;
+  vehicleColor?: string | null;
+  vehicleYear?: string | null;
+  vehicleEngineInfo?: string | null;
 }): Promise<ApiServiceOrder> {
   const orderType = params.orderType === "module" ? "module" : "vehicle";
   const body: Record<string, unknown> = {
@@ -308,6 +348,10 @@ export async function createServiceOrder(params: {
   if (orderType === "vehicle") {
     body.plate = (params.plate || '').toUpperCase();
     body.mileageKm = params.mileageKm ?? null;
+    if (params.vehicleColor !== undefined) body.vehicleColor = params.vehicleColor?.trim() || null;
+    if (params.vehicleYear !== undefined) body.vehicleYear = params.vehicleYear?.trim() || null;
+    if (params.vehicleEngineInfo !== undefined)
+      body.vehicleEngineInfo = params.vehicleEngineInfo?.trim() || null;
   } else {
     body.plate = null;
     body.mileageKm = null;
@@ -349,6 +393,10 @@ export async function saveReceptionIntake(
     aiAnalysis: customer.aiAnalysis,
     orderType,
     vehicleCategory: orderType === "vehicle" ? vehicleCategory ?? null : null,
+    vehicleColor: orderType === "vehicle" ? customer.vehicleColor?.trim() || null : undefined,
+    vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
+    vehicleEngineInfo:
+      orderType === "vehicle" ? customer.vehicleEngineInfo?.trim() || null : undefined,
   });
 
   return {
@@ -602,13 +650,38 @@ export async function updateServiceOrderDeliveryDate(
 /** Atualiza modelo do veículo, identificação do módulo e/ou placa da OS. */
 export async function updateServiceOrderVehicle(
   id: string,
-  data: { vehicleModel?: string; moduleIdentification?: string | null; plate?: string },
+  data: {
+    vehicleModel?: string;
+    moduleIdentification?: string | null;
+    plate?: string;
+    vehicleColor?: string | null;
+    vehicleYear?: string | null;
+    vehicleEngineInfo?: string | null;
+  },
   options?: ServiceOrderUpdateActor
 ): Promise<ApiServiceOrder> {
   const body: Record<string, unknown> = {};
   if (data.vehicleModel !== undefined) body.vehicleModel = data.vehicleModel.trim();
   if (data.moduleIdentification !== undefined) body.moduleIdentification = data.moduleIdentification === null || data.moduleIdentification === "" ? null : String(data.moduleIdentification).trim();
   if (data.plate !== undefined) body.plate = data.plate.trim().toUpperCase();
+  if (data.vehicleColor !== undefined) {
+    body.vehicleColor =
+      data.vehicleColor == null || String(data.vehicleColor).trim() === ""
+        ? null
+        : String(data.vehicleColor).trim();
+  }
+  if (data.vehicleYear !== undefined) {
+    body.vehicleYear =
+      data.vehicleYear == null || String(data.vehicleYear).trim() === ""
+        ? null
+        : String(data.vehicleYear).trim();
+  }
+  if (data.vehicleEngineInfo !== undefined) {
+    body.vehicleEngineInfo =
+      data.vehicleEngineInfo == null || String(data.vehicleEngineInfo).trim() === ""
+        ? null
+        : String(data.vehicleEngineInfo).trim();
+  }
   const merged = mergeActorIntoBody(body, options);
   const response = await fetch(`${API_BASE}/service-orders/${id}`, {
     method: "PUT",

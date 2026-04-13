@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, ClipboardList, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, ClipboardList, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosLabel, iosPageGlass } from '../ui/iosModalStyles';
 import { IosModalHeader } from '../ui/IosModalHeader';
 import { Customer, ProcessingStatus } from '../../types';
@@ -8,6 +8,7 @@ import { Input, TextArea } from '../ui/Input';
 import { ProcessingOverlay } from '../ProcessingOverlay';
 import {
   saveReceptionIntake,
+  consultPlacaFipe,
   uploadServiceOrderPhoto,
   getServiceOrders,
   getServiceOrderBudgets,
@@ -106,6 +107,13 @@ function attachmentMimeType(name: string): string {
   return 'application/octet-stream';
 }
 
+function normalizePlacaLocal(raw: string) {
+  return String(raw ?? '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+    .slice(0, 8);
+}
+
 export const ReceptionView: React.FC<ReceptionViewProps> = ({
   initialData,
   onDataLoaded,
@@ -134,12 +142,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     vehicleModel: '',
     moduleIdentification: '',
     plate: '',
+    vehicleColor: '',
+    vehicleYear: '',
+    vehicleEngineInfo: '',
     mileageKm: '',
     issueDescription: ''
   });
 
   const [status, setStatus] = useState<ProcessingStatus>({ step: 'idle' });
   const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory | ''>('');
+  const [plateLookupLoading, setPlateLookupLoading] = useState(false);
+  const [plateLookupError, setPlateLookupError] = useState<string | null>(null);
+  const lastFetchedPlacaRef = useRef<string | null>(null);
 
   useEffect(() => {
     try {
@@ -206,6 +220,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         vehicleModel: initialData.vehicleModel ?? prev.vehicleModel,
         moduleIdentification: initialData.moduleIdentification ?? prev.moduleIdentification,
         plate: initialData.plate ?? prev.plate,
+        vehicleColor: initialData.vehicleColor ?? prev.vehicleColor,
+        vehicleYear: initialData.vehicleYear ?? prev.vehicleYear,
+        vehicleEngineInfo: initialData.vehicleEngineInfo ?? prev.vehicleEngineInfo,
         mileageKm: initialData.mileageKm ?? prev.mileageKm,
         issueDescription: initialData.issueDescription ?? prev.issueDescription,
         trelloCardId: initialData.trelloCardId,
@@ -297,6 +314,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleModel: '',
       moduleIdentification: '',
       plate: '',
+      vehicleColor: '',
+      vehicleYear: '',
+      vehicleEngineInfo: '',
       mileageKm: '',
       issueDescription: '',
       trelloCardId: undefined
@@ -305,8 +325,53 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setPhotoPreview(null);
     setCameraOrientation(null);
     setVehicleCategory('');
+    setPlateLookupError(null);
+    lastFetchedPlacaRef.current = null;
     setStatus({ step: 'idle' });
   };
+
+  const runPlacaLookup = useCallback(
+    async (force?: boolean) => {
+      if (receptionMode !== 'vehicle') return;
+      const p = normalizePlacaLocal(customer.plate);
+      if (p.length < 7) {
+        setPlateLookupError('Informe a placa completa (mín. 7 caracteres).');
+        return;
+      }
+      if (!force && lastFetchedPlacaRef.current === p) return;
+      setPlateLookupError(null);
+      setPlateLookupLoading(true);
+      try {
+        const result = await consultPlacaFipe(p);
+        lastFetchedPlacaRef.current = normalizePlacaLocal(result.plate || p);
+        setCustomer((prev) => ({
+          ...prev,
+          plate: (result.plate || p).toUpperCase(),
+          vehicleModel: result.vehicleModel?.trim() || prev.vehicleModel,
+          vehicleColor: result.vehicleColor?.trim() || prev.vehicleColor,
+          vehicleYear: result.vehicleYear?.trim() || prev.vehicleYear,
+          vehicleEngineInfo: result.vehicleEngineInfo?.trim() || prev.vehicleEngineInfo,
+          city:
+            result.citySuggestion && !(prev.city && prev.city.trim())
+              ? result.citySuggestion
+              : prev.city,
+        }));
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Falha na consulta.';
+        setPlateLookupError(msg);
+      } finally {
+        setPlateLookupLoading(false);
+      }
+    },
+    [receptionMode, customer.plate]
+  );
+
+  useEffect(() => {
+    const p = normalizePlacaLocal(customer.plate);
+    if (lastFetchedPlacaRef.current != null && p !== lastFetchedPlacaRef.current) {
+      lastFetchedPlacaRef.current = null;
+    }
+  }, [customer.plate]);
 
   const clearPhoto = () => {
     setPhotoBlob(null);
@@ -473,6 +538,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleModel: detail.vehicle_model ?? '',
       moduleIdentification: detail.module_identification ?? undefined,
       plate: (detail.plate || '').toUpperCase(),
+      vehicleColor: detail.vehicle_color ?? '',
+      vehicleYear: detail.vehicle_year ?? '',
+      vehicleEngineInfo: detail.vehicle_engine_info ?? '',
       mileageKm: detail.mileage_km ?? '',
       issueDescription: '',
     };
@@ -720,33 +788,93 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <div className="w-full h-px bg-zinc-200 dark:bg-brand-border/50 lg:hidden" />
 
               {receptionMode === 'vehicle' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input 
-                    label="Modelo do Veículo"
-                    name="vehicleModel"
-                    placeholder="Ex: BMW 320i"
-                    value={customer.vehicleModel}
-                    onChange={handleInputChange}
-                    icon={<Car className="w-4 h-4" />}
-                  />
-                  <Input
-                    label="Placa"
-                    name="plate"
-                    placeholder="ABC-1D23"
-                    value={customer.plate ? String(customer.plate).toUpperCase() : ''}
-                    onChange={(e) => setCustomer((prev) => ({ ...prev, plate: e.target.value.toUpperCase() }))}
-                    className="uppercase"
-                    maxLength={8}
-                    icon={<FileText className="w-4 h-4" />}
-                  />
-                  <Input 
-                    label="Km"
-                    name="mileageKm"
-                    placeholder="Ex: 45000"
-                    value={customer.mileageKm ?? ''}
-                    onChange={handleInputChange}
-                    icon={<Hash className="w-4 h-4" />}
-                  />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Modelo do Veículo"
+                      name="vehicleModel"
+                      placeholder="Ex: BMW 320i ou preencha pela placa"
+                      value={customer.vehicleModel}
+                      onChange={handleInputChange}
+                      icon={<Car className="w-4 h-4" />}
+                    />
+                    <div className="space-y-1.5">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                        <div className="flex-1 min-w-0">
+                          <Input
+                            label="Placa"
+                            name="plate"
+                            placeholder="ABC1D23"
+                            value={customer.plate ? String(customer.plate).toUpperCase() : ''}
+                            onChange={(e) =>
+                              setCustomer((prev) => ({ ...prev, plate: e.target.value.toUpperCase() }))
+                            }
+                            onBlur={() => void runPlacaLookup(false)}
+                            className="uppercase"
+                            maxLength={8}
+                            icon={<FileText className="w-4 h-4" />}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => void runPlacaLookup(true)}
+                          disabled={plateLookupLoading}
+                          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold border border-zinc-200/90 dark:border-white/[0.12] bg-white/90 dark:bg-white/[0.06] text-zinc-800 dark:text-zinc-100 hover:border-amber-400/50 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-[0.98]"
+                        >
+                          {plateLookupLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                          ) : (
+                            <Search className="w-4 h-4" aria-hidden />
+                          )}
+                          Buscar placa
+                        </button>
+                      </div>
+                      {plateLookupError ? (
+                        <p className="text-xs text-red-600 dark:text-red-400 px-1" role="alert">
+                          {plateLookupError}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 px-1">
+                          Ao sair do campo ou em &quot;Buscar placa&quot;, os dados são carregados pela API (token no servidor).
+                        </p>
+                      )}
+                    </div>
+                    <Input
+                      label="Km"
+                      name="mileageKm"
+                      placeholder="Ex: 45000"
+                      value={customer.mileageKm ?? ''}
+                      onChange={handleInputChange}
+                      icon={<Hash className="w-4 h-4" />}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Input
+                      label="Cor"
+                      name="vehicleColor"
+                      placeholder="Ex: Branca"
+                      value={customer.vehicleColor ?? ''}
+                      onChange={handleInputChange}
+                      icon={<Sparkles className="w-4 h-4" />}
+                    />
+                    <Input
+                      label="Ano / ano modelo"
+                      name="vehicleYear"
+                      placeholder="Ex: 2010 / 2010"
+                      value={customer.vehicleYear ?? ''}
+                      onChange={handleInputChange}
+                      icon={<Calendar className="w-4 h-4" />}
+                    />
+                    <Input
+                      label="Motor (cilindradas / combustível)"
+                      name="vehicleEngineInfo"
+                      placeholder="Ex: 1598 cc · Flex"
+                      value={customer.vehicleEngineInfo ?? ''}
+                      onChange={handleInputChange}
+                      icon={<Car className="w-4 h-4" />}
+                    />
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

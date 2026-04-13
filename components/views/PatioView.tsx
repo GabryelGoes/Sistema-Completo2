@@ -235,6 +235,9 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     garantia_tag: d.garantia_tag,
     order_type: detail.order_type,
     vehicle_category: detail.vehicle_category,
+    vehicle_color: detail.vehicle_color ?? null,
+    vehicle_year: detail.vehicle_year ?? null,
+    vehicle_engine_info: detail.vehicle_engine_info ?? null,
     reference_links: parseReferenceLinksFromApi(detail.reference_links),
     created_at: detail.created_at,
     updated_at: detail.updated_at,
@@ -271,6 +274,9 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     garantiaTag: o.garantia_tag === true,
     mileageKm: o.mileage_km ?? null,
     deliveryDate: o.delivery_date ?? null,
+    vehicleColor: o.vehicle_color ?? null,
+    vehicleYear: o.vehicle_year ?? null,
+    vehicleEngineInfo: o.vehicle_engine_info ?? null,
     referenceLinks: parseReferenceLinksFromApi(o.reference_links),
   };
 }
@@ -585,13 +591,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
       moduleIdentification: serviceOrderDetail.module_identification ?? '',
       plate: (serviceOrderDetail.plate ?? '').toUpperCase(),
       mileageKm: serviceOrderDetail.mileage_km ?? '',
+      vehicleColor: serviceOrderDetail.vehicle_color ?? '',
+      vehicleYear: serviceOrderDetail.vehicle_year ?? '',
+      vehicleEngineInfo: serviceOrderDetail.vehicle_engine_info ?? '',
     });
   }, [isDadosFichaExpanded, serviceOrderDetail]);
 
   const [editFichaForm, setEditFichaForm] = useState<{
     name: string; cpf: string; phone: string; email: string; cep: string; address: string; addressNumber: string;
     vehicleModel: string; moduleIdentification: string; plate: string; mileageKm: string;
-  }>({ name: '', cpf: '', phone: '', email: '', cep: '', address: '', addressNumber: '', vehicleModel: '', moduleIdentification: '', plate: '', mileageKm: '' });
+    vehicleColor: string; vehicleYear: string; vehicleEngineInfo: string;
+  }>({
+    name: '',
+    cpf: '',
+    phone: '',
+    email: '',
+    cep: '',
+    address: '',
+    addressNumber: '',
+    vehicleModel: '',
+    moduleIdentification: '',
+    plate: '',
+    mileageKm: '',
+    vehicleColor: '',
+    vehicleYear: '',
+    vehicleEngineInfo: '',
+  });
   const [newComment, setNewComment] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
 
@@ -1308,10 +1333,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
         email: c?.email ?? undefined,
         cep: c?.cep ?? '',
         address: c?.address ?? '',
+        city: c?.city ?? '',
         addressNumber: c?.address_number ?? '',
         vehicleModel: detail.vehicle_model ?? '',
         moduleIdentification: detail.module_identification ?? undefined,
         plate: (detail.plate || '').toUpperCase(),
+        vehicleColor: detail.vehicle_color ?? '',
+        vehicleYear: detail.vehicle_year ?? '',
+        vehicleEngineInfo: detail.vehicle_engine_info ?? '',
         mileageKm: detail.mileage_km ?? '',
         issueDescription: '',
       };
@@ -1651,6 +1680,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
         vehicleModel: editFichaForm.vehicleModel.trim(),
         moduleIdentification: isModuleMode ? (editFichaForm.moduleIdentification.trim() || null) : undefined,
         plate: isModuleMode ? undefined : editFichaForm.plate.trim().toUpperCase(),
+        vehicleColor: isModuleMode ? undefined : editFichaForm.vehicleColor.trim() || null,
+        vehicleYear: isModuleMode ? undefined : editFichaForm.vehicleYear.trim() || null,
+        vehicleEngineInfo: isModuleMode ? undefined : editFichaForm.vehicleEngineInfo.trim() || null,
       }, actorOptions);
       if (!isModuleMode) {
         await updateServiceOrderMileage(selectedCard.id, editFichaForm.mileageKm.trim() || null, actorOptions);
@@ -1667,6 +1699,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
         mileageKm: updated.mileage_km ?? null,
         deliveryDate: updated.delivery_date ?? selectedCard.deliveryDate,
         dateLastActivity: updated.updated_at,
+        vehicleColor: updated.vehicle_color ?? null,
+        vehicleYear: updated.vehicle_year ?? null,
+        vehicleEngineInfo: updated.vehicle_engine_info ?? null,
         referenceLinks: parseReferenceLinksFromApi(updated.reference_links),
       };
       setSelectedCard(updatedCard);
@@ -3574,16 +3609,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     </div>
                                   )}
                                   {!isModuleMode && (
-                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                      <div>
-                                        <label className={iosLabel}>Placa</label>
-                                        <input value={editFichaForm.plate} onChange={(e) => setEditFichaForm(f => ({ ...f, plate: e.target.value.toUpperCase() }))} maxLength={8} className={`${iosInput} font-mono uppercase`} placeholder="ABC1D23" />
+                                    <>
+                                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                        <div>
+                                          <label className={iosLabel}>Placa</label>
+                                          <input value={editFichaForm.plate} onChange={(e) => setEditFichaForm(f => ({ ...f, plate: e.target.value.toUpperCase() }))} maxLength={8} className={`${iosInput} font-mono uppercase`} placeholder="ABC1D23" />
+                                        </div>
+                                        <div>
+                                          <label className={iosLabel}>Quilometragem</label>
+                                          <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className={iosInput} placeholder="45000" />
+                                        </div>
                                       </div>
-                                      <div>
-                                        <label className={iosLabel}>Quilometragem</label>
-                                        <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className={iosInput} placeholder="45000" />
+                                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                                        <div>
+                                          <label className={iosLabel}>Cor</label>
+                                          <input value={editFichaForm.vehicleColor} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleColor: e.target.value }))} className={iosInput} placeholder="Ex: Branca" />
+                                        </div>
+                                        <div>
+                                          <label className={iosLabel}>Ano</label>
+                                          <input value={editFichaForm.vehicleYear} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleYear: e.target.value }))} className={iosInput} placeholder="2010 / 2010" />
+                                        </div>
+                                        <div>
+                                          <label className={iosLabel}>Motor</label>
+                                          <input value={editFichaForm.vehicleEngineInfo} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleEngineInfo: e.target.value }))} className={iosInput} placeholder="Cilindradas / combustível" />
+                                        </div>
                                       </div>
-                                    </div>
+                                    </>
                                   )}
                                 </div>
                               </div>
@@ -3673,6 +3724,39 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.mileage_km || '—'}</p>
                                         </div>
                                       </div>
+                                      {(serviceOrderDetail.vehicle_color ||
+                                        serviceOrderDetail.vehicle_year ||
+                                        serviceOrderDetail.vehicle_engine_info) && (
+                                        <>
+                                          {serviceOrderDetail.vehicle_color ? (
+                                            <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                              <FileText className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                              <div className="min-w-0 flex-1">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Cor</p>
+                                                <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_color}</p>
+                                              </div>
+                                            </div>
+                                          ) : null}
+                                          {serviceOrderDetail.vehicle_year ? (
+                                            <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                              <FileText className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                              <div className="min-w-0 flex-1">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Ano</p>
+                                                <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_year}</p>
+                                              </div>
+                                            </div>
+                                          ) : null}
+                                          {serviceOrderDetail.vehicle_engine_info ? (
+                                            <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                              <FileText className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                              <div className="min-w-0 flex-1">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Motor</p>
+                                                <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_engine_info}</p>
+                                              </div>
+                                            </div>
+                                          ) : null}
+                                        </>
+                                      )}
                                     </>
                                   )}
                                 </div>
@@ -3691,6 +3775,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     cep: c?.cep ?? '', address: c?.address ?? '', addressNumber: c?.address_number ?? '',
                                     vehicleModel: serviceOrderDetail.vehicle_model ?? '', moduleIdentification: serviceOrderDetail.module_identification ?? '',
                                     plate: (serviceOrderDetail.plate ?? '').toUpperCase(), mileageKm: serviceOrderDetail.mileage_km ?? '',
+                                    vehicleColor: serviceOrderDetail.vehicle_color ?? '',
+                                    vehicleYear: serviceOrderDetail.vehicle_year ?? '',
+                                    vehicleEngineInfo: serviceOrderDetail.vehicle_engine_info ?? '',
                                   });
                                 }}
                                 className="flex-1 min-w-[120px] rounded-2xl border border-zinc-200/90 py-3 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06] sm:flex-none sm:px-6"

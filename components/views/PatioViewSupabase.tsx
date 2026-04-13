@@ -100,9 +100,13 @@ export const PatioViewSupabase: React.FC<PatioViewSupabaseProps> = ({
         email: c?.email ?? undefined,
         cep: c?.cep ?? "",
         address: c?.address ?? "",
+        city: c?.city ?? "",
         addressNumber: c?.address_number ?? "",
         vehicleModel: detail.vehicle_model,
         plate: (detail.plate || '').toUpperCase(),
+        vehicleColor: detail.vehicle_color ?? "",
+        vehicleYear: detail.vehicle_year ?? "",
+        vehicleEngineInfo: detail.vehicle_engine_info ?? "",
         issueDescription: detail.issue_description ?? "",
       };
       onUseCustomerData(customer);

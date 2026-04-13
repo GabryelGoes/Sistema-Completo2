@@ -1630,6 +1630,101 @@ export function createApiApp() {
     }
   });
 
+  function normalizePlacaInput(raw: unknown): string {
+    return String(raw ?? "")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .toUpperCase()
+      .slice(0, 8);
+  }
+
+  /** Consulta dados do veículo pela placa (token só no servidor: PLACAFIPE_TOKEN). */
+  app.post("/api/consulta-placa", async (req, res) => {
+    try {
+      const token = process.env.PLACAFIPE_TOKEN;
+      if (!token || !String(token).trim()) {
+        return res.status(503).json({
+          error:
+            "Consulta por placa não configurada. Defina PLACAFIPE_TOKEN no ambiente do servidor (ex.: Vercel).",
+        });
+      }
+      const placa = normalizePlacaInput(req.body?.placa ?? req.body?.plate);
+      if (placa.length < 7) {
+        return res.status(400).json({ error: "Informe uma placa válida (mínimo 7 caracteres)." });
+      }
+
+      const upstream = await fetch("https://api.placafipe.com.br/getplaca", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placa, token: String(token).trim() }),
+      });
+
+      const data = (await upstream.json().catch(() => null)) as Record<string, unknown> | null;
+      if (!data || typeof data !== "object") {
+        return res.status(502).json({ error: "Resposta inválida da consulta de placa." });
+      }
+
+      const codigo = data.codigo;
+      const ok =
+        codigo === 1 || codigo === "1" || Number(codigo) === 1;
+
+      if (!ok) {
+        const msg =
+          typeof data.msg === "string" && data.msg.trim()
+            ? data.msg.trim()
+            : "Veículo não encontrado ou consulta indisponível.";
+        return res.status(404).json({ error: msg, codigo });
+      }
+
+      const infoRaw = data.informacoes_veiculo;
+      const info =
+        infoRaw && typeof infoRaw === "object"
+          ? (infoRaw as Record<string, unknown>)
+          : {};
+
+      const str = (v: unknown) =>
+        v == null ? "" : String(v).replace(/\s+/g, " ").trim();
+
+      const marca = str(info.marca);
+      const modelo = str(info.modelo);
+      const vehicleModel = [marca, modelo].filter(Boolean).join(" ").trim() || null;
+
+      const anoModelo = str(info.ano_modelo);
+      const ano = str(info.ano);
+      const vehicleYear =
+        anoModelo && ano && anoModelo !== ano
+          ? `${anoModelo} / ${ano}`
+          : anoModelo || ano || null;
+
+      const cor = str(info.cor);
+      const cil = str(info.cilindradas);
+      const comb = str(info.combustivel);
+      const engineParts: string[] = [];
+      if (cil) engineParts.push(`${cil} cc`);
+      if (comb) engineParts.push(comb);
+      const vehicleEngineInfo = engineParts.length > 0 ? engineParts.join(" · ") : null;
+
+      const municipio = str(info.municipio);
+      const uf = str(info.uf);
+      const citySuggestion =
+        municipio && uf ? `${municipio} — ${uf}` : municipio || uf || null;
+
+      const plateApi = (str(info.placa) || str(data.placa) || placa).toUpperCase();
+
+      return res.json({
+        plate: plateApi,
+        vehicleModel,
+        vehicleColor: cor || null,
+        vehicleYear,
+        vehicleEngineInfo,
+        citySuggestion,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro desconhecido";
+      console.error("[API] POST /api/consulta-placa:", err);
+      return res.status(500).json({ error: msg });
+    }
+  });
+
   // ----------------- ORDENS DE SERVIÇO -----------------
   app.get("/api/service-orders", async (req, res) => {
     try {
@@ -1646,7 +1741,7 @@ export function createApiApp() {
       let query = supabaseAdmin
         .from("service_orders")
         .select(
-          "id, os_number, customer_id, vehicle_model, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, reference_links, created_at, updated_at"
+          "id, os_number, customer_id, vehicle_model, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, created_at, updated_at"
         )
         .eq("workshop_id", WORKSHOP_ID)
         .order("created_at", { ascending: false });
@@ -1749,6 +1844,9 @@ export function createApiApp() {
         aiAnalysis,
         orderType: bodyOrderType,
         vehicleCategory: bodyVehicleCategory,
+        vehicleColor: bodyVehicleColor,
+        vehicleYear: bodyVehicleYear,
+        vehicleEngineInfo: bodyVehicleEngineInfo,
       } = req.body;
 
       const orderType = bodyOrderType === "module" ? "module" : "vehicle";
@@ -1786,6 +1884,18 @@ export function createApiApp() {
           ? bodyVehicleCategory.trim() || null
           : null;
 
+      const trimOrNull = (v: unknown) => {
+        if (v == null) return null;
+        const t = String(v).trim();
+        return t === "" ? null : t;
+      };
+      const vehicleColorIns =
+        orderType === "vehicle" ? trimOrNull(bodyVehicleColor) : null;
+      const vehicleYearIns =
+        orderType === "vehicle" ? trimOrNull(bodyVehicleYear) : null;
+      const vehicleEngineInfoIns =
+        orderType === "vehicle" ? trimOrNull(bodyVehicleEngineInfo) : null;
+
       const { data, error } = await supabaseAdmin
         .from("service_orders")
         .insert({
@@ -1801,6 +1911,9 @@ export function createApiApp() {
           status: FIRST_STAGE,
           order_type: orderType,
           vehicle_category: vehicleCategoryTrimmed,
+          vehicle_color: vehicleColorIns,
+          vehicle_year: vehicleYearIns,
+          vehicle_engine_info: vehicleEngineInfoIns,
         })
         .select("*")
         .single();
@@ -4460,6 +4573,9 @@ export function createApiApp() {
         orderType: bodyOrderType,
         vehicleCategory: bodyVehicleCategoryPut,
         referenceLinks: bodyReferenceLinks,
+        vehicleColor: bodyVehicleColorPut,
+        vehicleYear: bodyVehicleYearPut,
+        vehicleEngineInfo: bodyVehicleEngineInfoPut,
         actor,
         actorTechnicianSlug,
         actorTechnicianName,
@@ -4521,6 +4637,9 @@ export function createApiApp() {
         if (bodyOrderType === "module") {
           updatePayload.plate = null;
           updatePayload.mileage_km = null;
+          updatePayload.vehicle_color = null;
+          updatePayload.vehicle_year = null;
+          updatePayload.vehicle_engine_info = null;
         }
       }
       if (bodyVehicleCategoryPut !== undefined) {
@@ -4529,6 +4648,24 @@ export function createApiApp() {
         } else if (typeof bodyVehicleCategoryPut === "string") {
           updatePayload.vehicle_category = bodyVehicleCategoryPut.trim() || null;
         }
+      }
+      if (bodyVehicleColorPut !== undefined) {
+        updatePayload.vehicle_color =
+          bodyVehicleColorPut == null || String(bodyVehicleColorPut).trim() === ""
+            ? null
+            : String(bodyVehicleColorPut).trim();
+      }
+      if (bodyVehicleYearPut !== undefined) {
+        updatePayload.vehicle_year =
+          bodyVehicleYearPut == null || String(bodyVehicleYearPut).trim() === ""
+            ? null
+            : String(bodyVehicleYearPut).trim();
+      }
+      if (bodyVehicleEngineInfoPut !== undefined) {
+        updatePayload.vehicle_engine_info =
+          bodyVehicleEngineInfoPut == null || String(bodyVehicleEngineInfoPut).trim() === ""
+            ? null
+            : String(bodyVehicleEngineInfoPut).trim();
       }
       if (bodyReferenceLinks !== undefined) {
         if (!Array.isArray(bodyReferenceLinks)) {

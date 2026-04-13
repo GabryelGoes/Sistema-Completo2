@@ -11,10 +11,18 @@ export interface Customer {
   /** Apenas modo módulo (Laboratório): identificação do módulo */
   moduleIdentification?: string;
   plate: string;
+  /** Cor do veículo (ex.: consulta PlacaFipe) */
+  vehicleColor?: string;
+  /** Ano ou ano/modelo em texto */
+  vehicleYear?: string;
+  /** Motor: cilindradas, combustível, etc. */
+  vehicleEngineInfo?: string;
   /** Quilometragem do veículo (Km) */
   mileageKm?: string;
   issueDescription: string;
   aiAnalysis?: string;
+  /** Fluxo agenda → recepção (vínculo opcional com card Trello) */
+  trelloCardId?: string;
 }
 
 export interface ProcessingStatus {
@@ -101,6 +109,10 @@ export interface BoardCard {
   osNumber?: number | null;
   /** Categoria do veículo na recepção (Compacto, Médio/SUV, Pick-Up, Premium). Só Pátio (veículo). */
   vehicleCategory?: string | null;
+  /** Cor / ano / motor (texto) vindos da recepção ou consulta placa. */
+  vehicleColor?: string | null;
+  vehicleYear?: string | null;
+  vehicleEngineInfo?: string | null;
   /** Links úteis salvos no modal do veículo/módulo. */
   referenceLinks?: VehicleReferenceLink[];
 }

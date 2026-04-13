@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, X, Camera } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, X, Camera, Search, Loader2 } from 'lucide-react';
 import { Customer, ProcessingStatus } from '../types';
 import { ProcessingOverlay } from './ProcessingOverlay';
-import { saveReceptionIntake, uploadServiceOrderPhoto } from '../services/apiService';
+import { saveReceptionIntake, uploadServiceOrderPhoto, consultPlacaFipe } from '../services/apiService';
 import { iosModalShell, iosModalClose, iosLabel, iosInput, iosPrimaryButton } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 
@@ -13,12 +13,23 @@ const emptyCustomer: Customer = {
   email: '',
   cep: '',
   address: '',
+  city: '',
   addressNumber: '',
   vehicleModel: '',
   plate: '',
+  vehicleColor: '',
+  vehicleYear: '',
+  vehicleEngineInfo: '',
   mileageKm: '',
   issueDescription: '',
 };
+
+function normalizePlacaLocal(raw: string) {
+  return String(raw ?? '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+    .slice(0, 8);
+}
 
 interface ReceptionModalProps {
   isOpen: boolean;
@@ -38,6 +49,9 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
 }) => {
   const [customer, setCustomer] = useState<Customer>({ ...emptyCustomer });
   const [status, setStatus] = useState<ProcessingStatus>({ step: 'idle' });
+  const [plateLookupLoading, setPlateLookupLoading] = useState(false);
+  const [plateLookupError, setPlateLookupError] = useState<string | null>(null);
+  const lastFetchedPlacaRef = useRef<string | null>(null);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,9 +65,13 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
         email: initialData.email ?? '',
         cep: initialData.cep ?? '',
         address: initialData.address ?? '',
+        city: initialData.city ?? '',
         addressNumber: initialData.addressNumber ?? '',
         vehicleModel: initialData.vehicleModel ?? '',
         plate: initialData.plate ?? '',
+        vehicleColor: initialData.vehicleColor ?? '',
+        vehicleYear: initialData.vehicleYear ?? '',
+        vehicleEngineInfo: initialData.vehicleEngineInfo ?? '',
         mileageKm: initialData.mileageKm ?? '',
         issueDescription: initialData.issueDescription ?? '',
         trelloCardId: initialData.trelloCardId,
@@ -72,6 +90,47 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
   const handlePlateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomer((prev) => ({ ...prev, plate: e.target.value.toUpperCase() }));
   };
+
+  const runPlacaLookup = useCallback(
+    async (force?: boolean) => {
+      const p = normalizePlacaLocal(customer.plate);
+      if (p.length < 7) {
+        setPlateLookupError('Placa incompleta (mín. 7 caracteres).');
+        return;
+      }
+      if (!force && lastFetchedPlacaRef.current === p) return;
+      setPlateLookupError(null);
+      setPlateLookupLoading(true);
+      try {
+        const result = await consultPlacaFipe(p);
+        lastFetchedPlacaRef.current = normalizePlacaLocal(result.plate || p);
+        setCustomer((prev) => ({
+          ...prev,
+          plate: (result.plate || p).toUpperCase(),
+          vehicleModel: result.vehicleModel?.trim() || prev.vehicleModel,
+          vehicleColor: result.vehicleColor?.trim() || prev.vehicleColor,
+          vehicleYear: result.vehicleYear?.trim() || prev.vehicleYear,
+          vehicleEngineInfo: result.vehicleEngineInfo?.trim() || prev.vehicleEngineInfo,
+          city:
+            result.citySuggestion && !(prev.city && prev.city.trim())
+              ? result.citySuggestion
+              : prev.city,
+        }));
+      } catch (e: unknown) {
+        setPlateLookupError(e instanceof Error ? e.message : 'Falha na consulta.');
+      } finally {
+        setPlateLookupLoading(false);
+      }
+    },
+    [customer.plate]
+  );
+
+  useEffect(() => {
+    const p = normalizePlacaLocal(customer.plate);
+    if (lastFetchedPlacaRef.current != null && p !== lastFetchedPlacaRef.current) {
+      lastFetchedPlacaRef.current = null;
+    }
+  }, [customer.plate]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -255,27 +314,85 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
                   <input
                     type="text"
                     name="vehicleModel"
-                    placeholder="Ex.: BMW 320i"
+                    placeholder="Ex.: BMW 320i ou pela placa"
                     value={customer.vehicleModel}
                     onChange={handleInputChange}
                     className={`${iosInput} pl-10`}
                   />
                 </div>
               </div>
-              <div>
+              <div className="space-y-2">
                 <label className={iosLabel}>Placa</label>
-                <div className="relative">
-                  <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    name="plate"
-                    placeholder="ABC-1D23"
-                    value={customer.plate ? customer.plate.toUpperCase() : ''}
-                    onChange={handlePlateChange}
-                    maxLength={8}
-                    className={`${iosInput} pl-10 uppercase`}
-                  />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                  <div className="relative flex-1 min-w-0">
+                    <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      name="plate"
+                      placeholder="ABC1D23"
+                      value={customer.plate ? customer.plate.toUpperCase() : ''}
+                      onChange={handlePlateChange}
+                      onBlur={() => void runPlacaLookup(false)}
+                      maxLength={8}
+                      className={`${iosInput} pl-10 uppercase w-full`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => void runPlacaLookup(true)}
+                    disabled={plateLookupLoading}
+                    className="shrink-0 flex items-center justify-center gap-2 rounded-xl border border-zinc-200/90 px-3 py-2.5 text-sm font-semibold text-zinc-800 dark:border-white/[0.12] dark:text-zinc-100 disabled:opacity-50"
+                  >
+                    {plateLookupLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Search className="w-4 h-4" aria-hidden />
+                    )}
+                    Buscar placa
+                  </button>
                 </div>
+                {plateLookupError ? (
+                  <p className="text-xs text-red-600 dark:text-red-400">{plateLookupError}</p>
+                ) : (
+                  <p className="text-[11px] text-zinc-500">Token da API fica só no servidor (Vercel).</p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className={iosLabel}>Cor</label>
+                <input
+                  type="text"
+                  name="vehicleColor"
+                  placeholder="Ex.: Branca"
+                  value={customer.vehicleColor ?? ''}
+                  onChange={handleInputChange}
+                  className={iosInput}
+                />
+              </div>
+              <div>
+                <label className={iosLabel}>Ano</label>
+                <input
+                  type="text"
+                  name="vehicleYear"
+                  placeholder="2010 / 2010"
+                  value={customer.vehicleYear ?? ''}
+                  onChange={handleInputChange}
+                  className={iosInput}
+                />
+              </div>
+              <div>
+                <label className={iosLabel}>Motor</label>
+                <input
+                  type="text"
+                  name="vehicleEngineInfo"
+                  placeholder="Cilindradas / combustível"
+                  value={customer.vehicleEngineInfo ?? ''}
+                  onChange={handleInputChange}
+                  className={iosInput}
+                />
               </div>
             </div>
 
