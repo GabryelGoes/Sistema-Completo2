@@ -1,10 +1,16 @@
 import React from 'react';
 import { FileText, Download, X } from 'lucide-react';
+import { ModalPortal } from './ui/ModalPortal';
 
-/** Modal em tela cheia com iframe para visualizar PDF (mesma URL usada no Pátio para OS ativas). */
+/**
+ * Modal em tela cheia com iframe para visualizar PDF.
+ * Renderizado em `document.body` com z-index acima dos modais do Pátio (portal z-[100]),
+ * senão o visualizador ficaria invisível atrás do overlay do veículo.
+ */
 export function PdfViewerModal({ src, onClose }: { src: string; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-xl animate-modal-backdrop">
+    <ModalPortal>
+    <div className="fixed inset-0 z-[300] flex flex-col bg-black/95 backdrop-blur-xl animate-modal-backdrop">
       <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/80">
         <div className="flex items-center gap-3">
           <FileText className="w-6 h-6 text-brand-yellow" />
@@ -33,5 +39,6 @@ export function PdfViewerModal({ src, onClose }: { src: string; onClose: () => v
         <iframe src={src} className="w-full h-full border-0" title="PDF Preview" />
       </div>
     </div>
+    </ModalPortal>
   );
 }

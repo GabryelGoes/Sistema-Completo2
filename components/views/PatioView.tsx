@@ -150,6 +150,12 @@ function attachmentDisplayName(fileName: string): string {
   return cleaned || base;
 }
 
+/** PDF por mime ou por extensão na URL (inclui `arquivo.pdf?token=…`). */
+function isPdfAttachment(mimeType: string | undefined, url: string): boolean {
+  if (mimeType === 'application/pdf') return true;
+  return /\.pdf(\?|#|$)/i.test(url);
+}
+
 /** Remove texto legado "Categoria do veículo: ..." do início da queixa (antes era salvo junto). */
 function stripLegacyVehicleCategoryFromComplaint(text: string | null | undefined): string {
   if (!text) return "";
@@ -3118,8 +3124,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <div className="space-y-2">
                                   <div className="grid grid-cols-2 gap-2">
                                      {histVisible.map(att => {
-                                       const isPdf =
-                                         att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
+                                       const isPdf = isPdfAttachment(att.mimeType, att.url);
                                        const isImage =
                                          att.mimeType.startsWith('image/') ||
                                          /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url);
@@ -4315,7 +4320,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             </h3>
                                             <div className="flex flex-wrap gap-2">
                                               {others.map(att => {
-                                                const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
+                                                const isPdf = isPdfAttachment(att.mimeType, att.url);
                                                 const isLoadingThis = loadingAttachmentId === att.id;
                                                 const isDeletingThis = deletingAttachmentId === att.id;
                                                 const isRenamingThis = renamingAttachmentId === att.id;
