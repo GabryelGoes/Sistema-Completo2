@@ -29,7 +29,8 @@ export interface StageConfig {
 export const SERVICE_ORDER_STAGES: StageConfig[] = [
   { id: "GARANTIA", name: "Garantia", style: "bg-red-600 text-white border-red-600", ringClass: "ring-2 ring-red-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 0 },
   { id: "AGUARDANDO_AVALIACAO", name: "Aguardando avaliação", style: "bg-zinc-500 text-white border-zinc-600", ringClass: "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 1 },
-  { id: "AVALIACAO_TECNICA", name: "Avaliação técnica", style: "bg-brand-yellow text-black border-brand-yellow", ringClass: "ring-2 ring-brand-yellow ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 2 },
+  /** Amarelo fixo do fluxo — não usa `brand-yellow` (cor configurável do app) para não misturar com a personalização. */
+  { id: "AVALIACAO_TECNICA", name: "Avaliação técnica", style: "bg-[#F5D00B] text-black border-[#F5D00B]", ringClass: "ring-2 ring-[#F5D00B] ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 2 },
   { id: "AGUARDANDO_APROVACAO", name: "Aguardando aprovação", style: "bg-amber-500 text-amber-950 border-amber-600", ringClass: "ring-2 ring-amber-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 3 },
   { id: "ORCAMENTO_APROVADO", name: "Orçamento aprovado", style: "bg-orange-600 text-white border-orange-600", ringClass: "ring-2 ring-orange-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 4 },
   { id: "AGUARDANDO_PECAS", name: "Aguardando peças", style: "bg-teal-500 text-white border-teal-500", ringClass: "ring-2 ring-teal-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 5 },
