@@ -4,7 +4,7 @@
  * - HTML: rede primeiro; cache só como fallback offline.
  * - Nome do cache versionado para limpar caches antigos após deploy.
  */
-const CACHE_VERSION = 'rei-do-abs-v3';
+const CACHE_VERSION = 'rei-do-abs-v4';
 const CACHE_NAME = `static-${CACHE_VERSION}`;
 
 /** Só pré-cache de assets que não mudam o shell do app; evita travar index.html antigo. */
@@ -52,8 +52,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // APIs do próprio app: sempre rede (dados frescos)
+  // APIs do próprio app: sempre rede direta (evita cache / comportamento estranho em POST multipart no tablet)
   if (isSameOriginApi(url)) {
+    event.respondWith(fetch(event.request));
     return;
   }
 

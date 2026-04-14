@@ -804,22 +804,35 @@ export async function uploadServiceOrderPhoto(
   const name = toSend === file ? fileName : (fileName.replace(/\.\w+$/i, ".jpg") || "photo.jpg");
   const formData = new FormData();
   formData.append("file", toSend, name);
-  const url = `${API_BASE}/service-orders/${id}/photos`;
+  const path = `/service-orders/${id}/photos`;
+  const url =
+    API_BASE.startsWith("/") && typeof window !== "undefined"
+      ? new URL(`${API_BASE.replace(/\/$/, "")}${path}`, window.location.origin).href
+      : `${API_BASE.replace(/\/$/, "")}${path}`;
   let response: Response;
+  const sameOrigin =
+    typeof window !== "undefined" && url.startsWith(`${window.location.origin}/`);
   try {
     response = await fetch(url, {
       method: "POST",
       body: formData,
+      cache: "no-store",
+      ...(sameOrigin ? ({ mode: "same-origin" } as const) : {}),
     });
   } catch (e) {
     const isNetwork =
       e instanceof TypeError && (String(e.message).includes("fetch") || String(e.message).includes("NetworkError"));
     if (isNetwork) {
-      const base = typeof import.meta.env.VITE_API_BASE === "string" && import.meta.env.VITE_API_BASE.trim() !== "";
+      const hasViteBase =
+        typeof import.meta.env.VITE_API_BASE === "string" && import.meta.env.VITE_API_BASE.trim() !== "";
+      const healthHint =
+        typeof window !== "undefined"
+          ? ` Abra no navegador: ${window.location.origin}/api/health — se não carregar JSON, a API não está acessível neste endereço.`
+          : "";
       throw new Error(
-        base
-          ? "Não foi possível conectar à API. Verifique a internet, VPN e se o domínio do front está em CORS_ALLOWED_ORIGINS na Vercel (variável de ambiente da API). Páginas HTTPS não podem chamar API em HTTP em outro host (conteúdo misto)."
-          : "Não foi possível conectar ao servidor. Verifique a internet, VPN ou firewall. Se o app abre em outro domínio que a API, configure CORS_ALLOWED_ORIGINS no servidor."
+        hasViteBase
+          ? `Não foi possível enviar o arquivo (rede ou bloqueio entre domínios). Confira CORS_ALLOWED_ORIGINS na Vercel e se a página HTTPS não chama API em HTTP.${healthHint}`
+          : `Não foi possível enviar o arquivo. Verifique Wi‑Fi, VPN e firewall.${healthHint} Se você instalou o app como PWA, abra também pelo Chrome e atualize (Ctrl+F5). Em deploy com domínio próprio, pode ser necessário definir VITE_API_BASE=https://seu-dominio.com/api no build do front.`
       );
     }
     throw e;
