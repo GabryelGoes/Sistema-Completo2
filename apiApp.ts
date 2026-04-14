@@ -56,10 +56,24 @@ function parsePatioViewOrigins(): string[] {
   return merged;
 }
 
+/** Origens extras (ex.: app em outro domínio, Capacitor, tablet com URL absoluta em VITE_API_BASE). */
+function parseCorsAllowedOrigins(): string[] {
+  const extra = (process.env.CORS_ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+  const patio = parsePatioViewOrigins();
+  const devDefaults =
+    process.env.NODE_ENV !== "production"
+      ? ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173", "http://127.0.0.1:5173"]
+      : [];
+  return [...new Set([...patio, ...extra, ...devDefaults])];
+}
+
 export function createApiApp() {
   const app = express();
   const WORKSHOP_ID = process.env.WORKSHOP_ID;
-  const patioViewOrigins = parsePatioViewOrigins();
+  const corsAllowedOrigins = parseCorsAllowedOrigins();
   app.use(express.json());
 
   /** Atualiza `updated_at` na OS para disparar Realtime/SSE (ex.: após mudança só no Storage). */
@@ -95,17 +109,21 @@ export function createApiApp() {
     return safe || "arquivo";
   }
 
-  // CORS: painel da TV (Patio-View) em outro domínio — ecoa Origin só se estiver na lista permitida
+  // CORS: TV (Patio-View), CORS_ALLOWED_ORIGINS e dev — necessário se o front chama API em outro host (VITE_API_BASE).
   app.use((req, res, next) => {
     const origin = req.headers.origin;
-    if (typeof origin === "string" && patioViewOrigins.includes(origin)) {
+    if (typeof origin === "string" && corsAllowedOrigins.includes(origin)) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Vary", "Origin");
-    } else if (patioViewOrigins.length === 1 && origin === undefined) {
-      res.setHeader("Access-Control-Allow-Origin", patioViewOrigins[0]);
+    } else if (corsAllowedOrigins.length === 1 && origin === undefined) {
+      res.setHeader("Access-Control-Allow-Origin", corsAllowedOrigins[0]);
     }
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-Requested-With, Accept, Accept-Language"
+    );
+    res.setHeader("Access-Control-Max-Age", "86400");
     if (req.method === "OPTIONS") return res.sendStatus(204);
     next();
   });

@@ -786,20 +786,44 @@ export async function getServiceOrderPhotos(id: string): Promise<ServiceOrderPho
   return response.json();
 }
 
+/** Limite seguro do corpo no Vercel (serverless ~4,5 MB); evita "Failed to fetch" por corte abrupto. */
+const UPLOAD_MAX_BYTES = 3.5 * 1024 * 1024;
+
 export async function uploadServiceOrderPhoto(
   id: string,
   file: Blob,
   fileName: string
 ): Promise<ServiceOrderPhoto> {
   const { compressImageForUpload } = await import("../utils/imageUpload");
-  const toSend = await compressImageForUpload(file);
+  const toSend = await compressImageForUpload(file, 3 * 1024 * 1024);
+  if (toSend.size > UPLOAD_MAX_BYTES) {
+    throw new Error(
+      `Arquivo muito grande (${Math.max(1, Math.round(toSend.size / 1024 / 1024))} MB). Limite para envio é ~3,5 MB. Tente outra imagem ou reduza a resolução.`
+    );
+  }
   const name = toSend === file ? fileName : (fileName.replace(/\.\w+$/i, ".jpg") || "photo.jpg");
   const formData = new FormData();
   formData.append("file", toSend, name);
-  const response = await fetch(`${API_BASE}/service-orders/${id}/photos`, {
-    method: "POST",
-    body: formData,
-  });
+  const url = `${API_BASE}/service-orders/${id}/photos`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      body: formData,
+    });
+  } catch (e) {
+    const isNetwork =
+      e instanceof TypeError && (String(e.message).includes("fetch") || String(e.message).includes("NetworkError"));
+    if (isNetwork) {
+      const base = typeof import.meta.env.VITE_API_BASE === "string" && import.meta.env.VITE_API_BASE.trim() !== "";
+      throw new Error(
+        base
+          ? "Não foi possível conectar à API. Verifique a internet, VPN e se o domínio do front está em CORS_ALLOWED_ORIGINS na Vercel (variável de ambiente da API). Páginas HTTPS não podem chamar API em HTTP em outro host (conteúdo misto)."
+          : "Não foi possível conectar ao servidor. Verifique a internet, VPN ou firewall. Se o app abre em outro domínio que a API, configure CORS_ALLOWED_ORIGINS no servidor."
+      );
+    }
+    throw e;
+  }
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao enviar foto (${response.status})`);

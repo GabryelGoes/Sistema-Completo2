@@ -3,7 +3,8 @@
  * Limite típico do corpo da requisição em serverless é 4,5 MB.
  */
 
-const DEFAULT_MAX_BYTES = 4 * 1024 * 1024; // 4 MB
+/** Corpo máx. ~4,5 MB no Vercel; multipart deixa margem para boundary. */
+const DEFAULT_MAX_BYTES = 3 * 1024 * 1024; // 3 MB — alvo seguro antes do upload
 const MAX_DIMENSION = 1920;
 const JPEG_QUALITY_START = 0.88;
 const JPEG_QUALITY_MIN = 0.5;
