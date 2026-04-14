@@ -9,7 +9,12 @@ const JPEG_QUALITY_START = 0.88;
 const JPEG_QUALITY_MIN = 0.5;
 
 function isImageType(blob: Blob): boolean {
-  return blob.type.startsWith("image/");
+  if (blob.type.startsWith("image/")) return true;
+  // Tablets/Android às vezes enviam screenshot com type vazio ou genérico; inferir pela extensão.
+  if (blob instanceof File && blob.name) {
+    return /\.(png|jpe?g|gif|webp|heic|heif|bmp)$/i.test(blob.name);
+  }
+  return false;
 }
 
 /**

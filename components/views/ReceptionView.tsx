@@ -103,7 +103,7 @@ const DetailMarkdownComponents = {
 function attachmentMimeType(name: string): string {
   const n = (name || '').toLowerCase();
   if (n.endsWith('.pdf')) return 'application/pdf';
-  if (/\.(jpg|jpeg|png|gif|webp)$/.test(n)) return 'image/*';
+  if (/\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/.test(n)) return 'image/*';
   return 'application/octet-stream';
 }
 
@@ -963,8 +963,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   type="file" 
                   ref={fileInputRef} 
                   className="hidden" 
-                  accept="image/*"
-                  capture="environment"
+                  accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
                   onChange={handleFileSelect}
                 />
                 {!photoPreview ? (
@@ -974,7 +973,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     className="w-full py-4 border border-zinc-200/90 dark:border-white/[0.1] rounded-2xl flex items-center justify-center gap-3 text-zinc-600 dark:text-zinc-300 bg-white/50 dark:bg-white/[0.04] backdrop-blur-md hover:border-[#007AFF]/40 hover:bg-white/80 dark:hover:bg-white/[0.08] transition-all active:scale-[0.99]"
                   >
                     <Camera className="w-5 h-5" />
-                    <span className="font-medium text-sm">{receptionMode === 'module' ? 'Foto do módulo' : 'Foto do veículo'}</span>
+                    <span className="font-medium text-sm">{receptionMode === 'module' ? 'Foto do módulo (câmera ou galeria)' : 'Foto do veículo (câmera ou galeria)'}</span>
                   </button>
                 ) : (
                   <div className="relative rounded-[1.25rem] overflow-hidden border border-zinc-200/80 dark:border-white/[0.1] bg-zinc-100/80 dark:bg-black/40 backdrop-blur-sm shadow-inner">

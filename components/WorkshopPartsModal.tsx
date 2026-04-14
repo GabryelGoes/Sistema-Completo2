@@ -1062,15 +1062,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 <input
                   ref={createPhotoInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
                   className="hidden"
                   onChange={handleNewPartImageSelected}
                 />
                 <input
                   ref={createCameraInputRef}
                   type="file"
-                  accept="image/*"
-                  capture="environment"
+                  accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
                   className="hidden"
                   onChange={handleNewPartImageSelected}
                 />
@@ -1311,15 +1310,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             <input
               ref={editPhotoInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
               className="hidden"
               onChange={handleExistingPartImageSelected}
             />
             <input
               ref={editCameraInputRef}
               type="file"
-              accept="image/*"
-              capture="environment"
+              accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
               className="hidden"
               onChange={handleExistingPartImageSelected}
             />

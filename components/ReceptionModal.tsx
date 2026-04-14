@@ -441,7 +441,7 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
 
             <div>
               <label className={iosLabel}>Foto (opcional)</label>
-              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleFileSelect} />
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif" onChange={handleFileSelect} />
               {!photoPreview ? (
                 <button
                   type="button"
@@ -449,7 +449,7 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
                   className="w-full py-4 border border-zinc-200/90 dark:border-white/[0.1] rounded-2xl flex items-center justify-center gap-3 text-zinc-600 dark:text-zinc-300 bg-white/50 dark:bg-white/[0.04] backdrop-blur-md hover:border-[#007AFF]/40 hover:bg-white/80 dark:hover:bg-white/[0.08] transition-all active:scale-[0.99]"
                 >
                   <Camera className="w-5 h-5" />
-                  <span className="text-[15px] font-medium">Adicionar foto do veículo</span>
+                  <span className="text-[15px] font-medium">Foto (câmera ou galeria)</span>
                 </button>
               ) : (
                 <div className="relative rounded-[1.25rem] overflow-hidden border border-zinc-200/80 dark:border-white/[0.1] bg-zinc-100/80 dark:bg-black/40 shadow-inner">
