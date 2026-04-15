@@ -16,6 +16,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
   getWorkshopParts,
@@ -577,6 +578,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       setEditingStock('');
     }
   }, [filteredParts, editingId]);
+
+  useRegisterModalOpen(isOpen);
 
   if (!isOpen) return null;
 

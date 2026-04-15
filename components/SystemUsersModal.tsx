@@ -10,6 +10,7 @@ import {
   deleteSystemUser,
   effectivePatioApproveBudgetItems,
 } from '../services/apiService';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 /** Switch reutilizável para permissões */
 function PermSwitch({
@@ -258,6 +259,8 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
       setDeletingId(null);
     }
   };
+
+  useRegisterModalOpen(isOpen);
 
   if (!isOpen) return null;
 

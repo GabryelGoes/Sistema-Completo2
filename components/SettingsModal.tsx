@@ -4,6 +4,7 @@ import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from
 import { IosModalHeader } from './ui/IosModalHeader';
 import { AccentColorPicker } from './AccentColorPicker';
 import type { AppAppearance } from '../utils/appAppearance';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSaveWorkspaceAppearance,
   workspaceAppearanceSaving = false,
 }) => {
+  useRegisterModalOpen(isOpen);
   if (!isOpen) return null;
 
   return (

@@ -33,6 +33,7 @@ export function isZayaNotificationType(type: string): boolean {
 import { playOtherNotificationSound } from '../utils/notificationSound';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 const ADMIN_DISPLAY_NAME = 'Rei do ABS';
 
@@ -165,6 +166,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 }) => {
   const isDark = theme === 'dark';
   const [open, setOpen] = useState(false);
+  useRegisterModalOpen(open);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(() =>
     typeof Notification !== 'undefined' ? Notification.permission : null
   );

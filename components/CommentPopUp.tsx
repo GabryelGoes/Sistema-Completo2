@@ -8,6 +8,7 @@ import {
   iosModalShell,
   iosInput,
 } from './ui/iosModalStyles';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 interface CommentPopUpProps {
   notification: Notification;
@@ -43,6 +44,8 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
   const [loadingConversation, setLoadingConversation] = useState(true);
   const [adminPhotoUrlFallback, setAdminPhotoUrlFallback] = useState<string | null>(null);
   const conversationEndRef = useRef<HTMLDivElement>(null);
+
+  useRegisterModalOpen(true);
 
   const isDark = theme === 'dark';
   const titleClass = isDark ? 'text-white' : 'text-zinc-900';

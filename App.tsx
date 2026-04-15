@@ -28,6 +28,7 @@ import {
   parseAppAppearance,
   type AppAppearance,
 } from './utils/appAppearance';
+import { ModalLayerProvider } from './components/ui/ModalLayerContext';
 
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
@@ -303,6 +304,7 @@ export default function App() {
       canArchiveCard: perms.patio_archive_card,
     };
     return (
+      <ModalLayerProvider>
       <div
         className="min-h-screen flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
         data-effects={effectsEnabled ? 'on' : 'off'}
@@ -499,10 +501,12 @@ export default function App() {
           onPendingZayaConsumed={clearPendingZayaNotification}
         />
       </div>
+      </ModalLayerProvider>
     );
   }
 
   return (
+    <ModalLayerProvider>
     <div
       className="min-h-screen flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
       data-effects={effectsEnabled ? 'on' : 'off'}
@@ -712,5 +716,6 @@ export default function App() {
         onPendingZayaConsumed={clearPendingZayaNotification}
       />
     </div>
+    </ModalLayerProvider>
   );
 }

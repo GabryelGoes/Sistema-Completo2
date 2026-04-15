@@ -4,6 +4,7 @@ import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard, iosIn
 import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopSettings, updateWorkshopSettings, uploadWorkshopAdminPhoto } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 interface AdminProfileModalProps {
   isOpen: boolean;
@@ -101,6 +102,8 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
       setSavingAdmin(false);
     }
   };
+
+  useRegisterModalOpen(isOpen);
 
   if (!isOpen) return null;
 

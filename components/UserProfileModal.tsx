@@ -8,6 +8,7 @@ import {
   uploadMyProfilePhoto,
 } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 const ACCENT_COLORS = [
   { id: 'blue', label: 'Azul', bg: 'bg-blue-500', ring: 'ring-blue-500' },
@@ -176,6 +177,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       setChangingPassword(false);
     }
   };
+
+  useRegisterModalOpen(isOpen);
 
   if (!isOpen) return null;
 

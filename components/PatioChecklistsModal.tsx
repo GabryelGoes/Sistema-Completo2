@@ -9,6 +9,7 @@ import {
   deleteChecklistTemplate,
   type ChecklistTemplate,
 } from '../services/apiService';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 interface PatioChecklistsModalProps {
   isOpen: boolean;
@@ -112,6 +113,8 @@ export const PatioChecklistsModal: React.FC<PatioChecklistsModalProps> = ({ isOp
       setError(e instanceof Error ? e.message : 'Erro ao excluir.');
     }
   };
+
+  useRegisterModalOpen(isOpen);
 
   if (!isOpen) return null;
 

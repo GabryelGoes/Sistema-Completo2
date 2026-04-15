@@ -4,6 +4,7 @@ import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard, iosIn
 import { IosModalHeader } from './ui/IosModalHeader';
 import { getZayaAlerts, saveZayaAlerts, type ZayaAlertsAvailableUser } from '../services/apiService';
 import { ZAYA_ALERT_OPTIONS } from '../constants/zayaAlertTypes';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 type SubscriberDraft = { systemUserId: string; alertTypes: string[]; displayName: string };
 
@@ -166,6 +167,8 @@ export const ZayaAlertsModal: React.FC<ZayaAlertsModalProps> = ({ isOpen, onClos
       setSaving(false);
     }
   };
+
+  useRegisterModalOpen(isOpen);
 
   if (!isOpen) return null;
 

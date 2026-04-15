@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import { markdownComponentsApp } from "./ui/markdownUi";
 import { uiChatBubbleAssistant, uiChatMeta, uiChatScrollArea } from "./ui/appTypography";
+import { useRegisterModalOpen } from "./ui/ModalLayerContext";
 import { Mic, Send, Sparkles, Volume2, VolumeX, X } from "lucide-react";
 import {
   iosModalClose,
@@ -1528,6 +1529,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   onPendingZayaConsumed,
 }) => {
   const [open, setOpen] = useState(false);
+  useRegisterModalOpen(open);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const loadingRef = useRef(loading);

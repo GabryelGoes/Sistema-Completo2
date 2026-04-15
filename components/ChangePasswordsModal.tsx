@@ -3,6 +3,7 @@ import { X, Lock, KeyRound, Loader2, Check, Trash2, Eye, EyeOff } from 'lucide-r
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard, iosInput } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 interface ChangePasswordsModalProps {
   isOpen: boolean;
@@ -31,6 +32,8 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
         .finally(() => setLoadingSettings(false));
     }
   }, [isOpen]);
+
+  useRegisterModalOpen(isOpen);
 
   const handleSavePin = async (e: React.FormEvent) => {
     e.preventDefault();

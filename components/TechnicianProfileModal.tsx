@@ -4,6 +4,7 @@ import { iosModalOverlay, iosModalShell, iosModalClose, iosInput } from './ui/io
 import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopTechnicians, updateWorkshopTechnician, uploadWorkshopTechnicianPhoto } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 function capitalizeFirst(str: string): string {
   if (!str || !str.trim()) return str;
@@ -93,6 +94,8 @@ export const TechnicianProfileModal: React.FC<TechnicianProfileModalProps> = ({
       setSaving(false);
     }
   };
+
+  useRegisterModalOpen(isOpen);
 
   if (!isOpen) return null;
 

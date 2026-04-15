@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, RotateCw, Loader2, Check } from 'lucide-react';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 const PREVIEW_SIZE = 240;
 const EXPORT_SIZE = 400;
@@ -258,6 +259,8 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
       throw e;
     }
   };
+
+  useRegisterModalOpen(isOpen);
 
   if (!isOpen) return null;
 

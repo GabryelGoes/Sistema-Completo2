@@ -5,6 +5,7 @@ import { ProcessingOverlay } from './ProcessingOverlay';
 import { saveReceptionIntake, uploadServiceOrderPhoto, consultPlacaFipe } from '../services/apiService';
 import { iosModalShell, iosModalClose, iosLabel, iosInput, iosPrimaryButton } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 const emptyCustomer: Customer = {
   name: '',
@@ -168,6 +169,8 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
     setPhotoPreview(null);
     setStatus({ step: 'idle' });
   };
+
+  useRegisterModalOpen(isOpen);
 
   if (!isOpen) return null;
 

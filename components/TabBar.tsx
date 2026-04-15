@@ -1,6 +1,7 @@
 import React from 'react';
 import { Home, FileText, Calendar, FlaskConical } from 'lucide-react';
 import { PatioCarIcon } from './ui/PatioCarIcon';
+import { useModalLayer } from './ui/ModalLayerContext';
 
 export type TabId = 'home' | 'reception' | 'patio' | 'agenda' | 'laboratorio';
 
@@ -20,6 +21,7 @@ const TAB_ITEMS: { id: TabId; label: string }[] = [
 ];
 
 export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowedTabs }) => {
+  const { openCount } = useModalLayer();
   const tabs = allowedTabs && allowedTabs.length > 0
     ? TAB_ITEMS.filter((t) => allowedTabs.includes(t.id))
     : TAB_ITEMS;
@@ -33,7 +35,9 @@ export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowed
     return null;
   };
 
-  // Barra fixa inferior: z-40 fica abaixo dos modais do app (z-[100]+).
+  // Barra fixa inferior: z-40 fica abaixo dos modais do app (z-[100]+). Oculta quando há modal aberto.
+  if (openCount > 0) return null;
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40">
       <div className="absolute inset-0 bg-light-card/95 dark:bg-zinc-900/90 backdrop-blur-xl border-t border-light-border dark:border-white/10" />

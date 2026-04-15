@@ -1,6 +1,7 @@
 import React from 'react';
 import { Loader2, CheckCircle2, AlertCircle, Sparkles, Search, Save } from 'lucide-react';
 import { ProcessingStatus } from '../types';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 interface ProcessingOverlayProps {
   status: ProcessingStatus;
@@ -8,6 +9,7 @@ interface ProcessingOverlayProps {
 }
 
 export const ProcessingOverlay: React.FC<ProcessingOverlayProps> = ({ status, onClose }) => {
+  useRegisterModalOpen(status.step !== 'idle');
   if (status.step === 'idle') return null;
 
   const isProcessing = ['analyzing', 'searching', 'updating', 'creating'].includes(status.step);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Loader2, Save, ClipboardList, Calendar, Eye, EyeOff } from 'lucide-react';
 import { PatioCarIcon } from './ui/PatioCarIcon';
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 interface TechnicianAccessModalProps {
   isOpen: boolean;
@@ -53,6 +54,8 @@ export const TechnicianAccessModal: React.FC<TechnicianAccessModalProps> = ({ is
       setSaving(false);
     }
   };
+
+  useRegisterModalOpen(isOpen);
 
   if (!isOpen) return null;
 

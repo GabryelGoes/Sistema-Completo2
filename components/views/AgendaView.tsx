@@ -16,6 +16,7 @@ import { IosModalHeader } from '../ui/IosModalHeader';
 import { Customer, Appointment } from '../../types';
 import { getAppointments, createAppointment, updateAppointment, deleteAppointment } from '../../services/apiService';
 import { ReceptionModal } from '../ReceptionModal';
+import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 
 interface AgendaViewProps {
   appointments: Appointment[];
@@ -47,6 +48,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
   const [isLoading, setIsLoading] = useState(false);
   /** Modal somente leitura ao tocar no veículo no calendário (ou na lista do dia). */
   const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null);
+
+  useRegisterModalOpen(!!detailAppointment || isModalOpen);
 
   const exportToGoogleCalendar = (app: Appointment) => {
     const [hours, minutes] = app.time.split(':').map(Number);

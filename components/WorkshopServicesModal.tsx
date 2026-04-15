@@ -10,6 +10,7 @@ import {
   type WorkshopService,
 } from '../services/apiService';
 import { downloadWorkshopServicesPdf, downloadWorkshopServicesText } from '../utils/workshopServicesExport';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 interface WorkshopServicesModalProps {
   isOpen: boolean;
@@ -373,6 +374,8 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
     );
     return { isSearchActive: true as const, visibleRows: rows };
   }, [serviceSearch, services, servicesByCategory, selectedCategory, parseServiceName, baseCategory]);
+
+  useRegisterModalOpen(isOpen);
 
   if (!isOpen) return null;
 

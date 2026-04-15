@@ -9,6 +9,7 @@ import {
   type WorkshopTechnician,
 } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
+import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 function capitalizeFirst(str: string): string {
   if (!str || !str.trim()) return str;
@@ -173,6 +174,8 @@ export const WorkshopTechniciansModal: React.FC<WorkshopTechniciansModalProps> =
     const opt = COLOR_OPTIONS.find((o) => o.value === c);
     return opt ? opt.class : 'bg-zinc-600';
   };
+
+  useRegisterModalOpen(isOpen);
 
   if (!isOpen) return null;
 
