@@ -63,6 +63,9 @@ import {
   iosModalInsetCard,
   iosModalOverlay,
   iosModalShell,
+  iosVehicleModalShell,
+  iosVehicleModalInsetCard,
+  iosVehicleModalInput,
   iosInput,
   iosLabel,
   iosPageGlass,
@@ -3279,8 +3282,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const modalListName = lists.find(l => l.id === selectedCard.idList)?.name ?? '';
         const modalStatusConfig = getStatusConfig(modalListName, selectedCard.idList);
         const modalRingClass = selectedCard.garantiaTag
-          ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a] border-2 border-red-500/30'
-          : `${modalStatusConfig.ringClass} border border-zinc-200/60 dark:border-white/[0.08]`;
+          ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-[#F2F2F7] dark:ring-offset-[#0a0a0a] border-2 border-red-500/30'
+          : `${modalStatusConfig.ringClass} border border-zinc-300/70 dark:border-white/[0.08]`;
         const headerVehicleCategoryLabel =
           !isModuleMode
             ? resolveVehicleCategoryLabel(
@@ -3288,10 +3291,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 serviceOrderDetail?.issue_description ?? null
               ) ?? selectedCard.vehicleCategory ?? null
             : null;
+        const vi = iosVehicleModalInsetCard;
+        const vin = iosVehicleModalInput;
         return (
         <ModalPortal>
-        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-4 sm:p-6`}>
-           <div className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-[96vw] xl:max-w-[92vw] 2xl:max-w-[88vw] min-h-0 flex-col ${iosModalShell} animate-in zoom-in-95 duration-200 ${modalRingClass}`}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/35 dark:bg-black/45 backdrop-blur-[20px] animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-4 sm:p-6">
+           <div className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-[96vw] xl:max-w-[92vw] 2xl:max-w-[88vw] min-h-0 flex-col ${iosVehicleModalShell} animate-in zoom-in-95 duration-200 ${modalRingClass}`}>
               
               <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
                 {can('canDeleteCards') && (
@@ -3316,7 +3321,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
               {can('canDeleteCards') && isDeleteVehicleOpen && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] bg-black/50 p-4 backdrop-blur-sm sm:rounded-[2.25rem]">
-                  <div className={`${iosModalInsetCard} w-full max-w-sm p-6 shadow-xl`}>
+                  <div className={`${vi} w-full max-w-sm p-6 shadow-xl`}>
                     <h3 className="mb-2 flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
                       <Trash2 className="h-5 w-5 text-red-500" />
                       Excluir veículo do sistema
@@ -3329,7 +3334,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       value={deleteVehiclePassword}
                       onChange={(e) => setDeleteVehiclePassword(e.target.value)}
                       placeholder="Senha"
-                      className={`${iosInput} mb-3`}
+                      className={`${vin} mb-3`}
                       autoFocus
                     />
                     {deleteVehicleError && (
@@ -3431,7 +3436,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <button
                             type="button"
                             onClick={() => setCardForMemberAssignment(selectedCard)}
-                            className={`${iosModalInsetCard} flex w-full items-center gap-3 px-3 py-2.5 text-left shadow-none transition-all duration-200 active:scale-[0.99] hover:border-[#007AFF]/25 dark:hover:border-white/12`}
+                            className={`${vi} flex w-full items-center gap-3 px-3 py-2.5 text-left shadow-none transition-all duration-200 active:scale-[0.99] hover:border-[#007AFF]/25 dark:hover:border-white/12`}
                           >
                             {selectedCard.members && selectedCard.members.length > 0 ? (
                               <>
@@ -3467,7 +3472,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </button>
                           )}
                           {can('canEditDeliveryDate') && (
-                          <div className={`${iosModalInsetCard} flex flex-wrap items-center gap-2 px-3 py-2.5 shadow-none`}>
+                          <div className={`${vi} flex flex-wrap items-center gap-2 px-3 py-2.5 shadow-none`}>
                             <Calendar className="w-5 h-5 text-brand-yellow shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
@@ -3561,12 +3566,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   {/* Dados da ficha — vidro iOS (agrupado, minimizado por padrão) */}
                   {serviceOrderDetail && (
                     <div ref={customerDataSectionRef} className="p-8 pt-8 md:px-12">
-                      <div className={`${iosModalInsetCard} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
-                        <div className="flex items-stretch gap-0 border-b border-zinc-200/40 bg-gradient-to-b from-white/80 to-zinc-50/30 dark:border-white/[0.06] dark:from-white/[0.04] dark:to-transparent">
+                      <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
+                        <div className="flex items-stretch gap-0 border-b border-zinc-200/60 bg-white dark:border-white/[0.06] dark:bg-white/[0.04]">
                           <button
                             type="button"
                             onClick={() => setIsDadosFichaExpanded((v) => !v)}
-                            className="group flex min-w-0 flex-1 items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-zinc-100/30 dark:hover:bg-white/[0.04] sm:px-6"
+                            className="group flex min-w-0 flex-1 items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] sm:px-6"
                           >
                             <div className="flex min-w-0 items-center gap-3">
                               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF]/18 to-[#5AC8FA]/12 text-[#007AFF] shadow-sm dark:from-[#007AFF]/22 dark:to-[#5AC8FA]/10">
@@ -3593,46 +3598,46 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </button>
                         </div>
                         {isDadosFichaExpanded && (
-                        <div className="space-y-6 bg-gradient-to-b from-transparent to-zinc-50/20 p-5 dark:to-white/[0.02] sm:p-6">
+                        <div className="space-y-6 bg-zinc-50/90 p-5 dark:bg-white/[0.02] sm:p-6">
                           {can('canEditFicha') ? (
                             <>
                               {serviceOrderDetail.customers && (
                                 <div className="space-y-3">
                                   <p className={`${iosLabel} ml-0.5`}>Cliente</p>
-                                  <div className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
+                                  <div className={`${vi} space-y-4 p-4 sm:p-5`}>
                                     <div>
                                       <label className={iosLabel}>Nome</label>
-                                      <input value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className={iosInput} placeholder="Nome do cliente" />
+                                      <input value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className={vin} placeholder="Nome do cliente" />
                                     </div>
                                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                       <div>
                                         <label className={iosLabel}>Telefone</label>
-                                        <input value={editFichaForm.phone} onChange={(e) => setEditFichaForm(f => ({ ...f, phone: e.target.value }))} className={iosInput} placeholder="(11) 99999-9999" />
+                                        <input value={editFichaForm.phone} onChange={(e) => setEditFichaForm(f => ({ ...f, phone: e.target.value }))} className={vin} placeholder="(11) 99999-9999" />
                                       </div>
                                       <div>
                                         <label className={iosLabel}>E-mail</label>
-                                        <input type="email" value={editFichaForm.email} onChange={(e) => setEditFichaForm(f => ({ ...f, email: e.target.value }))} className={iosInput} placeholder="email@exemplo.com" />
+                                        <input type="email" value={editFichaForm.email} onChange={(e) => setEditFichaForm(f => ({ ...f, email: e.target.value }))} className={vin} placeholder="email@exemplo.com" />
                                       </div>
                                     </div>
                                     <div>
                                       <label className={iosLabel}>CPF</label>
-                                      <input value={editFichaForm.cpf} onChange={(e) => setEditFichaForm(f => ({ ...f, cpf: e.target.value }))} className={iosInput} placeholder="000.000.000-00" />
+                                      <input value={editFichaForm.cpf} onChange={(e) => setEditFichaForm(f => ({ ...f, cpf: e.target.value }))} className={vin} placeholder="000.000.000-00" />
                                     </div>
                                   </div>
                                   <p className={`${iosLabel} ml-0.5`}>Endereço</p>
-                                  <div className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
+                                  <div className={`${vi} space-y-4 p-4 sm:p-5`}>
                                     <div>
                                       <label className={iosLabel}>Logradouro</label>
-                                      <input value={editFichaForm.address} onChange={(e) => setEditFichaForm(f => ({ ...f, address: e.target.value }))} className={iosInput} placeholder="Rua, bairro..." />
+                                      <input value={editFichaForm.address} onChange={(e) => setEditFichaForm(f => ({ ...f, address: e.target.value }))} className={vin} placeholder="Rua, bairro..." />
                                     </div>
                                     <div className="grid grid-cols-2 gap-3 sm:gap-4">
                                       <div>
                                         <label className={iosLabel}>Nº</label>
-                                        <input value={editFichaForm.addressNumber} onChange={(e) => setEditFichaForm(f => ({ ...f, addressNumber: e.target.value }))} className={iosInput} placeholder="Nº" />
+                                        <input value={editFichaForm.addressNumber} onChange={(e) => setEditFichaForm(f => ({ ...f, addressNumber: e.target.value }))} className={vin} placeholder="Nº" />
                                       </div>
                                       <div>
                                         <label className={iosLabel}>CEP</label>
-                                        <input value={editFichaForm.cep} onChange={(e) => setEditFichaForm(f => ({ ...f, cep: e.target.value }))} className={iosInput} placeholder="00000-000" />
+                                        <input value={editFichaForm.cep} onChange={(e) => setEditFichaForm(f => ({ ...f, cep: e.target.value }))} className={vin} placeholder="00000-000" />
                                       </div>
                                     </div>
                                   </div>
@@ -3640,16 +3645,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               )}
                               <div className="space-y-3">
                                 <p className={`${iosLabel} ml-0.5`}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
-                                <div className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
+                                <div className={`${vi} space-y-4 p-4 sm:p-5`}>
                                   {!isModuleMode && (
                                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                       <div>
                                         <label className={iosLabel}>Marca / montadora</label>
-                                        <input value={editFichaForm.vehicleBrand} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleBrand: e.target.value }))} className={iosInput} placeholder="Ex: Renault" />
+                                        <input value={editFichaForm.vehicleBrand} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleBrand: e.target.value }))} className={vin} placeholder="Ex: Renault" />
                                       </div>
                                       <div>
                                         <label className={iosLabel}>Modelo (no card)</label>
-                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={iosInput} placeholder="Ex: Logan 1.6" />
+                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={vin} placeholder="Ex: Logan 1.6" />
                                       </div>
                                     </div>
                                   )}
@@ -3657,11 +3662,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <>
                                       <div>
                                         <label className={iosLabel}>Veículo / referência</label>
-                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={iosInput} placeholder="Ex: BMW 320i" />
+                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={vin} placeholder="Ex: BMW 320i" />
                                       </div>
                                       <div>
                                         <label className={iosLabel}>Identificação do módulo</label>
-                                        <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className={iosInput} placeholder="Ex: Módulo ABS XYZ" />
+                                        <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className={vin} placeholder="Ex: Módulo ABS XYZ" />
                                       </div>
                                     </>
                                   )}
@@ -3670,25 +3675,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                         <div>
                                           <label className={iosLabel}>Placa</label>
-                                          <input value={editFichaForm.plate} onChange={(e) => setEditFichaForm(f => ({ ...f, plate: e.target.value.toUpperCase() }))} maxLength={8} className={`${iosInput} font-mono uppercase`} placeholder="ABC1D23" />
+                                          <input value={editFichaForm.plate} onChange={(e) => setEditFichaForm(f => ({ ...f, plate: e.target.value.toUpperCase() }))} maxLength={8} className={`${vin} font-mono uppercase`} placeholder="ABC1D23" />
                                         </div>
                                         <div>
                                           <label className={iosLabel}>Quilometragem</label>
-                                          <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className={iosInput} placeholder="45000" />
+                                          <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className={vin} placeholder="45000" />
                                         </div>
                                       </div>
                                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                                         <div>
                                           <label className={iosLabel}>Cor</label>
-                                          <input value={editFichaForm.vehicleColor} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleColor: e.target.value }))} className={iosInput} placeholder="Ex: Branca" />
+                                          <input value={editFichaForm.vehicleColor} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleColor: e.target.value }))} className={vin} placeholder="Ex: Branca" />
                                         </div>
                                         <div>
                                           <label className={iosLabel}>Ano</label>
-                                          <input value={editFichaForm.vehicleYear} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleYear: e.target.value }))} className={iosInput} placeholder="2010 / 2010" />
+                                          <input value={editFichaForm.vehicleYear} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleYear: e.target.value }))} className={vin} placeholder="2010 / 2010" />
                                         </div>
                                         <div>
                                           <label className={iosLabel}>Motor</label>
-                                          <input value={editFichaForm.vehicleEngineInfo} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleEngineInfo: e.target.value }))} className={iosInput} placeholder="Cilindradas / combustível" />
+                                          <input value={editFichaForm.vehicleEngineInfo} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleEngineInfo: e.target.value }))} className={vin} placeholder="Cilindradas / combustível" />
                                         </div>
                                       </div>
                                     </>
@@ -3702,7 +3707,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <>
                                   <div className="space-y-3">
                                     <p className={`${iosLabel} ml-0.5`}>Cliente</p>
-                                    <div className={`${iosModalInsetCard} divide-y divide-zinc-200/60 overflow-hidden p-0 dark:divide-white/[0.06]`}>
+                                    <div className={`${vi} divide-y divide-zinc-200/60 overflow-hidden p-0 dark:divide-white/[0.06]`}>
                                       <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
                                         <User className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
                                         <div className="min-w-0 flex-1">
@@ -3735,7 +3740,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   </div>
                                   <div className="space-y-3">
                                     <p className={`${iosLabel} ml-0.5`}>Endereço</p>
-                                    <div className={`${iosModalInsetCard} px-4 py-4 sm:px-5 sm:py-4`}>
+                                    <div className={`${vi} px-4 py-4 sm:px-5 sm:py-4`}>
                                       <div className="flex gap-3">
                                         <MapPin className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85 mt-0.5" />
                                         <p className="text-[15px] font-medium leading-relaxed text-zinc-900 dark:text-white">
@@ -3748,7 +3753,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               )}
                               <div className="space-y-3">
                                 <p className={`${iosLabel} ml-0.5`}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
-                                <div className={`${iosModalInsetCard} divide-y divide-zinc-200/60 overflow-hidden p-0 dark:divide-white/[0.06]`}>
+                                <div className={`${vi} divide-y divide-zinc-200/60 overflow-hidden p-0 dark:divide-white/[0.06]`}>
                                   {!isModuleMode && serviceOrderDetail.vehicle_brand?.trim() ? (
                                     <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
                                       <Tag className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
@@ -3888,11 +3893,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                           
                           {isEditingDesc ? (
-                             <div className={`${iosModalInsetCard} animate-in p-4 fade-in duration-200 sm:p-5`}>
+                             <div className={`${vi} animate-in p-4 fade-in duration-200 sm:p-5`}>
                                 <textarea 
                                   value={descText}
                                   onChange={(e) => setDescText(e.target.value)}
-                                  className={`${iosInput} min-h-[200px] resize-none text-[15px] leading-relaxed`}
+                                  className={`${vin} min-h-[200px] resize-none text-[15px] leading-relaxed`}
                                   placeholder="Digite a queixa do cliente..."
                                 />
                                 <div className="mt-4 flex justify-end gap-2">
@@ -3916,7 +3921,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                              </div>
                           ) : (
-                            <div className={`${iosModalInsetCard} p-5 ${uiReadBody} sm:p-6`}>
+                            <div className={`${vi} p-5 ${uiReadBody} sm:p-6`}>
                                <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                  {selectedCard.desc || "Nenhuma descrição disponível para este veículo."}
                                </ReactMarkdown>
@@ -4093,7 +4098,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {serviceOrderDetail && (referenceLinksDraft.length > 0 || can('canEditFicha')) && (
                               <div className="mb-5">
                                 <div
-                                  className={`${iosModalInsetCard} overflow-hidden p-4 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-5`}
+                                  className={`${vi} overflow-hidden p-4 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-5`}
                                 >
                                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                                     <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
@@ -4141,7 +4146,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                       );
                                                     }}
                                                     placeholder="Ex.: Manual do proprietário"
-                                                    className={iosInput}
+                                                    className={vin}
                                                   />
                                                 </div>
                                                 <div>
@@ -4157,7 +4162,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                     placeholder="https://..."
                                                     inputMode="url"
                                                     autoComplete="off"
-                                                    className={iosInput}
+                                                    className={vin}
                                                   />
                                                 </div>
                                               </div>
@@ -4643,7 +4648,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              Comentários
                           </h3>
 
-                          <div className={`${iosModalInsetCard} overflow-hidden`}>
+                          <div className={`${vi} overflow-hidden`}>
                              <div ref={commentsListRef} className="custom-scrollbar max-h-[min(420px,52vh)] space-y-5 overflow-y-auto bg-zinc-50/40 p-4 dark:bg-black/25 sm:p-5 sm:space-y-6 lg:max-h-[min(220px,32vh)] lg:space-y-3 lg:p-3">
                                 {loadingDetails ? (
                                    <div className="flex justify-center py-8 lg:py-6">
@@ -4750,7 +4755,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                    value={newComment}
                                    onChange={(e) => setNewComment(e.target.value)}
                                    placeholder="Escreva um comentário..."
-                                   className={`${iosInput} min-h-[48px] flex-1 py-3 text-[15px]`}
+                                   className={`${vin} min-h-[48px] flex-1 py-3 text-[15px]`}
                                    onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) handleSendComment() }}
                                 />
                                 <button 
