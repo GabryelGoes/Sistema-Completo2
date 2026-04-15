@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import { markdownComponentsApp } from "./ui/markdownUi";
+import { uiChatBubbleAssistant, uiChatMeta, uiChatScrollArea } from "./ui/appTypography";
 import { Mic, Send, Sparkles, Volume2, VolumeX, X } from "lucide-react";
 import {
   iosModalClose,
@@ -2387,9 +2390,11 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-4 text-[15px] leading-relaxed sm:px-6">
+            <div
+              className={`min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 ${uiChatScrollArea}`}
+            >
               {messages.length === 0 && (
-                <div className={`${iosModalInsetCard} p-4 text-[14px] text-zinc-600 dark:text-zinc-300`}>
+                <div className={`${iosModalInsetCard} p-4 ${uiChatMeta}`}>
                   Olá, eu sou a {ASSISTANT_NAME}. No modo tempo real, ligue o microfone: cada frase é
                   enviada automaticamente ao terminar. No modo clássico, o microfone só preenche o
                   texto — use Enviar.
@@ -2411,9 +2416,11 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                   return (
                     <div key={i} className="flex justify-start">
                       <div
-                        className={`prose prose-sm dark:prose-invert max-w-[92%] ${iosModalInsetCard} px-3.5 py-2.5 text-zinc-800 dark:text-zinc-100`}
+                        className={`max-w-[92%] ${iosModalInsetCard} px-3.5 py-2.5 ${uiChatBubbleAssistant}`}
                       >
-                        <ReactMarkdown>{m.content}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
+                          {m.content}
+                        </ReactMarkdown>
                       </div>
                     </div>
                   );
@@ -2421,11 +2428,11 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
                 return null;
               })}
               {connectingRealtime && (
-                <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Conectando voz em tempo real…</p>
+                <p className={uiChatMeta}>Conectando voz em tempo real…</p>
               )}
-              {loading && <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Pensando…</p>}
+              {loading && <p className={uiChatMeta}>Pensando…</p>}
               {error && (
-                <p className="text-[13px] text-red-600 dark:text-red-400">{error}</p>
+                <p className="text-[13px] font-normal text-red-600 dark:text-red-400">{error}</p>
               )}
               <div ref={bottomRef} />
             </div>

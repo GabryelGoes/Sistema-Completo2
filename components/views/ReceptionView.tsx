@@ -31,6 +31,8 @@ import { PdfViewerModal } from '../PdfViewerModal';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
+import { markdownComponentsApp } from '../ui/markdownUi';
+import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
 
 const ARCHIVED_PHOTOS_BATCH = 8;
 
@@ -70,36 +72,6 @@ interface ReceptionViewProps {
   /** Quem registra o desarquivamento na API (igual ao Pátio). */
   actorOptions?: ServiceOrderUpdateActor;
 }
-
-// Componentes de Estilo para Markdown (Reutilizado do PatioView para consistência)
-const MarkdownComponents = {
-  p: ({children}: any) => <p className="mb-2 last:mb-0 break-words">{children}</p>,
-  strong: ({children}: any) => <strong className="font-bold text-white">{children}</strong>,
-  em: ({children}: any) => <em className="italic text-zinc-400">{children}</em>,
-  ul: ({children}: any) => <ul className="list-disc list-inside ml-2 mb-2 space-y-1">{children}</ul>,
-  ol: ({children}: any) => <ol className="list-decimal list-inside ml-2 mb-2 space-y-1">{children}</ol>,
-  li: ({children}: any) => <li className="text-zinc-300">{children}</li>,
-  a: ({children, href}: any) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand-yellow hover:underline">{children}</a>,
-  blockquote: ({children}: any) => <blockquote className="border-l-4 border-zinc-600 pl-4 py-1 italic text-zinc-400 my-2">{children}</blockquote>,
-};
-
-/** Markdown no modal de detalhe arquivado (fundo claro/escuro legível). */
-const DetailMarkdownComponents = {
-  p: ({ children }: any) => <p className="mb-2 last:mb-0 break-words text-zinc-800 dark:text-zinc-100">{children}</p>,
-  strong: ({ children }: any) => <strong className="font-bold text-zinc-900 dark:text-white">{children}</strong>,
-  em: ({ children }: any) => <em className="italic text-zinc-600 dark:text-zinc-400">{children}</em>,
-  ul: ({ children }: any) => <ul className="list-disc list-inside ml-2 mb-2 space-y-1">{children}</ul>,
-  ol: ({ children }: any) => <ol className="list-decimal list-inside ml-2 mb-2 space-y-1">{children}</ol>,
-  li: ({ children }: any) => <li className="text-zinc-700 dark:text-zinc-300">{children}</li>,
-  a: ({ children, href }: any) => (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="text-amber-600 dark:text-brand-yellow hover:underline">
-      {children}
-    </a>
-  ),
-  blockquote: ({ children }: any) => (
-    <blockquote className="border-l-4 border-zinc-400 dark:border-zinc-600 pl-4 py-1 italic text-zinc-600 dark:text-zinc-400 my-2">{children}</blockquote>
-  ),
-};
 
 function attachmentMimeType(name: string): string {
   const n = (name || '').toLowerCase();
@@ -1350,12 +1322,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                           <div className="lg:col-span-2 space-y-10">
                             <div>
-                              <h3 className="text-zinc-700 dark:text-zinc-300 text-sm font-bold uppercase tracking-widest flex items-center gap-2 mb-4">
-                                <FileText className="w-4 h-4" />
+                              <h3 className={uiSectionTitleRow}>
+                                <FileText className="h-3.5 w-3.5" />
                                 Queixa do cliente
                               </h3>
-                              <div className="bg-white dark:bg-zinc-900/70 rounded-2xl p-6 border border-zinc-200/80 dark:border-zinc-800 text-zinc-800 dark:text-zinc-100 leading-relaxed font-light text-lg">
-                                <ReactMarkdown remarkPlugins={[remarkBreaks]} components={DetailMarkdownComponents}>
+                              <div
+                                className={`rounded-2xl border border-zinc-200/80 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900/70 ${uiReadBody}`}
+                              >
+                                <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                   {d.issue_description?.trim() || 'Nenhuma descrição disponível.'}
                                 </ReactMarkdown>
                               </div>
@@ -1397,8 +1371,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                               {new Date(c.created_at).toLocaleString('pt-BR')}
                                             </span>
                                           </div>
-                                          <div className="bg-zinc-100/90 dark:bg-zinc-800/50 p-3 rounded-r-xl rounded-bl-xl text-zinc-800 dark:text-zinc-200 text-sm leading-relaxed border border-zinc-200 dark:border-zinc-700/50">
-                                            <ReactMarkdown remarkPlugins={[remarkBreaks]} components={DetailMarkdownComponents}>{c.text}</ReactMarkdown>
+                                          <div
+                                            className={`rounded-r-xl rounded-bl-xl border border-zinc-200 bg-zinc-100/90 p-3 dark:border-zinc-700/50 dark:bg-zinc-800/50 ${uiReadBody}`}
+                                          >
+                                            <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
+                                              {c.text}
+                                            </ReactMarkdown>
                                           </div>
                                         </div>
                                       </div>

@@ -68,6 +68,8 @@ import {
   iosPageGlass,
   iosPrimaryButton,
 } from '../ui/iosModalStyles';
+import { markdownComponentsApp } from '../ui/markdownUi';
+import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { printHtmlDocument } from '../../utils/printHtml';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
@@ -2213,18 +2215,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return { initial, avatarClass: 'bg-zinc-600 text-white border-zinc-600', useLogo: false };
   };
 
-  // Componentes de Estilo para Markdown
-  const MarkdownComponents = {
-    p: ({children}: any) => <p className="mb-2 last:mb-0 break-words">{children}</p>,
-    strong: ({children}: any) => <strong className="font-bold text-white">{children}</strong>,
-    em: ({children}: any) => <em className="italic text-zinc-400">{children}</em>,
-    ul: ({children}: any) => <ul className="list-disc list-inside ml-2 mb-2 space-y-1">{children}</ul>,
-    ol: ({children}: any) => <ol className="list-decimal list-inside ml-2 mb-2 space-y-1">{children}</ol>,
-    li: ({children}: any) => <li className="text-zinc-300">{children}</li>,
-    a: ({children, href}: any) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand-yellow hover:underline">{children}</a>,
-    blockquote: ({children}: any) => <blockquote className="border-l-4 border-zinc-600 pl-4 py-1 italic text-zinc-400 my-2">{children}</blockquote>,
-  };
-
   // --- Attachment Functions ---
   /** Infere mimeType pelo nome do arquivo para exibir PDFs na seção Documentos. */
   const attachmentMimeType = (name: string): string => {
@@ -3109,19 +3099,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className="grid grid-cols-1 gap-10 px-6 py-8 md:px-10 lg:grid-cols-3 lg:gap-12">
                       <div className="space-y-10 lg:col-span-2">
                         <div>
-                           <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                           <p className={uiSectionTitleRow}>
                               <FileText className="h-3.5 w-3.5" />
                               Queixa do cliente
                            </p>
-                           <div className={`${iosModalInsetCard} p-5 text-[16px] leading-relaxed text-zinc-800 dark:text-zinc-100 md:p-6`}>
-                              <ReactMarkdown remarkPlugins={[remarkBreaks]} components={MarkdownComponents}>
+                           <div className={`${iosModalInsetCard} p-5 ${uiReadBody} sm:p-6`}>
+                              <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                  {selectedHistoryCard.desc || "Nenhuma descrição disponível."}
                               </ReactMarkdown>
                            </div>
                         </div>
 
                         <div>
-                           <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                           <p className={uiSectionTitleRow}>
                              <MessageSquare className="h-3.5 w-3.5" />
                              Atividades e comentários
                           </p>
@@ -3158,7 +3148,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                </span>
                                             </div>
                                             <div className="rounded-2xl border border-zinc-200/80 bg-white/90 p-3.5 text-[14px] leading-relaxed text-zinc-800 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-200">
-                                                <ReactMarkdown remarkPlugins={[remarkBreaks]} components={MarkdownComponents}>
+                                                <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                                    {action.data.text}
                                                 </ReactMarkdown>
                                             </div>
@@ -3177,9 +3167,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                       <div className="space-y-8">
                          <div>
-                            <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                               <Paperclip className="h-3.5 w-3.5" />
-                               Anexos
+                            <p className={uiSectionTitleRow}>
+                              <Paperclip className="h-3.5 w-3.5" />
+                              Anexos
                             </p>
                             <div className="space-y-3">
                                {loadingHistoryDetails ? (
@@ -3926,8 +3916,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                              </div>
                           ) : (
-                            <div className={`${iosModalInsetCard} p-5 text-[17px] font-light leading-relaxed text-zinc-800 dark:text-zinc-200 sm:p-6 md:text-lg`}>
-                               <ReactMarkdown remarkPlugins={[remarkBreaks]} components={MarkdownComponents}>
+                            <div className={`${iosModalInsetCard} p-5 ${uiReadBody} sm:p-6`}>
+                               <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                  {selectedCard.desc || "Nenhuma descrição disponível para este veículo."}
                                </ReactMarkdown>
                             </div>
@@ -4479,7 +4469,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         )}
                                         {others.length > 0 && (
                                           <div>
-                                            <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                                            <h3 className={uiSectionTitleRow}>
                                               <FileText className="h-3.5 w-3.5" />
                                               Documentos
                                             </h3>
@@ -4648,7 +4638,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                       <div className="min-w-0 space-y-8">
                         <div ref={commentsSectionRef}>
-                           <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 lg:mb-2">
+                           <h3 className={`${uiSectionTitleRow} lg:mb-2`}>
                              <MessageSquare className="h-3.5 w-3.5 shrink-0" />
                              Comentários
                           </h3>
@@ -4715,7 +4705,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             ) : (
                                               <>
                                                 <div className="bg-light-card dark:bg-zinc-800/50 p-3 rounded-r-xl rounded-bl-xl text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed border border-zinc-200 dark:border-zinc-700/50">
-                                                   <ReactMarkdown remarkPlugins={[remarkBreaks]} components={MarkdownComponents}>
+                                                   <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                                       {action.data.text}
                                                    </ReactMarkdown>
                                                 </div>

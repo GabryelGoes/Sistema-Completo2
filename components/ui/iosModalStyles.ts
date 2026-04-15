@@ -1,3 +1,5 @@
+import { uiModalSectionLabel } from "./appTypography";
+
 /** Overlay e painéis alinhados ao modal TV do pátio (vidro, blur, cantos grandes). */
 
 export const iosModalOverlay =
@@ -25,8 +27,7 @@ export const iosModalClose =
 export const iosInput =
   'w-full rounded-2xl border border-zinc-200/90 dark:border-white/[0.08] bg-white/90 dark:bg-zinc-950/50 px-4 py-3 text-[15px] text-zinc-950 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow';
 
-export const iosLabel =
-  'block text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-950 dark:text-zinc-400 mb-2';
+export const iosLabel = uiModalSectionLabel;
 
 export const iosPrimaryButton =
   'rounded-2xl bg-[#007AFF] px-6 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-45';
