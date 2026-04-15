@@ -144,11 +144,13 @@ function firstTwoNames(fullName: string): string {
   return parts.slice(0, 2).join(' ');
 }
 
-/** Nome amigável do anexo (remove prefixo numérico tipo 1712000000000_ gerado pelo storage). */
+/** Nome amigável do anexo (remove prefixo numérico do storage e extensão só na interface). */
 function attachmentDisplayName(fileName: string): string {
   const base = fileName.split("/").pop() || fileName;
   const cleaned = base.replace(/^\d+_/, "");
-  return cleaned || base;
+  const withoutExt = cleaned.replace(/\.(jpe?g|png|gif|webp|pdf|heic|heif|bmp)$/i, "");
+  const out = (withoutExt || cleaned).trim();
+  return out || cleaned || base;
 }
 
 /** PDF por mime ou por extensão na URL (inclui `arquivo.pdf?token=…`). */

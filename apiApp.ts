@@ -98,15 +98,16 @@ export function createApiApp() {
    * causam "Invalid key"; alinhar com PATCH .../photos/rename.
    */
   function sanitizeVehiclePhotoFileName(originalName: string): string {
-    const trimmed = String(originalName || "").trim() || "arquivo";
-    const safe = trimmed
+    let s = String(originalName || "").trim() || "arquivo";
+    s = s
       .normalize("NFD")
-      .replace(/\p{M}/gu, "")
-      .replace(/[^\w\s.-]/g, "_")
-      .replace(/\s+/g, "_")
-      .replace(/_+/g, "_")
-      .replace(/^_+|_+$/g, "");
-    return safe || "arquivo";
+      .replace(/\p{M}/gu, "");
+    s = s.replace(/[/\\]/g, "_").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
+    s = s.replace(/[^\w\s.-]/g, "_");
+    s = s.replace(/\s+/g, " ").trim();
+    s = s.replace(/_+/g, "_");
+    s = s.replace(/^[\s_]+|[\s_]+$/g, "");
+    return s || "arquivo";
   }
 
   // CORS: TV (Patio-View), CORS_ALLOWED_ORIGINS e dev — necessário se o front chama API em outro host (VITE_API_BASE).
@@ -2252,7 +2253,7 @@ export function createApiApp() {
         return res.status(400).json({ error: "Corpo inválido: envie path e newName." });
       }
 
-      let trimmedNewName = newName.trim().replace(/\s+/g, "_");
+      let trimmedNewName = newName.trim().replace(/\s+/g, " ");
       if (!trimmedNewName) {
         return res.status(400).json({ error: "Novo nome não pode ser vazio." });
       }
