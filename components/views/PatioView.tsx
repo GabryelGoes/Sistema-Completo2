@@ -3939,12 +3939,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <button 
                                   type="button"
                                   onClick={() => openBudgetModal()}
-                                  className="w-full p-4 bg-[#f0ebe0] border border-[#e2dcd0] hover:bg-[#e8e2d5] rounded-xl flex items-center justify-between group transition-all shadow-sm"
+                                  className="group w-full rounded-xl border-2 border-amber-400/90 bg-amber-400 p-4 text-left shadow-md transition-all hover:bg-amber-500 hover:shadow-lg active:scale-[0.99] dark:border-amber-400/85 dark:bg-amber-500 dark:hover:bg-amber-400"
                                 >
-                                  <span className="font-black text-zinc-800">Criar orçamento</span>
-                                  <Calculator className="w-5 h-5 text-zinc-700 group-hover:scale-110 transition-transform" />
+                                  <span className="flex items-center justify-between gap-3">
+                                    <span className="font-black text-zinc-950 dark:text-zinc-950">Criar orçamento</span>
+                                    <Calculator className="h-5 w-5 shrink-0 text-zinc-950/90 transition-transform group-hover:scale-110 dark:text-zinc-950" />
+                                  </span>
                               </button>
-                              <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 p-3 space-y-3 max-h-[280px] overflow-y-auto shadow-inner bg-zinc-100/50 dark:bg-zinc-900/30">
+                              <div className="max-h-[280px] space-y-3 overflow-y-auto rounded-xl border-2 border-zinc-200/90 bg-white p-3 shadow-sm dark:border-zinc-600/80 dark:bg-zinc-900/50">
                               {savedBudgets
                                 .filter((b) => b.serviceOrderId === selectedCard.id)
                                 .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
@@ -3961,27 +3963,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       key={budget.id}
                                       type="button"
                                       onClick={() => setViewingBudget(budget)}
-                                      className="w-full text-left rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_4px_14px_rgba(0,0,0,0.12),0_2px_6px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 active:translate-y-0"
-                                      style={{
-                                        backgroundColor: '#d9d0bc',
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.4)',
-                                        border: '1px solid rgba(0,0,0,0.12)',
-                                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.045'/%3E%3C/svg%3E")`,
-                                      }}
+                                      className="w-full overflow-hidden rounded-xl border-2 border-amber-200/95 bg-amber-50 text-left shadow-sm transition-all duration-200 hover:border-amber-300 hover:bg-amber-100/95 hover:shadow-md active:translate-y-0 dark:border-amber-700/70 dark:bg-amber-950/55 dark:hover:border-amber-600 dark:hover:bg-amber-950/80"
                                     >
                                       <div className="relative p-3.5">
-                                      <div className="flex items-center justify-between gap-2 mb-2">
-                                        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#000000' }}>
+                                      <div className="mb-2 flex items-center justify-between gap-2">
+                                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 dark:text-amber-100">
                                           Orçamento {numero}
                                         </span>
-                                        <span className="text-[10px] font-medium tabular-nums" style={{ color: '#000000' }}>
+                                        <span className="text-[10px] font-medium tabular-nums text-zinc-600 dark:text-amber-200/90">
                                           {dateStr}
                                         </span>
                                       </div>
-                                      <p className="text-[13px] font-medium line-clamp-2 leading-snug mb-2" style={{ color: '#000000' }}>
+                                      <p className="mb-2 line-clamp-2 text-[13px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">
                                         {preview}
                                       </p>
-                                      <div className="flex items-center gap-2 text-[11px]" style={{ color: '#000000' }}>
+                                      <div className="flex items-center gap-2 text-[11px] text-zinc-700 dark:text-amber-200/85">
                                         <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
                                         <span>·</span>
                                         <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
@@ -3991,18 +3987,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   );
                                 })}
                               {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
-                                <div
-                                  className="rounded-lg p-5 text-center border border-dashed"
-                                  style={{
-                                    backgroundColor: '#d9d0bc',
-                                    borderColor: 'rgba(0,0,0,0.12)',
-                                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)',
-                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.045'/%3E%3C/svg%3E")`,
-                                  }}
-                                >
-                                  <FileText className="w-9 h-9 mx-auto mb-2" style={{ color: '#000000' }} />
-                                  <p className="text-sm font-medium mt-0.5" style={{ color: '#000000' }}>Nenhum orçamento</p>
-                                  <p className="text-xs mt-0.5" style={{ color: '#000000' }}>Crie um orçamento pelo botão acima</p>
+                                <div className="rounded-xl border-2 border-dashed border-amber-300/90 bg-amber-50/90 p-5 text-center dark:border-amber-700/60 dark:bg-amber-950/35">
+                                  <FileText className="mx-auto mb-2 h-9 w-9 text-amber-600 dark:text-amber-300" />
+                                  <p className="mt-0.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nenhum orçamento</p>
+                                  <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">Crie um orçamento pelo botão acima</p>
                                 </div>
                               )}
                               </div>
@@ -4849,7 +4837,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                            setIsConvertingType(false);
                                         }
                                      }}
-                                     className="inline-flex items-center gap-2 max-w-full self-start px-3 py-2 rounded-lg border border-amber-500/45 dark:border-amber-500/45 bg-amber-500/10 dark:bg-amber-500/10 hover:bg-amber-500/18 dark:hover:bg-amber-500/18 text-sm text-amber-800 dark:text-amber-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                     className="inline-flex max-w-full items-center gap-2 self-start rounded-xl border-2 border-amber-600 bg-amber-100 px-4 py-2.5 text-sm font-semibold text-amber-950 shadow-sm transition-colors hover:bg-amber-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-400 dark:bg-amber-500/25 dark:text-amber-50 dark:hover:bg-amber-500/40"
                                   >
                                      {isConvertingType ? (
                                         <RefreshCw className="w-4 h-4 shrink-0 animate-spin" />
