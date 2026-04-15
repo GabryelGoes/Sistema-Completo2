@@ -40,8 +40,8 @@ export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowed
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40">
-      {/* Modo claro: leve mistura com a cor de destaque das configurações (--app-accent no :root) */}
-      <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--app-accent)_8%,white)] dark:bg-zinc-900/90 backdrop-blur-xl border-t border-light-border dark:border-white/10" />
+      {/* Cor de destaque das configurações (--app-accent): mais visível que antes, ainda harmonioso */}
+      <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--app-accent)_20%,white)] dark:bg-[color-mix(in_srgb,var(--app-accent)_16%,#18181b)] backdrop-blur-xl border-t border-[color-mix(in_srgb,var(--app-accent)_35%,rgb(228_228_231))] dark:border-[color-mix(in_srgb,var(--app-accent)_22%,rgb(39_39_42))]" />
       <div className="relative flex justify-around items-center h-20 px-2 pb-4 pt-2 max-w-2xl mx-auto">
         {tabs.map((t) => (
           <button
