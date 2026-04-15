@@ -63,9 +63,9 @@ const iosCard =
   'rounded-[22px] border border-zinc-200/80 dark:border-white/[0.07] bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
 
 const iosSectionTitle =
-  'text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400 mb-1';
+  'text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-950 dark:text-zinc-400 mb-1';
 
-const iosSectionHint = 'text-[13px] text-zinc-500 dark:text-zinc-400 mb-4 leading-relaxed';
+const iosSectionHint = 'text-[13px] text-zinc-950 dark:text-zinc-400 mb-4 leading-relaxed';
 
 const iconSquircle =
   'flex items-center justify-center rounded-[1.35rem] shadow-[0_8px_28px_-6px_rgba(0,0,0,0.38),inset_0_1px_0_0_rgba(255,255,255,0.38)]';
@@ -136,7 +136,7 @@ function SettingsRow({
       {icon}
       <span className="flex-1 min-w-0">
         <span className="block text-[15px] font-medium text-zinc-900 dark:text-white leading-snug">{title}</span>
-        {subtitle ? <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">{subtitle}</span> : null}
+        {subtitle ? <span className="block text-[12px] text-zinc-950 dark:text-zinc-400 mt-0.5">{subtitle}</span> : null}
       </span>
       <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500 group-hover:text-[#007AFF] dark:group-hover:text-[#0A84FF] transition-colors" />
     </button>
@@ -203,11 +203,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
             />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 mb-0.5">Oficina</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-950 dark:text-zinc-400 mb-0.5">Oficina</p>
             <h1 className="text-[1.35rem] sm:text-[1.65rem] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
               Rei do ABS
             </h1>
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1.5 flex-wrap">
+            <p className="text-[13px] text-zinc-950 dark:text-zinc-400 mt-1 flex items-center gap-1.5 flex-wrap">
               <Sparkles className="w-3.5 h-3.5 text-amber-500/90 shrink-0" />
               {isTechnician ? (
                 <span>
@@ -320,7 +320,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <span className="text-[15px] font-semibold text-zinc-900 dark:text-white block leading-tight">
                     Configurações da TV do Pátio
                   </span>
-                  <span className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">Slides e meta semanal</span>
+                  <span className="text-[12px] text-zinc-950 dark:text-zinc-400 mt-0.5">Slides e meta semanal</span>
                 </div>
                 <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
               </button>
@@ -422,7 +422,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <span className="block text-[15px] font-medium text-zinc-900 dark:text-white leading-snug">
                           Painel do Pátio (TV)
                         </span>
-                        <span className="block text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">Abrir em nova aba</span>
+                        <span className="block text-[12px] text-zinc-950 dark:text-zinc-400 mt-0.5">Abrir em nova aba</span>
                       </span>
                       <ExternalLink className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500 group-hover:text-[#007AFF] dark:group-hover:text-[#0A84FF] transition-colors" />
                     </a>

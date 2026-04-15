@@ -1,0 +1,28 @@
+/**
+ * Modo claro (html.light): texto principal legível (preto / zinc-950).
+ * Cinza apenas em placeholders de campos (exemplos).
+ * Escopo: utilitários text-zinc-* usuais; não altera cores semânticas (red, green, blue, brand).
+ */
+html.light {
+  color: rgb(9 9 11);
+}
+
+html.light .text-zinc-400,
+html.light .text-zinc-500,
+html.light .text-zinc-600,
+html.light .text-zinc-700 {
+  color: rgb(9 9 11) !important;
+}
+
+/* Variantes com opacidade (rótulos / metadados) */
+html.light .text-zinc-400\/75,
+html.light .text-zinc-500\/90 {
+  color: rgb(9 9 11) !important;
+}
+
+/* Placeholders: mantêm cinza (exemplos dos campos) */
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: rgb(113 113 122) !important;
+  opacity: 1;
+}
