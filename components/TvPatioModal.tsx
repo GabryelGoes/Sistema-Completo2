@@ -26,6 +26,7 @@ import {
   uploadTvPatioMedia,
 } from '../services/apiService';
 import { TvPatioPreview } from './TvPatioPreview';
+import { ModalPortal } from './ui/ModalPortal';
 
 const SLIDE_TYPES: { value: TvSlideType; label: string; hint: string }[] = [
   { value: 'notice', label: 'Aviso', hint: 'Texto em destaque' },
@@ -450,9 +451,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const iosLabel = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 mb-2';
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 bg-black/45 backdrop-blur-[20px]">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-6 sm:pb-[max(1.5rem,env(safe-area-inset-bottom))] bg-black/45 backdrop-blur-[20px]">
       <div
-        className={`relative w-full max-w-[1080px] max-h-[94vh] flex flex-col lg:flex-row overflow-hidden rounded-[2rem] sm:rounded-[2.25rem] ${iosCard}`}
+        className={`relative w-full max-w-[1080px] max-h-[min(94vh,calc(100dvh-env(safe-area-inset-bottom)-5rem))] flex flex-col lg:flex-row overflow-hidden rounded-[2rem] sm:rounded-[2.25rem] ${iosCard}`}
       >
         <button
           type="button"
@@ -1158,6 +1160,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </ModalPortal>
   );
 };
