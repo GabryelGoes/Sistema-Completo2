@@ -207,7 +207,7 @@ export const PatioViewSupabase: React.FC<PatioViewSupabaseProps> = ({
                       {formatDate(order.created_at)}
                     </div>
                     {order.issue_description && (
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 mb-3 border-l-2 border-brand-yellow/50 pl-2">
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 mb-3 border-l-2 border-brand-yellow/50 pl-2 whitespace-pre-line">
                         {order.issue_description}
                       </p>
                     )}

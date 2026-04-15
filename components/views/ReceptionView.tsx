@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
 import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, ClipboardList, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosLabel, iosPageGlass } from '../ui/iosModalStyles';
 import { IosModalHeader } from '../ui/IosModalHeader';
@@ -1354,7 +1355,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                 Queixa do cliente
                               </h3>
                               <div className="bg-white dark:bg-zinc-900/70 rounded-2xl p-6 border border-zinc-200/80 dark:border-zinc-800 text-zinc-800 dark:text-zinc-100 leading-relaxed font-light text-lg">
-                                <ReactMarkdown components={DetailMarkdownComponents}>
+                                <ReactMarkdown remarkPlugins={[remarkBreaks]} components={DetailMarkdownComponents}>
                                   {d.issue_description?.trim() || 'Nenhuma descrição disponível.'}
                                 </ReactMarkdown>
                               </div>
@@ -1397,7 +1398,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                             </span>
                                           </div>
                                           <div className="bg-zinc-100/90 dark:bg-zinc-800/50 p-3 rounded-r-xl rounded-bl-xl text-zinc-800 dark:text-zinc-200 text-sm leading-relaxed border border-zinc-200 dark:border-zinc-700/50">
-                                            <ReactMarkdown components={DetailMarkdownComponents}>{c.text}</ReactMarkdown>
+                                            <ReactMarkdown remarkPlugins={[remarkBreaks]} components={DetailMarkdownComponents}>{c.text}</ReactMarkdown>
                                           </div>
                                         </div>
                                       </div>

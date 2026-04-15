@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
 import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2 } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
@@ -3111,7 +3112,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               Queixa do cliente
                            </p>
                            <div className={`${iosModalInsetCard} p-5 text-[16px] leading-relaxed text-zinc-800 dark:text-zinc-100 md:p-6`}>
-                              <ReactMarkdown components={MarkdownComponents}>
+                              <ReactMarkdown remarkPlugins={[remarkBreaks]} components={MarkdownComponents}>
                                  {selectedHistoryCard.desc || "Nenhuma descrição disponível."}
                               </ReactMarkdown>
                            </div>
@@ -3155,7 +3156,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                </span>
                                             </div>
                                             <div className="rounded-2xl border border-zinc-200/80 bg-white/90 p-3.5 text-[14px] leading-relaxed text-zinc-800 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-200">
-                                                <ReactMarkdown components={MarkdownComponents}>
+                                                <ReactMarkdown remarkPlugins={[remarkBreaks]} components={MarkdownComponents}>
                                                    {action.data.text}
                                                 </ReactMarkdown>
                                             </div>
@@ -3924,7 +3925,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              </div>
                           ) : (
                             <div className={`${iosModalInsetCard} p-5 text-[17px] font-light leading-relaxed text-zinc-800 dark:text-zinc-200 sm:p-6 md:text-lg`}>
-                               <ReactMarkdown components={MarkdownComponents}>
+                               <ReactMarkdown remarkPlugins={[remarkBreaks]} components={MarkdownComponents}>
                                  {selectedCard.desc || "Nenhuma descrição disponível para este veículo."}
                                </ReactMarkdown>
                             </div>
@@ -4712,7 +4713,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             ) : (
                                               <>
                                                 <div className="bg-light-card dark:bg-zinc-800/50 p-3 rounded-r-xl rounded-bl-xl text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed border border-zinc-200 dark:border-zinc-700/50">
-                                                   <ReactMarkdown components={MarkdownComponents}>
+                                                   <ReactMarkdown remarkPlugins={[remarkBreaks]} components={MarkdownComponents}>
                                                       {action.data.text}
                                                    </ReactMarkdown>
                                                 </div>
