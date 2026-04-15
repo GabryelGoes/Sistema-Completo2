@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2 } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2, Car } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -3575,20 +3575,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           >
                             <div className="flex min-w-0 items-center gap-3">
                               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF]/18 to-[#5AC8FA]/12 text-[#007AFF] shadow-sm dark:from-[#007AFF]/22 dark:to-[#5AC8FA]/10">
-                                <User className="h-4 w-4" strokeWidth={2} />
+                                {isModuleMode ? (
+                                  <FlaskConical className="h-4 w-4" strokeWidth={2} />
+                                ) : (
+                                  <Car className="h-4 w-4" strokeWidth={2} />
+                                )}
                               </span>
                               <div className="min-w-0 text-left">
                                 <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                                   Dados da ficha
                                 </h3>
                                 <p className="mt-0.5 truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100">
-                                  {serviceOrderDetail.customers?.name?.trim() || 'Cliente'} ·{' '}
-                                  {isModuleMode
-                                    ? serviceOrderDetail.module_identification || '—'
-                                    : (serviceOrderDetail.plate || '—').toUpperCase()}
-                                  {!isModuleMode && serviceOrderDetail.vehicle_color?.trim()
-                                    ? ` · ${serviceOrderDetail.vehicle_color.trim()}`
-                                    : ''}
+                                  {isModuleMode ? (
+                                    <>
+                                      <span className="font-mono">{(serviceOrderDetail.module_identification || '—').trim()}</span>
+                                      {' · '}
+                                      <span>{serviceOrderDetail.vehicle_model?.trim() || '—'}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="font-mono uppercase tracking-tight">{(serviceOrderDetail.plate || '—').toUpperCase()}</span>
+                                      {serviceOrderDetail.vehicle_model?.trim() ? ` · ${serviceOrderDetail.vehicle_model.trim()}` : ''}
+                                      {serviceOrderDetail.vehicle_color?.trim() ? ` · ${serviceOrderDetail.vehicle_color.trim()}` : ''}
+                                    </>
+                                  )}
+                                  {' · '}
+                                  <span className="text-zinc-500 dark:text-zinc-400">{serviceOrderDetail.customers?.name?.trim() || 'Cliente'}</span>
                                 </p>
                               </div>
                             </div>
@@ -3598,9 +3610,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </button>
                         </div>
                         {isDadosFichaExpanded && (
-                        <div className="space-y-6 bg-zinc-50/90 p-5 dark:bg-white/[0.02] sm:p-6">
+                        <div className="flex flex-col gap-6 bg-zinc-50/90 p-5 dark:bg-white/[0.02] sm:p-6">
                           {can('canEditFicha') ? (
                             <>
+                              <div className="order-2">
                               {serviceOrderDetail.customers && (
                                 <div className="space-y-3">
                                   <p className={`${iosLabel} ml-0.5`}>Cliente</p>
@@ -3643,6 +3656,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   </div>
                                 </div>
                               )}
+                              </div>
+                              <div className="order-1">
                               <div className="space-y-3">
                                 <p className={`${iosLabel} ml-0.5`}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
                                 <div className={`${vi} space-y-4 p-4 sm:p-5`}>
@@ -3700,57 +3715,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   )}
                                 </div>
                               </div>
+                              </div>
                             </>
                           ) : (
-                            <div className="space-y-6">
-                              {serviceOrderDetail.customers && (
-                                <>
-                                  <div className="space-y-3">
-                                    <p className={`${iosLabel} ml-0.5`}>Cliente</p>
-                                    <div className={`${vi} divide-y divide-zinc-200/60 overflow-hidden p-0 dark:divide-white/[0.06]`}>
-                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
-                                        <User className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
-                                        <div className="min-w-0 flex-1">
-                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Nome</p>
-                                          <p className="mt-0.5 text-[15px] font-medium leading-snug text-zinc-900 dark:text-white">{serviceOrderDetail.customers.name || '—'}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
-                                        <Smartphone className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
-                                        <div className="min-w-0 flex-1">
-                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Telefone</p>
-                                          <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.customers.phone || '—'}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
-                                        <Mail className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
-                                        <div className="min-w-0 flex-1">
-                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">E-mail</p>
-                                          <p className="mt-0.5 truncate text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.customers.email || '—'}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
-                                        <FileText className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
-                                        <div className="min-w-0 flex-1">
-                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">CPF</p>
-                                          <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.customers.cpf || '—'}</p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <p className={`${iosLabel} ml-0.5`}>Endereço</p>
-                                    <div className={`${vi} px-4 py-4 sm:px-5 sm:py-4`}>
-                                      <div className="flex gap-3">
-                                        <MapPin className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85 mt-0.5" />
-                                        <p className="text-[15px] font-medium leading-relaxed text-zinc-900 dark:text-white">
-                                          {[serviceOrderDetail.customers.address, serviceOrderDetail.customers.address_number, serviceOrderDetail.customers.cep].filter(Boolean).join(' · ') || '—'}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </>
-                              )}
+                            <div className="flex flex-col gap-6">
+                              <div className="order-1">
                               <div className="space-y-3">
                                 <p className={`${iosLabel} ml-0.5`}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
                                 <div className={`${vi} divide-y divide-zinc-200/60 overflow-hidden p-0 dark:divide-white/[0.06]`}>
@@ -3832,8 +3801,59 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   )}
                                 </div>
                               </div>
+                              </div>
+                              <div className="order-2">
+                              {serviceOrderDetail.customers && (
+                                <>
+                                  <div className="space-y-3">
+                                    <p className={`${iosLabel} ml-0.5`}>Cliente</p>
+                                    <div className={`${vi} divide-y divide-zinc-200/60 overflow-hidden p-0 dark:divide-white/[0.06]`}>
+                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                        <User className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Nome</p>
+                                          <p className="mt-0.5 text-[15px] font-medium leading-snug text-zinc-900 dark:text-white">{serviceOrderDetail.customers.name || '—'}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                        <Smartphone className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Telefone</p>
+                                          <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.customers.phone || '—'}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                        <Mail className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">E-mail</p>
+                                          <p className="mt-0.5 truncate text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.customers.email || '—'}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                        <FileText className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">CPF</p>
+                                          <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.customers.cpf || '—'}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-3">
+                                    <p className={`${iosLabel} ml-0.5`}>Endereço</p>
+                                    <div className={`${vi} px-4 py-4 sm:px-5 sm:py-4`}>
+                                      <div className="flex gap-3">
+                                        <MapPin className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85 mt-0.5" />
+                                        <p className="text-[15px] font-medium leading-relaxed text-zinc-900 dark:text-white">
+                                          {[serviceOrderDetail.customers.address, serviceOrderDetail.customers.address_number, serviceOrderDetail.customers.cep].filter(Boolean).join(' · ') || '—'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                              </div>
                             </div>
-                            )}
+                          )}
                           {can('canEditFicha') && (
                             <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200/50 pt-5 dark:border-white/[0.06]">
                               <button

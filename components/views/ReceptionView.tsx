@@ -670,10 +670,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
              </button>
           </div>
 
-          {/* Desktop: duas colunas (Cliente | Veículo + Queixa + Foto + Botão) */}
+          {/* Duas colunas: veículo/módulo e atendimento primeiro; dados do cliente depois (order no grid) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
-            {/* Coluna esquerda: Dados do cliente */}
-            <div className="space-y-6">
+            {/* Dados do cliente — order-2: segunda coluna no desktop e abaixo no mobile */}
+            <div className="space-y-6 order-2">
               <h2 className={`${iosLabel} border-b border-zinc-200/70 dark:border-white/[0.08] pb-2 mb-0 text-[12px]`}>
                 Dados do cliente
               </h2>
@@ -755,8 +755,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               </div>
             </div>
 
-            {/* Coluna direita: Veículo/Módulo + Queixa + Foto + Botão */}
-            <div className="space-y-6">
+            {/* Veículo/módulo + queixa + foto — order-1: primeira coluna no desktop e no topo no mobile */}
+            <div className="space-y-6 order-1">
               <h2 className={`${iosLabel} border-b border-zinc-200/70 dark:border-white/[0.08] pb-2 mb-0 text-[12px]`}>
                 {receptionMode === 'vehicle' ? 'Veículo e atendimento' : 'Módulo e atendimento'}
               </h2>
