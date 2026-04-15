@@ -2668,21 +2668,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
             >
               <History className="h-5 w-5" strokeWidth={2} />
             </button>
-            <button
-              type="button"
-              onClick={() => fetchData(false)}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-500 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-400 dark:hover:text-[#64B5FF]"
-            >
-              <RefreshCw className="h-6 w-6" />
-            </button>
-          </div>
-        </header>
-
-        {!isModuleMode && (
-          <div className="mb-6 space-y-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Buscar placa</p>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-              <div className="flex min-w-0 flex-1 gap-2">
+            {!isModuleMode ? (
+              <>
                 <input
                   type="text"
                   value={patioPlateSearchInput}
@@ -2693,65 +2680,78 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') void handlePatioPlateSearch();
                   }}
-                  placeholder="Ex.: ABC1D23"
+                  placeholder="ABC1D23"
                   maxLength={8}
-                  className="min-w-0 flex-1 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 font-mono text-[15px] font-semibold uppercase tracking-wider text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-[#007AFF]/45 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-900/50 dark:text-white dark:placeholder:text-zinc-500"
+                  className="h-12 w-[6.75rem] shrink-0 rounded-full border border-zinc-200/90 bg-white/90 px-3 font-mono text-[13px] font-bold uppercase tracking-wider text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-[#007AFF]/45 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 sm:w-32 dark:border-white/[0.12] dark:bg-zinc-900/50 dark:text-white dark:placeholder:text-zinc-500"
                   aria-label="Placa para buscar no Pátio"
                 />
                 <button
                   type="button"
                   onClick={() => void handlePatioPlateSearch()}
                   disabled={patioPlateSearchLoading}
-                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-sm font-semibold text-zinc-800 shadow-sm transition-all hover:border-[#007AFF]/40 hover:bg-white disabled:opacity-50 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.1]"
+                  title="Buscar placa no Pátio"
+                  className="inline-flex h-12 shrink-0 items-center justify-center gap-1.5 rounded-full border border-zinc-200/90 bg-white/90 px-3 text-sm font-semibold text-zinc-800 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all hover:border-[#007AFF]/40 hover:bg-white disabled:opacity-50 sm:gap-2 sm:px-4 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.1]"
                 >
                   {patioPlateSearchLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden />
                   ) : (
-                    <Search className="h-4 w-4" aria-hidden />
+                    <Search className="h-5 w-5 shrink-0" aria-hidden />
                   )}
-                  Buscar placa
+                  <span className="hidden sm:inline">Buscar placa</span>
                 </button>
-              </div>
-            </div>
-            {patioPlateSearchMessage && (
-              <div
-                className={`rounded-2xl border px-4 py-3 text-[14px] leading-snug ${
-                  patioPlateSearchInPatioCards.length > 0
-                    ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-950 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-100'
-                    : patioPlateSearchApiInfo
-                      ? 'border-zinc-200/90 bg-zinc-100/80 text-zinc-800 dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-zinc-200'
-                      : 'border-amber-400/40 bg-amber-500/10 text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-100'
-                }`}
-                role="status"
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fetchData(false)}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-500 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-400 dark:hover:text-[#64B5FF]"
+                title="Atualizar lista"
               >
-                <p>{patioPlateSearchMessage}</p>
-                {patioPlateSearchInPatioCards.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {patioPlateSearchInPatioCards.map((c) => {
-                      const tp = parsePatioCardTitle(c.name);
-                      return (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => setSelectedCard(c)}
-                          className="inline-flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-left text-[13px] font-semibold text-emerald-950 shadow-sm ring-1 ring-emerald-600/25 transition-colors hover:bg-white dark:bg-zinc-900/80 dark:text-emerald-50 dark:ring-emerald-400/30"
-                        >
-                          <span className="font-vehicle italic">{tp.vehicle || 'Veículo'}</span>
-                          <span className="text-[11px] font-normal opacity-80">Abrir ficha</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                {patioPlateSearchApiInfo && (
-                  <p className="mt-2 text-[13px] text-zinc-600 dark:text-zinc-400">
-                    {[patioPlateSearchApiInfo.vehicleBrand, patioPlateSearchApiInfo.vehicleModel].filter(Boolean).join(' · ') || '—'}
-                    {patioPlateSearchApiInfo.vehicleColor ? ` · ${patioPlateSearchApiInfo.vehicleColor}` : ''}
-                    {patioPlateSearchApiInfo.vehicleYear ? ` · ${patioPlateSearchApiInfo.vehicleYear}` : ''}
-                  </p>
-                )}
-              </div>
+                <RefreshCw className="h-6 w-6" />
+              </button>
             )}
+          </div>
+        </header>
+
+        {!isModuleMode && patioPlateSearchMessage && (
+          <div className="mb-5">
+            <div
+              className={`rounded-2xl border px-4 py-3 text-[14px] leading-snug ${
+                patioPlateSearchInPatioCards.length > 0
+                  ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-950 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-100'
+                  : patioPlateSearchApiInfo
+                    ? 'border-zinc-200/90 bg-zinc-100/80 text-zinc-800 dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-zinc-200'
+                    : 'border-amber-400/40 bg-amber-500/10 text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-100'
+              }`}
+              role="status"
+            >
+              <p>{patioPlateSearchMessage}</p>
+              {patioPlateSearchInPatioCards.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {patioPlateSearchInPatioCards.map((c) => {
+                    const tp = parsePatioCardTitle(c.name);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setSelectedCard(c)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-left text-[13px] font-semibold text-emerald-950 shadow-sm ring-1 ring-emerald-600/25 transition-colors hover:bg-white dark:bg-zinc-900/80 dark:text-emerald-50 dark:ring-emerald-400/30"
+                      >
+                        <span className="font-vehicle italic">{tp.vehicle || 'Veículo'}</span>
+                        <span className="text-[11px] font-normal opacity-80">Abrir ficha</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {patioPlateSearchApiInfo && (
+                <p className="mt-2 text-[13px] text-zinc-600 dark:text-zinc-400">
+                  {[patioPlateSearchApiInfo.vehicleBrand, patioPlateSearchApiInfo.vehicleModel].filter(Boolean).join(' · ') || '—'}
+                  {patioPlateSearchApiInfo.vehicleColor ? ` · ${patioPlateSearchApiInfo.vehicleColor}` : ''}
+                  {patioPlateSearchApiInfo.vehicleYear ? ` · ${patioPlateSearchApiInfo.vehicleYear}` : ''}
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>
