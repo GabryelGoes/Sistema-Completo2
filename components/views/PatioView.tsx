@@ -4009,7 +4009,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           key={budget.id}
                                           type="button"
                                           onClick={() => openBudgetApproval(budget)}
-                                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-500/50 bg-amber-500/10 text-amber-800 dark:text-amber-200 text-sm font-medium hover:bg-amber-500/20 transition-colors"
+                                          className="inline-flex items-center gap-2 rounded-lg border border-brand-yellow/50 bg-brand-yellow/10 px-3 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-brand-yellow/20 dark:text-zinc-100"
                                         >
                                           <CheckCircle2 className="w-4 h-4" />
                                           Aprovar orçamento {idx + 1}
@@ -5309,8 +5309,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       openBudgetApproval(b);
                     }}
                     disabled={!!deletingBudgetId}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-amber-600/40 bg-amber-500/15 font-medium text-sm hover:bg-amber-500/25 transition-colors disabled:opacity-50"
-                    style={{ color: '#000000' }}
+                    className="inline-flex items-center gap-2 rounded-lg border border-brand-yellow/50 bg-brand-yellow/10 px-5 py-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-brand-yellow/20 disabled:opacity-50 dark:text-zinc-100"
                   >
                     <CheckCircle2 className="w-4 h-4" /> Aprovar itens
                   </button>
