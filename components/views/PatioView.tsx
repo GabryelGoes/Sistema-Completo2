@@ -4063,7 +4063,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         type="file" 
                                         ref={cameraInputRef} 
                                         className="hidden" 
-                                        accept="image/*,application/pdf,.png,.jpg,.jpeg,.webp,.heic,.heif,.pdf"
+                                        accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif,.bmp"
+                                        capture="environment"
                                         onChange={handleCameraFileSelect}
                                     />
                                     <button 
@@ -4071,7 +4072,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         onClick={() => cameraInputRef.current?.click()}
                                         disabled={isUploading}
                                         className="flex items-center justify-center w-14 h-14 sm:w-10 sm:h-10 rounded-2xl sm:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Foto (câmera, galeria ou arquivos)"
+                                        title="Abrir câmera do dispositivo"
                                     >
                                         <Camera className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
                                     </button>
