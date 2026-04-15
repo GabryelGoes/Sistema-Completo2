@@ -355,10 +355,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           vehicleColor: result.vehicleColor?.trim() || prev.vehicleColor,
           vehicleYear: result.vehicleYear?.trim() || prev.vehicleYear,
           vehicleEngineInfo: result.vehicleEngineInfo?.trim() || prev.vehicleEngineInfo,
-          city:
-            result.citySuggestion && !(prev.city && prev.city.trim())
-              ? result.citySuggestion
-              : prev.city,
         }));
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Falha na consulta.';
