@@ -3939,11 +3939,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <button 
                                   type="button"
                                   onClick={() => openBudgetModal()}
-                                  className="group w-full rounded-xl border-2 border-amber-400/90 bg-amber-400 p-4 text-left shadow-md transition-all hover:bg-amber-500 hover:shadow-lg active:scale-[0.99] dark:border-amber-400/85 dark:bg-amber-500 dark:hover:bg-amber-400"
+                                  className="group w-full rounded-xl border-2 border-brand-yellow/90 bg-brand-yellow p-4 text-left shadow-md transition-[filter,transform,box-shadow] hover:brightness-110 active:scale-[0.99]"
                                 >
                                   <span className="flex items-center justify-between gap-3">
-                                    <span className="font-black text-zinc-950 dark:text-zinc-950">Criar orçamento</span>
-                                    <Calculator className="h-5 w-5 shrink-0 text-zinc-950/90 transition-transform group-hover:scale-110 dark:text-zinc-950" />
+                                    <span className="font-black text-zinc-950">Criar orçamento</span>
+                                    <Calculator className="h-5 w-5 shrink-0 text-zinc-950/90 transition-transform group-hover:scale-110" />
                                   </span>
                               </button>
                               <div className="max-h-[280px] space-y-3 overflow-y-auto rounded-xl border-2 border-zinc-200/90 bg-white p-3 shadow-sm dark:border-zinc-600/80 dark:bg-zinc-900/50">
@@ -4837,7 +4837,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                            setIsConvertingType(false);
                                         }
                                      }}
-                                     className="inline-flex max-w-full items-center gap-2 self-start rounded-xl border-2 border-amber-600 bg-amber-100 px-4 py-2.5 text-sm font-semibold text-amber-950 shadow-sm transition-colors hover:bg-amber-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-400 dark:bg-amber-500/25 dark:text-amber-50 dark:hover:bg-amber-500/40"
+                                     className="inline-flex max-w-full items-center gap-2 self-start rounded-xl border-2 border-brand-yellow bg-brand-yellow px-4 py-2.5 text-sm font-semibold text-zinc-950 shadow-sm transition-[filter,transform] hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                                   >
                                      {isConvertingType ? (
                                         <RefreshCw className="w-4 h-4 shrink-0 animate-spin" />
