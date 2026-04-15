@@ -1088,7 +1088,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     <div className="flex justify-between items-start gap-4 mb-3">
                       <div className="min-w-0 flex-1">
                         <h3
-                          className={`${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.95] tracking-tighter break-words italic`}
+                          className={`font-vehicle ${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.95] tracking-tighter break-words italic`}
                         >
                           {model}
                         </h3>
@@ -1289,7 +1289,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           </span>
                           <h1
                             id="reception-archived-detail-title"
-                            className="text-3xl sm:text-5xl md:text-6xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none pr-4"
+                            className="font-vehicle text-3xl sm:text-5xl md:text-6xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none pr-4"
                           >
                             {(d.vehicle_model || '—').trim()}
                           </h1>

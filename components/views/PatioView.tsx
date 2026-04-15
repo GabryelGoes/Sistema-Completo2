@@ -2708,7 +2708,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {/* Nome do carro (fonte um pouco menor) */}
                 <div className="mb-2">
                   <h3
-                    className={`${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic`}
+                    className={`font-vehicle ${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic`}
                   >
                     {model}
                   </h3>
@@ -2948,7 +2948,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               >
                                  <div className="flex justify-between items-start mb-4 gap-4">
                                     <div className="min-w-0 flex-1">
-                                       <h3 className="break-words text-xl font-semibold leading-snug tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
+                                       <h3 className="font-vehicle break-words text-xl font-semibold leading-snug tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
                                          {model}
                                        </h3>
                                        {!isModuleMode && (card.vehicleColor ?? '').trim() ? (
@@ -3425,7 +3425,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {(serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand || '').trim()}
                           </p>
                         ) : null}
-                        <h1 className="text-5xl md:text-7xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none">
+                        <h1 className="font-vehicle text-5xl md:text-7xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none">
                           {selectedCardTitleParts?.vehicle}
                         </h1>
                         {!isModuleMode &&
@@ -3772,7 +3772,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <PatioCarIcon className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
                                     <div className="min-w-0 flex-1">
                                       <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{isModuleMode ? 'Referência' : 'Modelo'}</p>
-                                      <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_model || '—'}</p>
+                                      <p className="font-vehicle mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_model || '—'}</p>
                                     </div>
                                   </div>
                                   {isModuleMode && (
@@ -5934,7 +5934,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </h2>
                       <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
                         <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
-                        <span className="min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200">
+                        <span className="font-vehicle min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200">
                           {selectedCardTitleParts?.vehicle}
                         </span>
                         <span className="text-zinc-400 dark:text-zinc-500">—</span>

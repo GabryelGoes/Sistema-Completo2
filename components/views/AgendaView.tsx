@@ -544,7 +544,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                                         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 mb-0.5">
                                           Veículo
                                         </p>
-                                        <h4 className="text-[17px] sm:text-[19px] font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug">
+                                        <h4 className="font-vehicle text-[17px] sm:text-[19px] font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug">
                                           {app.vehicleModel || 'Veículo não informado'}
                                         </h4>
                                         <p className="text-[15px] font-medium text-[#007AFF] dark:text-sky-400 mt-0.5 truncate">
@@ -734,7 +734,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                       </div>
                       <div>
                         <p className={iosLabel}>Veículo</p>
-                        <p className="text-[16px] font-medium text-zinc-800 dark:text-zinc-100">
+                        <p className="font-vehicle text-[16px] font-medium text-zinc-800 dark:text-zinc-100">
                           {app.vehicleModel || '—'}
                         </p>
                         {app.plate ? (
