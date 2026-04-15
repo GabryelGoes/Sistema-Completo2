@@ -16,6 +16,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
+import { StorageThumbImg } from './ui/StorageThumbImg';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
@@ -889,7 +890,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         >
                           <div className="w-10 h-10 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 overflow-hidden shrink-0 pointer-events-none">
                             {p.photo_url ? (
-                              <img src={p.photo_url} alt="" className="w-full h-full object-cover" />
+                              <StorageThumbImg
+                                src={p.photo_url}
+                                alt=""
+                                className="h-full w-full object-cover"
+                                thumbMaxWidth={64}
+                                thumbMaxHeight={64}
+                                thumbResize="cover"
+                                thumbQuality={32}
+                              />
                             ) : null}
                           </div>
                           <span className="min-w-0 flex flex-col gap-0.5 text-left">
@@ -1165,7 +1174,17 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             <div className="flex justify-center sm:justify-start">
               <div className="w-full max-w-[min(100%,190px)] sm:max-w-[min(100%,220px)] aspect-square rounded-[22px] border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-100 dark:bg-white/[0.05] overflow-hidden flex items-center justify-center">
                 {detail.photo_url ? (
-                  <img src={detail.photo_url} alt={detail.name} className="w-full h-full object-cover" />
+                  <StorageThumbImg
+                    src={detail.photo_url}
+                    alt={detail.name}
+                    className="h-full w-full object-cover"
+                    thumbMaxWidth={256}
+                    thumbMaxHeight={256}
+                    thumbResize="cover"
+                    thumbQuality={40}
+                    loading="eager"
+                    fetchPriority="high"
+                  />
                 ) : (
                   <Package className="w-10 h-10 text-zinc-300 dark:text-zinc-600" strokeWidth={1.25} />
                 )}
