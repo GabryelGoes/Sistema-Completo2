@@ -37,6 +37,8 @@ import {
   getSystemUserTechnicians,
   updateCustomer,
   deleteServiceOrderWithPassword,
+  consultPlacaFipe,
+  type PlacaFipeLookupResult,
   getChecklistTemplates,
   getServiceOrderChecklistState,
   updateServiceOrderChecklistItem,
@@ -209,6 +211,14 @@ function parsePatioCardTitle(name: string): { vehicle: string; plateOrModule: st
     plateOrModule: parts[1] ?? '',
     customer: parts.slice(2).join(PATIO_CARD_TITLE_SEP),
   };
+}
+
+/** Mesmo critério da Recepção — comparação de placa Mercosul / antiga. */
+function normalizePatioPlate(raw: string): string {
+  return String(raw ?? '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+    .slice(0, 8);
 }
 
 /** Mesmas opções da Recepção — categoria do veículo. */
@@ -972,6 +982,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [vehicleEditPlate, setVehicleEditPlate] = useState('');
   const [savingVehicleEdit, setSavingVehicleEdit] = useState(false);
 
+  /** Busca por placa no Pátio (cards ativos) + consulta PlacaFipe se não houver OS local. */
+  const [patioPlateSearchInput, setPatioPlateSearchInput] = useState('');
+  const [patioPlateSearchLoading, setPatioPlateSearchLoading] = useState(false);
+  const [patioPlateSearchMessage, setPatioPlateSearchMessage] = useState<string | null>(null);
+  const [patioPlateSearchInPatioCards, setPatioPlateSearchInPatioCards] = useState<TrelloCard[]>([]);
+  const [patioPlateSearchApiInfo, setPatioPlateSearchApiInfo] = useState<PlacaFipeLookupResult | null>(null);
+  const [patioPlateHighlightCardId, setPatioPlateHighlightCardId] = useState<string | null>(null);
+
   // Efeito "folha boiando na água" nos cards do pátio (hover 3D)
   const [cardFloat, setCardFloat] = useState<{ id: string; rotateX: number; rotateY: number } | null>(null);
   // Desativa o efeito 3D quando o mouse está sobre o conteúdo (botões), evitando cliques perdidos
@@ -991,6 +1009,53 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const normalizeText = (text: string) => {
     return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
   };
+
+  const handlePatioPlateSearch = useCallback(async () => {
+    if (isModuleMode) return;
+    const norm = normalizePatioPlate(patioPlateSearchInput);
+    setPatioPlateSearchApiInfo(null);
+    setPatioPlateSearchInPatioCards([]);
+    setPatioPlateHighlightCardId(null);
+    if (norm.length < 7) {
+      setPatioPlateSearchMessage('Informe a placa completa (mín. 7 caracteres).');
+      return;
+    }
+    setPatioPlateSearchLoading(true);
+    setPatioPlateSearchMessage(null);
+    try {
+      const matches = cards.filter((c) => {
+        const parts = parsePatioCardTitle(c.name);
+        return normalizePatioPlate(parts.plateOrModule || '') === norm;
+      });
+      if (matches.length > 0) {
+        setPatioPlateSearchInPatioCards(matches);
+        setPatioPlateHighlightCardId(matches[0]!.id);
+        setPatioPlateSearchMessage(
+          matches.length === 1
+            ? 'Este veículo já está cadastrado no Pátio.'
+            : `Existem ${matches.length} ordens ativas com esta placa no Pátio.`
+        );
+        return;
+      }
+      const api = await consultPlacaFipe(norm);
+      setPatioPlateSearchApiInfo(api);
+      setPatioPlateSearchMessage(
+        'Nenhuma OS ativa com esta placa no Pátio. Dados abaixo vêm da consulta de placa (veículo pode estar só na Recepção ou arquivado).'
+      );
+    } catch (e) {
+      setPatioPlateSearchMessage(e instanceof Error ? e.message : 'Erro ao consultar a placa.');
+    } finally {
+      setPatioPlateSearchLoading(false);
+    }
+  }, [cards, isModuleMode, patioPlateSearchInput]);
+
+  useEffect(() => {
+    if (!patioPlateHighlightCardId) return;
+    const t = window.setTimeout(() => {
+      document.getElementById(`patio-card-${patioPlateHighlightCardId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [patioPlateHighlightCardId]);
 
   const fetchData = async (isBackground = false) => {
     if (!isBackground) {
@@ -2612,6 +2677,83 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </button>
           </div>
         </header>
+
+        {!isModuleMode && (
+          <div className="mb-6 space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Buscar placa</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+              <div className="flex min-w-0 flex-1 gap-2">
+                <input
+                  type="text"
+                  value={patioPlateSearchInput}
+                  onChange={(e) => {
+                    setPatioPlateSearchInput(e.target.value.toUpperCase());
+                    setPatioPlateHighlightCardId(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void handlePatioPlateSearch();
+                  }}
+                  placeholder="Ex.: ABC1D23"
+                  maxLength={8}
+                  className="min-w-0 flex-1 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 font-mono text-[15px] font-semibold uppercase tracking-wider text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-[#007AFF]/45 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-900/50 dark:text-white dark:placeholder:text-zinc-500"
+                  aria-label="Placa para buscar no Pátio"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handlePatioPlateSearch()}
+                  disabled={patioPlateSearchLoading}
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-sm font-semibold text-zinc-800 shadow-sm transition-all hover:border-[#007AFF]/40 hover:bg-white disabled:opacity-50 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.1]"
+                >
+                  {patioPlateSearchLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Search className="h-4 w-4" aria-hidden />
+                  )}
+                  Buscar placa
+                </button>
+              </div>
+            </div>
+            {patioPlateSearchMessage && (
+              <div
+                className={`rounded-2xl border px-4 py-3 text-[14px] leading-snug ${
+                  patioPlateSearchInPatioCards.length > 0
+                    ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-950 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-100'
+                    : patioPlateSearchApiInfo
+                      ? 'border-zinc-200/90 bg-zinc-100/80 text-zinc-800 dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-zinc-200'
+                      : 'border-amber-400/40 bg-amber-500/10 text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-100'
+                }`}
+                role="status"
+              >
+                <p>{patioPlateSearchMessage}</p>
+                {patioPlateSearchInPatioCards.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {patioPlateSearchInPatioCards.map((c) => {
+                      const tp = parsePatioCardTitle(c.name);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setSelectedCard(c)}
+                          className="inline-flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-left text-[13px] font-semibold text-emerald-950 shadow-sm ring-1 ring-emerald-600/25 transition-colors hover:bg-white dark:bg-zinc-900/80 dark:text-emerald-50 dark:ring-emerald-400/30"
+                        >
+                          <span className="font-vehicle italic">{tp.vehicle || 'Veículo'}</span>
+                          <span className="text-[11px] font-normal opacity-80">Abrir ficha</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {patioPlateSearchApiInfo && (
+                  <p className="mt-2 text-[13px] text-zinc-600 dark:text-zinc-400">
+                    {[patioPlateSearchApiInfo.vehicleBrand, patioPlateSearchApiInfo.vehicleModel].filter(Boolean).join(' · ') || '—'}
+                    {patioPlateSearchApiInfo.vehicleColor ? ` · ${patioPlateSearchApiInfo.vehicleColor}` : ''}
+                    {patioPlateSearchApiInfo.vehicleYear ? ` · ${patioPlateSearchApiInfo.vehicleYear}` : ''}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. */}
@@ -2659,6 +2801,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           return (
             <div
               key={card.id}
+              id={`patio-card-${card.id}`}
               className="min-h-[180px]"
               style={{ transformStyle: 'preserve-3d' }}
               onMouseMove={(e) => handleCardMouseMove(e, card.id)}
@@ -2673,7 +2816,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]
                   hover:border-[#007AFF]/28 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:hover:border-white/[0.12] dark:hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.5)]
                   active:scale-[0.99]
-                  ${isGarantia ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40' : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'}
+                  ${
+                    patioPlateHighlightCardId === card.id
+                      ? 'border-brand-yellow/90 ring-2 ring-inset ring-brand-yellow shadow-[0_0_0_1px_rgba(0,0,0,0.06)] dark:border-brand-yellow/70'
+                      : isGarantia
+                        ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40'
+                        : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'
+                  }
                 `}
                 style={{
                   transform: isFloating
