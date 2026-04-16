@@ -2717,7 +2717,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             patioPlateSearchApiInfo) && (
           <div className="mb-5">
             <div
-              className={`rounded-2xl border px-4 py-3 text-[14px] leading-snug ${
+              className={`relative rounded-2xl border py-3 pl-4 pr-11 text-[14px] leading-snug ${
                 patioPlateSearchInPatioCards.length > 0
                   ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-950 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-100'
                   : patioPlateSearchApiInfo
@@ -2726,6 +2726,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
               }`}
               role="status"
             >
+              <button
+                type="button"
+                onClick={() => {
+                  setPatioPlateSearchMessage(null);
+                  setPatioPlateSearchInPatioCards([]);
+                  setPatioPlateSearchApiInfo(null);
+                  setPatioPlateHighlightCardId(null);
+                }}
+                className="absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-100"
+                aria-label="Fechar resultado da busca por placa"
+              >
+                <X className="h-5 w-5" strokeWidth={2} />
+              </button>
               {patioPlateSearchMessage ? <p>{patioPlateSearchMessage}</p> : null}
               {patioPlateSearchInPatioCards.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
