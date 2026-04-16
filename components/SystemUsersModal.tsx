@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Pencil, Trash2, Loader2, LayoutGrid, Settings, Car, User, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosInput } from './ui/iosModalStyles';
+import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { IosModalHeader } from './ui/IosModalHeader';
 import type { SystemUserPermissions, SystemUser } from '../services/apiService';
 import {
@@ -475,8 +476,10 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                   {users.length > 0 && (
                     <section className="rounded-xl border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/30 p-4 space-y-3">
                       <div className="flex items-start gap-2">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-sm">
-                          <CheckCircle2 className="w-4 h-4 text-white" strokeWidth={2.2} />
+                        <div className="shrink-0 origin-left scale-[0.92]">
+                          <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                            <CheckCircle2 />
+                          </IosAccentIconSquircle>
                         </div>
                         <div className="min-w-0">
                           <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Quem pode aprovar itens do orçamento</h3>

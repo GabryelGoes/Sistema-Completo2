@@ -16,6 +16,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
+import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { StorageThumbImg } from './ui/StorageThumbImg';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { IosModalHeader } from './ui/IosModalHeader';
@@ -1157,9 +1158,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           </p>
           <div className="px-6 sm:px-8 pt-8 pb-5 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06] bg-gradient-to-b from-emerald-500/[0.07] to-transparent dark:from-emerald-400/[0.09]">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 shadow-lg shadow-emerald-900/20 dark:shadow-black/30">
-                <Package className="h-7 w-7 text-white" strokeWidth={2.2} />
-              </div>
+              <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
+                <Package />
+              </IosAccentIconSquircle>
               <div className="min-w-0 flex-1 pt-0.5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700/90 dark:text-emerald-400/90 mb-1.5">
                   Produto no estoque

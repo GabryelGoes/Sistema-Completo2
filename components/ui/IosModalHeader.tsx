@@ -1,25 +1,22 @@
 import React from 'react';
 import { Sparkles } from 'lucide-react';
+import { iosAccentIconShellModal, iosPageTitleIconGlass } from './iosModalStyles';
 
 export interface IosModalHeaderProps {
   icon: React.ReactNode;
   title: string;
   subtitle?: string;
-  /** Classes Tailwind do gradiente do quadrado do ícone, ex.: from-zinc-500 to-zinc-700 */
+  /** @deprecated Ignorado — o ícone usa a cor de destaque da oficina (mesmo material dos títulos das páginas). */
   gradientClass?: string;
 }
 
-export const IosModalHeader: React.FC<IosModalHeaderProps> = ({
-  icon,
-  title,
-  subtitle,
-  gradientClass = 'from-zinc-500 to-zinc-700',
-}) => (
+export const IosModalHeader: React.FC<IosModalHeaderProps> = ({ icon, title, subtitle }) => (
   <div className="flex items-center gap-3 mb-1 pr-2">
-    <div
-      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${gradientClass} shadow-lg shadow-black/10`}
-    >
-      {icon}
+    <div className={iosAccentIconShellModal}>
+      <span className={iosPageTitleIconGlass} aria-hidden />
+      <div className="relative z-10 flex h-full w-full items-center justify-center text-zinc-950 [&_svg]:h-6 [&_svg]:w-6 [&_path]:fill-current [&_svg]:[filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))]">
+        {icon}
+      </div>
     </div>
     <div className="min-w-0">
       <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">

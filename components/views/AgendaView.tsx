@@ -11,10 +11,8 @@ import {
   iosModalInsetCard,
   iosModalOverlay,
   iosAccentPrimaryButton,
-  iosPageTitleIconShell,
-  iosPageTitleIconGlass,
-  iosPageTitleIconGlyph,
 } from '../ui/iosModalStyles';
+import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { IosModalHeader } from '../ui/IosModalHeader';
 import { Customer, Appointment } from '../../types';
 import { getAppointments, createAppointment, updateAppointment, deleteAppointment } from '../../services/apiService';
@@ -277,10 +275,9 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
     return (
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <div className={iosPageTitleIconShell} aria-hidden>
-            <span className={iosPageTitleIconGlass} aria-hidden />
-            <CalendarIcon className={iosPageTitleIconGlyph} strokeWidth={2.2} />
-          </div>
+          <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
+            <CalendarIcon />
+          </IosAccentIconSquircle>
           <div className="min-w-0">
             <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
               Agenda
@@ -484,8 +481,10 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
                     <div className="min-w-0">
                       <h3 className="text-[17px] sm:text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2.5">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-yellow to-zinc-800 shadow-md shadow-brand-yellow/25 shrink-0">
-                          <CalendarDays className="w-5 h-5 text-zinc-950" strokeWidth={2} />
+                        <span className="shrink-0">
+                          <IosAccentIconSquircle variant="row" strokeWidth={2}>
+                            <CalendarDays />
+                          </IosAccentIconSquircle>
                         </span>
                         <span className="leading-tight">
                           Agendamentos do dia

@@ -68,3 +68,35 @@ export const iosPageTitleIconGlass =
 /** Pictograma (Lucide / PatioCarIcon) — traço escuro com leve destaque no vidro. */
 export const iosPageTitleIconGlyph =
   'relative z-10 h-7 w-7 text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))]';
+
+/** Superfície compartilhada (borda / gradiente brand / sombras) — acrescente tamanho + raio. */
+const iosAccentIconSurfaceCore =
+  'border border-white/45 bg-gradient-to-br from-brand-yellow via-brand-yellow to-brand-yellow/85 ' +
+  'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55),inset_0_-14px_26px_-10px_rgba(0,0,0,0.07),0_10px_34px_-8px_rgba(0,0,0,0.2),0_0_0_1px_rgba(0,0,0,0.04)] ' +
+  'ring-1 ring-inset ring-white/30 dark:border-white/25 dark:from-brand-yellow dark:via-brand-yellow/92 dark:to-brand-yellow/72 ' +
+  'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.16),inset_0_-18px_34px_-12px_rgba(0,0,0,0.38),0_14px_48px_-10px_rgba(0,0,0,0.5)]';
+
+/** Modal / cabeçalhos internos (48px). */
+export const iosAccentIconShellModal =
+  'relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl ' + iosAccentIconSurfaceCore;
+
+/** Linhas de lista (Settings home, 44px). */
+export const iosAccentIconShellRow =
+  'relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] ' + iosAccentIconSurfaceCore;
+
+/** Tiles grandes da página inicial (Recepção, Serviços, etc.). */
+export const iosAccentIconShellTile =
+  'relative flex w-[4.75rem] h-[4.75rem] sm:w-[5.5rem] sm:h-[5.5rem] shrink-0 items-center justify-center overflow-hidden rounded-[1.45rem] sm:rounded-[1.55rem] ' +
+  iosAccentIconSurfaceCore;
+
+/** Pictograma em modal (24px). */
+export const iosAccentIconGlyphModal =
+  'relative z-10 h-6 w-6 text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))]';
+
+/** Pictograma em linha / settings (20px). */
+export const iosAccentIconGlyphRow =
+  'relative z-10 m-auto h-5 w-5 text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))]';
+
+/** Pictograma em tile da home (grande). */
+export const iosAccentIconGlyphTile =
+  'relative z-10 h-10 w-10 sm:h-11 sm:w-11 text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))]';

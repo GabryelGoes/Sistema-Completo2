@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { PatioCarIcon } from '../ui/PatioCarIcon';
+import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
 import { WorkshopPartsModal } from '../WorkshopPartsModal';
 import { PatioChecklistsModal } from '../PatioChecklistsModal';
@@ -67,48 +68,30 @@ const iosSectionTitle =
 
 const iosSectionHint = 'text-[13px] text-zinc-950 dark:text-zinc-400 mb-4 leading-relaxed';
 
-const iconSquircle =
-  'flex items-center justify-center rounded-[1.35rem] shadow-[0_8px_28px_-6px_rgba(0,0,0,0.38),inset_0_1px_0_0_rgba(255,255,255,0.38)]';
-
-/** Tamanho do quadrado gradiente + ícone branco dentro (estilo app iOS). */
-const opSquircleSize = 'w-[4.75rem] h-[4.75rem] sm:w-[5.5rem] sm:h-[5.5rem]';
-const opGlyphSize = 'w-10 h-10 sm:w-11 sm:h-11';
-
-type AppGradient =
-  | 'from-amber-400 via-amber-500 to-orange-600'
-  | 'from-sky-400 via-blue-500 to-indigo-600'
-  | 'from-emerald-400 via-teal-500 to-cyan-700'
-  | 'from-violet-400 via-purple-500 to-fuchsia-700';
-
 const OPERATIONAL_APPS: {
   id: HomeAppId;
   label: string;
-  icon: React.ReactNode;
-  gradient: AppGradient;
+  icon: React.ReactElement;
 }[] = [
   {
     id: 'reception',
     label: 'Recepção',
-    icon: <ClipboardList className={`${opGlyphSize} text-white`} strokeWidth={2.2} />,
-    gradient: 'from-amber-400 via-amber-500 to-orange-600',
+    icon: <ClipboardList strokeWidth={2.2} />,
   },
   {
     id: 'agenda',
     label: 'Agenda',
-    icon: <Calendar className={`${opGlyphSize} text-white`} strokeWidth={2.2} />,
-    gradient: 'from-sky-400 via-blue-500 to-indigo-600',
+    icon: <Calendar strokeWidth={2.2} />,
   },
   {
     id: 'patio',
     label: 'Pátio',
-    icon: <PatioCarIcon className={`${opGlyphSize} text-white`} strokeWidth={2.2} />,
-    gradient: 'from-emerald-400 via-teal-500 to-cyan-700',
+    icon: <PatioCarIcon strokeWidth={2.2} />,
   },
   {
     id: 'laboratorio',
     label: 'Laboratório',
-    icon: <FlaskConical className={`${opGlyphSize} text-white`} strokeWidth={2.2} />,
-    gradient: 'from-violet-400 via-purple-500 to-fuchsia-700',
+    icon: <FlaskConical strokeWidth={2.2} />,
   },
 ];
 
@@ -138,7 +121,7 @@ function SettingsRow({
         <span className="block text-[15px] font-medium text-zinc-900 dark:text-white leading-snug">{title}</span>
         {subtitle ? <span className="block text-[12px] text-zinc-950 dark:text-zinc-400 mt-0.5">{subtitle}</span> : null}
       </span>
-      <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500 group-hover:text-[#007AFF] dark:group-hover:text-[#0A84FF] transition-colors" />
+      <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500 group-hover:text-brand-yellow transition-colors" />
     </button>
   );
 }
@@ -208,7 +191,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               Rei do ABS
             </h1>
             <p className="text-[13px] text-zinc-950 dark:text-zinc-400 mt-1 flex items-center gap-1.5 flex-wrap">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500/90 shrink-0" />
+              <Sparkles className="w-3.5 h-3.5 text-brand-yellow shrink-0" />
               {isTechnician ? (
                 <span>
                   Olá, <span className="font-medium text-zinc-700 dark:text-zinc-200">{technicianName}</span>
@@ -241,11 +224,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       onClick={() => onOpenApp(app.id)}
                       className={`group flex flex-col items-center gap-3 p-6 ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/20 dark:hover:border-[#0A84FF]/25 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.25)] transition-all duration-300 active:scale-[0.98]`}
                     >
-                      <div
-                        className={`${opSquircleSize} bg-gradient-to-br ${app.gradient} ${iconSquircle} group-hover:scale-[1.05] transition-transform duration-300`}
+                      <IosAccentIconSquircle
+                        variant="tile"
+                        className="transition-transform duration-300 group-hover:scale-105"
+                        strokeWidth={2.2}
                       >
                         {app.icon}
-                      </div>
+                      </IosAccentIconSquircle>
                       <span className="text-[15px] font-semibold text-zinc-900 dark:text-white text-center tracking-tight">
                         {app.label}
                       </span>
@@ -263,11 +248,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       onClick={() => onOpenApp(app.id)}
                       className={`group flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99]`}
                     >
-                      <div
-                        className={`${opSquircleSize} bg-gradient-to-br ${app.gradient} ${iconSquircle} group-hover:scale-[1.05] transition-transform duration-300`}
+                      <IosAccentIconSquircle
+                        variant="tile"
+                        className="transition-transform duration-300 group-hover:scale-105"
+                        strokeWidth={2.2}
                       >
                         {app.icon}
-                      </div>
+                      </IosAccentIconSquircle>
                       <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">{app.label}</span>
                     </button>
                   ))}
@@ -278,11 +265,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         onClick={() => setIsServicesModalOpen(true)}
                         className={`group flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99]`}
                       >
-                        <div
-                          className={`${opSquircleSize} bg-gradient-to-br from-amber-400 via-orange-500 to-orange-700 ${iconSquircle} group-hover:scale-[1.05] transition-transform duration-300`}
-                        >
-                          <Wrench className={`${opGlyphSize} text-white`} strokeWidth={2.2} />
-                        </div>
+                        <IosAccentIconSquircle variant="tile" className="transition-transform duration-300 group-hover:scale-105" strokeWidth={2.2}>
+                          <Wrench />
+                        </IosAccentIconSquircle>
                         <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
                           Serviços da oficina
                         </span>
@@ -292,11 +277,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         onClick={() => setIsPartsModalOpen(true)}
                         className={`group flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99]`}
                       >
-                        <div
-                          className={`${opSquircleSize} bg-gradient-to-br from-emerald-400 via-teal-500 to-teal-800 ${iconSquircle} group-hover:scale-[1.05] transition-transform duration-300`}
-                        >
-                          <Package className={`${opGlyphSize} text-white`} strokeWidth={2.2} />
-                        </div>
+                        <IosAccentIconSquircle variant="tile" className="transition-transform duration-300 group-hover:scale-105" strokeWidth={2.2}>
+                          <Package />
+                        </IosAccentIconSquircle>
                         <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
                           Estoque de peças
                         </span>
@@ -311,11 +294,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 onClick={() => setIsTvPatioOpen(true)}
                 className={`mt-5 w-full flex items-center gap-4 p-4 sm:p-5 text-left ${iosCard} border-[#007AFF]/20 dark:border-[#0A84FF]/25 bg-gradient-to-br from-sky-50/95 to-white/80 dark:from-blue-950/45 dark:to-zinc-900/50 hover:border-[#007AFF]/35 dark:hover:border-[#0A84FF]/35 hover:shadow-[0_12px_36px_-10px_rgba(0,122,255,0.28)] transition-all duration-300 active:scale-[0.995]`}
               >
-                <div
-                  className={`w-12 h-12 shrink-0 bg-gradient-to-br from-sky-400 via-[#007AFF] to-indigo-600 ${iconSquircle}`}
-                >
-                  <Monitor className="w-6 h-6 text-white" strokeWidth={2.2} />
-                </div>
+                <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
+                  <Monitor />
+                </IosAccentIconSquircle>
                 <div className="flex-1 min-w-0">
                   <span className="text-[15px] font-semibold text-zinc-900 dark:text-white block leading-tight">
                     Configurações da TV do Pátio
@@ -339,9 +320,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       title="Configurações"
                       subtitle="Preferências da oficina"
                       icon={
-                        <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-zinc-500 to-zinc-700 ${iconSquircle}`}>
-                          <Settings className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
-                        </div>
+                        <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                          <Settings />
+                        </IosAccentIconSquircle>
                       }
                     />
                   )}
@@ -351,9 +332,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       title="Alterar senhas"
                       subtitle="Segurança de acessos"
                       icon={
-                        <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-slate-500 to-slate-800 ${iconSquircle}`}>
-                          <Lock className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
-                        </div>
+                        <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                          <Lock />
+                        </IosAccentIconSquircle>
                       }
                     />
                   )}
@@ -372,9 +353,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       title="Usuários do sistema"
                       subtitle="Acessos e permissões"
                       icon={
-                        <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-violet-500 to-purple-800 ${iconSquircle}`}>
-                          <User className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
-                        </div>
+                        <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                          <User />
+                        </IosAccentIconSquircle>
                       }
                     />
                     <SettingsRow
@@ -382,9 +363,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       title="Avisos da Zaya"
                       subtitle="Etapas, orçamentos e destinatários"
                       icon={
-                        <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-fuchsia-500 to-violet-800 ${iconSquircle}`}>
-                          <Sparkles className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
-                        </div>
+                        <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                          <Sparkles />
+                        </IosAccentIconSquircle>
                       }
                     />
                     <SettingsRow
@@ -392,9 +373,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       title="Configurações"
                       subtitle="Oficina e integrações"
                       icon={
-                        <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-zinc-500 to-zinc-800 ${iconSquircle}`}>
-                          <Settings className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
-                        </div>
+                        <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                          <Settings />
+                        </IosAccentIconSquircle>
                       }
                     />
                   </div>
@@ -404,9 +385,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       title="Checklists do Pátio"
                       subtitle="Modelos por etapa"
                       icon={
-                        <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-emerald-400 to-teal-700 ${iconSquircle}`}>
-                          <ClipboardList className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
-                        </div>
+                        <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                          <ClipboardList />
+                        </IosAccentIconSquircle>
                       }
                     />
                     <a
@@ -415,25 +396,25 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       rel="noopener noreferrer"
                       className="group w-full flex items-center gap-3 px-3 py-3 sm:px-4 sm:py-3.5 text-left rounded-2xl transition-all duration-200 hover:bg-zinc-100/90 dark:hover:bg-white/[0.06] active:scale-[0.99]"
                     >
-                      <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-700 ${iconSquircle}`}>
-                        <PatioCarIcon className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
-                      </div>
+                      <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                        <PatioCarIcon />
+                      </IosAccentIconSquircle>
                       <span className="flex-1 min-w-0">
                         <span className="block text-[15px] font-medium text-zinc-900 dark:text-white leading-snug">
                           Painel do Pátio (TV)
                         </span>
                         <span className="block text-[12px] text-zinc-950 dark:text-zinc-400 mt-0.5">Abrir em nova aba</span>
                       </span>
-                      <ExternalLink className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500 group-hover:text-[#007AFF] dark:group-hover:text-[#0A84FF] transition-colors" />
+                      <ExternalLink className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500 group-hover:text-brand-yellow transition-colors" />
                     </a>
                     <SettingsRow
                       onClick={() => setIsChangePasswordsOpen(true)}
                       title="Alterar senhas"
                       subtitle="Gerência e equipe"
                       icon={
-                        <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-slate-500 to-slate-800 ${iconSquircle}`}>
-                          <Lock className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
-                        </div>
+                        <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                          <Lock />
+                        </IosAccentIconSquircle>
                       }
                     />
                   </div>
@@ -450,11 +431,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     onClick={() => setIsUserProfileOpen(true)}
                     title="Configurações de perfil"
                     subtitle="Nome, foto e cor"
-                    icon={
-                      <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-violet-500 to-fuchsia-700 ${iconSquircle}`}>
-                        <User className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
-                      </div>
-                    }
+                      icon={
+                        <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                          <User />
+                        </IosAccentIconSquircle>
+                      }
                   />
                 )}
                 {(!isTechnician || technicianId) && !isSystemUser && (
@@ -462,11 +443,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     onClick={() => (isTechnician ? setIsTechnicianProfileOpen(true) : setIsAdminProfileOpen(true))}
                     title={isTechnician ? 'Meu perfil' : 'Perfil do administrador'}
                     subtitle={isTechnician ? 'Nome e foto' : 'Nome e foto da gerência'}
-                    icon={
-                      <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-violet-500 to-indigo-700 ${iconSquircle}`}>
-                        <User className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
-                      </div>
-                    }
+                      icon={
+                        <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                          <User />
+                        </IosAccentIconSquircle>
+                      }
                   />
                 )}
                 {onLogout && (
@@ -475,11 +456,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     title="Sair"
                     subtitle="Encerrar sessão neste dispositivo"
                     danger
-                    icon={
-                      <div className={`w-11 h-11 shrink-0 bg-gradient-to-br from-red-500 to-rose-700 ${iconSquircle}`}>
-                        <LogOut className="w-5 h-5 text-white m-auto" strokeWidth={2.2} />
-                      </div>
-                    }
+                      icon={
+                        <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                          <LogOut />
+                        </IosAccentIconSquircle>
+                      }
                   />
                 )}
               </div>

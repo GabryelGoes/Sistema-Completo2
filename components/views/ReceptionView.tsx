@@ -8,10 +8,8 @@ import {
   iosLabel,
   iosPageGlass,
   iosAccentPrimaryButton,
-  iosPageTitleIconShell,
-  iosPageTitleIconGlass,
-  iosPageTitleIconGlyph,
 } from '../ui/iosModalStyles';
+import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { IosModalHeader } from '../ui/IosModalHeader';
 import { Customer, ProcessingStatus } from '../../types';
 import { Input, TextArea } from '../ui/Input';
@@ -615,10 +613,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       {/* Cabeçalho — mesmo padrão da página Agenda */}
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <div className={iosPageTitleIconShell} aria-hidden>
-            <span className={iosPageTitleIconGlass} aria-hidden />
-            <ClipboardList className={iosPageTitleIconGlyph} strokeWidth={2.2} />
-          </div>
+          <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
+            <ClipboardList />
+          </IosAccentIconSquircle>
           <div className="min-w-0">
             <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
               Recepção
@@ -1549,9 +1546,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             <div className="flex items-start justify-between gap-3 p-6 sm:px-8 border-b border-zinc-200/50 dark:border-white/[0.06] shrink-0 pt-8 pr-14">
               <div className="min-w-0">
                 <div className="flex items-center gap-3 text-zinc-900 dark:text-white">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-orange-500/15">
-                    <Calculator className="w-5 h-5 text-white" strokeWidth={2.2} />
-                  </div>
+                  <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                    <Calculator />
+                  </IosAccentIconSquircle>
                   <div>
                   <h2 className="text-[20px] sm:text-[22px] font-semibold tracking-tight truncate">Orçamento</h2>
                 {historyBudgetDetail.cardName?.trim() && (
