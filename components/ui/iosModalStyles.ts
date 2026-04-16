@@ -61,13 +61,13 @@ export const iosPageTitleIconShell =
   'ring-1 ring-inset ring-white/30 dark:border-white/25 dark:from-brand-yellow dark:via-brand-yellow/92 dark:to-brand-yellow/72 ' +
   'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.16),inset_0_-18px_34px_-12px_rgba(0,0,0,0.38),0_14px_48px_-10px_rgba(0,0,0,0.5)]';
 
-/** Brilho superior (gloss) — camada atrás do pictograma. */
+/** Brilho superior (gloss) — camada atrás do pictograma (escuro: um pouco mais luminoso para o traço não “afundar”). */
 export const iosPageTitleIconGlass =
-  'pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/45 via-white/[0.08] to-transparent dark:from-white/20 dark:via-transparent';
+  'pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/45 via-white/[0.08] to-transparent dark:from-white/28 dark:via-white/[0.06] dark:to-transparent';
 
-/** Pictograma (Lucide / PatioCarIcon) — traço escuro com leve destaque no vidro. */
+/** Pictograma (Lucide / PatioCarIcon) — claro: traço escuro; escuro: traço claro + halo escuro (mesma legibilidade do claro). */
 export const iosPageTitleIconGlyph =
-  'relative z-10 h-7 w-7 text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))]';
+  'relative z-10 h-7 w-7 text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))] dark:text-white dark:[filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.5))]';
 
 /** Superfície compartilhada (borda / gradiente brand / sombras) — acrescente tamanho + raio. */
 const iosAccentIconSurfaceCore =
@@ -91,12 +91,12 @@ export const iosAccentIconShellTile =
 
 /** Pictograma em modal (24px). */
 export const iosAccentIconGlyphModal =
-  'relative z-10 h-6 w-6 text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))]';
+  'relative z-10 h-6 w-6 text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))] dark:text-white dark:[filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.5))]';
 
 /** Pictograma em linha / settings (20px). */
 export const iosAccentIconGlyphRow =
-  'relative z-10 m-auto h-5 w-5 text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))]';
+  'relative z-10 m-auto h-5 w-5 text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))] dark:text-white dark:[filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.5))]';
 
 /** Pictograma em tile da home (grande). */
 export const iosAccentIconGlyphTile =
-  'relative z-10 h-10 w-10 sm:h-11 sm:w-11 text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))]';
+  'relative z-10 h-10 w-10 sm:h-11 sm:w-11 text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))] dark:text-white dark:[filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.5))]';

@@ -14,7 +14,7 @@ export const IosModalHeader: React.FC<IosModalHeaderProps> = ({ icon, title, sub
   <div className="flex items-center gap-3 mb-1 pr-2">
     <div className={iosAccentIconShellModal}>
       <span className={iosPageTitleIconGlass} aria-hidden />
-      <div className="relative z-10 flex h-full w-full items-center justify-center text-zinc-950 [&_svg]:h-6 [&_svg]:w-6 [&_path]:fill-current [&_svg]:[filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))]">
+      <div className="relative z-10 flex h-full w-full items-center justify-center text-zinc-950 dark:text-white [&_svg]:h-6 [&_svg]:w-6 [&_path]:fill-current [&_svg]:[filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))] dark:[&_svg]:[filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.5))]">
         {icon}
       </div>
     </div>
