@@ -17,7 +17,7 @@ interface SettingsModalProps {
   onCinematographicModeChange?: (enabled: boolean) => void;
   orientation?: 'portrait' | 'landscape';
   showPatioAccess?: boolean;
-  /** Cor de destaque da oficina — admin e usuários com acesso total */
+  /** Cor de destaque da oficina — só com login admin ou permissão «acesso completo ao sistema» (`full_access`). */
   showWorkspaceAppearance?: boolean;
   workspaceAppearance?: AppAppearance;
   onWorkspaceAppearanceChange?: (next: AppAppearance) => void;

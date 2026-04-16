@@ -63,7 +63,11 @@ const NAV_LABELS: { key: keyof SystemUserPermissions; label: string; description
 
 /** Ferramentas administrativas (configurações, senhas, técnicos) */
 const TOOLS_LABELS: { key: keyof SystemUserPermissions; label: string; description?: string }[] = [
-  { key: 'access_settings', label: 'Configurações', description: 'Tema, efeitos e opções do app' },
+  {
+    key: 'access_settings',
+    label: 'Configurações',
+    description: 'Tema claro/escuro, efeitos e modo cinema; cor global da oficina só com «Acesso completo ao sistema»',
+  },
   { key: 'access_change_passwords', label: 'Alterar senhas', description: 'Senha de gerência e exclusão de veículos' },
   { key: 'access_technicians', label: 'Técnicos', description: 'Lista de técnicos da oficina (atribuição nos cards)' },
 ];

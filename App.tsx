@@ -98,6 +98,11 @@ export default function App() {
   const settingsWasOpenRef = useRef(false);
 
   const saveWorkspaceAppearance = useCallback(async () => {
+    const mayEditWorkspaceColor =
+      authSession?.role === 'admin' ||
+      (authSession?.role === 'user' && !!authSession?.permissions?.full_access);
+    if (!mayEditWorkspaceColor) return;
+
     setWorkspaceAppearanceSaving(true);
     try {
       const normalized = parseAppAppearance(settingsAppearanceDraft);
@@ -109,7 +114,7 @@ export default function App() {
     } finally {
       setWorkspaceAppearanceSaving(false);
     }
-  }, [settingsAppearanceDraft]);
+  }, [authSession, settingsAppearanceDraft]);
 
   // Usuário limitado: abas conforme permissões (full_access = todas as abas)
   function permissionsToTabs(perms: SystemUserPermissions | undefined): TabId[] {
@@ -125,8 +130,13 @@ export default function App() {
   }
   const userAllowedTabs = authSession?.role === 'user' ? permissionsToTabs(authSession.permissions) : [];
   const hasFullAccess = authSession?.role === 'user' && !!authSession?.permissions?.full_access;
-  const canEditWorkspaceAppearance =
-    authSession?.role === 'admin' || (authSession?.role === 'user' && hasFullAccess);
+  /**
+   * Cor global da oficina (rodapé “Salvar cor da oficina”): apenas
+   * - usuários do sistema com permissão «Acesso completo ao sistema» (`full_access`), ou
+   * - login administrador (equivalente a acesso total).
+   * Usuários limitados (sem full_access) nunca veem, mesmo com `access_settings`.
+   */
+  const canEditWorkspaceAppearance = authSession?.role === 'admin' || hasFullAccess;
   const [userTab, setUserTab] = useState<TabId>('home');
 
   // Agenda é carregada pela AgendaView via API (Supabase); não usa mais localStorage.
