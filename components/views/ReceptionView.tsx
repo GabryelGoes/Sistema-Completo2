@@ -222,16 +222,30 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const nameTrim = (customer.name ?? '').trim();
+    const phoneTrim = (customer.phone ?? '').trim();
+    const issueTrim = (customer.issueDescription ?? '').trim();
+
+    if (!nameTrim) {
+      setStatus({ step: 'error', message: 'Preencha o nome completo.' });
+      return;
+    }
+    if (!phoneTrim) {
+      setStatus({ step: 'error', message: 'Preencha o telefone.' });
+      return;
+    }
+    const phoneDigits = phoneTrim.replace(/\D/g, '');
+    if (phoneDigits.length < 8) {
+      setStatus({ step: 'error', message: 'Informe um telefone válido (mínimo 8 dígitos).' });
+      return;
+    }
+    if (!issueTrim) {
+      setStatus({ step: 'error', message: 'Preencha a queixa do cliente.' });
+      return;
+    }
+
     const isModule = receptionMode === 'module';
-    if (isModule) {
-      if (!customer.name && !customer.phone && !customer.vehicleModel && !customer.moduleIdentification) {
-        setStatus({
-          step: 'error',
-          message: 'Preencha pelo menos nome, telefone, veículo ou identificação do módulo.',
-        });
-        return;
-      }
-    } else {
+    if (!isModule) {
       if (!vehicleCategory) {
         setStatus({
           step: 'error',
@@ -239,10 +253,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         });
         return;
       }
-      if (!customer.name && !customer.phone && !customer.vehicleModel && !customer.plate) {
+      const p = normalizePlacaLocal(customer.plate);
+      if (p.length < 7) {
         setStatus({
           step: 'error',
-          message: 'Preencha pelo menos algum dado de identificação (nome, telefone, veículo ou placa).',
+          message: 'Preencha a placa completa (mín. 7 caracteres).',
         });
         return;
       }
@@ -685,6 +700,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   value={customer.name}
                   onChange={handleInputChange}
                   icon={<User className="w-4 h-4" />}
+                  required
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -703,6 +719,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   value={customer.phone}
                   onChange={handleInputChange}
                   icon={<Smartphone className="w-4 h-4" />}
+                  required
                 />
               </div>
               <div>
@@ -798,6 +815,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                             className="uppercase"
                             maxLength={8}
                             icon={<FileText className="w-4 h-4" />}
+                            required
                           />
                         </div>
                         <button
@@ -911,15 +929,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               )}
 
               <div className="relative">
-                <label className={`${iosLabel} ml-1 mb-1`}>
-                  Queixa do cliente
-                </label>
                 <TextArea
-                  label=""
+                  label="Queixa do cliente"
                   name="issueDescription"
                   placeholder="Descreva o problema relatado pelo cliente..."
                   value={customer.issueDescription}
                   onChange={handleInputChange}
+                  required
                 />
               </div>
 
