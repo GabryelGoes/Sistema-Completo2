@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, ClipboardList, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2 } from 'lucide-react';
-import { iosModalShell, iosModalClose, iosLabel, iosPageGlass } from '../ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosLabel, iosPageGlass, iosAccentPrimaryButton } from '../ui/iosModalStyles';
 import { IosModalHeader } from '../ui/IosModalHeader';
 import { Customer, ProcessingStatus } from '../../types';
 import { Input, TextArea } from '../ui/Input';
@@ -975,7 +975,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <div className="pt-2 flex justify-center lg:justify-start">
                 <button 
                   type="submit"
-                  className="group relative min-w-[220px] px-8 py-3.5 rounded-2xl border border-amber-200/90 dark:border-amber-500/22 bg-amber-50/95 dark:bg-amber-950/40 text-amber-950/90 dark:text-amber-100/95 font-medium text-[15px] shadow-sm hover:bg-amber-100/95 dark:hover:bg-amber-900/45 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className={`group relative min-w-[220px] ${iosAccentPrimaryButton} !px-8 flex items-center justify-center gap-2`}
                 >
                   Criar ficha
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />

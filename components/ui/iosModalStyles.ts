@@ -45,3 +45,7 @@ export const iosLabel = uiModalSectionLabel;
 
 export const iosPrimaryButton =
   'rounded-2xl bg-[#007AFF] px-6 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-45';
+
+/** Cor de destaque da oficina (Configurações → Aparência, --app-accent-rgb). */
+export const iosAccentPrimaryButton =
+  'rounded-2xl bg-brand-yellow border border-black/10 dark:border-black/25 px-6 py-3.5 text-[15px] font-semibold text-zinc-950 shadow-lg shadow-brand-yellow/30 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-45';

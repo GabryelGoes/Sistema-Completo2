@@ -3,7 +3,7 @@ import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, Shield
 import { Customer, ProcessingStatus } from '../types';
 import { ProcessingOverlay } from './ProcessingOverlay';
 import { saveReceptionIntake, uploadServiceOrderPhoto, consultPlacaFipe } from '../services/apiService';
-import { iosModalShell, iosModalClose, iosLabel, iosInput, iosPrimaryButton } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosLabel, iosInput, iosAccentPrimaryButton } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
@@ -476,7 +476,7 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
               >
                 Cancelar
               </button>
-              <button type="submit" className={`${iosPrimaryButton} flex-1 flex items-center justify-center gap-2 py-3.5`}>
+              <button type="submit" className={`${iosAccentPrimaryButton} flex-1 flex items-center justify-center gap-2`}>
                 Criar ficha
                 <ArrowRight className="w-4 h-4" />
               </button>
