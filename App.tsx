@@ -543,7 +543,7 @@ export default function App() {
           tabId="home"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex-1 min-h-0 overflow-y-auto p-0 pt-4"
+          className="flex-1 min-h-0 overflow-y-auto p-0"
         >
           <HomeView
             colorfulNavigation={appAppearance.colorfulNavigation}

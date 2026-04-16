@@ -215,13 +215,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   return (
     <div className="min-h-screen flex flex-col safe-area-pb relative overflow-x-hidden">
-      {/* Fundo atmosférico (mesma família visual do modal TV) */}
-      <div className="fixed inset-0 -z-10 bg-gradient-to-b from-zinc-100 via-white to-zinc-100/95 dark:from-zinc-950 dark:via-zinc-900 dark:to-black" />
-      <div className="fixed inset-0 -z-10 pointer-events-none opacity-40 dark:opacity-30 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(251,191,36,0.22),transparent),radial-gradient(ellipse_60%_40%_at_100%_0%,rgba(56,189,248,0.12),transparent),radial-gradient(ellipse_50%_35%_at_0%_100%,rgba(167,139,250,0.1),transparent)]" />
+      {/* Fundo um pouco mais acinzentado para contraste com os cartões */}
+      <div className="fixed inset-0 -z-10 bg-gradient-to-b from-zinc-200/90 via-zinc-100 to-zinc-200/85 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950" />
+      <div className="fixed inset-0 -z-10 pointer-events-none opacity-35 dark:opacity-25 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(251,191,36,0.18),transparent),radial-gradient(ellipse_60%_40%_at_100%_0%,rgba(56,189,248,0.1),transparent),radial-gradient(ellipse_50%_35%_at_0%_100%,rgba(167,139,250,0.08),transparent)]" />
       <div className="fixed inset-0 -z-10 pointer-events-none backdrop-blur-[2px]" />
 
-      {/* Cabeçalho em vidro */}
-      <header className="relative z-10 pt-[calc(env(safe-area-inset-top)+1rem)] pb-6 px-4 sm:px-6 border-b border-zinc-200/60 dark:border-white/[0.06] bg-white/65 dark:bg-zinc-950/55 backdrop-blur-2xl shadow-[0_1px_0_0_rgba(255,255,255,0.6)_inset] dark:shadow-none">
+      {/* Cabeçalho em vidro — alinhado ao topo (safe area apenas onde necessário) */}
+      <header className="relative z-10 pt-[max(0.5rem,env(safe-area-inset-top))] pb-4 px-4 sm:px-6 border-b border-zinc-200/70 dark:border-white/[0.08] bg-white/70 dark:bg-zinc-950/60 backdrop-blur-2xl shadow-[0_1px_0_0_rgba(255,255,255,0.55)_inset] dark:shadow-none">
         <div className="max-w-xl lg:max-w-5xl mx-auto flex items-center gap-4">
           <div className="relative shrink-0">
             <div className="absolute -inset-0.5 rounded-[1.15rem] bg-gradient-to-br from-amber-400/50 via-white/20 to-cyan-400/40 opacity-80 dark:opacity-60 blur-[1px]" />
@@ -257,7 +257,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <main className="relative z-10 flex-1 px-4 sm:px-6 pb-28 max-w-xl lg:max-w-5xl mx-auto w-full">
         <div className="lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
           <div className="lg:space-y-8">
-            <section className="pt-7 pb-2 lg:pt-8 lg:pb-0">
+            <section className="pt-5 pb-2 lg:pt-6 lg:pb-0">
               <p className={iosSectionTitle}>Operação</p>
               <p className={iosSectionHint}>Acesso rápido aos módulos do dia a dia</p>
 
