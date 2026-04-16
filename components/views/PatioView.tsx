@@ -989,6 +989,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [patioPlateSearchInPatioCards, setPatioPlateSearchInPatioCards] = useState<TrelloCard[]>([]);
   const [patioPlateSearchApiInfo, setPatioPlateSearchApiInfo] = useState<PlacaFipeLookupResult | null>(null);
   const [patioPlateHighlightCardId, setPatioPlateHighlightCardId] = useState<string | null>(null);
+  const [isPatioPlateSearchModalOpen, setIsPatioPlateSearchModalOpen] = useState(false);
+  const patioPlateSearchInputRef = useRef<HTMLInputElement>(null);
+
+  const closePatioPlateSearchModal = useCallback((clearHighlight: boolean = true) => {
+    setIsPatioPlateSearchModalOpen(false);
+    setPatioPlateSearchMessage(null);
+    setPatioPlateSearchInPatioCards([]);
+    setPatioPlateSearchApiInfo(null);
+    setPatioPlateSearchLoading(false);
+    if (clearHighlight) setPatioPlateHighlightCardId(null);
+  }, []);
 
   // Efeito "folha boiando na água" nos cards do pátio (hover 3D)
   const [cardFloat, setCardFloat] = useState<{ id: string; rotateX: number; rotateY: number } | null>(null);
@@ -1054,6 +1065,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }, 120);
     return () => window.clearTimeout(t);
   }, [patioPlateHighlightCardId]);
+
+  useEffect(() => {
+    if (!isPatioPlateSearchModalOpen) return;
+    const id = window.requestAnimationFrame(() => patioPlateSearchInputRef.current?.focus());
+    return () => window.cancelAnimationFrame(id);
+  }, [isPatioPlateSearchModalOpen]);
 
   const fetchData = async (isBackground = false) => {
     if (!isBackground) {
@@ -2667,37 +2684,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <History className="h-5 w-5" strokeWidth={2} />
             </button>
             {!isModuleMode ? (
-              <>
-                <input
-                  type="text"
-                  value={patioPlateSearchInput}
-                  onChange={(e) => {
-                    setPatioPlateSearchInput(e.target.value.toUpperCase());
-                    setPatioPlateHighlightCardId(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') void handlePatioPlateSearch();
-                  }}
-                  placeholder="ABC1D23"
-                  maxLength={8}
-                  className="h-12 w-[6.75rem] shrink-0 rounded-full border border-zinc-200/90 bg-white/90 px-3 font-mono text-[13px] font-bold uppercase tracking-wider text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-[#007AFF]/45 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 sm:w-32 dark:border-white/[0.12] dark:bg-zinc-900/50 dark:text-white dark:placeholder:text-zinc-500"
-                  aria-label="Placa para buscar no Pátio"
-                />
-                <button
-                  type="button"
-                  onClick={() => void handlePatioPlateSearch()}
-                  disabled={patioPlateSearchLoading}
-                  title="Buscar placa no Pátio"
-                  className="inline-flex h-12 shrink-0 items-center justify-center gap-1.5 rounded-full border border-zinc-200/90 bg-white/90 px-3 text-sm font-semibold text-zinc-800 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all hover:border-[#007AFF]/40 hover:bg-white disabled:opacity-50 sm:gap-2 sm:px-4 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.1]"
-                >
-                  {patioPlateSearchLoading ? (
-                    <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden />
-                  ) : (
-                    <Search className="h-5 w-5 shrink-0" aria-hidden />
-                  )}
-                  <span className="hidden sm:inline">Buscar placa</span>
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={() => {
+                  setPatioPlateSearchMessage(null);
+                  setPatioPlateSearchInPatioCards([]);
+                  setPatioPlateSearchApiInfo(null);
+                  setPatioPlateHighlightCardId(null);
+                  setIsPatioPlateSearchModalOpen(true);
+                }}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-[#64B5FF]"
+                title="Buscar placa no pátio"
+              >
+                <Search className="h-5 w-5" strokeWidth={2} />
+              </button>
             ) : (
               <button
                 type="button"
@@ -2710,68 +2710,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
             )}
           </div>
         </header>
-
-        {!isModuleMode &&
-          (patioPlateSearchMessage ||
-            patioPlateSearchInPatioCards.length > 0 ||
-            patioPlateSearchApiInfo) && (
-          <div className="mb-5">
-            <div
-              className={`relative rounded-2xl border py-3 pl-4 pr-11 text-[14px] leading-snug ${
-                patioPlateSearchInPatioCards.length > 0
-                  ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-950 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-100'
-                  : patioPlateSearchApiInfo
-                    ? 'border-zinc-200/90 bg-zinc-100/80 text-zinc-800 dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-zinc-200'
-                    : 'border-amber-400/40 bg-amber-500/10 text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-100'
-              }`}
-              role="status"
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  setPatioPlateSearchMessage(null);
-                  setPatioPlateSearchInPatioCards([]);
-                  setPatioPlateSearchApiInfo(null);
-                  setPatioPlateHighlightCardId(null);
-                }}
-                className="absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-100"
-                aria-label="Fechar resultado da busca por placa"
-              >
-                <X className="h-5 w-5" strokeWidth={2} />
-              </button>
-              {patioPlateSearchMessage ? <p>{patioPlateSearchMessage}</p> : null}
-              {patioPlateSearchInPatioCards.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {patioPlateSearchInPatioCards.map((c) => {
-                    const tp = parsePatioCardTitle(c.name);
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => setSelectedCard(c)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-left text-[13px] font-semibold text-emerald-950 shadow-sm ring-1 ring-emerald-600/25 transition-colors hover:bg-white dark:bg-zinc-900/80 dark:text-emerald-50 dark:ring-emerald-400/30"
-                      >
-                        <span className="font-vehicle italic">{tp.vehicle || 'Veículo'}</span>
-                        <span className="text-[11px] font-normal opacity-80">Abrir ficha</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              {patioPlateSearchApiInfo && (
-                <p
-                  className={`text-[13px] text-zinc-600 dark:text-zinc-400 ${
-                    patioPlateSearchMessage ? 'mt-2' : ''
-                  }`}
-                >
-                  {[patioPlateSearchApiInfo.vehicleBrand, patioPlateSearchApiInfo.vehicleModel].filter(Boolean).join(' · ') || '—'}
-                  {patioPlateSearchApiInfo.vehicleColor ? ` · ${patioPlateSearchApiInfo.vehicleColor}` : ''}
-                  {patioPlateSearchApiInfo.vehicleYear ? ` · ${patioPlateSearchApiInfo.vehicleYear}` : ''}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. */}
@@ -5263,6 +5201,159 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
+      )}
+
+      {/* Modal: buscar placa no Pátio (veículos ativos + consulta PlacaFipe) */}
+      {isPatioPlateSearchModalOpen && !isModuleMode && (
+        <ModalPortal>
+          <div
+            role="presentation"
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 animate-in fade-in duration-200"
+            onClick={() => closePatioPlateSearchModal()}
+          >
+            <div
+              className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-lg min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="patio-plate-search-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => closePatioPlateSearchModal()}
+                className={iosModalClose}
+                aria-label="Fechar busca por placa"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+                <div className="flex items-start gap-3 pr-10">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-teal-500/25">
+                    <Search className="h-6 w-6 text-white" strokeWidth={2.2} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                      Pátio
+                    </p>
+                    <h2
+                      id="patio-plate-search-title"
+                      className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[26px]"
+                    >
+                      Buscar por placa
+                    </h2>
+                    <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                      <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                      Confira se o veículo já está na oficina ou consulte os dados pela placa.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
+                <div>
+                  <p className={iosLabel}>Placa</p>
+                  <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+                    <input
+                      ref={patioPlateSearchInputRef}
+                      type="text"
+                      value={patioPlateSearchInput}
+                      onChange={(e) => {
+                        setPatioPlateSearchInput(e.target.value.toUpperCase());
+                        setPatioPlateHighlightCardId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void handlePatioPlateSearch();
+                      }}
+                      placeholder="Ex.: ABC1D23"
+                      maxLength={8}
+                      className={`${iosInput} font-mono text-[16px] font-bold uppercase tracking-wider`}
+                      aria-label="Digite a placa"
+                    />
+                  </div>
+                  <p className="mt-2 text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    Mercosul ou formato antigo — mínimo 7 caracteres. A lista do pátio atualiza automaticamente a cada poucos segundos.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void handlePatioPlateSearch()}
+                  disabled={patioPlateSearchLoading}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-brand-yellow/90 bg-brand-yellow py-3.5 text-[15px] font-bold text-zinc-950 shadow-md transition-[filter,transform] hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {patioPlateSearchLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                  ) : (
+                    <Search className="h-5 w-5 shrink-0" aria-hidden />
+                  )}
+                  Buscar
+                </button>
+
+                {(patioPlateSearchMessage ||
+                  patioPlateSearchInPatioCards.length > 0 ||
+                  patioPlateSearchApiInfo) && (
+                  <div
+                    className={`rounded-2xl border px-4 py-3.5 text-[14px] leading-snug ${
+                      patioPlateSearchInPatioCards.length > 0
+                        ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-950 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-100'
+                        : patioPlateSearchApiInfo
+                          ? 'border-zinc-200/90 bg-zinc-50/90 text-zinc-800 dark:border-white/[0.1] dark:bg-white/[0.05] dark:text-zinc-200'
+                          : 'border-amber-400/40 bg-amber-500/10 text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-100'
+                    }`}
+                    role="status"
+                  >
+                    {patioPlateSearchMessage ? <p>{patioPlateSearchMessage}</p> : null}
+                    {patioPlateSearchInPatioCards.length > 0 && (
+                      <div className="mt-3 flex flex-col gap-2">
+                        {patioPlateSearchInPatioCards.map((c) => {
+                          const tp = parsePatioCardTitle(c.name);
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCard(c);
+                                closePatioPlateSearchModal(false);
+                                setPatioPlateHighlightCardId(c.id);
+                              }}
+                              className="flex w-full items-center justify-between gap-3 rounded-xl bg-white/95 px-4 py-3 text-left shadow-sm ring-1 ring-emerald-600/20 transition-colors hover:bg-white dark:bg-zinc-900/90 dark:ring-emerald-400/25"
+                            >
+                              <span className="min-w-0 font-vehicle text-[15px] font-semibold italic text-emerald-950 dark:text-emerald-50">
+                                {tp.vehicle || 'Veículo'}
+                              </span>
+                              <span className="shrink-0 text-[12px] font-semibold text-emerald-700 dark:text-emerald-300">
+                                Abrir ficha →
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {patioPlateSearchApiInfo && (
+                      <div
+                        className={
+                          patioPlateSearchMessage || patioPlateSearchInPatioCards.length > 0 ? 'mt-3 border-t border-zinc-200/70 pt-3 dark:border-white/[0.08]' : ''
+                        }
+                      >
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                          Consulta de placa
+                        </p>
+                        <p className="mt-1 text-[14px] font-medium text-zinc-800 dark:text-zinc-100">
+                          {[patioPlateSearchApiInfo.vehicleBrand, patioPlateSearchApiInfo.vehicleModel]
+                            .filter(Boolean)
+                            .join(' · ') || '—'}
+                          {patioPlateSearchApiInfo.vehicleColor ? ` · ${patioPlateSearchApiInfo.vehicleColor}` : ''}
+                          {patioPlateSearchApiInfo.vehicleYear ? ` · ${patioPlateSearchApiInfo.vehicleYear}` : ''}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </ModalPortal>
       )}
 
