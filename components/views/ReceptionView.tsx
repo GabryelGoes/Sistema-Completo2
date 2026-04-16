@@ -688,9 +688,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
              </button>
           </div>
 
-          {/* Duas colunas: veículo/módulo e atendimento primeiro; dados do cliente depois (order no grid) */}
+          {/* Veículo (order-1) • Cliente (order-2) • Foto + enviar (order-3, col-span 2 no desktop) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
-            {/* Dados do cliente — order-2: segunda coluna no desktop e abaixo no mobile */}
+            {/* Dados do cliente — order-2: coluna direita no desktop; após veículo no mobile */}
             <div className="space-y-6 order-2">
               <h2 className={`${iosLabel} border-b border-zinc-200/70 dark:border-white/[0.08] pb-2 mb-0 text-[12px]`}>
                 Dados do cliente
@@ -775,7 +775,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               </div>
             </div>
 
-            {/* Veículo/módulo + queixa + foto — order-1: primeira coluna no desktop e no topo no mobile */}
+            {/* Veículo/módulo + queixa (foto e enviar ficam em order-3) — order-1: coluna esquerda no desktop */}
             <div className="space-y-6 order-1">
               <h2 className={`${iosLabel} border-b border-zinc-200/70 dark:border-white/[0.08] pb-2 mb-0 text-[12px]`}>
                 {receptionMode === 'vehicle' ? 'Veículo e atendimento' : 'Módulo e atendimento'}
@@ -941,8 +941,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   required
                 />
               </div>
+            </div>
 
-              {/* Camera Section */}
+            {/* Foto + enviar — sempre por último (mobile em pé) e linha inteira no desktop */}
+            <div className="space-y-6 order-3 lg:col-span-2 pt-2 border-t border-zinc-200/70 dark:border-white/[0.08] lg:pt-8">
               <div className="space-y-2">
                 <label className={`${iosLabel} ml-1`}>
                   {receptionMode === 'vehicle' ? 'Foto do veículo (opcional)' : 'Foto (opcional)'}
@@ -991,7 +993,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 )}
               </div>
 
-              <div className="pt-2 flex justify-center lg:justify-start">
+              <div className="pt-2 flex justify-center sm:justify-start">
                 <button 
                   type="submit"
                   className={`group relative min-w-[220px] ${iosAccentPrimaryButton} !px-8 flex items-center justify-center gap-2`}
