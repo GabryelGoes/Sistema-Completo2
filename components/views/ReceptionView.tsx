@@ -616,7 +616,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               onClick={() => setReceptionMode('vehicle')}
               className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-[0.85rem] text-sm font-semibold transition-all ${
                 receptionMode === 'vehicle'
-                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-md shadow-black/5'
+                  ? 'bg-brand-yellow text-zinc-950 shadow-md shadow-brand-yellow/30 border border-black/[0.08] dark:border-black/25'
                   : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
               }`}
             >
@@ -628,7 +628,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               onClick={() => setReceptionMode('module')}
               className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-[0.85rem] text-sm font-semibold transition-all ${
                 receptionMode === 'module'
-                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-md shadow-black/5'
+                  ? 'bg-brand-yellow text-zinc-950 shadow-md shadow-brand-yellow/30 border border-black/[0.08] dark:border-black/25'
                   : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
               }`}
             >
