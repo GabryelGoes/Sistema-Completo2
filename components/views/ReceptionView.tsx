@@ -2,7 +2,16 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, ClipboardList, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2 } from 'lucide-react';
-import { iosModalShell, iosModalClose, iosLabel, iosPageGlass, iosAccentPrimaryButton } from '../ui/iosModalStyles';
+import {
+  iosModalShell,
+  iosModalClose,
+  iosLabel,
+  iosPageGlass,
+  iosAccentPrimaryButton,
+  iosPageTitleIconShell,
+  iosPageTitleIconGlass,
+  iosPageTitleIconGlyph,
+} from '../ui/iosModalStyles';
 import { IosModalHeader } from '../ui/IosModalHeader';
 import { Customer, ProcessingStatus } from '../../types';
 import { Input, TextArea } from '../ui/Input';
@@ -606,19 +615,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       {/* Cabeçalho — mesmo padrão da página Agenda */}
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          {/* Mesmo ícone e gradiente do tile Recepção na página inicial (HomeView → OPERATIONAL_APPS) */}
-          <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.35rem] bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 shadow-[0_8px_28px_-6px_rgba(0,0,0,0.38),inset_0_1px_0_0_rgba(255,255,255,0.38)]"
-            aria-hidden
-          >
-            <ClipboardList className="w-7 h-7 text-white" strokeWidth={2.2} />
+          <div className={iosPageTitleIconShell} aria-hidden>
+            <span className={iosPageTitleIconGlass} aria-hidden />
+            <ClipboardList className={iosPageTitleIconGlyph} strokeWidth={2.2} />
           </div>
           <div className="min-w-0">
             <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
               Recepção
             </h1>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500/90 shrink-0" strokeWidth={2} />
+              <Sparkles className="w-3.5 h-3.5 text-brand-yellow shrink-0" strokeWidth={2} />
               <span>Cadastro de clientes e veículos</span>
             </p>
           </div>

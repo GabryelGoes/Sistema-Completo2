@@ -11,6 +11,9 @@ import {
   iosModalInsetCard,
   iosModalOverlay,
   iosAccentPrimaryButton,
+  iosPageTitleIconShell,
+  iosPageTitleIconGlass,
+  iosPageTitleIconGlyph,
 } from '../ui/iosModalStyles';
 import { IosModalHeader } from '../ui/IosModalHeader';
 import { Customer, Appointment } from '../../types';
@@ -274,8 +277,9 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
     return (
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-yellow via-brand-yellow/90 to-zinc-800 shadow-lg shadow-brand-yellow/30 ring-1 ring-white/20 dark:ring-white/10">
-            <CalendarIcon className="w-7 h-7 text-zinc-950 drop-shadow-sm" strokeWidth={2.2} />
+          <div className={iosPageTitleIconShell} aria-hidden>
+            <span className={iosPageTitleIconGlass} aria-hidden />
+            <CalendarIcon className={iosPageTitleIconGlyph} strokeWidth={2.2} />
           </div>
           <div className="min-w-0">
             <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">

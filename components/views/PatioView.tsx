@@ -72,6 +72,9 @@ import {
   iosLabel,
   iosPageGlass,
   iosPrimaryButton,
+  iosPageTitleIconShell,
+  iosPageTitleIconGlass,
+  iosPageTitleIconGlyph,
 } from '../ui/iosModalStyles';
 import { markdownComponentsApp } from '../ui/markdownUi';
 import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
@@ -2646,18 +2649,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
         {/* Cabeçalho — mesmo padrão Recepção/Agenda: sem painel vidro em volta; ícone = tile da Home (Pátio / Laboratório) */}
         <header className="mb-6 flex flex-col gap-4 sm:mb-8 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <div
-              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.35rem] bg-gradient-to-br shadow-[0_8px_28px_-6px_rgba(0,0,0,0.38),inset_0_1px_0_0_rgba(255,255,255,0.38)] ${
-                isModuleMode
-                  ? 'from-violet-400 via-purple-500 to-fuchsia-700'
-                  : 'from-emerald-400 via-teal-500 to-cyan-700'
-              }`}
-              aria-hidden
-            >
+            <div className={iosPageTitleIconShell} aria-hidden>
+              <span className={iosPageTitleIconGlass} aria-hidden />
               {isModuleMode ? (
-                <FlaskConical className="h-7 w-7 text-white" strokeWidth={2.2} />
+                <FlaskConical className={iosPageTitleIconGlyph} strokeWidth={2.2} />
               ) : (
-                <PatioCarIcon className="h-7 w-7 text-white opacity-95" strokeWidth={2.2} />
+                <PatioCarIcon className={iosPageTitleIconGlyph} strokeWidth={2.2} />
               )}
             </div>
             <div className="min-w-0">
@@ -2665,7 +2662,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {isModuleMode ? 'Laboratório' : 'Pátio'}
               </h1>
               <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
                 {cards.length} {isModuleMode ? 'módulos' : 'veículos'} na oficina
               </p>
             </div>

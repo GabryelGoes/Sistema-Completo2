@@ -49,3 +49,22 @@ export const iosPrimaryButton =
 /** Cor de destaque da oficina (Configurações → Aparência, --app-accent-rgb). */
 export const iosAccentPrimaryButton =
   'rounded-2xl bg-brand-yellow border border-black/10 dark:border-black/25 px-6 py-3.5 text-[15px] font-semibold text-zinc-950 shadow-lg shadow-brand-yellow/30 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-45';
+
+/**
+ * Ícone antes do título (Recepção, Agenda, Pátio, Laboratório): material em `--app-accent-rgb` + borda luminosa e sombras no estilo iOS (vidro / squircle).
+ * Use com {@link iosPageTitleIconGlass} (span interno) e pictograma com {@link iosPageTitleIconGlyph}.
+ */
+export const iosPageTitleIconShell =
+  'relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] ' +
+  'border border-white/45 bg-gradient-to-br from-brand-yellow via-brand-yellow to-brand-yellow/85 ' +
+  'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55),inset_0_-14px_26px_-10px_rgba(0,0,0,0.07),0_10px_34px_-8px_rgba(0,0,0,0.2),0_0_0_1px_rgba(0,0,0,0.04)] ' +
+  'ring-1 ring-inset ring-white/30 dark:border-white/25 dark:from-brand-yellow dark:via-brand-yellow/92 dark:to-brand-yellow/72 ' +
+  'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.16),inset_0_-18px_34px_-12px_rgba(0,0,0,0.38),0_14px_48px_-10px_rgba(0,0,0,0.5)]';
+
+/** Brilho superior (gloss) — camada atrás do pictograma. */
+export const iosPageTitleIconGlass =
+  'pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/45 via-white/[0.08] to-transparent dark:from-white/20 dark:via-transparent';
+
+/** Pictograma (Lucide / PatioCarIcon) — traço escuro com leve destaque no vidro. */
+export const iosPageTitleIconGlyph =
+  'relative z-10 h-7 w-7 text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))]';
