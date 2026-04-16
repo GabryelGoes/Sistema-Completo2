@@ -988,17 +988,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [patioPlateSearchMessage, setPatioPlateSearchMessage] = useState<string | null>(null);
   const [patioPlateSearchInPatioCards, setPatioPlateSearchInPatioCards] = useState<TrelloCard[]>([]);
   const [patioPlateSearchApiInfo, setPatioPlateSearchApiInfo] = useState<PlacaFipeLookupResult | null>(null);
-  const [patioPlateHighlightCardId, setPatioPlateHighlightCardId] = useState<string | null>(null);
   const [isPatioPlateSearchModalOpen, setIsPatioPlateSearchModalOpen] = useState(false);
   const patioPlateSearchInputRef = useRef<HTMLInputElement>(null);
 
-  const closePatioPlateSearchModal = useCallback((clearHighlight: boolean = true) => {
+  const closePatioPlateSearchModal = useCallback(() => {
     setIsPatioPlateSearchModalOpen(false);
     setPatioPlateSearchMessage(null);
     setPatioPlateSearchInPatioCards([]);
     setPatioPlateSearchApiInfo(null);
     setPatioPlateSearchLoading(false);
-    if (clearHighlight) setPatioPlateHighlightCardId(null);
   }, []);
 
   // Efeito "folha boiando na água" nos cards do pátio (hover 3D)
@@ -1026,7 +1024,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const norm = normalizePatioPlate(patioPlateSearchInput);
     setPatioPlateSearchApiInfo(null);
     setPatioPlateSearchInPatioCards([]);
-    setPatioPlateHighlightCardId(null);
     if (norm.length < 7) {
       setPatioPlateSearchMessage('Informe a placa completa (mín. 7 caracteres).');
       return;
@@ -1040,7 +1037,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       });
       if (matches.length > 0) {
         setPatioPlateSearchInPatioCards(matches);
-        setPatioPlateHighlightCardId(matches[0]!.id);
         setPatioPlateSearchMessage(
           matches.length === 1
             ? 'Este veículo já está cadastrado no Pátio.'
@@ -1057,14 +1053,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setPatioPlateSearchLoading(false);
     }
   }, [cards, isModuleMode, patioPlateSearchInput]);
-
-  useEffect(() => {
-    if (!patioPlateHighlightCardId) return;
-    const t = window.setTimeout(() => {
-      document.getElementById(`patio-card-${patioPlateHighlightCardId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 120);
-    return () => window.clearTimeout(t);
-  }, [patioPlateHighlightCardId]);
 
   useEffect(() => {
     if (!isPatioPlateSearchModalOpen) return;
@@ -2690,7 +2678,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   setPatioPlateSearchMessage(null);
                   setPatioPlateSearchInPatioCards([]);
                   setPatioPlateSearchApiInfo(null);
-                  setPatioPlateHighlightCardId(null);
                   setIsPatioPlateSearchModalOpen(true);
                 }}
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-[#64B5FF]"
@@ -2757,7 +2744,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
           return (
             <div
               key={card.id}
-              id={`patio-card-${card.id}`}
               className="min-h-[180px]"
               style={{ transformStyle: 'preserve-3d' }}
               onMouseMove={(e) => handleCardMouseMove(e, card.id)}
@@ -2772,13 +2758,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]
                   hover:border-[#007AFF]/28 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:hover:border-white/[0.12] dark:hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.5)]
                   active:scale-[0.99]
-                  ${
-                    patioPlateHighlightCardId === card.id
-                      ? 'border-brand-yellow/90 ring-2 ring-inset ring-brand-yellow shadow-[0_0_0_1px_rgba(0,0,0,0.06)] dark:border-brand-yellow/70'
-                      : isGarantia
-                        ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40'
-                        : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'
-                  }
+                  ${isGarantia ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40' : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'}
                 `}
                 style={{
                   transform: isFloating
@@ -5261,7 +5241,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       value={patioPlateSearchInput}
                       onChange={(e) => {
                         setPatioPlateSearchInput(e.target.value.toUpperCase());
-                        setPatioPlateHighlightCardId(null);
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') void handlePatioPlateSearch();
@@ -5315,8 +5294,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               type="button"
                               onClick={() => {
                                 setSelectedCard(c);
-                                closePatioPlateSearchModal(false);
-                                setPatioPlateHighlightCardId(c.id);
+                                closePatioPlateSearchModal();
                               }}
                               className="flex w-full items-center justify-between gap-3 rounded-xl bg-white/95 px-4 py-3 text-left shadow-sm ring-1 ring-emerald-600/20 transition-colors hover:bg-white dark:bg-zinc-900/90 dark:ring-emerald-400/25"
                             >
