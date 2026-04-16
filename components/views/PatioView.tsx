@@ -382,6 +382,26 @@ const Lightbox = ({
     };
   }, [src]);
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (images.length <= 1) return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setCurrentIndex((i) => (i > 0 ? i - 1 : i));
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setCurrentIndex((i) => (i < images.length - 1 ? i + 1 : i));
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [images.length, onClose]);
+
   const goPrev = () => {
     if (canGoPrev) setCurrentIndex((i) => i - 1);
   };
@@ -425,11 +445,13 @@ const Lightbox = ({
     }
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const endTouch = e.changedTouches[0];
+    const endX = endTouch?.clientX ?? lastTouchRef.current?.x ?? dragStartXRef.current;
     if (scale > 1) {
       setIsDragging(false);
-    } else if (hasMultiple && lastTouchRef.current !== null) {
-      const deltaX = lastTouchRef.current.x - dragStartXRef.current;
+    } else if (hasMultiple) {
+      const deltaX = endX - dragStartXRef.current;
       if (deltaX > SWIPE_THRESHOLD && canGoPrev) goPrev();
       else if (deltaX < -SWIPE_THRESHOLD && canGoNext) goNext();
     }
@@ -454,8 +476,11 @@ const Lightbox = ({
   return (
     <ModalPortal>
     <div
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-modal-backdrop overflow-hidden"
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-modal-backdrop overflow-hidden overscroll-contain"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={hasMultiple ? 'Galeria de fotos — use as setas ou deslize para trocar' : 'Visualização de foto'}
     >
       <button
         onClick={onClose}
@@ -491,6 +516,7 @@ const Lightbox = ({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         <img
           ref={imageRef}
@@ -509,14 +535,19 @@ const Lightbox = ({
       </div>
 
       {hasMultiple && (
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
-          {images.map((_, i) => (
-            <div
-              key={i}
-              className={`w-2 h-2 rounded-full transition-colors ${i === currentIndex ? "bg-brand-yellow" : "bg-zinc-500/60"}`}
-            />
-          ))}
-        </div>
+        <>
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
+            {images.map((_, i) => (
+              <div
+                key={i}
+                className={`w-2 h-2 rounded-full transition-colors ${i === currentIndex ? "bg-brand-yellow" : "bg-zinc-500/60"}`}
+              />
+            ))}
+          </div>
+          <p className="pointer-events-none absolute bottom-4 left-1/2 max-w-[min(90vw,20rem)] -translate-x-1/2 text-center text-[11px] font-medium leading-snug text-zinc-400">
+            Setas ← → no teclado ou deslize o dedo para o lado
+          </p>
+        </>
       )}
       {!hasMultiple && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-zinc-400 text-xs pointer-events-none backdrop-blur-md border border-white/10">
