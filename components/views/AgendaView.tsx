@@ -412,7 +412,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                 {formattedDate}
               </span>
               {dayAppointments.length > 0 && (
-                <span className="text-[10px] bg-zinc-200/90 dark:bg-white/10 px-1.5 py-0.5 rounded-full text-zinc-600 dark:text-zinc-300 font-mono font-semibold">
+                <span className="text-[10px] bg-zinc-300/95 dark:bg-white/10 px-1.5 py-0.5 rounded-full text-zinc-800 dark:text-zinc-300 font-mono font-semibold">
                   {dayAppointments.length}
                 </span>
               )}
@@ -427,11 +427,11 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                     e.stopPropagation();
                     setDetailAppointment(app);
                   }}
-                  className="w-full text-left text-[10px] bg-white/70 dark:bg-white/[0.06] p-1.5 rounded-lg border-l-2 border-brand-yellow/80 truncate hover:bg-white dark:hover:bg-white/10 transition-colors shadow-sm cursor-pointer"
+                  className="w-full text-left text-[10px] bg-zinc-200/90 dark:bg-white/[0.06] p-1.5 rounded-lg border-l-2 border-brand-yellow/80 truncate hover:bg-zinc-300/85 dark:hover:bg-white/10 transition-colors shadow-sm cursor-pointer"
                   title={`${app.time} — ${app.vehicleModel || app.title}`}
                 >
-                  <span className="font-bold text-zinc-900 dark:text-zinc-200 mr-1">{app.time}</span>
-                  <span className="text-zinc-600 dark:text-zinc-300">{app.title}</span>
+                  <span className="font-bold text-zinc-950 dark:text-zinc-200 mr-1">{app.time}</span>
+                  <span className="text-zinc-800 dark:text-zinc-300">{app.title}</span>
                 </button>
               ))}
             </div>
