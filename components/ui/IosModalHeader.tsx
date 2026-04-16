@@ -27,7 +27,7 @@ export const IosModalHeader: React.FC<IosModalHeaderProps> = ({
       </h2>
       {subtitle ? (
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-amber-500/90 shrink-0" strokeWidth={2} />
+          <Sparkles className="w-3.5 h-3.5 text-brand-yellow shrink-0" strokeWidth={2} />
           {subtitle}
         </p>
       ) : null}

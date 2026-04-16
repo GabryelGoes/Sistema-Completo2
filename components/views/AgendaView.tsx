@@ -8,9 +8,9 @@ import {
   iosLabel,
   iosPageGlass,
   iosInput,
-  iosPrimaryButton,
   iosModalInsetCard,
   iosModalOverlay,
+  iosAccentPrimaryButton,
 } from '../ui/iosModalStyles';
 import { IosModalHeader } from '../ui/IosModalHeader';
 import { Customer, Appointment } from '../../types';
@@ -274,15 +274,15 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
     return (
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400/95 to-indigo-600 shadow-lg shadow-indigo-500/25 ring-1 ring-white/20 dark:ring-white/10">
-            <CalendarIcon className="w-7 h-7 text-white" strokeWidth={2.2} />
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-yellow via-brand-yellow/90 to-zinc-800 shadow-lg shadow-brand-yellow/30 ring-1 ring-white/20 dark:ring-white/10">
+            <CalendarIcon className="w-7 h-7 text-zinc-950 drop-shadow-sm" strokeWidth={2.2} />
           </div>
           <div className="min-w-0">
             <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
               Agenda
             </h1>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500/90 shrink-0" strokeWidth={2} />
+              <Sparkles className="w-3.5 h-3.5 text-brand-yellow shrink-0" strokeWidth={2} />
               <span>{format(currentDate, 'MMMM yyyy', { locale: ptBR })}</span>
             </p>
           </div>
@@ -327,7 +327,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
           <button
             type="button"
             onClick={() => handleNewAppointment()}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#007AFF] text-white font-semibold text-[15px] shadow-lg shadow-blue-500/25 hover:opacity-95 active:scale-[0.98] transition-all"
+            className={`inline-flex items-center gap-2 ${iosAccentPrimaryButton}`}
           >
             <Plus className="w-5 h-5" />
             <span className="hidden sm:inline">Novo agendamento</span>
@@ -396,7 +396,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                   ? 'bg-zinc-100/40 dark:bg-zinc-950/30 text-zinc-400 dark:text-zinc-500'
                   : 'bg-white/50 dark:bg-white/[0.03] text-zinc-700 dark:text-zinc-200 backdrop-blur-[2px]'
               }
-              ${isSelected ? 'ring-2 ring-[#007AFF]/45 ring-inset z-10' : ''}
+              ${isSelected ? 'ring-2 ring-brand-yellow/45 ring-inset z-10' : ''}
               hover:bg-white/80 dark:hover:bg-white/[0.06] cursor-pointer
             `}
             onClick={() => onDateClick(cloneDay)}
@@ -405,7 +405,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
               <span
                 className={`
                     text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full
-                    ${isTodayDate ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30' : ''}
+                    ${isTodayDate ? 'bg-brand-yellow text-zinc-950 shadow-md shadow-brand-yellow/35' : ''}
                 `}
               >
                 {formattedDate}
@@ -426,7 +426,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                     e.stopPropagation();
                     setDetailAppointment(app);
                   }}
-                  className="w-full text-left text-[10px] bg-white/70 dark:bg-white/[0.06] p-1.5 rounded-lg border-l-2 border-[#007AFF]/70 truncate hover:bg-white dark:hover:bg-white/10 transition-colors shadow-sm cursor-pointer"
+                  className="w-full text-left text-[10px] bg-white/70 dark:bg-white/[0.06] p-1.5 rounded-lg border-l-2 border-brand-yellow/80 truncate hover:bg-white dark:hover:bg-white/10 transition-colors shadow-sm cursor-pointer"
                   title={`${app.time} — ${app.vehicleModel || app.title}`}
                 >
                   <span className="font-bold text-zinc-900 dark:text-zinc-200 mr-1">{app.time}</span>
@@ -441,7 +441,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                 e.stopPropagation();
                 handleNewAppointment(cloneDay);
               }}
-              className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-[#007AFF] hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+              className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-brand-yellow hover:text-zinc-950 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm"
               aria-label="Novo agendamento neste dia"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -459,8 +459,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
     }
     return (
       <div className={`${iosPageGlass} overflow-hidden relative`}>
-        <div className="pointer-events-none absolute -top-20 -right-16 w-56 h-56 bg-gradient-to-br from-sky-400/20 to-indigo-600/10 rounded-full blur-3xl opacity-70" />
-        <div className="pointer-events-none absolute -bottom-16 -left-12 w-48 h-48 bg-gradient-to-br from-amber-400/12 to-orange-500/5 rounded-full blur-3xl opacity-50" />
+        <div className="pointer-events-none absolute -top-20 -right-16 w-56 h-56 bg-gradient-to-br from-brand-yellow/25 to-transparent rounded-full blur-3xl opacity-70" />
+        <div className="pointer-events-none absolute -bottom-16 -left-12 w-48 h-48 bg-gradient-to-br from-brand-yellow/15 to-transparent rounded-full blur-3xl opacity-50" />
         <div className="relative z-10 rounded-[inherit] overflow-hidden">{rows}</div>
       </div>
     );
@@ -475,18 +475,18 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
     return (
         <div className="mt-8">
             <div className={`${iosPageGlass} p-6 sm:p-8 relative overflow-hidden`}>
-                <div className="pointer-events-none absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-indigo-400/10 to-transparent rounded-full blur-2xl" />
+                <div className="pointer-events-none absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-brand-yellow/15 to-transparent rounded-full blur-2xl" />
                 <div className="relative z-10">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
                     <div className="min-w-0">
                       <h3 className="text-[17px] sm:text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2.5">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-md shadow-indigo-500/20 shrink-0">
-                          <CalendarDays className="w-5 h-5 text-white" strokeWidth={2} />
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-yellow to-zinc-800 shadow-md shadow-brand-yellow/25 shrink-0">
+                          <CalendarDays className="w-5 h-5 text-zinc-950" strokeWidth={2} />
                         </span>
                         <span className="leading-tight">
                           Agendamentos do dia
                           <span className="block text-[13px] font-normal text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5">
-                            <Sparkles className="w-3.5 h-3.5 text-amber-500/90 shrink-0" strokeWidth={2} />
+                            <Sparkles className="w-3.5 h-3.5 text-brand-yellow shrink-0" strokeWidth={2} />
                             Veículos agendados para esta data
                           </span>
                         </span>
@@ -534,7 +534,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                                     >
                                       <span
                                         className={`inline-block w-2 h-2 rounded-full mr-1 align-middle ${
-                                          statusDone ? 'bg-emerald-500' : statusCancelled ? 'bg-red-500' : 'bg-[#007AFF]'
+                                          statusDone ? 'bg-emerald-500' : statusCancelled ? 'bg-red-500' : 'bg-brand-yellow'
                                         }`}
                                       />
                                       {statusLabel}
@@ -550,11 +550,11 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                                         <h4 className="font-vehicle text-[17px] sm:text-[19px] font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug">
                                           {app.vehicleModel || 'Veículo não informado'}
                                         </h4>
-                                        <p className="text-[15px] font-medium text-[#007AFF] dark:text-sky-400 mt-0.5 truncate">
+                                        <p className="text-[15px] font-medium text-brand-yellow mt-0.5 truncate">
                                           {app.title}
                                         </p>
                                       </div>
-                                      <ChevronRight className="w-5 h-5 text-zinc-300 dark:text-zinc-600 group-hover:text-[#007AFF] dark:group-hover:text-sky-400 shrink-0 mt-0.5 transition-colors" aria-hidden />
+                                      <ChevronRight className="w-5 h-5 text-zinc-300 dark:text-zinc-600 group-hover:text-brand-yellow shrink-0 mt-0.5 transition-colors" aria-hidden />
                                     </div>
 
                                     <div className="flex flex-wrap gap-2">
@@ -579,8 +579,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                                     {app.notes ? (
                                       <div className={`${iosModalInsetCard} p-3 sm:p-3.5`}>
                                         <div className="flex items-start gap-2.5">
-                                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/15">
-                                            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-yellow/15">
+                                            <AlertCircle className="w-4 h-4 text-brand-yellow" />
                                           </span>
                                           <p className="text-[13px] sm:text-sm text-zinc-700 dark:text-zinc-200 whitespace-pre-wrap break-words leading-relaxed">
                                             {app.notes}
@@ -599,7 +599,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                                     e.stopPropagation();
                                     handleChegouAoPatio(app);
                                   }}
-                                  className="flex-1 min-w-[140px] sm:flex-initial px-4 py-2.5 rounded-2xl bg-amber-400 text-zinc-950 hover:bg-amber-300 transition-all flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wide shadow-md shadow-amber-500/20 active:scale-[0.98]"
+                                  className={`flex-1 min-w-[140px] sm:flex-initial ${iosAccentPrimaryButton} flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wide active:scale-[0.98]`}
                                   title="Chegou ao Pátio"
                                 >
                                   <ArrowRight className="w-4 h-4" />
@@ -613,7 +613,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                                       e.stopPropagation();
                                       exportToGoogleCalendar(app);
                                     }}
-                                    className="p-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-[#007AFF]/15 hover:text-[#007AFF] transition-colors"
+                                    className="p-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-brand-yellow/15 hover:text-brand-yellow transition-colors"
                                     title="Exportar para Google Agenda"
                                   >
                                     <ExternalLink className="w-5 h-5" />
@@ -698,7 +698,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                       : new Date(detailAppointment.date);
                   return `${format(d, "EEEE, d 'de' MMMM yyyy", { locale: ptBR })} · ${detailAppointment.time}`;
                 })()}
-                gradientClass="from-sky-500 to-indigo-600"
+                gradientClass="from-brand-yellow to-zinc-900"
               />
             </div>
             <div className="px-6 sm:px-8 pb-8 space-y-5">
@@ -714,14 +714,14 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                         className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full border ${
                           statusDone
                             ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400'
-                            : statusCancelled
+                            :                           statusCancelled
                               ? 'border-red-500/40 text-red-700 dark:text-red-400'
-                              : 'border-[#007AFF]/40 text-[#007AFF] dark:text-sky-400'
+                              : 'border-brand-yellow/40 text-brand-yellow'
                         }`}
                       >
                         <span
                           className={`w-2 h-2 rounded-full ${
-                            statusDone ? 'bg-emerald-500' : statusCancelled ? 'bg-red-500' : 'bg-[#007AFF]'
+                            statusDone ? 'bg-emerald-500' : statusCancelled ? 'bg-red-500' : 'bg-brand-yellow'
                           }`}
                         />
                         {statusLabel}
@@ -750,12 +750,12 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                         <p className={iosLabel}>Cliente</p>
                         <p className="text-[15px] text-zinc-800 dark:text-zinc-100">{app.customerName}</p>
                         {app.phone ? (
-                          <a href={`tel:${app.phone}`} className="text-[14px] text-[#007AFF] hover:underline mt-1 block">
+                          <a href={`tel:${app.phone}`} className="text-[14px] text-brand-yellow hover:underline mt-1 block">
                             {app.phone}
                           </a>
                         ) : null}
                         {app.email ? (
-                          <a href={`mailto:${app.email}`} className="text-[14px] text-[#007AFF] hover:underline mt-0.5 block break-all">
+                          <a href={`mailto:${app.email}`} className="text-[14px] text-brand-yellow hover:underline mt-0.5 block break-all">
                             {app.email}
                           </a>
                         ) : null}
@@ -777,7 +777,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                           handleChegouAoPatio(app);
                           setDetailAppointment(null);
                         }}
-                        className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 text-zinc-950 hover:bg-amber-300 px-4 py-3 text-[13px] font-bold uppercase tracking-wide shadow-md shadow-amber-500/20"
+                        className={`flex-1 min-w-[160px] inline-flex items-center justify-center gap-2 px-4 py-3 text-[13px] font-bold uppercase tracking-wide ${iosAccentPrimaryButton}`}
                       >
                         <ArrowRight className="w-4 h-4" />
                         Chegou ao pátio
@@ -794,7 +794,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                         <button
                           type="button"
                           onClick={() => handleEditClick(app)}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#007AFF] text-white px-4 py-3 text-[14px] font-semibold hover:opacity-95"
+                          className={`inline-flex items-center justify-center gap-2 px-4 py-3 text-[14px] font-semibold ${iosAccentPrimaryButton}`}
                         >
                           <Edit2 className="w-4 h-4" />
                           Editar
@@ -869,7 +869,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                     icon={<CalendarIcon className="w-6 h-6 text-white" strokeWidth={2.2} />}
                     title={isEditing ? 'Editar agendamento' : 'Novo agendamento'}
                     subtitle="Serviço, cliente, veículo e horário"
-                    gradientClass="from-sky-500 to-indigo-600"
+                    gradientClass="from-brand-yellow to-zinc-900"
                   />
                 </div>
 
@@ -1022,7 +1022,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                             </button>
                             <button 
                                 type="submit"
-                                className={`${iosPrimaryButton} px-8`}
+                                className={`${iosAccentPrimaryButton} px-8`}
                             >
                                 {isEditing ? 'Salvar alterações' : 'Agendar'}
                             </button>
