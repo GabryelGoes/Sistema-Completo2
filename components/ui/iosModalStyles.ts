@@ -1,4 +1,13 @@
+import type { CSSProperties } from "react";
 import { uiModalSectionLabel } from "./appTypography";
+
+/** Fundo em gradiente para squircle quando a cor não é `brand-yellow` (ex.: modo colorido na home). */
+export function iosSquircleBackgroundFromHex(hex: string): CSSProperties {
+  const h = /^#[0-9A-Fa-f]{6}$/.test(hex.trim()) ? hex.trim() : "#F5D00B";
+  return {
+    backgroundImage: `linear-gradient(to bottom right, ${h}, ${h}f0, ${h}b8)`,
+  };
+}
 
 /** Overlay e painéis alinhados ao modal TV do pátio (vidro, blur, cantos grandes). */
 

@@ -346,6 +346,7 @@ export default function App() {
             className="flex-1 min-h-0 overflow-y-auto p-0"
           >
             <HomeView
+              colorfulNavigation={appAppearance.colorfulNavigation}
               isTechnician={authSession.isTechnician ?? false}
               technicianName={authSession.displayName ?? 'Usuário'}
               allowedTabs={userAllowedTabs}
@@ -545,6 +546,7 @@ export default function App() {
           className="flex-1 min-h-0 overflow-y-auto p-0 pt-4"
         >
           <HomeView
+            colorfulNavigation={appAppearance.colorfulNavigation}
             onOpenApp={handleHomeOpenApp}
             onLogout={handleLogout}
             isTechnician={false}

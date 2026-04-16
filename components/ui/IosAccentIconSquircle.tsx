@@ -9,6 +9,7 @@ import {
   iosAccentIconGlyphModal,
   iosAccentIconGlyphRow,
   iosAccentIconGlyphTile,
+  iosSquircleBackgroundFromHex,
 } from './iosModalStyles';
 
 export type IosAccentIconSquircleVariant = 'page' | 'modal' | 'row' | 'tile';
@@ -33,6 +34,8 @@ type Props = {
   /** pictograma Lucide ou PatioCarIcon */
   children: React.ReactElement<{ className?: string; strokeWidth?: number }>;
   strokeWidth?: number;
+  /** Cor do squircle (#RRGGBB). Sobrepõe o gradiente `brand-yellow` (modo colorido na home, etc.). */
+  accentHex?: string;
 };
 
 /**
@@ -43,6 +46,7 @@ export const IosAccentIconSquircle: React.FC<Props> = ({
   className = '',
   children,
   strokeWidth,
+  accentHex,
 }) => {
   const shell = SHELL[variant];
   const glyph = GLYPH[variant];
@@ -51,8 +55,9 @@ export const IosAccentIconSquircle: React.FC<Props> = ({
     className: merged,
     strokeWidth: strokeWidth ?? children.props.strokeWidth,
   });
+  const bgStyle = accentHex ? iosSquircleBackgroundFromHex(accentHex) : undefined;
   return (
-    <div className={`${shell} ${className}`.trim()} aria-hidden>
+    <div className={`${shell} ${className}`.trim()} style={bgStyle} aria-hidden>
       <span className={iosPageTitleIconGlass} aria-hidden />
       {child}
     </div>
