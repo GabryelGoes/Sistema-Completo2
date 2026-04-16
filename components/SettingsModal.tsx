@@ -47,7 +47,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     <div className={iosModalOverlay}>
       <div
         className={`${iosModalShell} max-h-[94vh] ${
-          showWorkspaceAppearance && workspaceAppearance ? 'max-w-lg' : 'max-w-md'
+          showWorkspaceAppearance && workspaceAppearance ? 'max-w-2xl' : 'max-w-xl'
         }`}
       >
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
