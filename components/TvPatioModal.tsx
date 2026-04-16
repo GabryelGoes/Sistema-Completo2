@@ -27,6 +27,7 @@ import {
 } from '../services/apiService';
 import { TvPatioPreview } from './TvPatioPreview';
 import { ModalPortal } from './ui/ModalPortal';
+import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 
 const SLIDE_TYPES: { value: TvSlideType; label: string; hint: string }[] = [
   { value: 'notice', label: 'Aviso', hint: 'Texto em destaque' },
@@ -469,15 +470,15 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-y-auto overscroll-contain">
           <div className="px-6 sm:px-8 pt-8 pb-6 lg:pr-12">
             <div className="flex items-center gap-3 mb-1">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/90 to-blue-600 shadow-lg shadow-cyan-500/20">
-                <Monitor className="w-6 h-6 text-white" strokeWidth={2.2} />
-              </div>
+              <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
+                <Monitor />
+              </IosAccentIconSquircle>
               <div>
                 <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
                   TV do pátio
                 </h2>
                 <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500/90" />
+                  <Sparkles className="w-3.5 h-3.5 text-brand-yellow" />
                   Conteúdo exibido entre as páginas de veículos
                 </p>
               </div>

@@ -72,10 +72,8 @@ import {
   iosLabel,
   iosPageGlass,
   iosPrimaryButton,
-  iosPageTitleIconShell,
-  iosPageTitleIconGlass,
-  iosPageTitleIconGlyph,
 } from '../ui/iosModalStyles';
+import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { markdownComponentsApp } from '../ui/markdownUi';
 import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
@@ -2649,14 +2647,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
         {/* Cabeçalho — mesmo padrão Recepção/Agenda: sem painel vidro em volta; ícone = tile da Home (Pátio / Laboratório) */}
         <header className="mb-6 flex flex-col gap-4 sm:mb-8 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <div className={iosPageTitleIconShell} aria-hidden>
-              <span className={iosPageTitleIconGlass} aria-hidden />
-              {isModuleMode ? (
-                <FlaskConical className={iosPageTitleIconGlyph} strokeWidth={2.2} />
-              ) : (
-                <PatioCarIcon className={iosPageTitleIconGlyph} strokeWidth={2.2} />
-              )}
-            </div>
+            {isModuleMode ? (
+              <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
+                <FlaskConical />
+              </IosAccentIconSquircle>
+            ) : (
+              <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
+                <PatioCarIcon />
+              </IosAccentIconSquircle>
+            )}
             <div className="min-w-0">
               <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
                 {isModuleMode ? 'Laboratório' : 'Pátio'}
@@ -2940,24 +2939,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {cards.length === 0 && (
           <div className={`${iosPageGlass} ring-1 ring-white/40 dark:ring-white/[0.06] flex flex-col items-center justify-center py-16 text-center sm:py-20`}>
-            <div
-              className={`mb-5 flex h-16 w-16 items-center justify-center rounded-[1.35rem] bg-gradient-to-br shadow-[0_8px_28px_-6px_rgba(0,0,0,0.38),inset_0_1px_0_0_rgba(255,255,255,0.38)] ${
-                isModuleMode
-                  ? 'from-violet-400 via-purple-500 to-fuchsia-700'
-                  : 'from-emerald-400 via-teal-500 to-cyan-700'
-              }`}
-            >
+            <div className="mb-5">
               {isModuleMode ? (
-                <FlaskConical className="h-8 w-8 text-white" strokeWidth={2.2} />
+                <IosAccentIconSquircle variant="tile" strokeWidth={2.2}>
+                  <FlaskConical />
+                </IosAccentIconSquircle>
               ) : (
-                <PatioCarIcon className="h-9 w-9 text-white opacity-95" strokeWidth={2.2} />
+                <IosAccentIconSquircle variant="tile" strokeWidth={2.2}>
+                  <PatioCarIcon />
+                </IosAccentIconSquircle>
               )}
             </div>
             <p className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">
               {isModuleMode ? 'Nenhum módulo no laboratório' : 'Nenhum veículo no pátio'}
             </p>
             <p className="mt-2 flex items-center justify-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-              <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" />
+              <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" />
               Quando houver OS ativas, aparecem aqui em cartões de vidro.
             </p>
           </div>
@@ -2982,15 +2979,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
                   <div className="flex items-start gap-3 pr-10">
-                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25">
-                        <History className="h-6 w-6 text-white" strokeWidth={2.2} />
-                     </div>
+                     <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
+                        <History />
+                     </IosAccentIconSquircle>
                      <div className="min-w-0 flex-1">
                         <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[26px]">
                           {isModuleMode ? 'Histórico de módulos' : 'Histórico de veículos'}
                         </h2>
                         <p className="mt-1 flex items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                           <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" />
+                           <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" />
                            {isModuleMode ? 'Consulte módulos arquivados na oficina' : 'Consulte OS entregues e arquivadas'}
                         </p>
                      </div>
@@ -3174,7 +3171,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </p>
                         ) : null}
                         <p className="flex items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" />
+                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" />
                           Registro encerrado — leitura, anexos e reabertura
                         </p>
                      </div>
@@ -3687,13 +3684,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             className="group flex min-w-0 flex-1 items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] sm:px-6"
                           >
                             <div className="flex min-w-0 items-center gap-3">
-                              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF]/18 to-[#5AC8FA]/12 text-[#007AFF] shadow-sm dark:from-[#007AFF]/22 dark:to-[#5AC8FA]/10">
-                                {isModuleMode ? (
-                                  <FlaskConical className="h-4 w-4" strokeWidth={2} />
-                                ) : (
-                                  <Car className="h-4 w-4" strokeWidth={2} />
-                                )}
-                              </span>
+                              {isModuleMode ? (
+                                <IosAccentIconSquircle variant="row" strokeWidth={2}>
+                                  <FlaskConical />
+                                </IosAccentIconSquircle>
+                              ) : (
+                                <IosAccentIconSquircle variant="row" strokeWidth={2}>
+                                  <Car />
+                                </IosAccentIconSquircle>
+                              )}
                               <div className="min-w-0 text-left">
                                 <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                                   Dados da ficha
@@ -5013,9 +5012,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
             <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF] to-[#5856D6] shadow-lg shadow-blue-500/25">
-                  <ReminderIcon className="h-6 w-6 text-white" strokeWidth={2.2} />
-                </div>
+                <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
+                  <ReminderIcon />
+                </IosAccentIconSquircle>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                     {isModuleMode ? 'Laboratório' : 'Pátio'}
@@ -5024,7 +5023,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     Lembretes
                   </h2>
                   <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
                     Visível para todo o time e admin — não deixe nada passar.
                   </p>
                 </div>
@@ -5097,7 +5096,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <button
                     type="submit"
                     disabled={!newReminder.trim() || reminderSubmitting}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center self-center rounded-2xl bg-[#007AFF] text-white shadow-lg shadow-blue-500/25 transition-transform active:scale-[0.98] disabled:opacity-45 sm:h-auto sm:w-14 sm:rounded-2xl"
+                    className="flex h-12 w-12 shrink-0 items-center justify-center self-center rounded-2xl border border-black/10 bg-brand-yellow text-zinc-950 shadow-lg shadow-brand-yellow/30 transition-transform active:scale-[0.98] hover:brightness-110 disabled:opacity-45 dark:border-black/25 sm:h-auto sm:w-14 sm:rounded-2xl"
                     aria-label="Adicionar lembrete"
                   >
                     {reminderSubmitting ? (
@@ -5238,9 +5237,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
               <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
                 <div className="flex items-start gap-3 pr-10">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-teal-500/25">
-                    <Search className="h-6 w-6 text-white" strokeWidth={2.2} />
-                  </div>
+                  <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
+                    <Search />
+                  </IosAccentIconSquircle>
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                       Pátio
@@ -5252,7 +5251,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       Buscar por placa
                     </h2>
                     <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                      <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                      <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
                       Confira se o veículo já está na oficina ou consulte os dados pela placa.
                     </p>
                   </div>
@@ -5728,9 +5727,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
             <div className="shrink-0 border-b border-[#e8dfd0] bg-[#faf6ed] px-6 pb-5 pt-7 sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#c9b99f] bg-gradient-to-br from-[#8b7a62] to-[#5c5348] shadow-md shadow-[rgba(60,45,30,0.2)]">
-                  <Calculator className="h-6 w-6 text-white" strokeWidth={2.2} />
-                </div>
+                <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
+                  <Calculator />
+                </IosAccentIconSquircle>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6b6560]">
                     Orçamento
@@ -5739,7 +5738,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     {editingBudget ? 'Editar orçamento' : 'Novo orçamento'}
                   </h2>
                   <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-[#5c534c]">
-                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#9a928c]" strokeWidth={2} />
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
                     <span className="min-w-0 break-words">
                       {(selectedCard.vehicleBrand ?? '').trim() ? (
                         <span className="text-[#7a6f5f]/90">
@@ -6077,9 +6076,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
             <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF] to-[#5856D6] shadow-lg shadow-blue-500/25">
-                  <ArrowRightLeft className="h-6 w-6 text-white" strokeWidth={2.2} />
-                </div>
+                <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
+                  <ArrowRightLeft />
+                </IosAccentIconSquircle>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                     {isModuleMode ? 'Laboratório' : 'Pátio'}
@@ -6088,7 +6087,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     Alterar etapa
                   </h2>
                   <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
                     <span className="min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200">
                       {cardInTransitionTitleParts?.vehicle}
                     </span>
@@ -6188,9 +6187,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                 <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
                   <div className="flex items-start gap-3 pr-10">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF] to-[#5856D6] shadow-lg shadow-blue-500/25">
-                      <Tag className="h-6 w-6 text-white" strokeWidth={2.2} />
-                    </div>
+                    <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
+                      <Tag />
+                    </IosAccentIconSquircle>
                     <div className="min-w-0 flex-1">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                         Pátio
@@ -6199,7 +6198,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         Categoria do veículo
                       </h2>
                       <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                        <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                        <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
                         <span className="font-vehicle min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200">
                           {selectedCardTitleParts?.vehicle}
                         </span>
@@ -6288,9 +6287,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
             <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#007AFF] to-[#5856D6] shadow-lg shadow-blue-500/25">
-                  <Users className="h-6 w-6 text-white" strokeWidth={2.2} />
-                </div>
+                <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
+                  <Users />
+                </IosAccentIconSquircle>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                     Equipe
@@ -6299,7 +6298,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     Selecionar técnico
                   </h2>
                   <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
                     {isModuleMode
                       ? 'Responsável pelo módulo — escolha quem acompanha esta OS.'
                       : 'Responsável pelo veículo — escolha quem acompanha esta OS.'}
@@ -6377,9 +6376,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
              <div className="relative shrink-0 border-b border-zinc-200/60 px-5 pb-4 pt-6 dark:border-white/[0.07] sm:px-7 sm:pt-7">
                 <div className="mb-4 flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
-                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-amber-500/25">
-                        <ClipboardList className="h-6 w-6 text-white" strokeWidth={2.2} />
-                     </div>
+                     <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
+                        <ClipboardList />
+                     </IosAccentIconSquircle>
                      <div className="min-w-0">
                        <h2 className="text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">Checklist {activeChecklistTemplate.name}</h2>
                        <p className="mt-0.5 text-[13px] font-medium text-zinc-500 dark:text-zinc-400">{activeChecklistCardTitleParts?.vehicle}</p>

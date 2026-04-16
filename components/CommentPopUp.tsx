@@ -7,6 +7,8 @@ import {
   iosModalInsetCard,
   iosModalShell,
   iosInput,
+  iosAccentIconShellModal,
+  iosPageTitleIconGlass,
 } from './ui/iosModalStyles';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
@@ -133,11 +135,14 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
 
         <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
           <div className="flex items-start gap-3 pr-10">
-            <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#007AFF]/20 to-[#5856D6]/25 ring-2 ring-[#007AFF]/20 dark:from-[#007AFF]/25 dark:to-[#5856D6]/30 dark:ring-[#64B5FF]/25">
+            <div className={`${iosAccentIconShellModal} shrink-0 overflow-hidden p-0`}>
+              <span className={iosPageTitleIconGlass} aria-hidden />
               {headerPhotoUrl ? (
-                <img src={headerPhotoUrl} alt="" className="h-full w-full object-cover" />
+                <img src={headerPhotoUrl} alt="" className="absolute inset-0 z-[11] h-full w-full object-cover" />
               ) : (
-                <span className="text-lg font-semibold text-[#007AFF] dark:text-[#64B5FF]">{headerInitial}</span>
+                <span className="relative z-[11] flex h-full w-full items-center justify-center text-lg font-semibold text-zinc-950 [filter:drop-shadow(0_1px_0_rgba(255,255,255,0.45))]">
+                  {headerInitial}
+                </span>
               )}
             </div>
             <div className="min-w-0 flex-1">
@@ -149,7 +154,7 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
                 {showBlurredPlate && <span className="blur-plate">{p.vehicle_plate}</span>}
               </p>
               <p className={`mt-1 flex flex-wrap items-center gap-1.5 text-[13px] ${subtitleClass}`}>
-                <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-500/90" strokeWidth={2} />
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
                 {conversation.length > 0
                   ? `${conversation.length} mensagem${conversation.length !== 1 ? 'ns' : ''} · ${headerAuthor}`
                   : `${headerAuthor} comentou`}
