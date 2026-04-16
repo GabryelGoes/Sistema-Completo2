@@ -3967,7 +3967,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           )}
                           {can('canEditFicha') && (
-                            <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200/50 pt-5 dark:border-white/[0.06]">
+                            <div className="order-3 flex flex-wrap items-center gap-3 border-t border-zinc-200/50 pt-5 dark:border-white/[0.06]">
                               <button
                                 type="button"
                                 onClick={() => {
