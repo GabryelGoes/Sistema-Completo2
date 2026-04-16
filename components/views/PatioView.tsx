@@ -1039,9 +1039,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       }
       const api = await consultPlacaFipe(norm);
       setPatioPlateSearchApiInfo(api);
-      setPatioPlateSearchMessage(
-        'Nenhuma OS ativa com esta placa no Pátio. Dados abaixo vêm da consulta de placa (veículo pode estar só na Recepção ou arquivado).'
-      );
+      setPatioPlateSearchMessage(null);
     } catch (e) {
       setPatioPlateSearchMessage(e instanceof Error ? e.message : 'Erro ao consultar a placa.');
     } finally {
@@ -2713,7 +2711,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
           </div>
         </header>
 
-        {!isModuleMode && patioPlateSearchMessage && (
+        {!isModuleMode &&
+          (patioPlateSearchMessage ||
+            patioPlateSearchInPatioCards.length > 0 ||
+            patioPlateSearchApiInfo) && (
           <div className="mb-5">
             <div
               className={`rounded-2xl border px-4 py-3 text-[14px] leading-snug ${
@@ -2725,7 +2726,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               }`}
               role="status"
             >
-              <p>{patioPlateSearchMessage}</p>
+              {patioPlateSearchMessage ? <p>{patioPlateSearchMessage}</p> : null}
               {patioPlateSearchInPatioCards.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {patioPlateSearchInPatioCards.map((c) => {
@@ -2745,7 +2746,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               )}
               {patioPlateSearchApiInfo && (
-                <p className="mt-2 text-[13px] text-zinc-600 dark:text-zinc-400">
+                <p
+                  className={`text-[13px] text-zinc-600 dark:text-zinc-400 ${
+                    patioPlateSearchMessage ? 'mt-2' : ''
+                  }`}
+                >
                   {[patioPlateSearchApiInfo.vehicleBrand, patioPlateSearchApiInfo.vehicleModel].filter(Boolean).join(' · ') || '—'}
                   {patioPlateSearchApiInfo.vehicleColor ? ` · ${patioPlateSearchApiInfo.vehicleColor}` : ''}
                   {patioPlateSearchApiInfo.vehicleYear ? ` · ${patioPlateSearchApiInfo.vehicleYear}` : ''}
