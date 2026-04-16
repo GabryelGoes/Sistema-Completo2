@@ -27,11 +27,22 @@ export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowed
     : TAB_ITEMS;
 
   const renderIcon = (id: TabId, selected: boolean) => {
-    if (id === 'home') return <Home className={`w-6 h-6 ${selected ? 'fill-zinc-200 dark:fill-brand-yellow/20' : ''}`} />;
-    if (id === 'reception') return <FileText className={`w-6 h-6 ${selected ? 'fill-zinc-200 dark:fill-brand-yellow/20' : ''}`} />;
-    if (id === 'agenda') return <Calendar className={`w-6 h-6 ${selected ? 'fill-zinc-200 dark:fill-brand-yellow/20' : ''}`} />;
-    if (id === 'patio') return <PatioCarIcon className="w-6 h-6" />;
-    if (id === 'laboratorio') return <FlaskConical className="w-6 h-6" />;
+    const tone = selected ? 'text-brand-yellow' : 'text-zinc-500 dark:text-zinc-400';
+    if (id === 'home') {
+      return <Home className={`h-6 w-6 ${tone}`} strokeWidth={selected ? 2.35 : 2} />;
+    }
+    if (id === 'reception') {
+      return <FileText className={`h-6 w-6 ${tone}`} strokeWidth={selected ? 2.35 : 2} />;
+    }
+    if (id === 'agenda') {
+      return <Calendar className={`h-6 w-6 ${tone}`} strokeWidth={selected ? 2.35 : 2} />;
+    }
+    if (id === 'patio') {
+      return <PatioCarIcon className={`h-6 w-6 ${tone}`} strokeWidth={selected ? 2.5 : 3} />;
+    }
+    if (id === 'laboratorio') {
+      return <FlaskConical className={`h-6 w-6 ${tone}`} strokeWidth={selected ? 2.35 : 2} />;
+    }
     return null;
   };
 
@@ -40,19 +51,38 @@ export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowed
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40">
-      {/* Modo claro: cor de destaque (--app-accent). Escuro: neutro, sem mistura na barra. */}
-      <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--app-accent)_20%,white)] dark:bg-zinc-900/90 backdrop-blur-xl border-t border-[color-mix(in_srgb,var(--app-accent)_35%,rgb(228_228_231))] dark:border-white/10" />
-      <div className="relative flex justify-around items-center h-20 px-2 pb-4 pt-2 max-w-2xl mx-auto">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => onTabChange(t.id)}
-            className={`flex flex-col items-center gap-1 transition-colors duration-300 ${currentTab === t.id ? 'text-zinc-900 dark:text-brand-yellow' : 'text-zinc-500 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
-          >
-            {renderIcon(t.id, currentTab === t.id)}
-            <span className="text-[10px] font-medium tracking-wide">{t.label}</span>
-          </button>
-        ))}
+      {/* Vidro neutro (sem cor de destaque na barra — cor só no ícone ativo). */}
+      <div className="absolute inset-0 border-t border-zinc-200/80 bg-white/72 backdrop-blur-2xl dark:border-white/[0.09] dark:bg-zinc-950/78" />
+      <div className="relative mx-auto flex h-20 max-w-2xl items-center justify-around px-2 pb-4 pt-2">
+        {tabs.map((t) => {
+          const selected = currentTab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onTabChange(t.id)}
+              className="flex flex-col items-center gap-1 transition-colors duration-300"
+            >
+              <span
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+                  selected
+                    ? 'bg-white/65 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.72)] ring-1 ring-black/[0.07] backdrop-blur-xl dark:bg-white/[0.12] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.22)] dark:ring-white/18'
+                    : 'bg-transparent'
+                }`}
+                aria-hidden
+              >
+                {renderIcon(t.id, selected)}
+              </span>
+              <span
+                className={`text-[10px] font-medium tracking-wide ${
+                  selected ? 'text-zinc-700 dark:text-zinc-200' : 'text-zinc-500 dark:text-zinc-500'
+                }`}
+              >
+                {t.label}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
