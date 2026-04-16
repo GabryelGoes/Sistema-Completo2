@@ -71,6 +71,7 @@ import {
   iosInput,
   iosLabel,
   iosPageGlass,
+  iosAccentPrimaryButton,
   iosPrimaryButton,
 } from '../ui/iosModalStyles';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
@@ -3991,7 +3992,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 type="button"
                                 onClick={handleSaveEditFicha}
                                 disabled={editFichaSaving}
-                                className={`${iosPrimaryButton} flex flex-1 min-w-[140px] items-center justify-center gap-2 sm:flex-none sm:px-8`}
+                                className={`${iosAccentPrimaryButton} flex flex-1 min-w-[140px] items-center justify-center gap-2 sm:flex-none sm:px-8`}
                               >
                                 {editFichaSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                 Salvar alterações
