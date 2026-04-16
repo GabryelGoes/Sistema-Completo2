@@ -646,7 +646,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           className="inline-flex items-center gap-2 py-2.5 px-4 rounded-2xl text-sm font-semibold border border-zinc-200/80 dark:border-white/[0.1] bg-white/65 dark:bg-white/[0.06] backdrop-blur-xl text-zinc-800 dark:text-zinc-100 hover:bg-white/90 dark:hover:bg-white/10 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.08)] transition-all active:scale-[0.98]"
           title="Consultar histórico de veículos arquivados"
         >
-          <History className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          <History className="w-4 h-4 text-brand-yellow" />
           {receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
         </button>
       </div>
