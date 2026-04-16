@@ -15,7 +15,7 @@ export const Input: React.FC<InputProps> = ({ label, icon, className, required, 
         {required ? <span className="text-red-500 ml-0.5" aria-hidden> *</span> : null}
       </label>
       <div className="relative group">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-950 dark:text-zinc-400 group-focus-within:text-brand-yellow transition-colors duration-300">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-brand-yellow/80 transition-colors duration-300 dark:text-brand-yellow/70 [&_svg]:shrink-0 group-focus-within:text-brand-yellow">
           {icon}
         </div>
         <input

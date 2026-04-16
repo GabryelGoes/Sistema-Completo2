@@ -826,12 +826,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => void runPlacaLookup(true)}
                           disabled={plateLookupLoading}
-                          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold border border-zinc-200/90 dark:border-white/[0.12] bg-white/90 dark:bg-white/[0.06] text-zinc-800 dark:text-zinc-100 hover:border-amber-400/50 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-[0.98]"
+                          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold border border-zinc-200/90 dark:border-white/[0.12] bg-white/90 dark:bg-white/[0.06] text-zinc-800 dark:text-zinc-100 hover:border-brand-yellow/50 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-[0.98]"
                         >
                           {plateLookupLoading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                            <Loader2 className="w-4 h-4 animate-spin text-brand-yellow" aria-hidden />
                           ) : (
-                            <Search className="w-4 h-4" aria-hidden />
+                            <Search className="w-4 h-4 text-brand-yellow" aria-hidden />
                           )}
                           Buscar placa
                         </button>
@@ -918,8 +918,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           onClick={() => setVehicleCategory(category)}
                           className={`px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-all active:scale-[0.98] ${
                             selected
-                              ? 'bg-brand-yellow text-zinc-950 border-brand-yellow/90 shadow-md shadow-amber-500/20'
-                              : 'bg-white/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200 border-zinc-200/90 dark:border-white/[0.1] hover:border-amber-400/60 backdrop-blur-sm'
+                              ? 'bg-brand-yellow text-zinc-950 border-brand-yellow/90 shadow-md shadow-brand-yellow/25'
+                              : 'bg-white/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200 border-zinc-200/90 dark:border-white/[0.1] hover:border-brand-yellow/50 backdrop-blur-sm'
                           }`}
                           aria-pressed={selected}
                         >
@@ -958,9 +958,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-4 border border-zinc-200/90 dark:border-white/[0.1] rounded-2xl flex items-center justify-center gap-3 text-zinc-600 dark:text-zinc-300 bg-white/50 dark:bg-white/[0.04] backdrop-blur-md hover:border-[#007AFF]/40 hover:bg-white/80 dark:hover:bg-white/[0.08] transition-all active:scale-[0.99]"
+                    className="w-full py-4 border border-zinc-200/90 dark:border-white/[0.1] rounded-2xl flex items-center justify-center gap-3 text-zinc-600 dark:text-zinc-300 bg-white/50 dark:bg-white/[0.04] backdrop-blur-md hover:border-brand-yellow/45 hover:bg-white/80 dark:hover:bg-white/[0.08] transition-all active:scale-[0.99]"
                   >
-                    <Camera className="w-5 h-5" />
+                    <Camera className="w-5 h-5 text-brand-yellow" strokeWidth={2} />
                     <span className="font-medium text-sm">{receptionMode === 'module' ? 'Foto do módulo (câmera ou galeria)' : 'Foto do veículo (câmera ou galeria)'}</span>
                   </button>
                 ) : (
@@ -1020,20 +1020,19 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             </button>
             <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
               <IosModalHeader
-                icon={<History className="w-6 h-6 text-white" strokeWidth={2.2} />}
+                icon={<History className="w-6 h-6" strokeWidth={2.2} />}
                 title={receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
                 subtitle={
                   receptionMode === 'module'
                     ? 'Módulos arquivados — mesmo visual do Pátio'
                     : 'Veículos arquivados — mesmo visual do Pátio'
                 }
-                gradientClass="from-violet-500 to-indigo-700"
               />
             </div>
             <div className="p-4 sm:p-6 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/40 dark:bg-white/[0.03]">
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-yellow/85 dark:text-brand-yellow/75" strokeWidth={2} />
                   <input
                     value={historySearch}
                     onChange={(e) => setHistorySearch(e.target.value)}
@@ -1043,13 +1042,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         ? 'Buscar por identificação, cliente ou modelo'
                         : 'Buscar por placa, cliente ou modelo'
                     }
-                    className="w-full pl-9 pr-3 py-3 rounded-2xl border border-zinc-200/90 dark:border-white/[0.1] bg-white/90 dark:bg-zinc-950/50 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50"
+                    className="w-full rounded-2xl border border-zinc-200/90 bg-white/90 py-3 pl-9 pr-3 text-zinc-900 placeholder:text-zinc-400 focus:border-brand-yellow/50 focus:outline-none focus:ring-2 focus:ring-brand-yellow/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-100"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => loadVehicleHistory(historySearch)}
-                  className="min-w-[44px] h-11 px-4 rounded-2xl bg-[#007AFF] text-white font-semibold flex items-center justify-center hover:opacity-95 active:scale-[0.98] transition-all shadow-lg shadow-blue-500/25"
+                  className="flex h-11 min-w-[44px] items-center justify-center rounded-2xl border border-black/10 bg-brand-yellow px-4 font-semibold text-zinc-950 shadow-lg shadow-brand-yellow/30 transition-all hover:brightness-110 active:scale-[0.98] dark:border-black/25"
                 >
                   <RefreshCw className={`w-4 h-4 ${historyLoading ? 'animate-spin' : ''}`} />
                 </button>
