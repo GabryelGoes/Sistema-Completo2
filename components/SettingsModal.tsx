@@ -3,7 +3,7 @@ import { X, Settings, RefreshCw, Palette } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { AccentColorPicker } from './AccentColorPicker';
-import type { AppAppearance } from '../utils/appAppearance';
+import { COLORFUL_TAB_ACCENTS, type AppAppearance } from '../utils/appAppearance';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 interface SettingsModalProps {
@@ -57,10 +57,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
             <IosModalHeader
-              icon={<Settings className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              icon={<Settings className="w-6 h-6" strokeWidth={2.2} />}
               title="Configurações"
               subtitle="Aparência e experiência do app"
-              gradientClass="from-amber-400/90 to-orange-600"
             />
           </div>
 
@@ -162,13 +161,65 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onSaveWorkspaceAppearance && (
               <div className="space-y-4">
                 <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+                  <div className="mb-3 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <Palette className="h-4 w-4" />
+                    Cores da navegação
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-medium text-zinc-900 dark:text-white">Modo colorido</p>
+                      <p className="mt-0.5 text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                        Cada aba da barra inferior com cor própria; botões e destaques seguem a tela em foco (como em versões anteriores do app).
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={workspaceAppearance.colorfulNavigation}
+                      disabled={workspaceAppearanceSaving}
+                      onClick={() =>
+                        onWorkspaceAppearanceChange({
+                          ...workspaceAppearance,
+                          colorfulNavigation: !workspaceAppearance.colorfulNavigation,
+                        })
+                      }
+                      className={`
+                        relative shrink-0 w-12 h-7 rounded-full transition-colors duration-200
+                        ${workspaceAppearance.colorfulNavigation ? 'bg-brand-yellow' : 'bg-zinc-300 dark:bg-zinc-600'}
+                        ${workspaceAppearanceSaving ? 'opacity-50 pointer-events-none' : ''}
+                      `}
+                    >
+                      <span
+                        className={`
+                          absolute top-1 w-5 h-5 rounded-full bg-white shadow-md
+                          transition-transform duration-200 ease-out
+                          ${workspaceAppearance.colorfulNavigation ? 'translate-x-6 left-0.5' : 'translate-x-0 left-0.5'}
+                        `}
+                      />
+                    </button>
+                  </div>
+                  {workspaceAppearance.colorfulNavigation ? (
+                    <p className="mt-3 rounded-xl border border-zinc-200/80 bg-zinc-50/90 px-3 py-2 text-[11px] leading-snug text-zinc-600 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-zinc-300">
+                      Paleta fixa: recepção {COLORFUL_TAB_ACCENTS.reception} · agenda {COLORFUL_TAB_ACCENTS.agenda} · início{' '}
+                      {COLORFUL_TAB_ACCENTS.home} · pátio {COLORFUL_TAB_ACCENTS.patio} · laboratório{' '}
+                      {COLORFUL_TAB_ACCENTS.laboratorio}.
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
                   <div className="mb-4 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                     <Palette className="h-4 w-4" />
-                    Cor de destaque
+                    Cor única da oficina
                   </div>
                   <AccentColorPicker
                     value={workspaceAppearance.accentHex}
                     disabled={workspaceAppearanceSaving}
+                    intro={
+                      workspaceAppearance.colorfulNavigation
+                        ? 'Com o modo colorido ligado, a cor ativa no app muda ao trocar de aba. A cor escolhida abaixo é usada quando o modo colorido estiver desligado.'
+                        : undefined
+                    }
                     onChange={(hex) =>
                       onWorkspaceAppearanceChange({
                         ...workspaceAppearance,

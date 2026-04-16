@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { ChangePasswordsModal } from './components/ChangePasswordsModal';
@@ -26,7 +26,9 @@ import {
   applyAccentToRoot,
   defaultAppAppearance,
   parseAppAppearance,
+  resolveEffectiveAccentHex,
   type AppAppearance,
+  type NavigationTabId,
 } from './utils/appAppearance';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
 
@@ -108,7 +110,6 @@ export default function App() {
       const normalized = parseAppAppearance(settingsAppearanceDraft);
       await updateWorkshopSettings({ appAppearance: normalized as Record<string, unknown> });
       setAppAppearance(normalized);
-      applyAccentToRoot(document.documentElement, normalized.accentHex);
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Erro ao salvar aparência.');
     } finally {
@@ -189,7 +190,6 @@ export default function App() {
         if (s.appAppearance) {
           const p = parseAppAppearance(s.appAppearance);
           setAppAppearance(p);
-          applyAccentToRoot(document.documentElement, p.accentHex);
         }
       })
       .catch(() => {});
@@ -198,9 +198,22 @@ export default function App() {
     };
   }, [authSession]);
 
+  /** Aba usada para cor no modo colorido (técnico limitado usa `userTab`; admin/full usa `currentTab`). */
+  const effectiveNavTab = useMemo((): NavigationTabId => {
+    if (authSession?.role === 'user' && !hasFullAccess) {
+      return userTab;
+    }
+    return currentTab;
+  }, [authSession?.role, hasFullAccess, userTab, currentTab]);
+
+  const effectiveAccentHex = useMemo(
+    () => resolveEffectiveAccentHex(appAppearance, effectiveNavTab),
+    [appAppearance, effectiveNavTab]
+  );
+
   useEffect(() => {
-    applyAccentToRoot(document.documentElement, appAppearance.accentHex);
-  }, [appAppearance.accentHex]);
+    applyAccentToRoot(document.documentElement, effectiveAccentHex);
+  }, [effectiveAccentHex]);
 
   useEffect(() => {
     if (isSettingsOpen && !settingsWasOpenRef.current) {
@@ -441,6 +454,7 @@ export default function App() {
           currentTab={userTab}
           onTabChange={setUserTab}
           allowedTabs={userAllowedTabs}
+          colorfulNavigation={appAppearance.colorfulNavigation}
         />
         <div className="sr-only" aria-hidden="true">
           <NotificationCenter
@@ -635,7 +649,11 @@ export default function App() {
       </main>
 
       {/* Navigation - sempre visível, inclusive na home */}
-      <TabBar currentTab={currentTab} onTabChange={setCurrentTab} />
+      <TabBar
+        currentTab={currentTab}
+        onTabChange={setCurrentTab}
+        colorfulNavigation={appAppearance.colorfulNavigation}
+      />
 
       {/* Global Modals */}
       <SettingsModal

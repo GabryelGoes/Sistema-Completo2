@@ -256,19 +256,24 @@ type Props = {
   value: string;
   onChange: (hex: string) => void;
   disabled?: boolean;
+  /** Substitui o texto introdutório padrão (ex.: modo colorido nas configurações). */
+  intro?: string;
 };
 
 /**
  * Seletor de cor de destaque: paleta sugerida + roda circular HSV + prévia.
  */
-export function AccentColorPicker({ value, onChange, disabled }: Props) {
+const DEFAULT_INTRO =
+  'Botões principais, ícones de destaque e realces usam esta cor em todo o sistema.';
+
+export function AccentColorPicker({ value, onChange, disabled, intro }: Props) {
   const validHex = safeDisplayHex(value);
   const selectedUpper = value.length === 7 ? value.toUpperCase() : '';
 
   return (
     <div className="space-y-5">
       <p className="text-[13px] font-medium leading-relaxed text-zinc-600 dark:text-zinc-300">
-        Botões principais, ícones de destaque e realces usam esta cor em todo o sistema.
+        {intro ?? DEFAULT_INTRO}
       </p>
 
       <div>

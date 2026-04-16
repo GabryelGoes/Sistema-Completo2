@@ -2,14 +2,17 @@ import React from 'react';
 import { Home, FileText, Calendar, FlaskConical } from 'lucide-react';
 import { PatioCarIcon } from './ui/PatioCarIcon';
 import { useModalLayer } from './ui/ModalLayerContext';
+import { COLORFUL_TAB_ACCENTS, type NavigationTabId } from '../utils/appAppearance';
 
-export type TabId = 'home' | 'reception' | 'patio' | 'agenda' | 'laboratorio';
+export type TabId = NavigationTabId;
 
 interface TabBarProps {
   currentTab: TabId;
   onTabChange: (tab: TabId) => void;
   /** Se definido, mostra apenas estas abas (ex.: modo técnico). Caso contrário mostra todas (admin). */
   allowedTabs?: TabId[];
+  /** Cada ícone com cor própria na barra + `--app-accent` alinhado à aba (Configurações → modo colorido). */
+  colorfulNavigation?: boolean;
 }
 
 const TAB_ITEMS: { id: TabId; label: string }[] = [
@@ -20,28 +23,34 @@ const TAB_ITEMS: { id: TabId; label: string }[] = [
   { id: 'laboratorio', label: 'Laboratório' },
 ];
 
-export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowedTabs }) => {
+export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowedTabs, colorfulNavigation = false }) => {
   const { openCount } = useModalLayer();
   const tabs = allowedTabs && allowedTabs.length > 0
     ? TAB_ITEMS.filter((t) => allowedTabs.includes(t.id))
     : TAB_ITEMS;
 
   const renderIcon = (id: TabId, selected: boolean) => {
-    const tone = selected ? 'text-brand-yellow' : 'text-zinc-500';
+    const monoTone = selected ? 'text-brand-yellow' : 'text-zinc-500';
+    const colorfulStyle: React.CSSProperties | undefined = colorfulNavigation
+      ? { color: COLORFUL_TAB_ACCENTS[id], opacity: selected ? 1 : 0.38 }
+      : undefined;
+    const cls = (base: string) => (colorfulNavigation ? base : `${base} ${monoTone}`);
+    const sw = selected ? (id === 'patio' ? 2.5 : 2.35) : id === 'patio' ? 3 : 2;
+
     if (id === 'home') {
-      return <Home className={`h-6 w-6 ${tone}`} strokeWidth={selected ? 2.35 : 2} />;
+      return <Home className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
     }
     if (id === 'reception') {
-      return <FileText className={`h-6 w-6 ${tone}`} strokeWidth={selected ? 2.35 : 2} />;
+      return <FileText className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
     }
     if (id === 'agenda') {
-      return <Calendar className={`h-6 w-6 ${tone}`} strokeWidth={selected ? 2.35 : 2} />;
+      return <Calendar className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
     }
     if (id === 'patio') {
-      return <PatioCarIcon className={`h-6 w-6 ${tone}`} strokeWidth={selected ? 2.5 : 3} />;
+      return <PatioCarIcon className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
     }
     if (id === 'laboratorio') {
-      return <FlaskConical className={`h-6 w-6 ${tone}`} strokeWidth={selected ? 2.35 : 2} />;
+      return <FlaskConical className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
     }
     return null;
   };

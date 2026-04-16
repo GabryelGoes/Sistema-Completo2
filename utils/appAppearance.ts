@@ -2,16 +2,47 @@
  * Aparência global do app: cor de destaque (substitui o amarelo padrão em brand-yellow).
  */
 
+/** Abas principais (mesmo conjunto que `TabBar`) — usado para paleta do modo colorido */
+export type NavigationTabId = 'home' | 'reception' | 'agenda' | 'patio' | 'laboratorio';
+
 export type AppAppearance = {
-  /** Cor principal (#RRGGBB) */
+  /** Cor principal (#RRGGBB) — usada no modo único; no modo colorido é fallback se uma aba não tiver entrada */
   accentHex: string;
+  /**
+   * Modo colorido: cada aba de navegação tem cor própria (como versões anteriores do app).
+   * A cor ativa no `:root` (botões, `brand-yellow`, etc.) segue a aba em foco.
+   */
+  colorfulNavigation: boolean;
 };
 
 export const DEFAULT_ACCENT = "#F5D00B";
 
+/**
+ * Cores fixas por tela no modo colorido (recepção azul, agenda verde, início amarelo, pátio teal, laboratório violeta).
+ */
+export const COLORFUL_TAB_ACCENTS: Record<NavigationTabId, string> = {
+  reception: '#2563EB',
+  agenda: '#059669',
+  home: '#F5D00B',
+  patio: '#10B981',
+  laboratorio: '#7C3AED',
+};
+
 export const defaultAppAppearance = (): AppAppearance => ({
   accentHex: DEFAULT_ACCENT,
+  colorfulNavigation: false,
 });
+
+/** Cor efetiva aplicada em `--app-accent` consoante modo único vs colorido e aba atual. */
+export function resolveEffectiveAccentHex(
+  appearance: AppAppearance,
+  currentTab: NavigationTabId
+): string {
+  if (appearance.colorfulNavigation) {
+    return COLORFUL_TAB_ACCENTS[currentTab] ?? appearance.accentHex;
+  }
+  return appearance.accentHex;
+}
 
 /** Normaliza JSON vindo do servidor (ignora campos antigos, ex.: wallpapers). */
 export function parseAppAppearance(raw: unknown): AppAppearance {
@@ -20,6 +51,9 @@ export function parseAppAppearance(raw: unknown): AppAppearance {
   const o = raw as Record<string, unknown>;
   if (typeof o.accentHex === "string" && /^#[0-9A-Fa-f]{6}$/.test(o.accentHex.trim())) {
     d.accentHex = o.accentHex.trim().toUpperCase();
+  }
+  if (typeof o.colorfulNavigation === 'boolean') {
+    d.colorfulNavigation = o.colorfulNavigation;
   }
   return d;
 }
