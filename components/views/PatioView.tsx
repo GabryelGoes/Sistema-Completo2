@@ -2614,7 +2614,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       <div className="relative flex min-h-[75vh] w-full flex-col items-center justify-center px-4 py-12">
         <div className={`${iosPageGlass} w-full max-w-md px-8 py-10 text-center sm:px-10`}>
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/12 dark:bg-red-500/15">
-            <AlertCircle className="h-7 w-7 text-red-600 dark:text-red-400" strokeWidth={2} />
+            <AlertCircle className="h-7 w-7 text-red-600" strokeWidth={2} />
           </div>
           <p className="text-[17px] font-semibold leading-snug text-zinc-900 dark:text-white">Não foi possível carregar</p>
           <p className="mt-2 text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">{error}</p>
@@ -2676,7 +2676,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               }}
               className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-zinc-200/80 bg-white/80 px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white sm:px-5 sm:py-3"
             >
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/15 text-[#007AFF] dark:bg-[#007AFF]/25 dark:text-[#64B5FF]">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/15 text-[#007AFF]">
                 <ReminderIcon className="h-3.5 w-3.5" strokeWidth={2} />
               </span>
               <span className="tracking-tight">
@@ -2693,7 +2693,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <button
               type="button"
               onClick={() => setIsHistoryOpen(true)}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-zinc-900 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-white"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-zinc-900 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]"
               title="Consultar histórico (arquivados)"
             >
               <History className="h-5 w-5" strokeWidth={2} />
@@ -2707,7 +2707,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   setPatioPlateSearchApiInfo(null);
                   setIsPatioPlateSearchModalOpen(true);
                 }}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-[#64B5FF]"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]"
                 title="Buscar placa no pátio"
               >
                 <Search className="h-5 w-5" strokeWidth={2} />
@@ -2716,7 +2716,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <button
                 type="button"
                 onClick={() => fetchData(false)}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-500 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-400 dark:hover:text-[#64B5FF]"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-500 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]"
                 title="Atualizar lista"
               >
                 <RefreshCw className="h-6 w-6" />
@@ -2830,7 +2830,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {/* Cliente logo abaixo do carro */}
                 {customerName && (
                   <div className="mb-2 flex w-fit max-w-full items-center gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 px-3 py-1.5 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05]">
-                    <User className="w-4 h-4 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} />
+                    <User className="w-4 h-4 shrink-0 text-[#007AFF]" strokeWidth={2} />
                     <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
                       {firstTwoNames(customerName)}
                     </span>
@@ -3103,7 +3103,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      </div>
                   ) : (
                      <div className={`flex min-h-[240px] flex-col items-center justify-center ${iosModalInsetCard} p-10 text-center`}>
-                        <History className="mb-4 h-14 w-14 text-zinc-300 dark:text-zinc-600" strokeWidth={1.25} />
+                        <History className="mb-4 h-14 w-14 text-zinc-300" strokeWidth={1.25} />
                         <p className="text-[15px] font-medium text-zinc-600 dark:text-zinc-400">Nenhum registro encontrado.</p>
                         <p className="mt-1 max-w-sm text-[13px] text-zinc-500">Ajuste os termos da busca ou confira os filtros da oficina.</p>
                      </div>
@@ -3143,7 +3143,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedHistoryCard(null)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15"
                     aria-label="Fechar"
                   >
                     <X className="h-5 w-5" />
@@ -3193,7 +3193,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                            </div>
                          )}
                          <div className={`${iosModalInsetCard} flex items-center gap-2 px-4 py-2.5`}>
-                            <User className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
+                            <User className="h-5 w-5 text-zinc-500" />
                             <span className="text-[16px] font-medium text-zinc-900 dark:text-white">{historyCardTitleParts?.customer}</span>
                          </div>
                          {selectedHistoryCard.due && (
@@ -3413,7 +3413,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <button
                   type="button"
                   onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setIsDeleteVehicleOpen(true); }}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-red-500/15 hover:text-red-600 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-red-500/20"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-red-500/15 hover:text-red-600 dark:bg-white/10 dark:hover:bg-red-500/20"
                   title="Excluir veículo do sistema"
                 >
                   <Trash2 className="h-5 w-5" />
@@ -3422,7 +3422,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedCard(null)}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15"
                   aria-label="Fechar"
                 >
                   <X className="h-5 w-5" />
@@ -3576,7 +3576,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     Toque para atribuir
                                   </p>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                                <ChevronRight className="w-4 h-4 text-zinc-400 shrink-0" />
                               </>
                             )}
                           </button>
@@ -3716,7 +3716,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </p>
                               </div>
                             </div>
-                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-zinc-500 transition-transform group-hover:scale-105 dark:bg-white/[0.08] dark:text-zinc-300">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-zinc-500 transition-transform group-hover:scale-105 dark:bg-white/[0.08]">
                               {isDadosFichaExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                             </span>
                           </button>
@@ -4612,7 +4612,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                   <div key={att.id} className="flex items-center gap-2 min-w-0 max-w-full">
                                                     {isEditingName ? (
                                                       <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-                                                        <FileText className="w-5 h-5 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                                                        <FileText className="w-5 h-5 text-zinc-500 shrink-0" />
                                                         <input
                                                           type="text"
                                                           value={renameAttachmentNewName}
@@ -4703,7 +4703,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                           {isLoadingThis ? (
                                                             <RefreshCw className="w-5 h-5 text-brand-yellow animate-spin shrink-0" />
                                                           ) : (
-                                                            <FileText className="w-5 h-5 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                                                            <FileText className="w-5 h-5 text-zinc-500 shrink-0" />
                                                           )}
                                                           <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 truncate">{attachmentDisplayName(att.name)}</span>
                                                           {(isPdf || !att.mimeType?.startsWith('image/')) && <ExternalLink className="w-4 h-4 text-zinc-400 shrink-0" />}
@@ -5629,7 +5629,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           <div className={`relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-full max-w-lg min-h-0 flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
             <div className="flex shrink-0 items-center justify-between border-b border-zinc-200/60 px-5 py-4 dark:border-white/[0.07] sm:px-6">
               <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-white">Aprovar orçamento</h2>
-              <button type="button" onClick={closeBudgetApproval} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15">
+              <button type="button" onClick={closeBudgetApproval} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -6387,7 +6387,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <button 
                     type="button"
                     onClick={closeChecklistModal} 
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15"
                   >
                     <X className="h-5 w-5" />
                   </button>

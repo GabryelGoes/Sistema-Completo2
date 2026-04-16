@@ -668,7 +668,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                     >
                       <span className="min-w-0 truncate">{categoryFilterLabel}</span>
                       <ChevronDown
-                        className={`h-5 w-5 shrink-0 text-zinc-500 dark:text-zinc-400 transition-transform duration-200 ${
+                        className={`h-5 w-5 shrink-0 text-zinc-500 transition-transform duration-200 ${
                           categoryFilterMenuOpen ? 'rotate-180' : ''
                         }`}
                         aria-hidden
@@ -708,7 +708,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                                 <span className="min-w-0 truncate">{opt.label}</span>
                                 {selected ? (
                                   <Check
-                                    className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                                    className="h-4 w-4 shrink-0 text-emerald-600"
                                     strokeWidth={2.5}
                                     aria-hidden
                                   />
@@ -725,7 +725,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       Pesquisar peças
                     </label>
                     <Search
-                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
                       aria-hidden
                     />
                     <input
@@ -874,7 +874,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           <button
                             type="button"
                             onClick={cancelEdit}
-                            className="w-9 h-9 shrink-0 rounded-lg bg-zinc-200 dark:bg-white/10 text-zinc-600 dark:text-zinc-400 flex items-center justify-center justify-self-center hover:bg-zinc-300 dark:hover:bg-white/20"
+                            className="w-9 h-9 shrink-0 rounded-lg bg-zinc-200 dark:bg-white/10 text-zinc-600 flex items-center justify-center justify-self-center hover:bg-zinc-300 dark:hover:bg-white/20"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -918,7 +918,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         <button
                           type="button"
                           onClick={() => startEdit(p)}
-                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center justify-self-center text-zinc-500 dark:text-zinc-400 hover:text-brand-yellow hover:bg-brand-yellow/10 transition-colors"
+                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center justify-self-center text-zinc-500 hover:text-brand-yellow hover:bg-brand-yellow/10 transition-colors"
                           aria-label="Editar"
                         >
                           <Pencil className="w-4 h-4" />
@@ -926,7 +926,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         <button
                           type="button"
                           onClick={() => handleDelete(p.id)}
-                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center justify-self-center text-zinc-500 dark:text-zinc-400 hover:text-red-600 hover:bg-red-500/10 transition-colors"
+                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center justify-self-center text-zinc-500 hover:text-red-600 hover:bg-red-500/10 transition-colors"
                           aria-label="Excluir"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1038,7 +1038,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                     {newPhotoPreviewUrl ? (
                       <img src={newPhotoPreviewUrl} alt="Prévia da foto do produto" className="h-full w-full object-cover" />
                     ) : (
-                      <Package className="w-16 h-16 text-zinc-300 dark:text-zinc-600 sm:w-20 sm:h-20" strokeWidth={1.25} />
+                      <Package className="w-16 h-16 text-zinc-300 sm:w-20 sm:h-20" strokeWidth={1.25} />
                     )}
                   </div>
                 </div>
@@ -1187,7 +1187,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                     fetchPriority="high"
                   />
                 ) : (
-                  <Package className="w-10 h-10 text-zinc-300 dark:text-zinc-600" strokeWidth={1.25} />
+                  <Package className="w-10 h-10 text-zinc-300" strokeWidth={1.25} />
                 )}
               </div>
             </div>
@@ -1226,7 +1226,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             {categories.length > 0 ? (
               <div className="rounded-2xl border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50/50 dark:bg-white/[0.03] p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Tags className="w-4 h-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                  <Tags className="w-4 h-4 text-emerald-600" aria-hidden />
                   <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
                     Categorias deste produto
                   </p>
@@ -1451,7 +1451,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                             setCategoryEditingId(c.id);
                             setCategoryEditingName(c.name);
                           }}
-                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-200 dark:hover:bg-white/10 dark:text-zinc-400"
+                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-200 dark:hover:bg-white/10"
                           aria-label="Renomear"
                         >
                           <Pencil className="w-4 h-4" />
@@ -1459,7 +1459,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         <button
                           type="button"
                           onClick={() => void handleDeleteCategory(c.id)}
-                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-zinc-500 hover:text-red-600 hover:bg-red-500/10 dark:text-zinc-400"
+                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-zinc-500 hover:text-red-600 hover:bg-red-500/10"
                           aria-label="Excluir categoria"
                         >
                           <Trash2 className="w-4 h-4" />

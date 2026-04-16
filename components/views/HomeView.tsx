@@ -121,7 +121,7 @@ function SettingsRow({
         <span className="block text-[15px] font-medium text-zinc-900 dark:text-white leading-snug">{title}</span>
         {subtitle ? <span className="block text-[12px] text-zinc-950 dark:text-zinc-400 mt-0.5">{subtitle}</span> : null}
       </span>
-      <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500 group-hover:text-brand-yellow transition-colors" />
+      <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 group-hover:text-brand-yellow transition-colors" />
     </button>
   );
 }
@@ -303,7 +303,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   </span>
                   <span className="text-[12px] text-zinc-950 dark:text-zinc-400 mt-0.5">Slides e meta semanal</span>
                 </div>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
+                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
               </button>
             </section>
           </div>
@@ -405,7 +405,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         </span>
                         <span className="block text-[12px] text-zinc-950 dark:text-zinc-400 mt-0.5">Abrir em nova aba</span>
                       </span>
-                      <ExternalLink className="w-5 h-5 shrink-0 text-zinc-400 dark:text-zinc-500 group-hover:text-brand-yellow transition-colors" />
+                      <ExternalLink className="w-5 h-5 shrink-0 text-zinc-400 group-hover:text-brand-yellow transition-colors" />
                     </a>
                     <SettingsRow
                       onClick={() => setIsChangePasswordsOpen(true)}

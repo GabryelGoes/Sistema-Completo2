@@ -88,7 +88,7 @@ export const ProcessingOverlay: React.FC<ProcessingOverlayProps> = ({ status, on
 };
 
 const StepIndicator = ({ active, icon }: { active: boolean, icon: React.ReactNode }) => (
-  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-300 ${active ? 'bg-brand-yellow text-black' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500'}`}>
+  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-300 ${active ? 'bg-brand-yellow text-black' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'}`}>
     {icon}
   </div>
 );

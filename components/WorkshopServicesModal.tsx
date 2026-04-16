@@ -409,7 +409,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
                 title="Baixar lista em arquivo de texto"
                 className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/[0.06] px-3 py-2 text-[13px] font-semibold text-zinc-800 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-white/10 disabled:opacity-45 disabled:pointer-events-none transition-colors"
               >
-                <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <FileText className="w-4 h-4 text-amber-600" />
                 Salvar .txt
               </button>
               <button

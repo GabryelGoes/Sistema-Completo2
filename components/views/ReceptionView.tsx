@@ -1032,7 +1032,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             <div className="p-4 sm:p-6 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/40 dark:bg-white/[0.03]">
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-yellow/85 dark:text-brand-yellow/75" strokeWidth={2} />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-yellow/85" strokeWidth={2} />
                   <input
                     value={historySearch}
                     onChange={(e) => setHistorySearch(e.target.value)}
@@ -1322,12 +1322,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                             </div>
                           )}
                           <div className="flex items-center gap-2 px-4 py-2">
-                            <User className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
+                            <User className="w-5 h-5 text-zinc-500" />
                             <span className="text-lg font-medium text-zinc-900 dark:text-white">{customerName}</span>
                           </div>
                           {d.delivery_date && (
                             <div className="flex items-center gap-2 bg-zinc-100/80 dark:bg-zinc-900/50 px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700/80">
-                              <Calendar className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+                              <Calendar className="w-4 h-4 text-zinc-600" />
                               <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100">
                                 Entrega: {new Date(d.delivery_date).toLocaleDateString('pt-BR')}
                               </span>

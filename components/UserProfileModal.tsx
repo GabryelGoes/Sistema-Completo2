@@ -281,7 +281,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <div>
             <label className="block text-[13px] font-medium text-zinc-600 dark:text-zinc-400 mb-2">Usuário de acesso</label>
             <div className={`flex items-center gap-2 px-4 py-3 ${iosModalInsetCard} text-zinc-700 dark:text-zinc-300`}>
-              <User className="w-5 h-5 text-zinc-500 dark:text-zinc-400 shrink-0" />
+              <User className="w-5 h-5 text-zinc-500 shrink-0" />
               <span className="text-[15px]">{username}</span>
             </div>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">Usado para entrar no sistema. Não pode ser alterado aqui.</p>

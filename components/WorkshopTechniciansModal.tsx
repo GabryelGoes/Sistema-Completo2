@@ -184,7 +184,7 @@ export const WorkshopTechniciansModal: React.FC<WorkshopTechniciansModalProps> =
       <div className="bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border border-zinc-200/60 dark:border-white/[0.08] rounded-[1.5rem] w-full max-w-3xl h-[92vh] max-h-[92vh] shadow-[0_2px_24px_-4px_rgba(0,0,0,0.1),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_32px_-4px_rgba(0,0,0,0.5)] overflow-hidden animate-modal-sheet flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-zinc-200/60 dark:border-white/[0.08] bg-zinc-50/80 dark:bg-white/[0.04] shrink-0">
           <h2 className="text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-violet-500 dark:text-violet-400" />
+            <Users className="w-5 h-5 text-violet-500" />
             Técnicos
           </h2>
           <button

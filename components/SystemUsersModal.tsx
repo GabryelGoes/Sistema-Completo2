@@ -506,7 +506,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                                   <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 block">{label}</span>
                                   <span className="text-xs text-zinc-500 dark:text-zinc-400">Acesso completo — pode aprovar itens sem configuração extra</span>
                                 </div>
-                                <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" aria-hidden />
+                                <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0" aria-hidden />
                               </div>
                             );
                           }

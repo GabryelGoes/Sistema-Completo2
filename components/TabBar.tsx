@@ -27,7 +27,7 @@ export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowed
     : TAB_ITEMS;
 
   const renderIcon = (id: TabId, selected: boolean) => {
-    const tone = selected ? 'text-brand-yellow' : 'text-zinc-500 dark:text-zinc-400';
+    const tone = selected ? 'text-brand-yellow' : 'text-zinc-500';
     if (id === 'home') {
       return <Home className={`h-6 w-6 ${tone}`} strokeWidth={selected ? 2.35 : 2} />;
     }

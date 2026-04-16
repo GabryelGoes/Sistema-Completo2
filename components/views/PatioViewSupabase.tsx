@@ -137,7 +137,7 @@ export const PatioViewSupabase: React.FC<PatioViewSupabaseProps> = ({
         <button
           onClick={load}
           disabled={loading}
-          className="p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-brand-yellow hover:border-brand-yellow/30 transition-all disabled:opacity-50"
+          className="p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 hover:text-brand-yellow hover:border-brand-yellow/30 transition-all disabled:opacity-50"
           title="Atualizar"
         >
           <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />

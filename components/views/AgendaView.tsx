@@ -442,7 +442,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                 e.stopPropagation();
                 handleNewAppointment(cloneDay);
               }}
-              className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-brand-yellow hover:text-zinc-950 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+              className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 text-zinc-600 hover:bg-brand-yellow hover:text-zinc-950 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm"
               aria-label="Novo agendamento neste dia"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -557,20 +557,20 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                                           {app.title}
                                         </p>
                                       </div>
-                                      <ChevronRight className="w-5 h-5 text-zinc-300 dark:text-zinc-600 group-hover:text-brand-yellow shrink-0 mt-0.5 transition-colors" aria-hidden />
+                                      <ChevronRight className="w-5 h-5 text-zinc-300 group-hover:text-brand-yellow shrink-0 mt-0.5 transition-colors" aria-hidden />
                                     </div>
 
                                     <div className="flex flex-wrap gap-2">
                                       <span className="inline-flex items-center gap-2 rounded-full bg-zinc-100/90 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08] px-3 py-1.5 text-[13px] font-medium text-zinc-800 dark:text-zinc-200 max-w-full">
                                         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200/80 dark:bg-white/10 shrink-0">
-                                          <User className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-300" />
+                                          <User className="w-3.5 h-3.5 text-zinc-600" />
                                         </span>
                                         <span className="truncate">{app.customerName}</span>
                                       </span>
                                       {app.plate ? (
                                         <span className="inline-flex items-center gap-2 rounded-full bg-zinc-100/90 dark:bg-white/[0.06] border border-zinc-200/60 dark:border-white/[0.08] px-3 py-1.5 text-[13px] font-semibold text-zinc-800 dark:text-zinc-100 font-mono uppercase max-w-full">
                                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200/80 dark:bg-white/10 shrink-0">
-                                            <Car className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-300" />
+                                            <Car className="w-3.5 h-3.5 text-zinc-600" />
                                           </span>
                                           <span className={`truncate ${blurPlates ? 'blur-plate' : ''}`}>
                                             {app.plate.toUpperCase()}
@@ -616,7 +616,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                                       e.stopPropagation();
                                       exportToGoogleCalendar(app);
                                     }}
-                                    className="p-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-brand-yellow/15 hover:text-brand-yellow transition-colors"
+                                    className="p-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/10 text-zinc-600 hover:bg-brand-yellow/15 hover:text-brand-yellow transition-colors"
                                     title="Exportar para Google Agenda"
                                   >
                                     <ExternalLink className="w-5 h-5" />
@@ -627,7 +627,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                                       e.stopPropagation();
                                       handleEditClick(app);
                                     }}
-                                    className="p-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-white/15 transition-colors"
+                                    className="p-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/10 text-zinc-600 hover:bg-zinc-200/80 dark:hover:bg-white/15 transition-colors"
                                     title="Editar agendamento"
                                   >
                                     <Edit2 className="w-5 h-5" />
