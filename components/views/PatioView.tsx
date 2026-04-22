@@ -578,7 +578,6 @@ function commentToAction(c: { id: string; author_display_name: string; text: str
 }
 
 const VEHICLE_MODAL_PHOTOS_BATCH = 8;
-const HISTORY_ATTACHMENTS_BATCH = 8;
 
 export const PatioView: React.FC<PatioViewProps> = ({
   onUseCustomerData,
@@ -697,7 +696,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [renamingAttachmentId, setRenamingAttachmentId] = useState<string | null>(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
   const [vehicleModalPhotoVisibleCount, setVehicleModalPhotoVisibleCount] = useState(VEHICLE_MODAL_PHOTOS_BATCH);
-  const [historyAttachVisibleCount, setHistoryAttachVisibleCount] = useState(HISTORY_ATTACHMENTS_BATCH);
 
   useEffect(() => {
     setVehicleModalPhotoVisibleCount(VEHICLE_MODAL_PHOTOS_BATCH);
@@ -775,12 +773,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [selectedHistoryCard, setSelectedHistoryCard] = useState<BoardCard | null>(null);
   const [loadingHistoryDetails, setLoadingHistoryDetails] = useState(false);
   const [historyCardDetails, setHistoryCardDetails] = useState<{ actions: BoardAction[], attachments: BoardAttachment[] } | null>(null);
+  const [historyServiceOrderDetail, setHistoryServiceOrderDetail] = useState<ServiceOrderDetail | null>(null);
+  const [historySavedBudgets, setHistorySavedBudgets] = useState<SavedBudget[]>([]);
   const selectedHistoryCardRef = useRef<BoardCard | null>(null);
   selectedHistoryCardRef.current = selectedHistoryCard;
-
-  useEffect(() => {
-    setHistoryAttachVisibleCount(HISTORY_ATTACHMENTS_BATCH);
-  }, [selectedHistoryCard?.id]);
 
   // Lembretes do Pátio/Laboratório — persistidos na API (Supabase), visíveis para toda a oficina
   type Reminder = { id: string; text: string; createdAt: string; done: boolean; createdBy?: string };
@@ -951,9 +947,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const card = selectedHistoryCardRef.current;
     if (!card?.id) return;
     try {
-      const photos = await getServiceOrderPhotos(card.id);
+      const [order, photos, comments, budgets] = await Promise.all([
+        getServiceOrderById(card.id),
+        getServiceOrderPhotos(card.id),
+        getServiceOrderComments(card.id),
+        getServiceOrderBudgets(card.id),
+      ]);
+      setHistoryServiceOrderDetail(order);
+      setHistorySavedBudgets(budgets);
       setHistoryCardDetails({
-        actions: [],
+        actions: (comments ?? []).map(commentToAction),
         attachments: photos.map((p, i) => {
           const mime = attachmentMimeType(p.name);
           const isPdf = mime === 'application/pdf' || p.url.toLowerCase().endsWith('.pdf');
@@ -1415,10 +1418,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setSelectedHistoryCard(card);
     setLoadingHistoryDetails(true);
     setHistoryCardDetails(null);
-    Promise.all([getServiceOrderById(card.id), getServiceOrderPhotos(card.id)])
-      .then(([, photos]) =>
+    setHistoryServiceOrderDetail(null);
+    setHistorySavedBudgets([]);
+    Promise.all([
+      getServiceOrderById(card.id),
+      getServiceOrderPhotos(card.id),
+      getServiceOrderComments(card.id),
+      getServiceOrderBudgets(card.id),
+    ])
+      .then(([order, photos, comments, budgets]) => {
+        setHistoryServiceOrderDetail(order);
+        setHistorySavedBudgets(budgets);
         setHistoryCardDetails({
-          actions: [],
+          actions: (comments ?? []).map(commentToAction),
           attachments: photos.map((p, i) => {
             const mime = attachmentMimeType(p.name);
             const isPdf = mime === 'application/pdf' || p.url.toLowerCase().endsWith('.pdf');
@@ -1430,8 +1442,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
               previews: isPdf ? [] : [{ url: p.url, width: 200, height: 200 }],
             };
           }),
-        })
-      )
+        });
+      })
       .catch(err => console.error(err))
       .finally(() => setLoadingHistoryDetails(false));
   };
@@ -1464,6 +1476,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
         localStorage.setItem('app_reception_mode', isModuleMode ? 'module' : 'vehicle');
       } catch (_) {}
       setSelectedHistoryCard(null);
+      setHistoryServiceOrderDetail(null);
+      setHistorySavedBudgets([]);
       setIsHistoryOpen(false);
       if (onUseCustomerData) onUseCustomerData(customerData);
     } catch (e: any) {
@@ -3147,7 +3161,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSelectedHistoryCard(null)}
+                    onClick={() => {
+                      setSelectedHistoryCard(null);
+                      setHistoryServiceOrderDetail(null);
+                      setHistorySavedBudgets([]);
+                    }}
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15"
                     aria-label="Fechar"
                   >
@@ -3223,7 +3241,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                            </p>
                            <div className={`${iosModalInsetCard} p-5 ${uiReadBody} sm:p-6`}>
                               <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
-                                 {selectedHistoryCard.desc || "Nenhuma descrição disponível."}
+                                 {stripLegacyVehicleCategoryFromComplaint(historyServiceOrderDetail?.issue_description || selectedHistoryCard.desc || "") || "Nenhuma descrição disponível."}
                               </ReactMarkdown>
                            </div>
                         </div>
@@ -3281,6 +3299,42 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              </div>
                           </div>
                         </div>
+
+                        <div>
+                          <p className={uiSectionTitleRow}>
+                            <Calculator className="h-3.5 w-3.5" />
+                            Orçamentos
+                          </p>
+                          <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+                            {loadingHistoryDetails ? (
+                              <div className="flex justify-center py-6">
+                                <RefreshCw className="h-5 w-5 animate-spin text-[#007AFF]" />
+                              </div>
+                            ) : historySavedBudgets.length > 0 ? (
+                              <div className="space-y-2">
+                                {[...historySavedBudgets]
+                                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                  .map((b, idx) => (
+                                    <div key={b.id} className="rounded-xl border border-zinc-200/70 bg-zinc-50/80 p-3 dark:border-white/[0.08] dark:bg-white/[0.03]">
+                                      <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                                        Orçamento {historySavedBudgets.length - idx}
+                                      </p>
+                                      <p className="mt-1 text-[13px] text-zinc-700 dark:text-zinc-200">
+                                        {new Date(b.createdAt).toLocaleString('pt-BR')}
+                                      </p>
+                                      <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+                                        {b.services.length} serviço(s) · {b.parts.length} peça(s)
+                                      </p>
+                                    </div>
+                                  ))}
+                              </div>
+                            ) : (
+                              <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
+                                Nenhum orçamento encontrado.
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
                       <div className="space-y-8">
@@ -3297,12 +3351,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                ) : historyCardDetails?.attachments && historyCardDetails.attachments.length > 0 ? (
                                   (() => {
                                     const histAll = historyCardDetails.attachments;
-                                    const histVisible = histAll.slice(0, historyAttachVisibleCount);
-                                    const histHidden = histAll.length - histVisible.length;
                                     return (
                                       <div className="space-y-2">
                                   <div className="grid grid-cols-2 gap-2">
-                                     {histVisible.map(att => {
+                                     {histAll.map(att => {
                                        const isPdf = isPdfAttachment(att.mimeType, att.url);
                                        const isImage =
                                          att.mimeType.startsWith('image/') ||
@@ -3361,17 +3413,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         </a>
                                      );})}
                                   </div>
-                                  {histHidden > 0 && (
-                                    <button
-                                      type="button"
-                                      className="w-full rounded-xl border border-zinc-200/80 bg-zinc-50 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-200 dark:hover:bg-white/[0.08]"
-                                      onClick={() =>
-                                        setHistoryAttachVisibleCount((n) => n + HISTORY_ATTACHMENTS_BATCH)
-                                      }
-                                    >
-                                      Mostrar mais ({histHidden} {histHidden === 1 ? 'anexo' : 'anexos'})
-                                    </button>
-                                  )}
                                       </div>
                                     );
                                   })()
@@ -3381,6 +3422,53 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   </div>
                                )}
                             </div>
+                         </div>
+
+                         <div>
+                           <p className={uiSectionTitleRow}>
+                             <Link2 className="h-3.5 w-3.5" />
+                             Links úteis
+                           </p>
+                           <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+                             {(() => {
+                               const links = parseReferenceLinksFromApi(historyServiceOrderDetail?.reference_links);
+                               if (links.length === 0) {
+                                 return (
+                                   <p className="text-[14px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                                     Nenhum link anexado para este veículo.
+                                   </p>
+                                 );
+                               }
+                               return (
+                                 <ul className="space-y-2">
+                                   {links.map((link) => (
+                                     <li
+                                       key={link.id}
+                                       className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/50 px-3 py-2.5 dark:border-white/[0.08] dark:bg-white/[0.03]"
+                                     >
+                                       <span className="min-w-0 truncate text-[14px] font-medium text-zinc-900 dark:text-white">
+                                         {link.label?.trim() || link.url}
+                                       </span>
+                                       {link.url?.trim() ? (
+                                         <a
+                                           href={
+                                             link.url.trim().match(/^https?:\/\//i)
+                                               ? link.url.trim()
+                                               : `https://${link.url.trim().replace(/^\/+/, '')}`
+                                           }
+                                           target="_blank"
+                                           rel="noopener noreferrer"
+                                           className="inline-flex shrink-0 items-center gap-1 text-[13px] font-semibold text-[#007AFF] hover:underline dark:text-[#64B5FF]"
+                                         >
+                                           Abrir <ExternalLink className="h-3.5 w-3.5" />
+                                         </a>
+                                       ) : null}
+                                     </li>
+                                   ))}
+                                 </ul>
+                               );
+                             })()}
+                           </div>
                          </div>
                       </div>
 
