@@ -2971,7 +2971,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
          <ModalPortal>
          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
             <div
-              className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+              className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden ${iosModalShell} animate-modal-wp-app`}
             >
                <button
                   type="button"
@@ -3411,7 +3411,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         return (
         <ModalPortal>
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/35 dark:bg-black/45 backdrop-blur-[20px] animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-4 sm:p-6">
-           <div className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-[96vw] xl:max-w-[92vw] 2xl:max-w-[88vw] min-h-0 flex-col ${iosVehicleModalShell} animate-in zoom-in-95 duration-200 ${modalRingClass}`}>
+           <div className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-[96vw] xl:max-w-[92vw] 2xl:max-w-[88vw] min-h-0 flex-col ${iosVehicleModalShell} animate-modal-wp-app ${modalRingClass}`}>
               
               <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
                 {can('canDeleteCards') && (
