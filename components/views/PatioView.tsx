@@ -2914,7 +2914,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           }}
                           className={`inline-flex items-center rounded-full font-semibold bg-white/90 text-emerald-700 border border-emerald-500/70 shadow-sm hover:bg-emerald-50 hover:text-emerald-800 transition-colors ${
                             showDeliverButton
-                              ? 'gap-1.5 px-3 py-1.5 text-[11px]'
+                              ? 'gap-1.5 px-3 py-2 text-[11px]'
                               : 'gap-1 px-2.5 py-1 text-[10px]'
                           }`}
                         >
