@@ -3325,6 +3325,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">
                                         {b.services.length} serviço(s) · {b.parts.length} peça(s)
                                       </p>
+                                      <div className="mt-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => setViewingBudget(b)}
+                                          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/90 bg-white/80 px-3 py-1.5 text-[12px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]"
+                                        >
+                                          <Eye className="h-3.5 w-3.5" />
+                                          Abrir orçamento
+                                        </button>
+                                      </div>
                                     </div>
                                   ))}
                               </div>
@@ -5550,7 +5560,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* MODAL VISUALIZAR ORÇAMENTO — papel envelhecido no modal inteiro, textos em preto (portal: acima da TabBar) */}
-      {viewingBudget && selectedCard && (
+      {viewingBudget && (selectedCard || selectedHistoryCard) && (
         <ModalPortal>
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] animate-modal-backdrop">
           <div
@@ -5567,7 +5577,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div>
                 <h2 className="text-lg font-bold" style={{ color: '#000000' }}>
                   {(() => {
-                    const sorted = savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                    const sourceBudgets = selectedCard
+                      ? savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id)
+                      : historySavedBudgets;
+                    const sorted = [...sourceBudgets].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
                     const num = sorted.findIndex((b) => b.id === viewingBudget.id) + 1;
                     return `Orçamento ${num}`;
                   })()}
@@ -5575,9 +5588,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <p className="text-sm mt-0.5 font-medium" style={{ color: '#000000' }}>
                   {new Date(viewingBudget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </p>
-                {selectedCard?.mileageKm && (
+                {(selectedCard?.mileageKm || historyServiceOrderDetail?.mileage_km) && (
                   <p className="text-sm mt-1 font-medium" style={{ color: '#000000' }}>
-                    <span className="font-semibold">Km</span> {selectedCard.mileageKm}
+                    <span className="font-semibold">Km</span> {selectedCard?.mileageKm ?? historyServiceOrderDetail?.mileage_km}
                   </p>
                 )}
               </div>
@@ -5662,7 +5675,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
             </div>
             <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-black/10 shrink-0 relative z-10 flex-wrap">
-              {can('canEditBudgets') ? (
+              {can('canEditBudgets') && !!selectedCard ? (
                 <button
                   type="button"
                   onClick={handleDeleteBudget}
@@ -5676,7 +5689,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <span />
               )}
               <div className="flex items-center gap-3 flex-wrap justify-end">
-                {can('canApproveBudgetItems') && (
+                {can('canApproveBudgetItems') && !!selectedCard && (
                   <button
                     type="button"
                     onClick={() => {
@@ -5693,7 +5706,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <button
                   type="button"
                   onClick={() => { setViewingBudget(null); openBudgetModal(viewingBudget); }}
-                  disabled={!!deletingBudgetId || !can('canEditBudgets')}
+                  disabled={!!deletingBudgetId || !can('canEditBudgets') || !selectedCard}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-black/20 font-medium text-sm hover:bg-black/5 transition-colors disabled:opacity-50"
                   style={{ color: '#000000' }}
                 >
