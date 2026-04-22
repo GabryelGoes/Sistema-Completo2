@@ -2887,7 +2887,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenMoveModal(card, e); }}
                   onPointerDown={(e) => e.stopPropagation()}
                   className={`
-                    w-full px-5 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 ease-out
+                    w-full px-5 ${showDeliverButton ? 'py-2.5' : 'py-3.5'} rounded-2xl cursor-pointer transition-all duration-200 ease-out
                     shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
                     border border-black/10 dark:border-white/10
                     ${statusConfig.style}
