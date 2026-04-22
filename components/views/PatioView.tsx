@@ -1395,17 +1395,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [isHistoryOpen, loadRecentArchived]);
 
-  /** Atualiza lista / busca do histórico enquanto o modal está aberto (alinhado ao tempo real do restante do app). */
-  useEffect(() => {
-    if (!isHistoryOpen) return;
-    const tick = () => {
-      const term = (historySearchPlateRef.current ?? '').trim();
-      if (term) void handleSearchHistoryRef.current(term);
-      else void loadRecentArchived();
-    };
-    const id = window.setInterval(tick, 8000);
-    return () => window.clearInterval(id);
-  }, [isHistoryOpen, loadRecentArchived]);
+  /** Histórico sem polling automático para não perder posição durante a rolagem. */
 
   // Abrir histórico quando solicitado pela Recepção
   useEffect(() => {
