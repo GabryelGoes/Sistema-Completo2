@@ -117,7 +117,7 @@ const OPERATIONAL_APPS: {
   {
     id: 'reception',
     label: 'Recepção',
-    icon: <ClipboardList strokeWidth={2.2} />,
+    icon: <img src="/icons/recepcao.svg" alt="Recepção" className="h-6 w-6 object-contain" />,
   },
   {
     id: 'agenda',
