@@ -1343,6 +1343,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [orderType, systemTechnicians]);
 
+  const loadRecentArchivedRef = useRef(loadRecentArchived);
+  loadRecentArchivedRef.current = loadRecentArchived;
+
   const handleSearchHistoryRef = useRef<(term?: string) => Promise<void>>(async () => {});
 
   const handleSearchHistory = async (termToSearch: string = historySearchPlate) => {
@@ -1389,11 +1392,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   // Ao abrir o modal de histórico, carregar os últimos veículos arquivados
   useEffect(() => {
-    if (isHistoryOpen) {
-      setHistoryShowingFallback(false);
-      void loadRecentArchived();
-    }
-  }, [isHistoryOpen, loadRecentArchived]);
+    if (!isHistoryOpen) return;
+    setHistoryShowingFallback(false);
+    void loadRecentArchivedRef.current();
+  }, [isHistoryOpen]);
 
   /** Histórico sem polling automático para não perder posição durante a rolagem. */
 
