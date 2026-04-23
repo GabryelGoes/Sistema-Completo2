@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Wrench, Plus, Pencil, Trash2, Check, Loader2, Clock3, Tag, Search, FileText, FileDown } from 'lucide-react';
+import { X, Plus, Pencil, Trash2, Check, Loader2, Clock3, Tag, Search, FileText, FileDown } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
@@ -389,7 +389,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
             <IosModalHeader
-              icon={<Wrench className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              icon={<img src="/icons/workshop-services.svg" alt="" className="h-6 w-6 object-contain" />}
               title="Serviços da oficina"
               subtitle="Categorias, horas e itens para orçamento"
               gradientClass="from-amber-500 to-orange-600"

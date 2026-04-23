@@ -4,7 +4,6 @@ import {
   Calendar,
   Settings,
   ChevronRight,
-  Wrench,
   Lock,
   LogOut,
   User,
@@ -319,7 +318,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'servicos')}
                         >
-                          <Wrench />
+                          <img
+                            src="/icons/workshop-services.svg"
+                            alt="Serviços da oficina"
+                            className="h-6 w-6 object-contain"
+                          />
                         </IosAccentIconSquircle>
                         <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
                           Serviços da oficina
