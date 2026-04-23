@@ -531,7 +531,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'profile')}
                         >
-                          <User />
+                          <img src="/icons/perfil.svg" alt="Configurações de perfil" className="h-5 w-5 object-contain" />
                         </IosAccentIconSquircle>
                       }
                   />

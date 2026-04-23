@@ -192,7 +192,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
             <IosModalHeader
-              icon={<User className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              icon={<img src="/icons/perfil.svg" alt="" className="h-6 w-6 object-contain" />}
               title="Configurações de perfil"
               subtitle="Foto, nome, cor e senha de acesso"
               gradientClass="from-violet-500 to-fuchsia-700"
