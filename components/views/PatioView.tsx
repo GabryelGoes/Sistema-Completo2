@@ -3045,66 +3045,103 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 : 'Nenhum resultado para a busca. Exibindo os últimos veículos arquivados.'}
                            </div>
                         )}
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-5 lg:grid-cols-3 lg:gap-6">
                         {archivedCards.map(card => {
                            const t = parsePatioCardTitle(card.name);
                            const model = t.vehicle || card.name;
                            const plate = t.plateOrModule || '---';
                            const customerName = t.customer || '';
+                           const archivedWhen = card.dateLastActivity ? new Date(card.dateLastActivity).toLocaleDateString('pt-BR') : '—';
 
                            return (
-                              <div
-                                 key={card.id}
-                                 onClick={() => handleOpenHistoryCardDetails(card)}
-                                 className={`group flex min-h-[168px] cursor-pointer flex-col justify-between ${iosModalInsetCard} p-5 transition-all duration-200 hover:border-[#007AFF]/35 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.18)] dark:hover:border-white/12 dark:hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.45)] active:scale-[0.995]`}
-                              >
-                                 <div className="flex justify-between items-start mb-4 gap-4">
-                                    <div className="min-w-0 flex-1">
-                                       <h3 className="font-vehicle break-words text-xl font-semibold leading-snug tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
-                                         {model}
-                                       </h3>
-                                       {!isModuleMode && (card.vehicleColor ?? '').trim() ? (
-                                         <p className="mt-1 max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400/75 dark:text-zinc-500/85">
-                                           {(card.vehicleColor ?? '').trim()}
-                                         </p>
-                                       ) : null}
-                                       <div className="mt-1 flex min-w-0 items-center gap-2">
-                                          <User className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                                          <p className="truncate text-[14px] font-medium text-zinc-600 dark:text-zinc-300">
-                                            {customerName}
+                              <div key={card.id} className="min-h-[180px]">
+                                <div
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => handleOpenHistoryCardDetails(card)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      handleOpenHistoryCardDetails(card);
+                                    }
+                                  }}
+                                  className={`
+                                    group relative flex h-full min-h-[180px] cursor-pointer flex-col justify-between overflow-hidden
+                                    rounded-[2rem] border bg-white/70 p-5 backdrop-blur-2xl sm:rounded-[2.25rem]
+                                    shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:bg-zinc-900/40
+                                    dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]
+                                    border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]
+                                    hover:border-[#007AFF]/28 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:hover:border-white/[0.12] dark:hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.5)]
+                                    active:scale-[0.99]
+                                  `}
+                                >
+                                  <div className="relative z-10 flex h-full min-h-0 flex-1 flex-col">
+                                    <div className="mb-4 min-h-0 flex-1">
+                                      <div className="mb-2">
+                                        <h3
+                                          className={`font-vehicle ${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic`}
+                                        >
+                                          {model}
+                                        </h3>
+                                        {!isModuleMode && (card.vehicleColor ?? '').trim() ? (
+                                          <p
+                                            className="mt-1 max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400/75 dark:text-zinc-500/85"
+                                            title={`Cor: ${(card.vehicleColor ?? '').trim()}`}
+                                          >
+                                            {(card.vehicleColor ?? '').trim()}
                                           </p>
-                                       </div>
-                                    </div>
-                                    {/* Placa Mercosul compacta (apenas para veículos) */}
-                                    {!isModuleMode && (
-                                      <div className="flex-shrink-0">
-                                        <div className="w-[120px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/20 select-none">
-                                          <div className="h-4 bg-[#003399] flex items-center justify-between px-2">
-                                            <span className="text-[7px] font-bold text-white tracking-wider">BRASIL</span>
-                                            <BrazilFlagIcon width={12} height={8} className="rounded-[2px] flex-shrink-0 border border-white/30" />
-                                          </div>
-                                          <div className="h-9 flex items-center justify-center bg-white">
-                                            <span className={`text-black font-mono text-xl font-black tracking-[0.2em] leading-none ${blurPlates ? 'blur-plate' : ''}`}>
-                                              {plate.toUpperCase()}
-                                            </span>
-                                          </div>
+                                        ) : null}
+                                      </div>
+
+                                      {customerName ? (
+                                        <div className="mb-2 flex w-fit max-w-full items-center gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 px-3 py-1.5 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05]">
+                                          <User className="w-4 h-4 shrink-0 text-[#007AFF]" strokeWidth={2} />
+                                          <span className="truncate text-base font-semibold tracking-tight text-zinc-700 dark:text-zinc-200">
+                                            {firstTwoNames(customerName)}
+                                          </span>
+                                        </div>
+                                      ) : null}
+
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0 flex-1">
+                                          <span className="inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-2xl border border-zinc-200/70 bg-white/55 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-600 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-zinc-300">
+                                            <History className="h-3.5 w-3.5 shrink-0 text-[#007AFF]" strokeWidth={2} />
+                                            Arquivado · {archivedWhen}
+                                          </span>
+                                        </div>
+                                        <div className="flex-shrink-0">
+                                          {!isModuleMode ? (
+                                            <div className="w-[120px] select-none overflow-hidden rounded-xl border-2 border-black bg-white shadow-md shadow-black/15">
+                                              <div className="relative flex h-4 items-center justify-between bg-[#003399] px-2">
+                                                <span className="text-[6px] font-bold tracking-wider text-white">BRASIL</span>
+                                                <BrazilFlagIcon width={12} height={8} className="shrink-0 rounded-sm border border-white/30" />
+                                              </div>
+                                              <div className="flex h-8 items-center justify-center bg-white">
+                                                <span className={`font-mono text-xl font-black tracking-widest leading-none text-black ${blurPlates ? 'blur-plate' : ''}`}>
+                                                  {plate.toUpperCase()}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="max-w-[140px] rounded-xl border border-zinc-200/70 bg-white/55 px-3 py-2 text-right backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05]">
+                                              <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Módulo</p>
+                                              <p className="truncate font-mono text-sm font-bold text-zinc-900 dark:text-white">{plate}</p>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
-                                    )}
-                                 </div>
-                                 
-                                 <div className="mt-2 flex items-end justify-between border-t border-zinc-200/60 pt-3 dark:border-white/[0.06]">
-                                    <div className="flex flex-col">
-                                         <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Arquivado em</span>
-                                         <span className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-                                            {card.dateLastActivity ? new Date(card.dateLastActivity).toLocaleDateString('pt-BR') : '—'}
-                                         </span>
                                     </div>
 
-                                    <span className="flex items-center gap-1 text-[13px] font-medium text-[#007AFF] opacity-90 transition-opacity group-hover:opacity-100">
-                                       Abrir <ArrowRight className="h-3.5 w-3.5" />
-                                    </span>
-                                 </div>
+                                    <div className="relative mt-auto w-full border-t border-zinc-200/60 pt-3 dark:border-white/[0.06]">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">Ver ficha completa</span>
+                                        <span className="flex items-center gap-1 text-[13px] font-semibold text-[#007AFF] opacity-90 transition-opacity group-hover:opacity-100">
+                                          Abrir <ArrowRight className="h-3.5 w-3.5" />
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                            );
                         })}
