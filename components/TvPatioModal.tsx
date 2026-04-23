@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X,
   Loader2,
-  Monitor,
   Trash2,
   Plus,
   ImagePlus,
@@ -471,7 +470,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
           <div className="px-6 sm:px-8 pt-8 pb-6 lg:pr-12">
             <div className="flex items-center gap-3 mb-1">
               <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                <Monitor />
+                <img src="/icons/tv-patio.svg" alt="TV do Pátio" className="h-6 w-6 object-contain" />
               </IosAccentIconSquircle>
               <div>
                 <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">

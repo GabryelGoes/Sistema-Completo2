@@ -7,7 +7,6 @@ import {
   LogOut,
   User,
   ExternalLink,
-  Monitor,
   Sparkles,
 } from 'lucide-react';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
@@ -360,7 +359,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   strokeWidth={2.2}
                   accentHex={homeSquircleAccentHex(colorfulNavigation, 'tv')}
                 >
-                  <Monitor />
+                  <img src="/icons/tv-patio.svg" alt="TV do Pátio" className="h-6 w-6 object-contain" />
                 </IosAccentIconSquircle>
                 <div className="flex-1 min-w-0">
                   <span className="text-[15px] font-semibold text-zinc-900 dark:text-white block leading-tight">
