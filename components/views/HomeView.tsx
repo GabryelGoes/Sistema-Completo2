@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ClipboardList,
-  Settings,
   ChevronRight,
   LogOut,
   User,
@@ -388,7 +387,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'settings_gear')}
                         >
-                          <Settings />
+                          <img src="/icons/configuracoes.svg" alt="Configurações" className="h-5 w-5 object-contain" />
                         </IosAccentIconSquircle>
                       }
                     />
@@ -457,7 +456,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'settings_gear')}
                         >
-                          <Settings />
+                          <img src="/icons/configuracoes.svg" alt="Configurações" className="h-5 w-5 object-contain" />
                         </IosAccentIconSquircle>
                       }
                     />
