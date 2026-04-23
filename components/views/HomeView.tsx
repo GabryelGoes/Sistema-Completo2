@@ -7,9 +7,7 @@ import {
   Lock,
   LogOut,
   User,
-  FlaskConical,
   ExternalLink,
-  Package,
   Monitor,
   Sparkles,
 } from 'lucide-react';
@@ -135,7 +133,7 @@ const OPERATIONAL_APPS: {
   {
     id: 'laboratorio',
     label: 'Laboratório',
-    icon: <FlaskConical strokeWidth={2.2} />,
+    icon: <img src="/icons/laboratorio.svg" alt="Laboratório" className="h-6 w-6 object-contain" />,
   },
 ];
 
@@ -319,7 +317,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'servicos')}
                         >
                           <img
-                            src="/icons/workshop-services.svg"
+                            src="/icons/workshop-services-office.svg"
                             alt="Serviços da oficina"
                             className="h-6 w-6 object-contain"
                           />
@@ -339,7 +337,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'pecas')}
                         >
-                          <Package />
+                          <img
+                            src="/icons/workshop-services.svg"
+                            alt="Estoque de peças"
+                            className="h-6 w-6 object-contain"
+                          />
                         </IosAccentIconSquircle>
                         <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
                           Estoque de peças
