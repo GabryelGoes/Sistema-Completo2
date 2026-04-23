@@ -472,7 +472,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'checklists')}
                         >
-                          <ClipboardList />
+                          <img src="/icons/checklist-patio.svg" alt="Checklists do Pátio" className="h-5 w-5 object-contain" />
                         </IosAccentIconSquircle>
                       }
                     />
