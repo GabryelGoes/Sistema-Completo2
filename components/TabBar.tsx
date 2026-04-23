@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Calendar } from 'lucide-react';
+import { Home } from 'lucide-react';
 import { useModalLayer } from './ui/ModalLayerContext';
 import { COLORFUL_TAB_ACCENTS, type NavigationTabId } from '../utils/appAppearance';
 
@@ -50,7 +50,14 @@ export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowed
       );
     }
     if (id === 'agenda') {
-      return <Calendar className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
+      return (
+        <img
+          src="/icons/agenda.svg"
+          alt="Agenda"
+          className={cls(`h-6 w-6 object-contain ${selected ? 'opacity-100' : 'opacity-70'}`)}
+          style={colorfulStyle}
+        />
+      );
     }
     if (id === 'patio') {
       return (

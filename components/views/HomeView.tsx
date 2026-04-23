@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ClipboardList,
-  Calendar,
   Settings,
   ChevronRight,
   Lock,
@@ -122,7 +121,7 @@ const OPERATIONAL_APPS: {
   {
     id: 'agenda',
     label: 'Agenda',
-    icon: <Calendar strokeWidth={2.2} />,
+    icon: <img src="/icons/agenda.svg" alt="Agenda" className="h-6 w-6 object-contain" />,
   },
   {
     id: 'patio',
