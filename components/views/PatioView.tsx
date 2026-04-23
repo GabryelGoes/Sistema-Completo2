@@ -789,6 +789,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const remindersStorageKey = orderType === 'module' ? 'patio-reminders-module' : 'patio-reminders-vehicle';
   const isModuleMode = orderType === 'module';
   const remindersScopeApi = orderType === 'module' ? ('module' as const) : ('vehicle' as const);
+  const remindersBadgeCount = reminders.length;
 
   const selectedCardTitleParts = selectedCard ? parsePatioCardTitle(selectedCard.name) : null;
   const historyCardTitleParts = selectedHistoryCard ? parsePatioCardTitle(selectedHistoryCard.name) : null;
@@ -2681,8 +2682,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 setReminderSaveError(null);
                 setIsRemindersOpen(true);
               }}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-zinc-200/80 bg-white/80 px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white sm:px-5 sm:py-3"
+              className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-zinc-200/80 bg-white/80 px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white sm:px-5 sm:py-3"
             >
+              {remindersBadgeCount > 0 && (
+                <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1.5 text-[11px] font-bold leading-none text-white shadow-sm dark:border-zinc-900">
+                  {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
+                </span>
+              )}
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/15 text-[#007AFF]">
                 <ReminderIcon className="h-3.5 w-3.5" strokeWidth={2} />
               </span>
