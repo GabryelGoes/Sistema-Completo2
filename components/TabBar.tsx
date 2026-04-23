@@ -1,6 +1,5 @@
 import React from 'react';
 import { Home, FileText, Calendar } from 'lucide-react';
-import { PatioCarIcon } from './ui/PatioCarIcon';
 import { useModalLayer } from './ui/ModalLayerContext';
 import { COLORFUL_TAB_ACCENTS, type NavigationTabId } from '../utils/appAppearance';
 
@@ -47,7 +46,14 @@ export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowed
       return <Calendar className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
     }
     if (id === 'patio') {
-      return <PatioCarIcon className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
+      return (
+        <img
+          src="/icons/patio.svg"
+          alt="Pátio"
+          className={cls(`h-6 w-6 object-contain ${selected ? 'opacity-100' : 'opacity-70'}`)}
+          style={colorfulStyle}
+        />
+      );
     }
     if (id === 'laboratorio') {
       return (

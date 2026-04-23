@@ -11,7 +11,6 @@ import {
   Monitor,
   Sparkles,
 } from 'lucide-react';
-import { PatioCarIcon } from '../ui/PatioCarIcon';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
 import { WorkshopPartsModal } from '../WorkshopPartsModal';
@@ -128,7 +127,7 @@ const OPERATIONAL_APPS: {
   {
     id: 'patio',
     label: 'Pátio',
-    icon: <PatioCarIcon strokeWidth={2.2} />,
+    icon: <img src="/icons/patio.svg" alt="Pátio" className="h-6 w-6 object-contain" />,
   },
   {
     id: 'laboratorio',
@@ -492,7 +491,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         strokeWidth={2.2}
                         accentHex={homeSquircleAccentHex(colorfulNavigation, 'patio_link')}
                       >
-                        <PatioCarIcon />
+                        <img src="/icons/patio.svg" alt="Pátio" className="h-5 w-5 object-contain" />
                       </IosAccentIconSquircle>
                       <span className="flex-1 min-w-0">
                         <span className="block text-[15px] font-medium text-zinc-900 dark:text-white leading-snug">
