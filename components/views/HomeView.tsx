@@ -315,7 +315,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'servicos')}
                         >
                           <img
-                            src="/icons/workshop-services-office.svg"
+                            src="/icons/servicos-oficina.svg"
                             alt="Serviços da oficina"
                             className="h-6 w-6 object-contain"
                           />
