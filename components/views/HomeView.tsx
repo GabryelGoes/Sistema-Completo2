@@ -428,7 +428,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'users')}
                         >
-                          <User />
+                          <img src="/icons/usuarios-sistema.svg" alt="Usuários do sistema" className="h-5 w-5 object-contain" />
                         </IosAccentIconSquircle>
                       }
                     />

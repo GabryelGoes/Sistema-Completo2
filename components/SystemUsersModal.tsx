@@ -279,7 +279,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
             <IosModalHeader
-              icon={<ShieldCheck className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              icon={<img src="/icons/usuarios-sistema.svg" alt="" className="h-6 w-6 object-contain" />}
               title="Usuários do sistema"
               subtitle="Logins, permissões, aprovação de orçamentos e acesso ao painel"
               gradientClass="from-violet-500 to-indigo-700"
