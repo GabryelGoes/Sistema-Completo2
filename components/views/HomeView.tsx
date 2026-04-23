@@ -3,7 +3,6 @@ import {
   ClipboardList,
   Settings,
   ChevronRight,
-  Lock,
   LogOut,
   User,
   ExternalLink,
@@ -405,7 +404,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'lock')}
                         >
-                          <Lock />
+                          <img src="/icons/senhas.svg" alt="Alterar senhas" className="h-5 w-5 object-contain" />
                         </IosAccentIconSquircle>
                       }
                     />
@@ -509,7 +508,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'lock')}
                         >
-                          <Lock />
+                          <img src="/icons/senhas.svg" alt="Alterar senhas" className="h-5 w-5 object-contain" />
                         </IosAccentIconSquircle>
                       }
                     />

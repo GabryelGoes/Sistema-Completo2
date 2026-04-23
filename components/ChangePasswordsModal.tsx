@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, KeyRound, Loader2, Check, Trash2, Eye, EyeOff } from 'lucide-react';
+import { X, KeyRound, Loader2, Check, Trash2, Eye, EyeOff } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard, iosInput } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
@@ -89,7 +89,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
             <IosModalHeader
-              icon={<Lock className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              icon={<img src="/icons/senhas.svg" alt="" className="h-6 w-6 object-contain" />}
               title="Alterar senhas"
               subtitle="PIN do pátio e exclusão de veículos"
               gradientClass="from-slate-600 to-zinc-800"
