@@ -2253,6 +2253,55 @@ export const PatioView: React.FC<PatioViewProps> = ({
     printHtmlDocument(html);
   };
 
+  const printKeyTagLabel = (payload: {
+    customerName?: string | null;
+    plateOrModule?: string | null;
+    vehicleName?: string | null;
+    vehicleColor?: string | null;
+  }) => {
+    const esc = (v: string) =>
+      String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const customer = esc(payload.customerName?.trim() || '—');
+    const plateOrModule = esc((payload.plateOrModule || '—').toUpperCase());
+    const vehicleName = esc(payload.vehicleName?.trim() || '—');
+    const vehicleColor = esc(payload.vehicleColor?.trim() || '—');
+    const plateLabel = isModuleMode ? 'Módulo' : 'Placa';
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Etiqueta de Chave</title>
+  <style>
+    @page { size: 60mm 40mm; margin: 2mm; }
+    html, body { margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; width: 56mm; color: #111827; font-size: 10px; line-height: 1.25; }
+    .tag { border: 1px dashed #6b7280; border-radius: 3mm; padding: 2.5mm; }
+    .title { font-weight: 800; font-size: 11px; margin-bottom: 1.5mm; text-transform: uppercase; letter-spacing: .03em; }
+    .row { margin: 0.9mm 0; }
+    .label { font-weight: 700; text-transform: uppercase; font-size: 8px; color: #4b5563; }
+    .value { font-weight: 700; font-size: 10px; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <div class="tag">
+    <div class="title">Etiqueta de chave</div>
+    <div class="row"><div class="label">Cliente</div><div class="value">${customer}</div></div>
+    <div class="row"><div class="label">${esc(plateLabel)}</div><div class="value">${plateOrModule}</div></div>
+    <div class="row"><div class="label">${isModuleMode ? 'Nome do módulo' : 'Nome do carro'}</div><div class="value">${vehicleName}</div></div>
+    <div class="row"><div class="label">Cor</div><div class="value">${vehicleColor}</div></div>
+  </div>
+</body>
+</html>`;
+
+    printHtmlDocument(html);
+  };
+
   const addServiceRow = () => {
     setBudgetServices([...budgetServices, { id: Date.now().toString(), description: '', laborHours: null }]);
   };
@@ -3396,6 +3445,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
                     type="button"
+                    onClick={() =>
+                      printKeyTagLabel({
+                        customerName: historyServiceOrderDetail?.customers?.name || historyCardTitleParts?.customer || '',
+                        plateOrModule: historyServiceOrderDetail?.plate || historyServiceOrderDetail?.module_identification || historyCardTitleParts?.plateOrModule || '',
+                        vehicleName: historyServiceOrderDetail?.vehicle_model || historyCardTitleParts?.vehicle || '',
+                        vehicleColor: historyServiceOrderDetail?.vehicle_color || selectedHistoryCard?.vehicleColor || '',
+                      })
+                    }
+                    className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/80 px-5 py-2.5 text-[15px] font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Imprimir etiqueta
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleUnarchive(selectedHistoryCard)}
                     className="inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-5 py-2.5 text-[15px] font-semibold text-white shadow-md transition-transform hover:opacity-95 active:scale-[0.98] dark:bg-white/12 dark:text-white"
                   >
@@ -3763,6 +3827,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
            <div className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-[96vw] xl:max-w-[92vw] 2xl:max-w-[88vw] min-h-0 flex-col ${iosVehicleModalShell} animate-modal-wp-app ${modalRingClass}`}>
               
               <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    printKeyTagLabel({
+                      customerName: serviceOrderDetail?.customers?.name || selectedCardTitleParts?.customer || '',
+                      plateOrModule: serviceOrderDetail?.plate || serviceOrderDetail?.module_identification || selectedCardTitleParts?.plateOrModule || '',
+                      vehicleName: serviceOrderDetail?.vehicle_model || selectedCardTitleParts?.vehicle || '',
+                      vehicleColor: serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '',
+                    })
+                  }
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-black/5 px-3 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15"
+                  title="Imprimir etiqueta da chave"
+                >
+                  <Printer className="h-4 w-4" />
+                  <span className="hidden sm:inline">Etiqueta</span>
+                </button>
                 {can('canDeleteCards') && (
                 <button
                   type="button"
