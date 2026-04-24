@@ -2101,7 +2101,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
     .status.no { background: #fbe8e8; color: #9d1f1f; border: 1px solid #efb6b6; }
     .status.wait { background: #f3efe7; color: #6f665c; border: 1px solid #ded6c7; }
     ul { list-style: disc; margin-left: 20px; }
-    li { margin: 4px 0; }
+    li { margin: 4px 0; padding-bottom: 4px; border-bottom: 1px dashed #cfc6b6; }
+    li:last-child { border-bottom: 0; }
     @media print { body { padding: 16px; } .no-print { display: none !important; } }
   </style>
 </head>
@@ -2213,7 +2214,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
     .sec { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #374151; margin: 14px 0 6px; border-top: 1px solid #e5e7eb; padding-top: 8px; }
     .block { white-space: pre-wrap; }
     ul { list-style: disc; margin-left: 20px; }
-    li { margin: 3px 0; }
+    li { margin: 3px 0; padding-bottom: 4px; border-bottom: 1px dashed #cfc6b6; }
+    li:last-child { border-bottom: 0; }
     .footer-sign { margin-top: 18px; font-size: 11px; color: #374151; }
     @media print { body { padding: 16px; } .no-print { display: none !important; } }
   </style>
