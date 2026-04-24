@@ -5810,6 +5810,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 )}
                 <button
                   type="button"
+                  onClick={() =>
+                    printBudget(
+                      viewingBudget,
+                      selectedCard?.mileageKm ?? historyServiceOrderDetail?.mileage_km ?? null
+                    )
+                  }
+                  disabled={!!deletingBudgetId}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-black/20 font-medium text-sm hover:bg-black/5 transition-colors disabled:opacity-50"
+                  style={{ color: '#000000' }}
+                >
+                  <Printer className="w-4 h-4" /> Imprimir
+                </button>
+                <button
+                  type="button"
                   onClick={() => { setViewingBudget(null); openBudgetModal(viewingBudget); }}
                   disabled={!!deletingBudgetId || !can('canEditBudgets') || !selectedCard}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-black/20 font-medium text-sm hover:bg-black/5 transition-colors disabled:opacity-50"
