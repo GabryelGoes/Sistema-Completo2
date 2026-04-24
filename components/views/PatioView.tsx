@@ -2302,6 +2302,93 @@ export const PatioView: React.FC<PatioViewProps> = ({
     printHtmlDocument(html);
   };
 
+  const exportKeyTagForNiimbot = (payload: {
+    customerName?: string | null;
+    plateOrModule?: string | null;
+    vehicleName?: string | null;
+    vehicleColor?: string | null;
+  }) => {
+    const sanitize = (v?: string | null) => String(v ?? '').trim();
+    const customer = sanitize(payload.customerName) || '—';
+    const plateOrModule = (sanitize(payload.plateOrModule) || '—').toUpperCase();
+    const vehicleName = sanitize(payload.vehicleName) || '—';
+    const vehicleColor = sanitize(payload.vehicleColor) || '—';
+    const plateLabel = isModuleMode ? 'Módulo' : 'Placa';
+
+    // NIIMBOT B1: 203dpi (~8 dots/mm). Etiqueta 50x30mm => 400x240 px.
+    const width = 400;
+    const height = 240;
+    const halfWidth = width / 2;
+    const outerMargin = 8;
+    const innerPadding = 10;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+
+    // Moldura + divisor central (para dobra da etiqueta).
+    ctx.strokeStyle = '#6b7280';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(1.5, 1.5, width - 3, height - 3);
+    ctx.beginPath();
+    ctx.moveTo(halfWidth, 6);
+    ctx.lineTo(halfWidth, height - 6);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const blockWidth = halfWidth - outerMargin * 2;
+    const blockHeight = height - outerMargin * 2;
+    const lineMax = 24;
+    const short = (value: string) => (value.length > lineMax ? `${value.slice(0, lineMax)}…` : value);
+    const lines = [
+      `Cliente: ${short(customer)}`,
+      `${isModuleMode ? 'Módulo' : 'Carro'}: ${short(vehicleName)}`,
+      `Cor: ${short(vehicleColor)}`,
+      `${plateLabel}: ${short(plateOrModule)}`,
+    ];
+
+    const drawHalfLabel = (x: number, y: number) => {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x, y, blockWidth, blockHeight);
+      ctx.fillStyle = '#111827';
+      ctx.font = '500 8px Arial';
+      let ty = y + innerPadding + 8;
+      for (const line of lines) {
+        ctx.fillText(line, x + innerPadding, ty);
+        ty += 20;
+      }
+    };
+
+    // Metade esquerda (normal)
+    drawHalfLabel(outerMargin, outerMargin);
+
+    // Metade direita espelhada em rotação de 180°.
+    ctx.save();
+    ctx.translate(width - outerMargin, height - outerMargin);
+    ctx.rotate(Math.PI);
+    drawHalfLabel(0, 0);
+    ctx.restore();
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safePlate = plateOrModule.replace(/[^A-Z0-9_-]/g, '') || 'SEM_PLACA';
+      a.href = url;
+      a.download = `etiqueta-chave-${safePlate}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  };
+
   const addServiceRow = () => {
     setBudgetServices([...budgetServices, { id: Date.now().toString(), description: '', laborHours: null }]);
   };
@@ -3460,6 +3547,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </button>
                   <button
                     type="button"
+                    onClick={() =>
+                      exportKeyTagForNiimbot({
+                        customerName: historyServiceOrderDetail?.customers?.name || historyCardTitleParts?.customer || '',
+                        plateOrModule: historyServiceOrderDetail?.plate || historyServiceOrderDetail?.module_identification || historyCardTitleParts?.plateOrModule || '',
+                        vehicleName: historyServiceOrderDetail?.vehicle_model || historyCardTitleParts?.vehicle || '',
+                        vehicleColor: historyServiceOrderDetail?.vehicle_color || selectedHistoryCard?.vehicleColor || '',
+                      })
+                    }
+                    className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/80 px-5 py-2.5 text-[15px] font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white"
+                  >
+                    <Download className="h-4 w-4" />
+                    Enviar NIIMBOT
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleUnarchive(selectedHistoryCard)}
                     className="inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-5 py-2.5 text-[15px] font-semibold text-white shadow-md transition-transform hover:opacity-95 active:scale-[0.98] dark:bg-white/12 dark:text-white"
                   >
@@ -3842,6 +3944,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 >
                   <Printer className="h-4 w-4" />
                   <span className="hidden sm:inline">Etiqueta</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    exportKeyTagForNiimbot({
+                      customerName: serviceOrderDetail?.customers?.name || selectedCardTitleParts?.customer || '',
+                      plateOrModule: serviceOrderDetail?.plate || serviceOrderDetail?.module_identification || selectedCardTitleParts?.plateOrModule || '',
+                      vehicleName: serviceOrderDetail?.vehicle_model || selectedCardTitleParts?.vehicle || '',
+                      vehicleColor: serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '',
+                    })
+                  }
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-black/5 px-3 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15"
+                  title="Gerar PNG para app NIIMBOT B1"
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">NIIMBOT</span>
                 </button>
                 {can('canDeleteCards') && (
                 <button
