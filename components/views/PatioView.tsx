@@ -2315,12 +2315,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const vehicleColor = sanitize(payload.vehicleColor) || '—';
     const plateLabel = isModuleMode ? 'Módulo' : 'Placa';
 
-    // NIIMBOT B1: 203dpi (~8 dots/mm). Etiqueta 50x30mm => 400x240 px.
-    const width = 400;
-    const height = 240;
+    // Exporta em 4x para manter mais definição ao importar no app NIIMBOT.
+    const scale = 4;
+    // NIIMBOT B1: base 50x30mm => 400x240 px.
+    const width = 400 * scale;
+    const height = 240 * scale;
     const halfWidth = width / 2;
-    const outerMargin = 8;
-    const innerPadding = 10;
+    const outerMargin = 8 * scale;
+    const innerPadding = 10 * scale;
 
     const canvas = document.createElement('canvas');
     canvas.width = width;
@@ -2333,18 +2335,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
     // Moldura + divisor central (para dobra da etiqueta).
     ctx.strokeStyle = '#6b7280';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 3]);
-    ctx.strokeRect(1.5, 1.5, width - 3, height - 3);
+    ctx.lineWidth = scale;
+    ctx.setLineDash([4 * scale, 3 * scale]);
+    ctx.strokeRect(1.5 * scale, 1.5 * scale, width - 3 * scale, height - 3 * scale);
     ctx.beginPath();
-    ctx.moveTo(halfWidth, 6);
-    ctx.lineTo(halfWidth, height - 6);
+    ctx.moveTo(halfWidth, 6 * scale);
+    ctx.lineTo(halfWidth, height - 6 * scale);
     ctx.stroke();
     ctx.setLineDash([]);
 
     const blockWidth = halfWidth - outerMargin * 2;
     const blockHeight = height - outerMargin * 2;
-    const lineMax = 24;
+    const lineMax = 28;
     const short = (value: string) => (value.length > lineMax ? `${value.slice(0, lineMax)}…` : value);
     const lines = [
       `Cliente: ${short(customer)}`,
@@ -2357,11 +2359,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(x, y, blockWidth, blockHeight);
       ctx.fillStyle = '#111827';
-      ctx.font = '500 8px Arial';
-      let ty = y + innerPadding + 8;
+      ctx.font = `${500} ${8 * scale}px Arial`;
+      let ty = y + innerPadding + 8 * scale;
       for (const line of lines) {
         ctx.fillText(line, x + innerPadding, ty);
-        ty += 20;
+        ty += 20 * scale;
       }
     };
 
