@@ -2107,6 +2107,74 @@ export const PatioView: React.FC<PatioViewProps> = ({
     printHtmlDocument(html);
   };
 
+  const printBudgetMechanicCopy = (budget: SavedBudget, mileageKm?: string | null) => {
+    const esc = (s: string) => String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/\n/g, '<br>');
+    const dateStr = new Date(budget.createdAt).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const approvedServices = budget.services.filter((s) => s.approved === true);
+    const approvedParts = budget.parts.filter((p) => p.approved === true);
+    const kmHtml = mileageKm ? `<p class="meta">Km ${esc(mileageKm)}</p>` : '';
+
+    const servicesHtml = approvedServices.length > 0
+      ? `<h3 class="sec">Serviços aprovados</h3><ul>${approvedServices.map((s) => {
+          const dur =
+            s.labor_hours != null && Number.isFinite(Number(s.labor_hours))
+              ? ` <span class="meta">(${formatLaborLabel(Number(s.labor_hours))})</span>`
+              : '';
+          return `<li>${esc(s.description)}${dur}</li>`;
+        }).join('')}</ul>`
+      : '';
+    const partsHtml = approvedParts.length > 0
+      ? `<h3 class="sec">Peças aprovadas</h3><ul>${approvedParts.map((p) => `<li><strong>(${esc(p.quantity)}x)</strong> ${esc(p.description)}</li>`).join('')}</ul>`
+      : '';
+    const emptyHtml = approvedServices.length === 0 && approvedParts.length === 0
+      ? `<div class="block">Nenhum item aprovado neste orçamento.</div>`
+      : '';
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Via mecânico - ${esc(budget.cardName)}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Georgia, 'Times New Roman', serif; padding: 24px; color: #3d3932; font-size: 14px; line-height: 1.5; }
+    .header { border-bottom: 2px solid #c9c4b8; padding-bottom: 12px; margin-bottom: 20px; }
+    h1 { font-size: 18px; font-weight: bold; color: #3d3932; }
+    .meta { color: #6b6560; font-size: 13px; margin-top: 4px; }
+    .sec { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b6560; margin: 16px 0 8px; }
+    .block { white-space: pre-wrap; }
+    ul { list-style: disc; margin-left: 20px; }
+    li { margin: 4px 0; }
+    @media print { body { padding: 16px; } .no-print { display: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Via mecânico</h1>
+    <p class="meta">${esc(budget.cardName)}</p>
+    <p class="meta">${esc(dateStr)}</p>
+    ${kmHtml}
+  </div>
+  ${servicesHtml}
+  ${partsHtml}
+  ${emptyHtml}
+</body>
+</html>`;
+    printHtmlDocument(html);
+  };
+
   const addServiceRow = () => {
     setBudgetServices([...budgetServices, { id: Date.now().toString(), description: '', laborHours: null }]);
   };
@@ -5821,6 +5889,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   style={{ color: '#000000' }}
                 >
                   <Printer className="w-4 h-4" /> Imprimir
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    printBudgetMechanicCopy(
+                      viewingBudget,
+                      selectedCard?.mileageKm ?? historyServiceOrderDetail?.mileage_km ?? null
+                    )
+                  }
+                  disabled={!!deletingBudgetId}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-black/20 font-medium text-sm hover:bg-black/5 transition-colors disabled:opacity-50"
+                  style={{ color: '#000000' }}
+                >
+                  <Printer className="w-4 h-4" /> Via mecânico
                 </button>
                 <button
                   type="button"
