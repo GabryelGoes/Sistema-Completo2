@@ -2046,15 +2046,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const partsHtml = budget.parts.length > 0
       ? `<h3 class="sec">Peças</h3><ul>${budget.parts.map((p) => partLine(p, hasApprovalDecision)).join('')}</ul>`
       : '';
-    const blockedItemsHtml = hasApprovalDecision && (serviceRejected.length > 0 || servicePending.length > 0 || partRejected.length > 0 || partPending.length > 0)
-      ? `
-        <h3 class="sec">Itens não aprovados / pendentes</h3>
-        ${serviceRejected.length > 0 ? `<h4 class="sub">Serviços reprovados</h4><ul>${serviceRejected.map((s) => serviceLine(s, false)).join('')}</ul>` : ''}
-        ${servicePending.length > 0 ? `<h4 class="sub">Serviços pendentes</h4><ul>${servicePending.map((s) => serviceLine(s, false)).join('')}</ul>` : ''}
-        ${partRejected.length > 0 ? `<h4 class="sub">Peças reprovadas</h4><ul>${partRejected.map((p) => partLine(p, false)).join('')}</ul>` : ''}
-        ${partPending.length > 0 ? `<h4 class="sub">Peças pendentes</h4><ul>${partPending.map((p) => partLine(p, false)).join('')}</ul>` : ''}
-      `
-      : '';
     const diagnosisHtml = budget.diagnosis ? `<h3 class="sec">Diagnóstico</h3><div class="block">${esc(budget.diagnosis)}</div>` : '';
     const obsHtml = budget.observations ? `<h3 class="sec">Observações</h3><div class="block">${esc(budget.observations)}</div>` : '';
     const kmHtml = mileageKm ? `<p class="meta">Km ${esc(mileageKm)}</p>` : '';
@@ -2100,7 +2091,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   ${approvedExecutionHtml}
   ${servicesHtml}
   ${partsHtml}
-  ${blockedItemsHtml}
   ${obsHtml}
 </body>
 </html>`;
