@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, Download, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2, Car } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2, Car } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -2253,144 +2253,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     printHtmlDocument(html);
   };
 
-  const printKeyTagLabel = (payload: {
-    customerName?: string | null;
-    plateOrModule?: string | null;
-    vehicleName?: string | null;
-    vehicleColor?: string | null;
-  }) => {
-    const esc = (v: string) =>
-      String(v ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-
-    const customer = esc(payload.customerName?.trim() || '—');
-    const plateOrModule = esc((payload.plateOrModule || '—').toUpperCase());
-    const vehicleName = esc(payload.vehicleName?.trim() || '—');
-    const vehicleColor = esc(payload.vehicleColor?.trim() || '—');
-    const plateLabel = isModuleMode ? 'Módulo' : 'Placa';
-
-    const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <title>Etiqueta de Chave</title>
-  <style>
-    @page { size: 60mm 40mm; margin: 2mm; }
-    html, body { margin: 0; padding: 0; }
-    body { font-family: Arial, Helvetica, sans-serif; width: 56mm; color: #111827; font-size: 10px; line-height: 1.25; }
-    .tag { border: 1px dashed #6b7280; border-radius: 3mm; padding: 2.5mm; }
-    .title { font-weight: 800; font-size: 11px; margin-bottom: 1.5mm; text-transform: uppercase; letter-spacing: .03em; }
-    .row { margin: 0.9mm 0; }
-    .label { font-weight: 700; text-transform: uppercase; font-size: 8px; color: #4b5563; }
-    .value { font-weight: 700; font-size: 10px; word-break: break-word; }
-  </style>
-</head>
-<body>
-  <div class="tag">
-    <div class="title">Etiqueta de chave</div>
-    <div class="row"><div class="label">Cliente</div><div class="value">${customer}</div></div>
-    <div class="row"><div class="label">${esc(plateLabel)}</div><div class="value">${plateOrModule}</div></div>
-    <div class="row"><div class="label">${isModuleMode ? 'Nome do módulo' : 'Nome do carro'}</div><div class="value">${vehicleName}</div></div>
-    <div class="row"><div class="label">Cor</div><div class="value">${vehicleColor}</div></div>
-  </div>
-</body>
-</html>`;
-
-    printHtmlDocument(html);
-  };
-
-  const exportKeyTagForNiimbot = (payload: {
-    customerName?: string | null;
-    plateOrModule?: string | null;
-    vehicleName?: string | null;
-    vehicleColor?: string | null;
-  }) => {
-    const sanitize = (v?: string | null) => String(v ?? '').trim();
-    const customer = sanitize(payload.customerName) || '—';
-    const plateOrModule = (sanitize(payload.plateOrModule) || '—').toUpperCase();
-    const vehicleName = sanitize(payload.vehicleName) || '—';
-    const vehicleColor = sanitize(payload.vehicleColor) || '—';
-    const plateLabel = isModuleMode ? 'Módulo' : 'Placa';
-
-    // Exporta em 4x para manter mais definição ao importar no app NIIMBOT.
-    const scale = 4;
-    // NIIMBOT B1: base 50x30mm => 400x240 px.
-    const width = 400 * scale;
-    const height = 240 * scale;
-    const halfWidth = width / 2;
-    const outerMargin = 8 * scale;
-    const innerPadding = 10 * scale;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, width, height);
-
-    // Moldura + divisor central (para dobra da etiqueta).
-    ctx.strokeStyle = '#6b7280';
-    ctx.lineWidth = scale;
-    ctx.setLineDash([4 * scale, 3 * scale]);
-    ctx.strokeRect(1.5 * scale, 1.5 * scale, width - 3 * scale, height - 3 * scale);
-    ctx.beginPath();
-    ctx.moveTo(halfWidth, 6 * scale);
-    ctx.lineTo(halfWidth, height - 6 * scale);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    const blockWidth = halfWidth - outerMargin * 2;
-    const blockHeight = height - outerMargin * 2;
-    const lineMax = 28;
-    const short = (value: string) => (value.length > lineMax ? `${value.slice(0, lineMax)}…` : value);
-    const lines = [
-      `Cliente: ${short(customer)}`,
-      `${isModuleMode ? 'Módulo' : 'Carro'}: ${short(vehicleName)}`,
-      `Cor: ${short(vehicleColor)}`,
-      `${plateLabel}: ${short(plateOrModule)}`,
-    ];
-
-    const drawHalfLabel = (x: number, y: number) => {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(x, y, blockWidth, blockHeight);
-      ctx.fillStyle = '#111827';
-      ctx.font = `${500} ${8 * scale}px Arial`;
-      let ty = y + innerPadding + 8 * scale;
-      for (const line of lines) {
-        ctx.fillText(line, x + innerPadding, ty);
-        ty += 20 * scale;
-      }
-    };
-
-    // Metade esquerda (normal)
-    drawHalfLabel(outerMargin, outerMargin);
-
-    // Metade direita espelhada em rotação de 180°.
-    ctx.save();
-    ctx.translate(width - outerMargin, height - outerMargin);
-    ctx.rotate(Math.PI);
-    drawHalfLabel(0, 0);
-    ctx.restore();
-
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const safePlate = plateOrModule.replace(/[^A-Z0-9_-]/g, '') || 'SEM_PLACA';
-      a.href = url;
-      a.download = `etiqueta-chave-${safePlate}.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }, 'image/png');
-  };
-
   const addServiceRow = () => {
     setBudgetServices([...budgetServices, { id: Date.now().toString(), description: '', laborHours: null }]);
   };
@@ -3534,36 +3396,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() =>
-                      printKeyTagLabel({
-                        customerName: historyServiceOrderDetail?.customers?.name || historyCardTitleParts?.customer || '',
-                        plateOrModule: historyServiceOrderDetail?.plate || historyServiceOrderDetail?.module_identification || historyCardTitleParts?.plateOrModule || '',
-                        vehicleName: historyServiceOrderDetail?.vehicle_model || historyCardTitleParts?.vehicle || '',
-                        vehicleColor: historyServiceOrderDetail?.vehicle_color || selectedHistoryCard?.vehicleColor || '',
-                      })
-                    }
-                    className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/80 px-5 py-2.5 text-[15px] font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white"
-                  >
-                    <Printer className="h-4 w-4" />
-                    Imprimir etiqueta
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      exportKeyTagForNiimbot({
-                        customerName: historyServiceOrderDetail?.customers?.name || historyCardTitleParts?.customer || '',
-                        plateOrModule: historyServiceOrderDetail?.plate || historyServiceOrderDetail?.module_identification || historyCardTitleParts?.plateOrModule || '',
-                        vehicleName: historyServiceOrderDetail?.vehicle_model || historyCardTitleParts?.vehicle || '',
-                        vehicleColor: historyServiceOrderDetail?.vehicle_color || selectedHistoryCard?.vehicleColor || '',
-                      })
-                    }
-                    className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/80 px-5 py-2.5 text-[15px] font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white"
-                  >
-                    <Download className="h-4 w-4" />
-                    Enviar NIIMBOT
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => handleUnarchive(selectedHistoryCard)}
                     className="inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-5 py-2.5 text-[15px] font-semibold text-white shadow-md transition-transform hover:opacity-95 active:scale-[0.98] dark:bg-white/12 dark:text-white"
                   >
@@ -3931,38 +3763,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
            <div className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-[96vw] xl:max-w-[92vw] 2xl:max-w-[88vw] min-h-0 flex-col ${iosVehicleModalShell} animate-modal-wp-app ${modalRingClass}`}>
               
               <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    printKeyTagLabel({
-                      customerName: serviceOrderDetail?.customers?.name || selectedCardTitleParts?.customer || '',
-                      plateOrModule: serviceOrderDetail?.plate || serviceOrderDetail?.module_identification || selectedCardTitleParts?.plateOrModule || '',
-                      vehicleName: serviceOrderDetail?.vehicle_model || selectedCardTitleParts?.vehicle || '',
-                      vehicleColor: serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '',
-                    })
-                  }
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-black/5 px-3 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15"
-                  title="Imprimir etiqueta da chave"
-                >
-                  <Printer className="h-4 w-4" />
-                  <span className="hidden sm:inline">Etiqueta</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    exportKeyTagForNiimbot({
-                      customerName: serviceOrderDetail?.customers?.name || selectedCardTitleParts?.customer || '',
-                      plateOrModule: serviceOrderDetail?.plate || serviceOrderDetail?.module_identification || selectedCardTitleParts?.plateOrModule || '',
-                      vehicleName: serviceOrderDetail?.vehicle_model || selectedCardTitleParts?.vehicle || '',
-                      vehicleColor: serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '',
-                    })
-                  }
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-black/5 px-3 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15"
-                  title="Gerar PNG para app NIIMBOT B1"
-                >
-                  <Download className="h-4 w-4" />
-                  <span className="hidden sm:inline">NIIMBOT</span>
-                </button>
                 {can('canDeleteCards') && (
                 <button
                   type="button"
