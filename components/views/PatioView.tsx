@@ -1987,22 +1987,83 @@ export const PatioView: React.FC<PatioViewProps> = ({
       hour: '2-digit',
       minute: '2-digit',
     });
-    const sym = (approved: boolean | undefined) => approved === true ? '✓ ' : approved === false ? '✗ ' : '— ';
+    const hasApprovalDecision = budgetHasExplicitApprovalDecisions(budget.services, budget.parts);
+    const serviceApproved = budget.services.filter((s) => s.approved === true);
+    const serviceRejected = budget.services.filter((s) => s.approved === false);
+    const servicePending = budget.services.filter((s) => s.approved !== true && s.approved !== false);
+    const partApproved = budget.parts.filter((p) => p.approved === true);
+    const partRejected = budget.parts.filter((p) => p.approved === false);
+    const partPending = budget.parts.filter((p) => p.approved !== true && p.approved !== false);
+
+    const serviceLine = (
+      s: { description: string; approved?: boolean; labor_hours?: number | null },
+      includeStatus = true,
+    ) => {
+      const dur =
+        s.labor_hours != null && Number.isFinite(Number(s.labor_hours))
+          ? ` <span class="meta">(${formatLaborLabel(Number(s.labor_hours))})</span>`
+          : '';
+      const status = includeStatus
+        ? s.approved === true
+          ? `<span class="status ok">APROVADO</span> `
+          : s.approved === false
+            ? `<span class="status no">REPROVADO</span> `
+            : `<span class="status wait">PENDENTE</span> `
+        : '';
+      return `<li>${status}${esc(s.description)}${dur}</li>`;
+    };
+    const partLine = (
+      p: { description: string; quantity: string; approved?: boolean },
+      includeStatus = true,
+    ) => {
+      const status = includeStatus
+        ? p.approved === true
+          ? `<span class="status ok">APROVADO</span> `
+          : p.approved === false
+            ? `<span class="status no">REPROVADO</span> `
+            : `<span class="status wait">PENDENTE</span> `
+        : '';
+      return `<li>${status}<strong>(${esc(p.quantity)}x)</strong> ${esc(p.description)}</li>`;
+    };
+
+    const approvedExecutionHtml = hasApprovalDecision
+      ? `
+        <h3 class="sec">Itens aprovados para execução</h3>
+        ${
+          serviceApproved.length === 0 && partApproved.length === 0
+            ? `<div class="block">Nenhum item aprovado até o momento.</div>`
+            : `
+              ${serviceApproved.length > 0 ? `<h4 class="sub">Serviços aprovados</h4><ul>${serviceApproved.map((s) => serviceLine(s, false)).join('')}</ul>` : ''}
+              ${partApproved.length > 0 ? `<h4 class="sub">Peças aprovadas</h4><ul>${partApproved.map((p) => partLine(p, false)).join('')}</ul>` : ''}
+            `
+        }
+      `
+      : '';
+
     const servicesHtml = budget.services.length > 0
-      ? `<h3 class="sec">Serviços</h3><ul>${budget.services.map((s) => {
-          const dur =
-            s.labor_hours != null && Number.isFinite(Number(s.labor_hours))
-              ? ` <span class="meta">(${formatLaborLabel(Number(s.labor_hours))})</span>`
-              : '';
-          return `<li>${sym(s.approved)}${esc(s.description)}${dur}</li>`;
-        }).join('')}</ul>`
+      ? `<h3 class="sec">Serviços</h3><ul>${budget.services.map((s) => serviceLine(s, hasApprovalDecision)).join('')}</ul>`
       : '';
     const partsHtml = budget.parts.length > 0
-      ? `<h3 class="sec">Peças</h3><ul>${budget.parts.map((p) => `<li>${sym(p.approved)}<strong>(${esc(p.quantity)}x)</strong> ${esc(p.description)}</li>`).join('')}</ul>`
+      ? `<h3 class="sec">Peças</h3><ul>${budget.parts.map((p) => partLine(p, hasApprovalDecision)).join('')}</ul>`
+      : '';
+    const blockedItemsHtml = hasApprovalDecision && (serviceRejected.length > 0 || servicePending.length > 0 || partRejected.length > 0 || partPending.length > 0)
+      ? `
+        <h3 class="sec">Itens não aprovados / pendentes</h3>
+        ${serviceRejected.length > 0 ? `<h4 class="sub">Serviços reprovados</h4><ul>${serviceRejected.map((s) => serviceLine(s, false)).join('')}</ul>` : ''}
+        ${servicePending.length > 0 ? `<h4 class="sub">Serviços pendentes</h4><ul>${servicePending.map((s) => serviceLine(s, false)).join('')}</ul>` : ''}
+        ${partRejected.length > 0 ? `<h4 class="sub">Peças reprovadas</h4><ul>${partRejected.map((p) => partLine(p, false)).join('')}</ul>` : ''}
+        ${partPending.length > 0 ? `<h4 class="sub">Peças pendentes</h4><ul>${partPending.map((p) => partLine(p, false)).join('')}</ul>` : ''}
+      `
       : '';
     const diagnosisHtml = budget.diagnosis ? `<h3 class="sec">Diagnóstico</h3><div class="block">${esc(budget.diagnosis)}</div>` : '';
     const obsHtml = budget.observations ? `<h3 class="sec">Observações</h3><div class="block">${esc(budget.observations)}</div>` : '';
     const kmHtml = mileageKm ? `<p class="meta">Km ${esc(mileageKm)}</p>` : '';
+    const approvalSummaryHtml = hasApprovalDecision
+      ? `<div class="summary">
+          <span><strong>Serviços:</strong> ${serviceApproved.length} aprovados, ${serviceRejected.length} reprovados, ${servicePending.length} pendentes</span>
+          <span><strong>Peças:</strong> ${partApproved.length} aprovadas, ${partRejected.length} reprovadas, ${partPending.length} pendentes</span>
+        </div>`
+      : '';
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -2015,7 +2076,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
     h1 { font-size: 18px; font-weight: bold; color: #3d3932; }
     .meta { color: #6b6560; font-size: 13px; margin-top: 4px; }
     .sec { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b6560; margin: 16px 0 8px; }
+    .sub { font-size: 12px; font-weight: 700; color: #4a443d; margin: 12px 0 6px; }
     .block { white-space: pre-wrap; }
+    .summary { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0 6px; padding: 10px 12px; border: 1px solid #d8cfbf; background: #f7f1e6; border-radius: 8px; font-size: 12px; color: #4a443d; }
+    .status { display: inline-block; margin-right: 6px; border-radius: 5px; padding: 1px 6px; font-size: 10px; font-weight: 700; letter-spacing: .03em; vertical-align: middle; }
+    .status.ok { background: #e6f5e9; color: #1f6b2a; border: 1px solid #b7e0be; }
+    .status.no { background: #fbe8e8; color: #9d1f1f; border: 1px solid #efb6b6; }
+    .status.wait { background: #f3efe7; color: #6f665c; border: 1px solid #ded6c7; }
     ul { list-style: disc; margin-left: 20px; }
     li { margin: 4px 0; }
     @media print { body { padding: 16px; } .no-print { display: none !important; } }
@@ -2028,9 +2095,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     <p class="meta">${esc(dateStr)}</p>
     ${kmHtml}
   </div>
+  ${approvalSummaryHtml}
   ${diagnosisHtml}
+  ${approvedExecutionHtml}
   ${servicesHtml}
   ${partsHtml}
+  ${blockedItemsHtml}
   ${obsHtml}
 </body>
 </html>`;
