@@ -3576,9 +3576,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             Cor · {(selectedHistoryCard?.vehicleColor ?? '').trim()}
                           </p>
                         ) : null}
-                        <div className="mt-3 flex flex-col gap-3 text-zinc-700 dark:text-zinc-300">
+                        <div className="mt-3 flex flex-col gap-3 text-zinc-700 dark:text-zinc-300 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-6 lg:gap-y-2">
                          {!isModuleMode && (
-                           <div className="flex items-center">
+                           <div className="flex shrink-0 items-center">
                               <MercosulPlateMockup
                                 plate={historyCardTitleParts?.plateOrModule || '---'}
                                 blurPlates={blurPlates}
@@ -3586,12 +3586,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               />
                            </div>
                          )}
-                         <div className={`${iosModalInsetCard} flex items-center gap-2 px-4 py-2.5`}>
-                            <User className="h-5 w-5 text-zinc-500" />
-                            <span className="text-[16px] font-medium text-zinc-900 dark:text-white">{historyCardTitleParts?.customer}</span>
+                         <div className={`${iosModalInsetCard} flex min-w-0 flex-1 items-center gap-2 px-4 py-2.5 lg:max-w-xl lg:flex-1`}>
+                            <User className="h-5 w-5 shrink-0 text-zinc-500" />
+                            <span className="truncate text-[16px] font-medium text-zinc-900 dark:text-white">{historyCardTitleParts?.customer}</span>
                          </div>
                          {selectedHistoryCard.due && (
-                           <div className={`${iosModalInsetCard} flex items-center gap-2 px-4 py-2.5`}>
+                           <div className={`${iosModalInsetCard} flex shrink-0 items-center gap-2 px-4 py-2.5`}>
                               <Calendar className="h-4 w-4 text-zinc-500" />
                               <span className="text-[14px] font-medium text-zinc-800 dark:text-zinc-100">
                                 Entrega: {new Date(selectedHistoryCard.due).toLocaleDateString('pt-BR')}
@@ -4019,10 +4019,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '').trim()}
                           </p>
                         ) : null}
-                        {/* Placa Mercosul, cliente e km — logo abaixo da cor (e do nome, se não houver cor) */}
-                        <div className="mt-3 flex flex-col gap-3 text-zinc-400">
+                        {/* Placa Mercosul, cliente e km — logo abaixo da cor; em lg+ ficam na mesma linha */}
+                        <div className="mt-3 flex flex-col gap-3 text-zinc-400 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-8 lg:gap-y-2">
                          {!isModuleMode && (
-                         <div className="flex items-center">
+                         <div className="flex shrink-0 items-center">
                             <MercosulPlateMockup
                               plate={selectedCardTitleParts?.plateOrModule || '---'}
                               blurPlates={blurPlates}
@@ -4030,14 +4030,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             />
                          </div>
                          )}
-                         <div className="flex items-center gap-2 px-4 py-2">
-                            <User className="w-5 h-5 text-brand-yellow" />
-                            <span className="text-lg font-medium text-zinc-700 dark:text-white">
+                         <div className="flex min-w-0 flex-1 items-center gap-2 px-4 py-2 lg:max-w-xl lg:flex-1 lg:px-2">
+                            <User className="w-5 h-5 shrink-0 text-brand-yellow" />
+                            <span className="truncate text-lg font-medium text-zinc-700 dark:text-white">
                               {selectedCardTitleParts?.customer || '—'}
                             </span>
                          </div>
                          {!isModuleMode && can('canEditMileage') && (
-                         <div className="flex items-center gap-2 flex-wrap">
+                         <div className="flex shrink-0 items-center gap-2 lg:flex-wrap">
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-yellow">Km</span>
                             <input
                               type="text"
