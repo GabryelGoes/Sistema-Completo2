@@ -538,7 +538,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleColor: detail.vehicle_color ?? '',
       vehicleYear: detail.vehicle_year ?? '',
       vehicleEngineInfo: detail.vehicle_engine_info ?? '',
-      mileageKm: detail.mileage_km ?? '',
+      /** Nova OS: não reaproveitar km da OS arquivada. */
+      mileageKm: '',
       issueDescription: '',
     };
     const mode: ServiceOrderType = detail.order_type === 'module' ? 'module' : 'vehicle';

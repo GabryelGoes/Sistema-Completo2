@@ -1469,7 +1469,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
         vehicleColor: detail.vehicle_color ?? '',
         vehicleYear: detail.vehicle_year ?? '',
         vehicleEngineInfo: detail.vehicle_engine_info ?? '',
-        mileageKm: detail.mileage_km ?? '',
+        /** Nova OS: km sempre em branco para informar o valor atual na recepção. */
+        mileageKm: '',
         issueDescription: '',
       };
       // Garantir que a Recepção abra já no modo correto (veículo ou módulo)
