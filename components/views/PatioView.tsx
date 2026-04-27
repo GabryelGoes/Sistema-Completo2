@@ -597,15 +597,15 @@ function MercosulPlateMockup(props: {
   const display = (plate || '—').trim() || '—';
 
   const w =
-    size === 'cardCompact' ? 'w-[96px]' : size === 'modal' ? 'w-[148px]' : 'w-[128px]';
+    size === 'cardCompact' ? 'w-[88px]' : size === 'modal' ? 'w-[136px]' : 'w-[118px]';
 
   const shadow = size === 'modal' ? 'shadow-xl shadow-black/25' : 'shadow-md shadow-black/15';
 
   const bandText =
     size === 'cardCompact' ? 'text-[4.5px]' : size === 'modal' ? 'text-[8px]' : 'text-[5.5px]';
 
-  const flagW = size === 'cardCompact' ? 9 : size === 'modal' ? 15 : 11;
-  const flagH = size === 'cardCompact' ? 7 : size === 'modal' ? 10 : 8;
+  const flagW = size === 'cardCompact' ? 8 : size === 'modal' ? 14 : 10;
+  const flagH = size === 'cardCompact' ? 6 : size === 'modal' ? 9 : 7;
 
   const plateText =
     size === 'cardCompact'
