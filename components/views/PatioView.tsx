@@ -2588,18 +2588,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return defaultTechStyle;
   };
 
-  // Define tamanho da fonte do modelo para não empurrar placa / técnico para fora do card
+  // Define tamanho da fonte do modelo para não empurrar placa / técnico para fora do card (~90% dos degraus Tailwind = −10%).
   const getModelTitleClass = (modelName: string, panoramic?: boolean) => {
     const len = (modelName || '').length;
     if (panoramic) {
-      if (len > 40) return 'text-xl md:text-4xl lg:text-2xl';
-      if (len > 26) return 'text-2xl md:text-5xl lg:text-3xl';
-      return 'text-2xl md:text-5xl lg:text-3xl';
+      if (len > 40) return 'text-[1.125rem] md:text-[2.025rem] lg:text-[1.35rem]';
+      if (len > 26) return 'text-[1.35rem] md:text-[2.7rem] lg:text-[1.6875rem]';
+      return 'text-[1.35rem] md:text-[2.7rem] lg:text-[1.6875rem]';
     }
     // Tablet em pé (md): bem grande; celular e tablet deitado/desktop (lg) mais controlados
-    if (len > 40) return 'text-3xl md:text-6xl lg:text-4xl';
-    if (len > 26) return 'text-4xl md:text-6xl lg:text-5xl';
-    return 'text-4xl md:text-6xl lg:text-5xl';
+    if (len > 40) return 'text-[1.6875rem] md:text-[3.375rem] lg:text-[2.025rem]';
+    if (len > 26) return 'text-[2.025rem] md:text-[3.375rem] lg:text-[2.7rem]';
+    return 'text-[2.025rem] md:text-[3.375rem] lg:text-[2.7rem]';
   };
 
   const getCommentAuthorAvatar = (authorName: string, photoUrlFromComment?: string | null): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
