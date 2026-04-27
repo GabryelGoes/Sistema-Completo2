@@ -3190,19 +3190,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className="flex-shrink-0">
                     {!isModuleMode && (
                       <div
-                        className={`flex flex-col overflow-hidden rounded-xl border-2 border-black bg-white shadow-md shadow-black/15 select-none ${
-                          boardPanoramic ? 'w-[92px]' : 'w-[120px]'
+                        className={`flex flex-col overflow-hidden rounded-[10px] border-2 border-black bg-white shadow-md shadow-black/15 select-none ${
+                          boardPanoramic ? 'w-[102px]' : 'w-[136px]'
                         }`}
                       >
                         <div
-                          className={`flex items-center justify-between bg-[#003399] px-2 relative ${boardPanoramic ? 'h-3.5' : 'h-4'}`}
+                          className={`flex items-center justify-between bg-[#003399] px-2 relative ${boardPanoramic ? 'h-4' : 'h-5'}`}
                         >
                           <span className={`font-bold text-white tracking-wider ${boardPanoramic ? 'text-[5px]' : 'text-[6px]'}`}>BRASIL</span>
-                          <BrazilFlagIcon width={boardPanoramic ? 10 : 12} height={boardPanoramic ? 7 : 8} className="flex-shrink-0 rounded-sm border border-white/30" />
+                          <BrazilFlagIcon width={boardPanoramic ? 11 : 14} height={boardPanoramic ? 8 : 9} className="flex-shrink-0 rounded-sm border border-white/30" />
                         </div>
-                        <div className={`flex items-center justify-center bg-white ${boardPanoramic ? 'h-7' : 'h-8'}`}>
+                        <div className={`flex items-center justify-center bg-white ${boardPanoramic ? 'h-9' : 'h-10'}`}>
                           <span
-                            className={`font-mono font-black tracking-widest leading-none text-black ${boardPanoramic ? 'text-lg' : 'text-xl'} ${blurPlates ? 'blur-plate' : ''}`}
+                            className={`font-mono font-black tracking-widest leading-none text-black ${boardPanoramic ? 'text-xl' : 'text-2xl'} ${blurPlates ? 'blur-plate' : ''}`}
                           >
                             {plate.toUpperCase()}
                           </span>
@@ -3442,13 +3442,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         </div>
                                         <div className="flex-shrink-0">
                                           {!isModuleMode ? (
-                                            <div className="w-[120px] select-none overflow-hidden rounded-xl border-2 border-black bg-white shadow-md shadow-black/15">
-                                              <div className="relative flex h-4 items-center justify-between bg-[#003399] px-2">
+                                            <div className="w-[136px] select-none overflow-hidden rounded-[10px] border-2 border-black bg-white shadow-md shadow-black/15">
+                                              <div className="relative flex h-5 items-center justify-between bg-[#003399] px-2">
                                                 <span className="text-[6px] font-bold tracking-wider text-white">BRASIL</span>
-                                                <BrazilFlagIcon width={12} height={8} className="shrink-0 rounded-sm border border-white/30" />
+                                                <BrazilFlagIcon width={14} height={9} className="shrink-0 rounded-sm border border-white/30" />
                                               </div>
-                                              <div className="flex h-8 items-center justify-center bg-white">
-                                                <span className={`font-mono text-xl font-black tracking-widest leading-none text-black ${blurPlates ? 'blur-plate' : ''}`}>
+                                              <div className="flex h-10 items-center justify-center bg-white">
+                                                <span className={`font-mono text-2xl font-black tracking-widest leading-none text-black ${blurPlates ? 'blur-plate' : ''}`}>
                                                   {plate.toUpperCase()}
                                                 </span>
                                               </div>
@@ -3560,12 +3560,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      <div className="flex flex-wrap items-center gap-3 text-zinc-700 dark:text-zinc-300">
                          {!isModuleMode && (
                            <div className="flex items-center">
-                              <div className="w-[140px] select-none overflow-hidden rounded-lg border-2 border-black bg-white shadow-lg shadow-black/15">
-                                 <div className="relative flex h-5 items-center justify-between bg-[#003399] px-3">
+                              <div className="w-[148px] select-none overflow-hidden rounded-[11px] border-2 border-black bg-white shadow-lg shadow-black/15">
+                                 <div className="relative flex h-6 items-center justify-between bg-[#003399] px-3">
                                     <span className="text-[8px] font-bold tracking-wider text-white">BRASIL</span>
-                                    <BrazilFlagIcon width={16} height={11} className="shrink-0 rounded-sm border border-white/30" />
+                                    <BrazilFlagIcon width={17} height={11} className="shrink-0 rounded-sm border border-white/30" />
                                  </div>
-                                 <div className="flex h-10 items-center justify-center bg-white">
+                                 <div className="flex h-11 items-center justify-center bg-white">
                                     <span className="font-mono text-2xl font-bold tracking-widest leading-none text-black">
                                        {(historyCardTitleParts?.plateOrModule || '---').toUpperCase()}
                                     </span>
@@ -4082,12 +4082,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      <div className="flex flex-wrap items-center gap-6 text-zinc-400">
                          {!isModuleMode && (
                          <div className="flex items-center">
-                            <div className="w-[140px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-xl shadow-black/20 select-none">
-                               <div className="h-5 bg-[#003399] flex items-center justify-between px-3 relative">
+                            <div className="w-[148px] bg-white rounded-[11px] border-2 border-black flex flex-col overflow-hidden shadow-xl shadow-black/20 select-none">
+                               <div className="h-6 bg-[#003399] flex items-center justify-between px-3 relative">
                                   <span className="text-[8px] font-bold text-white tracking-wider">BRASIL</span>
-                                  <BrazilFlagIcon width={16} height={11} className="rounded-sm flex-shrink-0 border border-white/30" />
+                                  <BrazilFlagIcon width={17} height={11} className="rounded-sm flex-shrink-0 border border-white/30" />
                                </div>
-                               <div className="h-10 flex items-center justify-center bg-white">
+                               <div className="h-11 flex items-center justify-center bg-white">
                                   <span className={`text-black font-mono text-2xl font-black tracking-widest leading-none ${blurPlates ? 'blur-plate' : ''}`}>
                                      {(selectedCardTitleParts?.plateOrModule || '---').toUpperCase()}
                                   </span>
