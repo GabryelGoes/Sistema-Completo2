@@ -1,6 +1,7 @@
 import React from 'react';
-import { Home } from 'lucide-react';
+import { Home, FileText, Calendar, FlaskConical } from 'lucide-react';
 import { useModalLayer } from './ui/ModalLayerContext';
+import { PatioCarIcon } from './ui/PatioCarIcon';
 import { COLORFUL_TAB_ACCENTS, type NavigationTabId } from '../utils/appAppearance';
 
 export type TabId = NavigationTabId;
@@ -40,44 +41,16 @@ export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowed
       return <Home className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
     }
     if (id === 'reception') {
-      return (
-        <img
-          src="/icons/recepcao.svg"
-          alt="Recepção"
-          className={cls(`h-6 w-6 object-contain ${selected ? 'opacity-100' : 'opacity-70'}`)}
-          style={colorfulStyle}
-        />
-      );
+      return <FileText className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
     }
     if (id === 'agenda') {
-      return (
-        <img
-          src="/icons/agenda.svg"
-          alt="Agenda"
-          className={cls(`h-6 w-6 object-contain ${selected ? 'opacity-100' : 'opacity-70'}`)}
-          style={colorfulStyle}
-        />
-      );
+      return <Calendar className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
     }
     if (id === 'patio') {
-      return (
-        <img
-          src="/icons/patio.svg"
-          alt="Pátio"
-          className={cls(`h-6 w-6 object-contain ${selected ? 'opacity-100' : 'opacity-70'}`)}
-          style={colorfulStyle}
-        />
-      );
+      return <PatioCarIcon className={cls('h-6 w-6')} style={colorfulStyle} />;
     }
     if (id === 'laboratorio') {
-      return (
-        <img
-          src="/icons/laboratorio.svg"
-          alt="Laboratório"
-          className={cls(`h-6 w-6 object-contain ${selected ? 'opacity-100' : 'opacity-70'}`)}
-          style={colorfulStyle}
-        />
-      );
+      return <FlaskConical className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
     }
     return null;
   };
