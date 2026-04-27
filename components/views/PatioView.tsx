@@ -98,13 +98,13 @@ const budgetModalPaperFooter = 'border-t border-[#e8dfd0] bg-[#f5efe0]';
 const vehicleModalCustomerNameBox =
   'rounded-[18px] border border-zinc-300/80 bg-zinc-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:border-zinc-600/50 dark:bg-zinc-800/85 dark:shadow-none';
 
-/** Sombra leve no título do veículo nos modais (melhor legibilidade sobre fundos claros/escuros). */
+/** Sombra nos glifos do nome do veículo — text-shadow segue o formato das letras (não retângulo como drop-shadow). */
 const vehicleModalTitleShadow =
-  'drop-shadow-[0_2px_10px_rgba(0,0,0,0.14)] dark:drop-shadow-[0_3px_16px_rgba(0,0,0,0.42)]';
+  '[text-shadow:0_1px_1px_rgba(0,0,0,0.2),0_2px_6px_rgba(0,0,0,0.14),0_4px_18px_rgba(0,0,0,0.08)] dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.92),0_2px_10px_rgba(0,0,0,0.52),0_0_26px_rgba(0,0,0,0.35)]';
 
-/** Sombra mais suave no nome do veículo em subtítulos dos modais (etapa, categoria, etc.). */
+/** Mesma ideia em texto menor (modais etapa/categoria etc.). */
 const vehicleModalSubtitleNameShadow =
-  'drop-shadow-[0_1px_5px_rgba(0,0,0,0.12)] dark:drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]';
+  '[text-shadow:0_1px_1px_rgba(0,0,0,0.18),0_1px_6px_rgba(0,0,0,0.1)] dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.88),0_1px_10px_rgba(0,0,0,0.42)]';
 
 /** Botão principal de criar/salvar orçamento — cinza no modo claro; papel amarelado no escuro. */
 const budgetModalCreateBudgetButton =
