@@ -98,6 +98,14 @@ const budgetModalPaperFooter = 'border-t border-[#e8dfd0] bg-[#f5efe0]';
 const vehicleModalCustomerNameBox =
   'rounded-[18px] border border-zinc-300/80 bg-zinc-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:border-zinc-600/50 dark:bg-zinc-800/85 dark:shadow-none';
 
+/** Sombra leve no título do veículo nos modais (melhor legibilidade sobre fundos claros/escuros). */
+const vehicleModalTitleShadow =
+  'drop-shadow-[0_2px_10px_rgba(0,0,0,0.14)] dark:drop-shadow-[0_3px_16px_rgba(0,0,0,0.42)]';
+
+/** Sombra mais suave no nome do veículo em subtítulos dos modais (etapa, categoria, etc.). */
+const vehicleModalSubtitleNameShadow =
+  'drop-shadow-[0_1px_5px_rgba(0,0,0,0.12)] dark:drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]';
+
 /** Botão principal de criar/salvar orçamento — cinza no modo claro; papel amarelado no escuro. */
 const budgetModalCreateBudgetButton =
   'rounded-2xl border border-zinc-300 bg-zinc-100 text-[15px] font-semibold text-zinc-900 shadow-sm transition-[transform,background-color,border-color,opacity] hover:bg-zinc-200 hover:border-zinc-400 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-[#e8dfd0] dark:bg-[#fffef8] dark:text-[#2d2820] dark:shadow-[0_4px_18px_-6px_rgba(0,0,0,0.35)] dark:hover:bg-[#faf6ed] dark:hover:border-[#dcd2c4]';
@@ -3567,7 +3575,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-zinc-200/80 bg-zinc-100/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-300">
                           Arquivado
                         </span>
-                        <h1 className="text-3xl font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-5xl">
+                        <h1
+                          className={`text-3xl font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-5xl ${vehicleModalTitleShadow}`}
+                        >
                           {historyCardTitleParts?.vehicle}
                         </h1>
                         {!isModuleMode && (selectedHistoryCard?.vehicleBrand ?? '').trim() ? (
@@ -4015,7 +4025,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {(serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand || '').trim()}
                           </p>
                         ) : null}
-                        <h1 className="font-vehicle text-5xl md:text-7xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none">
+                        <h1
+                          className={`font-vehicle text-5xl md:text-7xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none ${vehicleModalTitleShadow}`}
+                        >
                           {selectedCardTitleParts?.vehicle}
                         </h1>
                         {!isModuleMode &&
@@ -6600,7 +6612,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </h2>
                   <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
                     <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                    <span className="min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200">
+                    <span
+                      className={`font-vehicle min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200 ${vehicleModalSubtitleNameShadow}`}
+                    >
                       {cardInTransitionTitleParts?.vehicle}
                     </span>
                     <span className="text-zinc-400 dark:text-zinc-500">—</span>
@@ -6711,7 +6725,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </h2>
                       <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
                         <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                        <span className="font-vehicle min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200">
+                        <span
+                          className={`font-vehicle min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200 ${vehicleModalSubtitleNameShadow}`}
+                        >
                           {selectedCardTitleParts?.vehicle}
                         </span>
                         <span className="text-zinc-400 dark:text-zinc-500">—</span>
