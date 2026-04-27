@@ -585,6 +585,55 @@ function commentToAction(c: { id: string; author_display_name: string; text: str
   };
 }
 
+/** Miniatura Mercosul — proporção ~400×130 mm (placa traseira veículo). Fonte condensada próxima ao visual de placagem. */
+type MercosulPlateMockupSize = 'card' | 'cardCompact' | 'modal';
+
+function MercosulPlateMockup(props: {
+  plate: string;
+  blurPlates?: boolean;
+  size: MercosulPlateMockupSize;
+}) {
+  const { plate, blurPlates = false, size } = props;
+  const display = (plate || '—').trim() || '—';
+
+  const w =
+    size === 'cardCompact' ? 'w-[112px]' : size === 'modal' ? 'w-[172px]' : 'w-[154px]';
+
+  const shadow = size === 'modal' ? 'shadow-xl shadow-black/25' : 'shadow-md shadow-black/15';
+
+  const bandText =
+    size === 'cardCompact' ? 'text-[5px]' : size === 'modal' ? 'text-[9px]' : 'text-[6px]';
+
+  const flagW = size === 'cardCompact' ? 11 : size === 'modal' ? 18 : 14;
+  const flagH = size === 'cardCompact' ? 8 : size === 'modal' ? 12 : 9;
+
+  const plateText =
+    size === 'cardCompact'
+      ? 'text-[14px] sm:text-[15px]'
+      : size === 'modal'
+        ? 'text-[24px] sm:text-[26px]'
+        : 'text-[17px] sm:text-[18px]';
+
+  return (
+    <div
+      className={`${w} aspect-[400/130] grid grid-rows-[20%_80%] overflow-hidden rounded-[7px] border-[2px] border-black bg-white ${shadow} select-none sm:rounded-[9px]`}
+      aria-hidden
+    >
+      <div className="flex min-h-0 items-center justify-between gap-1 bg-[#003399] px-1.5">
+        <span className={`font-semibold uppercase leading-none tracking-wide text-white ${bandText}`}>BRASIL</span>
+        <BrazilFlagIcon width={flagW} height={flagH} className="shrink-0 rounded-sm border border-white/35" />
+      </div>
+      <div className="flex min-h-0 items-center justify-center bg-white px-1">
+        <span
+          className={`font-plate max-w-[98%] text-center font-extrabold uppercase leading-none tracking-[0.1em] text-black antialiased ${plateText} ${blurPlates ? 'blur-plate' : ''}`}
+        >
+          {display.toUpperCase()}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 const VEHICLE_MODAL_PHOTOS_BATCH = 8;
 
 export const PatioView: React.FC<PatioViewProps> = ({
@@ -3189,25 +3238,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
                   <div className="flex-shrink-0">
                     {!isModuleMode && (
-                      <div
-                        className={`flex flex-col overflow-hidden rounded-[10px] border-2 border-black bg-white shadow-md shadow-black/15 select-none ${
-                          boardPanoramic ? 'w-[102px]' : 'w-[136px]'
-                        }`}
-                      >
-                        <div
-                          className={`flex items-center justify-between bg-[#003399] px-2 relative ${boardPanoramic ? 'h-4' : 'h-5'}`}
-                        >
-                          <span className={`font-bold text-white tracking-wider ${boardPanoramic ? 'text-[5px]' : 'text-[6px]'}`}>BRASIL</span>
-                          <BrazilFlagIcon width={boardPanoramic ? 11 : 14} height={boardPanoramic ? 8 : 9} className="flex-shrink-0 rounded-sm border border-white/30" />
-                        </div>
-                        <div className={`flex items-center justify-center bg-white ${boardPanoramic ? 'h-9' : 'h-10'}`}>
-                          <span
-                            className={`font-mono font-black tracking-widest leading-none text-black ${boardPanoramic ? 'text-xl' : 'text-2xl'} ${blurPlates ? 'blur-plate' : ''}`}
-                          >
-                            {plate.toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
+                      <MercosulPlateMockup
+                        plate={plate}
+                        blurPlates={blurPlates}
+                        size={boardPanoramic ? 'cardCompact' : 'card'}
+                      />
                     )}
                   </div>
                 </div>
@@ -3442,17 +3477,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         </div>
                                         <div className="flex-shrink-0">
                                           {!isModuleMode ? (
-                                            <div className="w-[136px] select-none overflow-hidden rounded-[10px] border-2 border-black bg-white shadow-md shadow-black/15">
-                                              <div className="relative flex h-5 items-center justify-between bg-[#003399] px-2">
-                                                <span className="text-[6px] font-bold tracking-wider text-white">BRASIL</span>
-                                                <BrazilFlagIcon width={14} height={9} className="shrink-0 rounded-sm border border-white/30" />
-                                              </div>
-                                              <div className="flex h-10 items-center justify-center bg-white">
-                                                <span className={`font-mono text-2xl font-black tracking-widest leading-none text-black ${blurPlates ? 'blur-plate' : ''}`}>
-                                                  {plate.toUpperCase()}
-                                                </span>
-                                              </div>
-                                            </div>
+                                            <MercosulPlateMockup plate={plate} blurPlates={blurPlates} size="card" />
                                           ) : (
                                             <div className="max-w-[140px] rounded-xl border border-zinc-200/70 bg-white/55 px-3 py-2 text-right backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05]">
                                               <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Módulo</p>
@@ -3560,17 +3585,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      <div className="flex flex-wrap items-center gap-3 text-zinc-700 dark:text-zinc-300">
                          {!isModuleMode && (
                            <div className="flex items-center">
-                              <div className="w-[148px] select-none overflow-hidden rounded-[11px] border-2 border-black bg-white shadow-lg shadow-black/15">
-                                 <div className="relative flex h-6 items-center justify-between bg-[#003399] px-3">
-                                    <span className="text-[8px] font-bold tracking-wider text-white">BRASIL</span>
-                                    <BrazilFlagIcon width={17} height={11} className="shrink-0 rounded-sm border border-white/30" />
-                                 </div>
-                                 <div className="flex h-11 items-center justify-center bg-white">
-                                    <span className="font-mono text-2xl font-bold tracking-widest leading-none text-black">
-                                       {(historyCardTitleParts?.plateOrModule || '---').toUpperCase()}
-                                    </span>
-                                 </div>
-                              </div>
+                              <MercosulPlateMockup
+                                plate={historyCardTitleParts?.plateOrModule || '---'}
+                                blurPlates={blurPlates}
+                                size="modal"
+                              />
                            </div>
                          )}
                          <div className={`${iosModalInsetCard} flex items-center gap-2 px-4 py-2.5`}>
@@ -4082,17 +4101,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      <div className="flex flex-wrap items-center gap-6 text-zinc-400">
                          {!isModuleMode && (
                          <div className="flex items-center">
-                            <div className="w-[148px] bg-white rounded-[11px] border-2 border-black flex flex-col overflow-hidden shadow-xl shadow-black/20 select-none">
-                               <div className="h-6 bg-[#003399] flex items-center justify-between px-3 relative">
-                                  <span className="text-[8px] font-bold text-white tracking-wider">BRASIL</span>
-                                  <BrazilFlagIcon width={17} height={11} className="rounded-sm flex-shrink-0 border border-white/30" />
-                               </div>
-                               <div className="h-11 flex items-center justify-center bg-white">
-                                  <span className={`text-black font-mono text-2xl font-black tracking-widest leading-none ${blurPlates ? 'blur-plate' : ''}`}>
-                                     {(selectedCardTitleParts?.plateOrModule || '---').toUpperCase()}
-                                  </span>
-                               </div>
-                            </div>
+                            <MercosulPlateMockup
+                              plate={selectedCardTitleParts?.plateOrModule || '---'}
+                              blurPlates={blurPlates}
+                              size="modal"
+                            />
                          </div>
                          )}
                          <div className="flex items-center gap-2 px-4 py-2">

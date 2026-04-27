@@ -12,6 +12,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="REI DO ABS" />
     
+    <!-- Fonte próxima ao estilo tipográfico de placa Mercosul (condensada / técnica) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet" />
+
     <!-- Novo Ícone -->
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="apple-touch-icon" href="/logo.png" />
@@ -27,6 +32,8 @@
               sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
               /** Nome do veículo nos cards/modais — mantém visual anterior (Helvetica), fora da UI SF */
               vehicle: ['"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif'],
+              /** Miniatura de placa Mercosul nos cards — Barlow Condensed próximo ao visual de placagem */
+              plate: ['"Barlow Condensed"', '"Arial Narrow"', 'Arial', 'sans-serif'],
             },
             colors: {
               brand: {
