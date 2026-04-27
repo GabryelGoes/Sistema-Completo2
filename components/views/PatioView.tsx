@@ -4087,94 +4087,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          </div>
                          )}
                         </div>
-                        {/* Técnico + Data de entrega — duas colunas no mesmo bloco */}
-                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {can('canAssignTechnician') && (
-                          <button
-                            type="button"
-                            onClick={() => setCardForMemberAssignment(selectedCard)}
-                            className={`${vi} flex w-full items-center gap-3 px-3 py-2.5 text-left shadow-none transition-all duration-200 active:scale-[0.99] hover:border-[#007AFF]/25 dark:hover:border-white/12`}
-                          >
-                            {selectedCard.members && selectedCard.members.length > 0 ? (
-                              <>
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
-                                  <MechanicIcon className="w-4 h-4 opacity-95" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                                    Técnico responsável
-                                  </p>
-                                  <p className="text-sm font-bold text-zinc-900 dark:text-white truncate mt-0.5">
-                                    {capitalizeFirst(selectedCard.members[0].fullName)}
-                                  </p>
-                                </div>
-                                <ChevronRight className="w-4 h-4 shrink-0 text-brand-yellow" />
-                              </>
-                            ) : (
-                              <>
-                                <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-brand-yellow/20 border-2 border-dashed border-brand-yellow/50">
-                                  <MechanicIcon className="w-4 h-4 text-brand-yellow" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                                    Técnico responsável
-                                  </p>
-                                  <p className="text-sm font-semibold text-brand-yellow mt-0.5">
-                                    Toque para atribuir
-                                  </p>
-                                </div>
-                                <ChevronRight className="w-4 h-4 text-zinc-400 shrink-0" />
-                              </>
-                            )}
-                          </button>
-                          )}
-                          {can('canEditDeliveryDate') && (
-                          <div className={`${vi} flex flex-wrap items-center gap-2 px-3 py-2.5 shadow-none`}>
-                            <Calendar className="w-5 h-5 text-brand-yellow shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                                Data de entrega
-                              </p>
-                              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <input
-                                  type="date"
-                                  value={deliveryDateEditValue}
-                                  onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                  className="px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 min-w-[120px]"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={handleSaveDeliveryDate}
-                                  disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
-                                  className={`px-2.5 py-1.5 rounded-lg text-white text-xs font-medium flex items-center gap-1 transition-colors disabled:opacity-50 ${
-                                    deliveryDateEditValue !== lastSavedDeliveryDate
-                                      ? 'bg-amber-500 hover:bg-amber-600'
-                                      : 'bg-zinc-600 dark:bg-zinc-700'
-                                  }`}
-                                >
-                                  {savingDeliveryDate ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                                  Salvar
-                                </button>
-                                {deliveryDateSavedMessage && (
-                                  <span className="text-xs font-medium text-green-600 dark:text-green-400">Salvo!</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          )}
-                        </div>
-                     </div>
-                  </div>
 
-                  {/* Dados da ficha — vidro iOS (agrupado, minimizado por padrão) */}
-                  {serviceOrderDetail && (
-                    <div ref={customerDataSectionRef} className="p-8 pt-8 md:px-12">
+                        {/* Dados da ficha — vidro iOS (agrupado, minimizado por padrão); antes era técnico/data */}
+                        {serviceOrderDetail && (
+                        <div ref={customerDataSectionRef} className="mt-3 w-full">
                       <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
                         <div className="flex items-stretch gap-0 border-b border-zinc-200/60 bg-white dark:border-white/[0.06] dark:bg-white/[0.04]">
                           <button
                             type="button"
                             onClick={() => setIsDadosFichaExpanded((v) => !v)}
-                            className="group flex min-w-0 flex-1 items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] sm:px-6"
+                            className="group flex min-w-0 flex-1 items-center justify-between gap-2.5 px-4 py-3 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] sm:gap-3 sm:px-5"
                           >
                             <div className="flex min-w-0 items-center gap-3">
                               {isModuleMode ? (
@@ -4209,8 +4131,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </p>
                               </div>
                             </div>
-                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-zinc-500 transition-transform group-hover:scale-105 dark:bg-white/[0.08]">
-                              {isDadosFichaExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-zinc-500 transition-transform group-hover:scale-105 dark:bg-white/[0.08] sm:h-8 sm:w-8">
+                              {isDadosFichaExpanded ? <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                             </span>
                           </button>
                         </div>
@@ -4496,6 +4418,84 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
                     </div>
                   )}
+                        {/* Técnico + Data de entrega — compactos (abaixo de Dados da ficha) */}
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {can('canAssignTechnician') && (
+                          <button
+                            type="button"
+                            onClick={() => setCardForMemberAssignment(selectedCard)}
+                            className={`${vi} flex w-full items-center gap-2 px-2 py-1.5 text-left shadow-none transition-all duration-200 active:scale-[0.99] hover:border-[#007AFF]/25 dark:hover:border-white/12`}
+                          >
+                            {selectedCard.members && selectedCard.members.length > 0 ? (
+                              <>
+                                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 shadow-sm ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
+                                  <MechanicIcon className="h-3.5 w-3.5 opacity-95" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                    Técnico responsável
+                                  </p>
+                                  <p className="truncate text-xs font-bold text-zinc-900 dark:text-white mt-0.5">
+                                    {capitalizeFirst(selectedCard.members[0].fullName)}
+                                  </p>
+                                </div>
+                                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-brand-yellow" />
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-dashed border-brand-yellow/50 bg-brand-yellow/20">
+                                  <MechanicIcon className="h-3.5 w-3.5 text-brand-yellow" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                    Técnico responsável
+                                  </p>
+                                  <p className="mt-0.5 text-xs font-semibold text-brand-yellow">
+                                    Toque para atribuir
+                                  </p>
+                                </div>
+                                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                              </>
+                            )}
+                          </button>
+                          )}
+                          {can('canEditDeliveryDate') && (
+                          <div className={`${vi} flex flex-wrap items-center gap-1.5 px-2 py-1.5 shadow-none`}>
+                            <Calendar className="h-4 w-4 shrink-0 text-brand-yellow" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                Data de entrega
+                              </p>
+                              <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                                <input
+                                  type="date"
+                                  value={deliveryDateEditValue}
+                                  onChange={(e) => setDeliveryDateEditValue(e.target.value)}
+                                  className="min-w-[104px] rounded-md border border-zinc-200 bg-white px-1.5 py-1 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleSaveDeliveryDate}
+                                  disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
+                                  className={`flex items-center gap-0.5 rounded-md px-2 py-1 text-[11px] font-medium text-white transition-colors disabled:opacity-50 ${
+                                    deliveryDateEditValue !== lastSavedDeliveryDate
+                                      ? 'bg-amber-500 hover:bg-amber-600'
+                                      : 'bg-zinc-600 dark:bg-zinc-700'
+                                  }`}
+                                >
+                                  {savingDeliveryDate ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                  Salvar
+                                </button>
+                                {deliveryDateSavedMessage && (
+                                  <span className="text-[11px] font-medium text-green-600 dark:text-green-400">Salvo!</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          )}
+                        </div>
+                     </div>
+                  </div>
 
                   <div className="grid grid-cols-1 gap-10 p-8 pt-8 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:gap-8 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(232px,288px)]">
                       
