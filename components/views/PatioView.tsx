@@ -94,6 +94,14 @@ const budgetModalPaperShell =
   'border border-[#e8dfd0] bg-[#faf6ed] shadow-[0_16px_48px_-20px_rgba(40,30,20,0.14),0_4px_16px_-8px_rgba(40,30,20,0.08)]';
 const budgetModalPaperFooter = 'border-t border-[#e8dfd0] bg-[#f5efe0]';
 
+/** Botão principal de criar/salvar orçamento — papel branco-amarelado igual em modo claro e escuro. */
+const budgetModalCreateBudgetButton =
+  'rounded-2xl border border-[#e8dfd0] bg-[#fffef8] text-[15px] font-semibold text-[#2d2820] shadow-[0_4px_14px_-4px_rgba(90,70,40,0.12)] transition-[transform,background-color,border-color,opacity] hover:bg-[#faf6ed] hover:border-[#dcd2c4] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:bg-[#fffef8] dark:border-[#e8dfd0] dark:text-[#2d2820] dark:shadow-[0_4px_18px_-6px_rgba(0,0,0,0.35)] dark:hover:bg-[#faf6ed] dark:hover:border-[#dcd2c4]';
+
+/** Cartão largo “Criar orçamento” na lista do modal do veículo — mesmo tom do papel do orçamento. */
+const budgetModalCreateBudgetCardButton =
+  'group w-full rounded-xl border-2 border-[#e8dfd0] bg-[#fffef8] p-4 text-left shadow-md transition-[filter,transform,background-color,border-color] hover:bg-[#faf6ed] hover:border-[#dcd2c4] active:scale-[0.99] dark:bg-[#fffef8] dark:border-[#e8dfd0] dark:hover:bg-[#faf6ed] dark:hover:border-[#dcd2c4]';
+
 export type OpenServiceOrderSection = 'comments' | 'budgets' | 'description' | null;
 
 interface PatioViewProps {
@@ -4425,11 +4433,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <button 
                                   type="button"
                                   onClick={() => openBudgetModal()}
-                                  className="group w-full rounded-xl border-2 border-brand-yellow/90 bg-brand-yellow p-4 text-left shadow-md transition-[filter,transform,box-shadow] hover:brightness-110 active:scale-[0.99]"
+                                  className={budgetModalCreateBudgetCardButton}
                                 >
                                   <span className="flex items-center justify-between gap-3">
-                                    <span className="font-black text-zinc-950">Criar orçamento</span>
-                                    <Calculator className="h-5 w-5 shrink-0 text-zinc-950/90 transition-transform group-hover:scale-110" />
+                                    <span className="font-black text-[#2d2820]">Criar orçamento</span>
+                                    <Calculator className="h-5 w-5 shrink-0 text-[#2d2820]/90 transition-transform group-hover:scale-110" />
                                   </span>
                               </button>
                               <div className="max-h-[280px] space-y-3 overflow-y-auto rounded-xl border-2 border-zinc-200/90 bg-white p-3 shadow-sm dark:border-zinc-600/80 dark:bg-zinc-900/50">
@@ -6430,7 +6438,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 type="button"
                 onClick={handleCreateBudget}
                 disabled={sendingBudget}
-                className={`${iosPrimaryButton} flex w-full items-center justify-center gap-2 disabled:pointer-events-none disabled:opacity-50`}
+                className={`${budgetModalCreateBudgetButton} flex w-full items-center justify-center gap-2 px-6 py-3.5`}
               >
                 {sendingBudget ? <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.2} /> : <CheckCircle2 className="h-5 w-5" strokeWidth={2} />}
                 {sendingBudget ? 'Salvando…' : editingBudget ? 'Salvar alterações' : 'Criar orçamento'}
