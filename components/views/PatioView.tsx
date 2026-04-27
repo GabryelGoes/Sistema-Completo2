@@ -2592,14 +2592,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const getModelTitleClass = (modelName: string, panoramic?: boolean) => {
     const len = (modelName || '').length;
     if (panoramic) {
-      if (len > 40) return 'text-lg md:text-3xl lg:text-xl';
-      if (len > 26) return 'text-xl md:text-4xl lg:text-2xl';
-      return 'text-xl md:text-4xl lg:text-2xl';
+      if (len > 40) return 'text-xl md:text-4xl lg:text-2xl';
+      if (len > 26) return 'text-2xl md:text-5xl lg:text-3xl';
+      return 'text-2xl md:text-5xl lg:text-3xl';
     }
     // Tablet em pé (md): bem grande; celular e tablet deitado/desktop (lg) mais controlados
-    if (len > 40) return 'text-2xl md:text-5xl lg:text-3xl';
-    if (len > 26) return 'text-3xl md:text-6xl lg:text-4xl';
-    return 'text-3xl md:text-6xl lg:text-4xl';
+    if (len > 40) return 'text-3xl md:text-6xl lg:text-4xl';
+    if (len > 26) return 'text-4xl md:text-6xl lg:text-5xl';
+    return 'text-4xl md:text-6xl lg:text-5xl';
   };
 
   const getCommentAuthorAvatar = (authorName: string, photoUrlFromComment?: string | null): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
@@ -3192,7 +3192,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {/* Nome do carro (fonte um pouco menor) */}
                 <div className={boardPanoramic ? 'mb-1' : 'mb-2'}>
                   <h3
-                    className={`font-vehicle ${getModelTitleClass(model, boardPanoramic)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic`}
+                    className={`font-vehicle ${getModelTitleClass(model, boardPanoramic)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic ${vehicleModalTitleShadow}`}
                   >
                     {model}
                   </h3>
@@ -3457,7 +3457,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <div className="mb-4 min-h-0 flex-1">
                                       <div className="mb-2">
                                         <h3
-                                          className={`font-vehicle ${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic`}
+                                          className={`font-vehicle ${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic ${vehicleModalTitleShadow}`}
                                         >
                                           {model}
                                         </h3>
