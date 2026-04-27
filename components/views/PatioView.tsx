@@ -94,6 +94,10 @@ const budgetModalPaperShell =
   'border border-[#e8dfd0] bg-[#faf6ed] shadow-[0_16px_48px_-20px_rgba(40,30,20,0.14),0_4px_16px_-8px_rgba(40,30,20,0.08)]';
 const budgetModalPaperFooter = 'border-t border-[#e8dfd0] bg-[#f5efe0]';
 
+/** Nome do cliente no cabeçalho do modal de veículo — caixa com fundo cinza. */
+const vehicleModalCustomerNameBox =
+  'rounded-[18px] border border-zinc-300/80 bg-zinc-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:border-zinc-600/50 dark:bg-zinc-800/85 dark:shadow-none';
+
 /** Botão principal de criar/salvar orçamento — cinza no modo claro; papel amarelado no escuro. */
 const budgetModalCreateBudgetButton =
   'rounded-2xl border border-zinc-300 bg-zinc-100 text-[15px] font-semibold text-zinc-900 shadow-sm transition-[transform,background-color,border-color,opacity] hover:bg-zinc-200 hover:border-zinc-400 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-[#e8dfd0] dark:bg-[#fffef8] dark:text-[#2d2820] dark:shadow-[0_4px_18px_-6px_rgba(0,0,0,0.35)] dark:hover:bg-[#faf6ed] dark:hover:border-[#dcd2c4]';
@@ -3586,8 +3590,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               />
                            </div>
                          )}
-                         <div className={`${iosModalInsetCard} flex min-w-0 flex-1 items-center gap-2 px-4 py-2.5 lg:max-w-xl lg:flex-1`}>
-                            <User className="h-5 w-5 shrink-0 text-zinc-500" />
+                         <div
+                           className={`${vehicleModalCustomerNameBox} flex min-w-0 flex-1 items-center gap-2 px-4 py-2.5 lg:max-w-xl lg:flex-1`}
+                         >
+                            <User className="h-5 w-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
                             <span className="truncate text-[16px] font-medium text-zinc-900 dark:text-white">{historyCardTitleParts?.customer}</span>
                          </div>
                          {selectedHistoryCard.due && (
@@ -4030,7 +4036,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             />
                          </div>
                          )}
-                         <div className="flex min-w-0 flex-1 items-center gap-2 px-4 py-2 lg:max-w-xl lg:flex-1 lg:px-2">
+                         <div
+                           className={`${vehicleModalCustomerNameBox} flex min-w-0 flex-1 items-center gap-2 px-4 py-2.5 lg:max-w-xl lg:flex-1`}
+                         >
                             <User className="w-5 h-5 shrink-0 text-brand-yellow" />
                             <span className="truncate text-lg font-medium text-zinc-700 dark:text-white">
                               {selectedCardTitleParts?.customer || '—'}
