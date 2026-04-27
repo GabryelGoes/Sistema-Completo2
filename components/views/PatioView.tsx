@@ -3576,13 +3576,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             Cor · {(selectedHistoryCard?.vehicleColor ?? '').trim()}
                           </p>
                         ) : null}
-                        <p className="flex items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" />
-                          Registro encerrado — leitura, anexos e reabertura
-                        </p>
-                     </div>
-
-                     <div className="flex flex-wrap items-center gap-3 text-zinc-700 dark:text-zinc-300">
+                        <div className="mt-3 flex flex-col gap-3 text-zinc-700 dark:text-zinc-300">
                          {!isModuleMode && (
                            <div className="flex items-center">
                               <MercosulPlateMockup
@@ -3604,7 +3598,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </span>
                            </div>
                          )}
-                      </div>
+                        </div>
+                        <p className="mt-2 flex items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" />
+                          Registro encerrado — leitura, anexos e reabertura
+                        </p>
+                     </div>
                   </div>
 
                   <div className="mx-auto h-px max-w-[92%] bg-zinc-200/80 dark:bg-white/[0.08]" />
@@ -4020,6 +4019,54 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '').trim()}
                           </p>
                         ) : null}
+                        {/* Placa Mercosul, cliente e km — logo abaixo da cor (e do nome, se não houver cor) */}
+                        <div className="mt-3 flex flex-col gap-3 text-zinc-400">
+                         {!isModuleMode && (
+                         <div className="flex items-center">
+                            <MercosulPlateMockup
+                              plate={selectedCardTitleParts?.plateOrModule || '---'}
+                              blurPlates={blurPlates}
+                              size="modal"
+                            />
+                         </div>
+                         )}
+                         <div className="flex items-center gap-2 px-4 py-2">
+                            <User className="w-5 h-5 text-brand-yellow" />
+                            <span className="text-lg font-medium text-zinc-700 dark:text-white">
+                              {selectedCardTitleParts?.customer || '—'}
+                            </span>
+                         </div>
+                         {!isModuleMode && can('canEditMileage') && (
+                         <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-yellow">Km</span>
+                            <input
+                              type="text"
+                              value={mileageEditValue}
+                              onChange={(e) => setMileageEditValue(e.target.value)}
+                              placeholder="Ex: 45000"
+                              className="w-28 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleSaveMileage}
+                              disabled={savingMileage || mileageEditValue.trim() === lastSavedMileage}
+                              className={`px-3 py-2 rounded-lg text-white text-sm font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50 ${
+                                mileageEditValue.trim() !== lastSavedMileage
+                                  ? 'bg-amber-500 hover:bg-amber-600'
+                                  : 'bg-zinc-600 dark:bg-zinc-700'
+                              }`}
+                            >
+                              {savingMileage ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                              Salvar
+                            </button>
+                            {mileageSavedMessage && (
+                              <span className="text-sm font-medium text-green-600 dark:text-green-400 animate-in fade-in">
+                                Salvo!
+                              </span>
+                            )}
+                         </div>
+                         )}
+                        </div>
                         {/* Técnico + Data de entrega — duas colunas no mesmo bloco */}
                         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {can('canAssignTechnician') && (
@@ -4096,54 +4143,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                           )}
                         </div>
-                     </div>
-
-                     <div className="flex flex-wrap items-center gap-6 text-zinc-400">
-                         {!isModuleMode && (
-                         <div className="flex items-center">
-                            <MercosulPlateMockup
-                              plate={selectedCardTitleParts?.plateOrModule || '---'}
-                              blurPlates={blurPlates}
-                              size="modal"
-                            />
-                         </div>
-                         )}
-                         <div className="flex items-center gap-2 px-4 py-2">
-                            <User className="w-5 h-5 text-brand-yellow" />
-                            <span className="text-lg font-medium text-zinc-700 dark:text-white">
-                              {selectedCardTitleParts?.customer || '—'}
-                            </span>
-                         </div>
-                         {!isModuleMode && can('canEditMileage') && (
-                         <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-yellow">Km</span>
-                            <input
-                              type="text"
-                              value={mileageEditValue}
-                              onChange={(e) => setMileageEditValue(e.target.value)}
-                              placeholder="Ex: 45000"
-                              className="w-28 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-                            />
-                            <button
-                              type="button"
-                              onClick={handleSaveMileage}
-                              disabled={savingMileage || mileageEditValue.trim() === lastSavedMileage}
-                              className={`px-3 py-2 rounded-lg text-white text-sm font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50 ${
-                                mileageEditValue.trim() !== lastSavedMileage
-                                  ? 'bg-amber-500 hover:bg-amber-600'
-                                  : 'bg-zinc-600 dark:bg-zinc-700'
-                              }`}
-                            >
-                              {savingMileage ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                              Salvar
-                            </button>
-                            {mileageSavedMessage && (
-                              <span className="text-sm font-medium text-green-600 dark:text-green-400 animate-in fade-in">
-                                Salvo!
-                              </span>
-                            )}
-                         </div>
-                         )}
                      </div>
                   </div>
 
