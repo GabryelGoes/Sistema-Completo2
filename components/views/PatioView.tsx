@@ -3100,7 +3100,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   motion-safe:transition-[padding,min-height,border-radius,box-shadow] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]
                   ${
                     boardPanoramic
-                      ? 'min-h-[128px] rounded-[1.25rem] p-3.5 sm:rounded-2xl'
+                      ? 'min-h-[128px] rounded-[1.85rem] p-3.5 sm:rounded-[2.1rem]'
                       : 'min-h-[180px] rounded-[2rem] p-5 sm:rounded-[2.25rem]'
                   }
                   ${isGarantia ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40' : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'}
