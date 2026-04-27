@@ -596,34 +596,34 @@ function MercosulPlateMockup(props: {
   const { plate, blurPlates = false, size } = props;
   const display = (plate || '—').trim() || '—';
 
-  const w =
-    size === 'cardCompact' ? 'w-[88px]' : size === 'modal' ? 'w-[136px]' : 'w-[118px]';
+  /** Mesmo visual dos modais: cartão normal e lista de histórico usam este bloco (`card` === `modal`). */
+  const isCompact = size === 'cardCompact';
 
-  const shadow = size === 'modal' ? 'shadow-xl shadow-black/25' : 'shadow-md shadow-black/15';
+  const w = isCompact ? 'w-[88px]' : 'w-[136px]';
 
-  const bandText =
-    size === 'cardCompact' ? 'text-[4.5px]' : size === 'modal' ? 'text-[8px]' : 'text-[5.5px]';
+  const shadow = isCompact ? 'shadow-md shadow-black/15' : 'shadow-xl shadow-black/25';
 
-  const flagW = size === 'cardCompact' ? 8 : size === 'modal' ? 14 : 10;
-  const flagH = size === 'cardCompact' ? 6 : size === 'modal' ? 9 : 7;
+  const bandText = isCompact ? 'text-[4.5px]' : 'text-[8px]';
 
-  const plateText =
-    size === 'cardCompact'
-      ? 'text-[16px] sm:text-[17px]'
-      : size === 'modal'
-        ? 'text-[28px] sm:text-[31px]'
-        : 'text-[20px] sm:text-[22px]';
+  const flagW = isCompact ? 8 : 14;
+  const flagH = isCompact ? 6 : 9;
+
+  const plateText = isCompact
+    ? 'text-[16px] sm:text-[17px]'
+    : 'text-[28px] sm:text-[31px]';
 
   return (
     <div
       className={`${w} aspect-[400/130] grid grid-rows-[20%_80%] overflow-hidden rounded-[7px] border-[2px] border-black bg-white ${shadow} select-none sm:rounded-[9px]`}
       aria-hidden
     >
-      <div className="flex min-h-0 items-center justify-between gap-1 bg-[#003399] px-1.5">
+      <div
+        className={`flex min-h-0 items-center justify-between gap-1 bg-[#003399] ${isCompact ? 'px-1.5' : 'px-2 sm:px-3'}`}
+      >
         <span className={`font-semibold uppercase leading-none tracking-wide text-white ${bandText}`}>BRASIL</span>
         <BrazilFlagIcon width={flagW} height={flagH} className="shrink-0 rounded-sm border border-white/35" />
       </div>
-      <div className="flex min-h-0 items-center justify-center bg-white px-1">
+      <div className={`flex min-h-0 items-center justify-center bg-white ${isCompact ? 'px-1' : 'px-1.5 sm:px-2'}`}>
         <span
           className={`font-plate max-w-[100%] text-center font-extrabold uppercase leading-[0.95] tracking-[0.06em] text-black antialiased ${plateText} ${blurPlates ? 'blur-plate' : ''}`}
         >
