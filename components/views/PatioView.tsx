@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2, Car } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2, Car } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -798,6 +798,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const isModuleMode = orderType === 'module';
   const remindersScopeApi = orderType === 'module' ? ('module' as const) : ('vehicle' as const);
   const remindersBadgeCount = reminders.length;
+
+  /** Visão panorâmica: cartões menores para caber mais na tela (Pátio / Laboratório independentes). */
+  const boardPanoramicStorageKey = isModuleMode ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
+  const [boardPanoramic, setBoardPanoramic] = useState(false);
+  useEffect(() => {
+    try {
+      setBoardPanoramic(localStorage.getItem(boardPanoramicStorageKey) === '1');
+    } catch {
+      setBoardPanoramic(false);
+    }
+  }, [boardPanoramicStorageKey]);
 
   const selectedCardTitleParts = selectedCard ? parsePatioCardTitle(selectedCard.name) : null;
   const historyCardTitleParts = selectedHistoryCard ? parsePatioCardTitle(selectedHistoryCard.name) : null;
@@ -2517,8 +2528,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   // Define tamanho da fonte do modelo para não empurrar placa / técnico para fora do card
-  const getModelTitleClass = (modelName: string) => {
+  const getModelTitleClass = (modelName: string, panoramic?: boolean) => {
     const len = (modelName || '').length;
+    if (panoramic) {
+      if (len > 40) return 'text-lg md:text-3xl lg:text-xl';
+      if (len > 26) return 'text-xl md:text-4xl lg:text-2xl';
+      return 'text-xl md:text-4xl lg:text-2xl';
+    }
     // Tablet em pé (md): bem grande; celular e tablet deitado/desktop (lg) mais controlados
     if (len > 40) return 'text-2xl md:text-5xl lg:text-3xl';
     if (len > 26) return 'text-3xl md:text-6xl lg:text-4xl';
@@ -2921,6 +2937,34 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {isModuleMode ? 'Lembretes do laboratório' : 'Lembretes do pátio'}
               </span>
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setBoardPanoramic((prev) => {
+                  const next = !prev;
+                  try {
+                    localStorage.setItem(boardPanoramicStorageKey, next ? '1' : '0');
+                  } catch (_) {}
+                  return next;
+                });
+              }}
+              aria-pressed={boardPanoramic}
+              title={
+                boardPanoramic
+                  ? 'Desativar visão panorâmica (cartões maiores)'
+                  : 'Visão panorâmica — cartões menores para caber mais na tela'
+              }
+              className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 active:scale-[0.98] sm:px-5 sm:py-3 ${
+                boardPanoramic
+                  ? 'border-[#007AFF]/40 bg-[#007AFF]/15 text-[#007AFF] hover:border-[#007AFF]/55 hover:bg-[#007AFF]/22 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18 dark:text-[#64B5FF]'
+                  : 'border-zinc-200/80 bg-white/80 text-zinc-700 hover:border-[#007AFF]/30 hover:text-zinc-900 dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:border-white/20 dark:hover:text-white'
+              }`}
+            >
+              <ZoomOut className="h-5 w-5 shrink-0" strokeWidth={2} />
+              <span className="hidden tracking-tight sm:inline">
+                {boardPanoramic ? 'Panorâmica' : 'Ver mais na tela'}
+              </span>
+            </button>
             <div className="flex shrink-0 items-center">
               <NotificationCenter
                 theme="light"
@@ -2977,7 +3021,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const sortedCards = [...cards].sort(byStage);
         return (
       <>
-      <div className="relative z-0 grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-5 lg:grid-cols-3 lg:gap-6" style={{ perspective: '1400px' }}>
+      <div
+        className={boardPanoramic ? 'origin-top' : undefined}
+        style={
+          boardPanoramic
+            ? ({ zoom: 0.78 } as React.CSSProperties & { zoom?: number })
+            : undefined
+        }
+      >
+      <div
+        className={`relative z-0 grid perspective-[1400px] ${
+          boardPanoramic
+            ? 'grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 md:gap-3 lg:grid-cols-4 lg:gap-3.5 xl:grid-cols-5 2xl:grid-cols-6 2xl:gap-4'
+            : 'grid-cols-1 gap-5 md:grid-cols-2 md:gap-5 lg:grid-cols-3 lg:gap-6'
+        }`}
+      >
         {sortedCards.map(card => {
           const titleParts = parsePatioCardTitle(card.name);
           const model = titleParts.vehicle || card.name;
@@ -3009,7 +3067,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           return (
             <div
               key={card.id}
-              className="min-h-[180px]"
+              className={boardPanoramic ? 'min-h-[128px]' : 'min-h-[180px]'}
               style={{ transformStyle: 'preserve-3d' }}
               onMouseMove={(e) => handleCardMouseMove(e, card.id)}
               onMouseLeave={handleCardMouseLeave}
@@ -3017,12 +3075,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div
                 onClick={() => setSelectedCard(card)}
                 className={`
-                  group relative flex h-full min-h-[180px] cursor-pointer flex-col justify-between overflow-hidden
-                  rounded-[2rem] border bg-white/70 p-5 backdrop-blur-2xl sm:rounded-[2.25rem]
+                  group relative flex h-full cursor-pointer flex-col justify-between overflow-hidden
+                  border bg-white/70 backdrop-blur-2xl
                   shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:bg-zinc-900/40
                   dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]
                   hover:border-[#007AFF]/28 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:hover:border-white/[0.12] dark:hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.5)]
                   active:scale-[0.99]
+                  ${
+                    boardPanoramic
+                      ? 'min-h-[128px] rounded-[1.25rem] p-3.5 sm:rounded-2xl'
+                      : 'min-h-[180px] rounded-[2rem] p-5 sm:rounded-[2.25rem]'
+                  }
                   ${isGarantia ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40' : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'}
                 `}
                 style={{
@@ -3047,11 +3110,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 onMouseLeave={() => setInteractingCardId(null)}
               >
               {/* Layout: 1) nome do carro  2) cliente  3) técnico | placa */}
-              <div className="mb-4">
+              <div className={boardPanoramic ? 'mb-2' : 'mb-4'}>
                 {/* Nome do carro (fonte um pouco menor) */}
-                <div className="mb-2">
+                <div className={boardPanoramic ? 'mb-1' : 'mb-2'}>
                   <h3
-                    className={`font-vehicle ${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic`}
+                    className={`font-vehicle ${getModelTitleClass(model, boardPanoramic)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic`}
                   >
                     {model}
                   </h3>
@@ -3067,9 +3130,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                 {/* Cliente logo abaixo do carro */}
                 {customerName && (
-                  <div className="mb-2 flex w-fit max-w-full items-center gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 px-3 py-1.5 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05]">
-                    <User className="w-4 h-4 shrink-0 text-[#007AFF]" strokeWidth={2} />
-                    <span className="text-base font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
+                  <div
+                    className={`mb-2 flex w-fit max-w-full items-center gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] ${
+                      boardPanoramic ? 'gap-1.5 px-2 py-1' : 'gap-2 px-3 py-1.5'
+                    }`}
+                  >
+                    <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
+                    <span
+                      className={`font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight ${
+                        boardPanoramic ? 'text-sm' : 'text-base'
+                      }`}
+                    >
                       {firstTwoNames(customerName)}
                     </span>
                   </div>
@@ -3101,13 +3172,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
                   <div className="flex-shrink-0">
                     {!isModuleMode && (
-                      <div className="w-[120px] bg-white rounded-xl border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/15 select-none">
-                        <div className="h-4 bg-[#003399] flex items-center justify-between px-2 relative">
-                          <span className="text-[6px] font-bold text-white tracking-wider">BRASIL</span>
-                          <BrazilFlagIcon width={12} height={8} className="rounded-sm flex-shrink-0 border border-white/30" />
+                      <div
+                        className={`flex flex-col overflow-hidden rounded-xl border-2 border-black bg-white shadow-md shadow-black/15 select-none ${
+                          boardPanoramic ? 'w-[92px]' : 'w-[120px]'
+                        }`}
+                      >
+                        <div
+                          className={`flex items-center justify-between bg-[#003399] px-2 relative ${boardPanoramic ? 'h-3.5' : 'h-4'}`}
+                        >
+                          <span className={`font-bold text-white tracking-wider ${boardPanoramic ? 'text-[5px]' : 'text-[6px]'}`}>BRASIL</span>
+                          <BrazilFlagIcon width={boardPanoramic ? 10 : 12} height={boardPanoramic ? 7 : 8} className="flex-shrink-0 rounded-sm border border-white/30" />
                         </div>
-                        <div className="h-8 flex items-center justify-center bg-white">
-                          <span className={`text-black font-mono text-xl font-black tracking-widest leading-none ${blurPlates ? 'blur-plate' : ''}`}>
+                        <div className={`flex items-center justify-center bg-white ${boardPanoramic ? 'h-7' : 'h-8'}`}>
+                          <span
+                            className={`font-mono font-black tracking-widest leading-none text-black ${boardPanoramic ? 'text-lg' : 'text-xl'} ${blurPlates ? 'blur-plate' : ''}`}
+                          >
                             {plate.toUpperCase()}
                           </span>
                         </div>
@@ -3118,15 +3197,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
 
               {/* Botões de Ação Inferiores */}
-              <div className="relative w-full mt-auto space-y-3">
+              <div className={`relative mt-auto w-full ${boardPanoramic ? 'space-y-2' : 'space-y-3'}`}>
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenMoveModal(card, e); }}
                   onPointerDown={(e) => e.stopPropagation()}
                   className={`
-                    w-full h-[56px] px-5 rounded-2xl cursor-pointer transition-all duration-200 ease-out
+                    w-full cursor-pointer rounded-2xl transition-all duration-200 ease-out
                     shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
                     border border-black/10 dark:border-white/10
+                    ${boardPanoramic ? 'h-[46px] px-3.5 text-[13px]' : 'h-[56px] px-5'}
                     ${statusConfig.style}
                     hover:brightness-110 active:scale-[0.98]
                   `}
@@ -3174,6 +3254,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
           );
         })}
+      </div>
       </div>
       </>
         );
