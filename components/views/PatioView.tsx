@@ -2949,20 +2949,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 });
               }}
               aria-pressed={boardPanoramic}
+              aria-label={
+                boardPanoramic
+                  ? 'Ampliar cartões — voltar ao tamanho padrão'
+                  : 'Reduzir cartões — ver mais na tela'
+              }
               title={
                 boardPanoramic
-                  ? 'Desativar visão panorâmica (cartões maiores)'
-                  : 'Visão panorâmica — cartões menores para caber mais na tela'
+                  ? 'Tamanho padrão dos cartões (ampliar)'
+                  : 'Ver todos os cartões na tela (reduzir)'
               }
-              className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 active:scale-[0.98] sm:px-5 sm:py-3 ${
+              className={`group flex h-12 w-12 shrink-0 items-center justify-center rounded-full border shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] hover:scale-[1.06] active:scale-[0.94] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] ${
                 boardPanoramic
-                  ? 'border-[#007AFF]/40 bg-[#007AFF]/15 text-[#007AFF] hover:border-[#007AFF]/55 hover:bg-[#007AFF]/22 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18 dark:text-[#64B5FF]'
-                  : 'border-zinc-200/80 bg-white/80 text-zinc-700 hover:border-[#007AFF]/30 hover:text-zinc-900 dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:border-white/20 dark:hover:text-white'
+                  ? 'border-[#007AFF]/45 bg-[#007AFF]/18 text-[#007AFF] hover:border-[#007AFF]/60 hover:bg-[#007AFF]/26 dark:border-[#0A84FF]/50 dark:bg-[#0A84FF]/22 dark:text-[#64B5FF]'
+                  : 'border-zinc-200/80 bg-white/80 text-zinc-600 hover:border-[#007AFF]/35 hover:text-[#007AFF] dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:hover:text-[#64B5FF]'
               }`}
             >
-              <ZoomOut className="h-5 w-5 shrink-0" strokeWidth={2} />
-              <span className="hidden tracking-tight sm:inline">
-                {boardPanoramic ? 'Panorâmica' : 'Ver mais na tela'}
+              <span className="relative flex h-9 w-9 items-center justify-center transition-transform duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] group-hover:rotate-6 group-active:rotate-0">
+                <span
+                  key={boardPanoramic ? 'in' : 'out'}
+                  className="absolute inset-0 flex items-center justify-center animate-in zoom-in-95 fade-in duration-300"
+                >
+                  {boardPanoramic ? (
+                    <ZoomIn className="h-6 w-6 drop-shadow-sm" strokeWidth={2.2} />
+                  ) : (
+                    <ZoomOut className="h-6 w-6 drop-shadow-sm" strokeWidth={2.2} />
+                  )}
+                </span>
               </span>
             </button>
             <div className="flex shrink-0 items-center">
@@ -3022,21 +3035,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
         return (
       <>
       <div
-        className={boardPanoramic ? 'origin-top' : undefined}
+        className="origin-top will-change-[zoom]"
         style={
-          boardPanoramic
-            ? ({ zoom: 0.78 } as React.CSSProperties & { zoom?: number })
-            : undefined
+          {
+            zoom: boardPanoramic ? 0.78 : 1,
+            transition: 'zoom 0.55s cubic-bezier(0.34, 1.35, 0.25, 1)',
+          } as React.CSSProperties & { zoom?: number }
         }
       >
       <div
-        className={`relative z-0 grid perspective-[1400px] ${
+        className={`relative z-0 grid perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
           boardPanoramic
             ? 'grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 md:gap-3 lg:grid-cols-4 lg:gap-3.5 xl:grid-cols-5 2xl:grid-cols-6 2xl:gap-4'
             : 'grid-cols-1 gap-5 md:grid-cols-2 md:gap-5 lg:grid-cols-3 lg:gap-6'
         }`}
       >
-        {sortedCards.map(card => {
+        {sortedCards.map((card) => {
           const titleParts = parsePatioCardTitle(card.name);
           const model = titleParts.vehicle || card.name;
           const plate = isModuleMode ? '' : (titleParts.plateOrModule || '---');
@@ -3067,7 +3081,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
           return (
             <div
               key={card.id}
-              className={boardPanoramic ? 'min-h-[128px]' : 'min-h-[180px]'}
+              className={`transition-[min-height] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
+                boardPanoramic ? 'min-h-[128px]' : 'min-h-[180px]'
+              }`}
               style={{ transformStyle: 'preserve-3d' }}
               onMouseMove={(e) => handleCardMouseMove(e, card.id)}
               onMouseLeave={handleCardMouseLeave}
@@ -3081,6 +3097,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]
                   hover:border-[#007AFF]/28 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:hover:border-white/[0.12] dark:hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.5)]
                   active:scale-[0.99]
+                  motion-safe:transition-[padding,min-height,border-radius,box-shadow] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]
                   ${
                     boardPanoramic
                       ? 'min-h-[128px] rounded-[1.25rem] p-3.5 sm:rounded-2xl'
