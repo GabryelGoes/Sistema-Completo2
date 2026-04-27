@@ -597,22 +597,22 @@ function MercosulPlateMockup(props: {
   const display = (plate || '—').trim() || '—';
 
   const w =
-    size === 'cardCompact' ? 'w-[112px]' : size === 'modal' ? 'w-[172px]' : 'w-[154px]';
+    size === 'cardCompact' ? 'w-[96px]' : size === 'modal' ? 'w-[148px]' : 'w-[128px]';
 
   const shadow = size === 'modal' ? 'shadow-xl shadow-black/25' : 'shadow-md shadow-black/15';
 
   const bandText =
-    size === 'cardCompact' ? 'text-[5px]' : size === 'modal' ? 'text-[9px]' : 'text-[6px]';
+    size === 'cardCompact' ? 'text-[4.5px]' : size === 'modal' ? 'text-[8px]' : 'text-[5.5px]';
 
-  const flagW = size === 'cardCompact' ? 11 : size === 'modal' ? 18 : 14;
-  const flagH = size === 'cardCompact' ? 8 : size === 'modal' ? 12 : 9;
+  const flagW = size === 'cardCompact' ? 9 : size === 'modal' ? 15 : 11;
+  const flagH = size === 'cardCompact' ? 7 : size === 'modal' ? 10 : 8;
 
   const plateText =
     size === 'cardCompact'
-      ? 'text-[14px] sm:text-[15px]'
+      ? 'text-[16px] sm:text-[17px]'
       : size === 'modal'
-        ? 'text-[24px] sm:text-[26px]'
-        : 'text-[17px] sm:text-[18px]';
+        ? 'text-[28px] sm:text-[31px]'
+        : 'text-[20px] sm:text-[22px]';
 
   return (
     <div
@@ -625,7 +625,7 @@ function MercosulPlateMockup(props: {
       </div>
       <div className="flex min-h-0 items-center justify-center bg-white px-1">
         <span
-          className={`font-plate max-w-[98%] text-center font-extrabold uppercase leading-none tracking-[0.1em] text-black antialiased ${plateText} ${blurPlates ? 'blur-plate' : ''}`}
+          className={`font-plate max-w-[100%] text-center font-extrabold uppercase leading-[0.95] tracking-[0.06em] text-black antialiased ${plateText} ${blurPlates ? 'blur-plate' : ''}`}
         >
           {display.toUpperCase()}
         </span>
