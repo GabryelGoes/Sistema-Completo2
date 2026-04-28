@@ -132,6 +132,7 @@ export default function App() {
   }
   const userAllowedTabs = authSession?.role === 'user' ? permissionsToTabs(authSession.permissions) : [];
   const hasFullAccess = authSession?.role === 'user' && !!authSession?.permissions?.full_access;
+  const isLimitedSystemUser = authSession?.role === 'user' && !hasFullAccess;
   /**
    * Cor global da oficina (rodapé “Salvar cor da oficina”): apenas
    * - usuários do sistema com permissão «Acesso completo ao sistema» (`full_access`), ou
@@ -140,6 +141,15 @@ export default function App() {
    */
   const canEditWorkspaceAppearance = authSession?.role === 'admin' || hasFullAccess;
   const [userTab, setUserTab] = useState<TabId>('home');
+  const activeAppTab: TabId = isLimitedSystemUser ? userTab : currentTab;
+
+  const navigateToHomeApp = useCallback(() => {
+    if (isLimitedSystemUser) {
+      setUserTab('home');
+    } else {
+      setCurrentTab('home');
+    }
+  }, [isLimitedSystemUser]);
 
   // Agenda é carregada pela AgendaView via API (Supabase); não usa mais localStorage.
 
@@ -291,6 +301,24 @@ export default function App() {
       return next;
     });
   }, [authSession, userTab, hasFullAccess]);
+
+  // Navegação mobile (gesto voltar Android/iOS): se estiver fora da Home, volta para Home.
+  useEffect(() => {
+    if (!authSession) return;
+    if (activeAppTab === 'home') return;
+    window.history.pushState({ rdaMobileNav: true, tab: activeAppTab }, '');
+  }, [authSession, activeAppTab]);
+
+  useEffect(() => {
+    if (!authSession) return;
+    const handlePopState = () => {
+      if (activeAppTab !== 'home') {
+        navigateToHomeApp();
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [authSession, activeAppTab, navigateToHomeApp]);
 
   useEffect(() => {
     if (authSession) return;
