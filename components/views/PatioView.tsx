@@ -4550,57 +4550,80 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       
                       <div className="min-w-0 space-y-10">
                         <div ref={descriptionSectionRef}>
-                          <div className="mb-4 flex items-center justify-between">
-                             <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                                <FileText className="h-3.5 w-3.5" />
-                                Queixa do cliente
-                             </h3>
-                             {can('canEditQueixa') && !isEditingDesc && (
-                               <button 
-                                 type="button"
-                                 onClick={() => { setIsEditingDesc(true); setDescText(selectedCard.desc || ''); }}
-                                 className="flex items-center gap-1 text-[12px] font-semibold text-[#007AFF] transition-colors hover:opacity-80 dark:text-[#64B5FF]"
-                               >
-                                 <Pencil className="h-3 w-3" /> Editar
-                               </button>
-                             )}
-                          </div>
-                          
-                          {isEditingDesc ? (
-                             <div className={`${vi} animate-in p-4 fade-in duration-200 sm:p-5`}>
-                                <textarea 
+                          <div className={`${vi} overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
+                            <div className="relative border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-zinc-950/25">
+                              <div
+                                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
+                                aria-hidden
+                              />
+                              <div
+                                className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
+                                aria-hidden
+                              />
+                              <div className="relative flex items-center justify-between gap-2 px-2.5 py-2 pl-5 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-6">
+                                <div className="pointer-events-none absolute inset-y-2 left-2.5 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)] sm:left-3 sm:inset-y-2.5" aria-hidden />
+                                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5 pl-4 sm:pl-5">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                    <FileText className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                  </div>
+                                  <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]">
+                                    Queixa do cliente
+                                  </p>
+                                </div>
+                                {can('canEditQueixa') && !isEditingDesc && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setIsEditingDesc(true);
+                                      setDescText(selectedCard.desc || '');
+                                    }}
+                                    className="relative z-[1] inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
+                                  >
+                                    <Pencil className="h-3 w-3" aria-hidden strokeWidth={2.5} />
+                                    Editar
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {isEditingDesc ? (
+                              <div className="animate-in fade-in duration-200 flex flex-col gap-3 bg-zinc-50/90 p-3 dark:bg-white/[0.02] sm:p-4">
+                                <textarea
                                   value={descText}
                                   onChange={(e) => setDescText(e.target.value)}
-                                  className={`${vin} min-h-[200px] resize-none text-[15px] leading-relaxed`}
+                                  className={`${vin} min-h-[180px] resize-none text-[15px] leading-relaxed`}
                                   placeholder="Digite a queixa do cliente..."
                                 />
-                                <div className="mt-4 flex justify-end gap-2">
-                                   <button 
-                                     type="button"
-                                     onClick={() => setIsEditingDesc(false)}
-                                     disabled={isSavingDesc}
-                                     className="rounded-2xl px-4 py-2.5 text-[14px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
-                                   >
-                                     Cancelar
-                                   </button>
-                                   <button 
-                                     type="button"
-                                     onClick={handleSaveDescription}
-                                     disabled={isSavingDesc}
-                                     className={`${iosPrimaryButton} flex items-center gap-2 px-5 py-2.5`}
-                                   >
-                                     {isSavingDesc ? <RefreshCw className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4" />}
-                                     Salvar
-                                   </button>
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsEditingDesc(false)}
+                                    disabled={isSavingDesc}
+                                    className="rounded-xl px-3 py-2 text-[13px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleSaveDescription}
+                                    disabled={isSavingDesc}
+                                    className={`${iosPrimaryButton} inline-flex items-center gap-2 px-4 py-2 text-[13px]`}
+                                  >
+                                    {isSavingDesc ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                                    Salvar
+                                  </button>
                                 </div>
-                             </div>
-                          ) : (
-                            <div className={`${vi} p-5 ${uiReadBody} sm:p-6`}>
-                               <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
-                                 {selectedCard.desc || "Nenhuma descrição disponível para este veículo."}
-                               </ReactMarkdown>
-                            </div>
-                          )}
+                              </div>
+                            ) : (
+                              <div className={`border-t border-zinc-200/60 bg-zinc-50/90 p-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:p-4`}>
+                                <div className={uiReadBody}>
+                                  <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
+                                    {selectedCard.desc || 'Nenhuma descrição disponível para este veículo.'}
+                                  </ReactMarkdown>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
