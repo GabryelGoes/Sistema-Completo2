@@ -4051,8 +4051,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
                             aria-hidden
                           />
-                          <div className="pointer-events-none absolute inset-y-2 left-2.5 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)] sm:left-3 sm:inset-y-2.5" aria-hidden />
-                          <div className="relative flex flex-col gap-3 px-3 py-3 pl-5 sm:px-4 sm:py-3.5 sm:pl-6 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-5 lg:gap-y-2">
+                          <div className="relative flex flex-col gap-3 px-3 py-3 sm:px-4 sm:py-3.5 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-5 lg:gap-y-2">
                             {!isModuleMode && (
                               <div className="flex shrink-0 items-center lg:self-center">
                                 <MercosulPlateMockup
