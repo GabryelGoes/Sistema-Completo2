@@ -89,7 +89,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
             <IosModalHeader
-              icon={<img src="/icons/senhas.svg" alt="" className="h-6 w-6 object-contain" />}
+              icon={<img src="/icons/senhas-ios.png" alt="" className="h-6 w-6 object-cover" />}
               title="Alterar senhas"
               subtitle="PIN do pátio e exclusão de veículos"
               gradientClass="from-slate-600 to-zinc-800"

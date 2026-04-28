@@ -350,7 +350,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           variant="row"
                           strokeWidth={2.2}
                         >
-                          <img src="/icons/senhas.svg" alt="Alterar senhas" className="h-5 w-5 object-contain" />
+                          <img src="/icons/senhas-ios.png" alt="Alterar senhas" className="h-full w-full object-cover" />
                         </IosAccentIconSquircle>
                       }
                     />
@@ -448,7 +448,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           variant="row"
                           strokeWidth={2.2}
                         >
-                          <img src="/icons/senhas.svg" alt="Alterar senhas" className="h-5 w-5 object-contain" />
+                          <img src="/icons/senhas-ios.png" alt="Alterar senhas" className="h-full w-full object-cover" />
                         </IosAccentIconSquircle>
                       }
                     />
