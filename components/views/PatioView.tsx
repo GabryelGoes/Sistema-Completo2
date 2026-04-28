@@ -6061,71 +6061,76 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <PdfViewerModal src={previewPdf} onClose={() => setPreviewPdf(null)} />
       )}
 
-      {/* MODAL VISUALIZAR ORÇAMENTO — idioma visual iOS / modal do veículo (portal) */}
+      {/* MODAL VISUALIZAR ORÇAMENTO — papel envelhecido no modal inteiro, textos em preto (portal: acima da TabBar) */}
       {viewingBudget && (selectedCard || selectedHistoryCard) && (
         <ModalPortal>
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 p-3 backdrop-blur-[20px] animate-in fade-in duration-200 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
-          <div className={`relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-full max-w-2xl min-h-0 flex-col overflow-hidden rounded-[2rem] animate-in zoom-in-95 duration-200 ${iosModalShell}`}>
-            <button type="button" onClick={() => setViewingBudget(null)} className={iosModalClose} aria-label="Fechar">
-              <X className="h-5 w-5" />
-            </button>
-
-            <div className="shrink-0 border-b border-zinc-200/60 px-5 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
-              <div className="flex items-start gap-3 pr-10">
-                <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                  <Calculator />
-                </IosAccentIconSquircle>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Orçamento</p>
-                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">
-                    {(() => {
-                      const sourceBudgets = selectedCard
-                        ? savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id)
-                        : historySavedBudgets;
-                      const sorted = [...sourceBudgets].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-                      const num = sorted.findIndex((b) => b.id === viewingBudget.id) + 1;
-                      return `Orçamento ${num}`;
-                    })()}
-                  </h2>
-                  <p className="mt-1 text-[14px] text-zinc-600 dark:text-zinc-400">
-                    {new Date(viewingBudget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] animate-modal-backdrop">
+          <div
+            className="relative w-full max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] flex flex-col min-h-0 overflow-hidden rounded-lg animate-modal-sheet"
+            style={{
+              backgroundColor: '#d9d0bc',
+              border: '1px solid rgba(0,0,0,0.12)',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.3) inset, 0 2px 4px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.14), 0 20px 50px rgba(0,0,0,0.1)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='0.045'/%3E%3C/svg%3E")`,
+            }}
+          >
+            <div className="absolute inset-0 pointer-events-none rounded-lg" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)' }} aria-hidden />
+            <div className="flex items-center justify-between px-6 py-4 border-b border-black/10 shrink-0 relative z-10">
+              <div>
+                <h2 className="text-lg font-bold" style={{ color: '#000000' }}>
+                  {(() => {
+                    const sourceBudgets = selectedCard
+                      ? savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id)
+                      : historySavedBudgets;
+                    const sorted = [...sourceBudgets].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                    const num = sorted.findIndex((b) => b.id === viewingBudget.id) + 1;
+                    return `Orçamento ${num}`;
+                  })()}
+                </h2>
+                <p className="text-sm mt-0.5 font-medium" style={{ color: '#000000' }}>
+                  {new Date(viewingBudget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </p>
+                {(selectedCard?.mileageKm || historyServiceOrderDetail?.mileage_km) && (
+                  <p className="text-sm mt-1 font-medium" style={{ color: '#000000' }}>
+                    <span className="font-semibold">Km</span> {selectedCard?.mileageKm ?? historyServiceOrderDetail?.mileage_km}
                   </p>
-                  {(selectedCard?.mileageKm || historyServiceOrderDetail?.mileage_km) && (
-                    <p className="mt-1 text-[13px] text-zinc-600 dark:text-zinc-400">
-                      <span className="font-semibold text-zinc-800 dark:text-zinc-200">Km</span>{' '}
-                      {selectedCard?.mileageKm ?? historyServiceOrderDetail?.mileage_km}
-                    </p>
-                  )}
-                </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setViewingBudget(null)}
+                  className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:opacity-80"
+                  style={{ color: '#000000' }}
+                  aria-label="Fechar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 custom-scrollbar sm:px-8 [-webkit-overflow-scrolling:touch] space-y-4">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-6 relative z-10 [-webkit-overflow-scrolling:touch]">
               {viewingBudget.diagnosis && (
-                <section className={`${iosModalInsetCard} p-4`}>
-                  <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Diagnóstico</h3>
-                  <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-zinc-900 dark:text-zinc-100">{viewingBudget.diagnosis}</div>
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Diagnóstico</h3>
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: '#000000' }}>{viewingBudget.diagnosis}</div>
                 </section>
               )}
               {viewingBudget.services.length > 0 && (
-                <section className={`${iosModalInsetCard} p-4`}>
-                  <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Serviços</h3>
-                  <ul className="list-none space-y-2 text-[14px]">
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Serviços</h3>
+                  <ul className="list-none space-y-2 text-sm">
                     {viewingBudget.services.map((s, i) => (
                       <li
                         key={i}
-                        className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-zinc-900 dark:text-zinc-100 ${budgetReadRowClass(s.approved, 'ios', viewingBudgetApprovalContrast)}`}
+                        className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 ${budgetReadRowClass(s.approved, 'paper', viewingBudgetApprovalContrast)}`}
+                        style={{ color: '#000000' }}
                       >
-                        {s.approved === true && <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="Aprovado" />}
-                        {s.approved === false && <X className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" aria-label="Reprovado" />}
-                        {s.approved !== true && s.approved !== false && (
-                          <span className="w-4 h-4 shrink-0 font-bold text-zinc-500 dark:text-zinc-400" aria-label="Pendente">
-                            —
-                          </span>
-                        )}
-                        <span className={viewingBudgetApprovalContrast && s.approved === true ? 'font-medium' : ''}>{s.description}</span>
+                        {s.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-700" aria-label="Aprovado" />}
+                        {s.approved === false && <X className="w-4 h-4 shrink-0 text-red-700" aria-label="Reprovado" />}
+                        {s.approved !== true && s.approved !== false && <span className="w-4 h-4 shrink-0 font-bold" style={{ color: '#000000' }} aria-label="Pendente">—</span>}
+                        <span className={viewingBudgetApprovalContrast && s.approved === true ? 'font-medium' : ''} style={{ color: '#000000' }}>{s.description}</span>
                         {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
-                          <span className="text-[13px] font-semibold tabular-nums text-zinc-600 dark:text-zinc-400">
+                          <span className="text-[13px] font-semibold tabular-nums opacity-90" style={{ color: '#000000' }}>
                             ({formatLaborLabel(Number(s.labor_hours))})
                           </span>
                         ) : null}
@@ -6135,25 +6140,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </section>
               )}
               {viewingBudget.parts.length > 0 && (
-                <section className={`${iosModalInsetCard} p-4`}>
-                  <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Peças</h3>
-                  <ul className="space-y-2 text-[14px]">
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Peças</h3>
+                  <ul className="space-y-2 text-sm">
                     {viewingBudget.parts.map((p, i) => (
                       <li
                         key={i}
-                        className={`flex items-center gap-2 text-zinc-900 dark:text-zinc-100 ${budgetReadRowClass(p.approved, 'ios', viewingBudgetApprovalContrast)}`}
+                        className={`flex items-center gap-2 ${budgetReadRowClass(p.approved, 'paper', viewingBudgetApprovalContrast)}`}
+                        style={{ color: '#000000' }}
                       >
-                        {p.approved === true && <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="Aprovado" />}
-                        {p.approved === false && <X className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" aria-label="Reprovado" />}
-                        {p.approved !== true && p.approved !== false && (
-                          <span className="w-4 h-4 shrink-0 font-bold text-zinc-500 dark:text-zinc-400" aria-label="Pendente">
-                            —
-                          </span>
-                        )}
-                        <span>
+                        {p.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-700" aria-label="Aprovado" />}
+                        {p.approved === false && <X className="w-4 h-4 shrink-0 text-red-700" aria-label="Reprovado" />}
+                        {p.approved !== true && p.approved !== false && <span className="w-4 h-4 shrink-0 font-bold" style={{ color: '#000000' }} aria-label="Pendente">—</span>}
+                        <span style={{ color: '#000000' }}>
                           <span
                             className={
-                              viewingBudgetApprovalContrast && p.approved === true ? 'font-semibold' : 'font-medium'
+                              viewingBudgetApprovalContrast && p.approved === true
+                                ? 'font-semibold'
+                                : 'font-medium'
                             }
                           >
                             ({p.quantity}x)
@@ -6166,28 +6170,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </section>
               )}
               {viewingBudget.observations && (
-                <section className={`${iosModalInsetCard} p-4`}>
-                  <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Observações</h3>
-                  <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-zinc-900 dark:text-zinc-100">{viewingBudget.observations}</div>
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Observações</h3>
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: '#000000' }}>{viewingBudget.observations}</div>
                 </section>
               )}
             </div>
-
-            <div className="flex shrink-0 flex-col gap-3 border-t border-zinc-200/60 px-4 py-4 dark:border-white/[0.07] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6">
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-black/10 shrink-0 relative z-10 flex-wrap">
               {can('canEditBudgets') && !!selectedCard ? (
                 <button
                   type="button"
                   onClick={handleDeleteBudget}
                   disabled={!!deletingBudgetId}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-[13px] font-semibold text-red-800 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-500/40 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-950/60"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-red-400 text-red-800 font-medium text-sm hover:bg-red-100 disabled:opacity-50 transition-colors"
                 >
-                  {deletingBudgetId ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  {deletingBudgetId ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   {deletingBudgetId ? 'Excluindo…' : 'Excluir orçamento'}
                 </button>
               ) : (
-                <span className="hidden sm:block" />
+                <span />
               )}
-              <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+              <div className="flex items-center gap-3 flex-wrap justify-end">
                 {can('canApproveBudgetItems') && !!selectedCard && (
                   <button
                     type="button"
@@ -6197,20 +6200,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       openBudgetApproval(b);
                     }}
                     disabled={!!deletingBudgetId}
-                    className="inline-flex items-center gap-2 rounded-xl border border-[#007AFF]/30 bg-[#007AFF]/[0.1] px-4 py-2.5 text-[13px] font-semibold text-[#007AFF] transition-colors hover:bg-[#007AFF]/18 disabled:opacity-50 dark:border-[#007AFF]/40 dark:bg-[#007AFF]/18 dark:text-[#b8d9ff]"
+                    className="inline-flex items-center gap-2 rounded-lg border border-brand-yellow/50 bg-brand-yellow/10 px-5 py-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-brand-yellow/20 disabled:opacity-50 dark:text-zinc-100"
                   >
-                    <CheckCircle2 className="h-4 w-4" /> Aprovar itens
+                    <CheckCircle2 className="w-4 h-4" /> Aprovar itens
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={() =>
-                    printBudget(viewingBudget, selectedCard?.mileageKm ?? historyServiceOrderDetail?.mileage_km ?? null)
+                    printBudget(
+                      viewingBudget,
+                      selectedCard?.mileageKm ?? historyServiceOrderDetail?.mileage_km ?? null
+                    )
                   }
                   disabled={!!deletingBudgetId}
-                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 px-4 py-2.5 text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:border-white/[0.12] dark:text-zinc-200 dark:hover:bg-white/[0.06]"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-black/20 font-medium text-sm hover:bg-black/5 transition-colors disabled:opacity-50"
+                  style={{ color: '#000000' }}
                 >
-                  <Printer className="h-4 w-4" /> Imprimir
+                  <Printer className="w-4 h-4" /> Imprimir
                 </button>
                 <button
                   type="button"
@@ -6221,26 +6228,26 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     )
                   }
                   disabled={!!deletingBudgetId}
-                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 px-4 py-2.5 text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:border-white/[0.12] dark:text-zinc-200 dark:hover:bg-white/[0.06]"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-black/20 font-medium text-sm hover:bg-black/5 transition-colors disabled:opacity-50"
+                  style={{ color: '#000000' }}
                 >
-                  <Printer className="h-4 w-4" /> Via mecânico
+                  <Printer className="w-4 h-4" /> Via mecânico
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setViewingBudget(null);
-                    openBudgetModal(viewingBudget);
-                  }}
+                  onClick={() => { setViewingBudget(null); openBudgetModal(viewingBudget); }}
                   disabled={!!deletingBudgetId || !can('canEditBudgets') || !selectedCard}
-                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 px-4 py-2.5 text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:border-white/[0.12] dark:text-zinc-200 dark:hover:bg-white/[0.06]"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-black/20 font-medium text-sm hover:bg-black/5 transition-colors disabled:opacity-50"
+                  style={{ color: '#000000' }}
                 >
-                  <Pencil className="h-4 w-4" /> Editar orçamento
+                  <Pencil className="w-4 h-4" /> Editar orçamento
                 </button>
                 <button
                   type="button"
                   onClick={() => setViewingBudget(null)}
                   disabled={!!deletingBudgetId}
-                  className={`${iosPrimaryButton} inline-flex items-center gap-2 px-5 py-2.5 text-[13px] disabled:opacity-50`}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-opacity hover:opacity-90 disabled:opacity-50 text-white"
+                  style={{ backgroundColor: '#3d3932' }}
                 >
                   Fechar
                 </button>
