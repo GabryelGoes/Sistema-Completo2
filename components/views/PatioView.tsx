@@ -4118,16 +4118,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <p className="mt-1.5 bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[21px] font-bold leading-[1.15] tracking-[-0.035em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400">
                                 Dados da ficha
                               </p>
-                              <p className="mt-2 max-w-[42ch] text-[13px] font-medium leading-snug text-zinc-600 dark:text-zinc-400">
-                                Panorama do cadastro — um toque para revisar{' '}
-                                <span className="text-zinc-900 dark:text-zinc-200">cliente</span>,{' '}
-                                {isModuleMode ? (
-                                  <span className="text-zinc-900 dark:text-zinc-200">módulo</span>
-                                ) : (
-                                  <span className="text-zinc-900 dark:text-zinc-200">veículo</span>
-                                )}{' '}
-                                e vínculos.
-                              </p>
                               <div className="mt-4 flex flex-wrap gap-2">
                                 {isModuleMode ? (
                                   <>
@@ -4140,36 +4130,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </span>
                                     </span>
                                     {(serviceOrderDetail.vehicle_model ?? '').trim() ? (
-                                      <span className="inline-flex max-w-[min(100%,18rem)] items-center rounded-xl border border-zinc-200/90 bg-gradient-to-b from-zinc-50 to-zinc-100/90 px-3 py-1.5 text-[13px] font-semibold text-zinc-900 shadow-sm dark:border-white/[0.1] dark:from-white/[0.09] dark:to-white/[0.04] dark:text-white">
-                                        {(serviceOrderDetail.vehicle_model ?? '').trim()}
+                                      <span className="inline-flex max-w-[min(100%,18rem)] items-center rounded-xl border border-zinc-200/90 bg-gradient-to-b from-zinc-50 to-zinc-100/90 px-3 py-1.5 text-[13px] font-semibold uppercase tracking-tight text-zinc-900 shadow-sm dark:border-white/[0.1] dark:from-white/[0.09] dark:to-white/[0.04] dark:text-white">
+                                        {(serviceOrderDetail.vehicle_model ?? '').trim().toUpperCase()}
                                       </span>
                                     ) : null}
                                   </>
                                 ) : (
                                   <>
-                                    <span className="inline-flex items-center rounded-xl border border-zinc-800/15 bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 px-3 py-1.5 shadow-[inset_0_2px_6px_rgba(255,255,255,0.06),0_6px_16px_-8px_rgba(0,0,0,0.35)] dark:border-white/10 dark:from-zinc-800 dark:via-zinc-900 dark:to-zinc-950">
-                                      <span className="mr-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                                        Placa
-                                      </span>
-                                      <span className="font-plate font-mono text-[13px] font-extrabold uppercase tracking-[0.08em] text-white">
-                                        {(serviceOrderDetail.plate || '—').toUpperCase()}
-                                      </span>
-                                    </span>
                                     {(serviceOrderDetail.vehicle_model ?? '').trim() ? (
-                                      <span className="inline-flex max-w-[min(100%,16rem)] items-center rounded-xl border border-zinc-200/95 bg-white px-3 py-1.5 text-[13px] font-semibold leading-tight text-zinc-900 shadow-[0_3px_12px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-white">
-                                        {(serviceOrderDetail.vehicle_model ?? '').trim()}
+                                      <span className="inline-flex max-w-[min(100%,16rem)] items-center rounded-xl border border-zinc-200/95 bg-white px-3 py-1.5 text-[13px] font-semibold uppercase leading-tight tracking-tight text-zinc-900 shadow-[0_3px_12px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-white">
+                                        {(serviceOrderDetail.vehicle_model ?? '').trim().toUpperCase()}
                                       </span>
                                     ) : null}
                                     {(serviceOrderDetail.vehicle_color ?? '').trim() ? (
-                                      <span className="inline-flex items-center rounded-xl border border-zinc-200/80 bg-zinc-50/95 px-3 py-1.5 text-[12px] font-semibold uppercase tracking-wide text-zinc-700 dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-zinc-300">
-                                        {(serviceOrderDetail.vehicle_color ?? '').trim()}
+                                      <span className="inline-flex items-center rounded-xl border border-zinc-200/80 bg-zinc-50/95 px-3 py-1.5 text-[12px] font-semibold tracking-wide text-zinc-700 normal-case dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-zinc-300">
+                                        {(serviceOrderDetail.vehicle_color ?? '').trim().toLowerCase()}
                                       </span>
                                     ) : null}
                                   </>
                                 )}
-                                <span className="inline-flex max-w-[min(100%,20rem)] items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-3 py-1.5 text-[13px] font-semibold text-[#004999] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:shadow-none">
+                                <span className="inline-flex max-w-[min(100%,20rem)] items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-3 py-1.5 text-[13px] font-semibold uppercase text-[#004999] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:shadow-none">
                                   <User className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden strokeWidth={2.5} />
-                                  <span className="truncate">{firstTwoNames(serviceOrderDetail.customers?.name?.trim() || 'Cliente')}</span>
+                                  <span className="truncate">{firstTwoNames(serviceOrderDetail.customers?.name?.trim() || 'Cliente').toUpperCase()}</span>
                                 </span>
                               </div>
                             </div>
