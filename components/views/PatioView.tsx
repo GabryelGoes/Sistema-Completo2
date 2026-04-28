@@ -3989,21 +3989,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {lists.find(l => l.id === selectedCard.idList)?.name}
                             <ChevronDown className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
                           </button>
-                          {!isModuleMode && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setIsVehicleCategoryModalOpen(true);
-                              }}
-                              title="Alterar categoria do veículo"
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest shadow-xl border-2 border-zinc-300/70 bg-zinc-100/95 text-zinc-900 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0a0a0a] dark:border-zinc-600/70 dark:bg-zinc-800/95 dark:text-zinc-100"
-                            >
-                              {headerVehicleCategoryLabel || 'Categoria'}
-                              <ChevronDown className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-                            </button>
-                          )}
                           {selectedCard.garantiaTag && (
                             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 border-2 border-red-500/50">
                               Garantia
@@ -4225,7 +4210,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                               <div className="order-1">
                               <div className="space-y-3">
-                                <p className={`${iosLabel} ml-0.5`}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
+                                <div className="ml-0.5 flex flex-wrap items-center justify-between gap-2">
+                                  <p className={iosLabel}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
+                                  {!isModuleMode && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsVehicleCategoryModalOpen(true)}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-[#007AFF]/30 bg-[#007AFF]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#007AFF] transition-colors hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
+                                      title="Alterar categoria do veículo"
+                                    >
+                                      {headerVehicleCategoryLabel || 'Categoria'}
+                                      <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                    </button>
+                                  )}
+                                </div>
                                 <div className={`${vi} space-y-4 p-4 sm:p-5`}>
                                   {!isModuleMode && (
                                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -4287,7 +4285,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <div className="flex flex-col gap-6">
                               <div className="order-1">
                               <div className="space-y-3">
-                                <p className={`${iosLabel} ml-0.5`}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
+                                <div className="ml-0.5 flex flex-wrap items-center justify-between gap-2">
+                                  <p className={iosLabel}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
+                                  {!isModuleMode && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsVehicleCategoryModalOpen(true)}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-[#007AFF]/30 bg-[#007AFF]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#007AFF] transition-colors hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
+                                      title="Alterar categoria do veículo"
+                                    >
+                                      {headerVehicleCategoryLabel || 'Categoria'}
+                                      <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                    </button>
+                                  )}
+                                </div>
                                 <div className={`${vi} divide-y divide-zinc-200/60 overflow-hidden p-0 dark:divide-white/[0.06]`}>
                                   {!isModuleMode && serviceOrderDetail.vehicle_brand?.trim() ? (
                                     <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
