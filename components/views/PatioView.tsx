@@ -4112,10 +4112,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           >
                             <div className="pointer-events-none absolute inset-y-3 left-3 w-[3px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_16px_rgba(0,122,255,0.35)] dark:shadow-[0_0_20px_rgba(0,122,255,0.45)] sm:left-4 sm:inset-y-4" aria-hidden />
                             <div className="min-w-0 flex-1 pl-5 sm:pl-6">
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#007AFF] dark:text-[#7ab8ff]">
-                                Identificação da OS
-                              </p>
-                              <p className="mt-1.5 bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[21px] font-bold leading-[1.15] tracking-[-0.035em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400">
+                              <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[21px] font-bold leading-[1.15] tracking-[-0.035em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400">
                                 Dados da ficha
                               </p>
                               <div className="mt-4 flex flex-wrap gap-2">
