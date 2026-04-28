@@ -4894,10 +4894,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <div className="border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div className="min-w-0">
-                                  <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                                     <Paperclip className="h-3.5 w-3.5" />
-                                     Anexos
-                                  </h3>
+                                  <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                      <Paperclip className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                    </div>
+                                    <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[17px]">
+                                      Anexos
+                                    </p>
+                                  </div>
                                   <p className="mt-1.5 max-w-md text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
                                     Links úteis ficam logo abaixo dos botões. Cada foto pode ter um nome — aparece abaixo da miniatura. Use o lápis para renomear e a lixeira para excluir (fotos e documentos).
                                   </p>
@@ -5112,9 +5116,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <div className="space-y-8">
                                         {images.length > 0 && (
                                           <div>
-                                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400">
-                                              Fotos
-                                            </p>
+                                            <div className="mb-2 flex min-w-0 items-center gap-2 sm:gap-2.5">
+                                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                                <ImageIcon className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                              </div>
+                                              <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[17px]">
+                                                Fotos
+                                              </p>
+                                            </div>
                                             <div className="rounded-2xl border border-zinc-200/70 bg-white/70 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] dark:border-white/[0.08] dark:bg-white/[0.03]">
                                             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 md:gap-3">
                                             {visibleImages.map(att => {
