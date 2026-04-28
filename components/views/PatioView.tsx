@@ -102,6 +102,10 @@ const vehicleModalCustomerNameBox =
 const vehicleModalTitleShadow =
   '[text-shadow:0_1px_1px_rgba(0,0,0,0.2),0_2px_6px_rgba(0,0,0,0.14),0_4px_18px_rgba(0,0,0,0.08)] dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.92),0_2px_10px_rgba(0,0,0,0.52),0_0_26px_rgba(0,0,0,0.35)]';
 
+/** Igual à do modal, porém mais suave nos cards do pátio (opacidades menores). */
+const vehicleCardTitleShadow =
+  '[text-shadow:0_1px_1px_rgba(0,0,0,0.11),0_2px_6px_rgba(0,0,0,0.07),0_4px_18px_rgba(0,0,0,0.045)] dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.58),0_2px_10px_rgba(0,0,0,0.32),0_0_26px_rgba(0,0,0,0.2)]';
+
 /** Mesma ideia em texto menor (modais etapa/categoria etc.). */
 const vehicleModalSubtitleNameShadow =
   '[text-shadow:0_1px_1px_rgba(0,0,0,0.18),0_1px_6px_rgba(0,0,0,0.1)] dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.88),0_1px_10px_rgba(0,0,0,0.42)]';
@@ -3192,7 +3196,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {/* Nome do carro (fonte um pouco menor) */}
                 <div className={boardPanoramic ? 'mb-1' : 'mb-2'}>
                   <h3
-                    className={`font-vehicle ${getModelTitleClass(model, boardPanoramic)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic ${vehicleModalTitleShadow}`}
+                    className={`font-vehicle ${getModelTitleClass(model, boardPanoramic)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic ${vehicleCardTitleShadow}`}
                   >
                     {model}
                   </h3>
@@ -3457,7 +3461,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <div className="mb-4 min-h-0 flex-1">
                                       <div className="mb-2">
                                         <h3
-                                          className={`font-vehicle ${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic ${vehicleModalTitleShadow}`}
+                                          className={`font-vehicle ${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic ${vehicleCardTitleShadow}`}
                                         >
                                           {model}
                                         </h3>
