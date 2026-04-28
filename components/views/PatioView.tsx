@@ -4688,7 +4688,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-6 p-8 pt-6 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:gap-7 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(232px,288px)]">
+                  <div className="grid grid-cols-1 gap-6 p-8 pt-3 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:gap-7 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(232px,288px)]">
                       
                       <div className="min-w-0 space-y-6">
                         <div ref={descriptionSectionRef}>
