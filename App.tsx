@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { ChangePasswordsModal } from './components/ChangePasswordsModal';
@@ -18,19 +18,11 @@ import {
   type SystemUserPermissions,
   effectivePatioApproveBudgetItems,
   getWorkshopSettings,
-  updateWorkshopSettings,
 } from './services/apiService';
 import { AssistantChat } from './components/AssistantChat';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
 import { ArrowLeft, X } from 'lucide-react';
-import {
-  applyAccentToRoot,
-  defaultAppAppearance,
-  parseAppAppearance,
-  resolveEffectiveAccentHex,
-  type AppAppearance,
-  type NavigationTabId,
-} from './utils/appAppearance';
+import { applyAccentToRoot, DEFAULT_ACCENT } from './utils/appAppearance';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
 
 export default function App() {
@@ -94,30 +86,6 @@ export default function App() {
   // Dispara refresh da lista em "Usuários do sistema" quando o admin salva o perfil
   const [systemUsersRefreshTrigger, setSystemUsersRefreshTrigger] = useState(0);
 
-  /** Cor de destaque da oficina; sincronizada via API para todos os usuários */
-  const [appAppearance, setAppAppearance] = useState<AppAppearance>(() => defaultAppAppearance());
-  const [settingsAppearanceDraft, setSettingsAppearanceDraft] = useState<AppAppearance>(() => defaultAppAppearance());
-  const [workspaceAppearanceSaving, setWorkspaceAppearanceSaving] = useState(false);
-  const settingsWasOpenRef = useRef(false);
-
-  const saveWorkspaceAppearance = useCallback(async () => {
-    const mayEditWorkspaceColor =
-      authSession?.role === 'admin' ||
-      (authSession?.role === 'user' && !!authSession?.permissions?.full_access);
-    if (!mayEditWorkspaceColor) return;
-
-    setWorkspaceAppearanceSaving(true);
-    try {
-      const normalized = parseAppAppearance(settingsAppearanceDraft);
-      await updateWorkshopSettings({ appAppearance: normalized as Record<string, unknown> });
-      setAppAppearance(normalized);
-    } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Erro ao salvar aparência.');
-    } finally {
-      setWorkspaceAppearanceSaving(false);
-    }
-  }, [authSession, settingsAppearanceDraft]);
-
   // Usuário limitado: abas conforme permissões (full_access = todas as abas)
   function permissionsToTabs(perms: SystemUserPermissions | undefined): TabId[] {
     if (!perms) return ['home'];
@@ -133,13 +101,6 @@ export default function App() {
   const userAllowedTabs = authSession?.role === 'user' ? permissionsToTabs(authSession.permissions) : [];
   const hasFullAccess = authSession?.role === 'user' && !!authSession?.permissions?.full_access;
   const isLimitedSystemUser = authSession?.role === 'user' && !hasFullAccess;
-  /**
-   * Cor global da oficina (rodapé “Salvar cor da oficina”): apenas
-   * - usuários do sistema com permissão «Acesso completo ao sistema» (`full_access`), ou
-   * - login administrador (equivalente a acesso total).
-   * Usuários limitados (sem full_access) nunca veem, mesmo com `access_settings`.
-   */
-  const canEditWorkspaceAppearance = authSession?.role === 'admin' || hasFullAccess;
   const [userTab, setUserTab] = useState<TabId>('home');
   const activeAppTab: TabId = isLimitedSystemUser ? userTab : currentTab;
 
@@ -198,10 +159,6 @@ export default function App() {
         if (authSession.role === 'admin') {
           setAdminDisplayName(s.adminDisplayName ?? 'Rei do ABS');
         }
-        if (s.appAppearance) {
-          const p = parseAppAppearance(s.appAppearance);
-          setAppAppearance(p);
-        }
       })
       .catch(() => {});
     return () => {
@@ -209,29 +166,9 @@ export default function App() {
     };
   }, [authSession]);
 
-  /** Aba usada para cor no modo colorido (técnico limitado usa `userTab`; admin/full usa `currentTab`). */
-  const effectiveNavTab = useMemo((): NavigationTabId => {
-    if (authSession?.role === 'user' && !hasFullAccess) {
-      return userTab;
-    }
-    return currentTab;
-  }, [authSession?.role, hasFullAccess, userTab, currentTab]);
-
-  const effectiveAccentHex = useMemo(
-    () => resolveEffectiveAccentHex(appAppearance, effectiveNavTab),
-    [appAppearance, effectiveNavTab]
-  );
-
   useEffect(() => {
-    applyAccentToRoot(document.documentElement, effectiveAccentHex);
-  }, [effectiveAccentHex]);
-
-  useEffect(() => {
-    if (isSettingsOpen && !settingsWasOpenRef.current) {
-      setSettingsAppearanceDraft(appAppearance);
-    }
-    settingsWasOpenRef.current = isSettingsOpen;
-  }, [isSettingsOpen, appAppearance]);
+    applyAccentToRoot(document.documentElement, DEFAULT_ACCENT);
+  }, []);
 
   const handleAdminProfileSaved = () => {
     getWorkshopSettings()
@@ -394,7 +331,6 @@ export default function App() {
             className="flex-1 min-h-0 overflow-y-auto p-0"
           >
             <HomeView
-              colorfulNavigation={appAppearance.colorfulNavigation}
               isTechnician={authSession.isTechnician ?? false}
               technicianName={authSession.displayName ?? 'Usuário'}
               allowedTabs={userAllowedTabs}
@@ -529,11 +465,6 @@ export default function App() {
           onCinematographicModeChange={setCinematographicMode}
           orientation={orientation}
           showPatioAccess={false}
-          showWorkspaceAppearance={canEditWorkspaceAppearance}
-          workspaceAppearance={settingsAppearanceDraft}
-          onWorkspaceAppearanceChange={setSettingsAppearanceDraft}
-          onSaveWorkspaceAppearance={saveWorkspaceAppearance}
-          workspaceAppearanceSaving={workspaceAppearanceSaving}
         />
         <ChangePasswordsModal isOpen={isUserChangePasswordsOpen} onClose={() => setIsUserChangePasswordsOpen(false)} />
         <AssistantChat
@@ -608,7 +539,6 @@ export default function App() {
           className="flex-1 min-h-0 overflow-y-auto p-0"
         >
           <HomeView
-            colorfulNavigation={appAppearance.colorfulNavigation}
             onOpenApp={handleHomeOpenApp}
             onLogout={handleLogout}
             isTechnician={false}
@@ -724,11 +654,6 @@ export default function App() {
         onCinematographicModeChange={setCinematographicMode}
         orientation={orientation}
         showPatioAccess={authSession?.role === 'admin' || hasFullAccess}
-        showWorkspaceAppearance={canEditWorkspaceAppearance}
-        workspaceAppearance={settingsAppearanceDraft}
-        onWorkspaceAppearanceChange={setSettingsAppearanceDraft}
-        onSaveWorkspaceAppearance={saveWorkspaceAppearance}
-        workspaceAppearanceSaving={workspaceAppearanceSaving}
       />
 
       {/* Central de notificações: admin vê notificações do admin; técnicos veem as deles (target_slug = userId). Só ativa modo técnico quando userId existe para o pop-up de comentários aparecer. */}

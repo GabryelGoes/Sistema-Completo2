@@ -19,49 +19,6 @@ import { ZayaAlertsModal } from '../ZayaAlertsModal';
 import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import type { SystemUserPermissions } from '../../services/apiService';
-import { COLORFUL_TAB_ACCENTS, type NavigationTabId } from '../../utils/appAppearance';
-
-/** Cores extras na home quando o modo colorido está ligado (não são abas da barra). */
-type HomeSquircleExtraKey =
-  | NavigationTabId
-  | 'servicos'
-  | 'pecas'
-  | 'tv'
-  | 'settings_gear'
-  | 'users'
-  | 'zaya'
-  | 'checklists'
-  | 'patio_link'
-  | 'lock'
-  | 'profile'
-  | 'logout';
-
-function homeSquircleAccentHex(colorful: boolean | undefined, key: HomeSquircleExtraKey): string | undefined {
-  if (!colorful) return undefined;
-  switch (key) {
-    case 'servicos':
-      return '#EAB308';
-    case 'pecas':
-      return '#EA580C';
-    case 'tv':
-    case 'checklists':
-    case 'patio_link':
-      return COLORFUL_TAB_ACCENTS.patio;
-    case 'zaya':
-      return '#7C3AED';
-    case 'lock':
-      return '#78716C';
-    case 'logout':
-      return '#DC2626';
-    case 'settings_gear':
-    case 'users':
-    case 'profile':
-    case 'home':
-      return COLORFUL_TAB_ACCENTS.home;
-    default:
-      return COLORFUL_TAB_ACCENTS[key as NavigationTabId];
-  }
-}
 
 export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'settings';
 
@@ -92,8 +49,6 @@ interface HomeViewProps {
   systemUserPermissions?: SystemUserPermissions;
   onOpenSettings?: () => void;
   onOpenChangePasswords?: () => void;
-  /** Com modo colorido, cada ícone da home usa a cor do módulo correspondente. */
-  colorfulNavigation?: boolean;
 }
 
 /** Alinhado ao modal TV do pátio: vidro, sombra suave, cantos iOS. */
@@ -185,7 +140,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   systemUserPermissions,
   onOpenSettings,
   onOpenChangePasswords,
-  colorfulNavigation = false,
 }) => {
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
   const [isChangePasswordsOpen, setIsChangePasswordsOpen] = useState(false);
@@ -266,7 +220,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         variant="tile"
                         className="transition-transform duration-300 group-hover:scale-105"
                         strokeWidth={2.2}
-                        accentHex={homeSquircleAccentHex(colorfulNavigation, app.id as NavigationTabId)}
                       >
                         {app.icon}
                       </IosAccentIconSquircle>
@@ -291,7 +244,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         variant="tile"
                         className="transition-transform duration-300 group-hover:scale-105"
                         strokeWidth={2.2}
-                        accentHex={homeSquircleAccentHex(colorfulNavigation, app.id as NavigationTabId)}
                       >
                         {app.icon}
                       </IosAccentIconSquircle>
@@ -309,7 +261,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           variant="tile"
                           className="transition-transform duration-300 group-hover:scale-105"
                           strokeWidth={2.2}
-                          accentHex={homeSquircleAccentHex(colorfulNavigation, 'servicos')}
                         >
                           <img
                             src="/icons/servicos-oficina.svg"
@@ -330,7 +281,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           variant="tile"
                           className="transition-transform duration-300 group-hover:scale-105"
                           strokeWidth={2.2}
-                          accentHex={homeSquircleAccentHex(colorfulNavigation, 'pecas')}
                         >
                           <img
                             src="/icons/estoque-ios.png"
@@ -355,7 +305,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <IosAccentIconSquircle
                   variant="modal"
                   strokeWidth={2.2}
-                  accentHex={homeSquircleAccentHex(colorfulNavigation, 'tv')}
                 >
                   <img src="/icons/tv-patio-ios.png" alt="TV do Pátio" className="h-full w-full object-cover" />
                 </IosAccentIconSquircle>
@@ -385,7 +334,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <IosAccentIconSquircle
                           variant="row"
                           strokeWidth={2.2}
-                          accentHex={homeSquircleAccentHex(colorfulNavigation, 'settings_gear')}
                         >
                           <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-full w-full object-cover" />
                         </IosAccentIconSquircle>
@@ -401,7 +349,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <IosAccentIconSquircle
                           variant="row"
                           strokeWidth={2.2}
-                          accentHex={homeSquircleAccentHex(colorfulNavigation, 'lock')}
                         >
                           <img src="/icons/senhas.svg" alt="Alterar senhas" className="h-5 w-5 object-contain" />
                         </IosAccentIconSquircle>
@@ -426,7 +373,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <IosAccentIconSquircle
                           variant="row"
                           strokeWidth={2.2}
-                          accentHex={homeSquircleAccentHex(colorfulNavigation, 'users')}
                         >
                           <img src="/icons/usuarios-ios.png" alt="Usuários do sistema" className="h-full w-full object-cover" />
                         </IosAccentIconSquircle>
@@ -440,7 +386,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <IosAccentIconSquircle
                           variant="row"
                           strokeWidth={2.2}
-                          accentHex={homeSquircleAccentHex(colorfulNavigation, 'zaya')}
                         >
                           <Sparkles />
                         </IosAccentIconSquircle>
@@ -454,7 +399,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <IosAccentIconSquircle
                           variant="row"
                           strokeWidth={2.2}
-                          accentHex={homeSquircleAccentHex(colorfulNavigation, 'settings_gear')}
                         >
                           <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-full w-full object-cover" />
                         </IosAccentIconSquircle>
@@ -470,7 +414,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <IosAccentIconSquircle
                           variant="row"
                           strokeWidth={2.2}
-                          accentHex={homeSquircleAccentHex(colorfulNavigation, 'checklists')}
                         >
                           <img src="/icons/checklist-patio.svg" alt="Checklists do Pátio" className="h-5 w-5 object-contain" />
                         </IosAccentIconSquircle>
@@ -485,7 +428,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <IosAccentIconSquircle
                         variant="row"
                         strokeWidth={2.2}
-                        accentHex={homeSquircleAccentHex(colorfulNavigation, 'patio_link')}
                       >
                         <img src="/icons/patio.svg" alt="Pátio" className="h-5 w-5 object-contain" />
                       </IosAccentIconSquircle>
@@ -505,7 +447,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <IosAccentIconSquircle
                           variant="row"
                           strokeWidth={2.2}
-                          accentHex={homeSquircleAccentHex(colorfulNavigation, 'lock')}
                         >
                           <img src="/icons/senhas.svg" alt="Alterar senhas" className="h-5 w-5 object-contain" />
                         </IosAccentIconSquircle>
@@ -529,7 +470,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <IosAccentIconSquircle
                           variant="row"
                           strokeWidth={2.2}
-                          accentHex={homeSquircleAccentHex(colorfulNavigation, 'profile')}
                         >
                           <img src="/icons/perfil.svg" alt="Configurações de perfil" className="h-5 w-5 object-contain" />
                         </IosAccentIconSquircle>
@@ -545,7 +485,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <IosAccentIconSquircle
                           variant="row"
                           strokeWidth={2.2}
-                          accentHex={homeSquircleAccentHex(colorfulNavigation, 'profile')}
                         >
                           <User />
                         </IosAccentIconSquircle>
@@ -562,7 +501,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <IosAccentIconSquircle
                           variant="row"
                           strokeWidth={2.2}
-                          accentHex={homeSquircleAccentHex(colorfulNavigation, 'logout')}
                         >
                           <LogOut />
                         </IosAccentIconSquircle>
