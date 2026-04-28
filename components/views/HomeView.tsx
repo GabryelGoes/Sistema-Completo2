@@ -118,7 +118,7 @@ const OPERATIONAL_APPS: {
   {
     id: 'agenda',
     label: 'Agenda',
-    icon: <img src="/icons/agenda-ios.png" alt="Agenda" className="h-7 w-7 object-contain" />,
+    icon: <img src="/icons/agenda-ios.png" alt="Agenda" className="h-9 w-9 object-contain" />,
   },
   {
     id: 'patio',
@@ -128,7 +128,7 @@ const OPERATIONAL_APPS: {
   {
     id: 'laboratorio',
     label: 'Laboratório',
-    icon: <img src="/icons/laboratorio-ios.png" alt="Laboratório" className="h-7 w-7 object-contain" />,
+    icon: <img src="/icons/laboratorio-ios.png" alt="Laboratório" className="h-9 w-9 object-contain" />,
   },
 ];
 
