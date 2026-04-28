@@ -887,6 +887,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const historyCardTitleParts = selectedHistoryCard ? parsePatioCardTitle(selectedHistoryCard.name) : null;
   const cardInTransitionTitleParts = cardInTransition ? parsePatioCardTitle(cardInTransition.name) : null;
 
+  // Gesto voltar nativo (Android/iOS): fecha primeiro os modais de veículo/histórico.
+  useEffect(() => {
+    if (!selectedCard && !selectedHistoryCard) return;
+    const onPopState = () => {
+      const w = window as Window & { __rdaModalBackHandledAt?: number };
+      w.__rdaModalBackHandledAt = Date.now();
+      if (selectedCard) setSelectedCard(null);
+      if (selectedHistoryCard) setSelectedHistoryCard(null);
+      setViewingBudget(null);
+      setBudgetApprovalTarget(null);
+      setIsBudgetOpen(false);
+      setIsVehicleEditOpen(false);
+      setIsDeleteVehicleOpen(false);
+      setIsVehicleCategoryModalOpen(false);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [selectedCard, selectedHistoryCard]);
+
   const fetchReminders = useCallback(async () => {
     setRemindersLoading(true);
     try {
