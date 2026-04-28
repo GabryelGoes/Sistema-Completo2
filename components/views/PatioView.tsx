@@ -4615,9 +4615,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {isEditingDesc ? (
                               <div className="animate-in fade-in duration-200 flex flex-col gap-3 bg-zinc-50/90 px-3 py-3 pl-3 dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
                                 <textarea
+                                  data-queixa-textarea
                                   value={descText}
                                   onChange={(e) => setDescText(e.target.value)}
-                                  className={`${vin} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed caret-zinc-950 dark:text-white dark:caret-[#93c5fd]`}
+                                  className={`${vin} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
                                   placeholder="Digite a queixa do cliente..."
                                 />
                                 <div className="flex justify-end gap-1.5">

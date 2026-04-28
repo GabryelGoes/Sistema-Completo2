@@ -26,3 +26,11 @@ html.light textarea::placeholder {
   color: rgb(113 113 122) !important;
   opacity: 1;
 }
+
+/* Pátio — edição da queixa: cursor de texto (caret) bem visível no modo claro */
+html.light textarea[data-queixa-textarea] {
+  caret-color: #007AFF !important;
+}
+html.dark textarea[data-queixa-textarea] {
+  caret-color: #93c5fd !important;
+}
