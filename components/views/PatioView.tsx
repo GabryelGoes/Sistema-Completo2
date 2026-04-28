@@ -4688,9 +4688,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-10 p-8 pt-8 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:gap-8 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(232px,288px)]">
+                  <div className="grid grid-cols-1 gap-6 p-8 pt-6 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:gap-7 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(232px,288px)]">
                       
-                      <div className="min-w-0 space-y-10">
+                      <div className="min-w-0 space-y-6">
                         <div ref={descriptionSectionRef}>
                           <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
                             <div className="relative min-w-0">
@@ -4890,8 +4890,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
 
                          {/* Anexos (fotos) + Documentos (arquivos) */}
-                         <div>
-                            <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                         <div className={`${vi} overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.1),0_2px_10px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_34px_-12px_rgba(0,0,0,0.45)]`}>
+                            <div className="border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div className="min-w-0">
                                   <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
                                      <Paperclip className="h-3.5 w-3.5" />
@@ -4901,7 +4902,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     Links úteis ficam logo abaixo dos botões. Cada foto pode ter um nome — aparece abaixo da miniatura. Use o lápis para renomear e a lixeira para excluir (fotos e documentos).
                                   </p>
                                 </div>
-                                <div className="grid grid-cols-3 gap-3 sm:gap-2 sm:justify-items-end sm:shrink-0">
+                                <div className="grid grid-cols-3 gap-2 sm:gap-2 sm:justify-items-end sm:shrink-0">
                                     <input 
                                         type="file" 
                                         ref={galleryInputRef} 
@@ -4922,7 +4923,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         type="button"
                                         onClick={() => cameraInputRef.current?.click()}
                                         disabled={isUploading}
-                                        className="flex items-center justify-center w-14 h-14 sm:w-10 sm:h-10 rounded-2xl sm:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
+                                        className="flex items-center justify-center w-12 h-12 sm:w-10 sm:h-10 rounded-2xl sm:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
                                         title="Abrir câmera do dispositivo"
                                     >
                                         <Camera className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
@@ -4931,7 +4932,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         type="button"
                                         onClick={() => galleryInputRef.current?.click()}
                                         disabled={isUploading}
-                                        className="flex items-center justify-center w-14 h-14 sm:w-10 sm:h-10 rounded-2xl sm:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
+                                        className="flex items-center justify-center w-12 h-12 sm:w-10 sm:h-10 rounded-2xl sm:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
                                         title="Galeria / Documentos"
                                     >
                                         <ImageIcon className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
@@ -4940,16 +4941,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         type="button"
                                         onClick={() => galleryInputRef.current?.click()}
                                         disabled={isUploading}
-                                        className="flex items-center justify-center w-14 h-14 sm:w-10 sm:h-10 rounded-2xl sm:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
+                                        className="flex items-center justify-center w-12 h-12 sm:w-10 sm:h-10 rounded-2xl sm:rounded-xl bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
                                         title="Arquivos do dispositivo"
                                     >
                                         <FolderOpen className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
                                     </button>
                                 </div>
                             </div>
+                            </div>
 
                             {serviceOrderDetail && (referenceLinksDraft.length > 0 || can('canEditFicha')) && (
-                              <div className="mb-5">
+                              <div className="px-3 py-4 sm:px-4 sm:py-5">
                                 <div
                                   className={`${vi} overflow-hidden p-4 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-5`}
                                 >
