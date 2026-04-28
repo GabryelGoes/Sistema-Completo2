@@ -4679,7 +4679,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => openBudgetModal()}
-                                  className="group w-full rounded-xl bg-[#007AFF] px-3 py-3.5 text-left text-white shadow-[0_4px_14px_-4px_rgba(0,122,255,0.55)] transition-[filter,transform,background-color,box-shadow] hover:bg-[#0066DD] hover:shadow-[0_8px_22px_-6px_rgba(0,122,255,0.45)] active:scale-[0.99] dark:bg-white dark:text-zinc-950 dark:shadow-[0_4px_22px_-8px_rgba(255,255,255,0.22)] dark:hover:bg-zinc-100 dark:hover:shadow-[0_8px_26px_-8px_rgba(255,255,255,0.28)]"
+                                  className="group w-full rounded-xl bg-[#4FA8FF] px-3 py-3.5 text-left text-white shadow-[0_4px_14px_-4px_rgba(79,168,255,0.55)] transition-[filter,transform,background-color,box-shadow] hover:bg-[#3397F8] hover:shadow-[0_8px_22px_-6px_rgba(79,168,255,0.45)] active:scale-[0.99] dark:bg-white dark:text-zinc-950 dark:shadow-[0_4px_22px_-8px_rgba(255,255,255,0.22)] dark:hover:bg-zinc-100 dark:hover:shadow-[0_8px_26px_-8px_rgba(255,255,255,0.28)]"
                                 >
                                   <span className="flex items-center justify-between gap-3">
                                     <span className="font-semibold">Criar orçamento</span>
