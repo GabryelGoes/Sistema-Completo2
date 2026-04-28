@@ -387,7 +387,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'settings_gear')}
                         >
-                          <img src="/icons/configuracoes.svg" alt="Configurações" className="h-5 w-5 object-contain" />
+                          <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-5 w-5 object-contain" />
                         </IosAccentIconSquircle>
                       }
                     />
@@ -456,7 +456,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'settings_gear')}
                         >
-                          <img src="/icons/configuracoes.svg" alt="Configurações" className="h-5 w-5 object-contain" />
+                          <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-5 w-5 object-contain" />
                         </IosAccentIconSquircle>
                       }
                     />
