@@ -4033,10 +4033,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {selectedCardTitleParts?.vehicle}
                           </h1>
                           {!isModuleMode && (
-                            <div className="shrink-0 rounded-xl border border-zinc-300/85 bg-white/95 px-3 py-1.5 shadow-[0_2px_10px_-6px_rgba(0,0,0,0.35)] dark:border-white/[0.16] dark:bg-white/[0.08]">
-                              <span className={`font-plate text-sm font-extrabold uppercase tracking-[0.12em] text-zinc-900 dark:text-white ${blurPlates ? 'blur-plate' : ''}`}>
-                                {selectedCardTitleParts?.plateOrModule || '---'}
-                              </span>
+                            <div className="shrink-0">
+                              <MercosulPlateMockup
+                                plate={selectedCardTitleParts?.plateOrModule || '---'}
+                                blurPlates={blurPlates}
+                                size="modal"
+                              />
                             </div>
                           )}
                         </div>
