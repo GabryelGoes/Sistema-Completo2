@@ -4569,7 +4569,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       
                       <div className="min-w-0 space-y-10">
                         <div ref={descriptionSectionRef}>
-                          <div className={`${vi} flex min-w-0 overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
+                          <div className={`${vi} flex min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
                             {/* Coluna da barra — mesmo visual discreto que Técnico (2px, azul→amarelo→azul, mesma sombra) */}
                             <div className="flex w-2.5 shrink-0 flex-col items-center self-stretch py-2.5 pl-1 sm:w-3 sm:pl-1.5">
                               <div
