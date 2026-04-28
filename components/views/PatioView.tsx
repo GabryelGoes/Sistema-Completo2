@@ -3206,26 +3206,37 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ) : null}
                 </div>
 
-                {/* Cliente logo abaixo do carro */}
+                {/* Cliente + placa na mesma linha (placa fixa à direita, nome truncado) */}
                 {customerName && (
                   <div
-                    className={`mb-2 flex w-fit max-w-full items-center gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] ${
-                      boardPanoramic ? 'gap-1.5 px-2 py-1' : 'gap-2 px-3 py-1.5'
+                    className={`mb-2 flex max-w-full items-center justify-between gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] ${
+                      boardPanoramic ? 'px-2 py-1' : 'px-3 py-1.5'
                     }`}
                   >
-                    <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
-                    <span
-                      className={`font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight ${
-                        boardPanoramic ? 'text-sm' : 'text-base'
-                      }`}
-                    >
-                      {firstTwoNames(customerName)}
-                    </span>
+                    <div className="min-w-0 flex flex-1 items-center gap-2">
+                      <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
+                      <span
+                        className={`min-w-0 flex-1 truncate font-semibold text-zinc-700 dark:text-zinc-200 tracking-tight ${
+                          boardPanoramic ? 'text-sm' : 'text-base'
+                        }`}
+                      >
+                        {firstTwoNames(customerName)}
+                      </span>
+                    </div>
+                    {!isModuleMode && (
+                      <div className="shrink-0">
+                        <MercosulPlateMockup
+                          plate={plate}
+                          blurPlates={blurPlates}
+                          size={boardPanoramic ? 'cardCompact' : 'card'}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Técnico (esquerda) | Placa (direita) */}
-                <div className="flex items-start justify-between gap-3">
+                {/* Técnico */}
+                <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
                     <button
                       type="button"
@@ -3247,15 +3258,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : 'Sem técnico')}
                       </span>
                     </button>
-                  </div>
-                  <div className="flex-shrink-0">
-                    {!isModuleMode && (
-                      <MercosulPlateMockup
-                        plate={plate}
-                        blurPlates={blurPlates}
-                        size={boardPanoramic ? 'cardCompact' : 'card'}
-                      />
-                    )}
                   </div>
                 </div>
               </div>
