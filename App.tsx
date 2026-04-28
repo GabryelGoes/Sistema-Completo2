@@ -58,20 +58,6 @@ export default function App() {
   const [assistantPatioOpenBudgetId, setAssistantPatioOpenBudgetId] = useState<string | null>(null);
   /** Incrementa para abrir o modal de histórico de arquivados no Pátio/Laboratório (Zaya). */
   const [assistantPatioOpenHistoryTrigger, setAssistantPatioOpenHistoryTrigger] = useState(0);
-  const getTabTitle = useCallback((tab: TabId): string => {
-    switch (tab) {
-      case 'reception':
-        return 'Recepção';
-      case 'agenda':
-        return 'Agenda';
-      case 'patio':
-        return 'Pátio';
-      case 'laboratorio':
-        return 'Laboratório';
-      default:
-        return 'Início';
-    }
-  }, []);
 
   const handleNewCommentNotification = (n: Notification) => {
     playNotificationSound();
@@ -349,26 +335,24 @@ export default function App() {
       >
         <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
         {userTab !== 'home' && (
-          <header className="relative z-20 flex items-center justify-between px-4 py-3 bg-light-card/95 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-light-border dark:border-white/10">
+          <div className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <button
               type="button"
               onClick={() => setUserTab('home')}
-              className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-200/80 dark:text-zinc-200 dark:hover:bg-white/[0.08]"
+              className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
               aria-label="Voltar para Início"
             >
-              <ArrowLeft className="h-4 w-4" />
-              Voltar
+              <ArrowLeft className="h-5 w-5" />
             </button>
-            <p className="text-[14px] font-semibold text-zinc-800 dark:text-zinc-100">{getTabTitle(userTab)}</p>
             <button
               type="button"
               onClick={() => setUserTab('home')}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-700 transition-colors hover:bg-zinc-200/80 dark:text-zinc-200 dark:hover:bg-white/[0.08]"
+              className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
               aria-label="Fechar página"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
-          </header>
+          </div>
         )}
         <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
           <KeepAliveTabPanel
@@ -564,26 +548,24 @@ export default function App() {
     >
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
       {currentTab !== 'home' && (
-        <header className="relative z-20 flex items-center justify-between px-4 py-3 bg-light-card/95 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-light-border dark:border-white/10">
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <button
             type="button"
             onClick={() => setCurrentTab('home')}
-            className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-200/80 dark:text-zinc-200 dark:hover:bg-white/[0.08]"
+            className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
             aria-label="Voltar para Início"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Voltar
+            <ArrowLeft className="h-5 w-5" />
           </button>
-          <p className="text-[14px] font-semibold text-zinc-800 dark:text-zinc-100">{getTabTitle(currentTab)}</p>
           <button
             type="button"
             onClick={() => setCurrentTab('home')}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-700 transition-colors hover:bg-zinc-200/80 dark:text-zinc-200 dark:hover:bg-white/[0.08]"
+            className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
             aria-label="Fechar página"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
-        </header>
+        </div>
       )}
 
       <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
