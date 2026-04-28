@@ -671,6 +671,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const commentsListRef = useRef<HTMLDivElement>(null);
   const customerDataSectionRef = useRef<HTMLDivElement>(null);
+  const customerNameInputRef = useRef<HTMLInputElement>(null);
   const descriptionSectionRef = useRef<HTMLDivElement>(null);
   const budgetsSectionRef = useRef<HTMLDivElement>(null);
   const openServiceOrderHandledRef = useRef(false);
@@ -744,6 +745,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [editFichaPlateLookupLoading, setEditFichaPlateLookupLoading] = useState(false);
   const [editFichaPlateLookupError, setEditFichaPlateLookupError] = useState<string | null>(null);
   const lastEditFichaPlateFetchedRef = useRef<string | null>(null);
+  const [focusCustomerNameAfterExpand, setFocusCustomerNameAfterExpand] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
 
@@ -751,6 +753,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [editingActionId, setEditingActionId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  const handleJumpToCustomerNameEdit = () => {
+    setIsDadosFichaExpanded(true);
+    setFocusCustomerNameAfterExpand(true);
+    customerDataSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   // Estados para Edição da DESCRIÇÃO (Ficha Técnica)
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -1953,6 +1961,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setEditFichaPlateLookupLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!isDadosFichaExpanded || !focusCustomerNameAfterExpand || !can('canEditFicha')) return;
+    const id = window.setTimeout(() => {
+      customerNameInputRef.current?.focus();
+      customerNameInputRef.current?.select();
+      setFocusCustomerNameAfterExpand(false);
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [isDadosFichaExpanded, focusCustomerNameAfterExpand, can]);
 
   const handleSaveReferenceLinks = async () => {
     if (!selectedCard || !serviceOrderDetail) return;
@@ -4090,9 +4108,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#007AFF] dark:text-[#7ab8ff]">Cliente</p>
-                                  <p className="truncate text-[15px] font-semibold leading-tight text-zinc-900 dark:text-white">
+                                  <button
+                                    type="button"
+                                    onClick={handleJumpToCustomerNameEdit}
+                                    disabled={!can('canEditFicha')}
+                                    className={`truncate text-left text-[15px] font-semibold leading-tight transition-colors ${
+                                      can('canEditFicha')
+                                        ? 'text-zinc-900 hover:text-[#007AFF] dark:text-white dark:hover:text-[#93c5fd]'
+                                        : 'text-zinc-900 dark:text-white'
+                                    }`}
+                                    title={can('canEditFicha') ? 'Editar nome do cliente em Dados da ficha' : 'Dados do cliente'}
+                                  >
                                     {selectedCardTitleParts?.customer || '—'}
-                                  </p>
+                                  </button>
                                 </div>
                               </div>
                             </div>
@@ -4209,7 +4237,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <div className={`${vi} space-y-4 p-4 sm:p-5`}>
                                     <div>
                                       <label className={iosLabel}>Nome</label>
-                                      <input value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className={vin} placeholder="Nome do cliente" />
+                                      <input ref={customerNameInputRef} value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className={vin} placeholder="Nome do cliente" />
                                     </div>
                                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                       <div>
