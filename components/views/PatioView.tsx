@@ -5116,7 +5116,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <div className="space-y-8">
                                         {images.length > 0 && (
                                           <div>
-                                            <div className="mb-2 flex min-w-0 items-center gap-2 sm:gap-2.5">
+                                            <div className="mb-2 flex min-w-0 items-center gap-2 pl-0.5 sm:gap-2.5 sm:pl-1">
                                               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
                                                 <ImageIcon className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                               </div>
