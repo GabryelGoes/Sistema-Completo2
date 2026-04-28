@@ -312,6 +312,10 @@ export default function App() {
   useEffect(() => {
     if (!authSession) return;
     const handlePopState = () => {
+      const w = window as Window & { __rdaModalBackHandledAt?: number };
+      if (w.__rdaModalBackHandledAt && Date.now() - w.__rdaModalBackHandledAt < 120) {
+        return;
+      }
       if (activeAppTab !== 'home') {
         navigateToHomeApp();
       }

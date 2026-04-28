@@ -17,6 +17,21 @@ export function ModalPortal({ children }: { children: ReactNode }) {
     return () => ctx.unregister();
   }, [ctx]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.history.pushState({ rdaModalLayer: true }, '');
+    const onPopState = () => {
+      const w = window as Window & { __rdaModalBackHandledAt?: number };
+      const now = Date.now();
+      // Evita múltiplos fechamentos quando vários listeners de modal disparam juntos.
+      if (w.__rdaModalBackHandledAt && now - w.__rdaModalBackHandledAt < 80) return;
+      w.__rdaModalBackHandledAt = now;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
   if (typeof document === 'undefined') return null;
   return createPortal(children, document.body);
 }
