@@ -4617,15 +4617,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <textarea
                                   value={descText}
                                   onChange={(e) => setDescText(e.target.value)}
-                                  className={`${vin} min-h-[180px] resize-none text-[15px] leading-relaxed`}
+                                  className={`${vin} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed caret-zinc-950 dark:text-white dark:caret-[#93c5fd]`}
                                   placeholder="Digite a queixa do cliente..."
                                 />
-                                <div className="flex justify-end gap-2">
+                                <div className="flex justify-end gap-1.5">
                                   <button
                                     type="button"
                                     onClick={() => setIsEditingDesc(false)}
                                     disabled={isSavingDesc}
-                                    className="rounded-xl px-3 py-2 text-[13px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                                    className="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
                                   >
                                     Cancelar
                                   </button>
@@ -4633,9 +4633,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     type="button"
                                     onClick={handleSaveDescription}
                                     disabled={isSavingDesc}
-                                    className={`${iosPrimaryButton} inline-flex items-center gap-2 px-4 py-2 text-[13px]`}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-[#007AFF] px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-45"
                                   >
-                                    {isSavingDesc ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                                    {isSavingDesc ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                                     Salvar
                                   </button>
                                 </div>
