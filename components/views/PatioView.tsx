@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2, Wrench } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2, Wrench, Gauge } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -4041,55 +4041,73 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '').trim()}
                           </p>
                         ) : null}
-                        {/* Placa Mercosul, cliente e km — logo abaixo da cor; em lg+ ficam na mesma linha */}
-                        <div className="mt-3 flex flex-col gap-3 text-zinc-400 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-8 lg:gap-y-2">
-                         {!isModuleMode && (
-                         <div className="flex shrink-0 items-center">
-                            <MercosulPlateMockup
-                              plate={selectedCardTitleParts?.plateOrModule || '---'}
-                              blurPlates={blurPlates}
-                              size="modal"
-                            />
-                         </div>
-                         )}
-                         <div
-                           className={`${vehicleModalCustomerNameBox} flex min-w-0 flex-1 items-center gap-2 px-4 py-2.5 lg:max-w-xl lg:flex-1`}
-                         >
-                            <User className="w-5 h-5 shrink-0 text-brand-yellow" />
-                            <span className="truncate text-lg font-medium text-zinc-700 dark:text-white">
-                              {selectedCardTitleParts?.customer || '—'}
-                            </span>
-                         </div>
-                         {!isModuleMode && can('canEditMileage') && (
-                         <div className="flex shrink-0 items-center gap-2 lg:flex-wrap">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-yellow">Km</span>
-                            <input
-                              type="text"
-                              value={mileageEditValue}
-                              onChange={(e) => setMileageEditValue(e.target.value)}
-                              placeholder="Ex: 45000"
-                              className="w-28 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-                            />
-                            <button
-                              type="button"
-                              onClick={handleSaveMileage}
-                              disabled={savingMileage || mileageEditValue.trim() === lastSavedMileage}
-                              className={`px-3 py-2 rounded-lg text-white text-sm font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50 ${
-                                mileageEditValue.trim() !== lastSavedMileage
-                                  ? 'bg-amber-500 hover:bg-amber-600'
-                                  : 'bg-zinc-600 dark:bg-zinc-700'
-                              }`}
-                            >
-                              {savingMileage ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                              Salvar
-                            </button>
-                            {mileageSavedMessage && (
-                              <span className="text-sm font-medium text-green-600 dark:text-green-400 animate-in fade-in">
-                                Salvo!
-                              </span>
+                        {/* Placa, cliente e km — cartão no mesmo idioma visual das demais seções */}
+                        <div className={`${vi} relative mt-3 overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
+                          <div
+                            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
+                            aria-hidden
+                          />
+                          <div
+                            className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
+                            aria-hidden
+                          />
+                          <div className="pointer-events-none absolute inset-y-2 left-2.5 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)] sm:left-3 sm:inset-y-2.5" aria-hidden />
+                          <div className="relative flex flex-col gap-3 px-3 py-3 pl-5 sm:px-4 sm:py-3.5 sm:pl-6 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-5 lg:gap-y-2">
+                            {!isModuleMode && (
+                              <div className="flex shrink-0 items-center lg:self-center">
+                                <MercosulPlateMockup
+                                  plate={selectedCardTitleParts?.plateOrModule || '---'}
+                                  blurPlates={blurPlates}
+                                  size="modal"
+                                />
+                              </div>
                             )}
-                         </div>
-                         )}
+                            <div className="flex min-w-0 flex-1 lg:max-w-xl">
+                              <div className="flex w-full min-w-0 items-center gap-2.5 rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50/95 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.1] dark:from-white/[0.08] dark:to-white/[0.03]">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white shadow-sm dark:border-white/[0.08] dark:bg-white/[0.06]">
+                                  <User className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#007AFF] dark:text-[#7ab8ff]">Cliente</p>
+                                  <p className="truncate text-[15px] font-semibold leading-tight text-zinc-900 dark:text-white">
+                                    {selectedCardTitleParts?.customer || '—'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            {!isModuleMode && can('canEditMileage') && (
+                              <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2 rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50/95 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.1] dark:from-white/[0.07] dark:to-white/[0.03]">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white shadow-sm dark:border-white/[0.08] dark:bg-white/[0.06]">
+                                  <Gauge className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                </div>
+                                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#007AFF] dark:text-[#7ab8ff]">Km</span>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={mileageEditValue}
+                                  onChange={(e) => setMileageEditValue(e.target.value)}
+                                  placeholder="Ex: 45000"
+                                  className="w-[6.5rem] rounded-xl border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500 sm:w-28"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleSaveMileage}
+                                  disabled={savingMileage || mileageEditValue.trim() === lastSavedMileage}
+                                  className={`inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-md transition-all disabled:opacity-50 ${
+                                    mileageEditValue.trim() !== lastSavedMileage
+                                      ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
+                                      : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
+                                  }`}
+                                >
+                                  {savingMileage ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                                  Salvar
+                                </button>
+                                {mileageSavedMessage && (
+                                  <span className="text-[11px] font-semibold text-green-600 dark:text-green-400 animate-in fade-in">Salvo!</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         {/* Dados da ficha — cabeçalho com camadas, tipografia forte e chips de resumo */}
