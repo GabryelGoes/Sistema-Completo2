@@ -741,6 +741,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     vehicleYear: '',
     vehicleEngineInfo: '',
   });
+  const [editFichaPlateLookupLoading, setEditFichaPlateLookupLoading] = useState(false);
+  const [editFichaPlateLookupError, setEditFichaPlateLookupError] = useState<string | null>(null);
+  const lastEditFichaPlateFetchedRef = useRef<string | null>(null);
   const [newComment, setNewComment] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
 
@@ -1917,6 +1920,37 @@ export const PatioView: React.FC<PatioViewProps> = ({
       alert(err?.message ?? "Erro ao salvar alterações.");
     } finally {
       setEditFichaSaving(false);
+    }
+  };
+
+  const handleEditFichaPlateLookup = async (force?: boolean) => {
+    if (isModuleMode) return;
+    const normalized = editFichaForm.plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (normalized.length < 7) {
+      setEditFichaPlateLookupError('Informe a placa completa (mín. 7 caracteres).');
+      return;
+    }
+    if (!force && lastEditFichaPlateFetchedRef.current === normalized) return;
+    setEditFichaPlateLookupError(null);
+    setEditFichaPlateLookupLoading(true);
+    try {
+      const result = await consultPlacaFipe(normalized);
+      const fetchedPlate = (result.plate || normalized).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      lastEditFichaPlateFetchedRef.current = fetchedPlate;
+      setEditFichaForm((prev) => ({
+        ...prev,
+        plate: fetchedPlate,
+        vehicleBrand: result.vehicleBrand?.trim() || prev.vehicleBrand,
+        vehicleModel: result.vehicleModel?.trim() || prev.vehicleModel,
+        vehicleColor: result.vehicleColor?.trim() || prev.vehicleColor,
+        vehicleYear: result.vehicleYear?.trim() || prev.vehicleYear,
+        vehicleEngineInfo: result.vehicleEngineInfo?.trim() || prev.vehicleEngineInfo,
+      }));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Falha ao consultar placa.';
+      setEditFichaPlateLookupError(msg);
+    } finally {
+      setEditFichaPlateLookupLoading(false);
     }
   };
 
@@ -4168,7 +4202,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <div className="flex flex-col gap-6 bg-zinc-50/90 p-5 dark:bg-white/[0.02] sm:p-6">
                           {can('canEditFicha') ? (
                             <>
-                              <div className="order-2">
+                              <div className="order-1">
                               {serviceOrderDetail.customers && (
                                 <div className="space-y-3">
                                   <p className={`${iosLabel} ml-0.5`}>Cliente</p>
@@ -4212,7 +4246,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                               )}
                               </div>
-                              <div className="order-1">
+                              <div className="order-2">
                               <div className="space-y-3">
                                 <div className="ml-0.5 flex flex-wrap items-center justify-between gap-2">
                                   <p className={iosLabel}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
@@ -4258,7 +4292,38 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                         <div>
                                           <label className={iosLabel}>Placa</label>
-                                          <input value={editFichaForm.plate} onChange={(e) => setEditFichaForm(f => ({ ...f, plate: e.target.value.toUpperCase() }))} maxLength={8} className={`${vin} font-mono uppercase`} placeholder="ABC1D23" />
+                                          <div className="space-y-2">
+                                            <input
+                                              value={editFichaForm.plate}
+                                              onChange={(e) => {
+                                                const next = e.target.value.toUpperCase();
+                                                setEditFichaForm((f) => ({ ...f, plate: next }));
+                                                setEditFichaPlateLookupError(null);
+                                                const n = next.replace(/[^A-Za-z0-9]/g, '');
+                                                if (lastEditFichaPlateFetchedRef.current && lastEditFichaPlateFetchedRef.current !== n) {
+                                                  lastEditFichaPlateFetchedRef.current = null;
+                                                }
+                                              }}
+                                              onBlur={() => {
+                                                if (editFichaForm.plate.trim().length >= 7) void handleEditFichaPlateLookup();
+                                              }}
+                                              maxLength={8}
+                                              className={`${vin} font-mono uppercase`}
+                                              placeholder="ABC1D23"
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() => void handleEditFichaPlateLookup(true)}
+                                              disabled={editFichaPlateLookupLoading}
+                                              className="inline-flex items-center gap-1.5 rounded-xl border border-[#007AFF]/30 bg-[#007AFF]/10 px-3 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-colors hover:bg-[#007AFF]/15 disabled:opacity-50 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
+                                            >
+                                              {editFichaPlateLookupLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                                              Buscar placa e preencher veículo
+                                            </button>
+                                            {editFichaPlateLookupError && (
+                                              <p className="text-[11px] font-medium text-red-600 dark:text-red-400">{editFichaPlateLookupError}</p>
+                                            )}
+                                          </div>
                                         </div>
                                         <div>
                                           <label className={iosLabel}>Quilometragem</label>
