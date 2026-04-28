@@ -4473,8 +4473,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
                               aria-hidden
                             />
-                            <div className="pointer-events-none absolute inset-y-2 left-2.5 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)] sm:left-3 sm:inset-y-2.5" aria-hidden />
-                            <div className="relative flex items-center gap-2 px-2.5 py-2 pl-5 sm:gap-2.5 sm:px-3 sm:py-2.5 sm:pl-6">
+                            <div className="relative flex items-center gap-2 px-2.5 py-2 sm:gap-2.5 sm:px-3 sm:py-2.5">
                               {selectedCard.members && selectedCard.members.length > 0 ? (
                                 <>
                                   <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
@@ -4565,16 +4564,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       
                       <div className="min-w-0 space-y-10">
                         <div ref={descriptionSectionRef}>
-                          <div className={`${vi} flex min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
-                            {/* Coluna da barra — mesmo visual discreto que Técnico (2px, azul→amarelo→azul, mesma sombra) */}
-                            <div className="flex w-2.5 shrink-0 flex-col items-center self-stretch py-2.5 pl-1 sm:w-3 sm:pl-1.5">
-                              <div
-                                className="min-h-0 w-[2px] flex-1 rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)]"
-                                aria-hidden
-                              />
-                            </div>
-
-                            <div className="relative min-w-0 flex-1">
+                          <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
+                            <div className="relative min-w-0">
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
                               aria-hidden
@@ -4646,8 +4637,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                               </div>
                             )}
-                            </div>
                           </div>
+                        </div>
                         </div>
 
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
