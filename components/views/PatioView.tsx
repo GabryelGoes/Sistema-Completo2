@@ -4570,7 +4570,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       
                       <div className="min-w-0 space-y-10">
                         <div ref={descriptionSectionRef}>
-                          <div className={`${vi} relative overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
+                          <div className={`${vi} flex min-w-0 overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
+                            {/* Coluna só da barra — não fica atrás do fundo opaco do texto */}
+                            <div className="flex w-3 shrink-0 flex-col items-center self-stretch py-2.5 pl-1.5 sm:w-3.5 sm:pl-2">
+                              <div
+                                className="min-h-0 w-[3px] flex-1 rounded-full bg-[linear-gradient(180deg,#007AFF_0%,#F5D00B_16%,#22c55e_34%,#a855f7_50%,#f97316_66%,#06b6d4_82%,#007AFF_100%)] shadow-[0_0_14px_rgba(0,122,255,0.55),0_0_0_1px_rgba(0,122,255,0.35)] dark:bg-[linear-gradient(180deg,#60a5fa_0%,#fbbf24_14%,#4ade80_32%,#c084fc_50%,#fb923c_68%,#22d3ee_84%,#93c5fd_100%)] dark:shadow-[0_0_16px_rgba(96,165,250,0.55),0_0_0_1px_rgba(147,197,253,0.35)]"
+                                aria-hidden
+                              />
+                            </div>
+
+                            <div className="relative min-w-0 flex-1">
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
                               aria-hidden
@@ -4579,13 +4588,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="pointer-events-none absolute -right-10 top-8 h-24 w-24 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
                               aria-hidden
                             />
-                            {/* Barra lateral em toda a altura do bloco (título + texto); mais cores ao longo do comprimento */}
-                            <div
-                              className="pointer-events-none absolute left-2.5 top-3 bottom-3 z-[1] w-[2px] rounded-full bg-[linear-gradient(180deg,#007AFF_0%,#F5D00B_14%,#22c55e_30%,#a855f7_48%,#f97316_64%,#06b6d4_78%,#007AFF_92%,#93c5fd_100%)] opacity-95 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:bg-[linear-gradient(180deg,#60a5fa_0%,#fbbf24_12%,#4ade80_28%,#c084fc_46%,#fb923c_62%,#22d3ee_76%,#3b82f6_90%,#e0e7ff_100%)] dark:opacity-100 dark:shadow-[0_0_14px_rgba(96,165,250,0.35)] sm:left-3"
-                              aria-hidden
-                            />
 
-                            <div className="relative z-[2] flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-5 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-6">
+                            <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                               <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
                                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
                                   <FileText className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
@@ -4610,7 +4614,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
 
                             {isEditingDesc ? (
-                              <div className="animate-in fade-in duration-200 relative z-[2] flex flex-col gap-3 bg-zinc-50/90 px-3 py-3 pl-5 dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-6">
+                              <div className="animate-in fade-in duration-200 flex flex-col gap-3 bg-zinc-50/90 px-3 py-3 pl-3 dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
                                 <textarea
                                   value={descText}
                                   onChange={(e) => setDescText(e.target.value)}
@@ -4638,7 +4642,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                               </div>
                             ) : (
-                              <div className="relative z-[2] border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 pl-5 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-6">
+                              <div className="border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 pl-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
                                 <div className={uiReadBody}>
                                   <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                     {selectedCard.desc || 'Nenhuma descrição disponível para este veículo.'}
@@ -4646,6 +4650,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                               </div>
                             )}
+                            </div>
                           </div>
                         </div>
 
