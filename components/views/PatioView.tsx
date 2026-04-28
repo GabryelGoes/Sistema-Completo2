@@ -4978,7 +4978,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   </div>
                                   {referenceLinksDraft.length === 0 ? (
                                     <p className="text-[14px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                                      Nenhum link anexado. Use &quot;Adicionar link&quot; para guardar manuais, catálogos ou páginas de referência.
+                                      Nenhum link anexado.
                                     </p>
                                   ) : (
                                     <ul className="space-y-3">
