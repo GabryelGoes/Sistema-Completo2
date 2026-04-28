@@ -3974,8 +3974,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const vin = iosVehicleModalInput;
         return (
         <ModalPortal>
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/35 dark:bg-black/45 backdrop-blur-[20px] animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-4 sm:p-6">
-           <div className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-[96vw] xl:max-w-[92vw] 2xl:max-w-[88vw] min-h-0 flex-col ${iosVehicleModalShell} animate-modal-wp-app ${modalRingClass}`}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/35 dark:bg-black/45 backdrop-blur-[20px] animate-in fade-in duration-200 p-1.5 pt-[max(0.45rem,env(safe-area-inset-top))] pb-[max(0.45rem,env(safe-area-inset-bottom))] sm:p-3">
+           <div className={`relative flex h-[min(97vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-0.35rem))] w-full max-w-[99vw] xl:max-w-[98vw] 2xl:max-w-[97vw] min-h-0 flex-col ${iosVehicleModalShell} animate-modal-wp-app ${modalRingClass}`}>
               
               <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
                 {can('canDeleteCards') && (
