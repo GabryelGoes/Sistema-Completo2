@@ -4955,11 +4955,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
 
                             {serviceOrderDetail && (referenceLinksDraft.length > 0 || can('canEditFicha')) && (
-                              <div className="order-3 px-3 py-3 sm:px-4 sm:py-4">
+                              <div className="order-1 px-3 py-2 sm:px-4 sm:py-2.5">
                                 <div
-                                  className={`${vi} overflow-hidden p-3.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-4`}
+                                  className={`${vi} overflow-hidden p-2.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-3`}
                                 >
-                                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                  <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5">
                                     <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
                                       <Link2 className="h-3.5 w-3.5" />
                                       Links úteis
@@ -4985,7 +4985,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       Nenhum link anexado.
                                     </p>
                                   ) : (
-                                    <ul className="space-y-2.5">
+                                    <ul className="space-y-2">
                                       {referenceLinksDraft.map((link) => (
                                         <li
                                           key={link.id}
@@ -5075,7 +5075,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     </ul>
                                   )}
                                   {can('canEditFicha') && referenceLinksDraft.length > 0 && (
-                                    <div className="mt-4 flex justify-end border-t border-zinc-200/60 pt-4 dark:border-white/[0.06]">
+                                    <div className="mt-2.5 flex justify-end border-t border-zinc-200/60 pt-2.5 dark:border-white/[0.06]">
                                       <button
                                         type="button"
                                         onClick={handleSaveReferenceLinks}
