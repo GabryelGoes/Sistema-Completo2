@@ -4053,12 +4053,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           />
                           <div className="relative flex flex-col gap-3 px-3 py-3 sm:px-4 sm:py-3.5 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-5 lg:gap-y-2">
                             {!isModuleMode && (
-                              <div className="flex shrink-0 items-center lg:self-center">
-                                <MercosulPlateMockup
-                                  plate={selectedCardTitleParts?.plateOrModule || '---'}
-                                  blurPlates={blurPlates}
-                                  size="modal"
-                                />
+                              <div className="flex shrink-0 items-center justify-center overflow-visible lg:self-center">
+                                {/* +15% visual; scale não altera a “caixa” de layout do flex (largura base 136px) */}
+                                <div className="inline-block origin-center scale-[1.15]">
+                                  <MercosulPlateMockup
+                                    plate={selectedCardTitleParts?.plateOrModule || '---'}
+                                    blurPlates={blurPlates}
+                                    size="modal"
+                                  />
+                                </div>
                               </div>
                             )}
                             <div className="flex min-w-0 flex-1 lg:max-w-xl">
