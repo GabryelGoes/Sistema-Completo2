@@ -4652,17 +4652,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
 
-                         {/* Orçamentos: mesmo padrão visual da queixa (barra, sombra, cabeçalho iOS) */}
+                         {/* Orçamentos: cabeçalho iOS; lista com aro em gradiente nos itens */}
                          {can('canEditBudgets') && (
                          <div ref={budgetsSectionRef}>
-                          <div className={`${vi} flex min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
-                            <div className="flex w-2.5 shrink-0 flex-col items-center self-stretch py-2.5 pl-1 sm:w-3 sm:pl-1.5">
-                              <div
-                                className="min-h-0 w-[2px] flex-1 rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)]"
-                                aria-hidden
-                              />
-                            </div>
-                            <div className="relative min-w-0 flex-1">
+                          <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
+                            <div className="relative min-w-0">
                               <div
                                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
                                 aria-hidden
@@ -4685,11 +4679,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => openBudgetModal()}
-                                  className="group w-full rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.07] px-3 py-3.5 text-left shadow-sm transition-[filter,transform,background-color,border-color] hover:border-[#007AFF]/40 hover:bg-[#007AFF]/12 active:scale-[0.99] dark:border-[#007AFF]/35 dark:bg-[#007AFF]/14 dark:hover:bg-[#007AFF]/22"
+                                  className="group w-full rounded-xl bg-[#007AFF] px-3 py-3.5 text-left text-white shadow-[0_4px_14px_-4px_rgba(0,122,255,0.55)] transition-[filter,transform,background-color,box-shadow] hover:bg-[#0066DD] hover:shadow-[0_8px_22px_-6px_rgba(0,122,255,0.45)] active:scale-[0.99] dark:bg-white dark:text-zinc-950 dark:shadow-[0_4px_22px_-8px_rgba(255,255,255,0.22)] dark:hover:bg-zinc-100 dark:hover:shadow-[0_8px_26px_-8px_rgba(255,255,255,0.28)]"
                                 >
                                   <span className="flex items-center justify-between gap-3">
-                                    <span className="font-semibold text-zinc-900 dark:text-white">Criar orçamento</span>
-                                    <Calculator className="h-5 w-5 shrink-0 text-[#007AFF] transition-transform group-hover:scale-110 dark:text-[#7ab8ff]" />
+                                    <span className="font-semibold">Criar orçamento</span>
+                                    <Calculator className="h-5 w-5 shrink-0 text-white transition-transform group-hover:scale-110 dark:text-[#007AFF]" strokeWidth={2.25} />
                                   </span>
                                 </button>
 
@@ -4706,31 +4700,35 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   const dateStr = new Date(budget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                                   const numero = index + 1;
                                   return (
-                                    <button
+                                    <div
                                       key={budget.id}
-                                      type="button"
-                                      onClick={() => setViewingBudget(budget)}
-                                      className="w-full overflow-hidden rounded-xl border border-zinc-200/90 bg-white text-left shadow-sm transition-all duration-200 hover:border-[#007AFF]/40 hover:bg-zinc-50/95 hover:shadow-md active:translate-y-0 dark:border-white/[0.1] dark:bg-white/[0.05] dark:hover:border-[#007AFF]/35 dark:hover:bg-white/[0.08]"
+                                      className="rounded-[14px] bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_2px_12px_-4px_rgba(0,122,255,0.35)] dark:shadow-[0_4px_18px_-6px_rgba(0,122,255,0.28)]"
                                     >
-                                      <div className="relative p-3.5">
-                                      <div className="mb-2 flex items-center justify-between gap-2">
-                                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-100">
-                                          Orçamento {numero}
-                                        </span>
-                                        <span className="text-[10px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
-                                          {dateStr}
-                                        </span>
-                                      </div>
-                                      <p className="mb-2 line-clamp-2 text-[13px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">
-                                        {preview}
-                                      </p>
-                                      <div className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
-                                        <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
-                                        <span>·</span>
-                                        <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
-                                      </div>
-                                      </div>
-                                    </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setViewingBudget(budget)}
+                                        className="w-full overflow-hidden rounded-[12px] border border-white/90 bg-white text-left shadow-inner transition-all duration-200 hover:bg-zinc-50/98 hover:shadow-md active:translate-y-0 dark:border-white/[0.06] dark:bg-zinc-950/85 dark:hover:bg-zinc-900/95"
+                                      >
+                                        <div className="relative p-3.5">
+                                          <div className="mb-2 flex items-center justify-between gap-2">
+                                            <span className="text-xs font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-100">
+                                              Orçamento {numero}
+                                            </span>
+                                            <span className="text-[10px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
+                                              {dateStr}
+                                            </span>
+                                          </div>
+                                          <p className="mb-2 line-clamp-2 text-[13px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">
+                                            {preview}
+                                          </p>
+                                          <div className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
+                                            <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
+                                            <span>·</span>
+                                            <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
+                                          </div>
+                                        </div>
+                                      </button>
+                                    </div>
                                   );
                                 })}
                               {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
@@ -6373,20 +6371,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </ModalPortal>
       )}
 
-      {/* MODAL CRIAR/EDITAR ORÇAMENTO — papel + barra lateral como na queixa / lista de orçamentos */}
+      {/* MODAL CRIAR/EDITAR ORÇAMENTO — papel envelhecido (sem barra lateral) */}
       {isBudgetOpen && selectedCard && (
         <ModalPortal>
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-5 lg:p-6 animate-in fade-in duration-200">
           <div
-            className={`relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full min-h-0 flex-row overflow-hidden rounded-[2rem] animate-in zoom-in-95 duration-200 sm:rounded-[2.25rem] max-w-2xl shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.08)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)] lg:max-h-[min(94vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.25rem))] lg:max-w-[min(96vw,85rem)] xl:max-w-[min(94vw,96rem)] ${budgetModalPaperShell}`}
+            className={`relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full min-h-0 flex-col overflow-hidden rounded-[2rem] animate-in zoom-in-95 duration-200 sm:rounded-[2.25rem] max-w-2xl shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.08)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)] lg:max-h-[min(94vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.25rem))] lg:max-w-[min(96vw,85rem)] xl:max-w-[min(94vw,96rem)] ${budgetModalPaperShell}`}
           >
-            <div className="flex w-2 shrink-0 flex-col items-center self-stretch bg-[#faf6ed] py-4 pl-0.5 sm:w-2.5 sm:pl-1">
-              <div
-                className="min-h-0 w-[2px] flex-1 rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)]"
-                aria-hidden
-              />
-            </div>
-            <div className="relative z-[1] flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
             <button type="button" onClick={closeBudgetModal} className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/[0.06] text-[#5c534c] transition-colors hover:bg-[#ebe4d6] hover:text-[#2d2820]" aria-label="Fechar orçamento">
               <X className="h-5 w-5" />
             </button>
