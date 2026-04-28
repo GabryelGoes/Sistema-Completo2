@@ -4548,7 +4548,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           )}
                           {can('canEditFicha') && (
-                            <div className="order-3 flex flex-wrap items-center gap-3 border-t border-zinc-200/50 pt-5 dark:border-white/[0.06]">
+                            <div className="order-3 flex flex-wrap items-center gap-2 border-t border-zinc-200/50 pt-4 dark:border-white/[0.06]">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -4565,7 +4565,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   });
                                   setIsDadosFichaExpanded(false);
                                 }}
-                                className="flex-1 min-w-[120px] rounded-2xl border border-zinc-200/90 py-3 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06] sm:flex-none sm:px-6"
+                                className="flex-1 min-w-[108px] rounded-lg border border-zinc-200/90 px-3 py-1.5 text-[12px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06] dark:hover:text-white sm:flex-none"
                               >
                                 Cancelar
                               </button>
@@ -4573,10 +4573,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 type="button"
                                 onClick={handleSaveEditFicha}
                                 disabled={editFichaSaving}
-                                className={`${iosAccentPrimaryButton} flex flex-1 min-w-[140px] items-center justify-center gap-2 sm:flex-none sm:px-8`}
+                                className="inline-flex flex-1 min-w-[120px] items-center justify-center gap-1 rounded-lg bg-[#007AFF] px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-45 sm:flex-none"
                               >
-                                {editFichaSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                Salvar alterações
+                                {editFichaSaving ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                Salvar
                               </button>
                             </div>
                           )}
