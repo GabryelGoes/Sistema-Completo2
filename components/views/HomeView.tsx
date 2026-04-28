@@ -113,7 +113,7 @@ const OPERATIONAL_APPS: {
   {
     id: 'reception',
     label: 'Recepção',
-    icon: <img src="/icons/recepcao.svg" alt="Recepção" className="h-full w-full object-cover" />,
+    icon: <img src="/icons/recepcao-ios.png" alt="Recepção" className="h-full w-full object-cover" />,
   },
   {
     id: 'agenda',
