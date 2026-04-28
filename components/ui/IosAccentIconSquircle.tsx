@@ -50,11 +50,16 @@ export const IosAccentIconSquircle: React.FC<Props> = ({
 }) => {
   const shell = SHELL[variant];
   const glyph = GLYPH[variant];
-  const merged = [glyph, children.props.className].filter(Boolean).join(' ');
-  const child = React.cloneElement(children, {
-    className: merged,
-    strokeWidth: strokeWidth ?? children.props.strokeWidth,
-  });
+  const isImg = typeof children.type === 'string' && children.type.toLowerCase() === 'img';
+  const merged = isImg
+    ? ['relative z-10 h-full w-full object-cover', children.props.className].filter(Boolean).join(' ')
+    : [glyph, children.props.className].filter(Boolean).join(' ');
+  const child = React.cloneElement(children, isImg
+    ? { className: merged }
+    : {
+        className: merged,
+        strokeWidth: strokeWidth ?? children.props.strokeWidth,
+      });
   const bgStyle = accentHex ? iosSquircleBackgroundFromHex(accentHex) : undefined;
   return (
     <div className={`${shell} ${className}`.trim()} style={bgStyle} aria-hidden>
