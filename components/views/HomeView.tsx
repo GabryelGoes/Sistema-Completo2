@@ -118,17 +118,17 @@ const OPERATIONAL_APPS: {
   {
     id: 'agenda',
     label: 'Agenda',
-    icon: <img src="/icons/agenda-ios.png" alt="Agenda" className="h-9 w-9 object-contain" />,
+    icon: <img src="/icons/agenda-ios.png" alt="Agenda" className="h-full w-full object-cover" />,
   },
   {
     id: 'patio',
     label: 'Pátio',
-    icon: <img src="/icons/patio-ios.png" alt="Pátio" className="h-9 w-9 object-contain" />,
+    icon: <img src="/icons/patio-ios.png" alt="Pátio" className="h-full w-full object-cover" />,
   },
   {
     id: 'laboratorio',
     label: 'Laboratório',
-    icon: <img src="/icons/laboratorio-ios.png" alt="Laboratório" className="h-9 w-9 object-contain" />,
+    icon: <img src="/icons/laboratorio-ios.png" alt="Laboratório" className="h-full w-full object-cover" />,
   },
 ];
 
@@ -387,7 +387,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'settings_gear')}
                         >
-                          <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-5 w-5 object-contain" />
+                          <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-full w-full object-cover" />
                         </IosAccentIconSquircle>
                       }
                     />
@@ -456,7 +456,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'settings_gear')}
                         >
-                          <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-5 w-5 object-contain" />
+                          <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-full w-full object-cover" />
                         </IosAccentIconSquircle>
                       }
                     />
