@@ -4094,7 +4094,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         {/* Dados da ficha — cabeçalho com camadas, tipografia forte e chips de resumo */}
                         {serviceOrderDetail && (
-                        <div ref={customerDataSectionRef} className="mt-3 w-full">
+                        <div ref={customerDataSectionRef} className="mt-2 w-full">
                       <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
                         <div className="relative border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-zinc-950/25">
                           <div
@@ -4102,24 +4102,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             aria-hidden
                           />
                           <div
-                            className="pointer-events-none absolute -right-16 top-1/2 h-44 w-44 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/20 to-transparent opacity-70 blur-3xl dark:from-[#007AFF]/30"
+                            className="pointer-events-none absolute -right-12 top-1/2 h-28 w-28 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/18 to-transparent opacity-70 blur-2xl dark:from-[#007AFF]/26"
                             aria-hidden
                           />
                           <button
                             type="button"
                             onClick={() => setIsDadosFichaExpanded((v) => !v)}
-                            className="group relative flex min-h-[52px] w-full items-center justify-between gap-4 px-4 py-4 text-left transition-colors hover:bg-zinc-50/90 active:bg-zinc-100/85 dark:hover:bg-white/[0.06] dark:active:bg-white/[0.09] sm:min-h-[56px] sm:gap-5 sm:px-6 sm:py-5"
+                            className="group relative flex min-h-0 w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-zinc-50/90 active:bg-zinc-100/85 dark:hover:bg-white/[0.06] dark:active:bg-white/[0.09] sm:gap-3 sm:px-4 sm:py-3"
                           >
-                            <div className="pointer-events-none absolute inset-y-3 left-3 w-[3px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_16px_rgba(0,122,255,0.35)] dark:shadow-[0_0_20px_rgba(0,122,255,0.45)] sm:left-4 sm:inset-y-4" aria-hidden />
-                            <div className="min-w-0 flex-1 pl-5 sm:pl-6">
-                              <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[21px] font-bold leading-[1.15] tracking-[-0.035em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400">
+                            <div className="pointer-events-none absolute inset-y-2 left-2.5 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)] sm:left-3 sm:inset-y-2.5" aria-hidden />
+                            <div className="min-w-0 flex-1 pl-4 sm:pl-5">
+                              <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent sm:text-[17px] dark:from-white dark:via-zinc-100 dark:to-zinc-400">
                                 Dados da ficha
                               </p>
-                              <div className="mt-4 flex flex-wrap gap-2">
+                              <div className="mt-1.5 flex flex-wrap gap-1.5">
                                 {isModuleMode ? (
                                   <>
-                                    <span className="inline-flex max-w-full items-center rounded-xl border border-zinc-200/95 bg-white/90 px-3 py-1.5 text-[12px] font-bold tabular-nums tracking-tight text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_4px_14px_-6px_rgba(0,0,0,0.16)] dark:border-white/[0.12] dark:bg-white/[0.07] dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                                      <span className="mr-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">
+                                    <span className="inline-flex max-w-full items-center rounded-lg border border-zinc-200/95 bg-white/90 px-2 py-0.5 text-[11px] font-bold tabular-nums tracking-tight text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_2px_8px_-4px_rgba(0,0,0,0.12)] dark:border-white/[0.12] dark:bg-white/[0.07] dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                                      <span className="mr-1.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500">
                                         Ref.
                                       </span>
                                       <span className="truncate font-mono">
@@ -4127,7 +4127,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </span>
                                     </span>
                                     {(serviceOrderDetail.vehicle_model ?? '').trim() ? (
-                                      <span className="inline-flex max-w-[min(100%,18rem)] items-center rounded-xl border border-zinc-200/90 bg-gradient-to-b from-zinc-50 to-zinc-100/90 px-3 py-1.5 text-[13px] font-semibold uppercase tracking-tight text-zinc-900 shadow-sm dark:border-white/[0.1] dark:from-white/[0.09] dark:to-white/[0.04] dark:text-white">
+                                      <span className="inline-flex max-w-[min(100%,18rem)] items-center rounded-lg border border-zinc-200/90 bg-gradient-to-b from-zinc-50 to-zinc-100/90 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-tight text-zinc-900 shadow-sm dark:border-white/[0.1] dark:from-white/[0.09] dark:to-white/[0.04] dark:text-white">
                                         {(serviceOrderDetail.vehicle_model ?? '').trim().toUpperCase()}
                                       </span>
                                     ) : null}
@@ -4135,26 +4135,26 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 ) : (
                                   <>
                                     {(serviceOrderDetail.vehicle_model ?? '').trim() ? (
-                                      <span className="inline-flex max-w-[min(100%,16rem)] items-center rounded-xl border border-zinc-200/95 bg-white px-3 py-1.5 text-[13px] font-semibold uppercase leading-tight tracking-tight text-zinc-900 shadow-[0_3px_12px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-white">
+                                      <span className="inline-flex max-w-[min(100%,16rem)] items-center rounded-lg border border-zinc-200/95 bg-white px-2 py-0.5 text-[11px] font-semibold uppercase leading-tight tracking-tight text-zinc-900 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-white">
                                         {(serviceOrderDetail.vehicle_model ?? '').trim().toUpperCase()}
                                       </span>
                                     ) : null}
                                     {(serviceOrderDetail.vehicle_color ?? '').trim() ? (
-                                      <span className="inline-flex items-center rounded-xl border border-zinc-200/80 bg-zinc-50/95 px-3 py-1.5 text-[12px] font-semibold tracking-wide text-zinc-700 normal-case dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-zinc-300">
+                                      <span className="inline-flex items-center rounded-lg border border-zinc-200/80 bg-zinc-50/95 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-zinc-700 normal-case dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-zinc-300">
                                         {(serviceOrderDetail.vehicle_color ?? '').trim().toLowerCase()}
                                       </span>
                                     ) : null}
                                   </>
                                 )}
-                                <span className="inline-flex max-w-[min(100%,20rem)] items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-3 py-1.5 text-[13px] font-semibold uppercase text-[#004999] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:shadow-none">
-                                  <User className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden strokeWidth={2.5} />
+                                <span className="inline-flex max-w-[min(100%,20rem)] items-center gap-1 rounded-lg border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2 py-0.5 text-[11px] font-semibold uppercase text-[#004999] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:shadow-none">
+                                  <User className="h-3 w-3 shrink-0 opacity-80" aria-hidden strokeWidth={2.5} />
                                   <span className="truncate">{firstTwoNames(serviceOrderDetail.customers?.name?.trim() || 'Cliente').toUpperCase()}</span>
                                 </span>
                               </div>
                             </div>
                             <ChevronRight
                               strokeWidth={2.25}
-                              className={`relative z-[1] h-[17px] w-[17px] shrink-0 text-[#007AFF]/55 transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff] ${isDadosFichaExpanded ? 'rotate-90' : ''}`}
+                              className={`relative z-[1] h-3.5 w-3.5 shrink-0 text-[#007AFF]/55 transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff] ${isDadosFichaExpanded ? 'rotate-90' : ''}`}
                               aria-hidden
                             />
                           </button>
@@ -4441,102 +4441,102 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
                     </div>
                   )}
-                        {/* Técnico + Data de entrega — mesmo idioma visual do cabeçalho Dados da ficha */}
-                        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                        {/* Técnico + Data de entrega — compactos (mesmo idioma visual, menos altura) */}
+                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5">
                           {can('canAssignTechnician') && (
                           <button
                             type="button"
                             onClick={() => setCardForMemberAssignment(selectedCard)}
-                            className={`${vi} group relative w-full overflow-hidden text-left shadow-[0_8px_32px_-12px_rgba(0,0,0,0.1)] transition-all duration-200 active:scale-[0.99] hover:border-[#007AFF]/28 dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]`}
+                            className={`${vi} group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 active:scale-[0.99] hover:border-[#007AFF]/28 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]`}
                           >
                             <div
-                              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.09),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.14),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_52%)]"
+                              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
                               aria-hidden
                             />
                             <div
-                              className="pointer-events-none absolute -right-12 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/18 to-transparent opacity-80 blur-3xl dark:from-[#007AFF]/25"
+                              className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
                               aria-hidden
                             />
-                            <div className="pointer-events-none absolute inset-y-3 left-3 w-[3px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_14px_rgba(0,122,255,0.3)] dark:shadow-[0_0_18px_rgba(0,122,255,0.4)] sm:left-4 sm:inset-y-4" aria-hidden />
-                            <div className="relative flex items-center gap-3 px-4 py-4 pl-6 sm:gap-4 sm:px-6 sm:py-5 sm:pl-7">
+                            <div className="pointer-events-none absolute inset-y-2 left-2.5 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)] sm:left-3 sm:inset-y-2.5" aria-hidden />
+                            <div className="relative flex items-center gap-2 px-2.5 py-2 pl-5 sm:gap-2.5 sm:px-3 sm:py-2.5 sm:pl-6">
                               {selectedCard.members && selectedCard.members.length > 0 ? (
                                 <>
-                                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-md ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
-                                    <Wrench className="h-5 w-5 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]" strokeWidth={2.35} aria-hidden />
+                                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
+                                    <Wrench className="h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]" strokeWidth={2.35} aria-hidden />
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[17px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400">
+                                    <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]">
                                       Técnico responsável
                                     </p>
-                                    <p className="mt-1.5 truncate text-[15px] font-semibold text-zinc-900 dark:text-white">
+                                    <p className="mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white">
                                       {capitalizeFirst(selectedCard.members[0].fullName)}
                                     </p>
                                   </div>
-                                  <ChevronRight strokeWidth={2.25} className="relative z-[1] h-[17px] w-[17px] shrink-0 text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]" aria-hidden />
+                                  <ChevronRight strokeWidth={2.25} className="relative z-[1] h-3.5 w-3.5 shrink-0 text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]" aria-hidden />
                                 </>
                               ) : (
                                 <>
-                                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border-2 border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12">
-                                    <Wrench className="h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.35} aria-hidden />
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12">
+                                    <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.35} aria-hidden />
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[17px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400">
+                                    <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]">
                                       Técnico responsável
                                     </p>
-                                    <p className="mt-1.5 text-[15px] font-semibold text-[#007AFF] dark:text-[#7ab8ff]">
+                                    <p className="mt-0.5 text-[12px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff]">
                                       Toque para atribuir
                                     </p>
                                   </div>
-                                  <ChevronRight strokeWidth={2.25} className="relative z-[1] h-[17px] w-[17px] shrink-0 text-zinc-400 transition-colors group-hover:text-[#007AFF]/70 dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]" aria-hidden />
+                                  <ChevronRight strokeWidth={2.25} className="relative z-[1] h-3.5 w-3.5 shrink-0 text-zinc-400 transition-colors group-hover:text-[#007AFF]/70 dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]" aria-hidden />
                                 </>
                               )}
                             </div>
                           </button>
                           )}
                           {can('canEditDeliveryDate') && (
-                          <div className={`${vi} relative overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)]`}>
+                          <div className={`${vi} relative overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
                             <div
-                              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.09),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.14),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_52%)]"
+                              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
                               aria-hidden
                             />
                             <div
-                              className="pointer-events-none absolute -right-12 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/25 to-transparent opacity-70 blur-3xl dark:from-brand-yellow/20"
+                              className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
                               aria-hidden
                             />
-                            <div className="pointer-events-none absolute inset-y-3 left-3 w-[3px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_14px_rgba(0,122,255,0.3)] dark:shadow-[0_0_18px_rgba(0,122,255,0.4)] sm:left-4 sm:inset-y-4" aria-hidden />
-                            <div className="relative flex flex-col gap-3 px-4 py-4 pl-6 sm:flex-row sm:items-center sm:gap-4 sm:px-6 sm:py-5 sm:pl-7">
-                              <div className="flex shrink-0 items-center gap-3 sm:contents">
-                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_12px_-4px_rgba(0,0,0,0.12)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
-                                  <Calendar className="h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                            <div className="pointer-events-none absolute inset-y-2 left-2.5 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)] sm:left-3 sm:inset-y-2.5" aria-hidden />
+                            <div className="relative flex flex-col gap-2 px-2.5 py-2 pl-5 sm:flex-row sm:items-center sm:gap-2.5 sm:px-3 sm:py-2.5 sm:pl-6">
+                              <div className="flex shrink-0 items-center gap-2 sm:contents">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                  <Calendar className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                 </div>
                                 <div className="min-w-0 flex-1 sm:pb-0">
-                                  <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[17px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400">
+                                  <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]">
                                     Data de entrega
                                   </p>
                                 </div>
                               </div>
-                              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:justify-end">
+                              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:justify-end">
                                 <input
                                   type="date"
                                   value={deliveryDateEditValue}
                                   onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                  className="min-w-0 flex-1 rounded-2xl border border-zinc-300/90 bg-zinc-50 px-3 py-2.5 text-[15px] text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white sm:max-w-[200px] sm:flex-none"
+                                  className="min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white sm:max-w-[180px] sm:flex-none"
                                 />
                                 <button
                                   type="button"
                                   onClick={handleSaveDeliveryDate}
                                   disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
-                                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-2xl px-4 py-2.5 text-[14px] font-semibold text-white shadow-lg transition-all disabled:opacity-50 ${
+                                  className={`inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-md transition-all disabled:opacity-50 ${
                                     deliveryDateEditValue !== lastSavedDeliveryDate
-                                      ? 'bg-[#007AFF] shadow-blue-500/25 hover:opacity-95 active:scale-[0.98]'
+                                      ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
                                       : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
                                   }`}
                                 >
-                                  {savingDeliveryDate ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                  {savingDeliveryDate ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                                   Salvar
                                 </button>
                                 {deliveryDateSavedMessage && (
-                                  <span className="text-[13px] font-semibold text-green-600 dark:text-green-400">Salvo!</span>
+                                  <span className="text-[11px] font-semibold text-green-600 dark:text-green-400">Salvo!</span>
                                 )}
                               </div>
                             </div>
