@@ -5115,7 +5115,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400">
                                               Fotos
                                             </p>
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
+                                            <div className="rounded-2xl border border-zinc-200/70 bg-white/70 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] dark:border-white/[0.08] dark:bg-white/[0.03]">
+                                            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 md:gap-3">
                                             {visibleImages.map(att => {
                                               const isLoadingThis = loadingAttachmentId === att.id;
                                               const isDeletingThis = deletingAttachmentId === att.id;
@@ -5224,7 +5225,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                     </div>
                                                   ) : (
                                                     <>
-                                                      <div className="aspect-square overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-900 relative group">
+                                                      <div className="relative rounded-[14px] bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_8px_18px_-10px_rgba(0,122,255,0.45)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.4)]">
+                                                      <div className="group relative aspect-square overflow-hidden rounded-[12px] bg-zinc-100 dark:bg-zinc-900">
                                                         <button
                                                           type="button"
                                                           onClick={() =>
@@ -5265,6 +5267,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                             </>
                                                           )}
                                                         </button>
+                                                      </div>
                                                       </div>
                                                       <div className="flex min-h-[2rem] items-start gap-1">
                                                         <span
@@ -5312,6 +5315,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                 </div>
                                               );
                                             })}
+                                            </div>
                                             </div>
                                             {hiddenPhotoCount > 0 && (
                                               <button
