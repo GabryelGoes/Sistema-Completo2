@@ -123,7 +123,7 @@ const OPERATIONAL_APPS: {
   {
     id: 'patio',
     label: 'Pátio',
-    icon: <img src="/icons/patio.svg" alt="Pátio" className="h-6 w-6 object-contain" />,
+    icon: <img src="/icons/patio-ios.png" alt="Pátio" className="h-9 w-9 object-contain" />,
   },
   {
     id: 'laboratorio',
