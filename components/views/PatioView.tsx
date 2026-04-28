@@ -4063,7 +4063,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                             )}
                             <div className="flex min-w-0 flex-1 lg:max-w-xl">
-                              <div className="flex w-full min-w-0 items-center gap-2.5 rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50/95 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.1] dark:from-white/[0.08] dark:to-white/[0.03]">
+                              <div className="flex w-full min-w-0 items-center gap-2.5 rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50/95 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_-2px_rgba(0,0,0,0.05),0_6px_16px_-6px_rgba(0,0,0,0.1),0_0_0_1px_rgba(0,0,0,0.02)] dark:border-white/[0.1] dark:from-white/[0.08] dark:to-white/[0.03] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_4px_12px_-4px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)]">
                                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white shadow-sm dark:border-white/[0.08] dark:bg-white/[0.06]">
                                   <User className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                 </div>
@@ -4076,7 +4076,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                             </div>
                             {!isModuleMode && can('canEditMileage') && (
-                              <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2 rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50/95 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.1] dark:from-white/[0.07] dark:to-white/[0.03]">
+                              <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2 rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50/95 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_-2px_rgba(0,0,0,0.05),0_6px_16px_-6px_rgba(0,0,0,0.1),0_0_0_1px_rgba(0,0,0,0.02)] dark:border-white/[0.1] dark:from-white/[0.07] dark:to-white/[0.03] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_4px_12px_-4px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)]">
                                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white shadow-sm dark:border-white/[0.08] dark:bg-white/[0.06]">
                                   <Gauge className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                 </div>
