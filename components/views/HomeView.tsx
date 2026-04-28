@@ -128,7 +128,7 @@ const OPERATIONAL_APPS: {
   {
     id: 'laboratorio',
     label: 'Laboratório',
-    icon: <img src="/icons/laboratorio.svg" alt="Laboratório" className="h-6 w-6 object-contain" />,
+    icon: <img src="/icons/laboratorio-ios.png" alt="Laboratório" className="h-7 w-7 object-contain" />,
   },
 ];
 
