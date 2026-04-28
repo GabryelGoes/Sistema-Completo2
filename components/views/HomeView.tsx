@@ -333,9 +333,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           accentHex={homeSquircleAccentHex(colorfulNavigation, 'pecas')}
                         >
                           <img
-                            src="/icons/workshop-services.svg"
+                            src="/icons/estoque-ios.png"
                             alt="Estoque de peças"
-                            className="h-6 w-6 object-contain"
+                            className="h-full w-full object-cover"
                           />
                         </IosAccentIconSquircle>
                         <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
