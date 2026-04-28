@@ -4570,10 +4570,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className="min-w-0 space-y-10">
                         <div ref={descriptionSectionRef}>
                           <div className={`${vi} flex min-w-0 overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
-                            {/* Coluna só da barra — não fica atrás do fundo opaco do texto */}
-                            <div className="flex w-3 shrink-0 flex-col items-center self-stretch py-2.5 pl-1.5 sm:w-3.5 sm:pl-2">
+                            {/* Coluna da barra — mesmo visual discreto que Técnico (2px, azul→amarelo→azul, mesma sombra) */}
+                            <div className="flex w-2.5 shrink-0 flex-col items-center self-stretch py-2.5 pl-1 sm:w-3 sm:pl-1.5">
                               <div
-                                className="min-h-0 w-[3px] flex-1 rounded-full bg-[linear-gradient(180deg,#007AFF_0%,#F5D00B_16%,#22c55e_34%,#a855f7_50%,#f97316_66%,#06b6d4_82%,#007AFF_100%)] shadow-[0_0_14px_rgba(0,122,255,0.55),0_0_0_1px_rgba(0,122,255,0.35)] dark:bg-[linear-gradient(180deg,#60a5fa_0%,#fbbf24_14%,#4ade80_32%,#c084fc_50%,#fb923c_68%,#22d3ee_84%,#93c5fd_100%)] dark:shadow-[0_0_16px_rgba(96,165,250,0.55),0_0_0_1px_rgba(147,197,253,0.35)]"
+                                className="min-h-0 w-[2px] flex-1 rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)]"
                                 aria-hidden
                               />
                             </div>
