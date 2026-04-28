@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2, Car } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2 } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -4092,52 +4092,43 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          )}
                         </div>
 
-                        {/* Dados da ficha — vidro iOS (agrupado, minimizado por padrão); antes era técnico/data */}
+                        {/* Dados da ficha — grupo estilo Ajustes (sem ícone); minimizado por padrão */}
                         {serviceOrderDetail && (
                         <div ref={customerDataSectionRef} className="mt-3 w-full">
                       <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
-                        <div className="flex items-stretch gap-0 border-b border-zinc-200/60 bg-white dark:border-white/[0.06] dark:bg-white/[0.04]">
+                        <div className="flex items-stretch gap-0 border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-white/[0.03]">
                           <button
                             type="button"
                             onClick={() => setIsDadosFichaExpanded((v) => !v)}
-                            className="group flex min-w-0 flex-1 items-center justify-between gap-2.5 px-4 py-3 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] sm:gap-3 sm:px-5"
+                            className="group flex min-h-[52px] min-w-0 flex-1 items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-zinc-50/95 active:bg-zinc-100/80 dark:hover:bg-white/[0.06] dark:active:bg-white/[0.09] sm:min-h-[56px] sm:px-5 sm:py-3.5"
                           >
-                            <div className="flex min-w-0 items-center gap-3">
-                              {isModuleMode ? (
-                                <IosAccentIconSquircle variant="row" strokeWidth={2}>
-                                  <FlaskConical />
-                                </IosAccentIconSquircle>
-                              ) : (
-                                <IosAccentIconSquircle variant="row" strokeWidth={2}>
-                                  <Car />
-                                </IosAccentIconSquircle>
-                              )}
-                              <div className="min-w-0 text-left">
-                                <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
-                                  Dados da ficha
-                                </h3>
-                                <p className="mt-0.5 truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[17px] font-semibold leading-[1.25] tracking-[-0.022em] text-zinc-950 dark:text-white">
+                                Dados da ficha
+                              </p>
+                              <p className="mt-1 line-clamp-2 text-[15px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
                                   {isModuleMode ? (
                                     <>
-                                      <span className="font-mono">{(serviceOrderDetail.module_identification || '—').trim()}</span>
+                                      <span className="font-mono tabular-nums text-zinc-600 dark:text-zinc-300">{(serviceOrderDetail.module_identification || '—').trim()}</span>
                                       {' · '}
                                       <span>{serviceOrderDetail.vehicle_model?.trim() || '—'}</span>
                                     </>
                                   ) : (
                                     <>
-                                      <span className="font-mono uppercase tracking-tight">{(serviceOrderDetail.plate || '—').toUpperCase()}</span>
+                                      <span className="font-mono uppercase tracking-tight text-zinc-600 dark:text-zinc-300">{(serviceOrderDetail.plate || '—').toUpperCase()}</span>
                                       {serviceOrderDetail.vehicle_model?.trim() ? ` · ${serviceOrderDetail.vehicle_model.trim()}` : ''}
                                       {serviceOrderDetail.vehicle_color?.trim() ? ` · ${serviceOrderDetail.vehicle_color.trim()}` : ''}
                                     </>
                                   )}
                                   {' · '}
-                                  <span className="text-zinc-500 dark:text-zinc-400">{serviceOrderDetail.customers?.name?.trim() || 'Cliente'}</span>
-                                </p>
-                              </div>
+                                  <span>{serviceOrderDetail.customers?.name?.trim() || 'Cliente'}</span>
+                              </p>
                             </div>
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-zinc-500 transition-transform group-hover:scale-105 dark:bg-white/[0.08] sm:h-8 sm:w-8">
-                              {isDadosFichaExpanded ? <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                            </span>
+                            <ChevronRight
+                              strokeWidth={2.25}
+                              className={`h-[15px] w-[15px] shrink-0 text-[#C7C7CC] transition-transform duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)] dark:text-zinc-500 ${isDadosFichaExpanded ? 'rotate-90' : ''}`}
+                              aria-hidden
+                            />
                           </button>
                         </div>
                         {isDadosFichaExpanded && (
