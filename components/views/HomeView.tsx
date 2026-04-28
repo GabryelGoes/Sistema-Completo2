@@ -502,7 +502,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           variant="row"
                           strokeWidth={2.2}
                         >
-                          <LogOut />
+                          <LogOut className="text-red-500 dark:text-red-400" />
                         </IosAccentIconSquircle>
                       }
                   />
