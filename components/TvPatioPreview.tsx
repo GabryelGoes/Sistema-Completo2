@@ -101,7 +101,7 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
           <img
             src={slide.mediaUrl}
             alt=""
-            className="max-w-full max-h-full object-contain rounded-xl border border-white/10"
+            className="max-w-full max-h-full object-contain rounded-lg border border-white/10"
           />
         </div>
       );
@@ -113,14 +113,14 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
         const id = extractYoutubeId(slide.mediaUrl);
         const embed = id ? buildYoutubePreviewEmbedUrl(id) : slide.mediaUrl;
         return (
-          <div className="relative flex-1 min-h-[88px] w-full overflow-hidden rounded-lg border border-white/10 bg-black">
+          <div className="relative flex-1 min-h-[88px] w-full overflow-hidden rounded-md border border-white/10 bg-black">
             <iframe title="preview" src={embed} className="absolute inset-0 h-full w-full border-0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" />
           </div>
         );
       }
       return (
         <div className="flex-1 flex items-center justify-center min-h-0 p-2">
-          <video src={slide.mediaUrl} className="max-w-full max-h-[100px] rounded-lg object-contain" muted playsInline controls={false} />
+          <video src={slide.mediaUrl} className="max-w-full max-h-[100px] rounded-md object-contain" muted playsInline controls={false} />
         </div>
       );
     }
@@ -168,7 +168,7 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
   };
 
   return (
-    <div className="relative rounded-[1.75rem] overflow-hidden shadow-[0_32px_80px_-16px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.08)] ring-1 ring-white/10">
+    <div className="relative rounded-[1.2rem] overflow-hidden shadow-[0_32px_80px_-16px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.08)] ring-1 ring-white/10">
       <div className="aspect-video bg-black flex flex-col min-h-[200px] max-h-[320px]">
         <div className="shrink-0 px-3 pt-2.5 pb-1.5 flex items-end justify-between gap-2 border-b border-white/[0.06]">
           <div className="flex flex-col gap-0.5 min-w-0">
