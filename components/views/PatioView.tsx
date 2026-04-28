@@ -4955,11 +4955,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
 
                             {serviceOrderDetail && (referenceLinksDraft.length > 0 || can('canEditFicha')) && (
-                              <div className="px-3 py-4 sm:px-4 sm:py-5">
+                              <div className="px-3 py-3 sm:px-4 sm:py-4">
                                 <div
-                                  className={`${vi} overflow-hidden p-4 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-5`}
+                                  className={`${vi} overflow-hidden p-3.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-4`}
                                 >
-                                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                                     <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
                                       <Link2 className="h-3.5 w-3.5" />
                                       Links úteis
@@ -4985,7 +4985,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       Nenhum link anexado.
                                     </p>
                                   ) : (
-                                    <ul className="space-y-3">
+                                    <ul className="space-y-2.5">
                                       {referenceLinksDraft.map((link) => (
                                         <li
                                           key={link.id}
