@@ -118,7 +118,7 @@ const OPERATIONAL_APPS: {
   {
     id: 'agenda',
     label: 'Agenda',
-    icon: <img src="/icons/agenda-ios.png" alt="Agenda" className="h-6 w-6 object-contain" />,
+    icon: <img src="/icons/agenda-ios.png" alt="Agenda" className="h-7 w-7 object-contain" />,
   },
   {
     id: 'patio',
