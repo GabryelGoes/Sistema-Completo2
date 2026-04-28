@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2 } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2, Wrench } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -4441,76 +4441,102 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
                     </div>
                   )}
-                        {/* Técnico + Data de entrega — compactos (abaixo de Dados da ficha) */}
-                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {/* Técnico + Data de entrega — mesmo idioma visual do cabeçalho Dados da ficha */}
+                        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                           {can('canAssignTechnician') && (
                           <button
                             type="button"
                             onClick={() => setCardForMemberAssignment(selectedCard)}
-                            className={`${vi} flex w-full items-center gap-2 px-2 py-1.5 text-left shadow-none transition-all duration-200 active:scale-[0.99] hover:border-[#007AFF]/25 dark:hover:border-white/12`}
+                            className={`${vi} group relative w-full overflow-hidden text-left shadow-[0_8px_32px_-12px_rgba(0,0,0,0.1)] transition-all duration-200 active:scale-[0.99] hover:border-[#007AFF]/28 dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]`}
                           >
-                            {selectedCard.members && selectedCard.members.length > 0 ? (
-                              <>
-                                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 shadow-sm ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
-                                  <MechanicIcon className="h-3.5 w-3.5 opacity-95" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                                    Técnico responsável
-                                  </p>
-                                  <p className="truncate text-xs font-bold text-zinc-900 dark:text-white mt-0.5">
-                                    {capitalizeFirst(selectedCard.members[0].fullName)}
-                                  </p>
-                                </div>
-                                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-brand-yellow" />
-                              </>
-                            ) : (
-                              <>
-                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-dashed border-brand-yellow/50 bg-brand-yellow/20">
-                                  <MechanicIcon className="h-3.5 w-3.5 text-brand-yellow" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                                    Técnico responsável
-                                  </p>
-                                  <p className="mt-0.5 text-xs font-semibold text-brand-yellow">
-                                    Toque para atribuir
-                                  </p>
-                                </div>
-                                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                              </>
-                            )}
+                            <div
+                              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.09),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.14),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_52%)]"
+                              aria-hidden
+                            />
+                            <div
+                              className="pointer-events-none absolute -right-12 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/18 to-transparent opacity-80 blur-3xl dark:from-[#007AFF]/25"
+                              aria-hidden
+                            />
+                            <div className="pointer-events-none absolute inset-y-3 left-3 w-[3px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_14px_rgba(0,122,255,0.3)] dark:shadow-[0_0_18px_rgba(0,122,255,0.4)] sm:left-4 sm:inset-y-4" aria-hidden />
+                            <div className="relative flex items-center gap-3 px-4 py-4 pl-6 sm:gap-4 sm:px-6 sm:py-5 sm:pl-7">
+                              {selectedCard.members && selectedCard.members.length > 0 ? (
+                                <>
+                                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-md ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
+                                    <Wrench className="h-5 w-5 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]" strokeWidth={2.35} aria-hidden />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[17px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400">
+                                      Técnico responsável
+                                    </p>
+                                    <p className="mt-1.5 truncate text-[15px] font-semibold text-zinc-900 dark:text-white">
+                                      {capitalizeFirst(selectedCard.members[0].fullName)}
+                                    </p>
+                                  </div>
+                                  <ChevronRight strokeWidth={2.25} className="relative z-[1] h-[17px] w-[17px] shrink-0 text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]" aria-hidden />
+                                </>
+                              ) : (
+                                <>
+                                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border-2 border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12">
+                                    <Wrench className="h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.35} aria-hidden />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[17px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400">
+                                      Técnico responsável
+                                    </p>
+                                    <p className="mt-1.5 text-[15px] font-semibold text-[#007AFF] dark:text-[#7ab8ff]">
+                                      Toque para atribuir
+                                    </p>
+                                  </div>
+                                  <ChevronRight strokeWidth={2.25} className="relative z-[1] h-[17px] w-[17px] shrink-0 text-zinc-400 transition-colors group-hover:text-[#007AFF]/70 dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]" aria-hidden />
+                                </>
+                              )}
+                            </div>
                           </button>
                           )}
                           {can('canEditDeliveryDate') && (
-                          <div className={`${vi} flex flex-wrap items-center gap-1.5 px-2 py-1.5 shadow-none`}>
-                            <Calendar className="h-4 w-4 shrink-0 text-brand-yellow" />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                                Data de entrega
-                              </p>
-                              <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                          <div className={`${vi} relative overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)]`}>
+                            <div
+                              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.09),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.14),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_52%)]"
+                              aria-hidden
+                            />
+                            <div
+                              className="pointer-events-none absolute -right-12 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/25 to-transparent opacity-70 blur-3xl dark:from-brand-yellow/20"
+                              aria-hidden
+                            />
+                            <div className="pointer-events-none absolute inset-y-3 left-3 w-[3px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_14px_rgba(0,122,255,0.3)] dark:shadow-[0_0_18px_rgba(0,122,255,0.4)] sm:left-4 sm:inset-y-4" aria-hidden />
+                            <div className="relative flex flex-col gap-3 px-4 py-4 pl-6 sm:flex-row sm:items-center sm:gap-4 sm:px-6 sm:py-5 sm:pl-7">
+                              <div className="flex shrink-0 items-center gap-3 sm:contents">
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_12px_-4px_rgba(0,0,0,0.12)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                  <Calendar className="h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                </div>
+                                <div className="min-w-0 flex-1 sm:pb-0">
+                                  <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[17px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400">
+                                    Data de entrega
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:justify-end">
                                 <input
                                   type="date"
                                   value={deliveryDateEditValue}
                                   onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                  className="min-w-[104px] rounded-md border border-zinc-200 bg-white px-1.5 py-1 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-amber-500/40 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                                  className="min-w-0 flex-1 rounded-2xl border border-zinc-300/90 bg-zinc-50 px-3 py-2.5 text-[15px] text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white sm:max-w-[200px] sm:flex-none"
                                 />
                                 <button
                                   type="button"
                                   onClick={handleSaveDeliveryDate}
                                   disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
-                                  className={`flex items-center gap-0.5 rounded-md px-2 py-1 text-[11px] font-medium text-white transition-colors disabled:opacity-50 ${
+                                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-2xl px-4 py-2.5 text-[14px] font-semibold text-white shadow-lg transition-all disabled:opacity-50 ${
                                     deliveryDateEditValue !== lastSavedDeliveryDate
-                                      ? 'bg-amber-500 hover:bg-amber-600'
-                                      : 'bg-zinc-600 dark:bg-zinc-700'
+                                      ? 'bg-[#007AFF] shadow-blue-500/25 hover:opacity-95 active:scale-[0.98]'
+                                      : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
                                   }`}
                                 >
-                                  {savingDeliveryDate ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                  {savingDeliveryDate ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                   Salvar
                                 </button>
                                 {deliveryDateSavedMessage && (
-                                  <span className="text-[11px] font-medium text-green-600 dark:text-green-400">Salvo!</span>
+                                  <span className="text-[13px] font-semibold text-green-600 dark:text-green-400">Salvo!</span>
                                 )}
                               </div>
                             </div>
