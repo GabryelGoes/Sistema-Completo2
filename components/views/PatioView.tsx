@@ -604,8 +604,9 @@ function MercosulPlateMockup(props: {
   plate: string;
   blurPlates?: boolean;
   size: MercosulPlateMockupSize;
+  selectable?: boolean;
 }) {
-  const { plate, blurPlates = false, size } = props;
+  const { plate, blurPlates = false, size, selectable = false } = props;
   const display = (plate || '—').trim() || '—';
 
   /** Mesmo visual dos modais: cartão normal e lista de histórico usam este bloco (`card` === `modal`). */
@@ -626,7 +627,7 @@ function MercosulPlateMockup(props: {
 
   return (
     <div
-      className={`${w} aspect-[400/130] grid grid-rows-[20%_80%] overflow-hidden rounded-[7px] border-[2px] border-black bg-white ${shadow} select-none sm:rounded-[9px]`}
+      className={`${w} aspect-[400/130] grid grid-rows-[20%_80%] overflow-hidden rounded-[7px] border-[2px] border-black bg-white ${shadow} ${selectable ? 'select-text' : 'select-none'} sm:rounded-[9px]`}
       aria-hidden
     >
       <div
@@ -4025,6 +4026,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 plate={selectedCardTitleParts?.plateOrModule || '---'}
                                 blurPlates={blurPlates}
                                 size="modal"
+                                selectable
                               />
                             </div>
                           )}
