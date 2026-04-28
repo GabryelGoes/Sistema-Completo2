@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { ChangePasswordsModal } from './components/ChangePasswordsModal';
-import { TabBar, type TabId } from './components/TabBar';
+import { type TabId } from './components/TabBar';
 import { NotificationCenter } from './components/NotificationCenter';
 import { CommentPopUp } from './components/CommentPopUp';
 import { playNotificationSound } from './utils/notificationSound';
@@ -22,6 +22,7 @@ import {
 } from './services/apiService';
 import { AssistantChat } from './components/AssistantChat';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
+import { ArrowLeft, X } from 'lucide-react';
 import {
   applyAccentToRoot,
   defaultAppAppearance,
@@ -57,6 +58,20 @@ export default function App() {
   const [assistantPatioOpenBudgetId, setAssistantPatioOpenBudgetId] = useState<string | null>(null);
   /** Incrementa para abrir o modal de histórico de arquivados no Pátio/Laboratório (Zaya). */
   const [assistantPatioOpenHistoryTrigger, setAssistantPatioOpenHistoryTrigger] = useState(0);
+  const getTabTitle = useCallback((tab: TabId): string => {
+    switch (tab) {
+      case 'reception':
+        return 'Recepção';
+      case 'agenda':
+        return 'Agenda';
+      case 'patio':
+        return 'Pátio';
+      case 'laboratorio':
+        return 'Laboratório';
+      default:
+        return 'Início';
+    }
+  }, []);
 
   const handleNewCommentNotification = (n: Notification) => {
     playNotificationSound();
@@ -335,7 +350,24 @@ export default function App() {
         <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
         {userTab !== 'home' && (
           <header className="relative z-20 flex items-center justify-between px-4 py-3 bg-light-card/95 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-light-border dark:border-white/10">
-            <span />
+            <button
+              type="button"
+              onClick={() => setUserTab('home')}
+              className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-200/80 dark:text-zinc-200 dark:hover:bg-white/[0.08]"
+              aria-label="Voltar para Início"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </button>
+            <p className="text-[14px] font-semibold text-zinc-800 dark:text-zinc-100">{getTabTitle(userTab)}</p>
+            <button
+              type="button"
+              onClick={() => setUserTab('home')}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-700 transition-colors hover:bg-zinc-200/80 dark:text-zinc-200 dark:hover:bg-white/[0.08]"
+              aria-label="Fechar página"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </header>
         )}
         <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -451,12 +483,6 @@ export default function App() {
             />
           </KeepAliveTabPanel>
         </main>
-        <TabBar
-          currentTab={userTab}
-          onTabChange={setUserTab}
-          allowedTabs={userAllowedTabs}
-          colorfulNavigation={appAppearance.colorfulNavigation}
-        />
         <div className="sr-only" aria-hidden="true">
           <NotificationCenter
             theme={theme}
@@ -537,6 +563,28 @@ export default function App() {
       data-effects={effectsEnabled ? 'on' : 'off'}
     >
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
+      {currentTab !== 'home' && (
+        <header className="relative z-20 flex items-center justify-between px-4 py-3 bg-light-card/95 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-light-border dark:border-white/10">
+          <button
+            type="button"
+            onClick={() => setCurrentTab('home')}
+            className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-200/80 dark:text-zinc-200 dark:hover:bg-white/[0.08]"
+            aria-label="Voltar para Início"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Voltar
+          </button>
+          <p className="text-[14px] font-semibold text-zinc-800 dark:text-zinc-100">{getTabTitle(currentTab)}</p>
+          <button
+            type="button"
+            onClick={() => setCurrentTab('home')}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-700 transition-colors hover:bg-zinc-200/80 dark:text-zinc-200 dark:hover:bg-white/[0.08]"
+            aria-label="Fechar página"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+      )}
 
       <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
         <KeepAliveTabPanel
@@ -649,13 +697,6 @@ export default function App() {
           />
         </KeepAliveTabPanel>
       </main>
-
-      {/* Navigation - sempre visível, inclusive na home */}
-      <TabBar
-        currentTab={currentTab}
-        onTabChange={setCurrentTab}
-        colorfulNavigation={appAppearance.colorfulNavigation}
-      />
 
       {/* Global Modals */}
       <SettingsModal
