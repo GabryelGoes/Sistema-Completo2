@@ -4544,6 +4544,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     vehicleYear: serviceOrderDetail.vehicle_year ?? '',
                                     vehicleEngineInfo: serviceOrderDetail.vehicle_engine_info ?? '',
                                   });
+                                  setIsDadosFichaExpanded(false);
                                 }}
                                 className="flex-1 min-w-[120px] rounded-2xl border border-zinc-200/90 py-3 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06] sm:flex-none sm:px-6"
                               >
