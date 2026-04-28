@@ -4700,35 +4700,38 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   const dateStr = new Date(budget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                                   const numero = index + 1;
                                   return (
-                                    <div
+                                    <button
                                       key={budget.id}
-                                      className="rounded-[14px] bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_2px_12px_-4px_rgba(0,122,255,0.35)] dark:shadow-[0_4px_18px_-6px_rgba(0,122,255,0.28)]"
+                                      type="button"
+                                      onClick={() => setViewingBudget(budget)}
+                                      className="group relative w-full overflow-hidden rounded-2xl border border-[#007AFF]/35 bg-white/95 p-3.5 text-left shadow-[0_6px_16px_-8px_rgba(0,0,0,0.22)] ring-1 ring-transparent transition-all duration-200 hover:-translate-y-[1px] hover:border-[#007AFF]/55 hover:shadow-[0_10px_22px_-8px_rgba(0,122,255,0.33)] hover:ring-[#007AFF]/20 active:translate-y-0 dark:border-[#7ab8ff]/35 dark:bg-zinc-950/85 dark:shadow-[0_8px_20px_-10px_rgba(0,0,0,0.6)] dark:hover:border-[#93c5fd]/60 dark:hover:shadow-[0_12px_26px_-10px_rgba(59,130,246,0.28)] dark:hover:ring-[#7ab8ff]/20"
                                     >
-                                      <button
-                                        type="button"
-                                        onClick={() => setViewingBudget(budget)}
-                                        className="w-full overflow-hidden rounded-[12px] border border-white/90 bg-white text-left shadow-inner transition-all duration-200 hover:bg-zinc-50/98 hover:shadow-md active:translate-y-0 dark:border-white/[0.06] dark:bg-zinc-950/85 dark:hover:bg-zinc-900/95"
-                                      >
-                                        <div className="relative p-3.5">
-                                          <div className="mb-2 flex items-center justify-between gap-2">
-                                            <span className="text-xs font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-100">
-                                              Orçamento {numero}
-                                            </span>
-                                            <span className="text-[10px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
-                                              {dateStr}
-                                            </span>
-                                          </div>
-                                          <p className="mb-2 line-clamp-2 text-[13px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">
-                                            {preview}
-                                          </p>
-                                          <div className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
-                                            <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
-                                            <span>·</span>
-                                            <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
-                                          </div>
-                                        </div>
-                                      </button>
-                                    </div>
+                                      <div
+                                        className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] opacity-90"
+                                        aria-hidden
+                                      />
+                                      <div className="mb-2.5 flex items-center justify-between gap-2">
+                                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-100">
+                                          Orçamento {numero}
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 rounded-md border border-[#007AFF]/20 bg-[#007AFF]/10 px-2 py-0.5 text-[10px] font-semibold text-[#007AFF] dark:border-[#7ab8ff]/25 dark:bg-[#7ab8ff]/15 dark:text-[#b8d9ff]">
+                                          <Eye className="h-3 w-3" />
+                                          Abrir
+                                        </span>
+                                      </div>
+                                      <p className="mb-2 line-clamp-2 text-[13px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
+                                        {preview}
+                                      </p>
+                                      <div className="mb-2 flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
+                                        <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
+                                        <span>·</span>
+                                        <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between gap-2 border-t border-zinc-200/80 pt-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:border-white/[0.08] dark:text-zinc-400">
+                                        <span>{dateStr}</span>
+                                        <span className="text-[#007AFF] dark:text-[#93c5fd]">Toque para abrir</span>
+                                      </div>
+                                    </button>
                                   );
                                 })}
                               {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
