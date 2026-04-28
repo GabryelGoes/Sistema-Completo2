@@ -4890,7 +4890,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
 
                          {/* Anexos (fotos) + Documentos (arquivos) */}
-                         <div className={`${vi} overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.1),0_2px_10px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_34px_-12px_rgba(0,0,0,0.45)]`}>
+                         <div className={`${vi} flex flex-col overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.1),0_2px_10px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_34px_-12px_rgba(0,0,0,0.45)]`}>
                             <div className="border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div className="min-w-0">
@@ -4955,7 +4955,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
 
                             {serviceOrderDetail && (referenceLinksDraft.length > 0 || can('canEditFicha')) && (
-                              <div className="px-3 py-3 sm:px-4 sm:py-4">
+                              <div className="order-3 px-3 py-3 sm:px-4 sm:py-4">
                                 <div
                                   className={`${vi} overflow-hidden p-3.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-4`}
                                 >
@@ -5095,7 +5095,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                             )}
 
-                            <div className="space-y-3">
+                            <div className="order-2 space-y-3 pb-8 sm:pb-10">
                                {isUploading && (
                                   <div className="flex justify-center p-4">
                                      <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
@@ -5113,9 +5113,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     const visibleImages = images.slice(0, vehicleModalPhotoVisibleCount);
                                     const hiddenPhotoCount = images.length - visibleImages.length;
                                     return (
-                                      <div className="space-y-8">
+                                      <div className="flex flex-col gap-8">
                                         {images.length > 0 && (
-                                          <div>
+                                          <div className="order-2">
                                             <div className="mb-2 flex min-w-0 items-center gap-2 pl-1.5 sm:gap-2.5 sm:pl-2">
                                               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
                                                 <ImageIcon className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
@@ -5341,7 +5341,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           </div>
                                         )}
                                         {others.length > 0 && (
-                                          <div>
+                                          <div className="order-1">
                                             <div className="mb-2 flex min-w-0 items-center gap-2 pl-1.5 sm:gap-2.5 sm:pl-2">
                                               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
                                                 <FileText className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
