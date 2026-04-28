@@ -62,7 +62,7 @@ export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowed
     <div className="fixed bottom-0 left-0 right-0 z-40">
       {/* Vidro neutro (sem cor de destaque na barra — cor só no ícone ativo). */}
       <div className="absolute inset-0 border-t border-zinc-200/80 bg-white/72 backdrop-blur-2xl dark:border-white/[0.09] dark:bg-zinc-950/78" />
-      <div className="relative mx-auto flex h-20 max-w-2xl items-center justify-around px-2 pb-4 pt-2">
+      <div className="relative mx-auto flex h-16 max-w-2xl items-center justify-around px-2 pb-3 pt-1">
         {tabs.map((t) => {
           const selected = currentTab === t.id;
           return (
@@ -70,10 +70,10 @@ export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowed
               key={t.id}
               type="button"
               onClick={() => onTabChange(t.id)}
-              className="flex flex-col items-center gap-1 transition-colors duration-300"
+              className="flex flex-col items-center gap-0.5 transition-colors duration-300"
             >
               <span
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
                   selected
                     ? 'bg-white/65 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.72)] ring-1 ring-black/[0.07] backdrop-blur-xl dark:bg-white/[0.12] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.22)] dark:ring-white/18'
                     : 'bg-transparent'
