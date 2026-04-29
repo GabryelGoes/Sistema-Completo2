@@ -55,7 +55,7 @@ interface HomeViewProps {
 const iosCard =
   'rounded-[22px] border border-zinc-200/80 dark:border-white/[0.07] bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl ' +
   'shadow-[0_10px_36px_-8px_rgba(63,63,70,0.22),0_4px_20px_-6px_rgba(82,82,91,0.14),0_1px_3px_rgba(63,63,70,0.08)] ' +
-  'dark:shadow-[0_8px_30px_-8px_rgba(255,255,255,0.075),0_3px_18px_-6px_rgba(228,228,231,0.05),0_1px_6px_-2px_rgba(244,244,245,0.035)]';
+  'dark:shadow-[0_14px_40px_-10px_rgba(0,0,0,0.46),0_6px_28px_-8px_rgba(0,0,0,0.32),0_2px_12px_-4px_rgba(0,0,0,0.24)]';
 
 const iosSectionTitle =
   'text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-950 dark:text-zinc-400 mb-1';

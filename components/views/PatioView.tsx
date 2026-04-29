@@ -96,9 +96,9 @@ const budgetModalPaperFooter = 'border-t border-[#e8dfd0] bg-[#f5efe0]';
 /** Cards do quadro (Pátio / Laboratório): cinza no claro, cinza-claro no escuro — alinhado à Home. */
 const patioBoardGlassCardShadow =
   'shadow-[0_10px_36px_-8px_rgba(63,63,70,0.20),0_4px_20px_-6px_rgba(82,82,91,0.12),0_1px_3px_rgba(63,63,70,0.08)] ' +
-  'dark:shadow-[0_10px_38px_-8px_rgba(255,255,255,0.09),0_4px_22px_-6px_rgba(228,228,231,0.07),0_1px_8px_-3px_rgba(244,244,245,0.045)] ' +
+  'dark:shadow-[0_14px_40px_-10px_rgba(0,0,0,0.44),0_6px_26px_-8px_rgba(0,0,0,0.30),0_2px_10px_-4px_rgba(0,0,0,0.22)] ' +
   'hover:shadow-[0_14px_44px_-10px_rgba(63,63,70,0.22),0_6px_26px_-8px_rgba(82,82,91,0.14)] ' +
-  'dark:hover:shadow-[0_12px_44px_-10px_rgba(255,255,255,0.11),0_6px_28px_-8px_rgba(228,228,231,0.08),0_2px_10px_-4px_rgba(244,244,245,0.055)]';
+  'dark:hover:shadow-[0_18px_48px_-12px_rgba(0,0,0,0.50),0_8px_30px_-10px_rgba(0,0,0,0.34),0_3px_14px_-4px_rgba(0,0,0,0.26)]';
 
 /** Nome do cliente no cabeçalho do modal de veículo — caixa com fundo cinza. */
 const vehicleModalCustomerNameBox =
