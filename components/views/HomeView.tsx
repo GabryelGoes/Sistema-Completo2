@@ -218,6 +218,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setQuickDragVisual(null);
   }, []);
 
+  const moveQuickApp = useCallback((sourceId: HomeAppId, targetId: HomeAppId) => {
+    if (sourceId === targetId) return;
+    setQuickLayout((prev) => {
+      const order = [...prev.order];
+      const from = order.indexOf(sourceId);
+      const to = order.indexOf(targetId);
+      if (from === -1 || to === -1) return prev;
+      order.splice(from, 1);
+      order.splice(to, 0, sourceId);
+      return { ...prev, order };
+    });
+  }, []);
+
   useEffect(() => {
     const handlePointerMove = (event: PointerEvent) => {
       setQuickDragVisual((prev) => {
@@ -254,19 +267,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
       window.clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
-  }, []);
-
-  const moveQuickApp = useCallback((sourceId: HomeAppId, targetId: HomeAppId) => {
-    if (sourceId === targetId) return;
-    setQuickLayout((prev) => {
-      const order = [...prev.order];
-      const from = order.indexOf(sourceId);
-      const to = order.indexOf(targetId);
-      if (from === -1 || to === -1) return prev;
-      order.splice(from, 1);
-      order.splice(to, 0, sourceId);
-      return { ...prev, order };
-    });
   }, []);
 
   const beginQuickDrag = useCallback(
