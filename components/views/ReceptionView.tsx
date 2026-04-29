@@ -995,16 +995,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 )}
               </div>
 
-              <div className="pt-2 flex justify-center sm:justify-start">
-                <button
-                  type="submit"
-                  className="group relative flex min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:opacity-95 active:scale-[0.98]"
-                >
-                  Criar ficha
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </button>
-              </div>
             </div>
+          </div>
+          <div className="pt-4 flex justify-center sm:justify-start">
+            <button
+              type="submit"
+              className="group relative flex min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:opacity-95 active:scale-[0.98]"
+            >
+              Criar ficha
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </button>
           </div>
             </div>
           </div>
