@@ -698,7 +698,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             <div className={`order-2 ${receptionSectionShell}`}>
               <div className={receptionSectionHeader}>
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.14),transparent_52%)]" aria-hidden />
-                <div className="pointer-events-none absolute inset-y-2.5 left-3 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)]" aria-hidden />
                 <h2 className="relative px-7 py-3 text-[16px] font-bold tracking-[-0.03em] text-zinc-900 dark:text-white">
                   Dados do cliente
                 </h2>
@@ -789,7 +788,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             <div className={`order-1 ${receptionSectionShell}`}>
               <div className={receptionSectionHeader}>
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.14),transparent_52%)]" aria-hidden />
-                <div className="pointer-events-none absolute inset-y-2.5 left-3 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)]" aria-hidden />
                 <h2 className="relative px-7 py-3 text-[16px] font-bold tracking-[-0.03em] text-zinc-900 dark:text-white">
                   {receptionMode === 'vehicle' ? 'Veículo e atendimento' : 'Módulo e atendimento'}
                 </h2>
@@ -962,7 +960,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             <div className={`order-3 space-y-6 lg:col-span-2 ${receptionSectionShell}`}>
               <div className={receptionSectionHeader}>
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.14),transparent_52%)]" aria-hidden />
-                <div className="pointer-events-none absolute inset-y-2.5 left-3 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)]" aria-hidden />
                 <h2 className="relative px-7 py-3 text-[16px] font-bold tracking-[-0.03em] text-zinc-900 dark:text-white">
                   Foto e envio
                 </h2>
