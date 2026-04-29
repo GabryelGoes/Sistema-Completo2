@@ -266,12 +266,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         >
                           <img
                             src="/icons/tv-patio-ios.png"
-                            alt="Configurações da TV do Pátio"
+                            alt="TV do Pátio"
                             className="h-full w-full object-cover"
                           />
                         </IosAccentIconSquircle>
                         <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
-                          Configurações da TV do Pátio
+                          TV do Pátio
                         </span>
                       </button>
                       <button
