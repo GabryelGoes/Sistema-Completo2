@@ -3449,12 +3449,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     flex w-full cursor-pointer items-center gap-2 rounded-2xl transition-all duration-200 ease-out
                     shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
                     border border-black/10 dark:border-white/10
-                    ${boardPanoramic ? 'min-h-[46px] py-2 pl-3.5 pr-2.5 text-[13px]' : 'min-h-[52px] py-2.5 pl-5 pr-3'}
+                    ${boardPanoramic ? 'min-h-[50px] py-2 pl-3.5 pr-2.5 text-[13px]' : 'min-h-[57px] py-2.5 pl-5 pr-3'}
                     ${statusConfig.style}
                     hover:brightness-110 active:scale-[0.98]
                   `}
                 >
-                  <span className="min-w-0 flex-1 truncate text-left text-[16px] font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black sm:text-[17px]">
+                  <span className="min-w-0 flex-1 truncate text-left text-[17.6px] font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black sm:text-[18.7px]">
                     {statusConfig.label}
                   </span>
                   {can('canArchiveCard') && (showDeliverButton || showNotApprovedDeliverButton) && (
