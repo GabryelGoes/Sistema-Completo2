@@ -3455,7 +3455,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   `}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-black text-sm uppercase tracking-wide truncate">
+                    <span className="truncate font-black text-sm uppercase tracking-wide !text-black dark:!text-black">
                       {statusConfig.label}
                     </span>
                     <div className="flex items-center gap-1.5">
@@ -3486,7 +3486,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           ENTREGAR
                         </button>
                       )}
-                      <ChevronDown className="w-5 h-5 opacity-70" />
+                      <ChevronDown className="h-5 w-5 shrink-0 opacity-70 text-black dark:text-black" aria-hidden />
                     </div>
                   </div>
                 </button>
@@ -4162,10 +4162,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               handleOpenMoveModal(selectedCard, e);
                             }}
                             title="Alterar etapa"
-                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0a0a0a] ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name || '', selectedCard.idList).style}`}
+                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest !text-black shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 dark:!text-black dark:focus-visible:ring-offset-[#0a0a0a] ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name || '', selectedCard.idList).style}`}
                           >
                             {lists.find(l => l.id === selectedCard.idList)?.name}
-                            <ChevronDown className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+                            <ChevronDown className="h-4 w-4 shrink-0 opacity-90 text-black dark:text-black" aria-hidden />
                           </button>
                           {selectedCard.garantiaTag && (
                             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 border-2 border-red-500/50">
@@ -5764,10 +5764,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   e.stopPropagation();
                                   handleOpenMoveModal(selectedCard, e);
                                 }}
-                                className={`group flex w-full items-center justify-between rounded-2xl border-2 p-4 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).style}`}
+                                className={`group flex w-full items-center justify-between rounded-2xl border-2 p-4 !text-black transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] dark:!text-black ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).style}`}
                               >
-                                <span className="font-bold">{getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).label}</span>
-                                <ChevronDown className="h-5 w-5 opacity-90" />
+                                <span className="font-bold uppercase !text-black dark:!text-black">
+                                  {getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).label}
+                                </span>
+                                <ChevronDown className="h-5 w-5 opacity-90 text-black dark:text-black" />
                             </button>
                          </div>
 
@@ -7046,7 +7048,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         }
                       `}
                     >
-                      <span className="text-[15px] font-semibold uppercase tracking-wide">{list.name}</span>
+                      <span className="text-[15px] font-semibold uppercase tracking-wide !text-black dark:!text-black">
+                        {list.name}
+                      </span>
                       {isCurrent ? (
                         <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                           <Check className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} />
