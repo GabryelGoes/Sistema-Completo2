@@ -924,6 +924,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Visão panorâmica: cartões menores para caber mais na tela (Pátio / Laboratório independentes). */
   const boardPanoramicStorageKey = isModuleMode ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
   const [boardPanoramic, setBoardPanoramic] = useState(false);
+  const [isDesktopLandscape, setIsDesktopLandscape] = useState(false);
   useEffect(() => {
     try {
       setBoardPanoramic(localStorage.getItem(boardPanoramicStorageKey) === '1');
@@ -931,6 +932,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setBoardPanoramic(false);
     }
   }, [boardPanoramicStorageKey]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(min-width: 1024px) and (orientation: landscape)');
+    const apply = () => setIsDesktopLandscape(mq.matches);
+    apply();
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', apply);
+      return () => mq.removeEventListener('change', apply);
+    }
+    mq.addListener(apply);
+    return () => mq.removeListener(apply);
+  }, []);
 
   const selectedCardTitleParts = selectedCard ? parsePatioCardTitle(selectedCard.name) : null;
   const historyCardTitleParts = selectedHistoryCard ? parsePatioCardTitle(selectedHistoryCard.name) : null;
@@ -3327,6 +3340,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 className="relative z-10"
                 onMouseEnter={() => setInteractingCardId(card.id)}
                 onMouseLeave={() => setInteractingCardId(null)}
+                style={
+                  isDesktopLandscape
+                    ? {
+                        transform: 'scale(0.85)',
+                        transformOrigin: 'top left',
+                        width: '117.647%',
+                      }
+                    : undefined
+                }
               >
               {/* Layout: 1) nome do carro  2) cliente  3) técnico | placa */}
               <div className={boardPanoramic ? 'mb-2' : 'mb-4'}>
