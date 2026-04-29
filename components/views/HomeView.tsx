@@ -68,11 +68,6 @@ const OPERATIONAL_APPS: {
   icon: React.ReactElement;
 }[] = [
   {
-    id: 'reception',
-    label: 'Recepção',
-    icon: <img src="/icons/recepcao-ios.png" alt="Recepção" className="h-full w-full object-cover" />,
-  },
-  {
     id: 'agenda',
     label: 'Agenda',
     icon: <img src="/icons/agenda-ios.png" alt="Agenda" className="h-full w-full object-cover" />,

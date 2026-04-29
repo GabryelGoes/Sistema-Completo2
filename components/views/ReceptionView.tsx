@@ -634,32 +634,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto justify-end">
-          <div className="p-1 rounded-2xl bg-zinc-200/90 dark:bg-white/[0.06] border border-zinc-200/70 dark:border-white/[0.08] backdrop-blur-xl shadow-inner flex">
-            <button
-              type="button"
-              onClick={() => setReceptionMode('vehicle')}
-              className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-[0.85rem] text-sm font-semibold transition-all ${
-                receptionMode === 'vehicle'
-                  ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/25 border border-[#007AFF]/60'
-                  : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
-              }`}
-            >
-              <Car className="w-4 h-4" />
-              Veículos
-            </button>
-            <button
-              type="button"
-              onClick={() => setReceptionMode('module')}
-              className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-[0.85rem] text-sm font-semibold transition-all ${
-                receptionMode === 'module'
-                  ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/25 border border-[#007AFF]/60'
-                  : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
-              }`}
-            >
-              <Package className="w-4 h-4" />
-              Módulos
-            </button>
-          </div>
           <button
             type="button"
             onClick={() => setIsHistoryOpen(true)}

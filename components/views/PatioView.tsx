@@ -124,6 +124,7 @@ export type OpenServiceOrderSection = 'comments' | 'budgets' | 'description' | n
 
 interface PatioViewProps {
   onUseCustomerData?: (data: Customer) => void;
+  onCreateRegistration?: (mode: ServiceOrderType) => void;
   /** Se false, desativa efeitos (ex.: 3D nos cards). */
   effectsEnabled?: boolean;
   /** Nome exibido nos comentários: "Rei do ABS" (admin) ou nome do técnico. */
@@ -690,6 +691,7 @@ const VEHICLE_MODAL_PHOTOS_BATCH = 8;
 
 export const PatioView: React.FC<PatioViewProps> = ({
   onUseCustomerData,
+  onCreateRegistration,
   effectsEnabled = true,
   commentAuthorName = 'Rei do ABS',
   openServiceOrderId: openServiceOrderIdProp,
@@ -3111,6 +3113,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
           </div>
 
           <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:shrink-0 lg:justify-end">
+            <button
+              type="button"
+              onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+              className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-[#007AFF]/45 bg-[#007AFF]/15 px-4 py-2.5 text-sm font-semibold text-[#007AFF] shadow-[0_8px_24px_rgba(0,122,255,0.18)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/60 hover:bg-[#007AFF]/22 active:scale-[0.98] dark:border-[#64B5FF]/40 dark:bg-[#64B5FF]/14 dark:text-[#8cc8ff] dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] sm:px-5 sm:py-3"
+            >
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/20 text-[#007AFF] dark:bg-[#64B5FF]/25 dark:text-[#8cc8ff]">
+                <Plus className="h-4 w-4" strokeWidth={2.3} />
+              </span>
+              <span className="tracking-tight">{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
+            </button>
             <button
               type="button"
               onClick={() => {

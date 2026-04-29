@@ -195,6 +195,21 @@ export default function App() {
     setCurrentTab(app);
   };
 
+  const handleCreateRegistrationFromArea = useCallback(
+    (mode: 'vehicle' | 'module') => {
+      try {
+        localStorage.setItem('app_reception_mode', mode);
+      } catch (_) {}
+      setPrefillData(null);
+      if (isLimitedSystemUser) {
+        setUserTab('reception');
+      } else {
+        setCurrentTab('reception');
+      }
+    },
+    [isLimitedSystemUser]
+  );
+
   const handleLogout = () => {
     if (
       !window.confirm(
@@ -399,6 +414,7 @@ export default function App() {
           >
             <PatioView
               onUseCustomerData={handleUseCustomerData}
+              onCreateRegistration={handleCreateRegistrationFromArea}
               effectsEnabled={effectsEnabled}
               commentAuthorName={authSession.displayName ?? 'Usuário'}
               blurPlates={cinematographicMode}
@@ -423,6 +439,7 @@ export default function App() {
             <PatioView
               orderType="module"
               onUseCustomerData={handleUseCustomerData}
+              onCreateRegistration={handleCreateRegistrationFromArea}
               effectsEnabled={effectsEnabled}
               commentAuthorName={authSession.displayName ?? 'Usuário'}
               blurPlates={cinematographicMode}
@@ -606,6 +623,7 @@ export default function App() {
         >
           <PatioView
             onUseCustomerData={handleUseCustomerData}
+            onCreateRegistration={handleCreateRegistrationFromArea}
             effectsEnabled={effectsEnabled}
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
@@ -630,6 +648,7 @@ export default function App() {
           <PatioView
             orderType="module"
             onUseCustomerData={handleUseCustomerData}
+            onCreateRegistration={handleCreateRegistrationFromArea}
             effectsEnabled={effectsEnabled}
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
