@@ -3449,13 +3449,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     flex w-full cursor-pointer items-center rounded-2xl transition-all duration-200 ease-out
                     shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
                     border border-black/10 dark:border-white/10
-                    ${boardPanoramic ? 'min-h-[42px] py-2 px-3.5 text-[13px]' : 'min-h-[48px] py-2.5 px-5'}
+                    ${boardPanoramic ? 'min-h-[44px] py-2 px-3.5 text-[13px]' : 'min-h-[50px] py-2.5 px-5'}
                     ${statusConfig.style}
                     hover:brightness-110 active:scale-[0.98]
                   `}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-black text-sm uppercase tracking-wide !text-black dark:!text-black">
+                    <span className="truncate font-black text-[15px] sm:text-[16px] uppercase tracking-wide !text-black dark:!text-black">
                       {statusConfig.label}
                     </span>
                     <div className="flex items-center gap-1.5">
@@ -4162,7 +4162,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               handleOpenMoveModal(selectedCard, e);
                             }}
                             title="Alterar etapa"
-                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest !text-black shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 dark:!text-black dark:focus-visible:ring-offset-[#0a0a0a] ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name || '', selectedCard.idList).style}`}
+                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[15px] sm:text-base font-black uppercase tracking-widest !text-black shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 dark:!text-black dark:focus-visible:ring-offset-[#0a0a0a] ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name || '', selectedCard.idList).style}`}
                           >
                             {lists.find(l => l.id === selectedCard.idList)?.name}
                             <ChevronDown className="h-4 w-4 shrink-0 opacity-90 text-black dark:text-black" aria-hidden />
@@ -5766,7 +5766,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 }}
                                 className={`group flex w-full items-center justify-between rounded-2xl border-2 p-4 !text-black transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] dark:!text-black ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).style}`}
                               >
-                                <span className="font-bold uppercase !text-black dark:!text-black">
+                                <span className="text-[16px] font-bold uppercase leading-snug !text-black dark:!text-black sm:text-[17px]">
                                   {getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).label}
                                 </span>
                                 <ChevronDown className="h-5 w-5 opacity-90 text-black dark:text-black" />
@@ -7040,7 +7040,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       onClick={() => handleMoveCard(list.id)}
                       disabled={isCurrent || isMoving}
                       className={`
-                        group flex min-h-[52px] w-full items-center justify-between gap-3 rounded-[22px] border-2 px-4 py-3.5 text-left transition-all duration-200 sm:px-5
+                        group flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[22px] border-2 px-4 py-3.5 text-left transition-all duration-200 sm:min-h-[56px] sm:px-5
                         ${
                           isCurrent
                             ? `${iosModalInsetCard} cursor-not-allowed border-zinc-200/80 opacity-75 shadow-none dark:border-white/[0.08]`
@@ -7048,7 +7048,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         }
                       `}
                     >
-                      <span className="text-[15px] font-semibold uppercase tracking-wide !text-black dark:!text-black">
+                      <span className="text-[16px] font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black sm:text-[17px]">
                         {list.name}
                       </span>
                       {isCurrent ? (
