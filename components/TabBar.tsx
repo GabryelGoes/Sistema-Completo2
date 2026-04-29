@@ -1,7 +1,6 @@
 import React from 'react';
-import { Home, FileText, Calendar, FlaskConical } from 'lucide-react';
+import { Home } from 'lucide-react';
 import { useModalLayer } from './ui/ModalLayerContext';
-import { PatioCarIcon } from './ui/PatioCarIcon';
 import { COLORFUL_TAB_ACCENTS, type NavigationTabId } from '../utils/appAppearance';
 
 export type TabId = NavigationTabId;
@@ -37,20 +36,29 @@ export const TabBar: React.FC<TabBarProps> = ({ currentTab, onTabChange, allowed
     const cls = (base: string) => (colorfulNavigation ? base : `${base} ${monoTone}`);
     const sw = selected ? (id === 'patio' ? 2.5 : 2.35) : id === 'patio' ? 3 : 2;
 
+    const pngTab = (src: string): React.ReactNode => (
+      <span
+        className={`relative block h-7 w-7 overflow-hidden rounded-full ${selected ? 'ring-2 ring-brand-yellow/65 ring-offset-2 ring-offset-white dark:ring-offset-zinc-950' : 'opacity-[0.48]'}`}
+        style={colorfulNavigation ? colorfulStyle : undefined}
+      >
+        <img src={src} alt="" className="h-full w-full object-cover" />
+      </span>
+    );
+
     if (id === 'home') {
       return <Home className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
     }
     if (id === 'reception') {
-      return <FileText className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
+      return pngTab('/icons/recepcao-ios.png');
     }
     if (id === 'agenda') {
-      return <Calendar className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
+      return pngTab('/icons/agenda-ios.png');
     }
     if (id === 'patio') {
-      return <PatioCarIcon className={cls('h-6 w-6')} style={colorfulStyle} />;
+      return pngTab('/icons/patio-ios.png');
     }
     if (id === 'laboratorio') {
-      return <FlaskConical className={cls('h-6 w-6')} style={colorfulStyle} strokeWidth={sw} />;
+      return pngTab('/icons/laboratorio-ios.png');
     }
     return null;
   };

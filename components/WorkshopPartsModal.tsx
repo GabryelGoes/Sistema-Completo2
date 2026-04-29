@@ -608,7 +608,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
             <IosModalHeader
-              icon={<Package className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Estoque de peças"
               subtitle="Preço, quantidade e foto para orçamentos"
               gradientClass="from-emerald-500 to-teal-700"
@@ -965,7 +965,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           </p>
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
             <IosModalHeader
-              icon={<Package className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Novo produto"
               subtitle="Preço, estoque e foto"
               gradientClass="from-emerald-500 to-teal-700"
@@ -1159,7 +1159,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           <div className="px-6 sm:px-8 pt-8 pb-5 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06] bg-gradient-to-b from-emerald-500/[0.07] to-transparent dark:from-emerald-400/[0.09]">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
               <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-                <Package />
+                <img src="/icons/estoque-ios.png" alt="" className="h-full w-full object-cover" />
               </IosAccentIconSquircle>
               <div className="min-w-0 flex-1 pt-0.5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700/90 dark:text-emerald-400/90 mb-1.5">
@@ -1370,7 +1370,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           </p>
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
             <IosModalHeader
-              icon={<Tags className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Categorias do estoque"
               subtitle="Grupos para filtrar e organizar produtos"
               gradientClass="from-emerald-500 to-teal-700"

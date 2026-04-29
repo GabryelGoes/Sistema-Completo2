@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Camera, Loader2, Check, User } from 'lucide-react';
+import { X, Camera, Loader2, Check } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosInput } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopTechnicians, updateWorkshopTechnician, uploadWorkshopTechnicianPhoto } from '../services/apiService';
@@ -109,7 +109,7 @@ export const TechnicianProfileModal: React.FC<TechnicianProfileModalProps> = ({
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
             <IosModalHeader
-              icon={<User className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              icon={<img src="/icons/perfil-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Meu perfil"
               subtitle="Nome e foto no pátio e comentários"
               gradientClass="from-cyan-500 to-blue-600"

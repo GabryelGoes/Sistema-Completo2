@@ -186,7 +186,7 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
 
         <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
           <IosModalHeader
-            icon={<Car className="w-6 h-6 text-white" strokeWidth={2.2} />}
+            icon={<img src="/icons/patio-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
             title="Chegou ao pátio"
             subtitle="Confirme os dados do agendamento e crie a ficha"
             gradientClass="from-emerald-500 to-teal-700"

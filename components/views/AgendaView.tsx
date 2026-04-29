@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { format, startOfWeek, addDays, startOfMonth, endOfMonth, endOfWeek, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, User, Car, AlertCircle, X, CalendarDays, RefreshCw, ArrowRight, FileText, Edit2, ExternalLink, Trash2, Phone, Mail, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Clock, User, Car, AlertCircle, X, RefreshCw, ArrowRight, FileText, Edit2, ExternalLink, Trash2, Phone, Mail, Sparkles } from 'lucide-react';
 import {
   iosModalShell,
   iosModalClose,
@@ -276,7 +276,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-            <CalendarIcon />
+            <img src="/icons/agenda-ios.png" alt="" className="h-full w-full object-cover" />
           </IosAccentIconSquircle>
           <div className="min-w-0">
             <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
@@ -483,7 +483,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
                       <h3 className="text-[17px] sm:text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2.5">
                         <span className="shrink-0">
                           <IosAccentIconSquircle variant="row" strokeWidth={2}>
-                            <CalendarDays />
+                            <img src="/icons/agenda-ios.png" alt="" className="h-full w-full object-cover" />
                           </IosAccentIconSquircle>
                         </span>
                         <span className="leading-tight">
@@ -695,7 +695,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
             </button>
             <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
               <IosModalHeader
-                icon={<Car className="w-6 h-6 text-white" strokeWidth={2.2} />}
+                icon={<img src="/icons/agenda-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
                 title="Veículo agendado"
                 subtitle={(() => {
                   const d =
@@ -872,7 +872,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
 
                 <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
                   <IosModalHeader
-                    icon={<CalendarIcon className="w-6 h-6 text-white" strokeWidth={2.2} />}
+                    icon={<img src="/icons/agenda-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
                     title={isEditing ? 'Editar agendamento' : 'Novo agendamento'}
                     subtitle="Serviço, cliente, veículo e horário"
                     gradientClass="from-brand-yellow to-zinc-900"

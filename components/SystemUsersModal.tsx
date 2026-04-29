@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Pencil, Trash2, Loader2, LayoutGrid, Settings, Car, User, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { X, Plus, Pencil, Trash2, Loader2, LayoutGrid, Settings, Car, User, ShieldCheck } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosInput } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { IosModalHeader } from './ui/IosModalHeader';
@@ -279,7 +279,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
             <IosModalHeader
-              icon={<img src="/icons/usuarios-sistema.svg" alt="" className="h-6 w-6 object-contain" />}
+              icon={<img src="/icons/usuarios-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Usuários do sistema"
               subtitle="Logins, permissões, aprovação de orçamentos e acesso ao painel"
               gradientClass="from-violet-500 to-indigo-700"
@@ -478,7 +478,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                       <div className="flex items-start gap-2">
                         <div className="shrink-0 origin-left scale-[0.92]">
                           <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                            <CheckCircle2 />
+                            <img src="/icons/usuarios-ios.png" alt="" className="h-full w-full object-cover" />
                           </IosAccentIconSquircle>
                         </div>
                         <div className="min-w-0">

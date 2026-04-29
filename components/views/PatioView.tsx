@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, Users, ClipboardList, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, FlaskConical, Loader2, Tag, Link2, Wrench, Gauge } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -59,7 +59,6 @@ import { SERVICE_ORDER_STAGES, getStageStyle, getStageRingClass, type ServiceOrd
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
 import { ModalPortal } from '../ui/ModalPortal';
-import { PatioCarIcon } from '../ui/PatioCarIcon';
 import {
   iosModalClose,
   iosModalInsetCard,
@@ -869,6 +868,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [newReminder, setNewReminder] = useState('');
   const remindersStorageKey = orderType === 'module' ? 'patio-reminders-module' : 'patio-reminders-vehicle';
   const isModuleMode = orderType === 'module';
+  /** Mesmos ícones iOS da Home para cabeçalhos de modais do Pátio / Laboratório. */
+  const patioOrLabModuleIcon = (
+    <img
+      src={isModuleMode ? '/icons/laboratorio-ios.png' : '/icons/patio-ios.png'}
+      alt=""
+      className="h-full w-full object-cover"
+    />
+  );
   const remindersScopeApi = orderType === 'module' ? ('module' as const) : ('vehicle' as const);
   const remindersBadgeCount = reminders.length;
 
@@ -3031,11 +3038,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             {isModuleMode ? (
               <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-                <FlaskConical />
+                <img src="/icons/laboratorio-ios.png" alt="" className="h-full w-full object-cover" />
               </IosAccentIconSquircle>
             ) : (
               <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-                <PatioCarIcon />
+                <img src="/icons/patio-ios.png" alt="" className="h-full w-full object-cover" />
               </IosAccentIconSquircle>
             )}
             <div className="min-w-0">
@@ -3403,11 +3410,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <div className="mb-5">
               {isModuleMode ? (
                 <IosAccentIconSquircle variant="tile" strokeWidth={2.2}>
-                  <FlaskConical />
+                  <img src="/icons/laboratorio-ios.png" alt="" className="h-full w-full object-cover" />
                 </IosAccentIconSquircle>
               ) : (
                 <IosAccentIconSquircle variant="tile" strokeWidth={2.2}>
-                  <PatioCarIcon />
+                  <img src="/icons/patio-ios.png" alt="" className="h-full w-full object-cover" />
                 </IosAccentIconSquircle>
               )}
             </div>
@@ -3441,7 +3448,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
                   <div className="flex items-start gap-3 pr-10">
                      <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                        <History />
+                        {patioOrLabModuleIcon}
                      </IosAccentIconSquircle>
                      <div className="min-w-0 flex-1">
                         <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[26px]">
@@ -4426,7 +4433,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     </div>
                                   ) : null}
                                   <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
-                                    <PatioCarIcon className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                    <img
+                                      src="/icons/patio-ios.png"
+                                      alt=""
+                                      className="h-[18px] w-[18px] shrink-0 rounded-md object-cover"
+                                    />
                                     <div className="min-w-0 flex-1">
                                       <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{isModuleMode ? 'Referência' : 'Modelo'}</p>
                                       <p className="font-vehicle mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_model || '—'}</p>
@@ -4434,7 +4445,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   </div>
                                   {isModuleMode && (
                                     <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
-                                      <FlaskConical className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                      <img
+                                        src="/icons/laboratorio-ios.png"
+                                        alt=""
+                                        className="h-[18px] w-[18px] shrink-0 rounded-md object-cover"
+                                      />
                                       <div className="min-w-0 flex-1">
                                         <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Identificação</p>
                                         <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.module_identification || '—'}</p>
@@ -5674,8 +5689,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                      onClick={() => { setActiveChecklistCardId(selectedCard.id); setActiveChecklistTemplateId(tpl.id); }}
                                      className="w-full p-4 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-brand-yellow hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl flex items-center gap-3 group transition-all text-left"
                                    >
-                                     <div className="w-10 h-10 rounded-full bg-brand-yellow/10 flex items-center justify-center text-brand-yellow group-hover:bg-brand-yellow group-hover:text-black transition-colors">
-                                       <ClipboardList className="w-5 h-5" />
+                                     <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-zinc-200/80 ring-1 ring-zinc-300/60 group-hover:ring-brand-yellow/50 dark:bg-zinc-800 dark:ring-white/10">
+                                       <img
+                                         src="/icons/checklist-patio-ios.png"
+                                         alt=""
+                                         className="h-full w-full object-cover"
+                                       />
                                      </div>
                                      <div>
                                        <p className="font-bold text-zinc-900 dark:text-white">Checklist {tpl.name}</p>
@@ -5765,7 +5784,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
                 <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                  <ReminderIcon />
+                  {patioOrLabModuleIcon}
                 </IosAccentIconSquircle>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
@@ -5990,7 +6009,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
                 <div className="flex items-start gap-3 pr-10">
                   <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                    <Search />
+                    <img src="/icons/patio-ios.png" alt="" className="h-full w-full object-cover" />
                   </IosAccentIconSquircle>
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
@@ -6416,7 +6435,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <div className="shrink-0 border-b border-zinc-200/60 px-5 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
                 <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                  <CheckCircle2 />
+                  {patioOrLabModuleIcon}
                 </IosAccentIconSquircle>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Aprovação</p>
@@ -6531,7 +6550,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <div className="shrink-0 border-b border-[#e8dfd0] bg-[#faf6ed] px-6 pb-5 pt-7 sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
                 <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                  <Calculator />
+                  <img src="/icons/servicos-oficina-ios.png" alt="" className="h-full w-full object-cover" />
                 </IosAccentIconSquircle>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6b6560]">
@@ -6880,7 +6899,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
                 <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                  <ArrowRightLeft />
+                  {patioOrLabModuleIcon}
                 </IosAccentIconSquircle>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
@@ -6993,7 +7012,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
                   <div className="flex items-start gap-3 pr-10">
                     <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                      <Tag />
+                      {patioOrLabModuleIcon}
                     </IosAccentIconSquircle>
                     <div className="min-w-0 flex-1">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
@@ -7095,7 +7114,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
                 <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                  <Users />
+                  <img src="/icons/usuarios-ios.png" alt="" className="h-full w-full object-cover" />
                 </IosAccentIconSquircle>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
@@ -7184,7 +7203,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <div className="mb-4 flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                      <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                        <ClipboardList />
+                        <img src="/icons/checklist-patio-ios.png" alt="" className="h-full w-full object-cover" />
                      </IosAccentIconSquircle>
                      <div className="min-w-0">
                        <h2 className="text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">Checklist {activeChecklistTemplate.name}</h2>

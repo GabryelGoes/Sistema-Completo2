@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, ClipboardList, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2 } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2 } from 'lucide-react';
 import {
   iosModalShell,
   iosModalClose,
@@ -615,7 +615,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-            <ClipboardList />
+            <img src="/icons/recepcao-ios.png" alt="" className="h-full w-full object-cover" />
           </IosAccentIconSquircle>
           <div className="min-w-0">
             <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
@@ -1023,7 +1023,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             </button>
             <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
               <IosModalHeader
-                icon={<History className="w-6 h-6" strokeWidth={2.2} />}
+                icon={<img src="/icons/recepcao-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
                 title={receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
                 subtitle={
                   receptionMode === 'module'
