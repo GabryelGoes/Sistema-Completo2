@@ -955,26 +955,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   required
                 />
               </div>
-            </div>
-            </div>
 
-            {/* Foto + enviar — sempre por último (mobile em pé) e linha inteira no desktop */}
-            <div className={`order-3 space-y-6 lg:col-span-2 ${receptionSectionShell}`}>
-              <div className={receptionSectionHeader}>
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(10,132,255,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(10,132,255,0.16),transparent_52%)]" aria-hidden />
-                <h2 className="relative px-7 py-3 text-[16px] font-bold tracking-[-0.03em] text-zinc-900 dark:text-white">
-                  Foto e envio
-                </h2>
-              </div>
-              <div className="space-y-6 p-4 sm:p-5 lg:p-6">
+              <div className="h-px bg-zinc-200/80 dark:bg-white/[0.08]" />
+
               <div className="space-y-2">
                 <label className={`${iosLabel} ml-1`}>
                   {receptionMode === 'vehicle' ? 'Foto do veículo (opcional)' : 'Foto (opcional)'}
                 </label>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  className="hidden" 
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
                   accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
                   onChange={handleFileSelect}
                 />
@@ -982,31 +973,33 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-4 border border-zinc-200/90 dark:border-white/[0.1] rounded-2xl flex items-center justify-center gap-3 text-zinc-600 dark:text-zinc-300 bg-white/50 dark:bg-white/[0.04] backdrop-blur-md hover:border-[#007AFF]/45 hover:bg-white/80 dark:hover:bg-white/[0.08] transition-all active:scale-[0.99]"
+                    className="w-full rounded-2xl border border-zinc-200/90 bg-white/50 py-4 text-zinc-600 backdrop-blur-md transition-all hover:border-[#007AFF]/45 hover:bg-white/80 active:scale-[0.99] dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
                   >
-                    <Camera className="w-5 h-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2} />
-                    <span className="font-medium text-sm">{receptionMode === 'module' ? 'Foto do módulo (câmera ou galeria)' : 'Foto do veículo (câmera ou galeria)'}</span>
+                    <span className="flex items-center justify-center gap-3">
+                      <Camera className="h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2} />
+                      <span className="text-sm font-medium">{receptionMode === 'module' ? 'Foto do módulo (câmera ou galeria)' : 'Foto do veículo (câmera ou galeria)'}</span>
+                    </span>
                   </button>
                 ) : (
-                  <div className="relative rounded-[1.25rem] overflow-hidden border border-zinc-200/80 dark:border-white/[0.1] bg-zinc-100/80 dark:bg-black/40 backdrop-blur-sm shadow-inner">
-                    <img src={photoPreview} alt="Preview" className="w-full h-48 lg:h-56 object-cover opacity-80" />
+                  <div className="relative overflow-hidden rounded-[1.25rem] border border-zinc-200/80 bg-zinc-100/80 shadow-inner backdrop-blur-sm dark:border-white/[0.1] dark:bg-black/40">
+                    <img src={photoPreview} alt="Preview" className="h-48 w-full object-cover opacity-80 lg:h-56" />
                     <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                      <div className="absolute top-4 right-4 flex gap-2">
-                        <button 
+                      <div className="absolute right-4 top-4 flex gap-2">
+                        <button
                           type="button"
                           onClick={clearPhoto}
-                          className="p-2 rounded-full bg-red-500/90 text-white hover:bg-red-600 transition-colors shadow-lg"
+                          className="rounded-full bg-red-500/90 p-2 text-white shadow-lg transition-colors hover:bg-red-600"
                           title="Remover foto"
                         >
-                          <X className="w-5 h-5" />
+                          <X className="h-5 w-5" />
                         </button>
                       </div>
-                      <div className="absolute bottom-4 left-4 right-4 bg-black/70 backdrop-blur-md p-3 rounded-xl border border-white/10">
+                      <div className="absolute bottom-4 left-4 right-4 rounded-xl border border-white/10 bg-black/70 p-3 backdrop-blur-md">
                         <div className="flex items-center gap-3">
-                          <ImageIcon className="w-5 h-5 text-[#64B5FF]" />
+                          <ImageIcon className="h-5 w-5 text-[#64B5FF]" />
                           <div className="flex-1">
-                            <p className="text-xs font-bold text-white uppercase">Foto Selecionada</p>
-                            <p className="text-[10px] text-zinc-300 mt-0.5">Clique no X para remover</p>
+                            <p className="text-xs font-bold uppercase text-white">Foto Selecionada</p>
+                            <p className="mt-0.5 text-[10px] text-zinc-300">Clique no X para remover</p>
                           </div>
                         </div>
                       </div>
@@ -1016,15 +1009,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               </div>
 
               <div className="pt-2 flex justify-center sm:justify-start">
-                <button 
+                <button
                   type="submit"
-                  className="group relative min-w-[220px] rounded-2xl bg-[#007AFF] !px-8 px-8 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 hover:opacity-95 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="group relative flex min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:opacity-95 active:scale-[0.98]"
                 >
                   Criar ficha
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </button>
               </div>
-              </div>
+            </div>
             </div>
           </div>
 
