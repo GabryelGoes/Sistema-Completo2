@@ -77,6 +77,7 @@ function sortArchivedOrdersNewestFirst(orders: ServiceOrderListItem[]): ServiceO
 interface ReceptionViewProps {
   initialData?: Customer | null;
   onDataLoaded?: () => void;
+  forcedMode?: ServiceOrderType | null;
   /** Modo cinematográfico: embaçar placas exibidas (para gravar tela / redes sociais). */
   blurPlates?: boolean;
   /** Preencher o formulário com dados da OS (igual ao Pátio: "Usar cadastro"). */
@@ -102,6 +103,7 @@ function normalizePlacaLocal(raw: string) {
 export const ReceptionView: React.FC<ReceptionViewProps> = ({
   initialData,
   onDataLoaded,
+  forcedMode = null,
   blurPlates = false,
   onUseCustomerData,
   actorOptions,
@@ -146,6 +148,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       localStorage.setItem(RECEPTION_MODE_KEY, receptionMode);
     } catch (_) {}
   }, [receptionMode]);
+
+  useEffect(() => {
+    if (!forcedMode) return;
+    setReceptionMode(forcedMode);
+  }, [forcedMode]);
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);

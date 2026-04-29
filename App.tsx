@@ -80,6 +80,7 @@ export default function App() {
 
   // Estado para transferir dados do Histórico (Pátio) para a Recepção
   const [prefillData, setPrefillData] = useState<Customer | null>(null);
+  const [receptionForcedMode, setReceptionForcedMode] = useState<'vehicle' | 'module' | null>(null);
 
   // Nome do admin (vem das configurações da oficina; atualizado ao salvar no Perfil do administrador)
   const [adminDisplayName, setAdminDisplayName] = useState<string>('Rei do ABS');
@@ -180,6 +181,9 @@ export default function App() {
   // Função chamada pelo Pátio / histórico da Recepção para preencher o cadastro com dados de uma OS
   const handleUseCustomerData = (data: Customer) => {
     setPrefillData(data);
+    const inferredMode: 'vehicle' | 'module' =
+      (data.moduleIdentification ?? '').trim().length > 0 ? 'module' : 'vehicle';
+    setReceptionForcedMode(inferredMode);
     if (authSession?.role === 'user' && !hasFullAccess) {
       setUserTab('reception');
     } else {
@@ -201,6 +205,7 @@ export default function App() {
         localStorage.setItem('app_reception_mode', mode);
       } catch (_) {}
       setPrefillData(null);
+      setReceptionForcedMode(mode);
       if (isLimitedSystemUser) {
         setUserTab('reception');
       } else {
@@ -385,6 +390,7 @@ export default function App() {
             <ReceptionView
               initialData={prefillData}
               onDataLoaded={() => setPrefillData(null)}
+              forcedMode={receptionForcedMode}
               blurPlates={cinematographicMode}
               onUseCustomerData={handleUseCustomerData}
               actorOptions={{
@@ -588,6 +594,7 @@ export default function App() {
           <ReceptionView
             initialData={prefillData}
             onDataLoaded={() => setPrefillData(null)}
+            forcedMode={receptionForcedMode}
             blurPlates={cinematographicMode}
             onUseCustomerData={handleUseCustomerData}
             actorOptions={
