@@ -429,7 +429,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         variant="row"
                         strokeWidth={2.2}
                       >
-                        <img src="/icons/patio.svg" alt="Pátio" className="h-5 w-5 object-contain" />
+                        <img src="/icons/painel-patio-tv-ios.png" alt="Painel do Pátio (TV)" className="h-full w-full object-cover" />
                       </IosAccentIconSquircle>
                       <span className="flex-1 min-w-0">
                         <span className="block text-[15px] font-medium text-zinc-900 dark:text-white leading-snug">
