@@ -189,6 +189,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [quickDragVisual, setQuickDragVisual] = useState<QuickDragVisual | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
+  const lastQuickReorderTargetRef = useRef<QuickTileId | null>(null);
+  const dragFrameRef = useRef<number | null>(null);
 
   const perms = systemUserPermissions || {};
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
@@ -246,6 +248,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const endQuickDrag = useCallback(() => {
     setDraggingQuickId(null);
     setQuickDragVisual(null);
+    lastQuickReorderTargetRef.current = null;
+    if (dragFrameRef.current != null) {
+      window.cancelAnimationFrame(dragFrameRef.current);
+      dragFrameRef.current = null;
+    }
   }, []);
 
   const moveQuickApp = useCallback((sourceId: QuickTileId, targetId: QuickTileId) => {
@@ -273,11 +280,31 @@ export const HomeView: React.FC<HomeViewProps> = ({
       });
 
       if (!draggingQuickId) return;
-      const hit = document.elementFromPoint(event.clientX, event.clientY);
-      const target = hit?.closest?.('[data-quick-app-id]') as HTMLElement | null;
-      const targetId = target?.dataset.quickAppId as QuickTileId | undefined;
-      if (!targetId || targetId === draggingQuickId) return;
-      moveQuickApp(draggingQuickId, targetId);
+      if (dragFrameRef.current != null) return;
+      dragFrameRef.current = window.requestAnimationFrame(() => {
+        dragFrameRef.current = null;
+        const tileNodes = Array.from(document.querySelectorAll<HTMLElement>('[data-quick-app-id]'));
+        if (tileNodes.length === 0) return;
+        let bestId: QuickTileId | null = null;
+        let bestDistance = Number.POSITIVE_INFINITY;
+        for (const node of tileNodes) {
+          const id = node.dataset.quickAppId as QuickTileId | undefined;
+          if (!id || id === draggingQuickId) continue;
+          const rect = node.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const dx = cx - event.clientX;
+          const dy = cy - event.clientY;
+          const distance = dx * dx + dy * dy;
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestId = id;
+          }
+        }
+        if (!bestId || bestId === lastQuickReorderTargetRef.current) return;
+        lastQuickReorderTargetRef.current = bestId;
+        moveQuickApp(draggingQuickId, bestId);
+      });
     };
 
     const stopDrag = () => endQuickDrag();
