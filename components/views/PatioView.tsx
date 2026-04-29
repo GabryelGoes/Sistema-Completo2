@@ -3343,9 +3343,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 style={
                   isDesktopLandscape
                     ? {
-                        transform: 'scale(0.85)',
+                        transform: 'scale(0.765)',
                         transformOrigin: 'top left',
-                        width: '117.647%',
+                        width: '130.719%',
                       }
                     : undefined
                 }
