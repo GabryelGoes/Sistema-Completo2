@@ -38,7 +38,9 @@ export const iosVehicleModalShell =
   'relative w-full flex flex-col min-h-0 overflow-hidden rounded-[2rem] sm:rounded-[2.25rem] border border-zinc-300/90 bg-[#F2F2F7] shadow-[0_2px_16px_-4px_rgba(0,0,0,0.1)] backdrop-blur-none dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
 
 export const iosVehicleModalInsetCard =
-  'rounded-[22px] border border-zinc-300/70 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+  'rounded-[22px] border border-zinc-300/70 bg-white ' +
+  'shadow-[0_8px_28px_-8px_rgba(63,63,70,0.15),0_3px_14px_-6px_rgba(82,82,91,0.10),0_1px_4px_rgba(63,63,70,0.07)] ' +
+  'dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
 
 /** Campos dentro do modal de veículo — claro: cinza suave; escuro: igual ao iosInput. */
 export const iosVehicleModalInput =
