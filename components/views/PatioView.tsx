@@ -652,19 +652,19 @@ function MercosulPlateMockup(props: {
   const isCompact = size === 'cardCompact';
   const isCard = size === 'card';
 
-  const w = isCompact ? 'w-[106px]' : isCard ? 'w-[151px]' : 'w-[136px]';
+  const w = isCompact ? 'w-[122px]' : isCard ? 'w-[174px]' : 'w-[157px]';
 
   const shadow = isCompact ? 'shadow-md shadow-black/15' : 'shadow-xl shadow-black/25';
 
-  const bandText = isCompact ? 'text-[5.4px]' : 'text-[9.6px]';
+  const bandText = isCompact ? 'text-[6.2px]' : 'text-[11px]';
 
-  const flagW = isCompact ? 10 : 14;
-  const flagH = isCompact ? 8 : 9;
+  const flagW = isCompact ? 12 : 16;
+  const flagH = isCompact ? 9 : 10;
 
-  /** Larguras/fontes escaladas com o texto da placa nos cards (+10% sobre o passo anterior). */
+  /** Proporção da miniatura acompanha fonte da placa (+15% sobre o passo anterior nos cards/modais). */
   const plateText = isCompact
-    ? 'text-[17.3px] sm:text-[18.4px]'
-    : 'text-[30.3px] sm:text-[33.4px]';
+    ? 'text-[19.9px] sm:text-[21.2px]'
+    : 'text-[34.8px] sm:text-[38.4px]';
 
   return (
     <div
@@ -2715,21 +2715,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return defaultTechStyle;
   };
 
-  // Tamanho do modelo no card — ×1,10 sobre o passo anterior (cumulativo com o aumento de legibilidade).
+  // Tamanho do nome do carro no card — ×1,15 sobre o passo anterior.
   const getModelTitleClass = (modelName: string, panoramic?: boolean) => {
     const len = (modelName || '').length;
     if (panoramic) {
       if (len > 40)
-        return 'text-[1.349rem] md:text-[2.428rem] lg:text-[1.619rem] portrait:text-[1.579rem] portrait:md:text-[2.840rem] portrait:lg:text-[1.894rem]';
+        return 'text-[1.551rem] md:text-[2.792rem] lg:text-[1.862rem] portrait:text-[1.816rem] portrait:md:text-[3.266rem] portrait:lg:text-[2.178rem]';
       if (len > 26)
-        return 'text-[1.619rem] md:text-[3.237rem] lg:text-[2.023rem] portrait:text-[1.894rem] portrait:md:text-[3.787rem] portrait:lg:text-[2.367rem]';
-      return 'text-[1.619rem] md:text-[3.237rem] lg:text-[2.023rem] portrait:text-[1.894rem] portrait:md:text-[3.787rem] portrait:lg:text-[2.367rem]';
+        return 'text-[1.862rem] md:text-[3.723rem] lg:text-[2.326rem] portrait:text-[2.178rem] portrait:md:text-[4.355rem] portrait:lg:text-[2.722rem]';
+      return 'text-[1.862rem] md:text-[3.723rem] lg:text-[2.326rem] portrait:text-[2.178rem] portrait:md:text-[4.355rem] portrait:lg:text-[2.722rem]';
     }
     if (len > 40)
-      return 'text-[2.023rem] md:text-[4.047rem] lg:text-[2.428rem] portrait:text-[2.367rem] portrait:md:text-[4.734rem] portrait:lg:text-[2.840rem]';
+      return 'text-[2.326rem] md:text-[4.654rem] lg:text-[2.792rem] portrait:text-[2.722rem] portrait:md:text-[5.444rem] portrait:lg:text-[3.266rem]';
     if (len > 26)
-      return 'text-[2.428rem] md:text-[4.047rem] lg:text-[3.237rem] portrait:text-[2.840rem] portrait:md:text-[4.734rem] portrait:lg:text-[3.787rem]';
-    return 'text-[2.428rem] md:text-[4.047rem] lg:text-[3.237rem] portrait:text-[2.840rem] portrait:md:text-[4.734rem] portrait:lg:text-[3.787rem]';
+      return 'text-[2.792rem] md:text-[4.654rem] lg:text-[3.723rem] portrait:text-[3.266rem] portrait:md:text-[5.444rem] portrait:lg:text-[4.355rem]';
+    return 'text-[2.792rem] md:text-[4.654rem] lg:text-[3.723rem] portrait:text-[3.266rem] portrait:md:text-[5.444rem] portrait:lg:text-[4.355rem]';
   };
 
   const getCommentAuthorAvatar = (authorName: string, photoUrlFromComment?: string | null): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
