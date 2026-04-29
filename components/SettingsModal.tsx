@@ -40,7 +40,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
             <IosModalHeader
-              icon={<img src="/icons/configuracoes.svg" alt="" className="h-6 w-6 object-contain" />}
+              icon={<img src="/icons/configuracoes-ios.png" alt="" className="h-6 w-6 object-cover" />}
               title="Configurações"
               subtitle="Aparência e experiência do app"
             />
