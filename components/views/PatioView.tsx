@@ -652,19 +652,19 @@ function MercosulPlateMockup(props: {
   const isCompact = size === 'cardCompact';
   const isCard = size === 'card';
 
-  const w = isCompact ? 'w-[88px]' : isCard ? 'w-[126px]' : 'w-[136px]';
+  const w = isCompact ? 'w-[96px]' : isCard ? 'w-[137px]' : 'w-[136px]';
 
   const shadow = isCompact ? 'shadow-md shadow-black/15' : 'shadow-xl shadow-black/25';
 
-  const bandText = isCompact ? 'text-[4.5px]' : 'text-[8px]';
+  const bandText = isCompact ? 'text-[4.9px]' : 'text-[8.7px]';
 
-  const flagW = isCompact ? 8 : 14;
-  const flagH = isCompact ? 6 : 9;
+  const flagW = isCompact ? 9 : 14;
+  const flagH = isCompact ? 7 : 9;
 
-  /** ~10% menor que antes para melhor encaixe visual na miniatura. */
+  /** Cartão compacto (modo lupa): fonte ~9% maior que a anterior; largura acompanha para não cortar. */
   const plateText = isCompact
-    ? 'text-[14.4px] sm:text-[15.3px]'
-    : 'text-[25.2px] sm:text-[27.9px]';
+    ? 'text-[15.7px] sm:text-[16.7px]'
+    : 'text-[27.5px] sm:text-[30.4px]';
 
   return (
     <div
@@ -2715,22 +2715,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return defaultTechStyle;
   };
 
-  // Define tamanho da fonte do modelo para não empurrar placa / técnico para fora do card. +17% só em portrait (orientation: portrait).
+  // Tamanho do modelo no card — valores ×1,09 vs. baseline anterior (leve aumento de legibilidade).
   const getModelTitleClass = (modelName: string, panoramic?: boolean) => {
     const len = (modelName || '').length;
     if (panoramic) {
       if (len > 40)
-        return 'text-[1.125rem] md:text-[2.025rem] lg:text-[1.35rem] portrait:text-[1.31625rem] portrait:md:text-[2.36925rem] portrait:lg:text-[1.5795rem]';
+        return 'text-[1.226rem] md:text-[2.207rem] lg:text-[1.472rem] portrait:text-[1.435rem] portrait:md:text-[2.582rem] portrait:lg:text-[1.722rem]';
       if (len > 26)
-        return 'text-[1.35rem] md:text-[2.7rem] lg:text-[1.6875rem] portrait:text-[1.5795rem] portrait:md:text-[3.159rem] portrait:lg:text-[1.974375rem]';
-      return 'text-[1.35rem] md:text-[2.7rem] lg:text-[1.6875rem] portrait:text-[1.5795rem] portrait:md:text-[3.159rem] portrait:lg:text-[1.974375rem]';
+        return 'text-[1.472rem] md:text-[2.943rem] lg:text-[1.839rem] portrait:text-[1.722rem] portrait:md:text-[3.443rem] portrait:lg:text-[2.152rem]';
+      return 'text-[1.472rem] md:text-[2.943rem] lg:text-[1.839rem] portrait:text-[1.722rem] portrait:md:text-[3.443rem] portrait:lg:text-[2.152rem]';
     }
-    // Tablet em pé (md): bem grande; celular e tablet deitado/desktop (lg) mais controlados
     if (len > 40)
-      return 'text-[1.6875rem] md:text-[3.375rem] lg:text-[2.025rem] portrait:text-[1.974375rem] portrait:md:text-[3.94875rem] portrait:lg:text-[2.36925rem]';
+      return 'text-[1.839rem] md:text-[3.679rem] lg:text-[2.207rem] portrait:text-[2.152rem] portrait:md:text-[4.304rem] portrait:lg:text-[2.582rem]';
     if (len > 26)
-      return 'text-[2.025rem] md:text-[3.375rem] lg:text-[2.7rem] portrait:text-[2.36925rem] portrait:md:text-[3.94875rem] portrait:lg:text-[3.159rem]';
-    return 'text-[2.025rem] md:text-[3.375rem] lg:text-[2.7rem] portrait:text-[2.36925rem] portrait:md:text-[3.94875rem] portrait:lg:text-[3.159rem]';
+      return 'text-[2.207rem] md:text-[3.679rem] lg:text-[2.943rem] portrait:text-[2.582rem] portrait:md:text-[4.304rem] portrait:lg:text-[3.443rem]';
+    return 'text-[2.207rem] md:text-[3.679rem] lg:text-[2.943rem] portrait:text-[2.582rem] portrait:md:text-[4.304rem] portrait:lg:text-[3.443rem]';
   };
 
   const getCommentAuthorAvatar = (authorName: string, photoUrlFromComment?: string | null): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
@@ -3386,7 +3385,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
                       <span
                         className={`min-w-0 flex-1 truncate font-semibold text-zinc-700 dark:text-zinc-200 tracking-tight ${
-                          boardPanoramic ? 'text-sm' : 'text-base'
+                          boardPanoramic ? 'text-[0.954rem]' : 'text-[1.09rem]'
                         }`}
                       >
                         {firstTwoNames(customerName)}
@@ -3437,7 +3436,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <Wrench className="h-4 w-4 text-zinc-400 dark:text-zinc-500" strokeWidth={2.35} aria-hidden />
                         </div>
                       )}
-                      <span className={`text-sm font-bold truncate ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}>
+                      <span
+                        className={`font-bold truncate ${boardPanoramic ? 'text-[0.954rem]' : 'text-[1.09rem]'} ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}
+                      >
                         {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : 'Sem técnico')}
                       </span>
                     </button>
