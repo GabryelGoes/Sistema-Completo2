@@ -3667,7 +3667,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           Arquivado
                         </span>
                         <h1
-                          className={`text-3xl font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-5xl portrait:text-[2.19375rem] portrait:md:text-[3.51rem] ${vehicleModalTitleShadow}`}
+                          className={`text-[1.74375rem] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-[2.79rem] portrait:text-[2.19375rem] portrait:md:text-[3.51rem] ${vehicleModalTitleShadow}`}
                         >
                           {historyCardTitleParts?.vehicle}
                         </h1>
@@ -4103,7 +4103,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         ) : null}
                         <div className="mt-0.5 flex min-w-0 items-end gap-3">
                           <h1
-                            className={`font-vehicle min-w-0 flex-1 truncate text-5xl md:text-7xl portrait:text-[3.51rem] portrait:md:text-[5.265rem] font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none ${vehicleModalTitleShadow}`}
+                            className={`font-vehicle min-w-0 flex-1 truncate text-[2.79rem] md:text-[4.185rem] portrait:text-[3.51rem] portrait:md:text-[5.265rem] font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none ${vehicleModalTitleShadow}`}
                             title={selectedCardTitleParts?.vehicle}
                           >
                             {selectedCardTitleParts?.vehicle}
