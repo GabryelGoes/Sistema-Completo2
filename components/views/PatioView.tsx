@@ -3732,8 +3732,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              <MessageSquare className="h-3.5 w-3.5" />
                              Atividades e comentários
                           </p>
-                          <div className={`${iosModalInsetCard} overflow-hidden`}>
-                             <div className="max-h-[500px] space-y-5 overflow-y-auto bg-zinc-50/40 p-5 dark:bg-black/20 custom-scrollbar sm:p-6">
+                          <div className={`${iosVehicleModalInsetCard} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
+                             <div className="max-h-[500px] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-4 dark:bg-black/25 custom-scrollbar sm:p-5 sm:space-y-5">
                                 {loadingHistoryDetails ? (
                                    <div className="flex justify-center py-8">
                                       <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF]" />
@@ -3764,7 +3764,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                   )}
                                                </span>
                                             </div>
-                                            <div className="rounded-2xl border border-zinc-200/80 bg-white/90 p-3.5 text-[14px] leading-relaxed text-zinc-800 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-200">
+                                            <div className={`${iosVehicleModalInsetCard} p-3.5 text-[14px] leading-relaxed text-zinc-800 dark:text-zinc-200`}>
                                                 <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                                    {action.data.text}
                                                 </ReactMarkdown>
@@ -5543,8 +5543,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              Comentários
                           </h3>
 
-                          <div className={`${vi} overflow-hidden`}>
-                             <div ref={commentsListRef} className="custom-scrollbar max-h-[min(420px,52vh)] space-y-5 overflow-y-auto bg-zinc-50/40 p-4 dark:bg-black/25 sm:p-5 sm:space-y-6 lg:max-h-[min(220px,32vh)] lg:space-y-3 lg:p-3">
+                          <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
+                             <div ref={commentsListRef} className="custom-scrollbar max-h-[min(420px,52vh)] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-4 dark:bg-black/25 sm:p-5 sm:space-y-5 lg:max-h-[min(220px,32vh)] lg:space-y-3 lg:p-3">
                                 {loadingDetails ? (
                                    <div className="flex justify-center py-8 lg:py-6">
                                       <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF] lg:h-5 lg:w-5" />
@@ -5579,7 +5579,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             {editingActionId === action.id ? (
                                                <div className="animate-in fade-in duration-200">
                                                   <textarea 
-                                                    className="w-full bg-zinc-100 dark:bg-zinc-900 border border-brand-yellow/50 rounded-xl p-3 text-sm text-zinc-900 dark:text-white focus:outline-none mb-2 min-h-[100px]"
+                                                    className={`${vin} mb-2 min-h-[100px] resize-y text-sm`}
                                                     value={editingText}
                                                     onChange={(e) => setEditingText(e.target.value)}
                                                     autoFocus
@@ -5604,7 +5604,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                </div>
                                             ) : (
                                               <>
-                                                <div className="bg-light-card dark:bg-zinc-800/50 p-3 rounded-r-xl rounded-bl-xl text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed border border-zinc-200 dark:border-zinc-700/50">
+                                                <div className={`${vi} p-3.5 text-sm leading-relaxed text-zinc-800 dark:text-zinc-200`}>
                                                    <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                                       {action.data.text}
                                                    </ReactMarkdown>
@@ -5644,7 +5644,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              </div>
 
                              {can('canAddComments') && (
-                             <div className="flex items-end gap-2 border-t border-zinc-200/50 bg-white/50 p-3 dark:border-white/[0.06] dark:bg-white/[0.03] sm:p-4">
+                             <div className="flex items-end gap-2 border-t border-zinc-200/60 bg-white p-3 dark:border-white/[0.06] dark:bg-zinc-950/30 sm:p-4">
                                 <input 
                                    type="text" 
                                    value={newComment}
@@ -5687,7 +5687,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          <div>
                              <p className={`${iosLabel} mb-3`}>Checklists</p>
                              {checklistTemplates.length === 0 ? (
-                               <p className="text-sm text-zinc-500 dark:text-zinc-400">Nenhum checklist configurado. Crie na página inicial em Administração → Checklists do Pátio.</p>
+                               <p className={`${vi} p-4 text-sm text-zinc-600 dark:text-zinc-400`}>Nenhum checklist configurado. Crie na página inicial em Administração → Checklists do Pátio.</p>
                              ) : (
                                <div className="space-y-3">
                                  {checklistTemplates.map((tpl) => (
@@ -5695,18 +5695,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                      key={tpl.id}
                                      type="button"
                                      onClick={() => { setActiveChecklistCardId(selectedCard.id); setActiveChecklistTemplateId(tpl.id); }}
-                                     className="w-full p-4 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-brand-yellow hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl flex items-center gap-3 group transition-all text-left"
+                                     className={`group flex w-full items-center gap-3 text-left transition-all active:scale-[0.99] ${vi} p-4 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.12)] hover:border-[#007AFF]/35 dark:shadow-[0_8px_28px_-12px_rgba(0,0,0,0.45)] dark:hover:border-[#007AFF]/40`}
                                    >
-                                     <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-zinc-200/80 ring-1 ring-zinc-300/60 group-hover:ring-brand-yellow/50 dark:bg-zinc-800 dark:ring-white/10">
+                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
                                        <img
                                          src="/icons/checklist-patio-ios.png"
                                          alt=""
                                          className="h-full w-full object-cover"
                                        />
                                      </div>
-                                     <div>
+                                     <div className="min-w-0 flex-1">
                                        <p className="font-bold text-zinc-900 dark:text-white">Checklist {tpl.name}</p>
-                                       <p className="text-xs text-zinc-500">{tpl.items.length} {tpl.items.length === 1 ? 'item' : 'itens'}</p>
+                                       <p className="text-xs text-zinc-500 dark:text-zinc-400">{tpl.items.length} {tpl.items.length === 1 ? 'item' : 'itens'}</p>
                                      </div>
                                    </button>
                                  ))}
@@ -7204,7 +7204,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {activeChecklistCard && activeChecklistTemplate && (
          <ModalPortal>
          <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
-           <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-lg flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
+           <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-lg flex-col ${iosVehicleModalShell} animate-in zoom-in-95 duration-200`}>
              
              {/* Header Checklist */}
              <div className="relative shrink-0 border-b border-zinc-200/60 px-5 pb-4 pt-6 dark:border-white/[0.07] sm:px-7 sm:pt-7">
@@ -7253,14 +7253,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
              </div>
 
              {/* Itens do Checklist */}
-             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-zinc-50/80 p-4 dark:bg-black/25 custom-scrollbar">
+             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-[#F2F2F7] p-3 dark:bg-black/25 custom-scrollbar sm:p-4">
                 {checklistStateLoading ? (
                   <div className="flex justify-center py-12">
-                    <RefreshCw className="w-8 h-8 text-brand-yellow animate-spin" />
+                    <RefreshCw className="w-8 h-8 text-[#007AFF] animate-spin dark:text-brand-yellow" />
                   </div>
                 ) : activeChecklistTemplate.items.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-zinc-500 gap-4">
-                    <AlertCircle className="w-10 h-10 opacity-50" />
+                  <div className={`flex flex-col items-center justify-center gap-4 py-12 text-center ${iosVehicleModalInsetCard} p-6 text-sm text-zinc-600 dark:text-zinc-400`}>
+                    <AlertCircle className="h-10 w-10 opacity-50" />
                     <p>Este checklist não tem itens. Edite-o na página inicial (Administração → Checklists do Pátio).</p>
                   </div>
                 ) : (
@@ -7272,10 +7272,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         type="button"
                         onClick={() => handleToggleChecklistItem(item.id, isComplete ? 'complete' : 'incomplete')}
                         className={`
-                           w-full p-4 rounded-xl border flex items-center justify-between transition-all duration-300 group
+                           group flex w-full items-center justify-between gap-3 p-4 text-left transition-all duration-300 active:scale-[0.99]
                            ${isComplete 
-                             ? 'bg-[#1A251D] border-green-900/30 text-green-100' 
-                             : 'bg-light-elevated dark:bg-[#1C1C1E] border-light-border dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-700 hover:bg-light-card dark:hover:bg-[#242426]'}
+                             ? 'rounded-[22px] border border-emerald-700/40 bg-gradient-to-br from-emerald-950/90 to-zinc-900 text-green-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_20px_-10px_rgba(16,185,129,0.25)] dark:border-emerald-600/35 dark:from-emerald-950/80' 
+                             : `${iosVehicleModalInsetCard} text-zinc-800 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.1)] hover:border-[#007AFF]/35 dark:text-zinc-200 dark:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.4)] dark:hover:border-[#007AFF]/40`}
                         `}
                       >
                          <span className={`text-sm font-bold text-left ${isComplete ? 'line-through opacity-70' : ''}`}>
@@ -7295,11 +7295,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
              </div>
 
              {/* Footer Modal */}
-             <div className="shrink-0 border-t border-zinc-200/60 bg-white/40 px-4 py-3 text-center dark:border-white/[0.07] dark:bg-zinc-950/30 sm:px-5">
+             <div className="shrink-0 border-t border-zinc-200/60 bg-white px-4 py-3 text-center dark:border-white/[0.07] dark:bg-zinc-950/40 sm:px-5">
                <button 
                  type="button"
                  onClick={closeChecklistModal}
-                 className="w-full rounded-2xl bg-zinc-900 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white/15 dark:hover:bg-white/20"
+                 className="w-full rounded-2xl border border-zinc-200/90 bg-zinc-900 py-3.5 text-[15px] font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 dark:border-white/[0.12] dark:bg-white/12 dark:text-white dark:hover:bg-white/18"
                >
                  Fechar checklist
                </button>
