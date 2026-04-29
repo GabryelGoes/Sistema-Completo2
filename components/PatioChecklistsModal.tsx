@@ -128,7 +128,7 @@ export const PatioChecklistsModal: React.FC<PatioChecklistsModalProps> = ({ isOp
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
             <IosModalHeader
-              icon={<img src="/icons/checklist-patio.svg" alt="" className="h-6 w-6 object-contain" />}
+              icon={<img src="/icons/checklist-patio-ios.png" alt="" className="h-6 w-6 object-cover" />}
               title="Checklists do pátio"
               subtitle="Modelos exibidos no modal de cada veículo"
               gradientClass="from-emerald-400 to-teal-600"

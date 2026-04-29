@@ -415,7 +415,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           variant="row"
                           strokeWidth={2.2}
                         >
-                          <img src="/icons/checklist-patio.svg" alt="Checklists do Pátio" className="h-5 w-5 object-contain" />
+                          <img src="/icons/checklist-patio-ios.png" alt="Checklists do Pátio" className="h-full w-full object-cover" />
                         </IosAccentIconSquircle>
                       }
                     />
