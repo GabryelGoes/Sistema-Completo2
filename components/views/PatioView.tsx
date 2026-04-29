@@ -2987,42 +2987,64 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   if (initialLoading) {
-    const loadLabel = isModuleMode ? 'laboratório' : 'pátio';
-    const dotClass = isModuleMode
-      ? 'bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-[0_0_18px_-2px_rgba(139,92,246,0.55)] dark:from-violet-400 dark:to-fuchsia-400 dark:shadow-[0_0_22px_-4px_rgba(167,139,250,0.4)]'
-      : 'bg-gradient-to-br from-[#007AFF] to-[#5AC8FA] shadow-[0_0_18px_-2px_rgba(0,122,255,0.5)] dark:from-[#0A84FF] dark:to-[#64B5FF] dark:shadow-[0_0_22px_-4px_rgba(10,132,255,0.4)]';
+    const orbClass = isModuleMode
+      ? 'from-violet-500/95 via-fuchsia-500/90 to-indigo-500/95 dark:from-violet-400/95 dark:via-fuchsia-400/95 dark:to-indigo-400/95'
+      : 'from-[#007AFF]/95 via-[#5AC8FA]/92 to-cyan-400/95 dark:from-[#0A84FF]/95 dark:via-[#64B5FF]/92 dark:to-cyan-300/95';
+    const ringClass = isModuleMode
+      ? 'border-violet-400/35 dark:border-violet-300/35'
+      : 'border-[#5AC8FA]/35 dark:border-[#64B5FF]/35';
+    const pulseClass = isModuleMode
+      ? 'from-violet-500/35 via-fuchsia-500/20 to-transparent dark:from-violet-400/35 dark:via-fuchsia-400/20 dark:to-transparent'
+      : 'from-[#0A84FF]/35 via-[#5AC8FA]/20 to-transparent dark:from-[#64B5FF]/35 dark:via-cyan-300/20 dark:to-transparent';
     return (
       <div
         className="relative flex min-h-[70vh] w-full flex-col items-center justify-center px-4 py-16"
         role="status"
         aria-live="polite"
         aria-busy="true"
+        aria-label="Carregando"
       >
         <style>{`
-          @keyframes patio-load-bob {
-            0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.35; }
-            50% { transform: translate3d(0, -14px, 0); opacity: 1; }
+          @keyframes patio-load-orb {
+            0%, 100% { transform: translate3d(0, 0, 0) scale(0.96); }
+            50% { transform: translate3d(0, -8px, 0) scale(1.04); }
           }
-          .patio-load-dot {
-            animation: patio-load-bob 0.95s cubic-bezier(0.45, 0, 0.3, 1) infinite;
+          @keyframes patio-load-ring {
+            0% { transform: scale(0.72); opacity: 0; }
+            45% { opacity: 0.42; }
+            100% { transform: scale(1.18); opacity: 0; }
+          }
+          @keyframes patio-load-sheen {
+            0% { transform: translateX(-130%) rotate(20deg); opacity: 0; }
+            35%, 65% { opacity: 0.42; }
+            100% { transform: translateX(130%) rotate(20deg); opacity: 0; }
+          }
+          .patio-load-orb {
+            animation: patio-load-orb 1.7s cubic-bezier(0.35, 0, 0.2, 1) infinite;
+            will-change: transform;
+          }
+          .patio-load-ring {
+            animation: patio-load-ring 2.1s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+            will-change: transform, opacity;
+          }
+          .patio-load-sheen {
+            animation: patio-load-sheen 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
             will-change: transform, opacity;
           }
         `}</style>
-        <div className="flex h-14 items-center justify-center gap-3.5" aria-hidden>
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className={`patio-load-dot block h-2.5 w-2.5 shrink-0 rounded-full ${dotClass}`}
-              style={{ animationDelay: `${i * 0.14}s` }}
-            />
-          ))}
+        <div className="relative h-24 w-24" aria-hidden>
+          <span
+            className={`patio-load-ring absolute inset-0 rounded-full border ${ringClass}`}
+            style={{ animationDelay: '0ms' }}
+          />
+          <span
+            className={`patio-load-ring absolute inset-0 rounded-full border ${ringClass}`}
+            style={{ animationDelay: '840ms' }}
+          />
+          <span className={`patio-load-orb absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br ${orbClass} shadow-[0_14px_36px_-12px_rgba(0,0,0,0.35)]`} />
+          <span className={`absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br ${pulseClass} blur-xl`} />
+          <span className="patio-load-sheen absolute left-1/2 top-1/2 h-16 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/45 blur-[1px] dark:bg-white/35" />
         </div>
-        <p className="mt-11 text-[15px] font-medium tracking-[-0.01em] text-zinc-700 dark:text-zinc-200">
-          Carregando o {loadLabel}…
-        </p>
-        <p className="mt-2 max-w-[16rem] text-center text-[13px] font-normal leading-relaxed text-zinc-400 dark:text-zinc-500">
-          Sincronizando ordens de serviço
-        </p>
       </div>
     );
   }
