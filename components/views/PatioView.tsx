@@ -2674,18 +2674,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return defaultTechStyle;
   };
 
-  // Define tamanho da fonte do modelo para não empurrar placa / técnico para fora do card. Valores ×1,17 vs. base (legibilidade em colunas / vertical).
+  // Define tamanho da fonte do modelo para não empurrar placa / técnico para fora do card. +17% só em portrait (orientation: portrait).
   const getModelTitleClass = (modelName: string, panoramic?: boolean) => {
     const len = (modelName || '').length;
     if (panoramic) {
-      if (len > 40) return 'text-[1.31625rem] md:text-[2.36925rem] lg:text-[1.5795rem]';
-      if (len > 26) return 'text-[1.5795rem] md:text-[3.159rem] lg:text-[1.974375rem]';
-      return 'text-[1.5795rem] md:text-[3.159rem] lg:text-[1.974375rem]';
+      if (len > 40)
+        return 'text-[1.125rem] md:text-[2.025rem] lg:text-[1.35rem] portrait:text-[1.31625rem] portrait:md:text-[2.36925rem] portrait:lg:text-[1.5795rem]';
+      if (len > 26)
+        return 'text-[1.35rem] md:text-[2.7rem] lg:text-[1.6875rem] portrait:text-[1.5795rem] portrait:md:text-[3.159rem] portrait:lg:text-[1.974375rem]';
+      return 'text-[1.35rem] md:text-[2.7rem] lg:text-[1.6875rem] portrait:text-[1.5795rem] portrait:md:text-[3.159rem] portrait:lg:text-[1.974375rem]';
     }
     // Tablet em pé (md): bem grande; celular e tablet deitado/desktop (lg) mais controlados
-    if (len > 40) return 'text-[1.974375rem] md:text-[3.94875rem] lg:text-[2.36925rem]';
-    if (len > 26) return 'text-[2.36925rem] md:text-[3.94875rem] lg:text-[3.159rem]';
-    return 'text-[2.36925rem] md:text-[3.94875rem] lg:text-[3.159rem]';
+    if (len > 40)
+      return 'text-[1.6875rem] md:text-[3.375rem] lg:text-[2.025rem] portrait:text-[1.974375rem] portrait:md:text-[3.94875rem] portrait:lg:text-[2.36925rem]';
+    if (len > 26)
+      return 'text-[2.025rem] md:text-[3.375rem] lg:text-[2.7rem] portrait:text-[2.36925rem] portrait:md:text-[3.94875rem] portrait:lg:text-[3.159rem]';
+    return 'text-[2.025rem] md:text-[3.375rem] lg:text-[2.7rem] portrait:text-[2.36925rem] portrait:md:text-[3.94875rem] portrait:lg:text-[3.159rem]';
   };
 
   const getCommentAuthorAvatar = (authorName: string, photoUrlFromComment?: string | null): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
@@ -3663,7 +3667,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           Arquivado
                         </span>
                         <h1
-                          className={`text-[2.19375rem] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-[3.51rem] ${vehicleModalTitleShadow}`}
+                          className={`text-3xl font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-5xl portrait:text-[2.19375rem] portrait:md:text-[3.51rem] ${vehicleModalTitleShadow}`}
                         >
                           {historyCardTitleParts?.vehicle}
                         </h1>
@@ -4099,7 +4103,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         ) : null}
                         <div className="mt-0.5 flex min-w-0 items-end gap-3">
                           <h1
-                            className={`font-vehicle min-w-0 flex-1 truncate text-[3.51rem] md:text-[5.265rem] font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none ${vehicleModalTitleShadow}`}
+                            className={`font-vehicle min-w-0 flex-1 truncate text-5xl md:text-7xl portrait:text-[3.51rem] portrait:md:text-[5.265rem] font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none ${vehicleModalTitleShadow}`}
                             title={selectedCardTitleParts?.vehicle}
                           >
                             {selectedCardTitleParts?.vehicle}
@@ -4434,7 +4438,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <Tag className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
                                       <div className="min-w-0 flex-1">
                                         <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Marca</p>
-                                        <p className="mt-0.5 text-[17.55px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_brand.trim()}</p>
+                                        <p className="mt-0.5 text-[15px] portrait:text-[17.55px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_brand.trim()}</p>
                                       </div>
                                     </div>
                                   ) : null}
@@ -4446,7 +4450,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     />
                                     <div className="min-w-0 flex-1">
                                       <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{isModuleMode ? 'Referência' : 'Modelo'}</p>
-                                      <p className="font-vehicle mt-0.5 text-[17.55px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_model || '—'}</p>
+                                      <p className="font-vehicle mt-0.5 text-[15px] portrait:text-[17.55px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_model || '—'}</p>
                                     </div>
                                   </div>
                                   {isModuleMode && (
@@ -4458,7 +4462,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       />
                                       <div className="min-w-0 flex-1">
                                         <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Identificação</p>
-                                        <p className="mt-0.5 text-[17.55px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.module_identification || '—'}</p>
+                                        <p className="mt-0.5 text-[15px] portrait:text-[17.55px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.module_identification || '—'}</p>
                                       </div>
                                     </div>
                                   )}
