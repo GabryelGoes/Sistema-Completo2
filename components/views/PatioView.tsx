@@ -3185,7 +3185,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         className={`relative z-0 grid perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
           boardPanoramic
             ? 'grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 md:gap-3 lg:grid-cols-4 lg:gap-3.5 xl:grid-cols-5 2xl:grid-cols-6 2xl:gap-4'
-            : 'grid-cols-1 gap-5 md:grid-cols-2 md:gap-5 lg:grid-cols-3 lg:gap-6'
+            : 'grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6'
         }`}
       >
         {sortedCards.map((card) => {
@@ -3502,7 +3502,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 : 'Nenhum resultado para a busca. Exibindo os últimos veículos arquivados.'}
                            </div>
                         )}
-                        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-5 lg:grid-cols-3 lg:gap-6">
+                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
                         {archivedCards.map(card => {
                            const t = parsePatioCardTitle(card.name);
                            const model = t.vehicle || card.name;
