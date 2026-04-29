@@ -93,6 +93,13 @@ const budgetModalPaperShell =
   'border border-[#e8dfd0] bg-[#faf6ed] shadow-[0_16px_48px_-20px_rgba(40,30,20,0.14),0_4px_16px_-8px_rgba(40,30,20,0.08)]';
 const budgetModalPaperFooter = 'border-t border-[#e8dfd0] bg-[#f5efe0]';
 
+/** Cards do quadro (Pátio / Laboratório): cinza no claro, cinza-claro no escuro — alinhado à Home. */
+const patioBoardGlassCardShadow =
+  'shadow-[0_10px_36px_-8px_rgba(63,63,70,0.20),0_4px_20px_-6px_rgba(82,82,91,0.12),0_1px_3px_rgba(63,63,70,0.08)] ' +
+  'dark:shadow-[0_10px_38px_-8px_rgba(255,255,255,0.09),0_4px_22px_-6px_rgba(228,228,231,0.07),0_1px_8px_-3px_rgba(244,244,245,0.045)] ' +
+  'hover:shadow-[0_14px_44px_-10px_rgba(63,63,70,0.22),0_6px_26px_-8px_rgba(82,82,91,0.14)] ' +
+  'dark:hover:shadow-[0_12px_44px_-10px_rgba(255,255,255,0.11),0_6px_28px_-8px_rgba(228,228,231,0.08),0_2px_10px_-4px_rgba(244,244,245,0.055)]';
+
 /** Nome do cliente no cabeçalho do modal de veículo — caixa com fundo cinza. */
 const vehicleModalCustomerNameBox =
   'rounded-[18px] border border-zinc-300/80 bg-zinc-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:border-zinc-600/50 dark:bg-zinc-800/85 dark:shadow-none';
@@ -3233,10 +3240,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 onClick={() => setSelectedCard(card)}
                 className={`
                   group relative flex h-full cursor-pointer flex-col justify-between overflow-hidden
-                  border bg-white/70 backdrop-blur-2xl
-                  shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:bg-zinc-900/40
-                  dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]
-                  hover:border-[#007AFF]/28 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:hover:border-white/[0.12] dark:hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.5)]
+                  border bg-white/70 backdrop-blur-2xl dark:bg-zinc-900/40
+                  ${patioBoardGlassCardShadow}
+                  hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
                   active:scale-[0.99]
                   motion-safe:transition-[padding,min-height,border-radius,box-shadow] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]
                   ${
@@ -3528,10 +3534,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   className={`
                                     group relative flex h-full min-h-[180px] cursor-pointer flex-col justify-between overflow-hidden
                                     rounded-[2rem] border bg-white/70 p-5 backdrop-blur-2xl sm:rounded-[2.25rem]
-                                    shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:bg-zinc-900/40
-                                    dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]
+                                    dark:bg-zinc-900/40 ${patioBoardGlassCardShadow}
                                     border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]
-                                    hover:border-[#007AFF]/28 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:hover:border-white/[0.12] dark:hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.5)]
+                                    hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
                                     active:scale-[0.99]
                                   `}
                                 >
