@@ -949,7 +949,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Desktop horizontal: usar `zoom` (não `transform: scale`) para o box do layout acompanhar o conteúdo — scale() deixa altura “fantasma” e espaço vazio no card. */
   const DESKTOP_LANDSCAPE_CARD_ZOOM = 0.65025;
 
-  /** Modo lupa: grade `md:grid-cols-5` → cinco cartões por fileira horizontal (telas ≥768px). Espaçamento vertical dos cards: fator `*1.3455` em `calc` (após +17% e +15% cumulativos). */
+  /** Modo lupa: grade `md:grid-cols-5` → cinco cartões por fileira horizontal (telas ≥768px). Espaçamento vertical: fator `*1.6146` em `calc` (+17%, +15% e +20% cumulativos). */
   const BOARD_PANORAMIC_ZOOM = 0.72;
 
 
@@ -3321,7 +3321,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   motion-safe:transition-[padding,border-radius,box-shadow] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]
                   ${
                     boardPanoramic
-                      ? 'gap-[calc(0.625rem*1.3455)] rounded-[1.85rem] px-3 py-[calc(0.75rem*1.3455)] sm:rounded-[2.1rem] sm:px-3.5 sm:py-[calc(0.875rem*1.3455)]'
+                      ? 'gap-[calc(0.625rem*1.6146)] rounded-[1.85rem] px-3 py-[calc(0.75rem*1.6146)] sm:rounded-[2.1rem] sm:px-3.5 sm:py-[calc(0.875rem*1.6146)]'
                       : 'gap-3 rounded-[2rem] p-4 sm:rounded-[2.25rem] sm:p-5'
                   }
                   ${isGarantia ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40' : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'}
@@ -3344,7 +3344,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               {/* Conteúdo interativo: ao entrar aqui desativamos o 3D para os cliques nos botões funcionarem */}
               <div
                 className={`relative z-10 flex min-h-0 w-full flex-col ${
-                  boardPanoramic ? 'gap-[calc(0.5rem*1.3455)]' : 'gap-2.5'
+                  boardPanoramic ? 'gap-[calc(0.5rem*1.6146)]' : 'gap-2.5'
                 }`}
                 onMouseEnter={() => setInteractingCardId(card.id)}
                 onMouseLeave={() => setInteractingCardId(null)}
@@ -3359,7 +3359,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               {/* Layout: 1) nome do carro  2) cliente  3) técnico | placa */}
               <div className="min-w-0">
                 {/* Nome do carro (fonte um pouco menor) */}
-                <div className={boardPanoramic ? 'mb-[calc(0.25rem*1.3455)]' : 'mb-1.5'}>
+                <div className={boardPanoramic ? 'mb-[calc(0.25rem*1.6146)]' : 'mb-1.5'}>
                   <h3
                     className={`font-vehicle ${getModelTitleClass(model, boardPanoramic)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic ${vehicleCardTitleShadow}`}
                   >
@@ -3379,7 +3379,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {customerName && (
                   <div
                     className={`mb-0 flex max-w-full items-center justify-between gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] ${
-                      boardPanoramic ? 'px-2 py-[calc(0.25rem*1.3455)]' : 'px-3 py-1.5'
+                      boardPanoramic ? 'px-2 py-[calc(0.25rem*1.6146)]' : 'px-3 py-1.5'
                     }`}
                   >
                     <div className="min-w-0 flex flex-1 items-center gap-2">
@@ -3412,7 +3412,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       disabled={!canAssignMember}
                       onClick={(e) => { e.stopPropagation(); canAssignMember && setCardForMemberAssignment(card); }}
                       className={`
-                        inline-flex items-center justify-start gap-1.5 px-3 ${boardPanoramic ? 'py-[calc(0.375rem*1.3455)]' : 'py-1.5'} rounded-2xl border transition-all max-w-full
+                        inline-flex items-center justify-start gap-1.5 px-3 ${boardPanoramic ? 'py-[calc(0.375rem*1.6146)]' : 'py-1.5'} rounded-2xl border transition-all max-w-full
                         ${canAssignMember
                           ? 'border-light-border dark:border-white/10 bg-light-card dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-200 cursor-pointer hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] active:scale-[0.97]'
                           : 'border-zinc-200/60 dark:border-white/5 bg-light-card/80 dark:bg-white/[0.04] text-zinc-500 cursor-default'}
@@ -3448,7 +3448,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               {/* Botões de Ação Inferiores */}
               <div
                 className={`relative w-full shrink-0 ${
-                  boardPanoramic ? 'space-y-[calc(0.375rem*1.3455)]' : 'space-y-2'
+                  boardPanoramic ? 'space-y-[calc(0.375rem*1.6146)]' : 'space-y-2'
                 }`}
               >
                 <button
@@ -3461,7 +3461,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     border border-black/10 dark:border-white/10
                     ${
                       boardPanoramic
-                        ? 'min-h-[calc(50px*1.3455)] py-[calc(0.5rem*1.3455)] pl-3.5 pr-2.5 text-[13px]'
+                        ? 'min-h-[calc(50px*1.6146)] py-[calc(0.5rem*1.6146)] pl-3.5 pr-2.5 text-[13px]'
                         : 'min-h-[57px] py-2.5 pl-5 pr-3'
                     }
                     ${statusConfig.style}
