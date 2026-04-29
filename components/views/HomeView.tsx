@@ -263,9 +263,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                         >
                           <img
-                            src="/icons/servicos-oficina.svg"
+                            src="/icons/servicos-oficina-ios.png"
                             alt="Serviços da oficina"
-                            className="h-6 w-6 object-contain"
+                            className="h-full w-full object-cover"
                           />
                         </IosAccentIconSquircle>
                         <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">

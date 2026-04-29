@@ -389,7 +389,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
             <IosModalHeader
-              icon={<img src="/icons/servicos-oficina.svg" alt="" className="h-6 w-6 object-contain" />}
+              icon={<img src="/icons/servicos-oficina-ios.png" alt="" className="h-6 w-6 object-cover" />}
               title="Serviços da oficina"
               subtitle="Categorias, horas e itens para orçamento"
               gradientClass="from-amber-500 to-orange-600"
