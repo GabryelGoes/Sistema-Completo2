@@ -3455,7 +3455,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   `}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-black text-[17.25px] sm:text-[18.4px] uppercase tracking-wide !text-black dark:!text-black">
+                    <span className="truncate text-[16px] font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black sm:text-[17px]">
                       {statusConfig.label}
                     </span>
                     <div className="flex items-center gap-1.5">
