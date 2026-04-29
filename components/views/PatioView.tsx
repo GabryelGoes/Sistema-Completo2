@@ -617,8 +617,9 @@ function MercosulPlateMockup(props: {
 
   /** Mesmo visual dos modais: cartão normal e lista de histórico usam este bloco (`card` === `modal`). */
   const isCompact = size === 'cardCompact';
+  const isCard = size === 'card';
 
-  const w = isCompact ? 'w-[88px]' : 'w-[136px]';
+  const w = isCompact ? 'w-[88px]' : isCard ? 'w-[126px]' : 'w-[136px]';
 
   const shadow = isCompact ? 'shadow-md shadow-black/15' : 'shadow-xl shadow-black/25';
 
