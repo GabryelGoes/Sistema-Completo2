@@ -613,7 +613,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
       {/* Cabeçalho — mesmo padrão da página Agenda */}
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
-        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0 ml-[5%]">
           <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
             <img src="/icons/recepcao-ios.png" alt="" className="h-full w-full object-cover" />
           </IosAccentIconSquircle>
@@ -655,20 +655,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               Módulos
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => setIsHistoryOpen(true)}
+            className="inline-flex items-center gap-2 py-2.5 px-4 rounded-2xl text-sm font-semibold border border-zinc-200/80 dark:border-white/[0.1] bg-white/65 dark:bg-white/[0.06] backdrop-blur-xl text-zinc-800 dark:text-zinc-100 hover:bg-white/90 dark:hover:bg-white/10 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.08)] transition-all active:scale-[0.98] shrink-0"
+            title="Consultar histórico de veículos arquivados"
+          >
+            <History className="w-4 h-4 text-brand-yellow" />
+            {receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
+          </button>
         </div>
       </header>
-
-      <div className="flex justify-end mb-4">
-        <button
-          type="button"
-          onClick={() => setIsHistoryOpen(true)}
-          className="inline-flex items-center gap-2 py-2.5 px-4 rounded-2xl text-sm font-semibold border border-zinc-200/80 dark:border-white/[0.1] bg-white/65 dark:bg-white/[0.06] backdrop-blur-xl text-zinc-800 dark:text-zinc-100 hover:bg-white/90 dark:hover:bg-white/10 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.08)] transition-all active:scale-[0.98]"
-          title="Consultar histórico de veículos arquivados"
-        >
-          <History className="w-4 h-4 text-brand-yellow" />
-          {receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
-        </button>
-      </div>
 
       {/* Cartão principal — vidro iOS */}
       <div className={`${iosPageGlass} p-6 md:p-8 lg:p-10 overflow-hidden`}>
