@@ -63,6 +63,8 @@ const iosSectionTitle =
 const iosSectionHint = 'text-[13px] text-zinc-950 dark:text-zinc-400 mb-4 leading-relaxed';
 const QUICK_APPS_LAYOUT_KEY = 'app_home_quick_apps_layout_v1';
 const LONG_PRESS_MS = 420;
+const QUICK_REORDER_HYSTERESIS_HITS = 2;
+const QUICK_TARGET_PADDING_PX = 18;
 
 const OPERATIONAL_APPS: {
   id: HomeAppId;
@@ -190,6 +192,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const longPressTimerRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
   const lastQuickReorderTargetRef = useRef<QuickTileId | null>(null);
+  const quickReorderCandidateRef = useRef<QuickTileId | null>(null);
+  const quickReorderCandidateHitsRef = useRef(0);
   const dragFrameRef = useRef<number | null>(null);
 
   const perms = systemUserPermissions || {};
@@ -249,6 +253,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setDraggingQuickId(null);
     setQuickDragVisual(null);
     lastQuickReorderTargetRef.current = null;
+    quickReorderCandidateRef.current = null;
+    quickReorderCandidateHitsRef.current = 0;
     if (dragFrameRef.current != null) {
       window.cancelAnimationFrame(dragFrameRef.current);
       dragFrameRef.current = null;
@@ -291,6 +297,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
           const id = node.dataset.quickAppId as QuickTileId | undefined;
           if (!id || id === draggingQuickId) continue;
           const rect = node.getBoundingClientRect();
+          const withinExpandedRect =
+            event.clientX >= rect.left - QUICK_TARGET_PADDING_PX &&
+            event.clientX <= rect.right + QUICK_TARGET_PADDING_PX &&
+            event.clientY >= rect.top - QUICK_TARGET_PADDING_PX &&
+            event.clientY <= rect.bottom + QUICK_TARGET_PADDING_PX;
+          if (!withinExpandedRect) continue;
           const cx = rect.left + rect.width / 2;
           const cy = rect.top + rect.height / 2;
           const dx = cx - event.clientX;
@@ -301,7 +313,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
             bestId = id;
           }
         }
-        if (!bestId || bestId === lastQuickReorderTargetRef.current) return;
+        if (!bestId || bestId === lastQuickReorderTargetRef.current) {
+          quickReorderCandidateRef.current = null;
+          quickReorderCandidateHitsRef.current = 0;
+          return;
+        }
+        if (quickReorderCandidateRef.current !== bestId) {
+          quickReorderCandidateRef.current = bestId;
+          quickReorderCandidateHitsRef.current = 1;
+          return;
+        }
+        quickReorderCandidateHitsRef.current += 1;
+        if (quickReorderCandidateHitsRef.current < QUICK_REORDER_HYSTERESIS_HITS) return;
+        quickReorderCandidateRef.current = null;
+        quickReorderCandidateHitsRef.current = 0;
         lastQuickReorderTargetRef.current = bestId;
         moveQuickApp(draggingQuickId, bestId);
       });
@@ -469,7 +494,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ) : null}
               </div>
 
-              <div onPointerUp={() => endQuickDrag()} className={`grid gap-3 ${quickGridColsClass}`}>
+              <div
+                onPointerUp={() => endQuickDrag()}
+                className={`grid gap-3 ${quickGridColsClass} ${isQuickEditMode ? 'touch-none select-none' : ''}`}
+              >
                 {orderedOperationalApps.map((app) => {
                   const isWide = (quickLayout.sizes[app.id] ?? 'normal') === 'wide';
                   const isDragging = draggingQuickId === app.id;
