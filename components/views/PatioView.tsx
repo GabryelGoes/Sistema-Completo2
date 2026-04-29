@@ -949,7 +949,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Desktop horizontal: usar `zoom` (não `transform: scale`) para o box do layout acompanhar o conteúdo — scale() deixa altura “fantasma” e espaço vazio no card. */
   const DESKTOP_LANDSCAPE_CARD_ZOOM = 0.65025;
 
-  /** Modo lupa (panorâmico): grid com no máximo 5 colunas; zoom um pouco menor que antes (havia 6 colunas em 2xl) para manter cartões visivelmente reduzidos. */
+  /** Modo lupa (panorâmico): até 5 colunas no grid (5 “faixas” verticais lado a lado), não 5 fileiras horizontais. Zoom um pouco menor que o antigo 6 colunas. */
   const BOARD_PANORAMIC_ZOOM = 0.72;
 
   const selectedCardTitleParts = selectedCard ? parsePatioCardTitle(selectedCard.name) : null;
@@ -3176,12 +3176,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
               aria-label={
                 boardPanoramic
                   ? 'Ampliar cartões — voltar ao tamanho padrão'
-                  : 'Reduzir cartões — grade até cinco por linha'
+                  : 'Reduzir cartões — até cinco colunas (faixas verticais)'
               }
               title={
                 boardPanoramic
                   ? 'Tamanho padrão dos cartões (ampliar)'
-                  : 'Cartões menores com até cinco por linha na tela'
+                  : 'Cartões menores: até cinco colunas verticais na grade (telas largas)'
               }
               className={`group flex h-12 w-12 shrink-0 items-center justify-center rounded-full border shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] hover:scale-[1.06] active:scale-[0.94] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] ${
                 boardPanoramic
