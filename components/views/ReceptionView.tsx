@@ -751,16 +751,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   icon={<Map className="w-4 h-4" />}
                 />
               </div>
-              <div>
-                <Input 
-                  label="Cidade"
-                  name="city"
-                  placeholder="Ex: São Paulo"
-                  value={customer.city ?? ''}
-                  onChange={handleInputChange}
-                  icon={<Building2 className="w-4 h-4" />}
-                />
-              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input 
                   label="CEP"
@@ -777,6 +767,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   value={customer.addressNumber}
                   onChange={handleInputChange}
                   icon={<Hash className="w-4 h-4" />}
+                />
+              </div>
+              <div>
+                <Input 
+                  label="Cidade"
+                  name="city"
+                  placeholder="Ex: São Paulo"
+                  value={customer.city ?? ''}
+                  onChange={handleInputChange}
+                  icon={<Building2 className="w-4 h-4" />}
                 />
               </div>
             </div>
