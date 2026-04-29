@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ClipboardList,
   ChevronRight,
   LogOut,
   User,
   ExternalLink,
   Sparkles,
+  X,
 } from 'lucide-react';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
@@ -19,6 +19,9 @@ import { ZayaAlertsModal } from '../ZayaAlertsModal';
 import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import type { SystemUserPermissions } from '../../services/apiService';
+import { ModalPortal } from '../ui/ModalPortal';
+import { iosModalOverlay, iosModalShell, iosModalClose } from '../ui/iosModalStyles';
+import { IosModalHeader } from '../ui/IosModalHeader';
 
 export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'settings';
 
@@ -89,7 +92,7 @@ const OPERATIONAL_APPS: {
 ];
 
 type QuickTileSize = 'normal' | 'wide';
-type QuickTileId = HomeAppId | 'tv_patio' | 'parts_stock';
+type QuickTileId = HomeAppId | 'tv_patio' | 'parts_stock' | 'settings_hub';
 type QuickLayoutState = {
   order: QuickTileId[];
   sizes: Partial<Record<QuickTileId, QuickTileSize>>;
@@ -104,7 +107,7 @@ type QuickDragVisual = {
   offsetY: number;
 };
 
-const DEFAULT_QUICK_ORDER: QuickTileId[] = OPERATIONAL_APPS.map((app) => app.id);
+const DEFAULT_QUICK_ORDER: QuickTileId[] = [...OPERATIONAL_APPS.map((app) => app.id), 'settings_hub'];
 const ALL_QUICK_TILE_IDS: QuickTileId[] = [...DEFAULT_QUICK_ORDER, 'tv_patio', 'parts_stock'];
 
 function SettingsRow({
@@ -171,6 +174,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
   const [isZayaAlertsOpen, setIsZayaAlertsOpen] = useState(false);
+  const [isHomeSettingsHubOpen, setIsHomeSettingsHubOpen] = useState(false);
   const [quickLayout, setQuickLayout] = useState<QuickLayoutState>(() => {
     try {
       const raw = localStorage.getItem(QUICK_APPS_LAYOUT_KEY);
@@ -209,7 +213,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
       icon: app.icon,
       onOpen: () => onOpenApp(app.id),
     }));
-    if (!showAdminSection) return baseTiles;
+    const settingsTile = {
+      id: 'settings_hub' as QuickTileId,
+      label: 'Configurações',
+      icon: (
+        <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-full w-full object-cover" />
+      ),
+      onOpen: () => setIsHomeSettingsHubOpen(true),
+    };
+    if (!showAdminSection) return [...baseTiles, settingsTile];
     return [
       ...baseTiles,
       {
@@ -224,6 +236,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         icon: <img src="/icons/estoque-ios.png" alt="Estoque de peças" className="h-full w-full object-cover" />,
         onOpen: () => setIsPartsModalOpen(true),
       },
+      settingsTile,
     ];
   }, [onOpenApp, operationalForView, showAdminSection]);
   const operationalById = useMemo(
@@ -343,6 +356,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
       window.removeEventListener('pointercancel', stopDrag);
     };
   }, [draggingQuickId, endQuickDrag, moveQuickApp]);
+
+  useEffect(() => {
+    if (!isHomeSettingsHubOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsHomeSettingsHubOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isHomeSettingsHubOpen]);
 
   const clearLongPressTimer = useCallback(() => {
     if (longPressTimerRef.current != null) {
@@ -472,9 +494,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </header>
 
       <main className="relative z-10 flex-1 px-4 sm:px-6 pb-28 max-w-xl lg:max-w-5xl mx-auto w-full">
-        <div className="lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
-          <div className="lg:space-y-8">
-            <section className="pt-5 pb-2 lg:pt-6 lg:pb-0">
+        <section className="pt-5 pb-6 lg:pt-6">
               <p className={iosSectionTitle}>Operação</p>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <p className={`${iosSectionHint} mb-0`}>
@@ -574,222 +594,300 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
               )}
             </section>
-          </div>
-
-          <div className="lg:space-y-8 lg:pt-8">
-            {showToolsSection && (
-              <section className="pt-2 pb-2 lg:pt-0">
-                <p className={iosSectionTitle}>Ferramentas</p>
-                <p className={iosSectionHint}>Configurações liberadas para você</p>
-                <div className={`${iosCard} p-2 space-y-0.5`}>
-                  {perms.access_settings && onOpenSettings && (
-                    <SettingsRow
-                      onClick={onOpenSettings}
-                      title="Configurações"
-                      subtitle="Preferências da oficina"
-                      icon={
-                        <IosAccentIconSquircle
-                          variant="row"
-                          strokeWidth={2.2}
-                        >
-                          <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-full w-full object-cover" />
-                        </IosAccentIconSquircle>
-                      }
-                    />
-                  )}
-                  {perms.access_change_passwords && onOpenChangePasswords && (
-                    <SettingsRow
-                      onClick={onOpenChangePasswords}
-                      title="Alterar senhas"
-                      subtitle="Segurança de acessos"
-                      icon={
-                        <IosAccentIconSquircle
-                          variant="row"
-                          strokeWidth={2.2}
-                        >
-                          <img src="/icons/senhas-ios.png" alt="Alterar senhas" className="h-full w-full object-cover" />
-                        </IosAccentIconSquircle>
-                      }
-                    />
-                  )}
-                </div>
-              </section>
-            )}
-
-            {showAdminSection && (
-              <section className="pt-2 pb-2 lg:pt-0">
-                <p className={iosSectionTitle}>Administração</p>
-                <p className={iosSectionHint}>Usuários, avisos, TV e configurações da oficina</p>
-                <div className={`${iosCard} p-2 lg:grid lg:grid-cols-2 lg:gap-0 lg:p-2`}>
-                  <div className="lg:grid lg:grid-cols-1 space-y-0.5">
-                    <SettingsRow
-                      onClick={() => setIsSystemUsersOpen(true)}
-                      title="Usuários do sistema"
-                      subtitle="Acessos e permissões"
-                      icon={
-                        <IosAccentIconSquircle
-                          variant="row"
-                          strokeWidth={2.2}
-                        >
-                          <img src="/icons/usuarios-ios.png" alt="Usuários do sistema" className="h-full w-full object-cover" />
-                        </IosAccentIconSquircle>
-                      }
-                    />
-                    <SettingsRow
-                      onClick={() => setIsZayaAlertsOpen(true)}
-                      title="Avisos da Zaya"
-                      subtitle="Etapas, orçamentos e destinatários"
-                      icon={
-                        <IosAccentIconSquircle
-                          variant="row"
-                          strokeWidth={2.2}
-                        >
-                          <Sparkles />
-                        </IosAccentIconSquircle>
-                      }
-                    />
-                    <SettingsRow
-                      onClick={() => onOpenApp('settings')}
-                      title="Configurações"
-                      subtitle="Oficina e integrações"
-                      icon={
-                        <IosAccentIconSquircle
-                          variant="row"
-                          strokeWidth={2.2}
-                        >
-                          <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-full w-full object-cover" />
-                        </IosAccentIconSquircle>
-                      }
-                    />
-                    <SettingsRow
-                      onClick={() => setIsServicesModalOpen(true)}
-                      title="Serviços da oficina"
-                      subtitle="Catálogo e valores"
-                      icon={
-                        <IosAccentIconSquircle
-                          variant="row"
-                          strokeWidth={2.2}
-                        >
-                          <img src="/icons/servicos-oficina-ios.png" alt="Serviços da oficina" className="h-full w-full object-cover" />
-                        </IosAccentIconSquircle>
-                      }
-                    />
-                  </div>
-                  <div className="lg:grid lg:grid-cols-1 space-y-0.5 lg:border-l lg:border-zinc-200/60 dark:lg:border-white/[0.06] lg:pl-2">
-                    <SettingsRow
-                      onClick={() => setIsPatioChecklistsOpen(true)}
-                      title="Checklists do Pátio"
-                      subtitle="Modelos por etapa"
-                      icon={
-                        <IosAccentIconSquircle
-                          variant="row"
-                          strokeWidth={2.2}
-                        >
-                          <img src="/icons/checklist-patio-ios.png" alt="Checklists do Pátio" className="h-full w-full object-cover" />
-                        </IosAccentIconSquircle>
-                      }
-                    />
-                    <a
-                      href="https://patio-view.vercel.app/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group w-full flex items-center gap-3 px-3 py-3 sm:px-4 sm:py-3.5 text-left rounded-2xl transition-all duration-200 hover:bg-zinc-100/90 dark:hover:bg-white/[0.06] active:scale-[0.99]"
-                    >
-                      <IosAccentIconSquircle
-                        variant="row"
-                        strokeWidth={2.2}
-                      >
-                        <img src="/icons/painel-patio-tv-ios.png" alt="Painel do Pátio (TV)" className="h-full w-full object-cover" />
-                      </IosAccentIconSquircle>
-                      <span className="flex-1 min-w-0">
-                        <span className="block text-[15px] font-medium text-zinc-900 dark:text-white leading-snug">
-                          Painel do Pátio (TV)
-                        </span>
-                        <span className="block text-[12px] text-zinc-950 dark:text-zinc-400 mt-0.5">Abrir em nova aba</span>
-                      </span>
-                      <ExternalLink className="w-5 h-5 shrink-0 text-zinc-400 group-hover:text-brand-yellow transition-colors" />
-                    </a>
-                    <SettingsRow
-                      onClick={() => setIsChangePasswordsOpen(true)}
-                      title="Alterar senhas"
-                      subtitle="Gerência e equipe"
-                      icon={
-                        <IosAccentIconSquircle
-                          variant="row"
-                          strokeWidth={2.2}
-                        >
-                          <img src="/icons/senhas-ios.png" alt="Alterar senhas" className="h-full w-full object-cover" />
-                        </IosAccentIconSquircle>
-                      }
-                    />
-                  </div>
-                </div>
-              </section>
-            )}
-
-            <section className="pt-2 pb-6 lg:pt-0">
-              <p className={iosSectionTitle}>Conta</p>
-              <p className={iosSectionHint}>Perfil e sessão</p>
-              <div className={`${iosCard} p-2 space-y-0.5`}>
-                {isSystemUser && (
-                  <SettingsRow
-                    onClick={() => setIsUserProfileOpen(true)}
-                    title="Configurações de perfil"
-                    subtitle="Nome, foto e cor"
-                      icon={
-                        <IosAccentIconSquircle
-                          variant="row"
-                          strokeWidth={2.2}
-                        >
-                          <img src="/icons/perfil-ios.png" alt="Configurações de perfil" className="h-full w-full object-cover" />
-                        </IosAccentIconSquircle>
-                      }
-                  />
-                )}
-                {(!isTechnician || technicianId) && !isSystemUser && (
-                  <SettingsRow
-                    onClick={() => (isTechnician ? setIsTechnicianProfileOpen(true) : setIsAdminProfileOpen(true))}
-                    title={isTechnician ? 'Meu perfil' : 'Perfil do administrador'}
-                    subtitle={isTechnician ? 'Nome e foto' : 'Nome e foto da gerência'}
-                      icon={
-                        <IosAccentIconSquircle
-                          variant="row"
-                          strokeWidth={2.2}
-                        >
-                          {isTechnician ? (
-                            <User />
-                          ) : (
-                            <img
-                              src="/icons/admin-perfil-ios.png"
-                              alt="Perfil do administrador"
-                              className="h-full w-full object-cover"
-                            />
-                          )}
-                        </IosAccentIconSquircle>
-                      }
-                  />
-                )}
-                {onLogout && (
-                  <SettingsRow
-                    onClick={onLogout}
-                    title="Sair"
-                    subtitle="Encerrar sessão neste dispositivo"
-                    danger
-                      icon={
-                        <IosAccentIconSquircle
-                          variant="row"
-                          strokeWidth={2.2}
-                        >
-                          <LogOut className="text-red-500 dark:text-red-400" />
-                        </IosAccentIconSquircle>
-                      }
-                  />
-                )}
-              </div>
-            </section>
-          </div>
-        </div>
       </main>
+
+      {isHomeSettingsHubOpen ? (
+        <ModalPortal>
+          <div
+            className={iosModalOverlay}
+            onClick={() => setIsHomeSettingsHubOpen(false)}
+            role="presentation"
+          >
+            <div
+              className={`${iosModalShell} max-h-[94vh] max-w-xl`}
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Configurações"
+            >
+              <button
+                type="button"
+                onClick={() => setIsHomeSettingsHubOpen(false)}
+                className={iosModalClose}
+                aria-label="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="shrink-0 px-6 pb-4 pr-14 pt-8 sm:px-8">
+                  <IosModalHeader
+                    icon={
+                      <img
+                        src="/icons/configuracoes-ios.png"
+                        alt=""
+                        className="h-full min-h-0 w-full object-cover"
+                      />
+                    }
+                    title="Configurações"
+                    subtitle="Conta, ferramentas e administração"
+                  />
+                </div>
+
+                <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 pb-8 sm:px-8">
+                  <section>
+                    <p className={iosSectionTitle}>Conta</p>
+                    <p className={iosSectionHint}>Perfil e sessão</p>
+                    <div className={`${iosCard} space-y-0.5 p-2`}>
+                      {isSystemUser && (
+                        <SettingsRow
+                          onClick={() => {
+                            setIsHomeSettingsHubOpen(false);
+                            setIsUserProfileOpen(true);
+                          }}
+                          title="Configurações de perfil"
+                          subtitle="Nome, foto e cor"
+                          icon={
+                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                              <img
+                                src="/icons/perfil-ios.png"
+                                alt="Configurações de perfil"
+                                className="h-full w-full object-cover"
+                              />
+                            </IosAccentIconSquircle>
+                          }
+                        />
+                      )}
+                      {(!isTechnician || technicianId) && !isSystemUser && (
+                        <SettingsRow
+                          onClick={() => {
+                            setIsHomeSettingsHubOpen(false);
+                            if (isTechnician) setIsTechnicianProfileOpen(true);
+                            else setIsAdminProfileOpen(true);
+                          }}
+                          title={isTechnician ? 'Meu perfil' : 'Perfil do administrador'}
+                          subtitle={isTechnician ? 'Nome e foto' : 'Nome e foto da gerência'}
+                          icon={
+                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                              {isTechnician ? (
+                                <User />
+                              ) : (
+                                <img
+                                  src="/icons/admin-perfil-ios.png"
+                                  alt="Perfil do administrador"
+                                  className="h-full w-full object-cover"
+                                />
+                              )}
+                            </IosAccentIconSquircle>
+                          }
+                        />
+                      )}
+                      {onLogout && (
+                        <SettingsRow
+                          onClick={() => {
+                            setIsHomeSettingsHubOpen(false);
+                            onLogout();
+                          }}
+                          title="Sair"
+                          subtitle="Encerrar sessão neste dispositivo"
+                          danger
+                          icon={
+                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                              <LogOut className="text-red-500 dark:text-red-400" />
+                            </IosAccentIconSquircle>
+                          }
+                        />
+                      )}
+                    </div>
+                  </section>
+
+                  {showToolsSection && (
+                    <section>
+                      <p className={iosSectionTitle}>Ferramentas</p>
+                      <p className={iosSectionHint}>Opções liberadas para você</p>
+                      <div className={`${iosCard} space-y-0.5 p-2`}>
+                        {perms.access_settings && onOpenSettings && (
+                          <SettingsRow
+                            onClick={() => {
+                              setIsHomeSettingsHubOpen(false);
+                              onOpenSettings();
+                            }}
+                            title="Preferências da oficina"
+                            subtitle="Tema e experiência do app"
+                            icon={
+                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                <img
+                                  src="/icons/configuracoes-ios.png"
+                                  alt="Preferências"
+                                  className="h-full w-full object-cover"
+                                />
+                              </IosAccentIconSquircle>
+                            }
+                          />
+                        )}
+                        {perms.access_change_passwords && onOpenChangePasswords && (
+                          <SettingsRow
+                            onClick={() => {
+                              setIsHomeSettingsHubOpen(false);
+                              onOpenChangePasswords();
+                            }}
+                            title="Alterar senhas"
+                            subtitle="Segurança de acessos"
+                            icon={
+                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                <img
+                                  src="/icons/senhas-ios.png"
+                                  alt="Alterar senhas"
+                                  className="h-full w-full object-cover"
+                                />
+                              </IosAccentIconSquircle>
+                            }
+                          />
+                        )}
+                      </div>
+                    </section>
+                  )}
+
+                  {showAdminSection && (
+                    <section>
+                      <p className={iosSectionTitle}>Administração</p>
+                      <p className={iosSectionHint}>Usuários, avisos e cadastros da oficina</p>
+                      <div className={`${iosCard} space-y-0.5 p-2 lg:grid lg:grid-cols-2 lg:gap-0 lg:p-2`}>
+                        <div className="space-y-0.5 lg:grid lg:grid-cols-1">
+                          <SettingsRow
+                            onClick={() => {
+                              setIsHomeSettingsHubOpen(false);
+                              setIsSystemUsersOpen(true);
+                            }}
+                            title="Usuários do sistema"
+                            subtitle="Acessos e permissões"
+                            icon={
+                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                <img
+                                  src="/icons/usuarios-ios.png"
+                                  alt="Usuários do sistema"
+                                  className="h-full w-full object-cover"
+                                />
+                              </IosAccentIconSquircle>
+                            }
+                          />
+                          <SettingsRow
+                            onClick={() => {
+                              setIsHomeSettingsHubOpen(false);
+                              setIsZayaAlertsOpen(true);
+                            }}
+                            title="Avisos da Zaya"
+                            subtitle="Etapas, orçamentos e destinatários"
+                            icon={
+                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                <Sparkles />
+                              </IosAccentIconSquircle>
+                            }
+                          />
+                          <SettingsRow
+                            onClick={() => {
+                              setIsHomeSettingsHubOpen(false);
+                              onOpenApp('settings');
+                            }}
+                            title="Oficina e integrações"
+                            subtitle="Configurações da oficina"
+                            icon={
+                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                <img
+                                  src="/icons/configuracoes-ios.png"
+                                  alt="Configurações da oficina"
+                                  className="h-full w-full object-cover"
+                                />
+                              </IosAccentIconSquircle>
+                            }
+                          />
+                          <SettingsRow
+                            onClick={() => {
+                              setIsHomeSettingsHubOpen(false);
+                              setIsServicesModalOpen(true);
+                            }}
+                            title="Serviços da oficina"
+                            subtitle="Catálogo e valores"
+                            icon={
+                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                <img
+                                  src="/icons/servicos-oficina-ios.png"
+                                  alt="Serviços da oficina"
+                                  className="h-full w-full object-cover"
+                                />
+                              </IosAccentIconSquircle>
+                            }
+                          />
+                        </div>
+                        <div className="space-y-0.5 lg:border-l lg:border-zinc-200/60 lg:pl-2 dark:lg:border-white/[0.06]">
+                          <SettingsRow
+                            onClick={() => {
+                              setIsHomeSettingsHubOpen(false);
+                              setIsPatioChecklistsOpen(true);
+                            }}
+                            title="Checklists do Pátio"
+                            subtitle="Modelos por etapa"
+                            icon={
+                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                <img
+                                  src="/icons/checklist-patio-ios.png"
+                                  alt="Checklists do Pátio"
+                                  className="h-full w-full object-cover"
+                                />
+                              </IosAccentIconSquircle>
+                            }
+                          />
+                          <a
+                            href="https://patio-view.vercel.app/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setIsHomeSettingsHubOpen(false)}
+                            className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all duration-200 hover:bg-zinc-100/90 active:scale-[0.99] sm:px-4 sm:py-3.5 dark:hover:bg-white/[0.06]"
+                          >
+                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                              <img
+                                src="/icons/painel-patio-tv-ios.png"
+                                alt="Painel do Pátio (TV)"
+                                className="h-full w-full object-cover"
+                              />
+                            </IosAccentIconSquircle>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-[15px] font-medium leading-snug text-zinc-900 dark:text-white">
+                                Painel do Pátio (TV)
+                              </span>
+                              <span className="mt-0.5 block text-[12px] text-zinc-950 dark:text-zinc-400">
+                                Abrir em nova aba
+                              </span>
+                            </span>
+                            <ExternalLink className="h-5 w-5 shrink-0 text-zinc-400 transition-colors group-hover:text-brand-yellow" />
+                          </a>
+                          <SettingsRow
+                            onClick={() => {
+                              setIsHomeSettingsHubOpen(false);
+                              setIsChangePasswordsOpen(true);
+                            }}
+                            title="Alterar senhas"
+                            subtitle="Gerência e equipe"
+                            icon={
+                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                <img
+                                  src="/icons/senhas-ios.png"
+                                  alt="Alterar senhas"
+                                  className="h-full w-full object-cover"
+                                />
+                              </IosAccentIconSquircle>
+                            }
+                          />
+                        </div>
+                      </div>
+                    </section>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      ) : null}
 
       {!isTechnician && (
         <>
