@@ -91,6 +91,15 @@ type QuickLayoutState = {
   order: HomeAppId[];
   sizes: Partial<Record<HomeAppId, QuickTileSize>>;
 };
+type QuickDragVisual = {
+  id: HomeAppId;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  offsetX: number;
+  offsetY: number;
+};
 
 const DEFAULT_QUICK_ORDER: HomeAppId[] = OPERATIONAL_APPS.map((app) => app.id);
 
@@ -175,6 +184,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   });
   const [isQuickEditMode, setIsQuickEditMode] = useState(false);
   const [draggingQuickId, setDraggingQuickId] = useState<HomeAppId | null>(null);
+  const [quickDragVisual, setQuickDragVisual] = useState<QuickDragVisual | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
 
@@ -203,15 +213,41 @@ export const HomeView: React.FC<HomeViewProps> = ({
     } catch (_) {}
   }, [quickLayout]);
 
+  const endQuickDrag = useCallback(() => {
+    setDraggingQuickId(null);
+    setQuickDragVisual(null);
+  }, []);
+
   useEffect(() => {
-    const stopDrag = () => setDraggingQuickId(null);
+    const handlePointerMove = (event: PointerEvent) => {
+      setQuickDragVisual((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          x: event.clientX - prev.offsetX,
+          y: event.clientY - prev.offsetY,
+        };
+      });
+
+      if (!draggingQuickId) return;
+      const hit = document.elementFromPoint(event.clientX, event.clientY);
+      const target = hit?.closest?.('[data-quick-app-id]') as HTMLElement | null;
+      const targetId = target?.dataset.quickAppId as HomeAppId | undefined;
+      if (!targetId || targetId === draggingQuickId) return;
+      moveQuickApp(draggingQuickId, targetId);
+    };
+
+    const stopDrag = () => endQuickDrag();
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
     window.addEventListener('pointerup', stopDrag);
     window.addEventListener('pointercancel', stopDrag);
     return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', stopDrag);
       window.removeEventListener('pointercancel', stopDrag);
     };
-  }, []);
+  }, [draggingQuickId, endQuickDrag, moveQuickApp]);
 
   const clearLongPressTimer = useCallback(() => {
     if (longPressTimerRef.current != null) {
@@ -233,24 +269,46 @@ export const HomeView: React.FC<HomeViewProps> = ({
     });
   }, []);
 
+  const beginQuickDrag = useCallback(
+    (
+      appId: HomeAppId,
+      rect: DOMRect,
+      pointer: { clientX: number; clientY: number }
+    ) => {
+      setDraggingQuickId(appId);
+      setQuickDragVisual({
+        id: appId,
+        x: rect.left,
+        y: rect.top,
+        width: rect.width,
+        height: rect.height,
+        offsetX: pointer.clientX - rect.left,
+        offsetY: pointer.clientY - rect.top,
+      });
+    },
+    []
+  );
+
   const handleQuickCardPointerDown = useCallback(
     (appId: HomeAppId, event: React.PointerEvent<HTMLButtonElement>) => {
       longPressTriggeredRef.current = false;
       clearLongPressTimer();
+      const rect = event.currentTarget.getBoundingClientRect();
+      const pointer = { clientX: event.clientX, clientY: event.clientY };
 
       if (isQuickEditMode) {
-        setDraggingQuickId(appId);
+        beginQuickDrag(appId, rect, pointer);
         return;
       }
 
       longPressTimerRef.current = window.setTimeout(() => {
         longPressTriggeredRef.current = true;
         setIsQuickEditMode(true);
-        setDraggingQuickId(appId);
+        beginQuickDrag(appId, rect, pointer);
       }, LONG_PRESS_MS);
       event.currentTarget.setPointerCapture(event.pointerId);
     },
-    [clearLongPressTimer, isQuickEditMode]
+    [beginQuickDrag, clearLongPressTimer, isQuickEditMode]
   );
 
   const handleQuickCardPointerUp = useCallback(
@@ -260,11 +318,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onOpenApp(appId);
       }
       if (!longPressTriggeredRef.current) {
-        setDraggingQuickId(null);
+        endQuickDrag();
       }
       longPressTriggeredRef.current = false;
     },
-    [clearLongPressTimer, isQuickEditMode, onOpenApp]
+    [clearLongPressTimer, endQuickDrag, isQuickEditMode, onOpenApp]
   );
 
   const toggleQuickTileSize = useCallback((appId: HomeAppId) => {
@@ -345,7 +403,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     type="button"
                     onClick={() => {
                       setIsQuickEditMode(false);
-                      setDraggingQuickId(null);
+                      endQuickDrag();
                     }}
                     className="shrink-0 rounded-full border border-[#007AFF]/45 bg-[#007AFF]/15 px-3 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-all hover:bg-[#007AFF]/20 dark:border-[#64B5FF]/45 dark:bg-[#64B5FF]/14 dark:text-[#8cc8ff]"
                   >
@@ -354,7 +412,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ) : null}
               </div>
 
-              <div onPointerUp={() => setDraggingQuickId(null)} className={`grid gap-3 ${quickGridColsClass}`}>
+              <div onPointerUp={() => endQuickDrag()} className={`grid gap-3 ${quickGridColsClass}`}>
                 {orderedOperationalApps.map((app) => {
                   const isWide = (quickLayout.sizes[app.id] ?? 'normal') === 'wide';
                   const isDragging = draggingQuickId === app.id;
@@ -366,10 +424,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       onPointerDown={(event) => handleQuickCardPointerDown(app.id, event)}
                       onPointerUp={() => handleQuickCardPointerUp(app.id)}
                       onPointerLeave={clearLongPressTimer}
-                      onPointerEnter={() => {
-                        if (!isQuickEditMode || !draggingQuickId || draggingQuickId === app.id) return;
-                        moveQuickApp(draggingQuickId, app.id);
-                      }}
                       onContextMenu={(event) => {
                         event.preventDefault();
                         setIsQuickEditMode(true);
@@ -378,7 +432,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         isWide ? 'col-span-2' : ''
                       } ${isQuickEditMode ? 'animate-[pulse_2.8s_ease-in-out_infinite]' : ''} ${
                         isDragging ? 'scale-[1.02] border-[#007AFF]/35 shadow-[0_18px_48px_-18px_rgba(0,122,255,0.38)]' : ''
-                      } ${isQuickEditMode ? 'touch-none select-none' : ''}`}
+                      } ${isQuickEditMode ? 'touch-none select-none' : ''} ${isDragging ? 'opacity-30' : ''}`}
                     >
                       {isQuickEditMode && (
                         <span
@@ -456,6 +510,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   </>
                 )}
               </div>
+              {quickDragVisual && operationalById[quickDragVisual.id] && (
+                <div
+                  className="pointer-events-none fixed z-[80]"
+                  style={{
+                    left: `${quickDragVisual.x}px`,
+                    top: `${quickDragVisual.y}px`,
+                    width: `${quickDragVisual.width}px`,
+                    height: `${quickDragVisual.height}px`,
+                  }}
+                >
+                  <div
+                    className={`group relative flex h-full w-full flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/45 shadow-[0_22px_60px_-18px_rgba(0,122,255,0.45)] scale-[1.03]`}
+                  >
+                    <IosAccentIconSquircle variant="tile" className="scale-105" strokeWidth={2.2}>
+                      {operationalById[quickDragVisual.id].icon}
+                    </IosAccentIconSquircle>
+                    <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
+                      {operationalById[quickDragVisual.id].label}
+                    </span>
+                  </div>
+                </div>
+              )}
             </section>
           </div>
 
