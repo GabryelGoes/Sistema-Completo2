@@ -997,7 +997,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
             </div>
           </div>
-          <div className="pt-4 flex justify-center sm:justify-start">
+          <div className="pt-4 flex justify-end">
             <button
               type="submit"
               className="group relative flex min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:opacity-95 active:scale-[0.98]"
