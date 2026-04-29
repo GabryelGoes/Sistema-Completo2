@@ -379,6 +379,7 @@ export default function App() {
               systemUserPermissions={authSession.permissions}
               onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
+              globalOverlayModalOpen={isSettingsOpen || isUserChangePasswordsOpen}
             />
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
@@ -582,6 +583,7 @@ export default function App() {
             adminDisplayName={authSession?.role === 'admin' ? adminDisplayName : undefined}
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
+            globalOverlayModalOpen={isSettingsOpen || isUserChangePasswordsOpen}
           />
         </KeepAliveTabPanel>
 

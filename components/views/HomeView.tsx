@@ -52,6 +52,8 @@ interface HomeViewProps {
   systemUserPermissions?: SystemUserPermissions;
   onOpenSettings?: () => void;
   onOpenChangePasswords?: () => void;
+  /** Modais no App (ex.: preferências, senhas) que devem ficar acima do hub de configurações */
+  globalOverlayModalOpen?: boolean;
 }
 
 /** Alinhado ao modal TV do pátio: vidro, sombra suave, cantos iOS. */
@@ -163,6 +165,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   systemUserPermissions,
   onOpenSettings,
   onOpenChangePasswords,
+  globalOverlayModalOpen = false,
 }) => {
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
   const [isChangePasswordsOpen, setIsChangePasswordsOpen] = useState(false);
@@ -204,6 +207,36 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
   const showAdminSection = (!isTechnician && !isSystemUser) || (isSystemUser && !!perms.full_access);
   const showToolsSection = hasToolsAccess && !perms.full_access;
+
+  /** Com outro modal aberto, o hub fica com z-index menor para o filho (z-100) aparecer acima; ao fechar, o hub continua aberto. */
+  const childModalStackActive = useMemo(
+    () =>
+      isSystemUsersOpen ||
+      isZayaAlertsOpen ||
+      isServicesModalOpen ||
+      isPartsModalOpen ||
+      isPatioChecklistsOpen ||
+      isChangePasswordsOpen ||
+      isTvPatioOpen ||
+      (Boolean(technicianId) && isTechnicianProfileOpen) ||
+      isAdminProfileOpen ||
+      isUserProfileOpen ||
+      globalOverlayModalOpen,
+    [
+      isSystemUsersOpen,
+      isZayaAlertsOpen,
+      isServicesModalOpen,
+      isPartsModalOpen,
+      isPatioChecklistsOpen,
+      isChangePasswordsOpen,
+      isTvPatioOpen,
+      technicianId,
+      isTechnicianProfileOpen,
+      isAdminProfileOpen,
+      isUserProfileOpen,
+      globalOverlayModalOpen,
+    ]
+  );
 
   const operationalForView = isTechnician ? OPERATIONAL_APPS.filter((a) => allowedTabs.includes(a.id)) : OPERATIONAL_APPS;
   const quickTilesForView = useMemo(() => {
@@ -360,11 +393,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useEffect(() => {
     if (!isHomeSettingsHubOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsHomeSettingsHubOpen(false);
+      if (e.key !== 'Escape') return;
+      if (childModalStackActive) return;
+      setIsHomeSettingsHubOpen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isHomeSettingsHubOpen]);
+  }, [isHomeSettingsHubOpen, childModalStackActive]);
 
   const clearLongPressTimer = useCallback(() => {
     if (longPressTimerRef.current != null) {
@@ -599,7 +634,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {isHomeSettingsHubOpen ? (
         <ModalPortal>
           <div
-            className={iosModalOverlay}
+            className={`${iosModalOverlay} ${childModalStackActive ? '!z-[85]' : ''}`}
             onClick={() => setIsHomeSettingsHubOpen(false)}
             role="presentation"
           >
@@ -641,10 +676,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <div className={`${iosCard} space-y-0.5 p-2`}>
                       {isSystemUser && (
                         <SettingsRow
-                          onClick={() => {
-                            setIsHomeSettingsHubOpen(false);
-                            setIsUserProfileOpen(true);
-                          }}
+                          onClick={() => setIsUserProfileOpen(true)}
                           title="Configurações de perfil"
                           subtitle="Nome, foto e cor"
                           icon={
@@ -661,7 +693,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       {(!isTechnician || technicianId) && !isSystemUser && (
                         <SettingsRow
                           onClick={() => {
-                            setIsHomeSettingsHubOpen(false);
                             if (isTechnician) setIsTechnicianProfileOpen(true);
                             else setIsAdminProfileOpen(true);
                           }}
@@ -708,10 +739,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <div className={`${iosCard} space-y-0.5 p-2`}>
                         {perms.access_settings && onOpenSettings && (
                           <SettingsRow
-                            onClick={() => {
-                              setIsHomeSettingsHubOpen(false);
-                              onOpenSettings();
-                            }}
+                            onClick={() => onOpenSettings()}
                             title="Preferências da oficina"
                             subtitle="Tema e experiência do app"
                             icon={
@@ -727,10 +755,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         )}
                         {perms.access_change_passwords && onOpenChangePasswords && (
                           <SettingsRow
-                            onClick={() => {
-                              setIsHomeSettingsHubOpen(false);
-                              onOpenChangePasswords();
-                            }}
+                            onClick={() => onOpenChangePasswords()}
                             title="Alterar senhas"
                             subtitle="Segurança de acessos"
                             icon={
@@ -755,10 +780,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <div className={`${iosCard} space-y-0.5 p-2 lg:grid lg:grid-cols-2 lg:gap-0 lg:p-2`}>
                         <div className="space-y-0.5 lg:grid lg:grid-cols-1">
                           <SettingsRow
-                            onClick={() => {
-                              setIsHomeSettingsHubOpen(false);
-                              setIsSystemUsersOpen(true);
-                            }}
+                            onClick={() => setIsSystemUsersOpen(true)}
                             title="Usuários do sistema"
                             subtitle="Acessos e permissões"
                             icon={
@@ -772,10 +794,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             }
                           />
                           <SettingsRow
-                            onClick={() => {
-                              setIsHomeSettingsHubOpen(false);
-                              setIsZayaAlertsOpen(true);
-                            }}
+                            onClick={() => setIsZayaAlertsOpen(true)}
                             title="Avisos da Zaya"
                             subtitle="Etapas, orçamentos e destinatários"
                             icon={
@@ -802,10 +821,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             }
                           />
                           <SettingsRow
-                            onClick={() => {
-                              setIsHomeSettingsHubOpen(false);
-                              setIsServicesModalOpen(true);
-                            }}
+                            onClick={() => setIsServicesModalOpen(true)}
                             title="Serviços da oficina"
                             subtitle="Catálogo e valores"
                             icon={
@@ -821,10 +837,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         </div>
                         <div className="space-y-0.5 lg:border-l lg:border-zinc-200/60 lg:pl-2 dark:lg:border-white/[0.06]">
                           <SettingsRow
-                            onClick={() => {
-                              setIsHomeSettingsHubOpen(false);
-                              setIsPatioChecklistsOpen(true);
-                            }}
+                            onClick={() => setIsPatioChecklistsOpen(true)}
                             title="Checklists do Pátio"
                             subtitle="Modelos por etapa"
                             icon={
@@ -841,7 +854,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             href="https://patio-view.vercel.app/"
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={() => setIsHomeSettingsHubOpen(false)}
                             className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all duration-200 hover:bg-zinc-100/90 active:scale-[0.99] sm:px-4 sm:py-3.5 dark:hover:bg-white/[0.06]"
                           >
                             <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
@@ -862,10 +874,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             <ExternalLink className="h-5 w-5 shrink-0 text-zinc-400 transition-colors group-hover:text-brand-yellow" />
                           </a>
                           <SettingsRow
-                            onClick={() => {
-                              setIsHomeSettingsHubOpen(false);
-                              setIsChangePasswordsOpen(true);
-                            }}
+                            onClick={() => setIsChangePasswordsOpen(true)}
                             title="Alterar senhas"
                             subtitle="Gerência e equipe"
                             icon={
