@@ -63,6 +63,12 @@ function getModelTitleClass(modelName: string) {
   return 'text-3xl md:text-5xl lg:text-3xl';
 }
 
+const receptionSectionShell =
+  'overflow-hidden rounded-[24px] border border-zinc-300/70 bg-white shadow-[0_8px_30px_-12px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]';
+
+const receptionSectionHeader =
+  'relative border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-zinc-950/25';
+
 function sortArchivedOrdersNewestFirst(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
   return [...orders].sort(
     (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
@@ -687,12 +693,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           </div>
 
           {/* Veículo (order-1) • Cliente (order-2) • Foto + enviar (order-3, col-span 2 no desktop) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-7">
             {/* Dados do cliente — order-2: coluna direita no desktop; após veículo no mobile */}
-            <div className="space-y-6 order-2">
-              <h2 className={`${iosLabel} border-b border-zinc-200/70 dark:border-white/[0.08] pb-2 mb-0 text-[12px]`}>
-                Dados do cliente
-              </h2>
+            <div className={`order-2 ${receptionSectionShell}`}>
+              <div className={receptionSectionHeader}>
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.14),transparent_52%)]" aria-hidden />
+                <div className="pointer-events-none absolute inset-y-2.5 left-3 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)]" aria-hidden />
+                <h2 className="relative px-7 py-3 text-[16px] font-bold tracking-[-0.03em] text-zinc-900 dark:text-white">
+                  Dados do cliente
+                </h2>
+              </div>
+              <div className="space-y-6 p-4 sm:p-5 lg:p-6">
               <div>
                 <Input 
                   label="Nome Completo"
@@ -772,13 +783,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 />
               </div>
             </div>
+            </div>
 
             {/* Veículo/módulo + queixa (foto e enviar ficam em order-3) — order-1: coluna esquerda no desktop */}
-            <div className="space-y-6 order-1">
-              <h2 className={`${iosLabel} border-b border-zinc-200/70 dark:border-white/[0.08] pb-2 mb-0 text-[12px]`}>
-                {receptionMode === 'vehicle' ? 'Veículo e atendimento' : 'Módulo e atendimento'}
-              </h2>
-              <div className="w-full h-px bg-zinc-200 dark:bg-brand-border/50 lg:hidden" />
+            <div className={`order-1 ${receptionSectionShell}`}>
+              <div className={receptionSectionHeader}>
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.14),transparent_52%)]" aria-hidden />
+                <div className="pointer-events-none absolute inset-y-2.5 left-3 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)]" aria-hidden />
+                <h2 className="relative px-7 py-3 text-[16px] font-bold tracking-[-0.03em] text-zinc-900 dark:text-white">
+                  {receptionMode === 'vehicle' ? 'Veículo e atendimento' : 'Módulo e atendimento'}
+                </h2>
+              </div>
+              <div className="space-y-6 p-4 sm:p-5 lg:p-6">
 
               {receptionMode === 'vehicle' ? (
                 <div className="space-y-4">
@@ -940,9 +956,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 />
               </div>
             </div>
+            </div>
 
             {/* Foto + enviar — sempre por último (mobile em pé) e linha inteira no desktop */}
-            <div className="space-y-6 order-3 lg:col-span-2 pt-2 border-t border-zinc-200/70 dark:border-white/[0.08] lg:pt-8">
+            <div className={`order-3 space-y-6 lg:col-span-2 ${receptionSectionShell}`}>
+              <div className={receptionSectionHeader}>
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.14),transparent_52%)]" aria-hidden />
+                <div className="pointer-events-none absolute inset-y-2.5 left-3 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)]" aria-hidden />
+                <h2 className="relative px-7 py-3 text-[16px] font-bold tracking-[-0.03em] text-zinc-900 dark:text-white">
+                  Foto e envio
+                </h2>
+              </div>
+              <div className="space-y-6 p-4 sm:p-5 lg:p-6">
               <div className="space-y-2">
                 <label className={`${iosLabel} ml-1`}>
                   {receptionMode === 'vehicle' ? 'Foto do veículo (opcional)' : 'Foto (opcional)'}
@@ -999,6 +1024,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   Criar ficha
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </button>
+              </div>
               </div>
             </div>
           </div>
