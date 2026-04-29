@@ -299,25 +299,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={() => setIsTvPatioOpen(true)}
-                className={`mt-5 w-full flex items-center gap-4 p-4 sm:p-5 text-left ${iosCard} border-[#007AFF]/20 dark:border-[#0A84FF]/25 bg-gradient-to-br from-sky-50/95 to-white/80 dark:from-blue-950/45 dark:to-zinc-900/50 hover:border-[#007AFF]/35 dark:hover:border-[#0A84FF]/35 hover:shadow-[0_12px_36px_-10px_rgba(0,122,255,0.28)] transition-all duration-300 active:scale-[0.995]`}
-              >
-                <IosAccentIconSquircle
-                  variant="modal"
-                  strokeWidth={2.2}
-                >
-                  <img src="/icons/tv-patio-ios.png" alt="TV do Pátio" className="h-full w-full object-cover" />
-                </IosAccentIconSquircle>
-                <div className="flex-1 min-w-0">
-                  <span className="text-[15px] font-semibold text-zinc-900 dark:text-white block leading-tight">
-                    Configurações da TV do Pátio
-                  </span>
-                  <span className="text-[12px] text-zinc-950 dark:text-zinc-400 mt-0.5">Slides e meta semanal</span>
-                </div>
-                <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400" />
-              </button>
             </section>
           </div>
 
