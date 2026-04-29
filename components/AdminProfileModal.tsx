@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Camera, Loader2, Check, Lock, User } from 'lucide-react';
+import { X, Camera, Loader2, Check, Lock } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard, iosInput } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopSettings, updateWorkshopSettings, uploadWorkshopAdminPhoto } from '../services/apiService';
@@ -117,7 +117,7 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
             <IosModalHeader
-              icon={<User className="w-6 h-6 text-white" strokeWidth={2.2} />}
+              icon={<img src="/icons/admin-perfil-ios.png" alt="" className="h-6 w-6 object-cover" />}
               title="Perfil do administrador"
               subtitle="Nome, foto e senha de acesso total"
               gradientClass="from-blue-500 to-indigo-700"

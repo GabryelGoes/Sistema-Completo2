@@ -486,7 +486,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           variant="row"
                           strokeWidth={2.2}
                         >
-                          <User />
+                          {isTechnician ? (
+                            <User />
+                          ) : (
+                            <img
+                              src="/icons/admin-perfil-ios.png"
+                              alt="Perfil do administrador"
+                              className="h-full w-full object-cover"
+                            />
+                          )}
                         </IosAccentIconSquircle>
                       }
                   />
