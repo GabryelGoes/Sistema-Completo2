@@ -673,30 +673,28 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       </header>
 
       {/* Cartão principal — vidro iOS */}
-      <div className={`${iosPageGlass} p-6 md:p-8 lg:p-10 overflow-hidden`}>
+      <div className={`${iosPageGlass} overflow-hidden`}>
         <div className="pointer-events-none absolute -top-32 -right-32 w-[22rem] h-[22rem] bg-gradient-to-br from-cyan-400/20 to-blue-600/10 rounded-full blur-3xl opacity-70" />
         <div className="pointer-events-none absolute -bottom-28 -left-20 w-[18rem] h-[18rem] bg-gradient-to-br from-sky-400/20 to-blue-600/10 rounded-full blur-3xl opacity-60" />
 
         <form
           onSubmit={handleSubmit}
-          className="relative z-10 space-y-6 lg:space-y-0 [&_input]:shadow-[0_4px_14px_-10px_rgba(0,0,0,0.28)] [&_textarea]:shadow-[0_4px_14px_-10px_rgba(0,0,0,0.28)] dark:[&_input]:shadow-none dark:[&_textarea]:shadow-none"
+          className="relative z-10 [&_input]:shadow-[0_4px_14px_-10px_rgba(0,0,0,0.28)] [&_textarea]:shadow-[0_4px_14px_-10px_rgba(0,0,0,0.28)] dark:[&_input]:shadow-none dark:[&_textarea]:shadow-none"
         >
-          
-          <div className="flex justify-end mb-1">
+          {/* Bloco único da ficha */}
+          <div className={`${receptionSectionShell} w-full rounded-[calc(2rem-2px)] sm:rounded-[calc(2.25rem-2px)]`}>
+            <div className="p-4 sm:p-5 lg:p-6">
+          <div className="mb-4 flex justify-end">
              <button
                type="button"
                onClick={resetForm}
-               className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 hover:text-red-400 flex items-center gap-1.5 transition-colors px-2 py-1 rounded hover:bg-white/5"
+               className="inline-flex items-center gap-2 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-3 py-2 text-[12px] font-semibold text-[#007AFF] shadow-[0_6px_16px_-10px_rgba(0,122,255,0.45)] transition-all hover:bg-[#007AFF]/15 active:scale-[0.98] dark:border-[#64B5FF]/35 dark:bg-[#64B5FF]/12 dark:text-[#93c5fd]"
                title="Limpar todos os campos"
              >
-               <Eraser className="w-3.5 h-3.5" />
-               Limpar
+               <Eraser className="h-4 w-4" />
+               Limpar campos
              </button>
           </div>
-
-          {/* Bloco único da ficha */}
-          <div className={receptionSectionShell}>
-            <div className="p-4 sm:p-5 lg:p-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-7">
             {/* Dados do cliente — order-2: coluna direita no desktop; após veículo no mobile */}
             <div className="order-2 space-y-6">
