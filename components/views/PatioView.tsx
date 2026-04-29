@@ -3159,7 +3159,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       </div>
 
       {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. */}
-      <div className="mx-auto w-full max-w-[112rem] px-1.5 sm:px-3 md:px-4 lg:px-5">
+      <div className="mx-auto w-full max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3">
       {(() => {
         const stageOrder = SERVICE_ORDER_STAGES.map((s) => s.id);
         const byStage = (a: TrelloCard, b: TrelloCard) => {
