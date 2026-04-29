@@ -177,7 +177,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [draggingQuickId, setDraggingQuickId] = useState<HomeAppId | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
-  const quickGridRef = useRef<HTMLDivElement | null>(null);
 
   const perms = systemUserPermissions || {};
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
@@ -268,18 +267,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
     [clearLongPressTimer, isQuickEditMode, onOpenApp]
   );
 
-  const handleQuickGridPointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!isQuickEditMode || !draggingQuickId) return;
-      const hit = document.elementFromPoint(event.clientX, event.clientY);
-      const target = hit?.closest?.('[data-quick-app-id]') as HTMLElement | null;
-      const targetId = target?.dataset.quickAppId as HomeAppId | undefined;
-      if (!targetId || targetId === draggingQuickId) return;
-      moveQuickApp(draggingQuickId, targetId);
-    },
-    [draggingQuickId, isQuickEditMode, moveQuickApp]
-  );
-
   const toggleQuickTileSize = useCallback((appId: HomeAppId) => {
     setQuickLayout((prev) => {
       const current = prev.sizes[appId] ?? 'normal';
@@ -367,12 +354,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ) : null}
               </div>
 
-              <div
-                ref={quickGridRef}
-                onPointerMove={handleQuickGridPointerMove}
-                onPointerUp={() => setDraggingQuickId(null)}
-                className={`grid gap-3 ${quickGridColsClass}`}
-              >
+              <div onPointerUp={() => setDraggingQuickId(null)} className={`grid gap-3 ${quickGridColsClass}`}>
                 {orderedOperationalApps.map((app) => {
                   const isWide = (quickLayout.sizes[app.id] ?? 'normal') === 'wide';
                   const isDragging = draggingQuickId === app.id;
@@ -384,6 +366,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       onPointerDown={(event) => handleQuickCardPointerDown(app.id, event)}
                       onPointerUp={() => handleQuickCardPointerUp(app.id)}
                       onPointerLeave={clearLongPressTimer}
+                      onPointerEnter={() => {
+                        if (!isQuickEditMode || !draggingQuickId || draggingQuickId === app.id) return;
+                        moveQuickApp(draggingQuickId, app.id);
+                      }}
                       onContextMenu={(event) => {
                         event.preventDefault();
                         setIsQuickEditMode(true);
@@ -392,7 +378,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         isWide ? 'col-span-2' : ''
                       } ${isQuickEditMode ? 'animate-[pulse_2.8s_ease-in-out_infinite]' : ''} ${
                         isDragging ? 'scale-[1.02] border-[#007AFF]/35 shadow-[0_18px_48px_-18px_rgba(0,122,255,0.38)]' : ''
-                      }`}
+                      } ${isQuickEditMode ? 'touch-none select-none' : ''}`}
                     >
                       {isQuickEditMode && (
                         <span
