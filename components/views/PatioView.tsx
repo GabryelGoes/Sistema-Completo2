@@ -949,8 +949,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Desktop horizontal: usar `zoom` (não `transform: scale`) para o box do layout acompanhar o conteúdo — scale() deixa altura “fantasma” e espaço vazio no card. */
   const DESKTOP_LANDSCAPE_CARD_ZOOM = 0.65025;
 
-  /** Modo lupa: grade `md:grid-cols-5` → cinco cartões por fileira horizontal (telas ≥768px); mobile estreito mantém 2 colunas. */
+  /** Modo lupa: grade `md:grid-cols-5` → cinco cartões por fileira horizontal (telas ≥768px); mobile estreito mantém 2 colunas. Espaçamento vertical dos cards +17% via classes `*calc(...*1.17)`. */
   const BOARD_PANORAMIC_ZOOM = 0.72;
+
 
   const selectedCardTitleParts = selectedCard ? parsePatioCardTitle(selectedCard.name) : null;
   const historyCardTitleParts = selectedHistoryCard ? parsePatioCardTitle(selectedHistoryCard.name) : null;
@@ -3320,7 +3321,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   motion-safe:transition-[padding,border-radius,box-shadow] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]
                   ${
                     boardPanoramic
-                      ? 'gap-2.5 rounded-[1.85rem] p-3 sm:rounded-[2.1rem] sm:p-3.5'
+                      ? 'gap-[calc(0.625rem*1.17)] rounded-[1.85rem] px-3 py-[calc(0.75rem*1.17)] sm:rounded-[2.1rem] sm:px-3.5 sm:py-[calc(0.875rem*1.17)]'
                       : 'gap-3 rounded-[2rem] p-4 sm:rounded-[2.25rem] sm:p-5'
                   }
                   ${isGarantia ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40' : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'}
@@ -3342,7 +3343,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
               {/* Conteúdo interativo: ao entrar aqui desativamos o 3D para os cliques nos botões funcionarem */}
               <div
-                className={`relative z-10 flex min-h-0 w-full flex-col ${boardPanoramic ? 'gap-2' : 'gap-2.5'}`}
+                className={`relative z-10 flex min-h-0 w-full flex-col ${
+                  boardPanoramic ? 'gap-[calc(0.5rem*1.17)]' : 'gap-2.5'
+                }`}
                 onMouseEnter={() => setInteractingCardId(card.id)}
                 onMouseLeave={() => setInteractingCardId(null)}
                 style={
@@ -3356,7 +3359,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               {/* Layout: 1) nome do carro  2) cliente  3) técnico | placa */}
               <div className="min-w-0">
                 {/* Nome do carro (fonte um pouco menor) */}
-                <div className={boardPanoramic ? 'mb-1' : 'mb-1.5'}>
+                <div className={boardPanoramic ? 'mb-[calc(0.25rem*1.17)]' : 'mb-1.5'}>
                   <h3
                     className={`font-vehicle ${getModelTitleClass(model, boardPanoramic)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic ${vehicleCardTitleShadow}`}
                   >
@@ -3376,7 +3379,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {customerName && (
                   <div
                     className={`mb-0 flex max-w-full items-center justify-between gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] ${
-                      boardPanoramic ? 'px-2 py-1' : 'px-3 py-1.5'
+                      boardPanoramic ? 'px-2 py-[calc(0.25rem*1.17)]' : 'px-3 py-1.5'
                     }`}
                   >
                     <div className="min-w-0 flex flex-1 items-center gap-2">
@@ -3409,7 +3412,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       disabled={!canAssignMember}
                       onClick={(e) => { e.stopPropagation(); canAssignMember && setCardForMemberAssignment(card); }}
                       className={`
-                        inline-flex items-center justify-start gap-1.5 px-3 py-1.5 rounded-2xl border transition-all max-w-full
+                        inline-flex items-center justify-start gap-1.5 px-3 ${boardPanoramic ? 'py-[calc(0.375rem*1.17)]' : 'py-1.5'} rounded-2xl border transition-all max-w-full
                         ${canAssignMember
                           ? 'border-light-border dark:border-white/10 bg-light-card dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-200 cursor-pointer hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] active:scale-[0.97]'
                           : 'border-zinc-200/60 dark:border-white/5 bg-light-card/80 dark:bg-white/[0.04] text-zinc-500 cursor-default'}
@@ -3443,7 +3446,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
 
               {/* Botões de Ação Inferiores */}
-              <div className={`relative w-full shrink-0 ${boardPanoramic ? 'space-y-1.5' : 'space-y-2'}`}>
+              <div
+                className={`relative w-full shrink-0 ${
+                  boardPanoramic ? 'space-y-[calc(0.375rem*1.17)]' : 'space-y-2'
+                }`}
+              >
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenMoveModal(card, e); }}
@@ -3452,7 +3459,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     flex w-full cursor-pointer items-center gap-2 rounded-2xl transition-all duration-200 ease-out
                     shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
                     border border-black/10 dark:border-white/10
-                    ${boardPanoramic ? 'min-h-[50px] py-2 pl-3.5 pr-2.5 text-[13px]' : 'min-h-[57px] py-2.5 pl-5 pr-3'}
+                    ${
+                      boardPanoramic
+                        ? 'min-h-[calc(50px*1.17)] py-[calc(0.5rem*1.17)] pl-3.5 pr-2.5 text-[13px]'
+                        : 'min-h-[57px] py-2.5 pl-5 pr-3'
+                    }
                     ${statusConfig.style}
                     hover:brightness-110 active:scale-[0.98]
                   `}
