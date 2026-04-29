@@ -946,6 +946,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return () => mq.removeListener(apply);
   }, []);
 
+  /** Desktop horizontal: usar `zoom` (não `transform: scale`) para o box do layout acompanhar o conteúdo — scale() deixa altura “fantasma” e espaço vazio no card. */
+  const DESKTOP_LANDSCAPE_CARD_ZOOM = 0.65025;
+
   const selectedCardTitleParts = selectedCard ? parsePatioCardTitle(selectedCard.name) : null;
   const historyCardTitleParts = selectedHistoryCard ? parsePatioCardTitle(selectedHistoryCard.name) : null;
   const cardInTransitionTitleParts = cardInTransition ? parsePatioCardTitle(cardInTransition.name) : null;
@@ -3341,11 +3344,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 onMouseLeave={() => setInteractingCardId(null)}
                 style={
                   isDesktopLandscape
-                    ? {
-                        transform: 'scale(0.65025)',
-                        transformOrigin: 'top left',
-                        width: '153.786%',
-                      }
+                    ? ({
+                        zoom: DESKTOP_LANDSCAPE_CARD_ZOOM,
+                      } as React.CSSProperties & { zoom?: number })
                     : undefined
                 }
               >
@@ -3445,10 +3446,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenMoveModal(card, e); }}
                   onPointerDown={(e) => e.stopPropagation()}
                   className={`
-                    w-full cursor-pointer rounded-2xl transition-all duration-200 ease-out
+                    flex w-full cursor-pointer items-center rounded-2xl transition-all duration-200 ease-out
                     shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
                     border border-black/10 dark:border-white/10
-                    ${boardPanoramic ? 'h-[46px] px-3.5 text-[13px]' : 'h-[56px] px-5'}
+                    ${boardPanoramic ? 'min-h-[42px] py-2 px-3.5 text-[13px]' : 'min-h-[48px] py-2.5 px-5'}
                     ${statusConfig.style}
                     hover:brightness-110 active:scale-[0.98]
                   `}
