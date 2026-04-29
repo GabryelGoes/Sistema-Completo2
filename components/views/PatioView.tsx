@@ -637,7 +637,7 @@ function commentToAction(c: { id: string; author_display_name: string; text: str
 }
 
 /** Miniatura Mercosul — proporção ~400×130 mm (placa traseira veículo). Fonte condensada próxima ao visual de placagem. */
-type MercosulPlateMockupSize = 'card' | 'cardCompact' | 'modal';
+type MercosulPlateMockupSize = 'card' | 'cardCompact' | 'cardGrid' | 'modal';
 
 function MercosulPlateMockup(props: {
   plate: string;
@@ -648,23 +648,35 @@ function MercosulPlateMockup(props: {
   const { plate, blurPlates = false, size, selectable = false } = props;
   const display = (plate || '—').trim() || '—';
 
-  /** Mesmo visual dos modais: cartão normal e lista de histórico usam este bloco (`card` === `modal`). */
+  /** `cardGrid` = grade Pátio com zoom padrão (15% menor que `card`); `card` = detalhes/listas; `cardCompact` = modo lupa. */
   const isCompact = size === 'cardCompact';
+  const isCardGrid = size === 'cardGrid';
   const isCard = size === 'card';
 
-  const w = isCompact ? 'w-[122px]' : isCard ? 'w-[174px]' : 'w-[157px]';
+  const w = isCompact
+    ? 'w-[122px]'
+    : isCardGrid
+      ? 'w-[148px]'
+      : isCard
+        ? 'w-[174px]'
+        : 'w-[157px]';
 
   const shadow = isCompact ? 'shadow-md shadow-black/15' : 'shadow-xl shadow-black/25';
 
-  const bandText = isCompact ? 'text-[6.2px]' : 'text-[11px]';
+  const bandText = isCompact
+    ? 'text-[6.2px]'
+    : isCardGrid
+      ? 'text-[9.4px]'
+      : 'text-[11px]';
 
-  const flagW = isCompact ? 12 : 16;
-  const flagH = isCompact ? 9 : 10;
+  const flagW = isCompact ? 12 : isCardGrid ? 14 : 16;
+  const flagH = isCompact ? 9 : isCardGrid ? 9 : 10;
 
-  /** Proporção da miniatura acompanha fonte da placa (+15% sobre o passo anterior nos cards/modais). */
   const plateText = isCompact
     ? 'text-[19.9px] sm:text-[21.2px]'
-    : 'text-[34.8px] sm:text-[38.4px]';
+    : isCardGrid
+      ? 'text-[29.6px] sm:text-[32.6px]'
+      : 'text-[34.8px] sm:text-[38.4px]';
 
   return (
     <div
@@ -2715,8 +2727,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return defaultTechStyle;
   };
 
-  // Tamanho do nome do carro no card — ×1,15 sobre o passo anterior.
-  const getModelTitleClass = (modelName: string, panoramic?: boolean) => {
+  /**
+   * Nome do carro: modo lupa = `panoramic`; grade Pátio zoom padrão = `patioGridCard` (−15% vs. título “cheio”);
+   * demais cartões (ex.: histórico) usam tamanho cheio sem `patioGridCard`.
+   */
+  const getModelTitleClass = (modelName: string, panoramic?: boolean, patioGridCard?: boolean) => {
     const len = (modelName || '').length;
     if (panoramic) {
       if (len > 40)
@@ -2724,6 +2739,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
       if (len > 26)
         return 'text-[1.862rem] md:text-[3.723rem] lg:text-[2.326rem] portrait:text-[2.178rem] portrait:md:text-[4.355rem] portrait:lg:text-[2.722rem]';
       return 'text-[1.862rem] md:text-[3.723rem] lg:text-[2.326rem] portrait:text-[2.178rem] portrait:md:text-[4.355rem] portrait:lg:text-[2.722rem]';
+    }
+    if (patioGridCard) {
+      if (len > 40)
+        return 'text-[1.977rem] md:text-[3.956rem] lg:text-[2.373rem] portrait:text-[2.314rem] portrait:md:text-[4.627rem] portrait:lg:text-[2.776rem]';
+      if (len > 26)
+        return 'text-[2.373rem] md:text-[3.956rem] lg:text-[3.165rem] portrait:text-[2.776rem] portrait:md:text-[4.627rem] portrait:lg:text-[3.702rem]';
+      return 'text-[2.373rem] md:text-[3.956rem] lg:text-[3.165rem] portrait:text-[2.776rem] portrait:md:text-[4.627rem] portrait:lg:text-[3.702rem]';
     }
     if (len > 40)
       return 'text-[2.326rem] md:text-[4.654rem] lg:text-[2.792rem] portrait:text-[2.722rem] portrait:md:text-[5.444rem] portrait:lg:text-[3.266rem]';
@@ -3360,7 +3382,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {/* Nome do carro (fonte um pouco menor) */}
                 <div className={boardPanoramic ? 'mb-[calc(0.25rem*1.6146)]' : 'mb-1.5'}>
                   <h3
-                    className={`font-vehicle ${getModelTitleClass(model, boardPanoramic)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic ${vehicleCardTitleShadow}`}
+                    className={`font-vehicle ${getModelTitleClass(model, boardPanoramic, true)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic ${vehicleCardTitleShadow}`}
                   >
                     {model}
                   </h3>
@@ -3396,7 +3418,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <MercosulPlateMockup
                           plate={plate}
                           blurPlates={blurPlates}
-                          size={boardPanoramic ? 'cardCompact' : 'card'}
+                          size={boardPanoramic ? 'cardCompact' : 'cardGrid'}
                         />
                       </div>
                     )}
