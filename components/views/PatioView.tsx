@@ -363,7 +363,7 @@ export interface SavedBudget {
 }
 
 // --- Componente Lightbox com Zoom (Pinch) e Navegação entre Fotos ---
-const SWIPE_THRESHOLD = 60;
+const SWIPE_THRESHOLD = 44;
 
 const Lightbox = ({
   src: singleSrc,
@@ -383,6 +383,7 @@ const Lightbox = ({
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [isSwiping, setIsSwiping] = useState(false);
 
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
   const lastDistRef = useRef<number | null>(null);
@@ -441,7 +442,12 @@ const Lightbox = ({
     if (e.touches.length === 1) {
       lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       dragStartXRef.current = e.touches[0].clientX;
-      if (scale > 1) setIsDragging(true);
+      if (scale > 1) {
+        setIsDragging(true);
+      } else if (hasMultiple) {
+        setIsSwiping(true);
+        setTranslate({ x: 0, y: 0 });
+      }
     } else if (e.touches.length === 2) {
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
@@ -459,7 +465,9 @@ const Lightbox = ({
         setIsDragging(true);
         setTranslate((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
       } else if (hasMultiple && Math.abs(dx) > Math.abs(dy)) {
-        setTranslate((prev) => ({ ...prev, x: prev.x + dx }));
+        const deltaX = e.touches[0].clientX - dragStartXRef.current;
+        setIsSwiping(true);
+        setTranslate({ x: deltaX, y: 0 });
       }
       lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     } else if (e.touches.length === 2 && lastDistRef.current) {
@@ -486,6 +494,7 @@ const Lightbox = ({
     setTranslate({ x: 0, y: 0 });
     lastTouchRef.current = null;
     lastDistRef.current = null;
+    setIsSwiping(false);
     if (scale < 1) setScale(1);
   };
 
@@ -555,7 +564,7 @@ const Lightbox = ({
           onDoubleClick={handleDoubleTap}
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-            transition: isDragging ? "none" : "transform 0.2s ease-out",
+            transition: isDragging || isSwiping ? "none" : "transform 0.2s ease-out",
           }}
           className="max-w-full max-h-full object-contain select-none"
           draggable={false}
