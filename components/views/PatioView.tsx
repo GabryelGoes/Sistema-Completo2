@@ -3262,7 +3262,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         }
       >
       <div
-        className={`relative z-0 grid perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
+        className={`relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
           boardPanoramic
             ? 'grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 md:gap-3 landscape:md:grid-cols-4 lg:grid-cols-4 lg:gap-3.5 xl:grid-cols-5 2xl:grid-cols-6 2xl:gap-4'
             : 'grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 landscape:lg:grid-cols-4'
@@ -3298,9 +3298,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           return (
             <div
               key={card.id}
-              className={`transition-[min-height] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
-                boardPanoramic ? 'min-h-[128px]' : 'min-h-[180px]'
-              }`}
+              className="h-auto w-full self-start transition-opacity duration-300 ease-out"
               style={{ transformStyle: 'preserve-3d' }}
               onMouseMove={(e) => handleCardMouseMove(e, card.id)}
               onMouseLeave={handleCardMouseLeave}
@@ -3308,16 +3306,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div
                 onClick={() => setSelectedCard(card)}
                 className={`
-                  group relative flex h-full cursor-pointer flex-col justify-between overflow-hidden
+                  group relative flex h-auto min-h-0 w-full cursor-pointer flex-col overflow-hidden
                   border bg-white/70 backdrop-blur-2xl dark:bg-zinc-900/40
                   ${patioBoardGlassCardShadow}
                   hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
                   active:scale-[0.99]
-                  motion-safe:transition-[padding,min-height,border-radius,box-shadow] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]
+                  motion-safe:transition-[padding,border-radius,box-shadow] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]
                   ${
                     boardPanoramic
-                      ? 'min-h-[128px] rounded-[1.85rem] p-3.5 sm:rounded-[2.1rem]'
-                      : 'min-h-[180px] rounded-[2rem] p-5 sm:rounded-[2.25rem]'
+                      ? 'gap-2.5 rounded-[1.85rem] p-3 sm:rounded-[2.1rem] sm:p-3.5'
+                      : 'gap-3 rounded-[2rem] p-4 sm:rounded-[2.25rem] sm:p-5'
                   }
                   ${isGarantia ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40' : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'}
                 `}
@@ -3338,7 +3336,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
               {/* Conteúdo interativo: ao entrar aqui desativamos o 3D para os cliques nos botões funcionarem */}
               <div
-                className="relative z-10"
+                className={`relative z-10 flex min-h-0 w-full flex-col ${boardPanoramic ? 'gap-2' : 'gap-2.5'}`}
                 onMouseEnter={() => setInteractingCardId(card.id)}
                 onMouseLeave={() => setInteractingCardId(null)}
                 style={
@@ -3352,9 +3350,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 }
               >
               {/* Layout: 1) nome do carro  2) cliente  3) técnico | placa */}
-              <div className={boardPanoramic ? 'mb-2' : 'mb-4'}>
+              <div className="min-w-0">
                 {/* Nome do carro (fonte um pouco menor) */}
-                <div className={boardPanoramic ? 'mb-1' : 'mb-2'}>
+                <div className={boardPanoramic ? 'mb-1' : 'mb-1.5'}>
                   <h3
                     className={`font-vehicle ${getModelTitleClass(model, boardPanoramic)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic ${vehicleCardTitleShadow}`}
                   >
@@ -3373,7 +3371,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {/* Cliente + placa na mesma linha (placa fixa à direita, nome truncado) */}
                 {customerName && (
                   <div
-                    className={`mb-2 flex max-w-full items-center justify-between gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] ${
+                    className={`mb-0 flex max-w-full items-center justify-between gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] ${
                       boardPanoramic ? 'px-2 py-1' : 'px-3 py-1.5'
                     }`}
                   >
@@ -3400,8 +3398,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 )}
 
                 {/* Técnico */}
-                <div className="flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
+                <div className="flex min-w-0 items-start gap-2 sm:gap-3">
+                  <div className="min-w-0 flex-1">
                     <button
                       type="button"
                       disabled={!canAssignMember}
@@ -3441,7 +3439,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
 
               {/* Botões de Ação Inferiores */}
-              <div className={`relative mt-auto w-full ${boardPanoramic ? 'space-y-2' : 'space-y-3'}`}>
+              <div className={`relative w-full shrink-0 ${boardPanoramic ? 'space-y-1.5' : 'space-y-2'}`}>
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenMoveModal(card, e); }}
