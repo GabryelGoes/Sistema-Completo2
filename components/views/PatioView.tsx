@@ -652,19 +652,19 @@ function MercosulPlateMockup(props: {
   const isCompact = size === 'cardCompact';
   const isCard = size === 'card';
 
-  const w = isCompact ? 'w-[96px]' : isCard ? 'w-[137px]' : 'w-[136px]';
+  const w = isCompact ? 'w-[106px]' : isCard ? 'w-[151px]' : 'w-[136px]';
 
   const shadow = isCompact ? 'shadow-md shadow-black/15' : 'shadow-xl shadow-black/25';
 
-  const bandText = isCompact ? 'text-[4.9px]' : 'text-[8.7px]';
+  const bandText = isCompact ? 'text-[5.4px]' : 'text-[9.6px]';
 
-  const flagW = isCompact ? 9 : 14;
-  const flagH = isCompact ? 7 : 9;
+  const flagW = isCompact ? 10 : 14;
+  const flagH = isCompact ? 8 : 9;
 
-  /** Cartão compacto (modo lupa): fonte ~9% maior que a anterior; largura acompanha para não cortar. */
+  /** Larguras/fontes escaladas com o texto da placa nos cards (+10% sobre o passo anterior). */
   const plateText = isCompact
-    ? 'text-[15.7px] sm:text-[16.7px]'
-    : 'text-[27.5px] sm:text-[30.4px]';
+    ? 'text-[17.3px] sm:text-[18.4px]'
+    : 'text-[30.3px] sm:text-[33.4px]';
 
   return (
     <div
@@ -2715,21 +2715,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return defaultTechStyle;
   };
 
-  // Tamanho do modelo no card — valores ×1,09 vs. baseline anterior (leve aumento de legibilidade).
+  // Tamanho do modelo no card — ×1,10 sobre o passo anterior (cumulativo com o aumento de legibilidade).
   const getModelTitleClass = (modelName: string, panoramic?: boolean) => {
     const len = (modelName || '').length;
     if (panoramic) {
       if (len > 40)
-        return 'text-[1.226rem] md:text-[2.207rem] lg:text-[1.472rem] portrait:text-[1.435rem] portrait:md:text-[2.582rem] portrait:lg:text-[1.722rem]';
+        return 'text-[1.349rem] md:text-[2.428rem] lg:text-[1.619rem] portrait:text-[1.579rem] portrait:md:text-[2.840rem] portrait:lg:text-[1.894rem]';
       if (len > 26)
-        return 'text-[1.472rem] md:text-[2.943rem] lg:text-[1.839rem] portrait:text-[1.722rem] portrait:md:text-[3.443rem] portrait:lg:text-[2.152rem]';
-      return 'text-[1.472rem] md:text-[2.943rem] lg:text-[1.839rem] portrait:text-[1.722rem] portrait:md:text-[3.443rem] portrait:lg:text-[2.152rem]';
+        return 'text-[1.619rem] md:text-[3.237rem] lg:text-[2.023rem] portrait:text-[1.894rem] portrait:md:text-[3.787rem] portrait:lg:text-[2.367rem]';
+      return 'text-[1.619rem] md:text-[3.237rem] lg:text-[2.023rem] portrait:text-[1.894rem] portrait:md:text-[3.787rem] portrait:lg:text-[2.367rem]';
     }
     if (len > 40)
-      return 'text-[1.839rem] md:text-[3.679rem] lg:text-[2.207rem] portrait:text-[2.152rem] portrait:md:text-[4.304rem] portrait:lg:text-[2.582rem]';
+      return 'text-[2.023rem] md:text-[4.047rem] lg:text-[2.428rem] portrait:text-[2.367rem] portrait:md:text-[4.734rem] portrait:lg:text-[2.840rem]';
     if (len > 26)
-      return 'text-[2.207rem] md:text-[3.679rem] lg:text-[2.943rem] portrait:text-[2.582rem] portrait:md:text-[4.304rem] portrait:lg:text-[3.443rem]';
-    return 'text-[2.207rem] md:text-[3.679rem] lg:text-[2.943rem] portrait:text-[2.582rem] portrait:md:text-[4.304rem] portrait:lg:text-[3.443rem]';
+      return 'text-[2.428rem] md:text-[4.047rem] lg:text-[3.237rem] portrait:text-[2.840rem] portrait:md:text-[4.734rem] portrait:lg:text-[3.787rem]';
+    return 'text-[2.428rem] md:text-[4.047rem] lg:text-[3.237rem] portrait:text-[2.840rem] portrait:md:text-[4.734rem] portrait:lg:text-[3.787rem]';
   };
 
   const getCommentAuthorAvatar = (authorName: string, photoUrlFromComment?: string | null): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
@@ -3385,7 +3385,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
                       <span
                         className={`min-w-0 flex-1 truncate font-semibold text-zinc-700 dark:text-zinc-200 tracking-tight ${
-                          boardPanoramic ? 'text-[0.954rem]' : 'text-[1.09rem]'
+                          boardPanoramic ? 'text-[1.049rem]' : 'text-[1.199rem]'
                         }`}
                       >
                         {firstTwoNames(customerName)}
@@ -3437,7 +3437,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </div>
                       )}
                       <span
-                        className={`font-bold truncate ${boardPanoramic ? 'text-[0.954rem]' : 'text-[1.09rem]'} ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}
+                        className={`font-bold truncate ${boardPanoramic ? 'text-[1.049rem]' : 'text-[1.199rem]'} ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}
                       >
                         {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : 'Sem técnico')}
                       </span>
