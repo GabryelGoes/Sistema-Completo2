@@ -3073,9 +3073,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/15 text-[#007AFF]">
                 <ReminderIcon className="h-3.5 w-3.5" strokeWidth={2} />
               </span>
-              <span className="tracking-tight">
-                {isModuleMode ? 'Lembretes do laboratório' : 'Lembretes do pátio'}
-              </span>
+              <span className="tracking-tight">Lembretes</span>
             </button>
             <button
               type="button"
