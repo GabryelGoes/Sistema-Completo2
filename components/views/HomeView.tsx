@@ -256,7 +256,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <>
                       <button
                         type="button"
-                        onClick={() => setIsServicesModalOpen(true)}
+                        onClick={() => setIsTvPatioOpen(true)}
                         className={`group flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99]`}
                       >
                         <IosAccentIconSquircle
@@ -265,13 +265,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                         >
                           <img
-                            src="/icons/servicos-oficina-ios.png"
-                            alt="Serviços da oficina"
+                            src="/icons/tv-patio-ios.png"
+                            alt="Configurações da TV do Pátio"
                             className="h-full w-full object-cover"
                           />
                         </IosAccentIconSquircle>
                         <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
-                          Serviços da oficina
+                          Configurações da TV do Pátio
                         </span>
                       </button>
                       <button
@@ -364,7 +364,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {showAdminSection && (
               <section className="pt-2 pb-2 lg:pt-0">
                 <p className={iosSectionTitle}>Administração</p>
-                <p className={iosSectionHint}>Usuários, avisos, TV e configurações — serviços e peças ficam em Operação</p>
+                <p className={iosSectionHint}>Usuários, avisos, TV e configurações da oficina</p>
                 <div className={`${iosCard} p-2 lg:grid lg:grid-cols-2 lg:gap-0 lg:p-2`}>
                   <div className="lg:grid lg:grid-cols-1 space-y-0.5">
                     <SettingsRow
@@ -403,6 +403,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           strokeWidth={2.2}
                         >
                           <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-full w-full object-cover" />
+                        </IosAccentIconSquircle>
+                      }
+                    />
+                    <SettingsRow
+                      onClick={() => setIsServicesModalOpen(true)}
+                      title="Serviços da oficina"
+                      subtitle="Catálogo e valores"
+                      icon={
+                        <IosAccentIconSquircle
+                          variant="row"
+                          strokeWidth={2.2}
+                        >
+                          <img src="/icons/servicos-oficina-ios.png" alt="Serviços da oficina" className="h-full w-full object-cover" />
                         </IosAccentIconSquircle>
                       }
                     />
