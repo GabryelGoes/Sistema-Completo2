@@ -3449,13 +3449,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     flex w-full cursor-pointer items-center rounded-2xl transition-all duration-200 ease-out
                     shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
                     border border-black/10 dark:border-white/10
-                    ${boardPanoramic ? 'min-h-[44px] py-2 px-3.5 text-[13px]' : 'min-h-[50px] py-2.5 px-5'}
+                    ${boardPanoramic ? 'min-h-[46px] py-2 px-3.5 text-[13px]' : 'min-h-[52px] py-2.5 px-5'}
                     ${statusConfig.style}
                     hover:brightness-110 active:scale-[0.98]
                   `}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-black text-[15px] sm:text-[16px] uppercase tracking-wide !text-black dark:!text-black">
+                    <span className="truncate font-black text-[17.25px] sm:text-[18.4px] uppercase tracking-wide !text-black dark:!text-black">
                       {statusConfig.label}
                     </span>
                     <div className="flex items-center gap-1.5">
