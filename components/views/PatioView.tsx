@@ -661,9 +661,10 @@ function MercosulPlateMockup(props: {
   const flagW = isCompact ? 8 : 14;
   const flagH = isCompact ? 6 : 9;
 
+  /** ~10% menor que antes para melhor encaixe visual na miniatura. */
   const plateText = isCompact
-    ? 'text-[16px] sm:text-[17px]'
-    : 'text-[28px] sm:text-[31px]';
+    ? 'text-[14.4px] sm:text-[15.3px]'
+    : 'text-[25.2px] sm:text-[27.9px]';
 
   return (
     <div
