@@ -3446,49 +3446,49 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenMoveModal(card, e); }}
                   onPointerDown={(e) => e.stopPropagation()}
                   className={`
-                    flex w-full cursor-pointer items-center rounded-2xl transition-all duration-200 ease-out
+                    flex w-full cursor-pointer items-center gap-2 rounded-2xl transition-all duration-200 ease-out
                     shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
                     border border-black/10 dark:border-white/10
-                    ${boardPanoramic ? 'min-h-[46px] py-2 px-3.5 text-[13px]' : 'min-h-[52px] py-2.5 px-5'}
+                    ${boardPanoramic ? 'min-h-[46px] py-2 pl-3.5 pr-2.5 text-[13px]' : 'min-h-[52px] py-2.5 pl-5 pr-3'}
                     ${statusConfig.style}
                     hover:brightness-110 active:scale-[0.98]
                   `}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-[16px] font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black sm:text-[17px]">
-                      {statusConfig.label}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      {can('canArchiveCard') && (showDeliverButton || showNotApprovedDeliverButton) && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const msg = showDeliverButton
-                              ? 'Confirmar entrega deste veículo finalizado? Ele será arquivado e irá para o histórico.'
-                              : 'Confirmar entrega deste veículo não aprovado? Ele será arquivado e irá para o histórico.';
-                            if (archivingId === card.id) return;
-                            if (window.confirm(msg)) {
-                              handleDeliverVehicle(card.id);
-                            }
-                          }}
-                          className={`inline-flex items-center rounded-full font-semibold bg-white/90 text-emerald-700 border border-emerald-500/70 shadow-sm hover:bg-emerald-50 hover:text-emerald-800 transition-colors ${
-                            showDeliverButton
-                              ? 'gap-1.5 px-3 py-2 text-[11px]'
-                              : 'gap-1 px-2.5 py-1 text-[10px]'
-                          }`}
-                        >
-                          {archivingId === card.id ? (
-                            <RefreshCw className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="w-3 h-3" />
-                          )}
-                          ENTREGAR
-                        </button>
+                  <span className="min-w-0 flex-1 truncate text-left text-[16px] font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black sm:text-[17px]">
+                    {statusConfig.label}
+                  </span>
+                  {can('canArchiveCard') && (showDeliverButton || showNotApprovedDeliverButton) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const msg = showDeliverButton
+                          ? 'Confirmar entrega deste veículo finalizado? Ele será arquivado e irá para o histórico.'
+                          : 'Confirmar entrega deste veículo não aprovado? Ele será arquivado e irá para o histórico.';
+                        if (archivingId === card.id) return;
+                        if (window.confirm(msg)) {
+                          handleDeliverVehicle(card.id);
+                        }
+                      }}
+                      className={`inline-flex shrink-0 items-center rounded-full font-semibold bg-white/90 text-emerald-700 border border-emerald-500/70 shadow-sm hover:bg-emerald-50 hover:text-emerald-800 transition-colors ${
+                        showDeliverButton
+                          ? 'gap-1.5 px-3 py-2 text-[11px]'
+                          : 'gap-1 px-2.5 py-1 text-[10px]'
+                      }`}
+                    >
+                      {archivingId === card.id ? (
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="w-3 h-3" />
                       )}
-                      <ChevronDown className="h-5 w-5 shrink-0 opacity-70 text-black dark:text-black" aria-hidden />
-                    </div>
-                  </div>
+                      ENTREGAR
+                    </button>
+                  )}
+                  <ChevronDown
+                    className={`shrink-0 text-black opacity-90 dark:text-black ${boardPanoramic ? 'h-4 w-4' : 'h-[18px] w-[18px]'}`}
+                    strokeWidth={2.5}
+                    aria-hidden
+                  />
                 </button>
               </div>
 
