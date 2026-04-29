@@ -696,12 +696,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
           {/* Bloco único da ficha */}
           <div className={receptionSectionShell}>
-            <div className={receptionSectionHeader}>
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(10,132,255,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(10,132,255,0.16),transparent_52%)]" aria-hidden />
-              <h2 className="relative px-7 py-3 text-[16px] font-bold tracking-[-0.03em] text-zinc-900 dark:text-white">
-                Cadastro completo
-              </h2>
-            </div>
             <div className="p-4 sm:p-5 lg:p-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-7">
             {/* Dados do cliente — order-2: coluna direita no desktop; após veículo no mobile */}
