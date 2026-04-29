@@ -384,6 +384,7 @@ const Lightbox = ({
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [isSwiping, setIsSwiping] = useState(false);
+  const preloadedImagesRef = useRef<Set<string>>(new Set());
 
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
   const lastDistRef = useRef<number | null>(null);
@@ -393,6 +394,14 @@ const Lightbox = ({
   const hasMultiple = images.length > 1;
   const canGoPrev = hasMultiple && currentIndex > 0;
   const canGoNext = hasMultiple && currentIndex < images.length - 1;
+
+  const preloadImage = React.useCallback((url?: string) => {
+    if (!url || preloadedImagesRef.current.has(url)) return;
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = url;
+    preloadedImagesRef.current.add(url);
+  }, []);
 
   useEffect(() => {
     setScale(1);
@@ -404,6 +413,20 @@ const Lightbox = ({
     setScale(1);
     setTranslate({ x: 0, y: 0 });
   }, [src]);
+
+  // Pré-carrega imagens vizinhas para swipe ficar imediato
+  useEffect(() => {
+    if (!hasMultiple) {
+      preloadImage(src);
+      return;
+    }
+    preloadImage(images[currentIndex]);
+    preloadImage(images[currentIndex - 1]);
+    preloadImage(images[currentIndex + 1]);
+    // Buffer adicional para navegação rápida em sequência
+    preloadImage(images[currentIndex - 2]);
+    preloadImage(images[currentIndex + 2]);
+  }, [hasMultiple, images, currentIndex, src, preloadImage]);
 
   useEffect(() => {
     return () => {
