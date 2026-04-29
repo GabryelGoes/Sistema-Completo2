@@ -7,7 +7,6 @@ import {
   iosModalClose,
   iosLabel,
   iosPageGlass,
-  iosAccentPrimaryButton,
 } from '../ui/iosModalStyles';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { IosModalHeader } from '../ui/IosModalHeader';
@@ -628,7 +627,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               Recepção
             </h1>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
-              <Sparkles className="w-3.5 h-3.5 text-brand-yellow shrink-0" strokeWidth={2} />
+              <Sparkles className="w-3.5 h-3.5 text-[#007AFF] dark:text-[#7ab8ff] shrink-0" strokeWidth={2} />
               <span>Cadastro de clientes e veículos</span>
             </p>
           </div>
@@ -641,7 +640,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               onClick={() => setReceptionMode('vehicle')}
               className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-[0.85rem] text-sm font-semibold transition-all ${
                 receptionMode === 'vehicle'
-                  ? 'bg-brand-yellow text-zinc-950 shadow-md shadow-brand-yellow/30 border border-black/[0.08] dark:border-black/25'
+                  ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/25 border border-[#007AFF]/60'
                   : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
               }`}
             >
@@ -653,7 +652,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               onClick={() => setReceptionMode('module')}
               className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-[0.85rem] text-sm font-semibold transition-all ${
                 receptionMode === 'module'
-                  ? 'bg-brand-yellow text-zinc-950 shadow-md shadow-brand-yellow/30 border border-black/[0.08] dark:border-black/25'
+                  ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/25 border border-[#007AFF]/60'
                   : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
               }`}
             >
@@ -667,7 +666,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             className="inline-flex items-center gap-2 py-2.5 px-4 rounded-2xl text-sm font-semibold border border-zinc-200/80 dark:border-white/[0.1] bg-white/65 dark:bg-white/[0.06] backdrop-blur-xl text-zinc-800 dark:text-zinc-100 hover:bg-white/90 dark:hover:bg-white/10 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.08)] transition-all active:scale-[0.98] shrink-0"
             title="Consultar histórico de veículos arquivados"
           >
-            <History className="w-4 h-4 text-brand-yellow" />
+            <History className="w-4 h-4 text-[#007AFF] dark:text-[#7ab8ff]" />
             {receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
           </button>
         </div>
@@ -676,7 +675,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       {/* Cartão principal — vidro iOS */}
       <div className={`${iosPageGlass} p-6 md:p-8 lg:p-10 overflow-hidden`}>
         <div className="pointer-events-none absolute -top-32 -right-32 w-[22rem] h-[22rem] bg-gradient-to-br from-cyan-400/20 to-blue-600/10 rounded-full blur-3xl opacity-70" />
-        <div className="pointer-events-none absolute -bottom-28 -left-20 w-[18rem] h-[18rem] bg-gradient-to-br from-amber-400/15 to-orange-500/5 rounded-full blur-3xl opacity-60" />
+        <div className="pointer-events-none absolute -bottom-28 -left-20 w-[18rem] h-[18rem] bg-gradient-to-br from-sky-400/20 to-blue-600/10 rounded-full blur-3xl opacity-60" />
 
         <form onSubmit={handleSubmit} className="relative z-10 space-y-6 lg:space-y-0">
           
@@ -697,7 +696,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             {/* Dados do cliente — order-2: coluna direita no desktop; após veículo no mobile */}
             <div className={`order-2 ${receptionSectionShell}`}>
               <div className={receptionSectionHeader}>
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.14),transparent_52%)]" aria-hidden />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(10,132,255,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(10,132,255,0.16),transparent_52%)]" aria-hidden />
                 <h2 className="relative px-7 py-3 text-[16px] font-bold tracking-[-0.03em] text-zinc-900 dark:text-white">
                   Dados do cliente
                 </h2>
@@ -787,7 +786,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             {/* Veículo/módulo + queixa (foto e enviar ficam em order-3) — order-1: coluna esquerda no desktop */}
             <div className={`order-1 ${receptionSectionShell}`}>
               <div className={receptionSectionHeader}>
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.14),transparent_52%)]" aria-hidden />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(10,132,255,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(10,132,255,0.16),transparent_52%)]" aria-hidden />
                 <h2 className="relative px-7 py-3 text-[16px] font-bold tracking-[-0.03em] text-zinc-900 dark:text-white">
                   {receptionMode === 'vehicle' ? 'Veículo e atendimento' : 'Módulo e atendimento'}
                 </h2>
@@ -838,12 +837,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => void runPlacaLookup(true)}
                           disabled={plateLookupLoading}
-                          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold border border-zinc-200/90 dark:border-white/[0.12] bg-white/90 dark:bg-white/[0.06] text-zinc-800 dark:text-zinc-100 hover:border-brand-yellow/50 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-[0.98]"
+                          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold border border-zinc-200/90 dark:border-white/[0.12] bg-white/90 dark:bg-white/[0.06] text-zinc-800 dark:text-zinc-100 hover:border-[#007AFF]/45 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-[0.98]"
                         >
                           {plateLookupLoading ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-brand-yellow" aria-hidden />
+                            <Loader2 className="w-4 h-4 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
                           ) : (
-                            <Search className="w-4 h-4 text-brand-yellow" aria-hidden />
+                            <Search className="w-4 h-4 text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
                           )}
                           Buscar placa
                         </button>
@@ -930,8 +929,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           onClick={() => setVehicleCategory(category)}
                           className={`px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-all active:scale-[0.98] ${
                             selected
-                              ? 'bg-brand-yellow text-zinc-950 border-brand-yellow/90 shadow-md shadow-brand-yellow/25'
-                              : 'bg-white/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200 border-zinc-200/90 dark:border-white/[0.1] hover:border-brand-yellow/50 backdrop-blur-sm'
+                              ? 'bg-[#007AFF] text-white border-[#007AFF]/85 shadow-md shadow-blue-500/25'
+                              : 'bg-white/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200 border-zinc-200/90 dark:border-white/[0.1] hover:border-[#007AFF]/45 backdrop-blur-sm'
                           }`}
                           aria-pressed={selected}
                         >
@@ -959,7 +958,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             {/* Foto + enviar — sempre por último (mobile em pé) e linha inteira no desktop */}
             <div className={`order-3 space-y-6 lg:col-span-2 ${receptionSectionShell}`}>
               <div className={receptionSectionHeader}>
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.14),transparent_52%)]" aria-hidden />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(10,132,255,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(10,132,255,0.16),transparent_52%)]" aria-hidden />
                 <h2 className="relative px-7 py-3 text-[16px] font-bold tracking-[-0.03em] text-zinc-900 dark:text-white">
                   Foto e envio
                 </h2>
@@ -980,9 +979,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-4 border border-zinc-200/90 dark:border-white/[0.1] rounded-2xl flex items-center justify-center gap-3 text-zinc-600 dark:text-zinc-300 bg-white/50 dark:bg-white/[0.04] backdrop-blur-md hover:border-brand-yellow/45 hover:bg-white/80 dark:hover:bg-white/[0.08] transition-all active:scale-[0.99]"
+                    className="w-full py-4 border border-zinc-200/90 dark:border-white/[0.1] rounded-2xl flex items-center justify-center gap-3 text-zinc-600 dark:text-zinc-300 bg-white/50 dark:bg-white/[0.04] backdrop-blur-md hover:border-[#007AFF]/45 hover:bg-white/80 dark:hover:bg-white/[0.08] transition-all active:scale-[0.99]"
                   >
-                    <Camera className="w-5 h-5 text-brand-yellow" strokeWidth={2} />
+                    <Camera className="w-5 h-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2} />
                     <span className="font-medium text-sm">{receptionMode === 'module' ? 'Foto do módulo (câmera ou galeria)' : 'Foto do veículo (câmera ou galeria)'}</span>
                   </button>
                 ) : (
@@ -1001,7 +1000,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       </div>
                       <div className="absolute bottom-4 left-4 right-4 bg-black/70 backdrop-blur-md p-3 rounded-xl border border-white/10">
                         <div className="flex items-center gap-3">
-                          <ImageIcon className="w-5 h-5 text-brand-yellow" />
+                          <ImageIcon className="w-5 h-5 text-[#64B5FF]" />
                           <div className="flex-1">
                             <p className="text-xs font-bold text-white uppercase">Foto Selecionada</p>
                             <p className="text-[10px] text-zinc-300 mt-0.5">Clique no X para remover</p>
@@ -1016,7 +1015,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <div className="pt-2 flex justify-center sm:justify-start">
                 <button 
                   type="submit"
-                  className={`group relative min-w-[220px] ${iosAccentPrimaryButton} !px-8 flex items-center justify-center gap-2`}
+                  className="group relative min-w-[220px] rounded-2xl bg-[#007AFF] !px-8 px-8 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 hover:opacity-95 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
                   Criar ficha
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -1055,7 +1054,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             <div className="p-4 sm:p-6 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/40 dark:bg-white/[0.03]">
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-yellow/85" strokeWidth={2} />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#007AFF]/90 dark:text-[#7ab8ff]" strokeWidth={2} />
                   <input
                     value={historySearch}
                     onChange={(e) => setHistorySearch(e.target.value)}
@@ -1065,13 +1064,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         ? 'Buscar por identificação, cliente ou modelo'
                         : 'Buscar por placa, cliente ou modelo'
                     }
-                    className="w-full rounded-2xl border border-zinc-200/90 bg-white/90 py-3 pl-9 pr-3 text-zinc-900 placeholder:text-zinc-400 focus:border-brand-yellow/50 focus:outline-none focus:ring-2 focus:ring-brand-yellow/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-100"
+                    className="w-full rounded-2xl border border-zinc-200/90 bg-white/90 py-3 pl-9 pr-3 text-zinc-900 placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-100"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => loadVehicleHistory(historySearch)}
-                  className="flex h-11 min-w-[44px] items-center justify-center rounded-2xl border border-black/10 bg-brand-yellow px-4 font-semibold text-zinc-950 shadow-lg shadow-brand-yellow/30 transition-all hover:brightness-110 active:scale-[0.98] dark:border-black/25"
+                  className="flex h-11 min-w-[44px] items-center justify-center rounded-2xl border border-[#007AFF]/60 bg-[#007AFF] px-4 font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:brightness-110 active:scale-[0.98]"
                 >
                   <RefreshCw className={`w-4 h-4 ${historyLoading ? 'animate-spin' : ''}`} />
                 </button>
@@ -1080,7 +1079,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 bg-zinc-50/30 dark:bg-zinc-950/20 custom-scrollbar pb-[max(1rem,env(safe-area-inset-bottom))]">
               {historyLoading ? (
                 <div className="py-16 flex flex-col items-center justify-center gap-3 text-zinc-500">
-                  <RefreshCw className="w-8 h-8 animate-spin text-brand-yellow" />
+                  <RefreshCw className="w-8 h-8 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" />
                   <p>Carregando arquivados...</p>
                 </div>
               ) : archivedOrders.length === 0 ? (
@@ -1096,7 +1095,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   return (
                   <div
                     key={o.id}
-                    className="group bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border border-zinc-200/80 dark:border-white/[0.08] rounded-[22px] p-5 hover:border-amber-400/50 dark:hover:border-amber-500/40 transition-all shadow-[0_2px_20px_-4px_rgba(0,0,0,0.06)] hover:shadow-lg flex flex-col min-h-[200px]"
+                    className="group bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border border-zinc-200/80 dark:border-white/[0.08] rounded-[22px] p-5 hover:border-[#007AFF]/40 dark:hover:border-[#007AFF]/45 transition-all shadow-[0_2px_20px_-4px_rgba(0,0,0,0.06)] hover:shadow-lg flex flex-col min-h-[200px]"
                   >
                     <div className="flex justify-between items-start gap-4 mb-3">
                       <div className="min-w-0 flex-1">
@@ -1111,7 +1110,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           </p>
                         ) : null}
                         <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
-                          <User className="w-4 h-4 text-brand-yellow shrink-0" strokeWidth={2} />
+                          <User className="w-4 h-4 text-[#007AFF] dark:text-[#7ab8ff] shrink-0" strokeWidth={2} />
                           <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
                             {customerName}
                           </span>
@@ -1155,7 +1154,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <button
                         type="button"
                         onClick={() => openArchivedDetail(o)}
-                        className="w-full px-3 py-2.5 rounded-xl text-xs font-bold bg-brand-yellow text-zinc-950 hover:bg-[#fcd61e] transition-colors flex items-center justify-center gap-2"
+                        className="w-full px-3 py-2.5 rounded-xl text-xs font-bold bg-[#007AFF] text-white hover:bg-[#0A84FF] transition-colors flex items-center justify-center gap-2"
                       >
                         Ver detalhes completos
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -1213,7 +1212,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => setHistoryBudgetDetail(b)}
-                                className="mt-2 w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-brand-yellow text-black hover:opacity-90 transition-opacity"
+                                className="mt-2 w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-[#007AFF] text-white hover:opacity-90 transition-opacity"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                                 Abrir orçamento completo
@@ -1263,7 +1262,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     type="button"
                     onClick={handleUseRegistrationFromDetail}
                     disabled={!archivedDetailData}
-                    className="bg-brand-yellow hover:bg-[#fcd61e] disabled:opacity-50 text-zinc-950 px-4 sm:px-6 py-2.5 rounded-full font-bold shadow-lg shadow-brand-yellow/30 flex items-center gap-2 text-sm transition-all"
+                    className="bg-[#007AFF] hover:bg-[#0A84FF] disabled:opacity-50 text-white px-4 sm:px-6 py-2.5 rounded-full font-bold shadow-lg shadow-blue-500/25 flex items-center gap-2 text-sm transition-all"
                   >
                     <Copy className="w-4 h-4" />
                     USAR CADASTRO
@@ -1282,7 +1281,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
                 {archivedDetailLoading && !archivedDetailData ? (
                   <div className="flex flex-col items-center justify-center py-24 gap-3 text-zinc-500">
-                    <RefreshCw className="w-10 h-10 animate-spin text-brand-yellow" />
+                    <RefreshCw className="w-10 h-10 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" />
                     <p>Carregando dados da OS...</p>
                   </div>
                 ) : archivedDetailData ? (
@@ -1297,7 +1296,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           <span className="inline-flex self-start items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest border bg-zinc-100 dark:bg-black/60 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700">
                             ARQUIVADO
                             {d.os_number != null && (
-                              <span className="text-brand-yellow dark:text-brand-yellow">· OS #{d.os_number}</span>
+                              <span className="text-[#007AFF] dark:text-[#7ab8ff]">· OS #{d.os_number}</span>
                             )}
                           </span>
                           <h1
@@ -1402,7 +1401,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                   ) : (
                                     archivedDetailComments.map((c) => (
                                       <div key={c.id} className="flex gap-4">
-                                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-brand-yellow/20 border border-brand-yellow/40 flex items-center justify-center text-sm font-bold text-zinc-900 dark:text-white">
+                                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#007AFF]/15 border border-[#007AFF]/35 flex items-center justify-center text-sm font-bold text-zinc-900 dark:text-white">
                                           {(c.author_display_name || '?').slice(0, 1).toUpperCase()}
                                         </div>
                                         <div className="flex-1 space-y-1 min-w-0">
@@ -1430,7 +1429,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
                           <div className="space-y-8">
                             <div>
-                              <h3 className="text-brand-yellow dark:text-brand-yellow text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                              <h3 className="text-[#007AFF] dark:text-[#7ab8ff] text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <Paperclip className="w-4 h-4" />
                                 Fotos e anexos
                               </h3>
@@ -1448,7 +1447,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                       att.mimeType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url);
                                     const isPdf = att.mimeType === 'application/pdf' || att.url.toLowerCase().endsWith('.pdf');
                                     const cardClass =
-                                      'block w-full bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden group hover:border-brand-yellow transition-all';
+                                      'block w-full bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden group hover:border-[#007AFF]/45 transition-all';
                                     if (isPdf) {
                                       return (
                                         <button
