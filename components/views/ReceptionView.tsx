@@ -845,11 +845,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         <p className="text-xs text-red-600 dark:text-red-400 px-1" role="alert">
                           {plateLookupError}
                         </p>
-                      ) : (
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 px-1">
-                          Ao sair do campo ou em &quot;Buscar placa&quot;, os dados são carregados pela API (token no servidor).
-                        </p>
-                      )}
+                      ) : null}
                     </div>
                     <Input
                       label="Km"
