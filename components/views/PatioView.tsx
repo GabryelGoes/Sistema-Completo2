@@ -949,7 +949,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Desktop horizontal: usar `zoom` (não `transform: scale`) para o box do layout acompanhar o conteúdo — scale() deixa altura “fantasma” e espaço vazio no card. */
   const DESKTOP_LANDSCAPE_CARD_ZOOM = 0.65025;
 
-  /** Modo lupa (panorâmico): até 5 colunas no grid (5 “faixas” verticais lado a lado), não 5 fileiras horizontais. Zoom um pouco menor que o antigo 6 colunas. */
+  /** Modo lupa: grade `md:grid-cols-5` → cinco cartões por fileira horizontal (telas ≥768px); mobile estreito mantém 2 colunas. */
   const BOARD_PANORAMIC_ZOOM = 0.72;
 
   const selectedCardTitleParts = selectedCard ? parsePatioCardTitle(selectedCard.name) : null;
@@ -3176,12 +3176,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
               aria-label={
                 boardPanoramic
                   ? 'Ampliar cartões — voltar ao tamanho padrão'
-                  : 'Reduzir cartões — até cinco colunas (faixas verticais)'
+                  : 'Reduzir cartões — cinco por fileira em telas médias ou maiores'
               }
               title={
                 boardPanoramic
                   ? 'Tamanho padrão dos cartões (ampliar)'
-                  : 'Cartões menores: até cinco colunas verticais na grade (telas largas)'
+                  : 'Cartões menores: cinco por fileira horizontal (largura ≥768px)'
               }
               className={`group flex h-12 w-12 shrink-0 items-center justify-center rounded-full border shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] hover:scale-[1.06] active:scale-[0.94] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] ${
                 boardPanoramic
@@ -3270,7 +3270,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       <div
         className={`relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
           boardPanoramic
-            ? 'grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 md:gap-3 landscape:md:grid-cols-4 lg:grid-cols-5 lg:gap-3.5 2xl:gap-4'
+            ? 'grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-5 md:gap-3 lg:gap-3.5 2xl:gap-4'
             : 'grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 landscape:lg:grid-cols-4'
         }`}
       >
