@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ClipboardList,
   ChevronRight,
@@ -61,6 +61,8 @@ const iosSectionTitle =
   'text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-950 dark:text-zinc-400 mb-1';
 
 const iosSectionHint = 'text-[13px] text-zinc-950 dark:text-zinc-400 mb-4 leading-relaxed';
+const QUICK_APPS_LAYOUT_KEY = 'app_home_quick_apps_layout_v1';
+const LONG_PRESS_MS = 420;
 
 const OPERATIONAL_APPS: {
   id: HomeAppId;
@@ -83,6 +85,14 @@ const OPERATIONAL_APPS: {
     icon: <img src="/icons/laboratorio-ios.png" alt="Laboratório" className="h-full w-full object-cover" />,
   },
 ];
+
+type QuickTileSize = 'normal' | 'wide';
+type QuickLayoutState = {
+  order: HomeAppId[];
+  sizes: Partial<Record<HomeAppId, QuickTileSize>>;
+};
+
+const DEFAULT_QUICK_ORDER: HomeAppId[] = OPERATIONAL_APPS.map((app) => app.id);
 
 function SettingsRow({
   onClick,
@@ -148,6 +158,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
   const [isZayaAlertsOpen, setIsZayaAlertsOpen] = useState(false);
+  const [quickLayout, setQuickLayout] = useState<QuickLayoutState>(() => {
+    try {
+      const raw = localStorage.getItem(QUICK_APPS_LAYOUT_KEY);
+      if (!raw) return { order: DEFAULT_QUICK_ORDER, sizes: {} };
+      const parsed = JSON.parse(raw) as QuickLayoutState;
+      if (!parsed || !Array.isArray(parsed.order)) return { order: DEFAULT_QUICK_ORDER, sizes: {} };
+      const order = [...parsed.order.filter((id) => DEFAULT_QUICK_ORDER.includes(id as HomeAppId))] as HomeAppId[];
+      DEFAULT_QUICK_ORDER.forEach((id) => {
+        if (!order.includes(id)) order.push(id);
+      });
+      return { order, sizes: parsed.sizes ?? {} };
+    } catch {
+      return { order: DEFAULT_QUICK_ORDER, sizes: {} };
+    }
+  });
+  const [isQuickEditMode, setIsQuickEditMode] = useState(false);
+  const [draggingQuickId, setDraggingQuickId] = useState<HomeAppId | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressTriggeredRef = useRef(false);
+  const quickGridRef = useRef<HTMLDivElement | null>(null);
 
   const perms = systemUserPermissions || {};
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
@@ -155,6 +185,123 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const showToolsSection = hasToolsAccess && !perms.full_access;
 
   const operationalForView = isTechnician ? OPERATIONAL_APPS.filter((a) => allowedTabs.includes(a.id)) : OPERATIONAL_APPS;
+  const operationalById = useMemo(
+    () => Object.fromEntries(operationalForView.map((app) => [app.id, app])) as Record<HomeAppId, typeof OPERATIONAL_APPS[number]>,
+    [operationalForView]
+  );
+  const orderedOperationalApps = useMemo(() => {
+    const visibleIds = new Set(operationalForView.map((app) => app.id));
+    const fromSaved = quickLayout.order.filter((id) => visibleIds.has(id));
+    operationalForView.forEach((app) => {
+      if (!fromSaved.includes(app.id)) fromSaved.push(app.id);
+    });
+    return fromSaved.map((id) => operationalById[id]).filter(Boolean);
+  }, [operationalById, operationalForView, quickLayout.order]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(QUICK_APPS_LAYOUT_KEY, JSON.stringify(quickLayout));
+    } catch (_) {}
+  }, [quickLayout]);
+
+  useEffect(() => {
+    const stopDrag = () => setDraggingQuickId(null);
+    window.addEventListener('pointerup', stopDrag);
+    window.addEventListener('pointercancel', stopDrag);
+    return () => {
+      window.removeEventListener('pointerup', stopDrag);
+      window.removeEventListener('pointercancel', stopDrag);
+    };
+  }, []);
+
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimerRef.current != null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const moveQuickApp = useCallback((sourceId: HomeAppId, targetId: HomeAppId) => {
+    if (sourceId === targetId) return;
+    setQuickLayout((prev) => {
+      const order = [...prev.order];
+      const from = order.indexOf(sourceId);
+      const to = order.indexOf(targetId);
+      if (from === -1 || to === -1) return prev;
+      order.splice(from, 1);
+      order.splice(to, 0, sourceId);
+      return { ...prev, order };
+    });
+  }, []);
+
+  const handleQuickCardPointerDown = useCallback(
+    (appId: HomeAppId, event: React.PointerEvent<HTMLButtonElement>) => {
+      longPressTriggeredRef.current = false;
+      clearLongPressTimer();
+
+      if (isQuickEditMode) {
+        setDraggingQuickId(appId);
+        return;
+      }
+
+      longPressTimerRef.current = window.setTimeout(() => {
+        longPressTriggeredRef.current = true;
+        setIsQuickEditMode(true);
+        setDraggingQuickId(appId);
+      }, LONG_PRESS_MS);
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [clearLongPressTimer, isQuickEditMode]
+  );
+
+  const handleQuickCardPointerUp = useCallback(
+    (appId: HomeAppId) => {
+      clearLongPressTimer();
+      if (!isQuickEditMode && !longPressTriggeredRef.current) {
+        onOpenApp(appId);
+      }
+      if (!longPressTriggeredRef.current) {
+        setDraggingQuickId(null);
+      }
+      longPressTriggeredRef.current = false;
+    },
+    [clearLongPressTimer, isQuickEditMode, onOpenApp]
+  );
+
+  const handleQuickGridPointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!isQuickEditMode || !draggingQuickId) return;
+      const hit = document.elementFromPoint(event.clientX, event.clientY);
+      const target = hit?.closest?.('[data-quick-app-id]') as HTMLElement | null;
+      const targetId = target?.dataset.quickAppId as HomeAppId | undefined;
+      if (!targetId || targetId === draggingQuickId) return;
+      moveQuickApp(draggingQuickId, targetId);
+    },
+    [draggingQuickId, isQuickEditMode, moveQuickApp]
+  );
+
+  const toggleQuickTileSize = useCallback((appId: HomeAppId) => {
+    setQuickLayout((prev) => {
+      const current = prev.sizes[appId] ?? 'normal';
+      const next: QuickTileSize = current === 'wide' ? 'normal' : 'wide';
+      return {
+        ...prev,
+        sizes: {
+          ...prev.sizes,
+          [appId]: next,
+        },
+      };
+    });
+  }, []);
+
+  const quickGridColsClass =
+    orderedOperationalApps.length <= 1
+      ? 'grid-cols-1'
+      : orderedOperationalApps.length === 2
+        ? 'grid-cols-2'
+        : showAdminSection
+          ? 'grid-cols-2 lg:grid-cols-3'
+          : 'grid-cols-2 lg:grid-cols-4';
 
   return (
     <div className="min-h-screen flex flex-col safe-area-pb relative overflow-x-hidden">
@@ -202,41 +349,71 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="lg:space-y-8">
             <section className="pt-5 pb-2 lg:pt-6 lg:pb-0">
               <p className={iosSectionTitle}>Operação</p>
-              <p className={iosSectionHint}>Acesso rápido aos módulos do dia a dia</p>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className={`${iosSectionHint} mb-0`}>
+                  {isQuickEditMode ? 'Arraste para reorganizar. Toque em 2x para cartão largo.' : 'Acesso rápido aos módulos do dia a dia'}
+                </p>
+                {isQuickEditMode ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsQuickEditMode(false);
+                      setDraggingQuickId(null);
+                    }}
+                    className="shrink-0 rounded-full border border-[#007AFF]/45 bg-[#007AFF]/15 px-3 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-all hover:bg-[#007AFF]/20 dark:border-[#64B5FF]/45 dark:bg-[#64B5FF]/14 dark:text-[#8cc8ff]"
+                  >
+                    Concluir
+                  </button>
+                ) : null}
+              </div>
 
-              {isTechnician && operationalForView.length <= 2 ? (
-                <div className={`grid gap-3 ${operationalForView.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} lg:grid-cols-2`}>
-                  {operationalForView.map((app) => (
+              <div
+                ref={quickGridRef}
+                onPointerMove={handleQuickGridPointerMove}
+                onPointerUp={() => setDraggingQuickId(null)}
+                className={`grid gap-3 ${quickGridColsClass}`}
+              >
+                {orderedOperationalApps.map((app) => {
+                  const isWide = (quickLayout.sizes[app.id] ?? 'normal') === 'wide';
+                  const isDragging = draggingQuickId === app.id;
+                  return (
                     <button
                       key={app.id}
+                      data-quick-app-id={app.id}
                       type="button"
-                      onClick={() => onOpenApp(app.id)}
-                      className={`group flex flex-col items-center gap-3 p-6 ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/20 dark:hover:border-[#0A84FF]/25 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.25)] transition-all duration-300 active:scale-[0.98]`}
+                      onPointerDown={(event) => handleQuickCardPointerDown(app.id, event)}
+                      onPointerUp={() => handleQuickCardPointerUp(app.id)}
+                      onPointerLeave={clearLongPressTimer}
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        setIsQuickEditMode(true);
+                      }}
+                      className={`group relative flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99] ${
+                        isWide ? 'col-span-2' : ''
+                      } ${isQuickEditMode ? 'animate-[pulse_2.8s_ease-in-out_infinite]' : ''} ${
+                        isDragging ? 'scale-[1.02] border-[#007AFF]/35 shadow-[0_18px_48px_-18px_rgba(0,122,255,0.38)]' : ''
+                      }`}
                     >
-                      <IosAccentIconSquircle
-                        variant="tile"
-                        className="transition-transform duration-300 group-hover:scale-105"
-                        strokeWidth={2.2}
-                      >
-                        {app.icon}
-                      </IosAccentIconSquircle>
-                      <span className="text-[15px] font-semibold text-zinc-900 dark:text-white text-center tracking-tight">
-                        {app.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div
-                  className={`grid grid-cols-2 gap-3 ${showAdminSection ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}
-                >
-                  {operationalForView.map((app) => (
-                    <button
-                      key={app.id}
-                      type="button"
-                      onClick={() => onOpenApp(app.id)}
-                      className={`group flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99]`}
-                    >
+                      {isQuickEditMode && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleQuickTileSize(app.id);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key !== 'Enter' && event.key !== ' ') return;
+                            event.preventDefault();
+                            event.stopPropagation();
+                            toggleQuickTileSize(app.id);
+                          }}
+                          className="absolute right-2 top-2 z-10 rounded-full border border-[#007AFF]/35 bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#007AFF] shadow-sm backdrop-blur-md transition-all hover:bg-white dark:border-[#64B5FF]/45 dark:bg-zinc-900/80 dark:text-[#8cc8ff]"
+                        >
+                          2x
+                        </span>
+                      )}
                       <IosAccentIconSquircle
                         variant="tile"
                         className="transition-transform duration-300 group-hover:scale-105"
@@ -246,54 +423,53 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       </IosAccentIconSquircle>
                       <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">{app.label}</span>
                     </button>
-                  ))}
-                  {showAdminSection && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setIsTvPatioOpen(true)}
-                        className={`group flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99]`}
+                  );
+                })}
+                {showAdminSection && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setIsTvPatioOpen(true)}
+                      className={`group flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99]`}
+                    >
+                      <IosAccentIconSquircle
+                        variant="tile"
+                        className="transition-transform duration-300 group-hover:scale-105"
+                        strokeWidth={2.2}
                       >
-                        <IosAccentIconSquircle
-                          variant="tile"
-                          className="transition-transform duration-300 group-hover:scale-105"
-                          strokeWidth={2.2}
-                        >
-                          <img
-                            src="/icons/tv-patio-ios.png"
-                            alt="TV do Pátio"
-                            className="h-full w-full object-cover"
-                          />
-                        </IosAccentIconSquircle>
-                        <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
-                          TV do Pátio
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsPartsModalOpen(true)}
-                        className={`group flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99]`}
+                        <img
+                          src="/icons/tv-patio-ios.png"
+                          alt="TV do Pátio"
+                          className="h-full w-full object-cover"
+                        />
+                      </IosAccentIconSquircle>
+                      <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
+                        TV do Pátio
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsPartsModalOpen(true)}
+                      className={`group flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99]`}
+                    >
+                      <IosAccentIconSquircle
+                        variant="tile"
+                        className="transition-transform duration-300 group-hover:scale-105"
+                        strokeWidth={2.2}
                       >
-                        <IosAccentIconSquircle
-                          variant="tile"
-                          className="transition-transform duration-300 group-hover:scale-105"
-                          strokeWidth={2.2}
-                        >
-                          <img
-                            src="/icons/estoque-ios.png"
-                            alt="Estoque de peças"
-                            className="h-full w-full object-cover"
-                          />
-                        </IosAccentIconSquircle>
-                        <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
-                          Estoque de peças
-                        </span>
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-
+                        <img
+                          src="/icons/estoque-ios.png"
+                          alt="Estoque de peças"
+                          className="h-full w-full object-cover"
+                        />
+                      </IosAccentIconSquircle>
+                      <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
+                        Estoque de peças
+                      </span>
+                    </button>
+                  </>
+                )}
+              </div>
             </section>
           </div>
 
