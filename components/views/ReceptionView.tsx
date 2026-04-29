@@ -613,7 +613,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
       {/* Cabeçalho — mesmo padrão da página Agenda */}
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
-        <div className="flex items-center gap-3 sm:gap-4 min-w-0 ml-[5%]">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0 ml-[8%]">
           <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
             <img src="/icons/recepcao-ios.png" alt="" className="h-full w-full object-cover" />
           </IosAccentIconSquircle>
