@@ -2641,15 +2641,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     };
     return map[c] ?? map.zinc;
   };
-  const accentColorToText = (accent: string | null | undefined): string => {
-    const c = (accent || 'zinc').toLowerCase();
-    const map: Record<string, string> = {
-      blue: 'text-blue-500', emerald: 'text-emerald-500', violet: 'text-violet-500',
-      amber: 'text-amber-500', rose: 'text-rose-500', cyan: 'text-cyan-500',
-      orange: 'text-orange-500', zinc: 'text-zinc-500',
-    };
-    return map[c] ?? map.zinc;
-  };
 
   // Lista de técnicos para o modal: usuários do sistema (com cor e foto do perfil)
   const defaultTechStyle = 'bg-zinc-600 text-white border-zinc-600';
@@ -2661,12 +2652,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }));
 
   const getTechById = (id: string | null | undefined) => id ? systemTechnicians.find((t) => t.id === id) : undefined;
-
-  const getMechanicIconColor = (mechanicName: string | null, memberId?: string | null) => {
-    const tech = memberId ? getTechById(memberId) : undefined;
-    if (tech) return accentColorToText(tech.accent_color);
-    return 'text-zinc-500';
-  };
 
   const getMechanicButtonStyle = (mechanicName: string, memberId?: string | null) => {
     const tech = memberId ? getTechById(memberId) : undefined;
@@ -3214,7 +3199,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
           
           const member = card.members && card.members.length > 0 ? card.members[0] : null;
           const mechanic = member ? member.fullName : null;
-          const mechanicColorClass = getMechanicIconColor(mechanic, member?.id);
           const hasMechanic = !!mechanic;
           
           const statusConfig = getStatusConfig(listName, card.idList);
@@ -3339,10 +3323,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           : 'border-zinc-200/60 dark:border-white/5 bg-light-card/80 dark:bg-white/[0.04] text-zinc-500 cursor-default'}
                       `}
                     >
-                      {member?.avatarUrl ? (
-                        <img src={member.avatarUrl} alt={capitalizeFirst(member.fullName)} className="w-6 h-6 rounded-full object-cover border border-zinc-300/80 dark:border-white/10 shrink-0" />
+                      {hasMechanic ? (
+                        <div
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md ${getMechanicButtonStyle(mechanic!, member?.id)}`}
+                        >
+                          <Wrench
+                            className="h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]"
+                            strokeWidth={2.35}
+                            aria-hidden
+                          />
+                        </div>
+                      ) : canAssignMember ? (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12">
+                          <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.35} aria-hidden />
+                        </div>
                       ) : (
-                        <MechanicIcon className={`w-5 h-5 shrink-0 ${mechanicColorClass}`} />
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-zinc-100/80 dark:border-white/10 dark:bg-white/[0.06]">
+                          <Wrench className="h-4 w-4 text-zinc-400 dark:text-zinc-500" strokeWidth={2.35} aria-hidden />
+                        </div>
                       )}
                       <span className={`text-sm font-bold truncate ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}>
                         {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : 'Sem técnico')}
