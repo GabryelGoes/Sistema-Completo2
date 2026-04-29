@@ -677,7 +677,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         <div className="pointer-events-none absolute -top-32 -right-32 w-[22rem] h-[22rem] bg-gradient-to-br from-cyan-400/20 to-blue-600/10 rounded-full blur-3xl opacity-70" />
         <div className="pointer-events-none absolute -bottom-28 -left-20 w-[18rem] h-[18rem] bg-gradient-to-br from-sky-400/20 to-blue-600/10 rounded-full blur-3xl opacity-60" />
 
-        <form onSubmit={handleSubmit} className="relative z-10 space-y-6 lg:space-y-0">
+        <form
+          onSubmit={handleSubmit}
+          className="relative z-10 space-y-6 lg:space-y-0 [&_input]:shadow-[0_4px_14px_-10px_rgba(0,0,0,0.28)] [&_textarea]:shadow-[0_4px_14px_-10px_rgba(0,0,0,0.28)] dark:[&_input]:shadow-none dark:[&_textarea]:shadow-none"
+        >
           
           <div className="flex justify-end mb-1">
              <button
