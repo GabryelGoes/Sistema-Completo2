@@ -87,12 +87,13 @@ const OPERATIONAL_APPS: {
 ];
 
 type QuickTileSize = 'normal' | 'wide';
+type QuickTileId = HomeAppId | 'tv_patio' | 'parts_stock';
 type QuickLayoutState = {
-  order: HomeAppId[];
-  sizes: Partial<Record<HomeAppId, QuickTileSize>>;
+  order: QuickTileId[];
+  sizes: Partial<Record<QuickTileId, QuickTileSize>>;
 };
 type QuickDragVisual = {
-  id: HomeAppId;
+  id: QuickTileId;
   x: number;
   y: number;
   width: number;
@@ -101,7 +102,8 @@ type QuickDragVisual = {
   offsetY: number;
 };
 
-const DEFAULT_QUICK_ORDER: HomeAppId[] = OPERATIONAL_APPS.map((app) => app.id);
+const DEFAULT_QUICK_ORDER: QuickTileId[] = OPERATIONAL_APPS.map((app) => app.id);
+const ALL_QUICK_TILE_IDS: QuickTileId[] = [...DEFAULT_QUICK_ORDER, 'tv_patio', 'parts_stock'];
 
 function SettingsRow({
   onClick,
@@ -173,7 +175,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       if (!raw) return { order: DEFAULT_QUICK_ORDER, sizes: {} };
       const parsed = JSON.parse(raw) as QuickLayoutState;
       if (!parsed || !Array.isArray(parsed.order)) return { order: DEFAULT_QUICK_ORDER, sizes: {} };
-      const order = [...parsed.order.filter((id) => DEFAULT_QUICK_ORDER.includes(id as HomeAppId))] as HomeAppId[];
+      const order = [...parsed.order.filter((id) => ALL_QUICK_TILE_IDS.includes(id as QuickTileId))] as QuickTileId[];
       DEFAULT_QUICK_ORDER.forEach((id) => {
         if (!order.includes(id)) order.push(id);
       });
@@ -183,7 +185,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
   });
   const [isQuickEditMode, setIsQuickEditMode] = useState(false);
-  const [draggingQuickId, setDraggingQuickId] = useState<HomeAppId | null>(null);
+  const [draggingQuickId, setDraggingQuickId] = useState<QuickTileId | null>(null);
   const [quickDragVisual, setQuickDragVisual] = useState<QuickDragVisual | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
@@ -194,18 +196,46 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const showToolsSection = hasToolsAccess && !perms.full_access;
 
   const operationalForView = isTechnician ? OPERATIONAL_APPS.filter((a) => allowedTabs.includes(a.id)) : OPERATIONAL_APPS;
+  const quickTilesForView = useMemo(() => {
+    const baseTiles = operationalForView.map((app) => ({
+      id: app.id as QuickTileId,
+      label: app.label,
+      icon: app.icon,
+      onOpen: () => onOpenApp(app.id),
+    }));
+    if (!showAdminSection) return baseTiles;
+    return [
+      ...baseTiles,
+      {
+        id: 'tv_patio' as QuickTileId,
+        label: 'TV do Pátio',
+        icon: <img src="/icons/tv-patio-ios.png" alt="TV do Pátio" className="h-full w-full object-cover" />,
+        onOpen: () => setIsTvPatioOpen(true),
+      },
+      {
+        id: 'parts_stock' as QuickTileId,
+        label: 'Estoque de peças',
+        icon: <img src="/icons/estoque-ios.png" alt="Estoque de peças" className="h-full w-full object-cover" />,
+        onOpen: () => setIsPartsModalOpen(true),
+      },
+    ];
+  }, [onOpenApp, operationalForView, showAdminSection]);
   const operationalById = useMemo(
-    () => Object.fromEntries(operationalForView.map((app) => [app.id, app])) as Record<HomeAppId, typeof OPERATIONAL_APPS[number]>,
-    [operationalForView]
+    () =>
+      Object.fromEntries(quickTilesForView.map((tile) => [tile.id, tile])) as Record<
+        QuickTileId,
+        { id: QuickTileId; label: string; icon: React.ReactElement; onOpen: () => void }
+      >,
+    [quickTilesForView]
   );
   const orderedOperationalApps = useMemo(() => {
-    const visibleIds = new Set(operationalForView.map((app) => app.id));
+    const visibleIds = new Set(quickTilesForView.map((tile) => tile.id));
     const fromSaved = quickLayout.order.filter((id) => visibleIds.has(id));
-    operationalForView.forEach((app) => {
-      if (!fromSaved.includes(app.id)) fromSaved.push(app.id);
+    quickTilesForView.forEach((tile) => {
+      if (!fromSaved.includes(tile.id)) fromSaved.push(tile.id);
     });
     return fromSaved.map((id) => operationalById[id]).filter(Boolean);
-  }, [operationalById, operationalForView, quickLayout.order]);
+  }, [operationalById, quickTilesForView, quickLayout.order]);
 
   useEffect(() => {
     try {
@@ -218,7 +248,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setQuickDragVisual(null);
   }, []);
 
-  const moveQuickApp = useCallback((sourceId: HomeAppId, targetId: HomeAppId) => {
+  const moveQuickApp = useCallback((sourceId: QuickTileId, targetId: QuickTileId) => {
     if (sourceId === targetId) return;
     setQuickLayout((prev) => {
       const order = [...prev.order];
@@ -245,7 +275,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       if (!draggingQuickId) return;
       const hit = document.elementFromPoint(event.clientX, event.clientY);
       const target = hit?.closest?.('[data-quick-app-id]') as HTMLElement | null;
-      const targetId = target?.dataset.quickAppId as HomeAppId | undefined;
+      const targetId = target?.dataset.quickAppId as QuickTileId | undefined;
       if (!targetId || targetId === draggingQuickId) return;
       moveQuickApp(draggingQuickId, targetId);
     };
@@ -271,7 +301,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   const beginQuickDrag = useCallback(
     (
-      appId: HomeAppId,
+      appId: QuickTileId,
       rect: DOMRect,
       pointer: { clientX: number; clientY: number }
     ) => {
@@ -290,7 +320,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   );
 
   const handleQuickCardPointerDown = useCallback(
-    (appId: HomeAppId, event: React.PointerEvent<HTMLButtonElement>) => {
+    (appId: QuickTileId, event: React.PointerEvent<HTMLButtonElement>) => {
       longPressTriggeredRef.current = false;
       clearLongPressTimer();
       const rect = event.currentTarget.getBoundingClientRect();
@@ -312,20 +342,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
   );
 
   const handleQuickCardPointerUp = useCallback(
-    (appId: HomeAppId) => {
+    (app: { id: QuickTileId; onOpen: () => void }) => {
       clearLongPressTimer();
       if (!isQuickEditMode && !longPressTriggeredRef.current) {
-        onOpenApp(appId);
+        app.onOpen();
       }
       if (!longPressTriggeredRef.current) {
         endQuickDrag();
       }
       longPressTriggeredRef.current = false;
     },
-    [clearLongPressTimer, endQuickDrag, isQuickEditMode, onOpenApp]
+    [clearLongPressTimer, endQuickDrag, isQuickEditMode]
   );
 
-  const toggleQuickTileSize = useCallback((appId: HomeAppId) => {
+  const toggleQuickTileSize = useCallback((appId: QuickTileId) => {
     setQuickLayout((prev) => {
       const current = prev.sizes[appId] ?? 'normal';
       const next: QuickTileSize = current === 'wide' ? 'normal' : 'wide';
@@ -422,7 +452,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       data-quick-app-id={app.id}
                       type="button"
                       onPointerDown={(event) => handleQuickCardPointerDown(app.id, event)}
-                      onPointerUp={() => handleQuickCardPointerUp(app.id)}
+                      onPointerUp={() => handleQuickCardPointerUp(app)}
                       onPointerLeave={clearLongPressTimer}
                       onContextMenu={(event) => {
                         event.preventDefault();
@@ -465,50 +495,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </button>
                   );
                 })}
-                {showAdminSection && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setIsTvPatioOpen(true)}
-                      className={`group flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99]`}
-                    >
-                      <IosAccentIconSquircle
-                        variant="tile"
-                        className="transition-transform duration-300 group-hover:scale-105"
-                        strokeWidth={2.2}
-                      >
-                        <img
-                          src="/icons/tv-patio-ios.png"
-                          alt="TV do Pátio"
-                          className="h-full w-full object-cover"
-                        />
-                      </IosAccentIconSquircle>
-                      <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
-                        TV do Pátio
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsPartsModalOpen(true)}
-                      className={`group flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99]`}
-                    >
-                      <IosAccentIconSquircle
-                        variant="tile"
-                        className="transition-transform duration-300 group-hover:scale-105"
-                        strokeWidth={2.2}
-                      >
-                        <img
-                          src="/icons/estoque-ios.png"
-                          alt="Estoque de peças"
-                          className="h-full w-full object-cover"
-                        />
-                      </IosAccentIconSquircle>
-                      <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
-                        Estoque de peças
-                      </span>
-                    </button>
-                  </>
-                )}
               </div>
               {quickDragVisual && operationalById[quickDragVisual.id] && (
                 <div
