@@ -104,6 +104,43 @@ const patioBoardGlassCardShadow =
 const vehicleModalCustomerNameBox =
   'rounded-[18px] border border-zinc-300/80 bg-zinc-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:border-zinc-600/50 dark:bg-zinc-800/85 dark:shadow-none';
 
+/** Cards Cliente / Km / Técnico / Data no modal — tipografia e controles menores em modo vertical. */
+const vehicleModalCompactCardGrid =
+  'gap-2 sm:gap-2.5 portrait:gap-1.5 portrait:sm:gap-2';
+const vehicleModalCompactCardRow =
+  'relative flex items-center gap-2 px-2.5 py-2 sm:gap-2.5 sm:px-3 sm:py-2.5 portrait:gap-1.5 portrait:px-2 portrait:py-1.5 portrait:sm:gap-2 portrait:sm:px-2.5 portrait:sm:py-2';
+const vehicleModalCompactCardSplitRow =
+  'relative flex flex-col gap-2 px-2.5 py-2 sm:flex-row sm:items-center sm:gap-2.5 sm:px-3 sm:py-2.5 portrait:gap-1.5 portrait:px-2 portrait:py-1.5 portrait:sm:gap-2 portrait:sm:px-2.5 portrait:sm:py-2';
+const vehicleModalCompactCardIconSquircle =
+  'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04] portrait:h-7 portrait:w-7 portrait:rounded-lg';
+const vehicleModalCompactCardIconGlyph =
+  'h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff] portrait:h-3.5 portrait:w-3.5';
+const vehicleModalCompactCardTitleText =
+  'bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px] portrait:text-[11px] portrait:sm:text-[12px]';
+const vehicleModalCompactCardBodyText =
+  'mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white portrait:text-[11px]';
+const vehicleModalCompactCardAssignHint =
+  'mt-0.5 text-[12px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff] portrait:text-[11px]';
+const vehicleModalCompactCardChevron =
+  'relative z-[1] h-3.5 w-3.5 shrink-0 portrait:h-3 portrait:w-3';
+const vehicleModalCompactCardNumericInput =
+  'min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500 sm:max-w-[180px] sm:flex-none portrait:px-2 portrait:py-1 portrait:text-[12px]';
+const vehicleModalCompactCardDateInput =
+  'min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white sm:max-w-[180px] sm:flex-none portrait:px-2 portrait:py-1 portrait:text-[12px]';
+const vehicleModalCompactCardSaveBtn =
+  'inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-md transition-all disabled:opacity-50 portrait:gap-0.5 portrait:rounded-lg portrait:px-2 portrait:py-1 portrait:text-[11px]';
+const vehicleModalCompactCardSaveIcon = 'h-3.5 w-3.5 portrait:h-3 portrait:w-3';
+const vehicleModalCompactCardSalvo =
+  'text-[11px] font-semibold text-green-600 dark:text-green-400 portrait:text-[10px]';
+const vehicleModalCompactCardMechanicWrap =
+  'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md portrait:h-7 portrait:w-7 portrait:rounded-lg';
+const vehicleModalCompactCardMechanicWrench =
+  'h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:h-3.5 portrait:w-3.5';
+const vehicleModalCompactCardEmptyTech =
+  'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12 portrait:h-7 portrait:w-7 portrait:rounded-lg';
+const vehicleModalCompactCardFieldRow =
+  'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:justify-end portrait:gap-1';
+
 /** Sombra nos glifos do nome do veículo (só tema escuro — no claro fica sem text-shadow). */
 const vehicleModalTitleShadow =
   'dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.92),0_2px_10px_rgba(0,0,0,0.52),0_0_26px_rgba(0,0,0,0.35)]';
@@ -4226,7 +4263,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </p>
                         ) : null}
                         {/* Cliente + Km — mesmo grid e cartões que Técnico / Data de entrega */}
-                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5">
+                        <div className={`mt-3 grid grid-cols-1 sm:grid-cols-2 ${vehicleModalCompactCardGrid}`}>
                           <button
                             type="button"
                             onClick={handleJumpToCustomerNameEdit}
@@ -4242,20 +4279,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
                               aria-hidden
                             />
-                            <div className="relative flex items-center gap-2 px-2.5 py-2 sm:gap-2.5 sm:px-3 sm:py-2.5">
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
-                                <User className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                            <div className={vehicleModalCompactCardRow}>
+                              <div className={vehicleModalCompactCardIconSquircle}>
+                                <User className={vehicleModalCompactCardIconGlyph} strokeWidth={2.25} aria-hidden />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]">
-                                  Cliente
-                                </p>
-                                <p className="mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white">
-                                  {selectedCardTitleParts?.customer || '—'}
-                                </p>
+                                <p className={vehicleModalCompactCardTitleText}>Cliente</p>
+                                <p className={vehicleModalCompactCardBodyText}>{selectedCardTitleParts?.customer || '—'}</p>
                               </div>
                               {can('canEditFicha') && (
-                                <ChevronRight strokeWidth={2.25} className="relative z-[1] h-3.5 w-3.5 shrink-0 text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]" aria-hidden />
+                                <ChevronRight strokeWidth={2.25} className={`${vehicleModalCompactCardChevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
                               )}
                             </div>
                           </button>
@@ -4269,41 +4302,39 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
                                 aria-hidden
                               />
-                              <div className="relative flex flex-col gap-2 px-2.5 py-2 sm:flex-row sm:items-center sm:gap-2.5 sm:px-3 sm:py-2.5">
+                              <div className={vehicleModalCompactCardSplitRow}>
                                 <div className="flex shrink-0 items-center gap-2 sm:contents">
-                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
-                                    <Gauge className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                  <div className={vehicleModalCompactCardIconSquircle}>
+                                    <Gauge className={vehicleModalCompactCardIconGlyph} strokeWidth={2.25} aria-hidden />
                                   </div>
                                   <div className="min-w-0 flex-1 sm:pb-0">
-                                    <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]">
-                                      Km
-                                    </p>
+                                    <p className={vehicleModalCompactCardTitleText}>Km</p>
                                   </div>
                                 </div>
-                                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:justify-end">
+                                <div className={vehicleModalCompactCardFieldRow}>
                                   <input
                                     type="text"
                                     inputMode="numeric"
                                     value={mileageEditValue}
                                     onChange={(e) => setMileageEditValue(e.target.value)}
                                     placeholder="Ex: 45000"
-                                    className="min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500 sm:max-w-[180px] sm:flex-none"
+                                    className={vehicleModalCompactCardNumericInput}
                                   />
                                   <button
                                     type="button"
                                     onClick={handleSaveMileage}
                                     disabled={savingMileage || mileageEditValue.trim() === lastSavedMileage}
-                                    className={`inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-md transition-all disabled:opacity-50 ${
+                                    className={`${vehicleModalCompactCardSaveBtn} ${
                                       mileageEditValue.trim() !== lastSavedMileage
                                         ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
                                         : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
                                     }`}
                                   >
-                                    {savingMileage ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                                    {savingMileage ? <RefreshCw className={`${vehicleModalCompactCardSaveIcon} animate-spin`} /> : <Save className={vehicleModalCompactCardSaveIcon} />}
                                     Salvar
                                   </button>
                                   {mileageSavedMessage && (
-                                    <span className="text-[11px] font-semibold text-green-600 dark:text-green-400 animate-in fade-in">Salvo!</span>
+                                    <span className={`${vehicleModalCompactCardSalvo} animate-in fade-in`}>Salvo!</span>
                                   )}
                                 </div>
                               </div>
@@ -4727,7 +4758,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </div>
                   )}
                         {/* Técnico + Data de entrega — compactos (mesmo idioma visual, menos altura) */}
-                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5">
+                        <div className={`mt-2 grid grid-cols-1 sm:grid-cols-2 ${vehicleModalCompactCardGrid}`}>
                           {can('canAssignTechnician') && (
                           <button
                             type="button"
@@ -4742,36 +4773,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
                               aria-hidden
                             />
-                            <div className="relative flex items-center gap-2 px-2.5 py-2 sm:gap-2.5 sm:px-3 sm:py-2.5">
+                            <div className={vehicleModalCompactCardRow}>
                               {selectedCard.members && selectedCard.members.length > 0 ? (
                                 <>
-                                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
-                                    <Wrench className="h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]" strokeWidth={2.35} aria-hidden />
+                                  <div className={`${vehicleModalCompactCardMechanicWrap} ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
+                                    <Wrench className={vehicleModalCompactCardMechanicWrench} strokeWidth={2.35} aria-hidden />
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]">
-                                      Técnico responsável
-                                    </p>
-                                    <p className="mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white">
+                                    <p className={vehicleModalCompactCardTitleText}>Técnico responsável</p>
+                                    <p className={vehicleModalCompactCardBodyText}>
                                       {capitalizeFirst(selectedCard.members[0].fullName)}
                                     </p>
                                   </div>
-                                  <ChevronRight strokeWidth={2.25} className="relative z-[1] h-3.5 w-3.5 shrink-0 text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]" aria-hidden />
+                                  <ChevronRight strokeWidth={2.25} className={`${vehicleModalCompactCardChevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
                                 </>
                               ) : (
                                 <>
-                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12">
-                                    <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.35} aria-hidden />
+                                  <div className={vehicleModalCompactCardEmptyTech}>
+                                    <Wrench className={vehicleModalCompactCardIconGlyph} strokeWidth={2.35} aria-hidden />
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]">
-                                      Técnico responsável
-                                    </p>
-                                    <p className="mt-0.5 text-[12px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff]">
-                                      Toque para atribuir
-                                    </p>
+                                    <p className={vehicleModalCompactCardTitleText}>Técnico responsável</p>
+                                    <p className={vehicleModalCompactCardAssignHint}>Toque para atribuir</p>
                                   </div>
-                                  <ChevronRight strokeWidth={2.25} className="relative z-[1] h-3.5 w-3.5 shrink-0 text-zinc-400 transition-colors group-hover:text-[#007AFF]/70 dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]" aria-hidden />
+                                  <ChevronRight strokeWidth={2.25} className={`${vehicleModalCompactCardChevron} text-zinc-400 transition-colors group-hover:text-[#007AFF]/70 dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
                                 </>
                               )}
                             </div>
@@ -4787,39 +4812,37 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
                               aria-hidden
                             />
-                            <div className="relative flex flex-col gap-2 px-2.5 py-2 sm:flex-row sm:items-center sm:gap-2.5 sm:px-3 sm:py-2.5">
+                            <div className={vehicleModalCompactCardSplitRow}>
                               <div className="flex shrink-0 items-center gap-2 sm:contents">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
-                                  <Calendar className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                <div className={vehicleModalCompactCardIconSquircle}>
+                                  <Calendar className={vehicleModalCompactCardIconGlyph} strokeWidth={2.25} aria-hidden />
                                 </div>
                                 <div className="min-w-0 flex-1 sm:pb-0">
-                                  <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]">
-                                    Data de entrega
-                                  </p>
+                                  <p className={vehicleModalCompactCardTitleText}>Data de entrega</p>
                                 </div>
                               </div>
-                              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:justify-end">
+                              <div className={vehicleModalCompactCardFieldRow}>
                                 <input
                                   type="date"
                                   value={deliveryDateEditValue}
                                   onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                  className="min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white sm:max-w-[180px] sm:flex-none"
+                                  className={vehicleModalCompactCardDateInput}
                                 />
                                 <button
                                   type="button"
                                   onClick={handleSaveDeliveryDate}
                                   disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
-                                  className={`inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-md transition-all disabled:opacity-50 ${
+                                  className={`${vehicleModalCompactCardSaveBtn} ${
                                     deliveryDateEditValue !== lastSavedDeliveryDate
                                       ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
                                       : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
                                   }`}
                                 >
-                                  {savingDeliveryDate ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                                  {savingDeliveryDate ? <RefreshCw className={`${vehicleModalCompactCardSaveIcon} animate-spin`} /> : <Save className={vehicleModalCompactCardSaveIcon} />}
                                   Salvar
                                 </button>
                                 {deliveryDateSavedMessage && (
-                                  <span className="text-[11px] font-semibold text-green-600 dark:text-green-400">Salvo!</span>
+                                  <span className={vehicleModalCompactCardSalvo}>Salvo!</span>
                                 )}
                               </div>
                             </div>
