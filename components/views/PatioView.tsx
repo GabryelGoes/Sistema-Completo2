@@ -1028,10 +1028,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsPatioHeaderToolsOpen(false);
     };
-    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('click', onDoc, true);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('click', onDoc, true);
       document.removeEventListener('keydown', onKey);
     };
   }, [isPatioHeaderToolsOpen]);
@@ -3169,9 +3169,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <div className="absolute bottom-1/4 left-0 h-[220px] w-[320px] -translate-x-1/3 rounded-full bg-[#007AFF]/[0.04] blur-[80px] dark:bg-[#007AFF]/[0.06]" />
       </div>
 
-      <div className="relative z-0 mx-auto max-w-[100rem] px-3 pt-2 sm:px-5 md:px-6 md:pt-3">
+      <div className="relative z-0 mx-auto max-w-[100rem] overflow-visible px-3 pt-2 sm:px-5 md:px-6 md:pt-3">
         {/* Cabeçalho — mesmo padrão Recepção/Agenda: sem painel vidro em volta; ícone = tile da Home (Pátio / Laboratório) */}
-        <header className="mb-6 sm:mb-8">
+        <header className="relative z-50 mb-6 overflow-visible sm:mb-8">
           <div className="grid w-full grid-cols-1 items-center gap-y-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-3">
             <div className="flex min-w-0 items-center gap-3 sm:gap-4 md:justify-self-start">
               {isModuleMode ? (
@@ -3198,16 +3198,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <button
                 type="button"
                 onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
-                className="relative inline-flex min-h-[42px] shrink-0 items-center justify-center gap-2 rounded-full border-2 border-black/15 bg-brand-yellow px-5 py-2.5 text-[14px] font-extrabold tracking-tight text-zinc-950 shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_10px_32px_-8px_rgba(245,208,11,0.5),0_6px_22px_-6px_rgba(0,0,0,0.18)] ring-2 ring-white/60 ring-offset-1 ring-offset-[#f2f2f7] transition-all duration-200 hover:brightness-105 hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_12px_38px_-6px_rgba(245,208,11,0.55)] active:translate-y-0.5 active:shadow-[0_2px_0_0_rgba(0,0,0,0.12)] dark:border-black/25 dark:bg-brand-yellow dark:text-zinc-950 dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_10px_32px_-8px_rgba(245,208,11,0.32),0_6px_26px_-8px_rgba(0,0,0,0.5)] dark:ring-white/15 dark:ring-offset-zinc-900 dark:hover:brightness-110 sm:min-h-[46px] sm:px-6 sm:py-3 sm:text-[15px]"
+                className="relative inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-full border border-[#0058c7] bg-[#007AFF] px-4 py-2 text-[13px] font-bold tracking-tight text-white shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_8px_28px_-6px_rgba(0,122,255,0.45),0_4px_16px_-4px_rgba(0,0,0,0.15)] ring-1 ring-white/40 ring-offset-1 ring-offset-[#f2f2f7] transition-all duration-200 hover:brightness-110 hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_10px_32px_-4px_rgba(0,122,255,0.5)] active:translate-y-0.5 active:shadow-[0_2px_0_0_rgba(0,0,0,0.15)] dark:border-[#0A84FF]/80 dark:bg-[#0A84FF] dark:text-white dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_8px_32px_-6px_rgba(10,132,255,0.4),0_4px_20px_-6px_rgba(0,0,0,0.45)] dark:ring-white/20 dark:ring-offset-zinc-900 dark:hover:brightness-110 sm:min-h-[40px] sm:px-5 sm:py-2.5 sm:text-[14px]"
               >
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-zinc-950 dark:bg-black/20">
-                  <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white">
+                  <Plus className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden />
                 </span>
                 <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
               </button>
             </div>
 
-            <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-2 md:w-auto md:justify-self-end md:justify-end">
+            <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-2 overflow-visible md:w-auto md:justify-self-end md:justify-end">
             <button
               type="button"
               onClick={() => {
@@ -3226,7 +3226,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </span>
               <span className="tracking-tight">Lembretes</span>
             </button>
-            <div className="relative shrink-0" ref={patioHeaderToolsRef}>
+            <div className="relative z-[60] shrink-0 overflow-visible" ref={patioHeaderToolsRef}>
               <button
                 type="button"
                 onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
@@ -3240,7 +3240,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               {isPatioHeaderToolsOpen ? (
                 <div
                   role="menu"
-                  className="absolute right-0 top-full z-[70] mt-2 w-[min(calc(100vw-1.5rem),17.75rem)] origin-top-right animate-in fade-in zoom-in-95 duration-200 rounded-2xl border border-zinc-200/90 bg-white/95 py-2 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.2)] backdrop-blur-xl dark:border-white/[0.1] dark:bg-zinc-900/95 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
+                  className="absolute right-0 top-full z-[80] mt-2 w-[min(calc(100vw-1.5rem),17.75rem)] origin-top-right rounded-2xl border border-zinc-200/90 bg-white py-2 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
                 >
                   <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
                     <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Tamanho dos cartões</p>
@@ -3374,8 +3374,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </header>
       </div>
 
-      {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. */}
-      <div className="mx-auto w-full max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3">
+      {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. (z-0 para dropdown do cabeçalho z-50 ficar acima) */}
+      <div className="relative z-0 mx-auto w-full max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3">
       {(() => {
         const stageOrder = SERVICE_ORDER_STAGES.map((s) => s.id);
         const byStage = (a: TrelloCard, b: TrelloCard) => {
