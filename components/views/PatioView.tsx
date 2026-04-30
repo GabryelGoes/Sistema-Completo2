@@ -3198,10 +3198,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <button
                 type="button"
                 onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
-                className="relative inline-flex min-h-[48px] shrink-0 items-center justify-center gap-2.5 rounded-full border-2 border-black/15 bg-brand-yellow px-6 py-3 text-[15px] font-extrabold tracking-tight text-zinc-950 shadow-[0_4px_0_0_rgba(0,0,0,0.12),0_12px_40px_-8px_rgba(245,208,11,0.55),0_8px_28px_-6px_rgba(0,0,0,0.2)] ring-2 ring-white/60 ring-offset-2 ring-offset-[#f2f2f7] transition-all duration-200 hover:brightness-105 hover:shadow-[0_3px_0_0_rgba(0,0,0,0.1),0_14px_44px_-6px_rgba(245,208,11,0.6)] active:translate-y-0.5 active:shadow-[0_2px_0_0_rgba(0,0,0,0.12)] dark:border-black/25 dark:bg-brand-yellow dark:text-zinc-950 dark:shadow-[0_4px_0_0_rgba(0,0,0,0.35),0_12px_40px_-8px_rgba(245,208,11,0.35),0_8px_32px_-8px_rgba(0,0,0,0.55)] dark:ring-white/15 dark:ring-offset-zinc-900 dark:hover:brightness-110 sm:min-h-[52px] sm:px-7 sm:py-3.5 sm:text-base"
+                className="relative inline-flex min-h-[42px] shrink-0 items-center justify-center gap-2 rounded-full border-2 border-black/15 bg-brand-yellow px-5 py-2.5 text-[14px] font-extrabold tracking-tight text-zinc-950 shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_10px_32px_-8px_rgba(245,208,11,0.5),0_6px_22px_-6px_rgba(0,0,0,0.18)] ring-2 ring-white/60 ring-offset-1 ring-offset-[#f2f2f7] transition-all duration-200 hover:brightness-105 hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_12px_38px_-6px_rgba(245,208,11,0.55)] active:translate-y-0.5 active:shadow-[0_2px_0_0_rgba(0,0,0,0.12)] dark:border-black/25 dark:bg-brand-yellow dark:text-zinc-950 dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_10px_32px_-8px_rgba(245,208,11,0.32),0_6px_26px_-8px_rgba(0,0,0,0.5)] dark:ring-white/15 dark:ring-offset-zinc-900 dark:hover:brightness-110 sm:min-h-[46px] sm:px-6 sm:py-3 sm:text-[15px]"
               >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/10 text-zinc-950 dark:bg-black/20">
-                  <Plus className="h-5 w-5" strokeWidth={2.75} aria-hidden />
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-zinc-950 dark:bg-black/20">
+                  <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
                 </span>
                 <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
               </button>
