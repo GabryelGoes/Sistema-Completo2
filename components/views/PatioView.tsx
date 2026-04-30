@@ -4468,7 +4468,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     value={mileageEditValue}
                                     onChange={(e) => setMileageEditValue(e.target.value)}
                                     placeholder="Ex: 45000"
-                                    className={`${vehicleModalCompactCardNumericInput} sm:max-w-none portrait:w-[68%] portrait:flex-none`}
+                                    className={`${vehicleModalCompactCardNumericInput} sm:max-w-none portrait:w-[51%] portrait:flex-none`}
                                   />
                                   <button
                                     type="button"
