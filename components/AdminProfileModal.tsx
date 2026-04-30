@@ -151,12 +151,20 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
                 <button
                   type="button"
                   onClick={handlePhotoSelect}
-                  className="w-24 h-24 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800 border-2 border-zinc-300 dark:border-zinc-600 flex items-center justify-center hover:opacity-90 transition-opacity"
+                  className="relative w-24 h-24 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800 border-2 border-zinc-300 dark:border-zinc-600 flex items-center justify-center hover:opacity-90 transition-opacity"
                 >
                   {photoUrl ? (
-                    <img src={photoUrl} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={photoUrl}
+                      alt=""
+                      className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
+                    />
                   ) : (
-                    <img src="/logo.png" alt="" className="w-full h-full object-cover" />
+                    <img
+                      src="/logo.png"
+                      alt=""
+                      className="absolute inset-0 size-full min-h-0 min-w-0 object-contain object-center p-1"
+                    />
                   )}
                 </button>
                 <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Toque para alterar a foto (comentários, etc.)</span>

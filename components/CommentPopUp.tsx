@@ -179,11 +179,17 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
                   normalizeAuthorName(c.author_display_name) === normalizeAuthorName(replyAuthorName);
                 return (
                   <div key={c.id} className={`flex items-start gap-3 ${isFromCurrentUser ? 'flex-row-reverse' : ''}`}>
-                    <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-200/80 bg-zinc-100/80 dark:border-white/[0.08] dark:bg-white/[0.06]">
+                    <div className="relative mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-200/80 bg-zinc-100/80 dark:border-white/[0.08] dark:bg-white/[0.06]">
                       {photoUrl ? (
-                        <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+                        <img
+                          src={photoUrl}
+                          alt=""
+                          className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
+                        />
                       ) : (
-                        <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">{initial}</span>
+                        <span className="relative z-[1] text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                          {initial}
+                        </span>
                       )}
                     </div>
                     <div className={`min-w-0 max-w-[min(85%,28rem)] flex-1 ${isFromCurrentUser ? 'flex flex-col items-end' : ''}`}>

@@ -50,7 +50,12 @@ export const IosAccentIconSquircle: React.FC<Props> = ({
   const glyph = GLYPH[variant];
   const isImg = typeof children.type === 'string' && children.type.toLowerCase() === 'img';
   const merged = isImg
-    ? ['relative z-10 h-full w-full object-cover', children.props.className].filter(Boolean).join(' ')
+    ? [
+        'absolute inset-0 z-10 size-full min-h-0 min-w-0 object-cover object-center',
+        children.props.className,
+      ]
+        .filter(Boolean)
+        .join(' ')
     : [glyph, children.props.className].filter(Boolean).join(' ');
   const child = React.cloneElement(children, isImg
     ? { className: merged }

@@ -3831,13 +3831,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
                                       return (
                                       <div key={action.id} className="flex gap-3 sm:gap-4">
-                                         <div className={`h-10 w-10 shrink-0 overflow-hidden rounded-full ${avatar.useLogo ? 'bg-[#007AFF]' : ''}`}>
+                                         <div className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-full ${avatar.useLogo ? 'bg-[#007AFF]' : ''}`}>
                                             {avatar.useLogo ? (
-                                               <img src="/logo.png" alt="Rei do ABS" className="h-full w-full object-cover" />
+                                               <img src="/logo.png" alt="Rei do ABS" className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center" />
                                             ) : avatar.photoUrl ? (
-                                               <img src={avatar.photoUrl} alt={action.memberCreator.fullName} className="h-full w-full object-cover" />
+                                               <img src={avatar.photoUrl} alt={action.memberCreator.fullName} className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center" />
                                             ) : (
-                                               <div className={`flex h-full w-full items-center justify-center text-sm font-bold ${avatar.avatarClass}`}>
+                                               <div className={`relative z-[1] flex h-full w-full items-center justify-center text-sm font-bold ${avatar.avatarClass}`}>
                                                   {avatar.initial}
                                                </div>
                                             )}
@@ -5642,13 +5642,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
                                       return (
                                       <div key={action.id} className="flex gap-3 group/comment lg:gap-2">
-                                         <div className={`flex h-10 w-10 shrink-0 flex-shrink-0 overflow-hidden rounded-full lg:h-8 lg:w-8 ${avatar.useLogo ? 'bg-brand-yellow' : ''}`}>
+                                         <div className={`relative flex h-10 w-10 shrink-0 flex-shrink-0 overflow-hidden rounded-full lg:h-8 lg:w-8 ${avatar.useLogo ? 'bg-brand-yellow' : ''}`}>
                                             {avatar.useLogo ? (
-                                               <img src="/logo.png" alt="Rei do ABS" className="w-full h-full object-cover" />
+                                               <img src="/logo.png" alt="Rei do ABS" className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center" />
                                             ) : avatar.photoUrl ? (
-                                               <img src={avatar.photoUrl} alt={action.memberCreator.fullName} className="w-full h-full object-cover" />
+                                               <img src={avatar.photoUrl} alt={action.memberCreator.fullName} className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center" />
                                             ) : (
-                                               <div className={`w-full h-full rounded-full flex items-center justify-center text-sm font-bold ${avatar.avatarClass}`}>
+                                               <div className={`relative z-[1] flex size-full items-center justify-center rounded-full text-sm font-bold ${avatar.avatarClass}`}>
                                                   {avatar.initial}
                                                </div>
                                             )}
@@ -7255,11 +7255,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     disabled={isAssigning}
                     className={`group flex w-full items-center gap-3 rounded-[22px] border-2 p-3.5 text-left shadow-[0_2px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200 hover:brightness-[1.06] active:scale-[0.99] disabled:opacity-50 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] ${tech.style}`}
                   >
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/25 bg-black/15 shadow-inner">
+                    <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/25 bg-black/15 shadow-inner">
                       {tech.photo_url ? (
-                        <img src={tech.photo_url} alt="" className="h-full w-full object-cover" />
+                        <img
+                          src={tech.photo_url}
+                          alt=""
+                          className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
+                        />
                       ) : (
-                        <MechanicIcon className="h-5 w-5 opacity-95" />
+                        <MechanicIcon className="relative z-[1] h-5 w-5 opacity-95" />
                       )}
                     </div>
                     <span className="min-w-0 flex-1 text-[15px] font-semibold leading-snug tracking-tight">

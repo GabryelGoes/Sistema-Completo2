@@ -287,15 +287,19 @@ export const WorkshopTechniciansModal: React.FC<WorkshopTechniciansModalProps> =
                           type="button"
                           onClick={() => triggerPhotoInput(t.id)}
                           disabled={uploadingPhotoId === t.id}
-                          className="w-10 h-10 rounded-full overflow-hidden border-2 border-dashed border-zinc-300 dark:border-white/20 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 hover:border-violet-500/50 shrink-0"
+                          className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-dashed border-zinc-300 dark:border-white/20 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 hover:border-violet-500/50 shrink-0"
                           title="Foto (arquivo ou câmera)"
                         >
                           {uploadingPhotoId === t.id ? (
-                            <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
+                            <Loader2 className="relative z-[1] w-5 h-5 animate-spin text-violet-500" />
                           ) : t.photo_url ? (
-                            <img src={t.photo_url} alt="" className="w-full h-full object-cover" />
+                            <img
+                              src={t.photo_url}
+                              alt=""
+                              className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
+                            />
                           ) : (
-                            <ImagePlus className="w-5 h-5 text-zinc-400" />
+                            <ImagePlus className="relative z-[1] w-5 h-5 text-zinc-400" />
                           )}
                         </button>
                         <input
@@ -342,15 +346,21 @@ export const WorkshopTechniciansModal: React.FC<WorkshopTechniciansModalProps> =
                             type="button"
                             onClick={() => triggerPhotoInput(t.id)}
                             disabled={uploadingPhotoId === t.id}
-                            className="w-10 h-10 rounded-full overflow-hidden border-2 border-zinc-200 dark:border-white/10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 hover:ring-2 hover:ring-violet-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-violet-500"
+                            className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-zinc-200 dark:border-white/10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 hover:ring-2 hover:ring-violet-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-violet-500"
                             title="Adicionar ou alterar foto (arquivo ou câmera)"
                           >
                             {uploadingPhotoId === t.id ? (
-                              <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
+                              <Loader2 className="relative z-[1] w-5 h-5 animate-spin text-violet-500" />
                             ) : t.photo_url ? (
-                              <img src={t.photo_url} alt={capitalizeFirst(t.name)} className="w-full h-full object-cover" />
+                              <img
+                                src={t.photo_url}
+                                alt={capitalizeFirst(t.name)}
+                                className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
+                              />
                             ) : (
-                              <div className={`w-full h-full rounded-full flex items-center justify-center text-sm font-bold text-white ${colorClass(t.color_style)}`}>
+                              <div
+                                className={`relative z-[1] flex size-full items-center justify-center rounded-full text-sm font-bold text-white ${colorClass(t.color_style)}`}
+                              >
                                 {capitalizeFirst(t.name).charAt(0)}
                               </div>
                             )}

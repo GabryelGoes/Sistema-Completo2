@@ -582,12 +582,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <img
                   src={headerPhotoUrl}
                   alt=""
-                  className="h-full w-full object-cover"
+                  className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
                   referrerPolicy="no-referrer"
                 />
               ) : (
                 <span
-                  className={`text-[1.1rem] sm:text-[1.2rem] font-semibold drop-shadow-sm ${
+                  className={`relative z-[1] text-[1.1rem] sm:text-[1.2rem] font-semibold drop-shadow-sm ${
                     headerAvatarAccentStyle ? 'text-white' : 'text-zinc-800 dark:text-white'
                   }`}
                 >
