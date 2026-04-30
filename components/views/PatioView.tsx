@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -997,6 +997,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const boardPanoramicStorageKey = isModuleMode ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
   const [boardPanoramic, setBoardPanoramic] = useState(false);
   const [isDesktopLandscape, setIsDesktopLandscape] = useState(false);
+  /** Menu ⋯ do cabeçalho: zoom da grade, busca/atualizar, histórico. */
+  const [isPatioHeaderToolsOpen, setIsPatioHeaderToolsOpen] = useState(false);
+  const patioHeaderToolsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     try {
       setBoardPanoramic(localStorage.getItem(boardPanoramicStorageKey) === '1');
@@ -1016,6 +1019,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
     mq.addListener(apply);
     return () => mq.removeListener(apply);
   }, []);
+  useEffect(() => {
+    if (!isPatioHeaderToolsOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (patioHeaderToolsRef.current?.contains(e.target as Node)) return;
+      setIsPatioHeaderToolsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsPatioHeaderToolsOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [isPatioHeaderToolsOpen]);
 
   /** Desktop horizontal: usar `zoom` (não `transform: scale`) para o box do layout acompanhar o conteúdo — scale() deixa altura “fantasma” e espaço vazio no card. */
   const DESKTOP_LANDSCAPE_CARD_ZOOM = 0.65025;
@@ -3207,47 +3226,142 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </span>
               <span className="tracking-tight">Lembretes</span>
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setBoardPanoramic((prev) => {
-                  const next = !prev;
-                  try {
-                    localStorage.setItem(boardPanoramicStorageKey, next ? '1' : '0');
-                  } catch (_) {}
-                  return next;
-                });
-              }}
-              aria-pressed={boardPanoramic}
-              aria-label={
-                boardPanoramic
-                  ? 'Ampliar cartões — voltar ao tamanho padrão'
-                  : 'Reduzir cartões — cinco por fileira em telas médias ou maiores'
-              }
-              title={
-                boardPanoramic
-                  ? 'Tamanho padrão dos cartões (ampliar)'
-                  : 'Cartões menores: cinco por fileira horizontal (largura ≥768px)'
-              }
-              className={`group flex h-12 w-12 shrink-0 items-center justify-center rounded-full border shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] hover:scale-[1.06] active:scale-[0.94] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] ${
-                boardPanoramic
-                  ? 'border-[#007AFF]/45 bg-[#007AFF]/18 text-[#007AFF] hover:border-[#007AFF]/60 hover:bg-[#007AFF]/26 dark:border-[#0A84FF]/50 dark:bg-[#0A84FF]/22 dark:text-[#64B5FF]'
-                  : 'border-zinc-200/80 bg-white/80 text-zinc-600 hover:border-[#007AFF]/35 hover:text-[#007AFF] dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:hover:text-[#64B5FF]'
-              }`}
-            >
-              <span className="relative flex h-9 w-9 items-center justify-center transition-transform duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] group-hover:rotate-6 group-active:rotate-0">
-                <span
-                  key={boardPanoramic ? 'in' : 'out'}
-                  className="absolute inset-0 flex items-center justify-center animate-in zoom-in-95 fade-in duration-300"
+            <div className="relative shrink-0" ref={patioHeaderToolsRef}>
+              <button
+                type="button"
+                onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
+                aria-expanded={isPatioHeaderToolsOpen}
+                aria-haspopup="menu"
+                aria-label="Mais opções: tamanho dos cartões, busca e histórico"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-[#64B5FF]"
+              >
+                <MoreHorizontal className="h-6 w-6" strokeWidth={2.2} aria-hidden />
+              </button>
+              {isPatioHeaderToolsOpen ? (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-[70] mt-2 w-[min(calc(100vw-1.5rem),17.75rem)] origin-top-right animate-in fade-in zoom-in-95 duration-200 rounded-2xl border border-zinc-200/90 bg-white/95 py-2 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.2)] backdrop-blur-xl dark:border-white/[0.1] dark:bg-zinc-900/95 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
                 >
-                  {boardPanoramic ? (
-                    <ZoomIn className="h-6 w-6 drop-shadow-sm" strokeWidth={2.2} />
+                  <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
+                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Tamanho dos cartões</p>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      aria-pressed={boardPanoramic}
+                      className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
+                        boardPanoramic ? 'text-[#007AFF] dark:text-[#64B5FF]' : 'text-zinc-800 dark:text-zinc-100'
+                      }`}
+                      onClick={() => {
+                        setBoardPanoramic((prev) => {
+                          const next = !prev;
+                          try {
+                            localStorage.setItem(boardPanoramicStorageKey, next ? '1' : '0');
+                          } catch (_) {}
+                          return next;
+                        });
+                        setIsPatioHeaderToolsOpen(false);
+                      }}
+                    >
+                      <span
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
+                          boardPanoramic
+                            ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
+                            : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
+                        }`}
+                      >
+                        {boardPanoramic ? (
+                          <ZoomIn className="h-5 w-5 drop-shadow-sm" strokeWidth={2.2} aria-hidden />
+                        ) : (
+                          <ZoomOut className="h-5 w-5 drop-shadow-sm" strokeWidth={2.2} aria-hidden />
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[14px] font-semibold leading-snug">
+                          {boardPanoramic ? 'Ampliar cartões' : 'Encolher cartões'}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                          {boardPanoramic
+                            ? 'Voltar ao tamanho padrão da grade'
+                            : 'Modo compacto: mais cartões por fileira (telas médias+)'}
+                        </span>
+                      </span>
+                    </button>
+                  </div>
+                  {!isModuleMode ? (
+                    <div className="border-b border-zinc-100 px-3 py-2 dark:border-white/[0.07]">
+                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Buscar placa</p>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                        onClick={() => {
+                          setPatioPlateSearchMessage(null);
+                          setPatioPlateSearchInPatioCards([]);
+                          setPatioPlateSearchApiInfo(null);
+                          setIsPatioPlateSearchModalOpen(true);
+                          setIsPatioHeaderToolsOpen(false);
+                        }}
+                      >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
+                          <Search className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[14px] font-semibold leading-snug">Buscar no pátio</span>
+                          <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                            Localizar veículo pela placa na lista atual
+                          </span>
+                        </span>
+                      </button>
+                    </div>
                   ) : (
-                    <ZoomOut className="h-6 w-6 drop-shadow-sm" strokeWidth={2.2} />
+                    <div className="border-b border-zinc-100 px-3 py-2 dark:border-white/[0.07]">
+                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Atualizar lista</p>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                        onClick={() => {
+                          void fetchData(false);
+                          setIsPatioHeaderToolsOpen(false);
+                        }}
+                      >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
+                          <RefreshCw className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[14px] font-semibold leading-snug">Recarregar laboratório</span>
+                          <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                            Buscar novamente os módulos na oficina
+                          </span>
+                        </span>
+                      </button>
+                    </div>
                   )}
-                </span>
-              </span>
-            </button>
+                  <div className="px-3 pt-2">
+                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Histórico</p>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                      onClick={() => {
+                        setIsHistoryOpen(true);
+                        setIsPatioHeaderToolsOpen(false);
+                      }}
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
+                        <History className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[14px] font-semibold leading-snug">OS arquivadas</span>
+                        <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                          Consultar entregas e veículos já finalizados
+                        </span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <div className="flex shrink-0 items-center">
               <NotificationCenter
                 theme="light"
@@ -3255,38 +3369,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
               />
             </div>
-            <button
-              type="button"
-              onClick={() => setIsHistoryOpen(true)}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-zinc-900 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]"
-              title="Consultar histórico (arquivados)"
-            >
-              <History className="h-5 w-5" strokeWidth={2} />
-            </button>
-            {!isModuleMode ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setPatioPlateSearchMessage(null);
-                  setPatioPlateSearchInPatioCards([]);
-                  setPatioPlateSearchApiInfo(null);
-                  setIsPatioPlateSearchModalOpen(true);
-                }}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]"
-                title="Buscar placa no pátio"
-              >
-                <Search className="h-5 w-5" strokeWidth={2} />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fetchData(false)}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-500 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]"
-                title="Atualizar lista"
-              >
-                <RefreshCw className="h-6 w-6" />
-              </button>
-            )}
           </div>
           </div>
         </header>
