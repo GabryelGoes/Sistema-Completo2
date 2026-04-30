@@ -20,6 +20,7 @@ import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import type { SystemUserPermissions } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
+import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
 
 export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'settings';
@@ -298,6 +299,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
       globalOverlayModalOpen,
     ]
   );
+
+  // Pilha LIFO: hub primeiro (base), depois modais na ordem em que tendem a abrir por cima
+  useBrowserBackLayer(isHomeSettingsHubOpen, () => setIsHomeSettingsHubOpen(false));
+  useBrowserBackLayer(isAdminProfileOpen, () => setIsAdminProfileOpen(false));
+  useBrowserBackLayer(isChangePasswordsOpen, () => setIsChangePasswordsOpen(false));
+  useBrowserBackLayer(isPartsModalOpen, () => setIsPartsModalOpen(false));
+  useBrowserBackLayer(isPatioChecklistsOpen, () => setIsPatioChecklistsOpen(false));
+  useBrowserBackLayer(isServicesModalOpen, () => setIsServicesModalOpen(false));
+  useBrowserBackLayer(isSystemUsersOpen, () => setIsSystemUsersOpen(false));
+  useBrowserBackLayer(Boolean(technicianId) && isTechnicianProfileOpen, () => setIsTechnicianProfileOpen(false));
+  useBrowserBackLayer(isTvPatioOpen, () => setIsTvPatioOpen(false));
+  useBrowserBackLayer(isUserProfileOpen, () => setIsUserProfileOpen(false));
+  useBrowserBackLayer(isZayaAlertsOpen, () => setIsZayaAlertsOpen(false));
 
   const operationalForView = isTechnician ? OPERATIONAL_APPS.filter((a) => allowedTabs.includes(a.id)) : OPERATIONAL_APPS;
   const quickTilesForView = useMemo(() => {

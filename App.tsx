@@ -24,6 +24,7 @@ import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
 import { ArrowLeft, X } from 'lucide-react';
 import { applyAccentToRoot, DEFAULT_ACCENT } from './utils/appAppearance';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
+import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
 
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
@@ -335,6 +336,10 @@ export default function App() {
     setVisitedUserTabs(new Set(['home']));
   }, [authSession]);
 
+  useBrowserBackLayer(!!commentPopUpNotification, () => setCommentPopUpNotification(null));
+  useBrowserBackLayer(isSettingsOpen, () => setIsSettingsOpen(false));
+  useBrowserBackLayer(isUserChangePasswordsOpen, () => setIsUserChangePasswordsOpen(false));
+
   // Tela de login (antes de entrar no app)
   if (!authSession) {
     return (
@@ -366,6 +371,7 @@ export default function App() {
     };
     return (
       <ModalLayerProvider>
+      <BackNavigationProvider>
       <div
         className="min-h-screen flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
         data-effects={effectsEnabled ? 'on' : 'off'}
@@ -575,12 +581,14 @@ export default function App() {
           onPendingZayaConsumed={clearPendingZayaNotification}
         />
       </div>
+      </BackNavigationProvider>
       </ModalLayerProvider>
     );
   }
 
   return (
     <ModalLayerProvider>
+    <BackNavigationProvider>
     <div
       className="min-h-screen flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
       data-effects={effectsEnabled ? 'on' : 'off'}
@@ -808,6 +816,7 @@ export default function App() {
         onPendingZayaConsumed={clearPendingZayaNotification}
       />
     </div>
+    </BackNavigationProvider>
     </ModalLayerProvider>
   );
 }
