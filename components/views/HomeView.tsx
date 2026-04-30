@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   ChevronRight,
   LogOut,
-  Palette,
   User,
   ExternalLink,
   Sparkles,
@@ -814,7 +813,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             subtitle="Configurações da oficina"
                             icon={
                               <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                <Palette className="h-5 w-5" strokeWidth={2.2} />
+                                <img
+                                  src="/icons/tema-sistema-ios.png"
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
                               </IosAccentIconSquircle>
                             }
                           />
