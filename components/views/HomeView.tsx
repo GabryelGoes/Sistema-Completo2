@@ -674,8 +674,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
             </header>
 
-            <div className="mx-auto min-h-0 w-full max-w-xl flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 lg:max-w-5xl">
-              <div className="space-y-6">
+            <div className="min-h-0 w-full flex-1 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 [scrollbar-gutter:stable]">
+              <div className="mx-auto w-full max-w-xl space-y-6 px-4 sm:px-6 lg:max-w-5xl">
                   <section>
                     <p className={iosSectionTitle}>Conta</p>
                     <p className={iosSectionHint}>Perfil e sessão</p>
