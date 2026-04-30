@@ -63,6 +63,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const [newGoalLabel, setNewGoalLabel] = useState('Meta');
   const [newPlaySound, setNewPlaySound] = useState(false);
   const [newGoalShowValues, setNewGoalShowValues] = useState(false);
+  const [newMediaFullscreen, setNewMediaFullscreen] = useState(false);
 
   const [previewTab, setPreviewTab] = useState<'draft' | 'library'>('draft');
   const [libraryPreviewId, setLibraryPreviewId] = useState<string | null>(null);
@@ -81,6 +82,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     goalTarget: number;
     playSound: boolean;
     goalShowValues: boolean;
+    mediaFullscreen: boolean;
   } | null>(null);
 
   const load = async () => {
@@ -134,6 +136,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         goalLabel: newGoalLabel,
         playSound: newPlaySound,
         goalShowValues: newGoalShowValues,
+        mediaFullscreen: false,
       };
     }
     if (newType === 'notice' || newType === 'alert') {
@@ -151,6 +154,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         goalLabel: null,
         playSound: newPlaySound,
         goalShowValues: false,
+        mediaFullscreen: false,
       };
     }
     if ((newType === 'image' || newType === 'video') && !newMediaUrl.trim()) return null;
@@ -167,6 +171,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       goalLabel: null,
       playSound: newPlaySound,
       goalShowValues: false,
+      mediaFullscreen: newType === 'image' || newType === 'video' ? newMediaFullscreen : false,
     };
   }, [
     newType,
@@ -179,6 +184,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     newGoalLabel,
     newPlaySound,
     newGoalShowValues,
+    newMediaFullscreen,
   ]);
 
   const librarySlide = useMemo(() => {
@@ -208,6 +214,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         goalLabel: isGoal ? editForm.goalLabel : null,
         playSound: editForm.playSound,
         goalShowValues: isGoal ? editForm.goalShowValues : false,
+        mediaFullscreen: (editForm.slideType === 'image' || editForm.slideType === 'video') ? editForm.mediaFullscreen : false,
       };
     }
     return librarySlide;
@@ -235,6 +242,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         (previewTab === 'library' && librarySlide !== null)
       ),
     [showWeeklyBar, weeklyTargetNum, previewTab, draftSlide, librarySlide]
+  );
+
+  const currentTypeMeta = useMemo(
+    () => SLIDE_TYPES.find((t) => t.value === newType),
+    [newType]
   );
 
   if (!isOpen) return null;
@@ -273,10 +285,12 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         goalLabel: newType === 'goal' ? newGoalLabel : null,
         playSound: newPlaySound,
         goalShowValues: newType === 'goal' ? newGoalShowValues : false,
+        mediaFullscreen: (newType === 'image' || newType === 'video') ? newMediaFullscreen : false,
       });
       setNewTitle('');
       setNewBody('');
       setNewMediaUrl('');
+      setNewMediaFullscreen(false);
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
@@ -354,6 +368,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       goalTarget: s.goalTarget ?? 0,
       playSound: s.playSound === true,
       goalShowValues: s.goalShowValues === true,
+      mediaFullscreen: s.mediaFullscreen === true,
     });
     setLibraryPreviewId(s.id);
     setPreviewTab('library');
@@ -376,6 +391,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         body: editForm.body,
         mediaUrl: editForm.mediaUrl.trim() ? editForm.mediaUrl.trim() : null,
         durationSeconds: Math.min(300, Math.max(3, Number(editForm.durationSeconds) || 10)),
+        mediaFullscreen: (editForm.slideType === 'image' || editForm.slideType === 'video') ? editForm.mediaFullscreen : false,
       };
       if (isGoal) {
         patch.goalLabel = editForm.goalLabel.trim() || null;
@@ -587,6 +603,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 {/* Novo slide */}
                 <section className={`${iosCard} p-5 sm:p-6`}>
                   <p className={iosLabel}>Novo slide</p>
+                  <div className="mb-4 rounded-2xl border border-zinc-200/80 bg-zinc-50/90 px-3 py-2.5 text-[12px] text-zinc-600 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-300">
+                    <span className="font-semibold text-zinc-800 dark:text-zinc-100">Fluxo rápido:</span> escolha o tipo, preencha apenas o que aparecer e toque em <span className="font-semibold">Adicionar à rotação</span>.
+                  </div>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
                     {SLIDE_TYPES.map((t) => (
                       <button
@@ -609,6 +628,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         </span>
                       </button>
                     ))}
+                  </div>
+                  <div className="mb-4 rounded-2xl bg-zinc-100/80 px-3 py-2 text-[12px] text-zinc-600 dark:bg-white/[0.04] dark:text-zinc-300">
+                    <span className="font-semibold text-zinc-800 dark:text-zinc-100">Tipo selecionado:</span>{' '}
+                    {currentTypeMeta?.label} · {currentTypeMeta?.hint}
                   </div>
 
                   <div className="space-y-4">
@@ -654,6 +677,29 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             className={iosInput}
                             placeholder="https://..."
                           />
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-white/[0.04]">
+                          <div>
+                            <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Mídia em tela cheia</p>
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                              Preenche toda a área da TV (sem bordas). Ideal para imagens de fundo.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={newMediaFullscreen}
+                            onClick={() => setNewMediaFullscreen((v) => !v)}
+                            className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 ${
+                              newMediaFullscreen ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-600'
+                            }`}
+                          >
+                            <span
+                              className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                                newMediaFullscreen ? 'translate-x-[22px]' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
                         </div>
                       </div>
                     )}
@@ -754,9 +800,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 <section className={`${iosCard} p-5 sm:p-6`}>
                   <p className={iosLabel}>Slides na fila ({slides.length})</p>
                   <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
-                    Edite tipo, textos, mídia, duração e ordem. A chave{' '}
-                    <span className="font-semibold text-zinc-600 dark:text-zinc-300">Exibir imediatamente</span> fixa o slide na TV
-                    na hora, sem contagem de tempo da rotação, até você desligar (só um slide fixo por vez). Cada slide meta pode mostrar só % ou valores em R$.
+                    Toque em <span className="font-semibold text-zinc-600 dark:text-zinc-300">Editar</span> para abrir os campos, use ↑ ↓ para ordenar e{' '}
+                    <span className="font-semibold text-zinc-600 dark:text-zinc-300">Exibir imediatamente</span> para fixar 1 slide na TV.
                   </p>
                   <ul className="space-y-3">
                     {slides.map((s, idx) => (
@@ -945,6 +990,31 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                     className={iosInput}
                                     placeholder="https://..."
                                   />
+                                </div>
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-white/[0.04]">
+                                  <div>
+                                    <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Mídia em tela cheia</p>
+                                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                      Ligado: imagem/vídeo ocupa toda a área da TV.
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={editForm.mediaFullscreen}
+                                    onClick={() =>
+                                      setEditForm((f) => (f ? { ...f, mediaFullscreen: !f.mediaFullscreen } : f))
+                                    }
+                                    className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 ${
+                                      editForm.mediaFullscreen ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-600'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                                        editForm.mediaFullscreen ? 'translate-x-[22px]' : 'translate-x-0'
+                                      }`}
+                                    />
+                                  </button>
                                 </div>
                               </div>
                             )}

@@ -96,12 +96,13 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
     const t = slide.slideType;
 
     if (t === 'image' && slide.mediaUrl) {
+      const fitClass = slide.mediaFullscreen ? 'h-full w-full object-cover rounded-none border-0' : 'max-w-full max-h-full object-contain rounded-lg border border-white/10';
       return (
-        <div className="flex-1 flex items-center justify-center min-h-0 p-2">
+        <div className={`flex-1 flex items-center justify-center min-h-0 ${slide.mediaFullscreen ? 'p-0' : 'p-2'}`}>
           <img
             src={slide.mediaUrl}
             alt=""
-            className="max-w-full max-h-full object-contain rounded-lg border border-white/10"
+            className={fitClass}
           />
         </div>
       );
@@ -118,9 +119,10 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
           </div>
         );
       }
+      const fitClass = slide.mediaFullscreen ? 'h-full w-full rounded-none object-cover' : 'max-w-full max-h-[100px] rounded-md object-contain';
       return (
-        <div className="flex-1 flex items-center justify-center min-h-0 p-2">
-          <video src={slide.mediaUrl} className="max-w-full max-h-[100px] rounded-md object-contain" muted playsInline controls={false} />
+        <div className={`flex-1 flex items-center justify-center min-h-0 ${slide.mediaFullscreen ? 'p-0' : 'p-2'}`}>
+          <video src={slide.mediaUrl} className={fitClass} muted playsInline controls={false} />
         </div>
       );
     }

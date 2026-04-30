@@ -2227,6 +2227,8 @@ export interface TvSlide {
   goalShowValues?: boolean;
   /** Fixa este slide na TV imediatamente até desligar (só um por oficina). */
   pinImmediate?: boolean;
+  /** Para imagem/vídeo: preencher toda a área (sem bordas). */
+  mediaFullscreen?: boolean;
 }
 
 export interface TvWeeklyGoal {

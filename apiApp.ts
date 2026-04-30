@@ -1294,6 +1294,18 @@ export function createApiApp() {
   });
 
   // ----------------- TV DO PÁTIO (playlist pública + gestão admin) -----------------
+  const TV_BODY_FULLSCREEN_MARKER = "[[tv_fullscreen_image]]";
+  function parseTvBodyAndFullscreen(raw: unknown): { body: string; mediaFullscreen: boolean } {
+    const text = String(raw ?? "");
+    const hasMarker = text.includes(TV_BODY_FULLSCREEN_MARKER);
+    const clean = hasMarker ? text.replaceAll(TV_BODY_FULLSCREEN_MARKER, "").trim() : text;
+    return { body: clean, mediaFullscreen: hasMarker };
+  }
+  function buildTvBodyWithFullscreen(rawBody: unknown, mediaFullscreen: boolean): string {
+    const base = String(rawBody ?? "").replaceAll(TV_BODY_FULLSCREEN_MARKER, "").trim();
+    return mediaFullscreen ? `${TV_BODY_FULLSCREEN_MARKER}\n${base}`.trim() : base;
+  }
+
   async function fetchTvPlaylistForWorkshop(): Promise<{
     slides: Array<Record<string, unknown>>;
     weeklyGoal: {
@@ -1320,21 +1332,25 @@ export function createApiApp() {
       console.error("[API] TV slides:", slideErr);
     }
 
-    const slides = (slideRows ?? []).map((row: Record<string, unknown>) => ({
-      id: row.id,
-      slideType: row.slide_type,
-      title: row.title ?? "",
-      body: row.body ?? "",
-      mediaUrl: row.media_url ?? null,
-      durationSeconds: row.duration_seconds ?? 10,
-      sortOrder: row.sort_order ?? 0,
-      goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
-      goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
-      goalLabel: row.goal_label ?? null,
-      playSound: (row as { play_sound?: boolean }).play_sound === true,
-      goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
-      pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
-    }));
+    const slides = (slideRows ?? []).map((row: Record<string, unknown>) => {
+      const parsed = parseTvBodyAndFullscreen(row.body);
+      return {
+        id: row.id,
+        slideType: row.slide_type,
+        title: row.title ?? "",
+        body: parsed.body,
+        mediaUrl: row.media_url ?? null,
+        durationSeconds: row.duration_seconds ?? 10,
+        sortOrder: row.sort_order ?? 0,
+        goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
+        goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
+        goalLabel: row.goal_label ?? null,
+        playSound: (row as { play_sound?: boolean }).play_sound === true,
+        goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
+        pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
+        mediaFullscreen: parsed.mediaFullscreen,
+      };
+    });
 
     const { data: goalRow } = await supabaseAdmin
       .from("workshop_tv_weekly_goal")
@@ -1383,22 +1399,26 @@ export function createApiApp() {
       if (error) {
         return res.status(500).json({ error: error.message });
       }
-      const slides = (slideRows ?? []).map((row: Record<string, unknown>) => ({
-        id: row.id,
-        slideType: row.slide_type,
-        title: row.title ?? "",
-        body: row.body ?? "",
-        mediaUrl: row.media_url ?? null,
-        durationSeconds: row.duration_seconds ?? 10,
-        sortOrder: row.sort_order ?? 0,
-        isActive: row.is_active === true,
-        goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
-        goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
-        goalLabel: row.goal_label ?? null,
-        playSound: (row as { play_sound?: boolean }).play_sound === true,
-        goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
-        pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
-      }));
+      const slides = (slideRows ?? []).map((row: Record<string, unknown>) => {
+        const parsed = parseTvBodyAndFullscreen(row.body);
+        return {
+          id: row.id,
+          slideType: row.slide_type,
+          title: row.title ?? "",
+          body: parsed.body,
+          mediaUrl: row.media_url ?? null,
+          durationSeconds: row.duration_seconds ?? 10,
+          sortOrder: row.sort_order ?? 0,
+          isActive: row.is_active === true,
+          goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
+          goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
+          goalLabel: row.goal_label ?? null,
+          playSound: (row as { play_sound?: boolean }).play_sound === true,
+          goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
+          pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
+          mediaFullscreen: parsed.mediaFullscreen,
+        };
+      });
 
       const { data: goalRow } = await supabaseAdmin
         .from("workshop_tv_weekly_goal")
@@ -1488,11 +1508,12 @@ export function createApiApp() {
       if (!["notice", "image", "video", "goal", "alert"].includes(slideType)) {
         return res.status(400).json({ error: "slideType inválido." });
       }
+      const mediaFullscreen = s.mediaFullscreen === true;
       const insert = {
         workshop_id: WORKSHOP_ID,
         slide_type: slideType,
         title: s.title != null ? String(s.title) : null,
-        body: s.body != null ? String(s.body) : null,
+        body: buildTvBodyWithFullscreen(s.body, mediaFullscreen),
         media_url: s.mediaUrl != null && String(s.mediaUrl).trim() ? String(s.mediaUrl).trim() : null,
         duration_seconds: Math.min(300, Math.max(3, Number(s.durationSeconds) || 10)),
         sort_order: Number.isFinite(Number(s.sortOrder)) ? Number(s.sortOrder) : 0,
@@ -1529,7 +1550,11 @@ export function createApiApp() {
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if (s.slideType != null) updates.slide_type = String(s.slideType);
       if (s.title !== undefined) updates.title = s.title != null ? String(s.title) : null;
-      if (s.body !== undefined) updates.body = s.body != null ? String(s.body) : null;
+      if (s.body !== undefined || Object.prototype.hasOwnProperty.call(s, "mediaFullscreen")) {
+        const rawBody = s.body !== undefined ? s.body : null;
+        const mediaFullscreen = s.mediaFullscreen === true;
+        updates.body = buildTvBodyWithFullscreen(rawBody, mediaFullscreen);
+      }
       if (s.mediaUrl !== undefined) updates.media_url = s.mediaUrl != null && String(s.mediaUrl).trim() ? String(s.mediaUrl).trim() : null;
       if (s.durationSeconds != null) updates.duration_seconds = Math.min(300, Math.max(3, Number(s.durationSeconds) || 10));
       if (s.sortOrder != null) updates.sort_order = Number(s.sortOrder);
