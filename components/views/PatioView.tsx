@@ -3430,7 +3430,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
                       <span
                         className={`min-w-0 flex-1 truncate font-semibold text-zinc-700 dark:text-zinc-200 tracking-tight ${
-                          boardPanoramic ? 'text-[1.049rem]' : 'text-[1.199rem]'
+                          boardPanoramic
+                            ? 'text-[1.049rem] portrait:text-[0.8392rem]'
+                            : 'text-[1.199rem] portrait:text-[0.9592rem]'
                         }`}
                       >
                         {firstTwoNames(customerName)}
@@ -3714,7 +3716,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       {customerName ? (
                                         <div className="mb-2 flex w-fit max-w-full items-center gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 px-3 py-1.5 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05]">
                                           <User className="w-4 h-4 shrink-0 text-[#007AFF]" strokeWidth={2} />
-                                          <span className="truncate text-base font-semibold tracking-tight text-zinc-700 dark:text-zinc-200">
+                                          <span className="truncate text-base font-semibold tracking-tight text-zinc-700 dark:text-zinc-200 portrait:text-[0.8rem]">
                                             {firstTwoNames(customerName)}
                                           </span>
                                         </div>
