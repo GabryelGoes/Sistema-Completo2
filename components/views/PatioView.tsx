@@ -3027,64 +3027,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   if (initialLoading) {
-    const orbClass = isModuleMode
-      ? 'from-violet-500/95 via-fuchsia-500/90 to-indigo-500/95 dark:from-violet-400/95 dark:via-fuchsia-400/95 dark:to-indigo-400/95'
-      : 'from-[#007AFF]/95 via-[#5AC8FA]/92 to-cyan-400/95 dark:from-[#0A84FF]/95 dark:via-[#64B5FF]/92 dark:to-cyan-300/95';
-    const ringClass = isModuleMode
-      ? 'border-violet-400/35 dark:border-violet-300/35'
-      : 'border-[#5AC8FA]/35 dark:border-[#64B5FF]/35';
-    const pulseClass = isModuleMode
-      ? 'from-violet-500/35 via-fuchsia-500/20 to-transparent dark:from-violet-400/35 dark:via-fuchsia-400/20 dark:to-transparent'
-      : 'from-[#0A84FF]/35 via-[#5AC8FA]/20 to-transparent dark:from-[#64B5FF]/35 dark:via-cyan-300/20 dark:to-transparent';
     return (
       <div
-        className="relative flex min-h-[70vh] w-full flex-col items-center justify-center px-4 py-16"
+        className="relative flex min-h-[70vh] w-full flex-col items-center justify-center gap-5 px-4 py-16"
         role="status"
         aria-live="polite"
         aria-busy="true"
         aria-label="Carregando"
       >
-        <style>{`
-          @keyframes patio-load-orb {
-            0%, 100% { transform: translate3d(0, 0, 0) scale(0.96); }
-            50% { transform: translate3d(0, -8px, 0) scale(1.04); }
-          }
-          @keyframes patio-load-ring {
-            0% { transform: scale(0.72); opacity: 0; }
-            45% { opacity: 0.42; }
-            100% { transform: scale(1.18); opacity: 0; }
-          }
-          @keyframes patio-load-sheen {
-            0% { transform: translateX(-130%) rotate(20deg); opacity: 0; }
-            35%, 65% { opacity: 0.42; }
-            100% { transform: translateX(130%) rotate(20deg); opacity: 0; }
-          }
-          .patio-load-orb {
-            animation: patio-load-orb 1.7s cubic-bezier(0.35, 0, 0.2, 1) infinite;
-            will-change: transform;
-          }
-          .patio-load-ring {
-            animation: patio-load-ring 2.1s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-            will-change: transform, opacity;
-          }
-          .patio-load-sheen {
-            animation: patio-load-sheen 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-            will-change: transform, opacity;
-          }
-        `}</style>
-        <div className="relative h-24 w-24" aria-hidden>
-          <span
-            className={`patio-load-ring absolute inset-0 rounded-full border ${ringClass}`}
-            style={{ animationDelay: '0ms' }}
+        <div
+          className="flex h-[4.5rem] w-[4.5rem] items-center justify-center overflow-hidden rounded-[1.15rem] border border-zinc-200/90 bg-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-white/[0.1] dark:bg-zinc-900/60 dark:shadow-none"
+          aria-hidden
+        >
+          <img
+            src={isModuleMode ? '/icons/laboratorio-ios.png' : '/icons/patio-ios.png'}
+            alt=""
+            className="h-[3.25rem] w-[3.25rem] object-cover opacity-[0.92]"
           />
-          <span
-            className={`patio-load-ring absolute inset-0 rounded-full border ${ringClass}`}
-            style={{ animationDelay: '840ms' }}
-          />
-          <span className={`patio-load-orb absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br ${orbClass} shadow-[0_14px_36px_-12px_rgba(0,0,0,0.35)]`} />
-          <span className={`absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br ${pulseClass} blur-xl`} />
-          <span className="patio-load-sheen absolute left-1/2 top-1/2 h-16 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/45 blur-[1px] dark:bg-white/35" />
         </div>
+        <Loader2 className="h-6 w-6 text-zinc-400 animate-spin dark:text-zinc-500" strokeWidth={2} aria-hidden />
+        <p className="text-center text-[15px] leading-snug text-zinc-500 dark:text-zinc-400">
+          {isModuleMode ? 'Carregando Laboratório…' : 'Carregando Pátio…'}
+        </p>
       </div>
     );
   }
