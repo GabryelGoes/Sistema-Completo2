@@ -310,7 +310,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   useEffect(() => {
     if (!open || !canUseDOM) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      setOpen(false);
     };
     document.addEventListener('keydown', onKeyDown);
     const prevOverflow = document.body.style.overflow;

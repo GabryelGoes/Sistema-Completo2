@@ -472,6 +472,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (childModalStackActive) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
       setIsHomeSettingsHubOpen(false);
     };
     window.addEventListener('keydown', onKey);

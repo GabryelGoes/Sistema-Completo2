@@ -4,6 +4,7 @@ import remarkBreaks from "remark-breaks";
 import { markdownComponentsApp } from "./ui/markdownUi";
 import { uiChatBubbleAssistant, uiChatMeta, uiChatScrollArea } from "./ui/appTypography";
 import { useRegisterModalOpen } from "./ui/ModalLayerContext";
+import { useBrowserBackLayer } from "./ui/BackNavigationContext";
 import { Mic, Send, Sparkles, Volume2, VolumeX, X } from "lucide-react";
 import {
   iosModalClose,
@@ -2236,6 +2237,16 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
     startSpeechRecognition();
   }, [listening, startSpeechRecognition]);
 
+  const closeAssistantPanel = useCallback(() => {
+    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    listeningRef.current = false;
+    recRef.current?.stop();
+    setListening(false);
+    setOpen(false);
+  }, []);
+
+  useBrowserBackLayer(open, closeAssistantPanel);
+
   /** Ao abrir o chat com voz em tempo real pronta, liga o microfone uma vez (após relay inicial, se houver). */
   useEffect(() => {
     if (!open || !realtimeReady || useClassicChat || autoMicStartedForOpenRef.current) return;
@@ -2333,13 +2344,7 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
             >
             <button
               type="button"
-              onClick={() => {
-                if (typeof window !== "undefined") window.speechSynthesis?.cancel();
-                listeningRef.current = false;
-                recRef.current?.stop();
-                setListening(false);
-                setOpen(false);
-              }}
+              onClick={closeAssistantPanel}
               className={iosModalClose}
               aria-label="Fechar"
             >

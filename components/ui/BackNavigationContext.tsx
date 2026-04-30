@@ -9,6 +9,8 @@ import React, {
 
 type BackNavigationValue = {
   registerLayer: (onPop: () => void) => () => void;
+  /** Desktop Escape: há camada na pilha — dispara `history.back()` e retorna true. */
+  tryCloseTopLayer: () => boolean;
 };
 
 export const BackNavigationContext = createContext<BackNavigationValue | null>(null);
@@ -61,7 +63,16 @@ export function BackNavigationProvider({ children }: { children: React.ReactNode
     };
   }, []);
 
-  const value = useMemo(() => ({ registerLayer }), [registerLayer]);
+  const tryCloseTopLayer = useCallback(() => {
+    if (stackRef.current.length === 0) return false;
+    window.history.back();
+    return true;
+  }, []);
+
+  const value = useMemo(
+    () => ({ registerLayer, tryCloseTopLayer }),
+    [registerLayer, tryCloseTopLayer]
+  );
   return (
     <BackNavigationContext.Provider value={value}>{children}</BackNavigationContext.Provider>
   );

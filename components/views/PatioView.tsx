@@ -478,6 +478,7 @@ const Lightbox = ({
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopImmediatePropagation();
         onClose();
         return;
       }
@@ -1053,7 +1054,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setIsPatioHeaderToolsOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsPatioHeaderToolsOpen(false);
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      setIsPatioHeaderToolsOpen(false);
     };
     window.addEventListener('resize', updatePatioToolsPopoverPosition);
     window.addEventListener('scroll', updatePatioToolsPopoverPosition, true);

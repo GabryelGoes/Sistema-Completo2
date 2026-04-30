@@ -236,7 +236,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   useEffect(() => {
     if (!detailPart) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setDetailPart(null);
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      setDetailPart(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -272,6 +275,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (photoEditorFile) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
       closeAddProductModal();
     };
     window.addEventListener('keydown', onKey);
@@ -542,7 +547,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   useEffect(() => {
     if (!isCategoriesModalOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeCategoriesModal();
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      closeCategoriesModal();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -555,7 +563,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       if (el && !el.contains(e.target as Node)) setCategoryFilterMenuOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setCategoryFilterMenuOpen(false);
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      setCategoryFilterMenuOpen(false);
     };
     document.addEventListener('mousedown', onDoc);
     window.addEventListener('keydown', onKey);

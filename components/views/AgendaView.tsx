@@ -109,7 +109,10 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
   useEffect(() => {
     if (!detailAppointment) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setDetailAppointment(null);
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      setDetailAppointment(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

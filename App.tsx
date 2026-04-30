@@ -26,6 +26,7 @@ import { ArrowLeft, X } from 'lucide-react';
 import { applyAccentToRoot, DEFAULT_ACCENT } from './utils/appAppearance';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
 import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
+import { DesktopEscapeCloseBridge } from './components/ui/DesktopEscapeCloseBridge';
 
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
@@ -594,6 +595,7 @@ export default function App() {
           pendingZayaNotification={pendingZayaNotification}
           onPendingZayaConsumed={clearPendingZayaNotification}
         />
+        <DesktopEscapeCloseBridge activeAppTab={userTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
       </div>
       </BackNavigationProvider>
       </ModalLayerProvider>
@@ -830,6 +832,7 @@ export default function App() {
         pendingZayaNotification={pendingZayaNotification}
         onPendingZayaConsumed={clearPendingZayaNotification}
       />
+      <DesktopEscapeCloseBridge activeAppTab={currentTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
     </div>
     </BackNavigationProvider>
     </ModalLayerProvider>
