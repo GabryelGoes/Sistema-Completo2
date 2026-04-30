@@ -670,9 +670,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <h1 className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">
                     Configurações
                   </h1>
-                  <p className="mt-0.5 max-w-sm text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
-                    Conta, ferramentas e administração
-                  </p>
                 </div>
               </div>
             </header>
