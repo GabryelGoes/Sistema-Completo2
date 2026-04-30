@@ -3430,8 +3430,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
                 )}
 
-                {/* Técnico */}
-                <div className="flex min-w-0 items-start gap-2 sm:gap-3">
+                {/* Técnico — afastado do bloco cliente/placa */}
+                <div
+                  className={`flex min-w-0 items-start gap-2 sm:gap-3 ${boardPanoramic ? 'mt-2.5' : 'mt-3.5'}`}
+                >
                   <div className="min-w-0 flex-1">
                     <button
                       type="button"
