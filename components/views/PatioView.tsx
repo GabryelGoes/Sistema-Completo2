@@ -3468,25 +3468,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     >
                       {hasMechanic ? (
                         <div
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md ${getMechanicButtonStyle(mechanic!, member?.id)}`}
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md portrait:h-[1.6rem] portrait:w-[1.6rem] portrait:rounded-lg ${getMechanicButtonStyle(mechanic!, member?.id)}`}
                         >
                           <Wrench
-                            className="h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]"
+                            className="h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:h-[0.8rem] portrait:w-[0.8rem]"
                             strokeWidth={2.35}
                             aria-hidden
                           />
                         </div>
                       ) : canAssignMember ? (
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12">
-                          <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.35} aria-hidden />
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12 portrait:h-[1.6rem] portrait:w-[1.6rem] portrait:rounded-lg">
+                          <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff] portrait:h-[0.8rem] portrait:w-[0.8rem]" strokeWidth={2.35} aria-hidden />
                         </div>
                       ) : (
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-zinc-100/80 dark:border-white/10 dark:bg-white/[0.06]">
-                          <Wrench className="h-4 w-4 text-zinc-400 dark:text-zinc-500" strokeWidth={2.35} aria-hidden />
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-zinc-100/80 dark:border-white/10 dark:bg-white/[0.06] portrait:h-[1.6rem] portrait:w-[1.6rem] portrait:rounded-lg">
+                          <Wrench className="h-4 w-4 text-zinc-400 dark:text-zinc-500 portrait:h-[0.8rem] portrait:w-[0.8rem]" strokeWidth={2.35} aria-hidden />
                         </div>
                       )}
                       <span
-                        className={`font-bold truncate ${boardPanoramic ? 'text-[1.049rem]' : 'text-[1.199rem]'} ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}
+                        className={`font-bold truncate ${
+                          boardPanoramic ? 'text-[1.049rem] portrait:text-[0.8392rem]' : 'text-[1.199rem] portrait:text-[0.9592rem]'
+                        } ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}
                       >
                         {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : 'Sem técnico')}
                       </span>
