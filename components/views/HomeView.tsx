@@ -641,7 +641,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         event.preventDefault();
                         setIsQuickEditMode(true);
                       }}
-                      className={`group relative flex flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99] ${
+                      className={`group relative flex w-full flex-col items-center gap-3 p-4 sm:p-5 text-center select-none ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99] ${
                         isWide ? 'col-span-2' : ''
                       } ${isQuickEditMode ? 'animate-[pulse_2.8s_ease-in-out_infinite]' : ''} ${
                         isDragging ? 'scale-[1.02] border-[#007AFF]/35 shadow-[0_18px_48px_-18px_rgba(0,122,255,0.38)]' : ''
@@ -662,19 +662,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             event.stopPropagation();
                             toggleQuickTileSize(app.id);
                           }}
-                          className="absolute right-2 top-2 z-10 rounded-full border border-[#007AFF]/35 bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#007AFF] shadow-sm backdrop-blur-md transition-all hover:bg-white dark:border-[#64B5FF]/45 dark:bg-zinc-900/80 dark:text-[#8cc8ff]"
+                          className="pointer-events-auto absolute right-2 top-2 z-10 rounded-full border border-[#007AFF]/35 bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#007AFF] shadow-sm backdrop-blur-md transition-all hover:bg-white dark:border-[#64B5FF]/45 dark:bg-zinc-900/80 dark:text-[#8cc8ff]"
                         >
                           2x
                         </span>
                       )}
-                      <IosAccentIconSquircle
-                        variant="tile"
-                        className="transition-transform duration-300 group-hover:scale-105"
-                        strokeWidth={2.2}
-                      >
-                        {app.icon}
-                      </IosAccentIconSquircle>
-                      <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">{app.label}</span>
+                      {/* pointer-events-none: toque registra no <button> inteiro (cartão + squircle), evita área morta em imagens/WebKit */}
+                      <span className="pointer-events-none flex w-full flex-col items-center gap-3">
+                        <IosAccentIconSquircle
+                          variant="tile"
+                          className="pointer-events-none shrink-0 transition-transform duration-300 group-hover:scale-105"
+                          strokeWidth={2.2}
+                        >
+                          {app.icon}
+                        </IosAccentIconSquircle>
+                        <span className="text-[15px] font-semibold leading-tight text-zinc-900 dark:text-white">
+                          {app.label}
+                        </span>
+                      </span>
                     </button>
                   );
                 })}
