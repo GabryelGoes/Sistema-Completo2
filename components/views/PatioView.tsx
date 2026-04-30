@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, ListChecks, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, ArrowRightLeft, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal } from 'lucide-react';
@@ -997,9 +998,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const boardPanoramicStorageKey = isModuleMode ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
   const [boardPanoramic, setBoardPanoramic] = useState(false);
   const [isDesktopLandscape, setIsDesktopLandscape] = useState(false);
-  /** Menu ⋯ do cabeçalho: zoom da grade, busca/atualizar, histórico. */
+  /** Menu ⋯ do cabeçalho: zoom da grade, busca/atualizar, histórico (portal em body para ficar acima dos cards). */
   const [isPatioHeaderToolsOpen, setIsPatioHeaderToolsOpen] = useState(false);
-  const patioHeaderToolsRef = useRef<HTMLDivElement>(null);
+  const patioHeaderToolsTriggerRef = useRef<HTMLButtonElement>(null);
+  const patioHeaderToolsPopoverRef = useRef<HTMLDivElement>(null);
+  const [patioToolsPopoverStyle, setPatioToolsPopoverStyle] = useState<React.CSSProperties>({});
+  const updatePatioToolsPopoverPosition = useCallback(() => {
+    const btn = patioHeaderToolsTriggerRef.current;
+    if (!btn || typeof window === 'undefined') return;
+    const rect = btn.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const menuWidth = Math.min(vw - 24, 17.75 * 16);
+    let left = rect.right - menuWidth;
+    left = Math.max(12, Math.min(left, vw - menuWidth - 12));
+    setPatioToolsPopoverStyle({
+      position: 'fixed',
+      top: rect.bottom + 8,
+      left,
+      width: menuWidth,
+      zIndex: 99999,
+    });
+  }, []);
   useEffect(() => {
     try {
       setBoardPanoramic(localStorage.getItem(boardPanoramicStorageKey) === '1');
@@ -1019,22 +1038,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
     mq.addListener(apply);
     return () => mq.removeListener(apply);
   }, []);
+  useLayoutEffect(() => {
+    if (!isPatioHeaderToolsOpen) return;
+    updatePatioToolsPopoverPosition();
+  }, [isPatioHeaderToolsOpen, updatePatioToolsPopoverPosition]);
+
   useEffect(() => {
     if (!isPatioHeaderToolsOpen) return;
     const onDoc = (e: MouseEvent) => {
-      if (patioHeaderToolsRef.current?.contains(e.target as Node)) return;
+      const t = e.target as Node;
+      if (patioHeaderToolsTriggerRef.current?.contains(t)) return;
+      if (patioHeaderToolsPopoverRef.current?.contains(t)) return;
       setIsPatioHeaderToolsOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsPatioHeaderToolsOpen(false);
     };
+    window.addEventListener('resize', updatePatioToolsPopoverPosition);
+    window.addEventListener('scroll', updatePatioToolsPopoverPosition, true);
     document.addEventListener('click', onDoc, true);
     document.addEventListener('keydown', onKey);
     return () => {
+      window.removeEventListener('resize', updatePatioToolsPopoverPosition);
+      window.removeEventListener('scroll', updatePatioToolsPopoverPosition, true);
       document.removeEventListener('click', onDoc, true);
       document.removeEventListener('keydown', onKey);
     };
-  }, [isPatioHeaderToolsOpen]);
+  }, [isPatioHeaderToolsOpen, updatePatioToolsPopoverPosition]);
 
   /** Desktop horizontal: usar `zoom` (não `transform: scale`) para o box do layout acompanhar o conteúdo — scale() deixa altura “fantasma” e espaço vazio no card. */
   const DESKTOP_LANDSCAPE_CARD_ZOOM = 0.65025;
@@ -3226,9 +3256,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </span>
               <span className="tracking-tight">Lembretes</span>
             </button>
-            <div className="relative z-[60] shrink-0 overflow-visible" ref={patioHeaderToolsRef}>
+            <div className="shrink-0">
               <button
                 type="button"
+                ref={patioHeaderToolsTriggerRef}
                 onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
                 aria-expanded={isPatioHeaderToolsOpen}
                 aria-haspopup="menu"
@@ -3237,10 +3268,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
               >
                 <MoreHorizontal className="h-6 w-6" strokeWidth={2.2} aria-hidden />
               </button>
-              {isPatioHeaderToolsOpen ? (
+              {isPatioHeaderToolsOpen && typeof document !== 'undefined'
+                ? createPortal(
                 <div
+                  ref={patioHeaderToolsPopoverRef}
                   role="menu"
-                  className="absolute right-0 top-full z-[80] mt-2 w-[min(calc(100vw-1.5rem),17.75rem)] origin-top-right rounded-2xl border border-zinc-200/90 bg-white py-2 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
+                  style={patioToolsPopoverStyle}
+                  className="max-h-[min(70vh,calc(100dvh-5rem))] overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200/90 bg-white py-2 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
                 >
                   <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
                     <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Tamanho dos cartões</p>
@@ -3359,8 +3393,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </span>
                     </button>
                   </div>
-                </div>
-              ) : null}
+                </div>,
+                document.body
+              )
+                : null}
             </div>
             <div className="flex shrink-0 items-center">
               <NotificationCenter
