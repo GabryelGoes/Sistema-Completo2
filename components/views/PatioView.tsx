@@ -3402,10 +3402,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
               >
               {/* Layout: 1) nome do carro  2) cliente  3) técnico | placa */}
               <div className="min-w-0">
-                {/* Nome do carro (fonte um pouco menor) */}
-                <div className={boardPanoramic ? 'mb-[calc(0.25rem*1.6146)]' : 'mb-1.5'}>
+                {/* Nome do carro (fonte um pouco menor); portrait: −15% via escala */}
+                <div className={boardPanoramic ? 'mb-[calc(0.25rem*1.6146)] portrait:mb-1' : 'mb-1.5 portrait:mb-1'}>
                   <h3
-                    className={`font-vehicle ${getModelTitleClass(model, boardPanoramic, true)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic ${vehicleCardTitleShadow}`}
+                    className={`font-vehicle ${getModelTitleClass(model, boardPanoramic, true)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic portrait:inline-block portrait:w-full portrait:origin-top-left portrait:scale-[0.85] ${vehicleCardTitleShadow}`}
                   >
                     {model}
                   </h3>
@@ -3422,8 +3422,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {/* Cliente + placa na mesma linha (placa fixa à direita, nome truncado) */}
                 {customerName && (
                   <div
-                    className={`mb-0 flex max-w-full items-center justify-between gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] ${
-                      boardPanoramic ? 'px-2 py-[calc(0.25rem*1.6146)]' : 'px-3 py-1.5'
+                    className={`mb-0 flex max-w-full items-center justify-between gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] portrait:rounded-xl portrait:gap-1.5 portrait:border-zinc-200/55 ${
+                      boardPanoramic
+                        ? 'px-2 py-[calc(0.25rem*1.6146)] portrait:px-1.5 portrait:py-1'
+                        : 'px-3 py-1.5 portrait:px-2 portrait:py-1'
                     }`}
                   >
                     <div className="min-w-0 flex flex-1 items-center gap-2">
