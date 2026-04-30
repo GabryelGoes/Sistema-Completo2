@@ -648,19 +648,12 @@ function MercosulPlateMockup(props: {
   const { plate, blurPlates = false, size, selectable = false } = props;
   const display = (plate || '—').trim() || '—';
 
-  /** `cardGrid` = grade Pátio zoom padrão; `modal` = miniatura reduzida nos modais de veículo. */
+  /** `modal` = mesmo tamanho físico que `card`; só o texto da placa (letras/números) é menor. */
   const isCompact = size === 'cardCompact';
   const isCardGrid = size === 'cardGrid';
-  const isCard = size === 'card';
   const isModal = size === 'modal';
 
-  const w = isCompact
-    ? 'w-[122px]'
-    : isCardGrid
-      ? 'w-[148px]'
-      : isCard
-        ? 'w-[174px]'
-        : 'w-[121px]';
+  const w = isCompact ? 'w-[122px]' : isCardGrid ? 'w-[148px]' : 'w-[174px]';
 
   const shadow = isCompact ? 'shadow-md shadow-black/15' : 'shadow-xl shadow-black/25';
 
@@ -668,12 +661,10 @@ function MercosulPlateMockup(props: {
     ? 'text-[6.2px]'
     : isCardGrid
       ? 'text-[9.4px]'
-      : isModal
-        ? 'text-[8.5px]'
-        : 'text-[11px]';
+      : 'text-[11px]';
 
-  const flagW = isCompact ? 12 : isCardGrid ? 14 : isModal ? 13 : 16;
-  const flagH = isCompact ? 9 : isCardGrid ? 9 : isModal ? 8 : 10;
+  const flagW = isCompact ? 12 : isCardGrid ? 14 : 16;
+  const flagH = isCompact ? 9 : isCardGrid ? 9 : 10;
 
   const plateText = isCompact
     ? 'text-[19.9px] sm:text-[21.2px]'
