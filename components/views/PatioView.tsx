@@ -3152,42 +3152,43 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       <div className="relative z-0 mx-auto max-w-[100rem] px-3 pt-2 sm:px-5 md:px-6 md:pt-3">
         {/* Cabeçalho — mesmo padrão Recepção/Agenda: sem painel vidro em volta; ícone = tile da Home (Pátio / Laboratório) */}
-        <header className="mb-6 flex flex-col gap-4 sm:mb-8 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
-          <div
-            className="flex min-w-0 items-center gap-3 sm:gap-4"
-            style={isModuleMode ? { transform: 'translateX(3%)' } : { transform: 'translateX(5%)' }}
-          >
-            {isModuleMode ? (
-              <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-                <img src="/icons/laboratorio-ios.png" alt="" className="h-full w-full object-cover" />
-              </IosAccentIconSquircle>
-            ) : (
-              <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-                <img src="/icons/patio-ios.png" alt="" className="h-full w-full object-cover" />
-              </IosAccentIconSquircle>
-            )}
-            <div className="min-w-0">
-              <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
-                {isModuleMode ? 'Laboratório' : 'Pátio'}
-              </h1>
-              <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                {cards.length} {isModuleMode ? 'módulos' : 'veículos'} na oficina
-              </p>
+        <header className="mb-6 sm:mb-8">
+          <div className="grid w-full grid-cols-1 items-center gap-y-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-3">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4 md:justify-self-start">
+              {isModuleMode ? (
+                <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
+                  <img src="/icons/laboratorio-ios.png" alt="" className="h-full w-full object-cover" />
+                </IosAccentIconSquircle>
+              ) : (
+                <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
+                  <img src="/icons/patio-ios.png" alt="" className="h-full w-full object-cover" />
+                </IosAccentIconSquircle>
+              )}
+              <div className="min-w-0">
+                <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
+                  {isModuleMode ? 'Laboratório' : 'Pátio'}
+                </h1>
+                <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                  <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
+                  {cards.length} {isModuleMode ? 'módulos' : 'veículos'} na oficina
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:shrink-0 lg:justify-end">
-            <button
-              type="button"
-              onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
-              className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-[#007AFF]/45 bg-[#007AFF]/15 px-4 py-2.5 text-sm font-semibold text-[#007AFF] shadow-[0_8px_24px_rgba(0,122,255,0.18)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/60 hover:bg-[#007AFF]/22 active:scale-[0.98] dark:border-[#64B5FF]/40 dark:bg-[#64B5FF]/14 dark:text-[#8cc8ff] dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] sm:px-5 sm:py-3"
-            >
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/20 text-[#007AFF] dark:bg-[#64B5FF]/25 dark:text-[#8cc8ff]">
-                <Plus className="h-4 w-4" strokeWidth={2.3} />
-              </span>
-              <span className="tracking-tight">{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
-            </button>
+            <div className="flex justify-center md:justify-self-center md:px-2">
+              <button
+                type="button"
+                onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                className="relative inline-flex min-h-[48px] shrink-0 items-center justify-center gap-2.5 rounded-full border-2 border-black/15 bg-brand-yellow px-6 py-3 text-[15px] font-extrabold tracking-tight text-zinc-950 shadow-[0_4px_0_0_rgba(0,0,0,0.12),0_12px_40px_-8px_rgba(245,208,11,0.55),0_8px_28px_-6px_rgba(0,0,0,0.2)] ring-2 ring-white/60 ring-offset-2 ring-offset-[#f2f2f7] transition-all duration-200 hover:brightness-105 hover:shadow-[0_3px_0_0_rgba(0,0,0,0.1),0_14px_44px_-6px_rgba(245,208,11,0.6)] active:translate-y-0.5 active:shadow-[0_2px_0_0_rgba(0,0,0,0.12)] dark:border-black/25 dark:bg-brand-yellow dark:text-zinc-950 dark:shadow-[0_4px_0_0_rgba(0,0,0,0.35),0_12px_40px_-8px_rgba(245,208,11,0.35),0_8px_32px_-8px_rgba(0,0,0,0.55)] dark:ring-white/15 dark:ring-offset-zinc-900 dark:hover:brightness-110 sm:min-h-[52px] sm:px-7 sm:py-3.5 sm:text-base"
+              >
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/10 text-zinc-950 dark:bg-black/20">
+                  <Plus className="h-5 w-5" strokeWidth={2.75} aria-hidden />
+                </span>
+                <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
+              </button>
+            </div>
+
+            <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-2 md:w-auto md:justify-self-end md:justify-end">
             <button
               type="button"
               onClick={() => {
@@ -3286,6 +3287,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <RefreshCw className="h-6 w-6" />
               </button>
             )}
+          </div>
           </div>
         </header>
       </div>
