@@ -1091,6 +1091,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const patioPrimaryOverlayOpen = !!(selectedCard || selectedHistoryCard);
   useBrowserBackLayer(patioPrimaryOverlayOpen, closePatioPrimaryOverlays);
+  useBrowserBackLayer(isPatioHeaderToolsOpen, () => setIsPatioHeaderToolsOpen(false));
+  useBrowserBackLayer(isRemindersOpen, () => setIsRemindersOpen(false));
 
   const fetchReminders = useCallback(async () => {
     setRemindersLoading(true);
