@@ -3,6 +3,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Palette,
   User,
   ExternalLink,
   Sparkles,
@@ -816,15 +817,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               setIsHomeSettingsHubOpen(false);
                               onOpenApp('settings');
                             }}
-                            title="Oficina e integrações"
+                            title="Tema do sistema"
                             subtitle="Configurações da oficina"
                             icon={
                               <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                <img
-                                  src="/icons/configuracoes-ios.png"
-                                  alt="Configurações da oficina"
-                                  className="h-full w-full object-cover"
-                                />
+                                <Palette className="h-5 w-5" strokeWidth={2.2} />
                               </IosAccentIconSquircle>
                             }
                           />
