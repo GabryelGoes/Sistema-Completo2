@@ -648,7 +648,7 @@ function MercosulPlateMockup(props: {
   const { plate, blurPlates = false, size, selectable = false } = props;
   const display = (plate || '—').trim() || '—';
 
-  /** `modal` = mesmo tamanho físico que `card`; só o texto da placa (letras/números) é menor. */
+  /** `modal`: miniatura −10% via zoom; letras/números mantêm o mesmo tamanho visual (fonte compensada ÷0,9). */
   const isCompact = size === 'cardCompact';
   const isCardGrid = size === 'cardGrid';
   const isModal = size === 'modal';
@@ -671,10 +671,10 @@ function MercosulPlateMockup(props: {
     : isCardGrid
       ? 'text-[32px] sm:text-[35.2px]'
       : isModal
-        ? 'text-[28.6px] sm:text-[31.3px]'
+        ? 'text-[31.8px] sm:text-[34.8px]'
         : 'text-[37.6px] sm:text-[41.5px]';
 
-  return (
+  const mockup = (
     <div
       className={`${w} aspect-[400/130] grid grid-rows-[20%_80%] overflow-hidden rounded-[7px] border-[2px] border-black bg-white ${shadow} ${selectable ? 'select-text' : 'select-none'} sm:rounded-[9px]`}
       aria-hidden
@@ -694,6 +694,19 @@ function MercosulPlateMockup(props: {
       </div>
     </div>
   );
+
+  if (isModal) {
+    return (
+      <div
+        className="inline-block origin-center [zoom:0.9]"
+        aria-hidden
+      >
+        {mockup}
+      </div>
+    );
+  }
+
+  return mockup;
 }
 
 const VEHICLE_MODAL_PHOTOS_BATCH = 8;
