@@ -210,7 +210,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const showAdminSection = (!isTechnician && !isSystemUser) || (isSystemUser && !!perms.full_access);
   const showToolsSection = hasToolsAccess && !perms.full_access;
 
-  /** Com outro modal aberto, o hub fica com z-index menor para o filho (z-100) aparecer acima; ao fechar, o hub continua aberto. */
+  /**
+   * Hub renderizado em ModalPortal (body, depois de #root): com o mesmo z-[100] dos modais,
+   * o portal ganha e os modais ficam “por baixo”. Usamos z-[90] no overlay enquanto o hub está aberto
+   * para modais z-[100] dentro do app ficarem sempre acima.
+   */
   const childModalStackActive = useMemo(
     () =>
       isSystemUsersOpen ||
@@ -640,7 +644,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {isHomeSettingsHubOpen ? (
         <ModalPortal>
           <div
-            className={`${iosModalOverlay} ${childModalStackActive ? '!z-[85]' : ''}`}
+            className={`${iosModalOverlay} !z-[90]`}
             onClick={() => {
               if (childModalStackActive) return;
               setIsHomeSettingsHubOpen(false);
