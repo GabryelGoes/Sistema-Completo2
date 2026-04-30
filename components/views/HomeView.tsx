@@ -20,6 +20,7 @@ import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import type { SystemUserPermissions } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
+import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
 
 export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'settings';
 
@@ -45,6 +46,7 @@ interface HomeViewProps {
     accentColor?: string | null;
   }) => void;
   adminDisplayName?: string;
+  adminPhotoUrl?: string | null;
   onAdminProfileSaved?: () => void;
   systemUsersRefreshTrigger?: number;
   systemUserPermissions?: SystemUserPermissions;
@@ -158,6 +160,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   systemUserIsTechnician = false,
   onSystemUserProfileUpdated,
   adminDisplayName,
+  adminPhotoUrl = null,
   onAdminProfileSaved,
   systemUsersRefreshTrigger,
   systemUserPermissions,
@@ -207,6 +210,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
   const showAdminSection = (!isTechnician && !isSystemUser) || (isSystemUser && !!perms.full_access);
   const showToolsSection = hasToolsAccess && !perms.full_access;
+
+  const headerDisplayName = useMemo(() => {
+    if (isSystemUser) {
+      const n = (systemUserDisplayName || systemUserUsername || '').trim();
+      return n || 'Usuário';
+    }
+    if (isTechnician && (technicianName || '').trim()) return technicianName.trim();
+    return (adminDisplayName || 'Rei do ABS').trim();
+  }, [isSystemUser, systemUserDisplayName, systemUserUsername, isTechnician, technicianName, adminDisplayName]);
+
+  const headerPhotoUrl = useMemo(() => {
+    if (isSystemUser) return systemUserPhotoUrl;
+    return adminPhotoUrl;
+  }, [isSystemUser, systemUserPhotoUrl, adminPhotoUrl]);
+
+  const headerInitial = useMemo(
+    () => (headerDisplayName ? headerDisplayName.charAt(0).toUpperCase() : '?'),
+    [headerDisplayName]
+  );
+
+  const headerAvatarAccentStyle: React.CSSProperties | undefined = useMemo(() => {
+    if (headerPhotoUrl || !isSystemUser || !systemUserAccentColor) return undefined;
+    const h = systemUserAccentColor.trim();
+    if (!/^#[0-9A-Fa-f]{6}$/.test(h)) return undefined;
+    return iosSquircleBackgroundFromHex(h);
+  }, [headerPhotoUrl, isSystemUser, systemUserAccentColor]);
 
   /** Oculta TabBar como um modal; sem portal no body (evita cobrir modais renderizados no root). */
   useRegisterModalOpen(isHomeSettingsHubOpen);
@@ -501,33 +530,53 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* Cabeçalho em vidro — alinhado ao topo (safe area apenas onde necessário) */}
       <header className="relative z-10 pt-[max(0.5rem,env(safe-area-inset-top))] pb-4 px-4 sm:px-6 border-b border-zinc-200/70 dark:border-white/[0.08] bg-white/70 dark:bg-zinc-950/60 backdrop-blur-2xl shadow-[0_1px_0_0_rgba(255,255,255,0.55)_inset] dark:shadow-none">
-        <div className="max-w-xl lg:max-w-5xl mx-auto flex items-center gap-4">
+        <div className="max-w-xl lg:max-w-5xl mx-auto flex items-center gap-4 min-w-0">
           <div className="relative shrink-0">
-            <div className="absolute -inset-0.5 rounded-[1.15rem] bg-gradient-to-br from-amber-400/50 via-white/20 to-cyan-400/40 opacity-80 dark:opacity-60 blur-[1px]" />
-            <img
-              src="/logo.png"
-              alt="Rei do ABS"
-              className="relative w-14 h-14 sm:w-[4.25rem] sm:h-[4.25rem] object-contain rounded-2xl border border-white/60 dark:border-white/10 shadow-lg shadow-black/5 dark:shadow-black/40 ring-1 ring-black/5 dark:ring-white/10"
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-950 dark:text-zinc-400 mb-0.5">Oficina</p>
-            <h1 className="text-[1.35rem] sm:text-[1.65rem] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
-              Rei do ABS
-            </h1>
-            <p className="text-[13px] text-zinc-950 dark:text-zinc-400 mt-1 flex items-center gap-1.5 flex-wrap">
-              <Sparkles className="w-3.5 h-3.5 text-brand-yellow shrink-0" />
-              {isTechnician ? (
-                <span>
-                  Olá, <span className="font-medium text-zinc-700 dark:text-zinc-200">{technicianName}</span>
-                </span>
+            <div className="absolute -inset-0.5 rounded-[1.15rem] bg-gradient-to-br from-amber-400/50 via-white/20 to-cyan-400/40 opacity-80 dark:opacity-60 blur-[1px] pointer-events-none" />
+            <div
+              className={`relative flex h-14 w-14 sm:h-[4.25rem] sm:w-[4.25rem] items-center justify-center overflow-hidden rounded-2xl border border-white/60 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:border-white/10 dark:shadow-black/40 dark:ring-white/10 ${
+                headerPhotoUrl || headerAvatarAccentStyle
+                  ? ''
+                  : 'bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-600 dark:to-zinc-700'
+              }`}
+              style={headerAvatarAccentStyle}
+            >
+              {headerPhotoUrl ? (
+                <img
+                  src={headerPhotoUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
               ) : (
-                <span>
-                  {adminDisplayName && adminDisplayName !== 'Rei do ABS'
-                    ? `${adminDisplayName} · toque em um módulo para começar`
-                    : 'Sistema de gestão — toque em um módulo para começar'}
+                <span
+                  className={`text-[1.35rem] sm:text-[1.5rem] font-semibold drop-shadow-sm ${
+                    headerAvatarAccentStyle ? 'text-white' : 'text-zinc-800 dark:text-white'
+                  }`}
+                >
+                  {headerInitial}
                 </span>
               )}
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 mb-0.5 truncate">
+              Rei do ABS
+            </p>
+            <h1 className="text-[1.35rem] sm:text-[1.65rem] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight truncate">
+              {headerDisplayName}
+            </h1>
+            <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1 flex items-center gap-1.5 min-w-0">
+              <Sparkles className="w-3.5 h-3.5 text-brand-yellow shrink-0" />
+              <span className="truncate">
+                {isTechnician
+                  ? 'Técnico · toque em um módulo para começar'
+                  : isSystemUser
+                    ? perms.full_access
+                      ? 'Acesso completo · toque em um módulo para começar'
+                      : 'Usuário · toque em um módulo para começar'
+                    : 'Administrador · toque em um módulo para começar'}
+              </span>
             </p>
           </div>
         </div>

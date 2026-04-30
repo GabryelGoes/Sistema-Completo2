@@ -86,6 +86,7 @@ export default function App() {
 
   // Nome do admin (vem das configurações da oficina; atualizado ao salvar no Perfil do administrador)
   const [adminDisplayName, setAdminDisplayName] = useState<string>('Rei do ABS');
+  const [adminPhotoUrl, setAdminPhotoUrl] = useState<string | null>(null);
   // Dispara refresh da lista em "Usuários do sistema" quando o admin salva o perfil
   const [systemUsersRefreshTrigger, setSystemUsersRefreshTrigger] = useState(0);
 
@@ -197,6 +198,7 @@ export default function App() {
         if (cancelled) return;
         if (authSession.role === 'admin') {
           setAdminDisplayName(s.adminDisplayName ?? 'Rei do ABS');
+          setAdminPhotoUrl(s.adminPhotoUrl ?? null);
         }
       })
       .catch(() => {});
@@ -211,7 +213,10 @@ export default function App() {
 
   const handleAdminProfileSaved = () => {
     getWorkshopSettings()
-      .then((s) => setAdminDisplayName(s.adminDisplayName ?? 'Rei do ABS'))
+      .then((s) => {
+        setAdminDisplayName(s.adminDisplayName ?? 'Rei do ABS');
+        setAdminPhotoUrl(s.adminPhotoUrl ?? null);
+      })
       .catch(() => {});
     setSystemUsersRefreshTrigger((t) => t + 1);
   };
@@ -628,6 +633,7 @@ export default function App() {
               try { setStoredAuth(next); } catch (_) {}
             } : undefined}
             adminDisplayName={authSession?.role === 'admin' ? adminDisplayName : undefined}
+            adminPhotoUrl={authSession?.role === 'admin' ? adminPhotoUrl : undefined}
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
             globalOverlayModalOpen={isSettingsOpen || isUserChangePasswordsOpen}
