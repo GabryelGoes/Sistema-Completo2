@@ -466,7 +466,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         </button>
 
         {/* Coluna principal */}
-        <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-y-auto overscroll-contain">
+        <div className="order-2 lg:order-1 flex-1 flex flex-col min-h-0 min-w-0 overflow-y-auto overscroll-contain">
           <div className="px-6 sm:px-8 pt-8 pb-6 lg:pr-12">
             <div className="flex items-center gap-3 mb-1">
               <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
@@ -1099,7 +1099,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
         {/* Preview — coluna fixa estilo iOS */}
         {dataReady && (
-          <div className="lg:w-[min(420px,100%)] shrink-0 border-t lg:border-t-0 lg:border-l border-zinc-200/60 dark:border-white/[0.06] bg-gradient-to-b from-zinc-100/90 via-white/95 to-zinc-50/90 dark:from-zinc-950/95 dark:via-zinc-900/90 dark:to-black/80 px-5 py-8 lg:py-10 flex flex-col">
+          <div className="order-1 lg:order-2 lg:w-[min(420px,100%)] shrink-0 border-b lg:border-b-0 border-zinc-200/60 lg:border-t-0 lg:border-l dark:border-white/[0.06] bg-gradient-to-b from-zinc-100/90 via-white/95 to-zinc-50/90 dark:from-zinc-950/95 dark:via-zinc-900/90 dark:to-black/80 px-5 py-8 lg:py-10 flex flex-col">
             <div className="flex items-center gap-2 mb-4">
               <Eye className="w-4 h-4 text-[#007AFF]" />
               <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Preview ao vivo</span>
@@ -1143,7 +1143,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               </select>
             )}
 
-            <div className="flex-1 flex flex-col justify-center min-h-[200px]">
+            <div className="flex-1 flex flex-col justify-center min-h-[200px] portrait:w-[80%] portrait:self-center">
               <TvPatioPreview
                 weeklyLabel={weeklyLabel}
                 weeklyCurrent={weeklyCurrentNum}
