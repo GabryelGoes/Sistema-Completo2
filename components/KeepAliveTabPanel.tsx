@@ -21,8 +21,15 @@ export function KeepAliveTabPanel({
 }) {
   if (!visitedTabs.has(tabId)) return null;
   const active = activeTab === tabId;
+  /* inert: abas ocultas não interceptam toques (evita “app por baixo” em alguns navegadores). */
   return (
-    <div role="tabpanel" hidden={!active} className={active ? className : undefined}>
+    <div
+      role="tabpanel"
+      hidden={!active}
+      inert={active ? undefined : true}
+      aria-hidden={!active}
+      className={active ? className : undefined}
+    >
       {children}
     </div>
   );

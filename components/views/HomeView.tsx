@@ -202,6 +202,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const quickReorderCandidateRef = useRef<QuickTileId | null>(null);
   const quickReorderCandidateHitsRef = useRef(0);
   const dragFrameRef = useRef<number | null>(null);
+  /** Limita o reorder ao grid desta home — nunca usa `document` inteiro. */
+  const quickAppsGridRef = useRef<HTMLDivElement>(null);
 
   const perms = systemUserPermissions || {};
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
@@ -333,9 +335,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       if (!draggingQuickId) return;
       if (dragFrameRef.current != null) return;
-      dragFrameRef.current = window.requestAnimationFrame(() => {
+        dragFrameRef.current = window.requestAnimationFrame(() => {
         dragFrameRef.current = null;
-        const tileNodes = Array.from(document.querySelectorAll<HTMLElement>('[data-quick-app-id]'));
+        const gridRoot = quickAppsGridRef.current;
+        if (!gridRoot) return;
+        const tileNodes = Array.from(gridRoot.querySelectorAll<HTMLElement>('[data-quick-app-id]'));
         if (tileNodes.length === 0) return;
         let bestId: QuickTileId | null = null;
         let bestDistance = Number.POSITIVE_INFINITY;
@@ -550,8 +554,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
 
               <div
+                ref={quickAppsGridRef}
                 onPointerUp={() => endQuickDrag()}
-                className={`grid gap-3 ${quickGridColsClass} ${isQuickEditMode ? 'touch-none select-none' : ''}`}
+                className={`relative isolate z-0 grid gap-3 ${quickGridColsClass} ${isQuickEditMode ? 'touch-none select-none' : ''}`}
               >
                 {orderedOperationalApps.map((app) => {
                   const isWide = (quickLayout.sizes[app.id] ?? 'normal') === 'wide';
@@ -561,6 +566,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       key={app.id}
                       data-quick-app-id={app.id}
                       type="button"
+                      style={{ touchAction: 'manipulation' }}
                       onPointerDown={(event) => handleQuickCardPointerDown(app.id, event)}
                       onPointerUp={() => handleQuickCardPointerUp(app)}
                       onPointerLeave={clearLongPressTimer}
@@ -635,7 +641,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <ModalPortal>
           <div
             className={`${iosModalOverlay} ${childModalStackActive ? '!z-[85]' : ''}`}
-            onClick={() => setIsHomeSettingsHubOpen(false)}
+            onClick={() => {
+              if (childModalStackActive) return;
+              setIsHomeSettingsHubOpen(false);
+            }}
             role="presentation"
           >
             <div
