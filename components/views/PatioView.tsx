@@ -4453,22 +4453,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 aria-hidden
                               />
                               <div className={vehicleModalCompactCardSplitRow}>
-                                <div className="flex min-w-0 flex-1 items-center gap-2">
+                                <div className="flex shrink-0 items-center gap-2">
                                   <div className={vehicleModalCompactCardIconSquircle}>
                                     <Gauge className={vehicleModalCompactCardIconGlyph} strokeWidth={2.25} aria-hidden />
                                   </div>
-                                  <div className="min-w-0 flex-1 sm:pb-0">
+                                  <div className="min-w-0 sm:pb-0">
                                     <p className={vehicleModalCompactCardTitleText}>Km</p>
                                   </div>
                                 </div>
-                                <div className={vehicleModalCompactCardFieldRow}>
+                                <div className={`${vehicleModalCompactCardFieldRow} flex-nowrap`}>
                                   <input
                                     type="text"
                                     inputMode="numeric"
                                     value={mileageEditValue}
                                     onChange={(e) => setMileageEditValue(e.target.value)}
                                     placeholder="Ex: 45000"
-                                    className={vehicleModalCompactCardNumericInput}
+                                    className={`${vehicleModalCompactCardNumericInput} sm:max-w-none`}
                                   />
                                   <button
                                     type="button"
