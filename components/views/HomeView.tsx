@@ -641,16 +641,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {isHomeSettingsHubOpen ? (
           <div
-            className={
-              'fixed inset-0 z-[100] flex flex-col overflow-hidden ' +
-              'bg-gradient-to-b from-zinc-200/90 via-zinc-100 to-zinc-200/85 ' +
-              'dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950'
-            }
+            className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-light-page dark:bg-black"
             role="dialog"
             aria-modal="true"
             aria-label="Configurações"
           >
-            <header className="shrink-0 border-b border-zinc-200/70 bg-white/75 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-2xl dark:border-white/[0.08] dark:bg-zinc-950/65">
+            <header className="shrink-0 border-b border-zinc-200/80 bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-[0_1px_0_0_rgba(255,255,255,0.55)_inset] dark:border-white/[0.08] dark:bg-zinc-950 dark:shadow-none">
               <div className="relative w-full">
                 <button
                   type="button"
