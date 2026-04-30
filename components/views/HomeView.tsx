@@ -19,7 +19,7 @@ import { ZayaAlertsModal } from '../ZayaAlertsModal';
 import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import type { SystemUserPermissions } from '../../services/apiService';
-import { ModalPortal } from '../ui/ModalPortal';
+import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 
 export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'settings';
 
@@ -207,6 +207,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
   const showAdminSection = (!isTechnician && !isSystemUser) || (isSystemUser && !!perms.full_access);
   const showToolsSection = hasToolsAccess && !perms.full_access;
+
+  /** Oculta TabBar como um modal; sem portal no body (evita cobrir modais renderizados no root). */
+  useRegisterModalOpen(isHomeSettingsHubOpen);
 
   /** Evita fechar a tela de configurações ou fundo enquanto um modal filho está aberto. */
   const childModalStackActive = useMemo(
@@ -636,10 +639,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </main>
 
       {isHomeSettingsHubOpen ? (
-        <ModalPortal>
           <div
             className={
-              'fixed inset-0 flex flex-col overflow-hidden !z-[90] ' +
+              'fixed inset-0 z-[100] flex flex-col overflow-hidden ' +
               'bg-gradient-to-b from-zinc-200/90 via-zinc-100 to-zinc-200/85 ' +
               'dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950'
             }
@@ -900,7 +902,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
             </div>
           </div>
-        </ModalPortal>
       ) : null}
 
       {!isTechnician && (
