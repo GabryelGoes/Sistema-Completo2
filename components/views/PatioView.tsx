@@ -3516,7 +3516,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     hover:brightness-110 active:scale-[0.98]
                   `}
                 >
-                  <span className="min-w-0 flex-1 truncate text-left text-[17.6px] font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black sm:text-[18.7px] portrait:text-[14.08px] portrait:sm:text-[14.96px]">
+                  <span className="min-w-0 flex-1 truncate text-left text-[17.6px] font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black sm:text-[18.7px] portrait:text-[12.67px] portrait:sm:text-[13.46px]">
                     {statusConfig.label}
                   </span>
                   {can('canArchiveCard') && (showDeliverButton || showNotApprovedDeliverButton) && (
@@ -3547,7 +3547,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </button>
                   )}
                   <ChevronDown
-                    className={`shrink-0 text-black opacity-90 dark:text-black ${boardPanoramic ? 'h-4 w-4 portrait:h-3 portrait:w-3' : 'h-[18px] w-[18px] portrait:h-[14.4px] portrait:w-[14.4px]'}`}
+                    className={`shrink-0 text-black opacity-90 dark:text-black ${boardPanoramic ? 'h-4 w-4 portrait:h-[10.8px] portrait:w-[10.8px]' : 'h-[18px] w-[18px] portrait:h-[12.96px] portrait:w-[12.96px]'}`}
                     strokeWidth={2.5}
                     aria-hidden
                   />
