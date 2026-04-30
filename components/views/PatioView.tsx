@@ -648,10 +648,11 @@ function MercosulPlateMockup(props: {
   const { plate, blurPlates = false, size, selectable = false } = props;
   const display = (plate || '—').trim() || '—';
 
-  /** `cardGrid` = grade Pátio com zoom padrão (15% menor que `card`); `card` = detalhes/listas; `cardCompact` = modo lupa. */
+  /** `cardGrid` = grade Pátio zoom padrão; `modal` = fonte da placa um pouco menor que no card cheio. */
   const isCompact = size === 'cardCompact';
   const isCardGrid = size === 'cardGrid';
   const isCard = size === 'card';
+  const isModal = size === 'modal';
 
   const w = isCompact
     ? 'w-[122px]'
@@ -659,7 +660,7 @@ function MercosulPlateMockup(props: {
       ? 'w-[148px]'
       : isCard
         ? 'w-[174px]'
-        : 'w-[157px]';
+        : 'w-[142px]';
 
   const shadow = isCompact ? 'shadow-md shadow-black/15' : 'shadow-xl shadow-black/25';
 
@@ -667,16 +668,20 @@ function MercosulPlateMockup(props: {
     ? 'text-[6.2px]'
     : isCardGrid
       ? 'text-[9.4px]'
-      : 'text-[11px]';
+      : isModal
+        ? 'text-[10px]'
+        : 'text-[11px]';
 
-  const flagW = isCompact ? 12 : isCardGrid ? 14 : 16;
-  const flagH = isCompact ? 9 : isCardGrid ? 9 : 10;
+  const flagW = isCompact ? 12 : isCardGrid ? 14 : isModal ? 15 : 16;
+  const flagH = isCompact ? 9 : isCardGrid ? 9 : isModal ? 9 : 10;
 
   const plateText = isCompact
     ? 'text-[19.9px] sm:text-[21.2px]'
     : isCardGrid
       ? 'text-[29.6px] sm:text-[32.6px]'
-      : 'text-[34.8px] sm:text-[38.4px]';
+      : isModal
+        ? 'text-[31.3px] sm:text-[34.6px]'
+        : 'text-[34.8px] sm:text-[38.4px]';
 
   return (
     <div
