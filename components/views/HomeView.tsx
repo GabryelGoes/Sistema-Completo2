@@ -570,7 +570,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </span>
             </div>
             <div
-              className={`relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-zinc-200/90 shadow-md ring-1 ring-black/[0.04] dark:border-white/12 dark:ring-white/10 sm:h-12 sm:w-12 ${
+              className={`relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-200/90 shadow-md ring-1 ring-black/[0.04] dark:border-white/12 dark:ring-white/10 sm:h-12 sm:w-12 ${
                 headerPhotoUrl || headerAvatarAccentStyle
                   ? ''
                   : 'bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-600 dark:to-zinc-700'
