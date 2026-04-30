@@ -119,7 +119,7 @@ const vehicleModalCompactCardIconGlyph =
 const vehicleModalCompactCardTitleText =
   'bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]';
 const vehicleModalCompactCardBodyText =
-  'mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white';
+  'mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white portrait:text-[9.4px]';
 const vehicleModalCompactCardAssignHint =
   'mt-0.5 text-[12px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff]';
 const vehicleModalCompactCardChevron =
@@ -134,9 +134,9 @@ const vehicleModalCompactCardSaveIcon = 'h-3.5 w-3.5';
 const vehicleModalCompactCardSalvo =
   'text-[11px] font-semibold text-green-600 dark:text-green-400';
 const vehicleModalCompactCardMechanicWrap =
-  'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md';
+  'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md portrait:scale-[0.78] portrait:origin-center';
 const vehicleModalCompactCardMechanicWrench =
-  'h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]';
+  'h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:scale-[0.78]';
 const vehicleModalCompactCardEmptyTech =
   'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12';
 const vehicleModalCompactCardFieldRow =
@@ -4361,7 +4361,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               handleOpenMoveModal(selectedCard, e);
                             }}
                             title="Alterar etapa"
-                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[15px] sm:text-base font-black uppercase tracking-widest !text-black shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 dark:!text-black dark:focus-visible:ring-offset-[#0a0a0a] ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name || '', selectedCard.idList).style}`}
+                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[15px] sm:text-base font-black uppercase tracking-widest !text-black shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 portrait:scale-[0.78] portrait:origin-left dark:!text-black dark:focus-visible:ring-offset-[#0a0a0a] ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name || '', selectedCard.idList).style}`}
                           >
                             {lists.find(l => l.id === selectedCard.idList)?.name}
                             <ChevronDown className="h-4 w-4 shrink-0 opacity-90 text-black dark:text-black" aria-hidden />
@@ -4389,13 +4389,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         ) : null}
                         <div className="mt-0.5 flex min-w-0 items-end gap-3">
                           <h1
-                            className={`font-vehicle min-w-0 flex-1 truncate text-[2.79rem] md:text-[4.185rem] portrait:text-[3.51rem] portrait:md:text-[5.265rem] font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none ${vehicleModalTitleShadow}`}
+                            className={`font-vehicle min-w-0 flex-1 truncate text-[2.79rem] md:text-[4.185rem] portrait:text-[2.74rem] portrait:md:text-[4.11rem] font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none ${vehicleModalTitleShadow}`}
                             title={selectedCardTitleParts?.vehicle}
                           >
                             {selectedCardTitleParts?.vehicle}
                           </h1>
                           {!isModuleMode && (
-                            <div className="inline-flex shrink-0 origin-right scale-[1.2] items-center justify-center">
+                            <div className="inline-flex shrink-0 origin-right scale-[1.2] portrait:scale-[0.936] items-center justify-center">
                               <MercosulPlateMockup
                                 plate={selectedCardTitleParts?.plateOrModule || '---'}
                                 blurPlates={blurPlates}
