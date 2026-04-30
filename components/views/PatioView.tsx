@@ -4225,61 +4225,90 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '').trim()}
                           </p>
                         ) : null}
-                        {/* Placa, cliente e km — direto no fundo do modal (sem card branco) */}
-                        <div className="relative mt-3">
-                          <div className="relative flex flex-col items-center gap-3 px-0 py-1 sm:px-0 sm:py-0 lg:flex-row lg:flex-nowrap lg:items-center lg:justify-center lg:gap-x-6 xl:gap-x-8 lg:gap-y-0 lg:py-2">
-                            <div className="flex w-full min-w-0 max-w-xl flex-1 items-stretch justify-center lg:w-auto lg:max-w-xl lg:flex-1 lg:self-center [&>div]:w-full">
-                              <div className="flex min-h-[48px] w-full min-w-0 items-center gap-2.5 px-0 py-0">
-                                <User className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#007AFF] dark:text-[#7ab8ff]">Cliente</p>
+                        {/* Cliente + Km — mesmo grid e cartões que Técnico / Data de entrega */}
+                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5">
+                          <button
+                            type="button"
+                            onClick={handleJumpToCustomerNameEdit}
+                            disabled={!can('canEditFicha')}
+                            title={can('canEditFicha') ? 'Editar nome do cliente em Dados da ficha' : 'Dados do cliente'}
+                            className={`${vi} group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 active:scale-[0.99] hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${!isModuleMode && can('canEditMileage') ? '' : 'sm:col-span-2'}`}
+                          >
+                            <div
+                              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
+                              aria-hidden
+                            />
+                            <div
+                              className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
+                              aria-hidden
+                            />
+                            <div className="relative flex items-center gap-2 px-2.5 py-2 sm:gap-2.5 sm:px-3 sm:py-2.5">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                <User className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]">
+                                  Cliente
+                                </p>
+                                <p className="mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white">
+                                  {selectedCardTitleParts?.customer || '—'}
+                                </p>
+                              </div>
+                              {can('canEditFicha') && (
+                                <ChevronRight strokeWidth={2.25} className="relative z-[1] h-3.5 w-3.5 shrink-0 text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]" aria-hidden />
+                              )}
+                            </div>
+                          </button>
+                          {!isModuleMode && can('canEditMileage') && (
+                            <div className={`${vi} relative overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
+                              <div
+                                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
+                                aria-hidden
+                              />
+                              <div
+                                className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
+                                aria-hidden
+                              />
+                              <div className="relative flex flex-col gap-2 px-2.5 py-2 sm:flex-row sm:items-center sm:gap-2.5 sm:px-3 sm:py-2.5">
+                                <div className="flex shrink-0 items-center gap-2 sm:contents">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                    <Gauge className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                  </div>
+                                  <div className="min-w-0 flex-1 sm:pb-0">
+                                    <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]">
+                                      Km
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:justify-end">
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={mileageEditValue}
+                                    onChange={(e) => setMileageEditValue(e.target.value)}
+                                    placeholder="Ex: 45000"
+                                    className="min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500 sm:max-w-[180px] sm:flex-none"
+                                  />
                                   <button
                                     type="button"
-                                    onClick={handleJumpToCustomerNameEdit}
-                                    disabled={!can('canEditFicha')}
-                                    className={`truncate text-left text-[15px] font-semibold leading-tight transition-colors ${
-                                      can('canEditFicha')
-                                        ? 'text-zinc-900 hover:text-[#007AFF] dark:text-white dark:hover:text-[#93c5fd]'
-                                        : 'text-zinc-900 dark:text-white'
+                                    onClick={handleSaveMileage}
+                                    disabled={savingMileage || mileageEditValue.trim() === lastSavedMileage}
+                                    className={`inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-md transition-all disabled:opacity-50 ${
+                                      mileageEditValue.trim() !== lastSavedMileage
+                                        ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
+                                        : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
                                     }`}
-                                    title={can('canEditFicha') ? 'Editar nome do cliente em Dados da ficha' : 'Dados do cliente'}
                                   >
-                                    {selectedCardTitleParts?.customer || '—'}
+                                    {savingMileage ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                                    Salvar
                                   </button>
+                                  {mileageSavedMessage && (
+                                    <span className="text-[11px] font-semibold text-green-600 dark:text-green-400 animate-in fade-in">Salvo!</span>
+                                  )}
                                 </div>
                               </div>
                             </div>
-                            {!isModuleMode && can('canEditMileage') && (
-                              <div className="flex min-h-[48px] min-w-0 shrink-0 w-full flex-wrap items-center justify-center gap-2 px-0 py-0 sm:justify-start lg:h-full lg:w-auto lg:flex-nowrap lg:self-center lg:justify-center lg:py-0">
-                                <Gauge className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
-                                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#007AFF] dark:text-[#7ab8ff]">Km</span>
-                                <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  value={mileageEditValue}
-                                  onChange={(e) => setMileageEditValue(e.target.value)}
-                                  placeholder="Ex: 45000"
-                                  className="w-[6.5rem] rounded-xl border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500 sm:w-28"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={handleSaveMileage}
-                                  disabled={savingMileage || mileageEditValue.trim() === lastSavedMileage}
-                                  className={`inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-md transition-all disabled:opacity-50 ${
-                                    mileageEditValue.trim() !== lastSavedMileage
-                                      ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
-                                      : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
-                                  }`}
-                                >
-                                  {savingMileage ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                                  Salvar
-                                </button>
-                                {mileageSavedMessage && (
-                                  <span className="text-[11px] font-semibold text-green-600 dark:text-green-400 animate-in fade-in">Salvo!</span>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                          )}
                         </div>
 
                         {/* Dados da ficha — cabeçalho com camadas, tipografia forte e chips de resumo */}
