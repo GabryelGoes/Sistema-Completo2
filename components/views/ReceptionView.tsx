@@ -86,6 +86,8 @@ interface ReceptionViewProps {
   actorOptions?: ServiceOrderUpdateActor;
   /** Após criar OS com sucesso (ex.: voltar ao Pátio ou Laboratório). */
   onIntakeSuccess?: (orderType: ServiceOrderType) => void;
+  /** Mantém o destino do gesto/botão voltar alinhado ao modo veículo vs módulo (fluxo Pátio/Lab → recepção). */
+  onReceptionModeChangeForBack?: (mode: ServiceOrderType) => void;
 }
 
 function attachmentMimeType(name: string): string {
@@ -110,6 +112,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   onUseCustomerData,
   actorOptions,
   onIntakeSuccess,
+  onReceptionModeChangeForBack,
 }) => {
   const [receptionMode, setReceptionMode] = useState<ServiceOrderType>(() => {
     try {
@@ -156,6 +159,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     if (!forcedMode) return;
     setReceptionMode(forcedMode);
   }, [forcedMode]);
+
+  useEffect(() => {
+    onReceptionModeChangeForBack?.(receptionMode);
+  }, [receptionMode, onReceptionModeChangeForBack]);
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);

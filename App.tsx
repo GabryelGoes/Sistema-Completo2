@@ -16,6 +16,7 @@ import {
   type AuthSession,
   type Notification,
   type SystemUserPermissions,
+  type ServiceOrderType,
   effectivePatioApproveBudgetItems,
   getWorkshopSettings,
 } from './services/apiService';
@@ -146,6 +147,14 @@ export default function App() {
     },
     [isLimitedSystemUser, userAllowedTabs]
   );
+
+  /** Enquanto existir “volta para Pátio/Lab”, o modo veículo/módulo define qual aba ao usar voltar. */
+  const syncReturnTabFromReceptionMode = useCallback((mode: ServiceOrderType) => {
+    setReturnTabAfterReception((prev) => {
+      if (prev === null) return null;
+      return mode === 'module' ? 'laboratorio' : 'patio';
+    });
+  }, []);
 
   useEffect(() => {
     if (activeAppTab !== 'reception') {
@@ -322,13 +331,17 @@ export default function App() {
       if (w.__rdaModalBackHandledAt && Date.now() - w.__rdaModalBackHandledAt < 120) {
         return;
       }
+      if (activeAppTab === 'reception') {
+        handleOverlayCloseOrBack();
+        return;
+      }
       if (activeAppTab !== 'home') {
         navigateToHomeApp();
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [authSession, activeAppTab, navigateToHomeApp]);
+  }, [authSession, activeAppTab, navigateToHomeApp, handleOverlayCloseOrBack]);
 
   useEffect(() => {
     if (authSession) return;
@@ -452,6 +465,7 @@ export default function App() {
               blurPlates={cinematographicMode}
               onUseCustomerData={handleUseCustomerData}
               onIntakeSuccess={handleReceptionIntakeSuccess}
+              onReceptionModeChangeForBack={syncReturnTabFromReceptionMode}
               actorOptions={{
                 actor: 'technician',
                 actorTechnicianSlug: authSession.userId,
@@ -661,6 +675,7 @@ export default function App() {
             blurPlates={cinematographicMode}
             onUseCustomerData={handleUseCustomerData}
             onIntakeSuccess={handleReceptionIntakeSuccess}
+            onReceptionModeChangeForBack={syncReturnTabFromReceptionMode}
             actorOptions={
               authSession?.role === 'admin'
                 ? { actor: 'admin' }
