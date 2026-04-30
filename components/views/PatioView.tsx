@@ -107,40 +107,40 @@ const vehicleModalCustomerNameBox =
 
 /** Cards Cliente / Km / Técnico / Data — portrait ainda ~−20% vs. passo anterior (acumulado no vertical). */
 const vehicleModalCompactCardGrid =
-  'gap-2 sm:gap-2.5 portrait:gap-[3px] portrait:sm:gap-1';
+  'gap-2 sm:gap-2.5 portrait:gap-[4px] portrait:sm:gap-[5px]';
 const vehicleModalCompactCardRow =
-  'relative flex items-center gap-2 px-2.5 py-2 sm:gap-2.5 sm:px-3 sm:py-2.5 portrait:gap-[3px] portrait:px-1 portrait:py-0.5 portrait:sm:gap-1 portrait:sm:px-1.5 portrait:sm:py-1';
+  'relative flex items-center gap-2 px-2.5 py-2 sm:gap-2.5 sm:px-3 sm:py-2.5 portrait:gap-[4px] portrait:px-1.5 portrait:py-1 portrait:sm:gap-[5px] portrait:sm:px-2 portrait:sm:py-1.5';
 const vehicleModalCompactCardSplitRow =
-  'relative flex flex-col gap-[clamp(0.35rem,1.8vw,0.7rem)] px-2.5 py-2 sm:flex-row sm:items-center sm:gap-[clamp(0.5rem,1.2vw,1rem)] sm:px-3 sm:py-2.5 portrait:gap-[3px] portrait:px-1 portrait:py-0.5 portrait:sm:gap-1 portrait:sm:px-1.5 portrait:sm:py-1';
+  'relative flex flex-col gap-[clamp(0.35rem,1.8vw,0.7rem)] px-2.5 py-2 sm:flex-row sm:items-center sm:gap-[clamp(0.5rem,1.2vw,1rem)] sm:px-3 sm:py-2.5 portrait:gap-[4px] portrait:px-1.5 portrait:py-1 portrait:sm:gap-[5px] portrait:sm:px-2 portrait:sm:py-1.5';
 const vehicleModalCompactCardIconSquircle =
-  'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04] portrait:h-5 portrait:w-5 portrait:rounded portrait:border-zinc-200/90';
+  'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04] portrait:h-6.5 portrait:w-6.5 portrait:rounded-md portrait:border-zinc-200/90';
 const vehicleModalCompactCardIconGlyph =
-  'h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff] portrait:h-2.5 portrait:w-2.5';
+  'h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff] portrait:h-3.5 portrait:w-3.5';
 const vehicleModalCompactCardTitleText =
-  'bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px] portrait:text-[7.6px] portrait:sm:text-[8.2px]';
+  'bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px] portrait:text-[10px] portrait:sm:text-[10.6px]';
 const vehicleModalCompactCardBodyText =
-  'mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white portrait:text-[7.6px]';
+  'mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white portrait:text-[10px]';
 const vehicleModalCompactCardAssignHint =
-  'mt-0.5 text-[12px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff] portrait:text-[7.6px]';
+  'mt-0.5 text-[12px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff] portrait:text-[10px]';
 const vehicleModalCompactCardChevron =
-  'relative z-[1] h-3.5 w-3.5 shrink-0 portrait:h-2 portrait:w-2';
+  'relative z-[1] h-3.5 w-3.5 shrink-0 portrait:h-2.5 portrait:w-2.5';
 const vehicleModalCompactCardNumericInput =
-  'min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500 sm:max-w-[180px] sm:flex-none portrait:rounded-md portrait:px-1 portrait:py-px portrait:text-[8.2px] portrait:focus:ring-1';
+  'min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500 sm:max-w-[180px] sm:flex-none portrait:rounded-md portrait:px-1.5 portrait:py-0.5 portrait:text-[10.6px] portrait:focus:ring-1';
 const vehicleModalCompactCardDateInput =
-  'min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white sm:max-w-[180px] sm:flex-none portrait:rounded-md portrait:px-1 portrait:py-px portrait:text-[8.2px] portrait:focus:ring-1';
+  'min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white sm:max-w-[180px] sm:flex-none portrait:rounded-md portrait:px-1.5 portrait:py-0.5 portrait:text-[10.6px] portrait:focus:ring-1';
 const vehicleModalCompactCardSaveBtn =
-  'inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-md transition-all disabled:opacity-50 portrait:gap-px portrait:rounded portrait:px-1 portrait:py-px portrait:text-[7.6px]';
-const vehicleModalCompactCardSaveIcon = 'h-3.5 w-3.5 portrait:h-2 portrait:w-2';
+  'inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-md transition-all disabled:opacity-50 portrait:gap-0.5 portrait:rounded-md portrait:px-1.5 portrait:py-0.5 portrait:text-[10px]';
+const vehicleModalCompactCardSaveIcon = 'h-3.5 w-3.5 portrait:h-2.5 portrait:w-2.5';
 const vehicleModalCompactCardSalvo =
-  'text-[11px] font-semibold text-green-600 dark:text-green-400 portrait:text-[6.8px]';
+  'text-[11px] font-semibold text-green-600 dark:text-green-400 portrait:text-[9px]';
 const vehicleModalCompactCardMechanicWrap =
-  'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md portrait:h-5 portrait:w-5 portrait:rounded';
+  'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md portrait:h-6.5 portrait:w-6.5 portrait:rounded-md';
 const vehicleModalCompactCardMechanicWrench =
-  'h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:h-2.5 portrait:w-2.5';
+  'h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:h-3.5 portrait:w-3.5';
 const vehicleModalCompactCardEmptyTech =
-  'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12 portrait:h-5 portrait:w-5 portrait:rounded';
+  'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12 portrait:h-6.5 portrait:w-6.5 portrait:rounded-md';
 const vehicleModalCompactCardFieldRow =
-  'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:ml-auto sm:justify-end portrait:gap-px';
+  'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:ml-auto sm:justify-end portrait:gap-0.5';
 
 /** Sombra nos glifos do nome do veículo (só tema escuro — no claro fica sem text-shadow). */
 const vehicleModalTitleShadow =
