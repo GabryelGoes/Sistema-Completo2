@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ChevronLeft,
   ChevronRight,
   LogOut,
   User,
   ExternalLink,
   Sparkles,
-  X,
 } from 'lucide-react';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
@@ -20,8 +20,6 @@ import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import type { SystemUserPermissions } from '../../services/apiService';
 import { ModalPortal } from '../ui/ModalPortal';
-import { iosModalOverlay, iosModalShell, iosModalClose } from '../ui/iosModalStyles';
-import { IosModalHeader } from '../ui/IosModalHeader';
 
 export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'settings';
 
@@ -210,11 +208,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const showAdminSection = (!isTechnician && !isSystemUser) || (isSystemUser && !!perms.full_access);
   const showToolsSection = hasToolsAccess && !perms.full_access;
 
-  /**
-   * Hub renderizado em ModalPortal (body, depois de #root): com o mesmo z-[100] dos modais,
-   * o portal ganha e os modais ficam “por baixo”. Usamos z-[90] no overlay enquanto o hub está aberto
-   * para modais z-[100] dentro do app ficarem sempre acima.
-   */
+  /** Evita fechar a tela de configurações ou fundo enquanto um modal filho está aberto. */
   const childModalStackActive = useMemo(
     () =>
       isSystemUsersOpen ||
@@ -644,45 +638,44 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {isHomeSettingsHubOpen ? (
         <ModalPortal>
           <div
-            className={`${iosModalOverlay} !z-[90]`}
-            onClick={() => {
-              if (childModalStackActive) return;
-              setIsHomeSettingsHubOpen(false);
-            }}
-            role="presentation"
+            className={
+              'fixed inset-0 flex flex-col overflow-hidden !z-[90] ' +
+              'bg-gradient-to-b from-zinc-200/90 via-zinc-100 to-zinc-200/85 ' +
+              'dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950'
+            }
+            role="dialog"
+            aria-modal="true"
+            aria-label="Configurações"
           >
-            <div
-              className={`${iosModalShell} max-h-[94vh] max-w-xl`}
-              onClick={(e) => e.stopPropagation()}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Configurações"
-            >
-              <button
-                type="button"
-                onClick={() => setIsHomeSettingsHubOpen(false)}
-                className={iosModalClose}
-                aria-label="Fechar"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="shrink-0 px-6 pb-4 pr-14 pt-8 sm:px-8">
-                  <IosModalHeader
-                    icon={
-                      <img
-                        src="/icons/configuracoes-ios.png"
-                        alt=""
-                        className="h-full min-h-0 w-full object-cover"
-                      />
-                    }
-                    title="Configurações"
-                    subtitle="Conta, ferramentas e administração"
-                  />
+            <header className="shrink-0 border-b border-zinc-200/70 bg-white/75 px-4 pb-3 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur-2xl dark:border-white/[0.08] dark:bg-zinc-950/65">
+              <div className="relative mx-auto flex max-w-xl items-center justify-center lg:max-w-5xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (childModalStackActive) return;
+                    setIsHomeSettingsHubOpen(false);
+                  }}
+                  className="absolute left-0 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200/75 bg-white/85 text-zinc-700 shadow-sm backdrop-blur-xl transition-all hover:bg-white active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-200"
+                  aria-label="Voltar"
+                >
+                  <ChevronLeft className="h-6 w-6" strokeWidth={2.2} />
+                </button>
+                <div className="flex flex-col items-center px-12 text-center">
+                  <div className="mb-0.5 flex h-9 w-9 items-center justify-center overflow-hidden rounded-2xl border border-zinc-300/75 bg-zinc-100 shadow-inner dark:border-white/[0.12] dark:bg-zinc-800/95">
+                    <img src="/icons/configuracoes-ios.png" alt="" className="h-full w-full object-cover" />
+                  </div>
+                  <h1 className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">
+                    Configurações
+                  </h1>
+                  <p className="mt-0.5 max-w-sm text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
+                    Conta, ferramentas e administração
+                  </p>
                 </div>
+              </div>
+            </header>
 
-                <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 pb-8 sm:px-8">
+            <div className="mx-auto min-h-0 w-full max-w-xl flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 lg:max-w-5xl">
+              <div className="space-y-6">
                   <section>
                     <p className={iosSectionTitle}>Conta</p>
                     <p className={iosSectionHint}>Perfil e sessão</p>
@@ -904,7 +897,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       </div>
                     </section>
                   )}
-                </div>
               </div>
             </div>
           </div>
