@@ -81,6 +81,8 @@ export default function App() {
   // Estado para transferir dados do Histórico (Pátio) para a Recepção
   const [prefillData, setPrefillData] = useState<Customer | null>(null);
   const [receptionForcedMode, setReceptionForcedMode] = useState<'vehicle' | 'module' | null>(null);
+  /** Ao fechar a Recepção aberta a partir do Pátio/Lab (criar veículo/módulo ou “usar dados”), voltar para esta aba em vez do Início. */
+  const [returnTabAfterReception, setReturnTabAfterReception] = useState<TabId | null>(null);
 
   // Nome do admin (vem das configurações da oficina; atualizado ao salvar no Perfil do administrador)
   const [adminDisplayName, setAdminDisplayName] = useState<string>('Rei do ABS');
@@ -112,6 +114,42 @@ export default function App() {
       setCurrentTab('home');
     }
   }, [isLimitedSystemUser]);
+
+  const handleOverlayCloseOrBack = useCallback(() => {
+    if (returnTabAfterReception === 'patio' || returnTabAfterReception === 'laboratorio') {
+      const target = returnTabAfterReception;
+      setReturnTabAfterReception(null);
+      if (isLimitedSystemUser) {
+        if (userAllowedTabs.includes(target)) setUserTab(target);
+        else setUserTab('home');
+      } else {
+        setCurrentTab(target);
+      }
+      return;
+    }
+    if (isLimitedSystemUser) setUserTab('home');
+    else setCurrentTab('home');
+  }, [returnTabAfterReception, isLimitedSystemUser, userAllowedTabs]);
+
+  const handleReceptionIntakeSuccess = useCallback(
+    (orderType: 'vehicle' | 'module') => {
+      setReturnTabAfterReception(null);
+      const target: TabId = orderType === 'module' ? 'laboratorio' : 'patio';
+      if (isLimitedSystemUser) {
+        if (userAllowedTabs.includes(target)) setUserTab(target);
+        else setUserTab('home');
+      } else {
+        setCurrentTab(target);
+      }
+    },
+    [isLimitedSystemUser, userAllowedTabs]
+  );
+
+  useEffect(() => {
+    if (activeAppTab !== 'reception') {
+      setReturnTabAfterReception(null);
+    }
+  }, [activeAppTab]);
 
   // Agenda é carregada pela AgendaView via API (Supabase); não usa mais localStorage.
 
@@ -184,6 +222,7 @@ export default function App() {
     const inferredMode: 'vehicle' | 'module' =
       (data.moduleIdentification ?? '').trim().length > 0 ? 'module' : 'vehicle';
     setReceptionForcedMode(inferredMode);
+    setReturnTabAfterReception(inferredMode === 'module' ? 'laboratorio' : 'patio');
     if (authSession?.role === 'user' && !hasFullAccess) {
       setUserTab('reception');
     } else {
@@ -196,6 +235,9 @@ export default function App() {
       setIsSettingsOpen(true);
       return;
     }
+    if (app === 'reception') {
+      setReturnTabAfterReception(null);
+    }
     setCurrentTab(app);
   };
 
@@ -206,6 +248,7 @@ export default function App() {
       } catch (_) {}
       setPrefillData(null);
       setReceptionForcedMode(mode);
+      setReturnTabAfterReception(mode === 'module' ? 'laboratorio' : 'patio');
       if (isLimitedSystemUser) {
         setUserTab('reception');
       } else {
@@ -327,15 +370,15 @@ export default function App() {
           <div className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <button
               type="button"
-              onClick={() => setUserTab('home')}
+              onClick={handleOverlayCloseOrBack}
               className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
-              aria-label="Voltar para Início"
+              aria-label="Voltar"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
             <button
               type="button"
-              onClick={() => setUserTab('home')}
+              onClick={handleOverlayCloseOrBack}
               className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
               aria-label="Fechar página"
             >
@@ -354,7 +397,10 @@ export default function App() {
               isTechnician={authSession.isTechnician ?? false}
               technicianName={authSession.displayName ?? 'Usuário'}
               allowedTabs={userAllowedTabs}
-              onOpenApp={(app) => setUserTab(app as TabId)}
+              onOpenApp={(app) => {
+                if (app === 'reception') setReturnTabAfterReception(null);
+                setUserTab(app as TabId);
+              }}
               onLogout={handleLogout}
               isSystemUser
               systemUserUsername={authSession.username ?? ''}
@@ -394,6 +440,7 @@ export default function App() {
               forcedMode={receptionForcedMode}
               blurPlates={cinematographicMode}
               onUseCustomerData={handleUseCustomerData}
+              onIntakeSuccess={handleReceptionIntakeSuccess}
               actorOptions={{
                 actor: 'technician',
                 actorTechnicianSlug: authSession.userId,
@@ -538,15 +585,15 @@ export default function App() {
         <div className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <button
             type="button"
-            onClick={() => setCurrentTab('home')}
+            onClick={handleOverlayCloseOrBack}
             className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
-            aria-label="Voltar para Início"
+            aria-label="Voltar"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <button
             type="button"
-            onClick={() => setCurrentTab('home')}
+            onClick={handleOverlayCloseOrBack}
             className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
             aria-label="Fechar página"
           >
@@ -599,6 +646,7 @@ export default function App() {
             forcedMode={receptionForcedMode}
             blurPlates={cinematographicMode}
             onUseCustomerData={handleUseCustomerData}
+            onIntakeSuccess={handleReceptionIntakeSuccess}
             actorOptions={
               authSession?.role === 'admin'
                 ? { actor: 'admin' }

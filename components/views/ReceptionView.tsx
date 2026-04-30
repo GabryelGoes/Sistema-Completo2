@@ -84,6 +84,8 @@ interface ReceptionViewProps {
   onUseCustomerData?: (data: Customer) => void;
   /** Quem registra o desarquivamento na API (igual ao Pátio). */
   actorOptions?: ServiceOrderUpdateActor;
+  /** Após criar OS com sucesso (ex.: voltar ao Pátio ou Laboratório). */
+  onIntakeSuccess?: (orderType: ServiceOrderType) => void;
 }
 
 function attachmentMimeType(name: string): string {
@@ -107,6 +109,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   blurPlates = false,
   onUseCustomerData,
   actorOptions,
+  onIntakeSuccess,
 }) => {
   const [receptionMode, setReceptionMode] = useState<ServiceOrderType>(() => {
     try {
@@ -301,8 +304,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
       const osLabel = serviceOrder?.os_number != null ? ` OS #${serviceOrder.os_number}.` : '';
       setStatus({ step: 'success', message: `Cadastro criado com sucesso.${osLabel}` });
-
-      // Futuro: podemos usar savedCustomer / serviceOrder (ex: redirecionar, imprimir, etc.)
+      onIntakeSuccess?.(receptionMode);
     } catch (error: any) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
