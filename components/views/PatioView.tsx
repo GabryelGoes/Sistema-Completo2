@@ -3220,7 +3220,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className="flex justify-center md:justify-self-center md:px-2">
+            <div className="flex justify-center portrait:hidden md:justify-self-center md:px-2">
               <button
                 type="button"
                 onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
@@ -3233,7 +3233,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </button>
             </div>
 
-            <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-2 overflow-visible md:w-auto md:justify-self-end md:justify-end">
+            <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-2 overflow-visible portrait:justify-end md:w-auto md:justify-self-end md:justify-end">
             <button
               type="button"
               onClick={() => {
@@ -3400,6 +3400,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 forTechnician={actorOptions?.actor === 'technician'}
                 technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
               />
+            </div>
+            <div className="hidden shrink-0 portrait:block">
+              <button
+                type="button"
+                onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                className="relative inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-full border border-[#0058c7] bg-[#007AFF] px-4 py-2 text-[13px] font-bold tracking-tight text-white shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_8px_28px_-6px_rgba(0,122,255,0.45),0_4px_16px_-4px_rgba(0,0,0,0.15)] ring-1 ring-white/40 ring-offset-1 ring-offset-[#f2f2f7] transition-all duration-200 hover:brightness-110 hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_10px_32px_-4px_rgba(0,122,255,0.5)] active:translate-y-0.5 active:shadow-[0_2px_0_0_rgba(0,0,0,0.15)] dark:border-[#0A84FF]/80 dark:bg-[#0A84FF] dark:text-white dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_8px_32px_-6px_rgba(10,132,255,0.4),0_4px_20px_-6px_rgba(0,0,0,0.45)] dark:ring-white/20 dark:ring-offset-zinc-900 dark:hover:brightness-110 sm:min-h-[40px] sm:px-5 sm:py-2.5 sm:text-[14px]"
+              >
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white">
+                  <Plus className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden />
+                </span>
+                <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
+              </button>
             </div>
           </div>
           </div>
