@@ -667,12 +667,12 @@ function MercosulPlateMockup(props: {
   const flagH = isCompact ? 9 : isCardGrid ? 9 : 10;
 
   const plateText = isCompact
-    ? 'text-[19.9px] sm:text-[21.2px]'
+    ? 'text-[21.5px] sm:text-[22.9px]'
     : isCardGrid
-      ? 'text-[29.6px] sm:text-[32.6px]'
+      ? 'text-[32px] sm:text-[35.2px]'
       : isModal
-        ? 'text-[26.5px] sm:text-[29px]'
-        : 'text-[34.8px] sm:text-[38.4px]';
+        ? 'text-[28.6px] sm:text-[31.3px]'
+        : 'text-[37.6px] sm:text-[41.5px]';
 
   return (
     <div
