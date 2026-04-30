@@ -530,16 +530,53 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* Cabeçalho em vidro — alinhado ao topo (safe area apenas onde necessário) */}
       <header className="relative z-10 pt-[max(0.5rem,env(safe-area-inset-top))] pb-4 px-4 sm:px-6 border-b border-zinc-200/70 dark:border-white/[0.08] bg-white/70 dark:bg-zinc-950/60 backdrop-blur-2xl shadow-[0_1px_0_0_rgba(255,255,255,0.55)_inset] dark:shadow-none">
-        <div className="max-w-xl lg:max-w-5xl mx-auto flex items-center gap-4 min-w-0">
-          <div className="relative shrink-0">
-            <div className="absolute -inset-0.5 rounded-[1.15rem] bg-gradient-to-br from-amber-400/50 via-white/20 to-cyan-400/40 opacity-80 dark:opacity-60 blur-[1px] pointer-events-none" />
+        <div className="max-w-xl lg:max-w-5xl mx-auto flex items-center justify-between gap-3 min-w-0">
+          <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+            <div className="relative shrink-0">
+              <div className="absolute -inset-0.5 rounded-[1.15rem] bg-gradient-to-br from-amber-400/50 via-white/20 to-cyan-400/40 opacity-80 dark:opacity-60 blur-[1px] pointer-events-none" />
+              <img
+                src="/logo.png"
+                alt="Rei do ABS"
+                className="relative h-12 w-12 sm:h-14 sm:w-14 object-contain rounded-2xl border border-white/60 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:border-white/10 dark:shadow-black/40 dark:ring-white/10"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 mb-0.5 truncate">
+                Oficina
+              </p>
+              <h1 className="text-[1.35rem] sm:text-[1.65rem] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight truncate">
+                Rei do ABS
+              </h1>
+              <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1 flex items-center gap-1.5 min-w-0">
+                <Sparkles className="w-3.5 h-3.5 text-brand-yellow shrink-0" />
+                <span className="truncate">Toque em um módulo para começar</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3 pl-1">
+            <div className="flex min-w-0 max-w-[5.5rem] flex-col items-end text-right min-[400px]:max-w-[8rem] sm:max-w-[11rem]">
+              <span className="truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white sm:text-[14px]">
+                {headerDisplayName}
+              </span>
+              <span className="truncate text-[10px] text-zinc-500 dark:text-zinc-400 sm:text-[11px]">
+                {isTechnician
+                  ? 'Técnico'
+                  : isSystemUser
+                    ? perms.full_access
+                      ? 'Acesso completo'
+                      : 'Usuário'
+                    : 'Administrador'}
+              </span>
+            </div>
             <div
-              className={`relative flex h-14 w-14 sm:h-[4.25rem] sm:w-[4.25rem] items-center justify-center overflow-hidden rounded-2xl border border-white/60 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:border-white/10 dark:shadow-black/40 dark:ring-white/10 ${
+              className={`relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-zinc-200/90 shadow-md ring-1 ring-black/[0.04] dark:border-white/12 dark:ring-white/10 sm:h-12 sm:w-12 ${
                 headerPhotoUrl || headerAvatarAccentStyle
                   ? ''
                   : 'bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-600 dark:to-zinc-700'
               }`}
               style={headerAvatarAccentStyle}
+              aria-hidden
             >
               {headerPhotoUrl ? (
                 <img
@@ -550,7 +587,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 />
               ) : (
                 <span
-                  className={`text-[1.35rem] sm:text-[1.5rem] font-semibold drop-shadow-sm ${
+                  className={`text-[1.1rem] sm:text-[1.2rem] font-semibold drop-shadow-sm ${
                     headerAvatarAccentStyle ? 'text-white' : 'text-zinc-800 dark:text-white'
                   }`}
                 >
@@ -558,26 +595,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </span>
               )}
             </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 mb-0.5 truncate">
-              Rei do ABS
-            </p>
-            <h1 className="text-[1.35rem] sm:text-[1.65rem] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight truncate">
-              {headerDisplayName}
-            </h1>
-            <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1 flex items-center gap-1.5 min-w-0">
-              <Sparkles className="w-3.5 h-3.5 text-brand-yellow shrink-0" />
-              <span className="truncate">
-                {isTechnician
-                  ? 'Técnico · toque em um módulo para começar'
-                  : isSystemUser
-                    ? perms.full_access
-                      ? 'Acesso completo · toque em um módulo para começar'
-                      : 'Usuário · toque em um módulo para começar'
-                    : 'Administrador · toque em um módulo para começar'}
-              </span>
-            </p>
           </div>
         </div>
       </header>
