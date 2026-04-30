@@ -452,9 +452,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-6 sm:pb-[max(1.5rem,env(safe-area-inset-bottom))] bg-black/45 backdrop-blur-[20px]">
+      <div className="fixed inset-0 z-[120] flex items-stretch justify-stretch bg-black/45 backdrop-blur-[20px]">
       <div
-        className={`relative w-full max-w-[1080px] max-h-[min(94vh,calc(100dvh-env(safe-area-inset-bottom)-5rem))] flex flex-col lg:flex-row overflow-hidden rounded-[2rem] sm:rounded-[2.25rem] ${iosCard}`}
+        className={`relative h-[100dvh] w-screen max-w-none flex flex-col lg:flex-row overflow-hidden ${iosCard} rounded-none border-0 shadow-none dark:shadow-none`}
       >
         <button
           type="button"
