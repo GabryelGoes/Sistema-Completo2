@@ -111,7 +111,7 @@ const vehicleModalCompactCardGrid =
 const vehicleModalCompactCardRow =
   'relative flex items-center gap-2 px-2.5 py-2 sm:gap-2.5 sm:px-3 sm:py-2.5 portrait:gap-[3px] portrait:px-1 portrait:py-0.5 portrait:sm:gap-1 portrait:sm:px-1.5 portrait:sm:py-1';
 const vehicleModalCompactCardSplitRow =
-  'relative flex flex-col gap-2 px-2.5 py-2 sm:flex-row sm:items-center sm:gap-2.5 sm:px-3 sm:py-2.5 portrait:gap-[3px] portrait:px-1 portrait:py-0.5 portrait:sm:gap-1 portrait:sm:px-1.5 portrait:sm:py-1';
+  'relative flex flex-col gap-[clamp(0.35rem,1.8vw,0.7rem)] px-2.5 py-2 sm:flex-row sm:items-center sm:gap-[clamp(0.5rem,1.2vw,1rem)] sm:px-3 sm:py-2.5 portrait:gap-[3px] portrait:px-1 portrait:py-0.5 portrait:sm:gap-1 portrait:sm:px-1.5 portrait:sm:py-1';
 const vehicleModalCompactCardIconSquircle =
   'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04] portrait:h-5 portrait:w-5 portrait:rounded portrait:border-zinc-200/90';
 const vehicleModalCompactCardIconGlyph =
@@ -140,7 +140,7 @@ const vehicleModalCompactCardMechanicWrench =
 const vehicleModalCompactCardEmptyTech =
   'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12 portrait:h-5 portrait:w-5 portrait:rounded';
 const vehicleModalCompactCardFieldRow =
-  'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:justify-end portrait:gap-px';
+  'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:ml-auto sm:justify-end portrait:gap-px';
 
 /** Sombra nos glifos do nome do veículo (só tema escuro — no claro fica sem text-shadow). */
 const vehicleModalTitleShadow =
@@ -4453,7 +4453,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 aria-hidden
                               />
                               <div className={vehicleModalCompactCardSplitRow}>
-                                <div className="flex shrink-0 items-center gap-2 sm:contents">
+                                <div className="flex min-w-0 flex-1 items-center gap-2">
                                   <div className={vehicleModalCompactCardIconSquircle}>
                                     <Gauge className={vehicleModalCompactCardIconGlyph} strokeWidth={2.25} aria-hidden />
                                   </div>
@@ -4963,7 +4963,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               aria-hidden
                             />
                             <div className={vehicleModalCompactCardSplitRow}>
-                              <div className="flex shrink-0 items-center gap-2 sm:contents">
+                              <div className="flex min-w-0 flex-1 items-center gap-2">
                                 <div className={vehicleModalCompactCardIconSquircle}>
                                   <Calendar className={vehicleModalCompactCardIconGlyph} strokeWidth={2.25} aria-hidden />
                                 </div>
