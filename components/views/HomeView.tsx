@@ -237,6 +237,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return iosSquircleBackgroundFromHex(h);
   }, [headerPhotoUrl, isSystemUser, systemUserAccentColor]);
 
+  const headerProfileAriaLabel = isSystemUser
+    ? 'Configurações de perfil'
+    : isTechnician
+      ? 'Meu perfil'
+      : 'Perfil do administrador';
+
+  const handleHeaderProfileClick = useCallback(() => {
+    if (isSystemUser) {
+      setIsUserProfileOpen(true);
+      return;
+    }
+    if (isTechnician && technicianId) {
+      setIsTechnicianProfileOpen(true);
+      return;
+    }
+    if (!isTechnician) {
+      setIsAdminProfileOpen(true);
+      return;
+    }
+    setIsHomeSettingsHubOpen(true);
+  }, [isSystemUser, isTechnician, technicianId]);
+
   /** Oculta TabBar como um modal; sem portal no body (evita cobrir modais renderizados no root). */
   useRegisterModalOpen(isHomeSettingsHubOpen);
 
@@ -569,32 +591,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     : 'Administrador'}
               </span>
             </div>
-            <div
-              className={`relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-200/90 shadow-md ring-1 ring-black/[0.04] dark:border-white/12 dark:ring-white/10 sm:h-12 sm:w-12 ${
+            <button
+              type="button"
+              onClick={handleHeaderProfileClick}
+              aria-label={headerProfileAriaLabel}
+              className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-200/90 shadow-md ring-1 ring-black/[0.04] transition-transform hover:opacity-95 active:scale-[0.96] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-white/12 dark:ring-white/10 dark:focus-visible:ring-offset-zinc-950 sm:h-12 sm:w-12 ${
                 headerPhotoUrl || headerAvatarAccentStyle
                   ? ''
                   : 'bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-600 dark:to-zinc-700'
               }`}
               style={headerAvatarAccentStyle}
-              aria-hidden
             >
               {headerPhotoUrl ? (
                 <img
                   src={headerPhotoUrl}
                   alt=""
-                  className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
+                  className="pointer-events-none absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
                   referrerPolicy="no-referrer"
                 />
               ) : (
                 <span
-                  className={`relative z-[1] text-[1.1rem] sm:text-[1.2rem] font-semibold drop-shadow-sm ${
+                  className={`pointer-events-none relative z-[1] text-[1.1rem] sm:text-[1.2rem] font-semibold drop-shadow-sm ${
                     headerAvatarAccentStyle ? 'text-white' : 'text-zinc-800 dark:text-white'
                   }`}
                 >
                   {headerInitial}
                 </span>
               )}
-            </div>
+            </button>
           </div>
         </div>
       </header>
