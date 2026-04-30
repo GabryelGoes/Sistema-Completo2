@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ChevronLeft,
+  ArrowLeft,
   ChevronRight,
   LogOut,
   Palette,
@@ -650,20 +650,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
             aria-modal="true"
             aria-label="Configurações"
           >
-            <header className="shrink-0 border-b border-zinc-200/70 bg-white/75 px-4 pb-3 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur-2xl dark:border-white/[0.08] dark:bg-zinc-950/65">
-              <div className="relative mx-auto flex max-w-xl items-center justify-center lg:max-w-5xl">
+            <header className="shrink-0 border-b border-zinc-200/70 bg-white/75 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-2xl dark:border-white/[0.08] dark:bg-zinc-950/65">
+              <div className="relative w-full">
                 <button
                   type="button"
                   onClick={() => {
                     if (childModalStackActive) return;
                     setIsHomeSettingsHubOpen(false);
                   }}
-                  className="absolute left-0 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200/75 bg-white/85 text-zinc-700 shadow-sm backdrop-blur-xl transition-all hover:bg-white active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-200"
+                  className="absolute left-0 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
                   aria-label="Voltar"
                 >
-                  <ChevronLeft className="h-6 w-6" strokeWidth={2.2} />
+                  <ArrowLeft className="h-5 w-5" />
                 </button>
-                <div className="flex flex-col items-center px-12 text-center">
+                <div className="mx-auto flex min-h-[2.5rem] max-w-xl flex-col items-center justify-center px-12 text-center lg:max-w-5xl">
                   <div className="mb-0.5 flex h-9 w-9 items-center justify-center overflow-hidden rounded-2xl border border-zinc-300/75 bg-zinc-100 shadow-inner dark:border-white/[0.12] dark:bg-zinc-800/95">
                     <img src="/icons/configuracoes-ios.png" alt="" className="h-full w-full object-cover" />
                   </div>
