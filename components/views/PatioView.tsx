@@ -743,6 +743,19 @@ function MercosulPlateMockup(props: {
     );
   }
 
+  /** Nos cartões da grade (não no modal detalhe): −15% só em modo vertical. */
+  const isBoardCardSize = size === 'card' || size === 'cardGrid' || size === 'cardCompact';
+  if (isBoardCardSize) {
+    return (
+      <div
+        className="inline-block origin-right portrait:scale-[0.85]"
+        aria-hidden
+      >
+        {mockup}
+      </div>
+    );
+  }
+
   return mockup;
 }
 
