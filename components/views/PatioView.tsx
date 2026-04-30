@@ -104,13 +104,13 @@ const patioBoardGlassCardShadow =
 const vehicleModalCustomerNameBox =
   'rounded-[18px] border border-zinc-300/80 bg-zinc-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:border-zinc-600/50 dark:bg-zinc-800/85 dark:shadow-none';
 
-/** Sombra nos glifos do nome do veículo — text-shadow segue o formato das letras (não retângulo como drop-shadow). */
+/** Sombra nos glifos do nome do veículo (só tema escuro — no claro fica sem text-shadow). */
 const vehicleModalTitleShadow =
-  '[text-shadow:0_1px_1px_rgba(0,0,0,0.2),0_2px_6px_rgba(0,0,0,0.14),0_4px_18px_rgba(0,0,0,0.08)] dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.92),0_2px_10px_rgba(0,0,0,0.52),0_0_26px_rgba(0,0,0,0.35)]';
+  'dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.92),0_2px_10px_rgba(0,0,0,0.52),0_0_26px_rgba(0,0,0,0.35)]';
 
-/** Igual à do modal, porém mais suave nos cards do pátio (opacidades menores). */
+/** Cards da grade: mesma regra — sombra apenas no dark. */
 const vehicleCardTitleShadow =
-  '[text-shadow:0_1px_1px_rgba(0,0,0,0.11),0_2px_6px_rgba(0,0,0,0.07),0_4px_18px_rgba(0,0,0,0.045)] dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.58),0_2px_10px_rgba(0,0,0,0.32),0_0_26px_rgba(0,0,0,0.2)]';
+  'dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.58),0_2px_10px_rgba(0,0,0,0.32),0_0_26px_rgba(0,0,0,0.2)]';
 
 /** Mesma ideia em texto menor (modais etapa/categoria etc.). */
 const vehicleModalSubtitleNameShadow =
