@@ -243,21 +243,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
       ? 'Meu perfil'
       : 'Perfil do administrador';
 
+  /** Abre após o ciclo de eventos: evita “click-through” (o `click` após `pointerup` atingir linhas do hub que acabou de montar). */
+  const openAfterInputCycle = useCallback((fn: () => void) => {
+    window.setTimeout(fn, 0);
+  }, []);
+
   const handleHeaderProfileClick = useCallback(() => {
-    if (isSystemUser) {
-      setIsUserProfileOpen(true);
-      return;
-    }
-    if (isTechnician && technicianId) {
-      setIsTechnicianProfileOpen(true);
-      return;
-    }
-    if (!isTechnician) {
-      setIsAdminProfileOpen(true);
-      return;
-    }
-    setIsHomeSettingsHubOpen(true);
-  }, [isSystemUser, isTechnician, technicianId]);
+    openAfterInputCycle(() => {
+      if (isSystemUser) {
+        setIsUserProfileOpen(true);
+        return;
+      }
+      if (isTechnician && technicianId) {
+        setIsTechnicianProfileOpen(true);
+        return;
+      }
+      if (!isTechnician) {
+        setIsAdminProfileOpen(true);
+        return;
+      }
+      setIsHomeSettingsHubOpen(true);
+    });
+  }, [isSystemUser, isTechnician, technicianId, openAfterInputCycle]);
 
   /** Oculta TabBar como um modal; sem portal no body (evita cobrir modais renderizados no root). */
   useRegisterModalOpen(isHomeSettingsHubOpen);
@@ -509,15 +516,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const handleQuickCardPointerUp = useCallback(
     (app: { id: QuickTileId; onOpen: () => void }) => {
       clearLongPressTimer();
-      if (!isQuickEditMode && !longPressTriggeredRef.current) {
-        app.onOpen();
+      const shouldOpen = !isQuickEditMode && !longPressTriggeredRef.current;
+      if (shouldOpen) {
+        openAfterInputCycle(() => app.onOpen());
       }
       if (!longPressTriggeredRef.current) {
         endQuickDrag();
       }
       longPressTriggeredRef.current = false;
     },
-    [clearLongPressTimer, endQuickDrag, isQuickEditMode]
+    [clearLongPressTimer, endQuickDrag, isQuickEditMode, openAfterInputCycle]
   );
 
   const toggleQuickTileSize = useCallback((appId: QuickTileId) => {
