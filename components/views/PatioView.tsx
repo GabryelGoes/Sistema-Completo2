@@ -6815,7 +6815,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <X className="h-5 w-5" />
             </button>
 
-            <div className="shrink-0 border-b border-sky-200/55 bg-sky-100/60 px-6 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] dark:border-sky-500/20 dark:bg-sky-950/50 sm:px-8 sm:pt-8">
+            <div className="shrink-0 border-b border-zinc-200/80 bg-zinc-200 px-6 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] dark:border-sky-500/20 dark:bg-sky-950/50 sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
                 <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
                   <img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />
