@@ -15,9 +15,10 @@ import {
   Save,
   Pin,
 } from 'lucide-react';
-import type { TvSlide, TvSlideType } from '../services/apiService';
+import type { TvMediaObjectFit, TvSlide, TvSlideType } from '../services/apiService';
 import {
   getTvManage,
+  normalizeTvMediaObjectFit,
   putTvWeeklyGoal,
   createTvSlide,
   deleteTvSlide,
@@ -34,6 +35,12 @@ const SLIDE_TYPES: { value: TvSlideType; label: string; hint: string }[] = [
   { value: 'image', label: 'Imagem', hint: 'Arquivo ou URL' },
   { value: 'video', label: 'Vídeo', hint: 'Arquivo ou URL / YouTube' },
   { value: 'goal', label: 'Meta', hint: 'Barra no slide' },
+];
+
+const MEDIA_FIT_OPTIONS: { value: TvMediaObjectFit; label: string; hint: string }[] = [
+  { value: 'cover', label: 'Preencher', hint: 'Corta bordas, sem distorcer' },
+  { value: 'contain', label: 'Inteira', hint: 'Proporção original, faixas pretas' },
+  { value: 'fill', label: 'Esticar', hint: 'Ocupa tudo (pode distorcer)' },
 ];
 
 interface TvPatioModalProps {
@@ -64,6 +71,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const [newPlaySound, setNewPlaySound] = useState(false);
   const [newGoalShowValues, setNewGoalShowValues] = useState(false);
   const [newMediaFullscreen, setNewMediaFullscreen] = useState(true);
+  const [newMediaObjectFit, setNewMediaObjectFit] = useState<TvMediaObjectFit>('cover');
 
   const [previewTab, setPreviewTab] = useState<'draft' | 'library'>('draft');
   const [libraryPreviewId, setLibraryPreviewId] = useState<string | null>(null);
@@ -83,6 +91,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     playSound: boolean;
     goalShowValues: boolean;
     mediaFullscreen: boolean;
+    mediaObjectFit: TvMediaObjectFit;
   } | null>(null);
 
   const load = async () => {
@@ -171,7 +180,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       goalLabel: null,
       playSound: newPlaySound,
       goalShowValues: false,
-      mediaFullscreen: newType === 'image' || newType === 'video' ? newMediaFullscreen : false,
+        mediaFullscreen: newType === 'image' || newType === 'video' ? newMediaFullscreen : false,
+        mediaObjectFit: newType === 'image' || newType === 'video' ? newMediaObjectFit : 'cover',
     };
   }, [
     newType,
@@ -185,6 +195,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     newPlaySound,
     newGoalShowValues,
     newMediaFullscreen,
+    newMediaObjectFit,
   ]);
 
   const librarySlide = useMemo(() => {
@@ -215,6 +226,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         playSound: editForm.playSound,
         goalShowValues: isGoal ? editForm.goalShowValues : false,
         mediaFullscreen: (editForm.slideType === 'image' || editForm.slideType === 'video') ? editForm.mediaFullscreen : false,
+        mediaObjectFit:
+          editForm.slideType === 'image' || editForm.slideType === 'video'
+            ? editForm.mediaObjectFit
+            : 'cover',
       };
     }
     return librarySlide;
@@ -286,11 +301,13 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         playSound: newPlaySound,
         goalShowValues: newType === 'goal' ? newGoalShowValues : false,
         mediaFullscreen: (newType === 'image' || newType === 'video') ? newMediaFullscreen : false,
+        mediaObjectFit: (newType === 'image' || newType === 'video') ? newMediaObjectFit : undefined,
       });
       setNewTitle('');
       setNewBody('');
       setNewMediaUrl('');
-      setNewMediaFullscreen(false);
+      setNewMediaFullscreen(true);
+      setNewMediaObjectFit('cover');
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
@@ -369,6 +386,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       playSound: s.playSound === true,
       goalShowValues: s.goalShowValues === true,
       mediaFullscreen: s.mediaFullscreen === true,
+      mediaObjectFit: normalizeTvMediaObjectFit(s.mediaObjectFit),
     });
     setLibraryPreviewId(s.id);
     setPreviewTab('library');
@@ -393,6 +411,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         durationSeconds: Math.min(300, Math.max(3, Number(editForm.durationSeconds) || 10)),
         mediaFullscreen: (editForm.slideType === 'image' || editForm.slideType === 'video') ? editForm.mediaFullscreen : false,
       };
+      if (editForm.slideType === 'image' || editForm.slideType === 'video') {
+        patch.mediaObjectFit = editForm.mediaObjectFit;
+      }
       if (isGoal) {
         patch.goalLabel = editForm.goalLabel.trim() || null;
         patch.goalCurrent = Number(editForm.goalCurrent) || 0;
@@ -777,6 +798,39 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             />
                           </button>
                         </div>
+                        <div>
+                          <p className={iosLabel}>Encaixe na TV</p>
+                          <p className="mb-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                            Evita imagem esticada: use <span className="font-semibold text-zinc-700 dark:text-zinc-200">Inteira</span> para ver tudo com
+                            proporção correta.
+                          </p>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                            {MEDIA_FIT_OPTIONS.map((o) => (
+                              <button
+                                key={o.value}
+                                type="button"
+                                onClick={() => setNewMediaObjectFit(o.value)}
+                                className={`rounded-2xl px-2 py-3 text-center transition-all ${
+                                  newMediaObjectFit === o.value
+                                    ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30'
+                                    : 'bg-zinc-100/90 text-zinc-700 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/10'
+                                }`}
+                              >
+                                <span className="block text-[12px] font-semibold leading-tight">{o.label}</span>
+                                <span
+                                  className={`mt-1 block text-[9px] leading-tight ${
+                                    newMediaObjectFit === o.value ? 'text-white/85' : 'text-zinc-500'
+                                  }`}
+                                >
+                                  {o.hint}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                          <p className="mt-2 text-[10px] text-zinc-500 dark:text-zinc-400">
+                            Vídeo do YouTube: o player usa a proporção padrão do serviço.
+                          </p>
+                        </div>
                       </div>
                     )}
 
@@ -1091,6 +1145,38 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                       }`}
                                     />
                                   </button>
+                                </div>
+                                <div>
+                                  <p className={iosLabel}>Encaixe na TV</p>
+                                  <p className="mb-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                    <span className="font-semibold text-zinc-700 dark:text-zinc-200">Inteira</span> mostra a imagem inteira sem cortar nem
+                                    esticar (faixas pretas se precisar).
+                                  </p>
+                                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                    {MEDIA_FIT_OPTIONS.map((o) => (
+                                      <button
+                                        key={o.value}
+                                        type="button"
+                                        onClick={() =>
+                                          setEditForm((f) => (f ? { ...f, mediaObjectFit: o.value } : f))
+                                        }
+                                        className={`rounded-2xl px-2 py-3 text-center transition-all ${
+                                          editForm.mediaObjectFit === o.value
+                                            ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30'
+                                            : 'bg-zinc-100/90 text-zinc-700 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/10'
+                                        }`}
+                                      >
+                                        <span className="block text-[12px] font-semibold leading-tight">{o.label}</span>
+                                        <span
+                                          className={`mt-1 block text-[9px] leading-tight ${
+                                            editForm.mediaObjectFit === o.value ? 'text-white/85' : 'text-zinc-500'
+                                          }`}
+                                        >
+                                          {o.hint}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </div>
                                 </div>
                               </div>
                             )}

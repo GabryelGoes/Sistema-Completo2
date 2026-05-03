@@ -2209,6 +2209,15 @@ export async function submitZayaRelayReply(
 /** --- TV do pátio (playlist) --- */
 export type TvSlideType = "notice" | "image" | "video" | "goal" | "alert";
 
+/** Encaixe da imagem/vídeo na área da TV (object-fit). */
+export type TvMediaObjectFit = "cover" | "contain" | "fill";
+
+export function normalizeTvMediaObjectFit(v: unknown): TvMediaObjectFit {
+  const s = String(v ?? "").toLowerCase();
+  if (s === "contain" || s === "fill" || s === "cover") return s;
+  return "cover";
+}
+
 export interface TvSlide {
   id: string;
   slideType: TvSlideType;
@@ -2229,6 +2238,8 @@ export interface TvSlide {
   pinImmediate?: boolean;
   /** Para imagem/vídeo: preencher toda a área (sem bordas). */
   mediaFullscreen?: boolean;
+  /** Para imagem/vídeo: como encaixar na área (cover / contain / fill). */
+  mediaObjectFit?: TvMediaObjectFit;
 }
 
 export interface TvWeeklyGoal {

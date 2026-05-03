@@ -1306,6 +1306,12 @@ export function createApiApp() {
     return mediaFullscreen ? `${TV_BODY_FULLSCREEN_MARKER}\n${base}`.trim() : base;
   }
 
+  function normalizeTvMediaObjectFit(v: unknown): "cover" | "contain" | "fill" {
+    const s = String(v ?? "").toLowerCase();
+    if (s === "contain" || s === "fill" || s === "cover") return s;
+    return "cover";
+  }
+
   async function fetchTvPlaylistForWorkshop(): Promise<{
     slides: Array<Record<string, unknown>>;
     weeklyGoal: {
@@ -1321,7 +1327,7 @@ export function createApiApp() {
     const { data: slideRows, error: slideErr } = await supabaseAdmin
       .from("workshop_tv_slides")
       .select(
-        "id, slide_type, title, body, media_url, duration_seconds, sort_order, is_active, goal_current, goal_target, goal_label, play_sound, goal_show_values, pin_immediate"
+        "id, slide_type, title, body, media_url, duration_seconds, sort_order, is_active, goal_current, goal_target, goal_label, play_sound, goal_show_values, pin_immediate, media_object_fit"
       )
       .eq("workshop_id", WORKSHOP_ID)
       .eq("is_active", true)
@@ -1354,6 +1360,7 @@ export function createApiApp() {
         goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
         pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
         mediaFullscreen,
+        mediaObjectFit: normalizeTvMediaObjectFit((row as { media_object_fit?: unknown }).media_object_fit),
       };
     });
 
@@ -1422,6 +1429,7 @@ export function createApiApp() {
           goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
           pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
           mediaFullscreen: parsed.mediaFullscreen,
+          mediaObjectFit: normalizeTvMediaObjectFit((row as { media_object_fit?: unknown }).media_object_fit),
         };
       });
 
@@ -1514,6 +1522,7 @@ export function createApiApp() {
         return res.status(400).json({ error: "slideType inválido." });
       }
       const mediaFullscreen = s.mediaFullscreen === true;
+      const mediaObjectFit = normalizeTvMediaObjectFit(s.mediaObjectFit);
       const insert = {
         workshop_id: WORKSHOP_ID,
         slide_type: slideType,
@@ -1529,6 +1538,7 @@ export function createApiApp() {
         play_sound: s.playSound === true,
         goal_show_values: s.goalShowValues === true,
         pin_immediate: false,
+        media_object_fit: slideType === "image" || slideType === "video" ? mediaObjectFit : "cover",
       };
       const { data, error } = await supabaseAdmin.from("workshop_tv_slides").insert(insert).select("id").single();
       if (error) {
@@ -1568,6 +1578,9 @@ export function createApiApp() {
       if (s.goalLabel !== undefined) updates.goal_label = s.goalLabel != null ? String(s.goalLabel) : null;
       if (s.playSound !== undefined) updates.play_sound = Boolean(s.playSound);
       if (s.goalShowValues !== undefined) updates.goal_show_values = Boolean(s.goalShowValues);
+      if (Object.prototype.hasOwnProperty.call(s, "mediaObjectFit")) {
+        updates.media_object_fit = normalizeTvMediaObjectFit(s.mediaObjectFit);
+      }
       if (s.isActive !== undefined) {
         updates.is_active = Boolean(s.isActive);
         if (updates.is_active === false) updates.pin_immediate = false;

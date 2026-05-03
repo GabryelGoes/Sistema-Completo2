@@ -1,5 +1,17 @@
 import React from 'react';
-import type { TvSlide } from '../services/apiService';
+import type { TvMediaObjectFit, TvSlide } from '../services/apiService';
+import { normalizeTvMediaObjectFit } from '../services/apiService';
+
+function mediaObjectFitClass(fit: TvMediaObjectFit | undefined): string {
+  switch (normalizeTvMediaObjectFit(fit)) {
+    case 'contain':
+      return 'object-contain';
+    case 'fill':
+      return 'object-fill';
+    default:
+      return 'object-cover';
+  }
+}
 
 function extractYoutubeId(url: string): string | null {
   const m = url.match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([a-zA-Z0-9_-]{11})/);
@@ -104,9 +116,10 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
     const t = slide.slideType;
 
     if (t === 'image' && slide.mediaUrl) {
+      const fit = mediaObjectFitClass(slide.mediaObjectFit);
       return (
-        <div className="flex min-h-0 flex-1 items-center justify-center p-0">
-          <img src={slide.mediaUrl} alt="" className="h-full w-full border-0 object-cover" />
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-black p-0">
+          <img src={slide.mediaUrl} alt="" className={`h-full w-full border-0 ${fit}`} />
         </div>
       );
     }
@@ -122,9 +135,10 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
           </div>
         );
       }
+      const fit = mediaObjectFitClass(slide.mediaObjectFit);
       return (
-        <div className="flex min-h-0 flex-1 items-center justify-center p-0">
-          <video src={slide.mediaUrl} className="h-full w-full rounded-none object-cover" muted playsInline controls={false} />
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-black p-0">
+          <video src={slide.mediaUrl} className={`h-full w-full rounded-none ${fit}`} muted playsInline controls={false} />
         </div>
       );
     }
