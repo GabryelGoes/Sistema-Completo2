@@ -7148,7 +7148,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <ModalPortal>
         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}>
           <div
-            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosVehicleModalShell} animate-in zoom-in-95 duration-200`}
           >
             <button
               type="button"
@@ -7186,7 +7186,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-6 py-5 dark:bg-black/25 custom-scrollbar sm:px-8">
               <p className={iosLabel}>Etapas</p>
               {isMoving && (
                 <p className="mb-3 flex items-center gap-2 text-[13px] font-medium text-[#007AFF] dark:text-[#64B5FF]">
@@ -7232,7 +7232,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className="shrink-0 border-t border-zinc-200/60 px-4 py-3 dark:border-white/[0.07] sm:px-6">
+            <div className="shrink-0 border-t border-zinc-200/60 bg-white px-4 py-3 dark:border-white/[0.07] dark:bg-zinc-950/40 sm:px-6">
               <button
                 type="button"
                 onClick={() => setCardInTransition(null)}
