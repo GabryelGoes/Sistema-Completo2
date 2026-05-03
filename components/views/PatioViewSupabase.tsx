@@ -183,7 +183,7 @@ export const PatioViewSupabase: React.FC<PatioViewSupabaseProps> = ({
                   >
                     <div className="flex justify-between items-start gap-2 mb-2">
                       <div className="min-w-0 flex-1">
-                        <span className="font-vehicle font-black text-zinc-900 dark:text-white uppercase tracking-tight text-sm truncate block">
+                        <span className="font-vehicle font-semibold text-zinc-900 dark:text-white uppercase tracking-tight text-sm truncate block">
                           {order.vehicle_model || "Veículo"}
                         </span>
                         {(order.vehicle_color ?? "").trim() ? (

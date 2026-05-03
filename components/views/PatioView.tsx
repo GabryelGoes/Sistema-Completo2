@@ -3537,7 +3537,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {/* Nome do carro (fonte um pouco menor); portrait: −15% via escala */}
                 <div className={boardPanoramic ? 'mb-[calc(0.25rem*1.6146)] portrait:mb-1' : 'mb-1.5 portrait:mb-1'}>
                   <h3
-                    className={`font-vehicle ${getModelTitleClass(model, boardPanoramic, true)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic portrait:inline-block portrait:w-full portrait:origin-top-left portrait:scale-[0.85] ${vehicleCardTitleShadow}`}
+                    className={`font-vehicle ${getModelTitleClass(model, boardPanoramic, true)} font-bold text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tight break-words portrait:inline-block portrait:w-full portrait:origin-top-left portrait:scale-[0.85] ${vehicleCardTitleShadow}`}
                   >
                     {model}
                   </h3>
@@ -3835,7 +3835,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <div className="mb-4 min-h-0 flex-1">
                                       <div className="mb-2">
                                         <h3
-                                          className={`font-vehicle ${getModelTitleClass(model)} font-black text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tighter break-words italic ${vehicleCardTitleShadow}`}
+                                          className={`font-vehicle ${getModelTitleClass(model)} font-bold text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tight break-words ${vehicleCardTitleShadow}`}
                                         >
                                           {model}
                                         </h3>
@@ -4390,7 +4390,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         ) : null}
                         <div className="mt-0.5 flex min-w-0 items-end gap-3">
                           <h1
-                            className={`font-vehicle min-w-0 flex-1 truncate text-[2.79rem] md:text-[4.185rem] portrait:text-[2.74rem] portrait:md:text-[4.11rem] font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic leading-none ${vehicleModalTitleShadow}`}
+                            className={`font-vehicle min-w-0 flex-1 truncate text-[2.79rem] md:text-[4.185rem] portrait:text-[2.74rem] portrait:md:text-[4.11rem] font-bold text-zinc-900 dark:text-white tracking-tight uppercase leading-none ${vehicleModalTitleShadow}`}
                             title={selectedCardTitleParts?.vehicle}
                           >
                             {selectedCardTitleParts?.vehicle}
@@ -6351,7 +6351,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               }}
                               className="flex w-full items-center justify-between gap-3 rounded-xl bg-white/95 px-4 py-3 text-left shadow-sm ring-1 ring-emerald-600/20 transition-colors hover:bg-white dark:bg-zinc-900/90 dark:ring-emerald-400/25"
                             >
-                              <span className="min-w-0 font-vehicle text-[15px] font-semibold italic text-emerald-950 dark:text-emerald-50">
+                              <span className="min-w-0 font-vehicle text-[15px] font-semibold text-emerald-950 dark:text-emerald-50">
                                 {tp.vehicle || 'Veículo'}
                               </span>
                               <span className="shrink-0 text-[12px] font-semibold text-emerald-700 dark:text-emerald-300">
