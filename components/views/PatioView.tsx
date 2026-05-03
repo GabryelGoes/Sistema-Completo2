@@ -922,6 +922,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
       budgetHasExplicitApprovalDecisions(viewingBudget.services, viewingBudget.parts),
     [viewingBudget]
   );
+
+  const closeBudgetModal = useCallback(() => {
+    setIsBudgetOpen(false);
+    setEditingBudget(null);
+    setBudgetDiagnosis('');
+    setBudgetServices([{ id: String(Date.now()), description: '', laborHours: null }]);
+    setBudgetParts([{ id: String(Date.now() + 1), description: '', quantity: '1' }]);
+    setBudgetObservations('');
+  }, []);
+
   const [workshopServices, setWorkshopServices] = useState<WorkshopService[]>([]);
   const [workshopParts, setWorkshopParts] = useState<WorkshopPart[]>([]);
   const [systemTechnicians, setSystemTechnicians] = useState<SystemUserTechnician[]>([]);
@@ -1104,6 +1114,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
     };
   }, [patioPrimaryOverlayOpen, isModuleMode]);
   useBrowserBackLayer(patioPrimaryOverlayOpen, closePatioPrimaryOverlays);
+  /** Pilha acima do modal do veículo: gesto voltar fecha só o orçamento e mantém a ficha aberta. */
+  useBrowserBackLayer(isBudgetOpen, closeBudgetModal);
   useBrowserBackLayer(isPatioHeaderToolsOpen, () => setIsPatioHeaderToolsOpen(false));
   useBrowserBackLayer(isRemindersOpen, () => setIsRemindersOpen(false));
 
@@ -2250,15 +2262,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsBudgetOpen(true);
     getWorkshopServices().then(setWorkshopServices).catch(() => setWorkshopServices([]));
     getWorkshopParts().then(setWorkshopParts).catch(() => setWorkshopParts([]));
-  };
-
-  const closeBudgetModal = () => {
-    setIsBudgetOpen(false);
-    setEditingBudget(null);
-    setBudgetDiagnosis('');
-    setBudgetServices([{ id: String(Date.now()), description: '', laborHours: null }]);
-    setBudgetParts([{ id: String(Date.now() + 1), description: '', quantity: '1' }]);
-    setBudgetObservations('');
   };
 
   const handleDeleteBudget = async () => {
