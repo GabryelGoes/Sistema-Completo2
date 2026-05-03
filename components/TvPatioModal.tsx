@@ -470,7 +470,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     <ModalPortal>
       <div className="fixed inset-0 z-[120] flex items-stretch justify-stretch bg-black/45 backdrop-blur-[20px]">
       <div
-        className={`relative h-[100dvh] w-screen max-w-none flex flex-col lg:flex-row overflow-hidden ${iosCard} rounded-none border-0 shadow-none dark:shadow-none`}
+        className={`relative flex h-[100dvh] w-screen max-w-none min-h-0 flex-1 flex-col overflow-hidden max-lg:landscape:flex-col lg:grid lg:min-h-0 ${
+          dataReady ? 'lg:grid-cols-[minmax(0,1fr)_min(420px,100%)]' : 'lg:grid-cols-1'
+        } lg:grid-rows-[auto_minmax(0,1fr)] ${iosCard} rounded-none border-0 shadow-none dark:shadow-none`}
       >
         <button
           type="button"
@@ -481,26 +483,98 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
           <X className="w-5 h-5" />
         </button>
 
-        {/* Coluna principal */}
-        <div className="order-2 lg:order-1 flex-1 flex flex-col min-h-0 min-w-0 overflow-y-auto overscroll-contain">
-          <div className="px-6 sm:px-8 pt-8 pb-6 lg:pr-12">
-            <div className="flex items-center gap-3 mb-1">
-              <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                <img src="/icons/tv-patio-ios.png" alt="TV do Pátio" className="h-full w-full object-cover" />
-              </IosAccentIconSquircle>
-              <div>
-                <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
-                  TV do pátio
-                </h2>
-                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-brand-yellow" />
-                  Conteúdo exibido entre as páginas de veículos
-                </p>
-              </div>
+        {/* Cabeçalho: em portrait fica no topo; em telas largas, canto superior esquerdo do grid */}
+        <header className="shrink-0 px-6 pt-8 pb-6 sm:px-8 max-lg:landscape:order-2 lg:col-start-1 lg:row-start-1 lg:pr-12">
+          <div className="flex items-center gap-3 mb-1">
+            <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
+              <img src="/icons/tv-patio-ios.png" alt="TV do Pátio" className="h-full w-full object-cover" />
+            </IosAccentIconSquircle>
+            <div>
+              <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
+                TV do pátio
+              </h2>
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-brand-yellow" />
+                Conteúdo exibido entre as páginas de veículos
+              </p>
             </div>
           </div>
+        </header>
 
-          <div className="px-6 sm:px-8 pb-8 lg:pr-12 space-y-6 flex-1">
+        {/* Preview — em portrait: logo abaixo do cabeçalho; em lg: coluna direita */}
+        {dataReady && (
+          <div className="flex max-lg:landscape:order-1 shrink-0 flex-col border-b border-zinc-200/60 bg-gradient-to-b from-zinc-100/90 via-white/95 to-zinc-50/90 px-5 py-8 dark:border-white/[0.06] dark:from-zinc-950/95 dark:via-zinc-900/90 dark:to-black/80 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:border-b-0 lg:border-l lg:border-t-0 lg:py-10">
+            <div className="portrait:order-2 lg:order-1">
+              <div className="mb-4 flex items-center gap-2">
+                <Eye className="h-4 w-4 text-[#007AFF]" />
+                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                  Preview ao vivo
+                </span>
+              </div>
+
+              <div className="mb-5 flex rounded-2xl bg-zinc-200/60 p-1 dark:bg-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('draft')}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-semibold transition-all ${
+                    previewTab === 'draft'
+                      ? 'bg-white text-zinc-900 shadow-md dark:bg-zinc-800 dark:text-white'
+                      : 'text-zinc-500'
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Rascunho
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('library')}
+                  disabled={slides.length === 0}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-semibold transition-all disabled:opacity-35 ${
+                    previewTab === 'library'
+                      ? 'bg-white text-zinc-900 shadow-md dark:bg-zinc-800 dark:text-white'
+                      : 'text-zinc-500'
+                  }`}
+                >
+                  <ListVideo className="h-3.5 w-3.5" />
+                  Na fila
+                </button>
+              </div>
+
+              {previewTab === 'library' && slides.length > 0 && (
+                <select
+                  value={libraryPreviewId ?? ''}
+                  onChange={(e) => setLibraryPreviewId(e.target.value || null)}
+                  className={`${iosInput} mb-4 text-[13px]`}
+                >
+                  {slides.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.title || s.slideType} ({s.isActive === false ? 'pausado' : 'ativo'})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div className="portrait:order-1 flex min-h-[200px] flex-1 flex-col justify-center portrait:w-[80%] portrait:self-center lg:order-2">
+              <TvPatioPreview
+                weeklyLabel={weeklyLabel}
+                weeklyCurrent={weeklyCurrentNum}
+                weeklyTarget={weeklyTargetNum}
+                showWeeklyStrip={previewShowsWeeklyStrip}
+                slide={previewSlide}
+                showVehiclesPlaceholder={previewTab === 'draft' && !draftSlide}
+              />
+            </div>
+
+            <p className="portrait:order-3 mt-5 px-1 text-center text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 lg:order-3">
+              O preview simula o painel da TV. Imagens e vídeos enviados ficam no Storage da oficina.
+            </p>
+          </div>
+        )}
+
+        {/* Coluna principal (cards) — em portrait fica após o preview */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain px-6 pb-8 sm:px-8 max-lg:landscape:order-3 lg:col-start-1 lg:row-start-2 lg:pr-12">
+          <div className="space-y-6">
             {!dataReady &&
               (error ? (
                 <div className={`${iosCard} p-6 sm:p-8 space-y-4 text-center`}>
@@ -1161,69 +1235,6 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
             )}
           </div>
         </div>
-
-        {/* Preview — coluna fixa estilo iOS */}
-        {dataReady && (
-          <div className="order-1 lg:order-2 lg:w-[min(420px,100%)] shrink-0 border-b lg:border-b-0 border-zinc-200/60 lg:border-t-0 lg:border-l dark:border-white/[0.06] bg-gradient-to-b from-zinc-100/90 via-white/95 to-zinc-50/90 dark:from-zinc-950/95 dark:via-zinc-900/90 dark:to-black/80 px-5 py-8 lg:py-10 flex flex-col">
-            <div className="flex items-center gap-2 mb-4">
-              <Eye className="w-4 h-4 text-[#007AFF]" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Preview ao vivo</span>
-            </div>
-
-            <div className="flex rounded-2xl bg-zinc-200/60 dark:bg-white/[0.06] p-1 mb-5">
-              <button
-                type="button"
-                onClick={() => setPreviewTab('draft')}
-                className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-semibold transition-all ${
-                  previewTab === 'draft' ? 'bg-white dark:bg-zinc-800 shadow-md text-zinc-900 dark:text-white' : 'text-zinc-500'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Rascunho
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewTab('library')}
-                disabled={slides.length === 0}
-                className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-semibold transition-all disabled:opacity-35 ${
-                  previewTab === 'library' ? 'bg-white dark:bg-zinc-800 shadow-md text-zinc-900 dark:text-white' : 'text-zinc-500'
-                }`}
-              >
-                <ListVideo className="w-3.5 h-3.5" />
-                Na fila
-              </button>
-            </div>
-
-            {previewTab === 'library' && slides.length > 0 && (
-              <select
-                value={libraryPreviewId ?? ''}
-                onChange={(e) => setLibraryPreviewId(e.target.value || null)}
-                className={`${iosInput} mb-4 text-[13px]`}
-              >
-                {slides.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title || s.slideType} ({s.isActive === false ? 'pausado' : 'ativo'})
-                  </option>
-                ))}
-              </select>
-            )}
-
-            <div className="flex-1 flex flex-col justify-center min-h-[200px] portrait:w-[80%] portrait:self-center">
-              <TvPatioPreview
-                weeklyLabel={weeklyLabel}
-                weeklyCurrent={weeklyCurrentNum}
-                weeklyTarget={weeklyTargetNum}
-                showWeeklyStrip={previewShowsWeeklyStrip}
-                slide={previewSlide}
-                showVehiclesPlaceholder={previewTab === 'draft' && !draftSlide}
-              />
-            </div>
-
-            <p className="mt-5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 text-center px-1">
-              O preview simula o painel da TV. Imagens e vídeos enviados ficam no Storage da oficina.
-            </p>
-          </div>
-        )}
       </div>
       </div>
     </ModalPortal>
