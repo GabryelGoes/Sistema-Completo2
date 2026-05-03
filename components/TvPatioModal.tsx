@@ -474,7 +474,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     <ModalPortal>
       <div className="fixed inset-0 z-[120] flex items-stretch justify-stretch bg-black/45 backdrop-blur-[20px]">
       <div
-        className={`relative flex h-[100dvh] w-screen max-w-none min-h-0 flex-1 flex-col overflow-hidden max-lg:landscape:flex-col lg:grid lg:min-h-0 ${
+        className={`relative flex h-[100dvh] w-screen max-w-none min-h-0 flex-1 flex-col overflow-hidden max-lg:portrait:overflow-y-auto max-lg:portrait:overflow-x-hidden max-lg:landscape:flex-col lg:grid lg:min-h-0 ${
           dataReady ? 'lg:grid-cols-[minmax(0,1fr)_min(420px,100%)]' : 'lg:grid-cols-1'
         } lg:grid-rows-[auto_minmax(0,1fr)] ${tvPatioShellBg} rounded-none border-0 shadow-none dark:shadow-none`}
       >
@@ -508,8 +508,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         {/* Preview — em portrait: logo abaixo do cabeçalho; em lg: coluna direita */}
         {dataReady && (
           <div className="flex max-lg:landscape:order-1 shrink-0 flex-col border-b border-zinc-200/60 bg-transparent px-5 py-8 dark:border-zinc-200/40 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:border-b-0 lg:border-l lg:border-t-0 lg:border-zinc-200/50 lg:py-10">
-            <div className="portrait:order-2 lg:order-1">
-              <div className="mb-4 flex items-center gap-2">
+            <div className="portrait:order-2 lg:order-1 max-lg:portrait:mt-9">
+              <div className="mb-4 flex items-center gap-2 max-lg:portrait:mb-5">
                 <Eye className="h-4 w-4 text-[#007AFF]" />
                 <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                   Preview ao vivo
@@ -559,7 +559,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               )}
             </div>
 
-            <div className="portrait:order-1 flex min-h-[200px] flex-1 flex-col justify-center portrait:w-[80%] portrait:self-center lg:order-2">
+            <div className="portrait:order-1 flex min-h-[200px] flex-1 flex-col justify-center max-lg:portrait:flex-none portrait:w-[80%] portrait:self-center lg:order-2">
               <TvPatioPreview
                 weeklyLabel={weeklyLabel}
                 weeklyCurrent={weeklyCurrentNum}
@@ -577,7 +577,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         )}
 
         {/* Coluna principal (cards) — em portrait fica após o preview */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain px-6 pb-8 sm:px-8 max-lg:landscape:order-3 lg:col-start-1 lg:row-start-2 lg:pr-12">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain px-6 pb-8 sm:px-8 max-lg:portrait:flex-none max-lg:portrait:overflow-visible max-lg:landscape:order-3 lg:col-start-1 lg:row-start-2 lg:pr-12">
           <div className="space-y-6">
             {!dataReady &&
               (error ? (
