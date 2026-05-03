@@ -67,6 +67,14 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
       : 0;
   const hasGoal = showWeeklyStrip && weeklyTarget > 0;
 
+  /** Imagem/vídeo com URL: sem cabeçalho da marca e área única em tela cheia (como na TV). */
+  const isImmersiveMedia =
+    slide != null &&
+    !!slide.mediaUrl &&
+    (slide.slideType === 'image' || slide.slideType === 'video');
+  const showBrandBar = !isImmersiveMedia;
+  const showGoalStrip = hasGoal && !isImmersiveMedia;
+
   const renderSlide = () => {
     if (!slide) {
       if (!showVehiclesPlaceholder) {
@@ -96,14 +104,9 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
     const t = slide.slideType;
 
     if (t === 'image' && slide.mediaUrl) {
-      const fitClass = slide.mediaFullscreen ? 'h-full w-full object-cover rounded-none border-0' : 'max-w-full max-h-full object-contain rounded-lg border border-white/10';
       return (
-        <div className={`flex-1 flex items-center justify-center min-h-0 ${slide.mediaFullscreen ? 'p-0' : 'p-2'}`}>
-          <img
-            src={slide.mediaUrl}
-            alt=""
-            className={fitClass}
-          />
+        <div className="flex min-h-0 flex-1 items-center justify-center p-0">
+          <img src={slide.mediaUrl} alt="" className="h-full w-full border-0 object-cover" />
         </div>
       );
     }
@@ -114,15 +117,14 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
         const id = extractYoutubeId(slide.mediaUrl);
         const embed = id ? buildYoutubePreviewEmbedUrl(id) : slide.mediaUrl;
         return (
-          <div className="relative flex-1 min-h-[88px] w-full overflow-hidden rounded-md border border-white/10 bg-black">
+          <div className="relative min-h-[88px] w-full flex-1 overflow-hidden bg-black">
             <iframe title="preview" src={embed} className="absolute inset-0 h-full w-full border-0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" />
           </div>
         );
       }
-      const fitClass = slide.mediaFullscreen ? 'h-full w-full rounded-none object-cover' : 'max-w-full max-h-[100px] rounded-md object-contain';
       return (
-        <div className={`flex-1 flex items-center justify-center min-h-0 ${slide.mediaFullscreen ? 'p-0' : 'p-2'}`}>
-          <video src={slide.mediaUrl} className={fitClass} muted playsInline controls={false} />
+        <div className="flex min-h-0 flex-1 items-center justify-center p-0">
+          <video src={slide.mediaUrl} className="h-full w-full rounded-none object-cover" muted playsInline controls={false} />
         </div>
       );
     }
@@ -172,17 +174,17 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
   return (
     <div className="relative rounded-[1.2rem] overflow-hidden shadow-[0_32px_80px_-16px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.08)] ring-1 ring-white/10">
       <div className="aspect-video bg-black flex flex-col min-h-[200px] max-h-[320px]">
-        <div className="shrink-0 px-3 pt-2.5 pb-1.5 flex items-end justify-between gap-2 border-b border-white/[0.06]">
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-[13px] font-black italic text-yellow-400 leading-none truncate">
-              REI DO ABS
-            </span>
-            <span className="text-[6px] font-bold text-white/35 uppercase tracking-[0.2em]">Pátio</span>
+        {showBrandBar && (
+          <div className="flex shrink-0 items-end justify-between gap-2 border-b border-white/[0.06] px-3 pb-1.5 pt-2.5">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate text-[13px] font-black italic leading-none text-yellow-400">REI DO ABS</span>
+              <span className="text-[6px] font-bold uppercase tracking-[0.2em] text-white/35">Pátio</span>
+            </div>
+            <span className="font-mono text-[7px] tabular-nums text-white/40">12:00</span>
           </div>
-          <span className="text-[7px] font-mono text-white/40 tabular-nums">12:00</span>
-        </div>
+        )}
 
-        {hasGoal && (
+        {showGoalStrip && (
           <div className="shrink-0 px-3 py-1.5 space-y-1 bg-black/40 border-b border-white/[0.04]">
             <div className="flex justify-between text-[7px] font-bold uppercase tracking-wider text-zinc-500">
               <span className="truncate">{weeklyLabel}</span>
@@ -197,7 +199,7 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
           </div>
         )}
 
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">{renderSlide()}</div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{renderSlide()}</div>
       </div>
       <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-12 h-1 rounded-full bg-white/15" />
     </div>

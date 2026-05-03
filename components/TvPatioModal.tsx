@@ -63,7 +63,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const [newGoalLabel, setNewGoalLabel] = useState('Meta');
   const [newPlaySound, setNewPlaySound] = useState(false);
   const [newGoalShowValues, setNewGoalShowValues] = useState(false);
-  const [newMediaFullscreen, setNewMediaFullscreen] = useState(false);
+  const [newMediaFullscreen, setNewMediaFullscreen] = useState(true);
 
   const [previewTab, setPreviewTab] = useState<'draft' | 'library'>('draft');
   const [libraryPreviewId, setLibraryPreviewId] = useState<string | null>(null);
@@ -684,7 +684,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       <button
                         key={t.value}
                         type="button"
-                        onClick={() => setNewType(t.value)}
+                        onClick={() => {
+                          setNewType(t.value);
+                          if (t.value === 'image' || t.value === 'video') setNewMediaFullscreen(true);
+                        }}
                         className={`rounded-2xl px-2 py-3 text-center transition-all ${
                           newType === t.value
                             ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30'

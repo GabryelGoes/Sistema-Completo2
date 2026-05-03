@@ -1334,6 +1334,11 @@ export function createApiApp() {
 
     const slides = (slideRows ?? []).map((row: Record<string, unknown>) => {
       const parsed = parseTvBodyAndFullscreen(row.body);
+      const st = String(row.slide_type ?? "");
+      const hasMedia = row.media_url != null && String(row.media_url).trim() !== "";
+      /** Na TV, imagem/vídeo com URL ocupam a área inteira (sem cabeçalho de marca no cliente). */
+      const mediaFullscreen =
+        (st === "image" || st === "video") && hasMedia ? true : parsed.mediaFullscreen;
       return {
         id: row.id,
         slideType: row.slide_type,
@@ -1348,7 +1353,7 @@ export function createApiApp() {
         playSound: (row as { play_sound?: boolean }).play_sound === true,
         goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
         pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
-        mediaFullscreen: parsed.mediaFullscreen,
+        mediaFullscreen,
       };
     });
 
