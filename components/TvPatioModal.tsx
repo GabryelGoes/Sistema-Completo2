@@ -524,11 +524,6 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 {/* Meta semanal */}
                 <section className={`${iosCard} p-5 sm:p-6`}>
                   <p className={iosLabel}>Meta semanal · barra superior na TV</p>
-                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
-                    Na TV do pátio só aparece o <span className="font-semibold text-zinc-600 dark:text-zinc-300">rótulo</span> e a{' '}
-                    <span className="font-semibold text-zinc-600 dark:text-zinc-300">porcentagem</span> do progresso (valores em R$ ficam só aqui). A barra{' '}
-                    <span className="font-semibold text-zinc-600 dark:text-zinc-300">não aparece</span> durante os slides da playlist — só nas páginas de veículos.
-                  </p>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 p-3 rounded-2xl bg-zinc-100/80 dark:bg-white/[0.04]">
                     <div>
                       <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Exibir barra na TV</p>
