@@ -6804,7 +6804,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <div className="shrink-0 border-b border-sky-200/55 bg-sky-100/60 px-6 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] dark:border-sky-500/20 dark:bg-sky-950/50 sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
                 <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                  <img src="/icons/servicos-oficina-ios.png" alt="" className="h-full w-full object-cover" />
+                  <img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />
                 </IosAccentIconSquircle>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700/90 dark:text-sky-300/85">
