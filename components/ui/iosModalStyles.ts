@@ -42,6 +42,12 @@ export const iosVehicleModalInsetCard =
   'shadow-[0_8px_28px_-8px_rgba(63,63,70,0.15),0_3px_14px_-6px_rgba(82,82,91,0.10),0_1px_4px_rgba(63,63,70,0.07)] ' +
   'dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
 
+/** Bolha de comentário no modal de veículo — modo claro com sombra um pouco mais marcada que o inset padrão. */
+export const iosVehicleModalCommentBubble =
+  'rounded-[22px] border border-zinc-300/70 bg-white ' +
+  'shadow-[0_16px_48px_-10px_rgba(0,0,0,0.22),0_10px_30px_-12px_rgba(63,63,70,0.17),0_3px_12px_-4px_rgba(63,63,70,0.11)] ' +
+  'dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+
 /** Campos dentro do modal de veículo — claro: cinza suave; escuro: igual ao iosInput. */
 export const iosVehicleModalInput =
   'w-full rounded-2xl border border-zinc-300/85 bg-zinc-50 px-4 py-3 text-[15px] text-zinc-950 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500';

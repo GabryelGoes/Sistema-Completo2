@@ -67,6 +67,7 @@ import {
   iosModalShell,
   iosVehicleModalShell,
   iosVehicleModalInsetCard,
+  iosVehicleModalCommentBubble,
   iosVehicleModalInput,
   iosInput,
   iosLabel,
@@ -4053,7 +4054,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                   )}
                                                </span>
                                             </div>
-                                            <div className={`${iosVehicleModalInsetCard} p-3.5 text-[14px] leading-relaxed text-zinc-800 dark:text-zinc-200`}>
+                                            <div className={`${iosVehicleModalCommentBubble} p-3.5 text-[14px] leading-relaxed text-zinc-800 dark:text-zinc-200`}>
                                                 <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                                    {action.data.text}
                                                 </ReactMarkdown>
@@ -5896,7 +5897,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                </div>
                                             ) : (
                                               <>
-                                                <div className={`${vi} p-3.5 text-sm leading-relaxed text-zinc-800 dark:text-zinc-200`}>
+                                                <div className={`${iosVehicleModalCommentBubble} p-3.5 text-sm leading-relaxed text-zinc-800 dark:text-zinc-200`}>
                                                    <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                                       {action.data.text}
                                                    </ReactMarkdown>
