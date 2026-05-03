@@ -1,6 +1,6 @@
 /**
  * Tipografia única da interface (font-sans no index.html = stack Apple/Segoe).
- * Nomes de veículo nos cards/modais usam `font-vehicle` à parte.
+ * Nomes de veículo nos cards/modais usam `font-vehicle` (Playfair Display + ajustes em index.html).
  */
 export const fontUi = "font-sans antialiased";
 
