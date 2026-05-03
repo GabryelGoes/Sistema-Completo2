@@ -84,17 +84,19 @@ import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
 import { parseReferenceLinksFromApi } from '../../utils/vehicleReferenceLinks';
 
-/** Modal de orçamento: fundo azul clarinho (tela cheia). Sempre visual de tema claro (sem variantes dark). */
+/** Modal de orçamento: canvas sólido, azul bem claro (sem alpha no fundo). */
+const budgetModalCanvasBg = 'bg-[#f8fcfe]';
+/** Modal de orçamento: cartões / áreas internas. Sempre visual de tema claro (sem variantes dark). */
 const budgetModalPaperInset =
-  'rounded-[22px] border border-sky-200/70 bg-white/90 shadow-[0_1px_3px_rgba(14,116,144,0.08),inset_0_1px_0_rgba(255,255,255,0.9)]';
+  'rounded-[22px] border border-sky-200/80 bg-white shadow-[0_1px_3px_rgba(14,116,144,0.06),inset_0_1px_0_rgba(255,255,255,1)]';
 const budgetModalFieldLabel =
   'block text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700/85 mb-2';
 const budgetModalInput =
-  'w-full rounded-2xl border border-sky-200/80 bg-white/95 px-4 py-3 text-[15px] text-slate-800 shadow-sm placeholder:text-sky-400/80 transition-[box-shadow,border-color] focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-300/35';
+  'w-full rounded-2xl border border-sky-200/80 bg-white px-4 py-3 text-[15px] text-slate-800 shadow-sm placeholder:text-sky-400/80 transition-[box-shadow,border-color] focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-300/35';
 const budgetModalPaperShell =
-  'border-0 bg-gradient-to-b from-sky-50 via-sky-100/95 to-sky-100 text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]';
+  'border-0 ' + budgetModalCanvasBg + ' text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]';
 const budgetModalPaperFooter =
-  'border-t border-sky-200/55 bg-sky-100/95';
+  'border-t border-sky-200 ' + budgetModalCanvasBg;
 
 /** Cards do quadro (Pátio / Laboratório): cinza no claro, cinza-claro no escuro — alinhado à Home. */
 const patioBoardGlassCardShadow =
@@ -6861,13 +6863,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-transparent px-5 py-5 text-slate-800 custom-scrollbar sm:px-8">
+            <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 text-slate-800 custom-scrollbar sm:px-8 ${budgetModalCanvasBg}`}>
                   <div className="space-y-5">
                     <div>
                       <p className={budgetModalFieldLabel}>Descrição do diagnóstico</p>
                       <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
                         <textarea
-                          className={`${budgetModalInput} min-h-[120px] resize-y border-0 bg-white/95 py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2`}
+                          className={`${budgetModalInput} min-h-[120px] resize-y border-0 py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2`}
                           placeholder="Descreva o diagnóstico técnico…"
                           value={budgetDiagnosis}
                           onChange={(e) => setBudgetDiagnosis(e.target.value)}
@@ -6883,7 +6885,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <button
                               type="button"
                               onClick={() => setIsServiceListOpen(true)}
-                              className="inline-flex items-center gap-1.5 rounded-2xl border border-sky-200/80 bg-white/90 px-3 py-2 text-[13px] font-semibold text-slate-800 shadow-sm transition-colors hover:border-sky-300 hover:bg-sky-50"
+                              className="inline-flex items-center gap-1.5 rounded-2xl border border-sky-200/80 bg-white px-3 py-2 text-[13px] font-semibold text-slate-800 shadow-sm transition-colors hover:border-sky-300 hover:bg-sky-50"
                             >
                               Inserir da lista
                               <ChevronDown className="h-4 w-4 opacity-80" />
@@ -6944,15 +6946,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     {isServiceListOpen && (
                       <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-sm" onClick={() => setIsServiceListOpen(false)}>
                         <div
-                          className="flex max-h-[70vh] w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border border-sky-200/70 bg-gradient-to-b from-sky-50 to-sky-100 text-slate-800 shadow-xl"
+                          className={`flex max-h-[70vh] w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 text-slate-800 shadow-xl ${budgetModalCanvasBg}`}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="flex items-center justify-between border-b border-sky-200/60 px-5 py-4">
+                          <div className="flex items-center justify-between border-b border-sky-200 px-5 py-4">
                             <span className="text-[17px] font-semibold tracking-tight text-slate-900">Serviços cadastrados</span>
                             <button
                               type="button"
                               onClick={() => setIsServiceListOpen(false)}
-                              className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-200/80 text-sky-900 transition-colors hover:bg-sky-300"
+                              className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-200 text-sky-900 transition-colors hover:bg-sky-300"
                               aria-label="Fechar"
                             >
                               <X className="h-5 w-5" />
@@ -6964,7 +6966,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 key={s.id}
                                 type="button"
                                 onClick={() => addServiceFromList(s)}
-                                className="flex w-full items-start justify-between gap-3 border-b border-sky-200/50 px-5 py-3.5 text-left text-[15px] text-slate-800 transition-colors last:border-0 hover:bg-sky-100/90"
+                                className="flex w-full items-start justify-between gap-3 border-b border-sky-200/60 px-5 py-3.5 text-left text-[15px] text-slate-800 transition-colors last:border-0 hover:bg-sky-100"
                               >
                                 <span className="min-w-0 flex-1 leading-snug">{s.name}</span>
                                 {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
@@ -7048,7 +7050,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 onBlur={handlePartInputBlur}
                               />
                                 <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-start">
-                                <div className="flex items-center overflow-hidden rounded-2xl border border-sky-200/80 bg-white/95">
+                                <div className="flex items-center overflow-hidden rounded-2xl border border-sky-200/80 bg-white">
                                   <button
                                     type="button"
                                     onClick={() => updatePartQuantity(item.id, -1)}
@@ -7121,7 +7123,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <p className={budgetModalFieldLabel}>Observações</p>
                       <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
                         <textarea
-                          className={`${budgetModalInput} min-h-[88px] resize-y border-0 bg-white/95 py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2`}
+                          className={`${budgetModalInput} min-h-[88px] resize-y border-0 py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2`}
                           placeholder="Prazos, condições, etc."
                           value={budgetObservations}
                           onChange={(e) => setBudgetObservations(e.target.value)}
