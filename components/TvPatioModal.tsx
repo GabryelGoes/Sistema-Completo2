@@ -461,6 +461,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const iosCard =
     'rounded-[22px] border border-zinc-200/80 dark:border-white/[0.07] bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
 
+  /** Fundo único claro (igual à área do preview) em todo o painel da TV do pátio */
+  const tvPatioShellBg =
+    'bg-gradient-to-b from-zinc-100/90 via-white/95 to-zinc-50/90 dark:from-zinc-100/90 dark:via-white/95 dark:to-zinc-50/90';
+
   const iosInput =
     'w-full rounded-2xl border border-zinc-200/90 dark:border-white/[0.08] bg-white/90 dark:bg-zinc-950/50 px-4 py-3 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow';
 
@@ -472,7 +476,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       <div
         className={`relative flex h-[100dvh] w-screen max-w-none min-h-0 flex-1 flex-col overflow-hidden max-lg:landscape:flex-col lg:grid lg:min-h-0 ${
           dataReady ? 'lg:grid-cols-[minmax(0,1fr)_min(420px,100%)]' : 'lg:grid-cols-1'
-        } lg:grid-rows-[auto_minmax(0,1fr)] ${iosCard} rounded-none border-0 shadow-none dark:shadow-none`}
+        } lg:grid-rows-[auto_minmax(0,1fr)] ${tvPatioShellBg} rounded-none border-0 shadow-none dark:shadow-none`}
       >
         <button
           type="button"
@@ -490,7 +494,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               <img src="/icons/tv-patio-ios.png" alt="TV do Pátio" className="h-full w-full object-cover" />
             </IosAccentIconSquircle>
             <div>
-              <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
+              <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-900 leading-tight">
                 TV do pátio
               </h2>
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5">
@@ -503,7 +507,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
         {/* Preview — em portrait: logo abaixo do cabeçalho; em lg: coluna direita */}
         {dataReady && (
-          <div className="flex max-lg:landscape:order-1 shrink-0 flex-col border-b border-zinc-200/60 bg-gradient-to-b from-zinc-100/90 via-white/95 to-zinc-50/90 px-5 py-8 dark:border-white/[0.06] dark:from-zinc-950/95 dark:via-zinc-900/90 dark:to-black/80 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:border-b-0 lg:border-l lg:border-t-0 lg:py-10">
+          <div className="flex max-lg:landscape:order-1 shrink-0 flex-col border-b border-zinc-200/60 bg-transparent px-5 py-8 dark:border-zinc-200/40 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:border-b-0 lg:border-l lg:border-t-0 lg:border-zinc-200/50 lg:py-10">
             <div className="portrait:order-2 lg:order-1">
               <div className="mb-4 flex items-center gap-2">
                 <Eye className="h-4 w-4 text-[#007AFF]" />
