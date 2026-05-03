@@ -22,6 +22,12 @@ export const iosModalShell =
 export const iosModalShellZayaInner =
   'relative w-full flex flex-col min-h-0 overflow-hidden rounded-[calc(2rem-2px)] sm:rounded-[calc(2.25rem-2px)] border border-zinc-200/80 dark:border-white/[0.07] bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
 
+/** Painel interno da Zaya quando o chat fica sobre o modal do veículo — sombra mais forte só no modo claro. */
+export const iosModalShellZayaInnerElevatedLight =
+  'relative w-full flex flex-col min-h-0 overflow-hidden rounded-[calc(2rem-2px)] sm:rounded-[calc(2.25rem-2px)] border border-zinc-200/80 dark:border-white/[0.07] bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl ' +
+  'shadow-[0_26px_60px_-14px_rgba(0,0,0,0.24),0_14px_36px_-12px_rgba(0,0,0,0.16),0_6px_18px_-8px_rgba(0,0,0,0.11)] ' +
+  'dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+
 /** Mesmo vidro em páginas (formulários), sem overflow hidden — permite brilhos decorativos. */
 export const iosPageGlass =
   'relative w-full rounded-[2rem] sm:rounded-[2.25rem] border border-zinc-200/80 dark:border-white/[0.07] bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';

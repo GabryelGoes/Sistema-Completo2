@@ -10,6 +10,7 @@ import {
   iosModalClose,
   iosModalInsetCard,
   iosModalShellZayaInner,
+  iosModalShellZayaInnerElevatedLight,
   iosInput,
 } from "./ui/iosModalStyles";
 import { AssistantIcon, ZayaAuroraModalFrame } from "./AssistantIcon";
@@ -1530,6 +1531,21 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
   onPendingZayaConsumed,
 }) => {
   const [open, setOpen] = useState(false);
+  /** Pátio ou Laboratório com modal principal de OS aberto (para sombra do chat no modo claro). */
+  const [vehicleSheetOpenByScope, setVehicleSheetOpenByScope] = useState<{
+    patio: boolean;
+    laboratorio: boolean;
+  }>({ patio: false, laboratorio: false });
+  const vehicleSheetOverPatioUi = vehicleSheetOpenByScope.patio || vehicleSheetOpenByScope.laboratorio;
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const e = ev as CustomEvent<{ open?: boolean; source?: "patio" | "laboratorio" }>;
+      const src = e.detail?.source === "laboratorio" ? "laboratorio" : "patio";
+      setVehicleSheetOpenByScope((prev) => ({ ...prev, [src]: e.detail?.open === true }));
+    };
+    window.addEventListener("patio-vehicle-sheet-open", handler as EventListener);
+    return () => window.removeEventListener("patio-vehicle-sheet-open", handler as EventListener);
+  }, []);
   useRegisterModalOpen(open);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -2340,7 +2356,9 @@ export const AssistantChat: React.FC<AssistantChatProps> = ({
         <div className="fixed inset-0 z-[280] flex flex-col justify-end p-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))] pointer-events-none sm:items-end sm:justify-end sm:p-6 sm:pb-28">
           <ZayaAuroraModalFrame className="pointer-events-auto max-w-md animate-in fade-in zoom-in-95 duration-200">
             <div
-              className={`relative flex max-h-[min(560px,78vh)] w-full flex-col overflow-hidden ${iosModalShellZayaInner}`}
+              className={`relative flex max-h-[min(560px,78vh)] w-full flex-col overflow-hidden ${
+                theme === "light" && vehicleSheetOverPatioUi ? iosModalShellZayaInnerElevatedLight : iosModalShellZayaInner
+              }`}
             >
             <button
               type="button"

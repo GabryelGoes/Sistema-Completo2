@@ -1093,6 +1093,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, []);
 
   const patioPrimaryOverlayOpen = !!(selectedCard || selectedHistoryCard);
+  /** Sincroniza com {@link AssistantChat}: sombra extra do painel Zaya só em modo claro sobre este modal. */
+  useEffect(() => {
+    const source = isModuleMode ? ('laboratorio' as const) : ('patio' as const);
+    window.dispatchEvent(
+      new CustomEvent('patio-vehicle-sheet-open', { detail: { open: patioPrimaryOverlayOpen, source } })
+    );
+    return () => {
+      window.dispatchEvent(new CustomEvent('patio-vehicle-sheet-open', { detail: { open: false, source } }));
+    };
+  }, [patioPrimaryOverlayOpen, isModuleMode]);
   useBrowserBackLayer(patioPrimaryOverlayOpen, closePatioPrimaryOverlays);
   useBrowserBackLayer(isPatioHeaderToolsOpen, () => setIsPatioHeaderToolsOpen(false));
   useBrowserBackLayer(isRemindersOpen, () => setIsRemindersOpen(false));
