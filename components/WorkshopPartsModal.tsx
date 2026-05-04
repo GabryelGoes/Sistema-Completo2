@@ -610,10 +610,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       cropShape="square"
     />
 
-    <div className="fixed inset-0 z-[100] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden bg-black/45 backdrop-blur-[20px] p-0">
-      <div
-        className={`${iosModalShell} relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden rounded-none border-0 shadow-none sm:rounded-none`}
-      >
+    <div className="fixed inset-0 z-[100] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden bg-white dark:bg-zinc-950 p-0">
+      <div className="relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
         <button
           type="button"
           onClick={onClose}
