@@ -243,7 +243,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
                   key={orderId}
                   className={`${iosPageGlassOrcamentosVehicleCard} overflow-hidden transition-[box-shadow,background-color] duration-300 ${
                     vehicleNeedsAttention
-                      ? "bg-amber-50/75 shadow-[0_12px_36px_-10px_rgba(217,119,6,0.28)] ring-2 ring-amber-400/55 dark:bg-amber-950/[0.38] dark:shadow-[0_12px_40px_-12px_rgba(251,191,36,0.18)] dark:ring-amber-400/40"
+                      ? "!bg-amber-50/75 !shadow-[0_12px_36px_-10px_rgba(217,119,6,0.28)] ring-2 ring-amber-400/55 dark:!bg-amber-950/[0.38] dark:!shadow-[0_12px_40px_-12px_rgba(251,191,36,0.18)] dark:ring-amber-400/40"
                       : ""
                   }`}
                 >
@@ -253,14 +253,14 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
                     aria-expanded={open}
                     className={`flex w-full items-start gap-3 border-b px-4 py-4 text-left transition-colors sm:px-5 ${
                       vehicleNeedsAttention
-                        ? "border-amber-200/80 hover:bg-amber-50/90 dark:border-amber-500/25 dark:hover:bg-amber-950/40"
+                        ? "border-amber-200/80 hover:!bg-amber-50/90 dark:border-amber-500/25 dark:hover:!bg-amber-950/40"
                         : "border-zinc-200/70 hover:bg-zinc-50/80 dark:border-white/[0.06] dark:hover:bg-white/[0.04]"
                     }`}
                   >
                     <div
                       className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
                         vehicleNeedsAttention
-                          ? "bg-amber-100/90 dark:bg-amber-500/15"
+                          ? "!bg-amber-100/90 dark:!bg-amber-500/15"
                           : "bg-zinc-100 dark:bg-white/[0.08]"
                       }`}
                     >

@@ -1959,6 +1959,8 @@ export function createApiApp() {
           .createHash("sha256")
           .update(
             JSON.stringify({
+              cardName: b.card_name ?? "",
+              updatedAt: String(b.updated_at ?? ""),
               d: b.diagnosis ?? "",
               s: b.services ?? [],
               p: b.parts ?? [],
