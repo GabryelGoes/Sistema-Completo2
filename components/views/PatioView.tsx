@@ -394,6 +394,55 @@ interface BudgetPartItem {
   quantity: string;
 }
 
+const BUDGET_SERVICE_TEXTAREA_MIN_PX = 52;
+
+/**
+ * Campo de descrição do serviço no modal de orçamento: várias linhas, altura cresce com o texto
+ * (sem truncar; palavras muito longas quebram).
+ */
+function BudgetServiceDescriptionTextarea({
+  value,
+  onChange,
+  onFocus,
+  onBlur,
+  inputClassName,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onFocus: () => void;
+  onBlur: () => void;
+  inputClassName: string;
+}) {
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const syncHeight = useCallback(() => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(BUDGET_SERVICE_TEXTAREA_MIN_PX, el.scrollHeight)}px`;
+  }, []);
+
+  useLayoutEffect(() => {
+    syncHeight();
+  }, [value, syncHeight]);
+
+  return (
+    <textarea
+      ref={taRef}
+      rows={1}
+      spellCheck={false}
+      placeholder="Digite ou escolha um serviço…"
+      className={`${inputClassName} shadow-none block min-h-[52px] w-full min-w-0 resize-none break-words leading-snug [overflow-wrap:anywhere] [field-sizing:content]`}
+      value={value}
+      onChange={(e) => {
+        onChange(e.target.value);
+        requestAnimationFrame(syncHeight);
+      }}
+      onFocus={onFocus}
+      onBlur={onBlur}
+    />
+  );
+}
+
 /** Orçamento salvo. approved = true (aprovado) / false (reprovado) pelo admin; undefined = pendente. */
 export interface SavedBudget {
   id: string;
@@ -2682,13 +2731,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   useEffect(() => {
-    if (suggestionsForServiceId && focusedServiceInputRef.current) {
-      const rect = focusedServiceInputRef.current.getBoundingClientRect();
-      setSuggestionBoxPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-    } else {
-      setSuggestionBoxPosition(null);
-    }
-  }, [suggestionsForServiceId]);
+    const update = () => {
+      if (suggestionsForServiceId && focusedServiceInputRef.current) {
+        const rect = focusedServiceInputRef.current.getBoundingClientRect();
+        setSuggestionBoxPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+      } else {
+        setSuggestionBoxPosition(null);
+      }
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [suggestionsForServiceId, budgetServices]);
 
   useEffect(() => {
     if (suggestionsForPartId && focusedPartInputRef.current) {
@@ -6911,21 +6965,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         {budgetServices.map((item) => {
                           const isFocused = suggestionsForServiceId === item.id;
                           return (
-                            <div
-                              key={item.id}
-                              ref={isFocused ? focusedServiceInputRef : undefined}
-                              className="relative"
-                            >
-                              <div className="flex items-center gap-2 sm:gap-3">
-                                <div className="min-w-0 flex-1 space-y-1">
-                                  <input
-                                    type="text"
-                                    placeholder="Digite ou escolha um serviço…"
-                                    className={`${budgetModalInput} shadow-none`}
+                            <div key={item.id} className="relative">
+                              <div className="flex items-start gap-2 sm:gap-3">
+                                <div
+                                  className="min-w-0 flex-1 space-y-1"
+                                  ref={
+                                    isFocused
+                                      ? (node: HTMLDivElement | null) => {
+                                          focusedServiceInputRef.current = node;
+                                        }
+                                      : undefined
+                                  }
+                                >
+                                  <BudgetServiceDescriptionTextarea
                                     value={item.description}
-                                    onChange={(e) => updateServiceDescription(item.id, e.target.value)}
+                                    onChange={(v) => updateServiceDescription(item.id, v)}
                                     onFocus={() => handleServiceInputFocus(item.id)}
                                     onBlur={handleServiceInputBlur}
+                                    inputClassName={budgetModalInput}
                                   />
                                   {item.laborHours != null && Number.isFinite(Number(item.laborHours)) ? (
                                     <p className="text-[12px] font-semibold tabular-nums text-sky-700/75">
