@@ -1348,6 +1348,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
     { enabled: !!selectedHistoryCard && isHistoryOpen }
   );
 
+  /** Enquanto o modal da OS estiver aberto, atualiza dados a cada 3s (complementa o SSE). */
+  useEffect(() => {
+    if (!selectedCard) return;
+    const id = window.setInterval(() => {
+      void syncOpenVehicleModalFromServer();
+    }, 3000);
+    return () => clearInterval(id);
+  }, [selectedCard?.id, syncOpenVehicleModalFromServer]);
+
+  /** Modal de histórico/arquivado aberto: mesmo intervalo. */
+  useEffect(() => {
+    if (!isHistoryOpen || !selectedHistoryCard) return;
+    const id = window.setInterval(() => {
+      void syncHistoryDetailFromServer();
+    }, 3000);
+    return () => clearInterval(id);
+  }, [isHistoryOpen, selectedHistoryCard?.id, syncHistoryDetailFromServer]);
+
   // --- Attachment States ---
   const [isUploading, setIsUploading] = useState(false);
   const galleryInputRef = useRef<HTMLInputElement>(null);
