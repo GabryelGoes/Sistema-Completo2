@@ -11,6 +11,7 @@ import {
   CANCELLED_STATUS,
 } from "./constants/serviceOrderStages.js";
 import { ZAYA_ALERT_IDS } from "./constants/zayaAlertTypes.js";
+import { SYSTEM_NOTIFICATION_IDS } from "./constants/systemNotificationTypes.js";
 import { ASSISTANT_NAME } from "./constants/assistant.js";
 import OpenAI from "openai";
 import {
@@ -296,6 +297,100 @@ export function createApiApp() {
   }
 
   const DEFAULT_ZAYA_ADMIN_ALERTS: string[] = [];
+  const DEFAULT_SYSTEM_NOTIFICATION_TYPES: string[] = [...SYSTEM_NOTIFICATION_IDS];
+
+  type SystemNotificationSubscriberRow = {
+    systemUserId: string;
+    notificationTypes: string[];
+  };
+
+  function isValidSystemNotificationType(key: string): boolean {
+    return (SYSTEM_NOTIFICATION_IDS as readonly string[]).includes(key);
+  }
+
+  function parseSystemNotificationSubscribers(raw: unknown): SystemNotificationSubscriberRow[] {
+    if (!Array.isArray(raw)) return [];
+    const normalized: SystemNotificationSubscriberRow[] = [];
+    for (const item of raw) {
+      if (!item || typeof item !== "object") continue;
+      const sid =
+        "systemUserId" in (item as object) && typeof (item as { systemUserId?: unknown }).systemUserId === "string"
+          ? (item as { systemUserId: string }).systemUserId.trim()
+          : "";
+      if (!sid) continue;
+      const ntypes = Array.isArray((item as { notificationTypes?: unknown }).notificationTypes)
+        ? (item as { notificationTypes: unknown[] }).notificationTypes
+            .filter((x): x is string => typeof x === "string")
+            .filter((x) => isValidSystemNotificationType(x))
+        : [];
+      if (ntypes.length === 0) continue;
+      normalized.push({ systemUserId: sid, notificationTypes: ntypes });
+    }
+    return normalized;
+  }
+
+  async function getSystemNotificationConfig(): Promise<{
+    adminNotificationTypes: string[];
+    subscribers: SystemNotificationSubscriberRow[];
+    hasExplicitConfig: boolean;
+  }> {
+    if (!supabaseAdmin || !WORKSHOP_ID) {
+      return {
+        adminNotificationTypes: [...DEFAULT_SYSTEM_NOTIFICATION_TYPES],
+        subscribers: [],
+        hasExplicitConfig: false,
+      };
+    }
+    const { data } = await supabaseAdmin
+      .from("workshop_settings")
+      .select("key, value")
+      .eq("workshop_id", WORKSHOP_ID)
+      .in("key", ["system_notifications_admin_types", "system_notifications_user_subscribers"]);
+
+    const map = (data || []).reduce((acc: Record<string, string>, row: { key: string; value: string | null }) => {
+      acc[row.key] = row.value ?? "";
+      return acc;
+    }, {});
+    const hasExplicitConfig = !!map.system_notifications_admin_types || !!map.system_notifications_user_subscribers;
+
+    let adminNotificationTypes = [...DEFAULT_SYSTEM_NOTIFICATION_TYPES];
+    if (map.system_notifications_admin_types) {
+      try {
+        const parsed = JSON.parse(map.system_notifications_admin_types);
+        if (Array.isArray(parsed)) {
+          adminNotificationTypes = parsed
+            .filter((x: unknown): x is string => typeof x === "string")
+            .filter((x) => isValidSystemNotificationType(x));
+        }
+      } catch {
+        adminNotificationTypes = [...DEFAULT_SYSTEM_NOTIFICATION_TYPES];
+      }
+    }
+
+    let subscribers: SystemNotificationSubscriberRow[] = [];
+    if (map.system_notifications_user_subscribers) {
+      try {
+        subscribers = parseSystemNotificationSubscribers(JSON.parse(map.system_notifications_user_subscribers));
+      } catch {
+        subscribers = [];
+      }
+    }
+
+    return { adminNotificationTypes, subscribers, hasExplicitConfig };
+  }
+
+  async function shouldNotifyAdminForSystemType(type: string): Promise<boolean> {
+    const cfg = await getSystemNotificationConfig();
+    return cfg.adminNotificationTypes.includes(type);
+  }
+
+  async function getTechnicianRecipientIdsForSystemType(type: string): Promise<string[]> {
+    const cfg = await getSystemNotificationConfig();
+    if (!cfg.hasExplicitConfig) return getTechnicianUserIds();
+    return cfg.subscribers
+      .filter((s) => s.notificationTypes.includes(type))
+      .map((s) => s.systemUserId);
+  }
 
   async function getZayaAdminAlertTypes(): Promise<string[]> {
     if (!supabaseAdmin || !WORKSHOP_ID) return [...DEFAULT_ZAYA_ADMIN_ALERTS];
@@ -856,6 +951,96 @@ export function createApiApp() {
       });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop/zaya-alerts:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Notificações do sistema (central): tipos para gerência e usuários selecionados */
+  app.get("/api/workshop/system-notifications", async (_req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const cfg = await getSystemNotificationConfig();
+      const { data: users } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("id, username, display_name")
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("display_name", { ascending: true })
+        .order("username");
+
+      const availableUsers = (users || []).map((u: { id: string; username: string; display_name: string | null }) => ({
+        id: u.id,
+        username: u.username,
+        displayName: u.display_name || u.username,
+      }));
+
+      const userMap = new Map(availableUsers.map((u) => [u.id, u]));
+      const subscribers = cfg.hasExplicitConfig
+        ? cfg.subscribers
+            .map((s) => {
+              const u = userMap.get(s.systemUserId);
+              if (!u) return null;
+              return {
+                systemUserId: s.systemUserId,
+                notificationTypes: s.notificationTypes,
+                displayName: u.displayName,
+              };
+            })
+            .filter(Boolean)
+        : availableUsers.map((u) => ({
+            systemUserId: u.id,
+            notificationTypes: [...DEFAULT_SYSTEM_NOTIFICATION_TYPES],
+            displayName: u.displayName,
+          }));
+
+      return res.json({
+        adminNotificationTypes: cfg.hasExplicitConfig
+          ? cfg.adminNotificationTypes
+          : [...DEFAULT_SYSTEM_NOTIFICATION_TYPES],
+        subscribers,
+        availableUsers,
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/workshop/system-notifications:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.put("/api/workshop/system-notifications", async (req, res) => {
+    try {
+      const { adminPassword, adminNotificationTypes, subscribers } = req.body || {};
+      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+        return res.status(403).json({ error: "Acesso negado." });
+      }
+      if (!supabaseAdmin) return res.status(500).json({ error: "Servidor não configurado." });
+
+      const normalizedAdmin = Array.isArray(adminNotificationTypes)
+        ? adminNotificationTypes
+            .filter((x: unknown): x is string => typeof x === "string")
+            .filter((x) => isValidSystemNotificationType(x))
+        : [];
+      const normalizedSubscribers = parseSystemNotificationSubscribers(subscribers);
+      const nowIso = new Date().toISOString();
+      const rows = [
+        {
+          workshop_id: WORKSHOP_ID,
+          key: "system_notifications_admin_types",
+          value: JSON.stringify(normalizedAdmin),
+          updated_at: nowIso,
+        },
+        {
+          workshop_id: WORKSHOP_ID,
+          key: "system_notifications_user_subscribers",
+          value: JSON.stringify(normalizedSubscribers),
+          updated_at: nowIso,
+        },
+      ];
+      const { error } = await supabaseAdmin.from("workshop_settings").upsert(rows, { onConflict: "workshop_id,key" });
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] Erro em PUT /api/workshop/system-notifications:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
@@ -2753,16 +2938,19 @@ export function createApiApp() {
       };
       const isTechnicianActor = actor === "technician" && (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
       if (isTechnicianActor) {
-        const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
-        await supabaseAdmin.from("notifications").insert({
-          workshop_id: WORKSHOP_ID,
-          type: "budget_created",
-          payload: { ...budgetPayload, technician_name: technicianLabel },
-          target_type: "admin",
-          target_slug: null,
-        }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_created:", e); });
+        const shouldAdmin = await shouldNotifyAdminForSystemType("budget_created");
+        if (shouldAdmin) {
+          const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
+          await supabaseAdmin.from("notifications").insert({
+            workshop_id: WORKSHOP_ID,
+            type: "budget_created",
+            payload: { ...budgetPayload, technician_name: technicianLabel },
+            target_type: "admin",
+            target_slug: null,
+          }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_created:", e); });
+        }
       } else {
-        const technicianIds = await getTechnicianUserIds();
+        const technicianIds = await getTechnicianRecipientIdsForSystemType("budget_created");
         for (const techId of technicianIds) {
           await supabaseAdmin.from("notifications").insert({
             workshop_id: WORKSHOP_ID,
@@ -2907,16 +3095,19 @@ export function createApiApp() {
       };
       const isTechnicianActor = actor === "technician" && (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
       if (isTechnicianActor) {
-        const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
-        await supabaseAdmin.from("notifications").insert({
-          workshop_id: WORKSHOP_ID,
-          type: "budget_edited",
-          payload: { ...budgetEditPayload, technician_name: technicianLabel },
-          target_type: "admin",
-          target_slug: null,
-        }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited:", e); });
+        const shouldAdmin = await shouldNotifyAdminForSystemType("budget_edited");
+        if (shouldAdmin) {
+          const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
+          await supabaseAdmin.from("notifications").insert({
+            workshop_id: WORKSHOP_ID,
+            type: "budget_edited",
+            payload: { ...budgetEditPayload, technician_name: technicianLabel },
+            target_type: "admin",
+            target_slug: null,
+          }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited:", e); });
+        }
       } else {
-        const technicianIds = await getTechnicianUserIds();
+        const technicianIds = await getTechnicianRecipientIdsForSystemType("budget_edited");
         for (const techId of technicianIds) {
           await supabaseAdmin.from("notifications").insert({
             workshop_id: WORKSHOP_ID,
@@ -3109,16 +3300,20 @@ export function createApiApp() {
 
       // Comentário de técnico → notificar só o admin (admin não recebe notificação do próprio comentário)
       if (!isAdminComment) {
-        await supabaseAdmin.from("notifications").insert({
-          workshop_id: WORKSHOP_ID,
-          type: "comment",
-          payload: commentPayload,
-          target_type: "admin",
-          target_slug: null,
-        }).then(({ error: notifErr }) => { if (notifErr) console.error("[API] Erro ao criar notificação de comentário (admin):", notifErr); });
+        const shouldAdmin = await shouldNotifyAdminForSystemType("comment");
+        if (shouldAdmin) {
+          await supabaseAdmin.from("notifications").insert({
+            workshop_id: WORKSHOP_ID,
+            type: "comment",
+            payload: commentPayload,
+            target_type: "admin",
+            target_slug: null,
+          }).then(({ error: notifErr }) => { if (notifErr) console.error("[API] Erro ao criar notificação de comentário (admin):", notifErr); });
+        }
       }
       // Comentário do admin → notificar o mecânico responsável do veículo; se não houver, notificar todos os técnicos
       if (isAdminComment) {
+        const enabledTechnicianIds = await getTechnicianRecipientIdsForSystemType("comment");
         let technicianIds: string[] = [];
         const assignedId = (so as { assigned_technician?: string | null }).assigned_technician;
         if (assignedId && typeof assignedId === "string" && assignedId.trim()) {
@@ -3129,9 +3324,9 @@ export function createApiApp() {
             .eq("id", assignedId.trim())
             .eq("is_technician", true)
             .maybeSingle();
-          if (techUser) technicianIds = [techUser.id];
+          if (techUser && enabledTechnicianIds.includes(techUser.id)) technicianIds = [techUser.id];
         }
-        if (technicianIds.length === 0) technicianIds = await getTechnicianUserIds();
+        if (technicianIds.length === 0) technicianIds = enabledTechnicianIds;
         for (const techId of technicianIds) {
           await supabaseAdmin.from("notifications").insert({
             workshop_id: WORKSHOP_ID,
@@ -5028,9 +5223,11 @@ export function createApiApp() {
       if (previous) {
         if (isAdminActor) {
           // Ações do admin: notificar todos os técnicos
-          const technicianIds = await getTechnicianUserIds();
+          const stageTechIds = await getTechnicianRecipientIdsForSystemType("stage_change");
+          const complaintTechIds = await getTechnicianRecipientIdsForSystemType("complaint_edited");
+          const deliveryTechIds = await getTechnicianRecipientIdsForSystemType("delivery_date_changed");
           if (updatePayload.status !== undefined && previous.status !== data?.status) {
-            for (const techId of technicianIds) {
+            for (const techId of stageTechIds) {
               await supabaseAdmin.from("notifications").insert({
                 workshop_id: WORKSHOP_ID,
                 type: "stage_change",
@@ -5041,7 +5238,7 @@ export function createApiApp() {
             }
           }
           if (updatePayload.issue_description !== undefined && previous.issue_description !== data?.issue_description) {
-            for (const techId of technicianIds) {
+            for (const techId of complaintTechIds) {
               await supabaseAdmin.from("notifications").insert({
                 workshop_id: WORKSHOP_ID,
                 type: "complaint_edited",
@@ -5052,7 +5249,7 @@ export function createApiApp() {
             }
           }
           if (updatePayload.delivery_date !== undefined && String(previous?.delivery_date ?? "") !== String(data?.delivery_date ?? "")) {
-            for (const techId of technicianIds) {
+            for (const techId of deliveryTechIds) {
               await supabaseAdmin.from("notifications").insert({
                 workshop_id: WORKSHOP_ID,
                 type: "delivery_date_changed",
@@ -5065,32 +5262,41 @@ export function createApiApp() {
         } else if (!isAdminActor && (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string")) {
           // Ações do técnico: notificar apenas o admin (Rei do ABS)
           const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
+          const shouldAdminStage = await shouldNotifyAdminForSystemType("stage_change");
+          const shouldAdminComplaint = await shouldNotifyAdminForSystemType("complaint_edited");
+          const shouldAdminDelivery = await shouldNotifyAdminForSystemType("delivery_date_changed");
           if (updatePayload.status !== undefined && previous.status !== data?.status) {
-            await supabaseAdmin.from("notifications").insert({
-              workshop_id: WORKSHOP_ID,
-              type: "stage_change",
-              payload: { ...payloadBase, new_status: data?.status, technician_name: technicianLabel },
-              target_type: "admin",
-              target_slug: null,
-            }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change (admin):", e); });
+            if (shouldAdminStage) {
+              await supabaseAdmin.from("notifications").insert({
+                workshop_id: WORKSHOP_ID,
+                type: "stage_change",
+                payload: { ...payloadBase, new_status: data?.status, technician_name: technicianLabel },
+                target_type: "admin",
+                target_slug: null,
+              }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change (admin):", e); });
+            }
           }
           if (updatePayload.issue_description !== undefined && previous.issue_description !== data?.issue_description) {
-            await supabaseAdmin.from("notifications").insert({
-              workshop_id: WORKSHOP_ID,
-              type: "complaint_edited",
-              payload: { ...payloadBase, technician_name: technicianLabel },
-              target_type: "admin",
-              target_slug: null,
-            }).then(({ error: e }) => { if (e) console.error("[API] Notificação complaint_edited (admin):", e); });
+            if (shouldAdminComplaint) {
+              await supabaseAdmin.from("notifications").insert({
+                workshop_id: WORKSHOP_ID,
+                type: "complaint_edited",
+                payload: { ...payloadBase, technician_name: technicianLabel },
+                target_type: "admin",
+                target_slug: null,
+              }).then(({ error: e }) => { if (e) console.error("[API] Notificação complaint_edited (admin):", e); });
+            }
           }
           if (updatePayload.delivery_date !== undefined && String(previous?.delivery_date ?? "") !== String(data?.delivery_date ?? "")) {
-            await supabaseAdmin.from("notifications").insert({
-              workshop_id: WORKSHOP_ID,
-              type: "delivery_date_changed",
-              payload: { ...payloadBase, delivery_date: data?.delivery_date ?? null, technician_name: technicianLabel },
-              target_type: "admin",
-              target_slug: null,
-            }).then(({ error: e }) => { if (e) console.error("[API] Notificação delivery_date_changed (admin):", e); });
+            if (shouldAdminDelivery) {
+              await supabaseAdmin.from("notifications").insert({
+                workshop_id: WORKSHOP_ID,
+                type: "delivery_date_changed",
+                payload: { ...payloadBase, delivery_date: data?.delivery_date ?? null, technician_name: technicianLabel },
+                target_type: "admin",
+                target_slug: null,
+              }).then(({ error: e }) => { if (e) console.error("[API] Notificação delivery_date_changed (admin):", e); });
+            }
           }
         }
       }

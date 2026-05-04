@@ -2122,6 +2122,43 @@ export async function saveZayaAlerts(body: {
   }
 }
 
+export interface SystemNotificationsSubscriberRow {
+  systemUserId: string;
+  notificationTypes: string[];
+  displayName: string;
+}
+
+export interface SystemNotificationsConfig {
+  adminNotificationTypes: string[];
+  subscribers: SystemNotificationsSubscriberRow[];
+  availableUsers: ZayaAlertsAvailableUser[];
+}
+
+export async function getSystemNotificationsConfig(): Promise<SystemNotificationsConfig> {
+  const response = await fetch(`${API_BASE}/workshop/system-notifications`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao carregar notificações do sistema.");
+  }
+  return response.json();
+}
+
+export async function saveSystemNotificationsConfig(body: {
+  adminPassword: string;
+  adminNotificationTypes: string[];
+  subscribers: { systemUserId: string; notificationTypes: string[] }[];
+}): Promise<void> {
+  const response = await fetch(`${API_BASE}/workshop/system-notifications`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao salvar notificações do sistema.");
+  }
+}
+
 /** Exclui o veículo do sistema (marca OS como CANCELLED). Exige a senha configurada em Alterar senhas. */
 export async function deleteServiceOrderWithPassword(serviceOrderId: string, password: string): Promise<void> {
   const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/delete-with-password`, {

@@ -15,7 +15,7 @@ import { ChangePasswordsModal } from '../ChangePasswordsModal';
 import { TechnicianProfileModal } from '../TechnicianProfileModal';
 import { AdminProfileModal } from '../AdminProfileModal';
 import { SystemUsersModal } from '../SystemUsersModal';
-import { ZayaAlertsModal } from '../ZayaAlertsModal';
+import { SystemNotificationsModal } from '../SystemNotificationsModal';
 import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import type { SystemUserPermissions } from '../../services/apiService';
@@ -186,7 +186,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isPatioChecklistsOpen, setIsPatioChecklistsOpen] = useState(false);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
-  const [isZayaAlertsOpen, setIsZayaAlertsOpen] = useState(false);
+  const [isSystemNotificationsOpen, setIsSystemNotificationsOpen] = useState(false);
   const [isHomeSettingsHubOpen, setIsHomeSettingsHubOpen] = useState(false);
   const [quickLayout, setQuickLayout] = useState<QuickLayoutState>(() => {
     try {
@@ -282,7 +282,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const childModalStackActive = useMemo(
     () =>
       isSystemUsersOpen ||
-      isZayaAlertsOpen ||
+      isSystemNotificationsOpen ||
       isServicesModalOpen ||
       isPartsModalOpen ||
       isPatioChecklistsOpen ||
@@ -294,7 +294,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       globalOverlayModalOpen,
     [
       isSystemUsersOpen,
-      isZayaAlertsOpen,
+      isSystemNotificationsOpen,
       isServicesModalOpen,
       isPartsModalOpen,
       isPatioChecklistsOpen,
@@ -319,7 +319,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(Boolean(technicianId) && isTechnicianProfileOpen, () => setIsTechnicianProfileOpen(false));
   useBrowserBackLayer(isTvPatioOpen, () => setIsTvPatioOpen(false));
   useBrowserBackLayer(isUserProfileOpen, () => setIsUserProfileOpen(false));
-  useBrowserBackLayer(isZayaAlertsOpen, () => setIsZayaAlertsOpen(false));
+  useBrowserBackLayer(isSystemNotificationsOpen, () => setIsSystemNotificationsOpen(false));
 
   const operationalForView = isTechnician ? OPERATIONAL_APPS.filter((a) => allowedTabs.includes(a.id)) : OPERATIONAL_APPS;
   const quickTilesForView = useMemo(() => {
@@ -929,12 +929,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             }
                           />
                           <SettingsRow
-                            onClick={() => setIsZayaAlertsOpen(true)}
-                            title="Avisos da Zaya"
-                            subtitle="Etapas, orçamentos e destinatários"
+                            onClick={() => setIsSystemNotificationsOpen(true)}
+                            title="Notificações do sistema"
+                            subtitle="Orçamentos, comentários, OS e avisos Zaya"
                             icon={
                               <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                <Sparkles />
+                                <img
+                                  src="/icons/tema-sistema-ios.png"
+                                  alt="Notificações do sistema"
+                                  className="h-full w-full object-cover"
+                                />
                               </IosAccentIconSquircle>
                             }
                           />
@@ -1034,7 +1038,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {!isTechnician && (
         <>
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />
-          <ZayaAlertsModal isOpen={isZayaAlertsOpen} onClose={() => setIsZayaAlertsOpen(false)} />
+          <SystemNotificationsModal isOpen={isSystemNotificationsOpen} onClose={() => setIsSystemNotificationsOpen(false)} />
           <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
           <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
           <PatioChecklistsModal isOpen={isPatioChecklistsOpen} onClose={() => setIsPatioChecklistsOpen(false)} />
