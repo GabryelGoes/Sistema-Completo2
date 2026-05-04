@@ -949,7 +949,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
                                 <img
                                   src="/icons/tema-sistema-ios.png"
-                                  alt=""
+                                  alt="Tema do sistema"
                                   className="h-full w-full object-cover"
                                 />
                               </IosAccentIconSquircle>
