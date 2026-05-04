@@ -33,6 +33,8 @@ export function usePatioBudgetsHubNotifier(opts: {
   const { enabled, activeTab, pollMs = 22000 } = opts;
   const [badgeCount, setBadgeCount] = useState(0);
   const snapshotRef = useRef<string | null>(null);
+  /** Orçamentos que geraram notificação na Home — consumidos pelo hub ao focar a aba (aro âmbar até abrir no pátio). */
+  const pendingHubBudgetMetaRef = useRef<Map<string, "created" | "edited">>(new Map());
 
   const pollFn = useCallback(async () => {
     if (!enabled) return;
@@ -46,8 +48,14 @@ export function usePatioBudgetsHubNotifier(opts: {
       }
       if (snapshotRef.current === stable) return;
       const prevRows = JSON.parse(snapshotRef.current) as { id: string; sig: string }[];
-      const { created, edited } = countDiffEvents(prevRows, compact);
+      const prevMap = new Map(prevRows.map((x) => [x.id, x.sig]));
+      for (const row of compact) {
+        const o = prevMap.get(row.id);
+        if (o === undefined) pendingHubBudgetMetaRef.current.set(row.id, "created");
+        else if (o !== row.sig) pendingHubBudgetMetaRef.current.set(row.id, "edited");
+      }
       snapshotRef.current = stable;
+      const { created, edited } = countDiffEvents(prevRows, compact);
       const n = created + edited;
       if (n > 0) {
         if (activeTab !== "orcamentos") {
@@ -81,5 +89,21 @@ export function usePatioBudgetsHubNotifier(opts: {
     setBadgeCount(0);
   }, []);
 
-  return { badgeCount, clearBadge, ingestBaselineFromItems, refreshAggregateNow: pollFn };
+  /** Chamado pelo hub com a aba Orçamentos visível — esvazia a fila e devolve os ids para o aro âmbar. */
+  const consumePendingHubBudgetHighlights = useCallback((): { budgetId: string; kind: "created" | "edited" }[] => {
+    const out: { budgetId: string; kind: "created" | "edited" }[] = [];
+    pendingHubBudgetMetaRef.current.forEach((kind, budgetId) => {
+      out.push({ budgetId, kind });
+    });
+    pendingHubBudgetMetaRef.current.clear();
+    return out;
+  }, []);
+
+  return {
+    badgeCount,
+    clearBadge,
+    ingestBaselineFromItems,
+    refreshAggregateNow: pollFn,
+    consumePendingHubBudgetHighlights,
+  };
 }

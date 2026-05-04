@@ -485,6 +485,7 @@ export default function App() {
               onOpenBudgetInPatio={handleOpenBudgetFromHub}
               onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
               onClearHubBadge={patioBudgetsHub.clearBadge}
+              consumePendingHubBudgetHighlights={patioBudgetsHub.consumePendingHubBudgetHighlights}
             />
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
@@ -719,6 +720,7 @@ export default function App() {
             onOpenBudgetInPatio={handleOpenBudgetFromHub}
             onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
             onClearHubBadge={patioBudgetsHub.clearBadge}
+            consumePendingHubBudgetHighlights={patioBudgetsHub.consumePendingHubBudgetHighlights}
           />
         </KeepAliveTabPanel>
 

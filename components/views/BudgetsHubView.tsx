@@ -55,6 +55,8 @@ export interface BudgetsHubViewProps {
   onIngestNotifierBaseline: (items: Pick<PatioVehicleBudgetAggregateItem, "budgetId" | "contentSignature">[]) => void;
   /** Zera o badge vermelho ao abrir o hub. */
   onClearHubBadge: () => void;
+  /** Enfileira “novo/editado” da Home — ao focar a aba, o hub aplica o aro âmbar até abrir o orçamento no pátio. */
+  consumePendingHubBudgetHighlights?: () => { budgetId: string; kind: "created" | "edited" }[];
 }
 
 export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
@@ -63,14 +65,15 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   onOpenBudgetInPatio,
   onIngestNotifierBaseline,
   onClearHubBadge,
+  consumePendingHubBudgetHighlights,
 }) => {
   const [items, setItems] = useState<PatioVehicleBudgetAggregateItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  /** OS com alteração nova não reconhecida — destaque laranja até expandir o card do veículo. */
-  const [pendingVehicleAttention, setPendingVehicleAttention] = useState<Set<string>>(() => new Set());
+  /** IDs de orçamento com aro âmbar até o usuário abrir esse orçamento no pátio (inclui fila vinda da Home). */
+  const [pendingBudgetHighlightIds, setPendingBudgetHighlightIds] = useState<Set<string>>(() => new Set());
   const [pulseByBudgetId, setPulseByBudgetId] = useState<Record<string, "created" | "edited">>({});
   const prevSigByBudgetRef = useRef<Map<string, string>>(new Map());
   const isFirstFetchRef = useRef(true);
@@ -80,6 +83,10 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   baselineIngestRef.current = onIngestNotifierBaseline;
   const isHubTabActiveRef = useRef(isHubTabActive);
   isHubTabActiveRef.current = isHubTabActive;
+  const consumeHighlightsRef = useRef(consumePendingHubBudgetHighlights);
+  consumeHighlightsRef.current = consumePendingHubBudgetHighlights;
+  /** Lote vindo da Home ao focar a aba — aplicado no próximo load bem-sucedido (um consume só). */
+  const focusHighlightBatchRef = useRef<{ budgetId: string; kind: "created" | "edited" }[] | null>(null);
 
   const load = useCallback(async (opts?: { silent?: boolean; skipNotifierIngest?: boolean }) => {
     const reqId = ++loadRequestGenRef.current;
@@ -92,6 +99,8 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
 
       setItems(data);
 
+      let pulsesFromDiff: Record<string, "created" | "edited"> = {};
+
       if (isFirstFetchRef.current) {
         isFirstFetchRef.current = false;
         const m = new Map<string, string>();
@@ -100,12 +109,11 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
         baselineIngestRef.current(data);
       } else {
         const prev = prevSigByBudgetRef.current;
-        const pulses: Record<string, "created" | "edited"> = {};
         for (const d of data) {
           const bid = String(d.budgetId).trim();
           const old = prev.get(bid);
-          if (old === undefined) pulses[bid] = "created";
-          else if (old !== d.contentSignature) pulses[bid] = "edited";
+          if (old === undefined) pulsesFromDiff[bid] = "created";
+          else if (old !== d.contentSignature) pulsesFromDiff[bid] = "edited";
         }
         const nextMap = new Map<string, string>();
         data.forEach((d) => nextMap.set(String(d.budgetId).trim(), d.contentSignature));
@@ -113,17 +121,23 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
         if (!opts?.skipNotifierIngest) {
           baselineIngestRef.current(data);
         }
-        if (Object.keys(pulses).length > 0) {
-          setPulseByBudgetId((p) => ({ ...p, ...pulses }));
-          const affectedOrders = new Set<string>();
-          for (const row of data) {
-            const bid = String(row.budgetId).trim();
-            if (pulses[bid]) affectedOrders.add(normOrderId(row.serviceOrderId));
-          }
-          if (affectedOrders.size > 0) {
-            setPendingVehicleAttention((pr) => new Set([...pr, ...affectedOrders]));
-          }
-        }
+      }
+
+      const fromFocus = focusHighlightBatchRef.current;
+      focusHighlightBatchRef.current = null;
+
+      const merged: Record<string, "created" | "edited"> = { ...pulsesFromDiff };
+      for (const row of fromFocus ?? []) {
+        merged[String(row.budgetId).trim()] = row.kind;
+      }
+
+      if (Object.keys(merged).length > 0) {
+        setPulseByBudgetId((p) => ({ ...p, ...merged }));
+        setPendingBudgetHighlightIds((prev) => {
+          const next = new Set(prev);
+          for (const k of Object.keys(merged)) next.add(k);
+          return next;
+        });
       }
     } catch (e: unknown) {
       if (reqId !== loadRequestGenRef.current) return;
@@ -155,18 +169,13 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     return () => window.clearInterval(id);
   }, [load]);
 
-  /** Ao focar a aba Orçamentos (incluindo voltar com KeepAlive), zera a bolinha da Home — não só na 1ª montagem. */
+  /** Ao focar a aba: zera o badge, guarda o lote do notifier e recarrega (aro âmbar para o que notificou na Home). */
   useEffect(() => {
-    if (isHubTabActive) {
-      onClearHubBadge();
-    }
-  }, [isHubTabActive, onClearHubBadge]);
-
-  useEffect(() => {
-    void load();
-    // montagem inicial apenas
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load estável
-  }, []);
+    if (!isHubTabActive) return;
+    onClearHubBadge();
+    focusHighlightBatchRef.current = consumeHighlightsRef.current ? consumeHighlightsRef.current() : null;
+    void load({ silent: true, skipNotifierIngest: false });
+  }, [isHubTabActive, onClearHubBadge, load]);
 
   useEffect(() => {
     const onEvt = () =>
@@ -197,17 +206,27 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   }, [grouped]);
 
   const toggleExpand = (orderId: string) => {
-    setPendingVehicleAttention((prev) => {
-      const next = new Set(prev);
-      next.delete(orderId);
-      return next;
-    });
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(orderId)) next.delete(orderId);
       else next.add(orderId);
       return next;
     });
+  };
+
+  const openBudgetFromHub = (serviceOrderId: string, budgetId: string) => {
+    const bid = String(budgetId).trim();
+    setPendingBudgetHighlightIds((prev) => {
+      const next = new Set(prev);
+      next.delete(bid);
+      return next;
+    });
+    setPulseByBudgetId((prev) => {
+      if (!(bid in prev)) return prev;
+      const { [bid]: _, ...rest } = prev;
+      return rest;
+    });
+    onOpenBudgetInPatio(serviceOrderId, budgetId);
   };
 
   const plateDisplay = (plate: string | null) => {
@@ -277,7 +296,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
               if (!head) return null;
               const stage = getStageConfig(head.orderStatus);
               const open = expanded.has(orderId);
-              const vehicleNeedsAttention = pendingVehicleAttention.has(orderId);
+              const vehicleNeedsAttention = list.some((row) => pendingBudgetHighlightIds.has(String(row.budgetId).trim()));
               return (
                 <section
                   key={orderId}
@@ -347,7 +366,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
                           <li key={row.budgetId}>
                             <button
                               type="button"
-                              onClick={() => onOpenBudgetInPatio(row.serviceOrderId, row.budgetId)}
+                              onClick={() => openBudgetFromHub(row.serviceOrderId, row.budgetId)}
                               className="flex w-full flex-col gap-2 px-4 py-4 text-left transition-colors hover:bg-zinc-50/90 sm:px-5 dark:hover:bg-white/[0.04]"
                             >
                               <div className="flex flex-wrap items-center gap-2">
