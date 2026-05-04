@@ -1424,10 +1424,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useEffect(() => {
     if (!selectedCard) return;
     const id = window.setInterval(() => {
+      // Enquanto edita "Dados da ficha", evita sobrescrever campos com refresh periódico.
+      if (isDadosFichaExpanded) return;
       void syncOpenVehicleModalFromServer();
     }, 3000);
     return () => clearInterval(id);
-  }, [selectedCard?.id, syncOpenVehicleModalFromServer]);
+  }, [selectedCard?.id, isDadosFichaExpanded, syncOpenVehicleModalFromServer]);
 
   /** Modal de histórico/arquivado aberto: mesmo intervalo. */
   useEffect(() => {
