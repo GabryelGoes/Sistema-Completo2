@@ -83,6 +83,9 @@ import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from '../../utils/budgetPrintWithDetail';
 import { PATIO_CARD_TITLE_SEP, parsePatioCardTitle } from '../../utils/patioCardTitle';
+import { formatLaborLabel } from '../../utils/workshopLaborFormat';
+import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
+import { parseReferenceLinksFromApi } from '../../utils/vehicleReferenceLinks';
 
 /** ID sintético até `getServiceOrderById` responder — não usar em chamadas à API. */
 const SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID = '00000000-0000-4000-8000-000000000001';
@@ -135,9 +138,21 @@ function serviceOrderDetailPlaceholderFromCard(card: TrelloCard, orderType: Serv
     customers: placeholderApiCustomer(customerName),
   };
 }
-import { formatLaborLabel } from '../../utils/workshopLaborFormat';
-import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
-import { parseReferenceLinksFromApi } from '../../utils/vehicleReferenceLinks';
+
+function cloneCachedAttachments(atts: TrelloAttachment[]): TrelloAttachment[] {
+  return atts.map((a) => ({
+    ...a,
+    previews: a.previews?.map((p) => ({ ...p })),
+  }));
+}
+
+function cloneCachedActions(actions: TrelloAction[]): TrelloAction[] {
+  return actions.map((a) => ({
+    ...a,
+    data: { ...a.data },
+    memberCreator: { ...a.memberCreator },
+  }));
+}
 
 /** Modal de orçamento: canvas sólido, azul bem claro (sem alpha no fundo). */
 const budgetModalCanvasBg = 'bg-[#f8fcfe]';
@@ -979,6 +994,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
   isEditingDescRef.current = isEditingDesc;
   selectedCardRef.current = selectedCard;
 
+  /** Último `{ actions, attachments }` por OS — reaproveita fotos/comentários ao reabrir modal ou histórico. */
+  const vehicleCardDetailsCacheRef = useRef<Map<string, { actions: TrelloAction[]; attachments: TrelloAttachment[] }>>(
+    new Map()
+  );
+
   // Visualização de Imagem (Lightbox) — lista de URLs e índice para navegar entre fotos
   const [previewImages, setPreviewImages] = useState<{ urls: string[]; currentIndex: number } | null>(null);
   const [loadingAttachmentId, setLoadingAttachmentId] = useState<string | null>(null);
@@ -1649,11 +1669,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [selectedCard?.id, loadingDetails, cardDetails?.actions?.length]);
 
   useEffect(() => {
+    if (!selectedCard?.id || loadingDetails || !cardDetails) return;
+    vehicleCardDetailsCacheRef.current.set(selectedCard.id, {
+      actions: cloneCachedActions(cardDetails.actions),
+      attachments: cloneCachedAttachments(cardDetails.attachments),
+    });
+  }, [selectedCard?.id, loadingDetails, cardDetails]);
+
+  useEffect(() => {
     if (selectedCard) {
       setDescText(selectedCard.desc || "");
       setIsEditingDesc(false);
       setLoadingDetails(true);
-      setCardDetails({ actions: [], attachments: [] });
+      const cached = vehicleCardDetailsCacheRef.current.get(selectedCard.id);
+      setCardDetails(
+        cached
+          ? {
+              actions: cloneCachedActions(cached.actions),
+              attachments: cloneCachedAttachments(cached.attachments),
+            }
+          : { actions: [], attachments: [] }
+      );
       setServiceOrderDetail(serviceOrderDetailPlaceholderFromCard(selectedCard, orderType));
       Promise.all([
         getServiceOrderById(selectedCard.id),
@@ -1845,11 +1881,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsHistoryOpen(true);
   }, [openHistoryRequested]);
 
+  useEffect(() => {
+    if (!selectedHistoryCard?.id || loadingHistoryDetails || !historyCardDetails) return;
+    vehicleCardDetailsCacheRef.current.set(selectedHistoryCard.id, {
+      actions: cloneCachedActions(historyCardDetails.actions),
+      attachments: cloneCachedAttachments(historyCardDetails.attachments),
+    });
+  }, [selectedHistoryCard?.id, loadingHistoryDetails, historyCardDetails]);
+
   const handleOpenHistoryCardDetails = (card: TrelloCard) => {
     setSelectedHistoryCard(card);
+    const cached = vehicleCardDetailsCacheRef.current.get(card.id);
+    setHistoryCardDetails(
+      cached
+        ? {
+            actions: cloneCachedActions(cached.actions),
+            attachments: cloneCachedAttachments(cached.attachments),
+          }
+        : null
+    );
+    setHistoryServiceOrderDetail(serviceOrderDetailPlaceholderFromCard(card, orderType));
     setLoadingHistoryDetails(true);
-    setHistoryCardDetails(null);
-    setHistoryServiceOrderDetail(null);
     setHistorySavedBudgets([]);
     Promise.all([
       getServiceOrderById(card.id),
@@ -1858,6 +1910,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       getServiceOrderBudgets(card.id),
     ])
       .then(([order, photos, comments, budgets]) => {
+        if (selectedHistoryCardRef.current?.id !== order.id) return;
         setHistoryServiceOrderDetail(order);
         setHistorySavedBudgets(budgets);
         setHistoryCardDetails({
@@ -3898,11 +3951,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </p>
                           <div className={`${iosVehicleModalInsetCard} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
                              <div className="max-h-[500px] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-4 dark:bg-black/25 custom-scrollbar sm:p-5 sm:space-y-5">
-                                {loadingHistoryDetails ? (
-                                   <div className="flex justify-center py-8">
-                                      <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF]" />
-                                   </div>
-                                ) : historyCardDetails?.actions && historyCardDetails.actions.length > 0 ? (
+                                {historyCardDetails?.actions && historyCardDetails.actions.length > 0 ? (
                                    historyCardDetails.actions.map(action => {
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
                                       return (
@@ -3936,6 +3985,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                          </div>
                                       </div>
                                    ); })
+                                ) : loadingHistoryDetails ? (
+                                   <div className="flex justify-center py-8">
+                                      <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF]" />
+                                   </div>
                                 ) : (
                                    <div className="py-8 text-center text-[14px] text-zinc-500 dark:text-zinc-400">
                                       Nenhum comentário registrado no histórico.
@@ -3999,11 +4052,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               Anexos
                             </p>
                             <div className="space-y-3 pb-5 sm:pb-6">
-                               {loadingHistoryDetails ? (
-                                  <div className="flex justify-center p-4">
-                                     <RefreshCw className="h-4 w-4 animate-spin text-[#007AFF]" />
-                                  </div>
-                               ) : historyCardDetails?.attachments && historyCardDetails.attachments.length > 0 ? (
+                               {historyCardDetails?.attachments && historyCardDetails.attachments.length > 0 ? (
                                   (() => {
                                     const histAll = historyCardDetails.attachments;
                                     return (
@@ -4071,6 +4120,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                     );
                                   })()
+                               ) : loadingHistoryDetails ? (
+                                  <div className="flex justify-center p-4">
+                                     <RefreshCw className="w-4 h-4 animate-spin text-[#007AFF]" />
+                                  </div>
                                ) : (
                                   <div className={`${iosModalInsetCard} py-8 text-center`}>
                                      <p className="text-[14px] text-zinc-500 dark:text-zinc-400">Nenhum anexo encontrado.</p>
@@ -5303,11 +5356,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                      <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
                                   </div>
                                )}
-                               {loadingDetails ? (
-                                  <div className="flex justify-center p-4">
-                                     <RefreshCw className="w-4 h-4 text-zinc-500 animate-spin" />
-                                  </div>
-                               ) : cardDetails?.attachments && cardDetails.attachments.length > 0 ? (
+                               {cardDetails?.attachments && cardDetails.attachments.length > 0 ? (
                                   (() => {
                                     const attachments = cardDetails.attachments;
                                     const images = attachments.filter(att => att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(att.url));
@@ -5705,6 +5754,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                     );
                                   })()
+                               ) : loadingDetails ? (
+                                  <div className="flex justify-center p-4">
+                                     <RefreshCw className="w-4 h-4 text-zinc-500 animate-spin" />
+                                  </div>
                                ) : (
                                   <div className="text-center py-6 border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl">
                                      <p className="text-zinc-600 text-sm">Nenhum anexo encontrado.</p>
@@ -5724,11 +5777,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                           <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
                              <div ref={commentsListRef} className="custom-scrollbar max-h-[min(420px,52vh)] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-4 dark:bg-black/25 sm:p-5 sm:space-y-5 lg:max-h-[min(220px,32vh)] lg:space-y-3 lg:p-3">
-                                {loadingDetails ? (
-                                   <div className="flex justify-center py-8 lg:py-6">
-                                      <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF] lg:h-5 lg:w-5" />
-                                   </div>
-                                ) : cardDetails?.actions && cardDetails.actions.length > 0 ? (
+                                {cardDetails?.actions && cardDetails.actions.length > 0 ? (
                                    cardDetails.actions.map(action => {
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
                                       return (
@@ -5815,6 +5864,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                          </div>
                                       </div>
                                    ); })
+                                ) : loadingDetails ? (
+                                   <div className="flex justify-center py-8 lg:py-6">
+                                      <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF] lg:h-5 lg:w-5" />
+                                   </div>
                                 ) : (
                                    <div className="text-center py-8 text-zinc-600 italic">
                                       Nenhum comentário registrado.
