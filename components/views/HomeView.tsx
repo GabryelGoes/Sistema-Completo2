@@ -6,7 +6,6 @@ import {
   User,
   ExternalLink,
   Sparkles,
-  Receipt,
 } from 'lucide-react';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
@@ -93,9 +92,7 @@ const OPERATIONAL_APPS: {
   {
     id: 'orcamentos',
     label: 'Orçamentos',
-    icon: (
-      <Receipt className="h-[56%] w-[56%] text-white drop-shadow-sm" strokeWidth={2.25} aria-hidden />
-    ),
+    icon: <img src="/icons/orcamentos-ios.png" alt="" className="h-full w-full object-cover" />,
   },
   {
     id: 'laboratorio',
