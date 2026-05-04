@@ -4019,7 +4019,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             ) : historySavedBudgets.length > 0 ? (
                               <div className="space-y-2">
                                 {[...historySavedBudgets]
-                                  .sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a))
+                                  .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                                   .map((b) => (
                                     <div key={b.id} className="rounded-xl border border-zinc-200/70 bg-zinc-50/80 p-3 dark:border-white/[0.08] dark:bg-white/[0.03]">
                                       <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
@@ -5064,7 +5064,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <div className="max-h-[380px] space-y-2.5 overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50">
                               {savedBudgets
                                 .filter((b) => b.serviceOrderId === selectedCard.id)
-                                .sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a))
+                                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                                 .map((budget) => {
                                   const sameOs = savedBudgets.filter((x) => x.serviceOrderId === selectedCard.id);
                                   const preview =
@@ -5122,7 +5122,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <div className="mt-3 flex flex-wrap gap-2">
                                     {savedBudgets
                                       .filter((b) => b.serviceOrderId === selectedCard.id)
-                                      .sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a))
+                                      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                                       .map((budget) => (
                                         <button
                                           key={budget.id}

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, FileText, RefreshCw, Sparkles } from "lucide-react";
 import {
-  budgetLastActivityMs,
+  budgetChronologicalNumber,
   getPatioVehicleBudgetsAggregate,
   type PatioVehicleBudgetAggregateItem,
 } from "../../services/apiService";
@@ -26,7 +26,7 @@ function groupByOrderId(items: PatioVehicleBudgetAggregateItem[]): Map<string, P
     m.set(oid, list);
   }
   for (const [, list] of m) {
-    list.sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a));
+    list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }
   return m;
 }
@@ -196,12 +196,12 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const grouped = useMemo(() => groupByOrderId(items), [items]);
   const orderIdsSorted = useMemo(() => {
     const ids = [...grouped.keys()];
-    const latest = (oid: string) => {
+    const earliestCreatedMs = (oid: string) => {
       const list = grouped.get(oid);
       if (!list?.length) return 0;
-      return Math.max(...list.map((row) => budgetLastActivityMs(row)));
+      return Math.min(...list.map((row) => new Date(row.createdAt).getTime()));
     };
-    ids.sort((a, b) => latest(b) - latest(a));
+    ids.sort((a, b) => earliestCreatedMs(a) - earliestCreatedMs(b));
     return ids;
   }, [grouped]);
 
@@ -358,46 +358,54 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
                       className={`mt-1 h-5 w-5 shrink-0 text-zinc-400 transition-transform ${open ? "rotate-90" : ""}`}
                     />
                   </button>
-                  {open ? (
-                    <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
-                      {list.map((row) => {
-                        const pulse = pulseByBudgetId[String(row.budgetId).trim()];
+                  {open
+                    ? (() => {
+                        const chrono = list.map((x) => ({ id: x.budgetId, createdAt: x.createdAt }));
                         return (
-                          <li key={row.budgetId}>
-                            <button
-                              type="button"
-                              onClick={() => openBudgetFromHub(row.serviceOrderId, row.budgetId)}
-                              className="flex w-full flex-col gap-2 px-4 py-4 text-left transition-colors hover:bg-zinc-50/90 sm:px-5 dark:hover:bg-white/[0.04]"
-                            >
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className={`${iosLabel} mb-0 text-[10px]`}>Orçamento</span>
-                                {pulse === "created" ? (
-                                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
-                                    Novo
-                                  </span>
-                                ) : null}
-                                {pulse === "edited" ? (
-                                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">
-                                    Editado
-                                  </span>
-                                ) : null}
-                                <span className="ml-auto text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
-                                  {formatWhen(row.updatedAt)}
-                                </span>
-                              </div>
-                              <p className="line-clamp-2 text-[15px] leading-snug text-zinc-900 dark:text-zinc-100">
-                                {row.diagnosisPreview.trim() || row.cardName?.trim() || "Sem descrição de diagnóstico"}
-                              </p>
-                              <p className="text-[12px] text-zinc-500 dark:text-zinc-500">
-                                {row.servicesCount} serviço{row.servicesCount === 1 ? "" : "s"} · {row.partsCount}{" "}
-                                peça{row.partsCount === 1 ? "" : "s"}
-                              </p>
-                            </button>
-                          </li>
+                          <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
+                            {list.map((row) => {
+                              const pulse = pulseByBudgetId[String(row.budgetId).trim()];
+                              const budgetNum = budgetChronologicalNumber(chrono, row.budgetId);
+                              return (
+                                <li key={row.budgetId}>
+                                  <button
+                                    type="button"
+                                    onClick={() => openBudgetFromHub(row.serviceOrderId, row.budgetId)}
+                                    className="flex w-full flex-col gap-2 px-4 py-4 text-left transition-colors hover:bg-zinc-50/90 sm:px-5 dark:hover:bg-white/[0.04]"
+                                  >
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className={`${iosLabel} mb-0 text-[10px]`}>
+                                        Orçamento {budgetNum}
+                                      </span>
+                                      {pulse === "created" ? (
+                                        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+                                          Novo
+                                        </span>
+                                      ) : null}
+                                      {pulse === "edited" ? (
+                                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">
+                                          Editado
+                                        </span>
+                                      ) : null}
+                                      <span className="ml-auto text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                                        {formatWhen(row.updatedAt)}
+                                      </span>
+                                    </div>
+                                    <p className="line-clamp-2 text-[15px] leading-snug text-zinc-900 dark:text-zinc-100">
+                                      {row.diagnosisPreview.trim() || row.cardName?.trim() || "Sem descrição de diagnóstico"}
+                                    </p>
+                                    <p className="text-[12px] text-zinc-500 dark:text-zinc-500">
+                                      {row.servicesCount} serviço{row.servicesCount === 1 ? "" : "s"} · {row.partsCount}{" "}
+                                      peça{row.partsCount === 1 ? "" : "s"}
+                                    </p>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
                         );
-                      })}
-                    </ul>
-                  ) : null}
+                      })()
+                    : null}
                 </section>
               );
             })
