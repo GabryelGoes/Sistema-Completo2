@@ -26,9 +26,17 @@ function groupByOrderId(items: PatioVehicleBudgetAggregateItem[]): Map<string, P
     m.set(oid, list);
   }
   for (const [, list] of m) {
-    list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    list.sort((a, b) => budgetActivityMs(b) - budgetActivityMs(a));
   }
   return m;
+}
+
+function budgetActivityMs(item: Pick<PatioVehicleBudgetAggregateItem, "createdAt" | "updatedAt">): number {
+  const createdMs = new Date(item.createdAt).getTime();
+  const updatedMs = new Date(item.updatedAt).getTime();
+  const safeCreated = Number.isFinite(createdMs) ? createdMs : 0;
+  const safeUpdated = Number.isFinite(updatedMs) ? updatedMs : safeCreated;
+  return Math.max(safeCreated, safeUpdated);
 }
 
 function formatWhen(iso: string): string {
@@ -196,12 +204,12 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const grouped = useMemo(() => groupByOrderId(items), [items]);
   const orderIdsSorted = useMemo(() => {
     const ids = [...grouped.keys()];
-    const earliestCreatedMs = (oid: string) => {
+    const latestActivityMs = (oid: string) => {
       const list = grouped.get(oid);
       if (!list?.length) return 0;
-      return Math.min(...list.map((row) => new Date(row.createdAt).getTime()));
+      return Math.max(...list.map((row) => budgetActivityMs(row)));
     };
-    ids.sort((a, b) => earliestCreatedMs(a) - earliestCreatedMs(b));
+    ids.sort((a, b) => latestActivityMs(b) - latestActivityMs(a));
     return ids;
   }, [grouped]);
 
