@@ -6936,7 +6936,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => removeServiceRow(item.id)}
-                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-sky-200/80 text-sky-600/80 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-red-200/60 bg-red-50/40 text-red-500/85 transition-colors hover:border-red-400 hover:bg-red-100/80 hover:text-red-600"
                                   aria-label="Remover serviço"
                                 >
                                   <Trash2 className="h-5 w-5" />
@@ -7081,7 +7081,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => removePartRow(item.id)}
-                                  className="flex h-10 w-10 items-center justify-center rounded-2xl border border-sky-200/80 text-sky-600/80 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+                                  className="flex h-10 w-10 items-center justify-center rounded-2xl border border-red-200/60 bg-red-50/40 text-red-500/85 transition-colors hover:border-red-400 hover:bg-red-100/80 hover:text-red-600"
                                   aria-label="Remover peça"
                                 >
                                   <Trash2 className="h-5 w-5" />
