@@ -302,7 +302,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
                   key={orderId}
                   className={`${iosPageGlassOrcamentosVehicleCard} overflow-hidden transition-[box-shadow,background-color,border-color] duration-300 ${
                     vehicleNeedsAttention
-                      ? "!border-2 !border-amber-500/85 !bg-amber-50/85 !shadow-[0_12px_36px_-10px_rgba(217,119,6,0.32)] dark:!border-amber-400/75 dark:!bg-amber-950/[0.42] dark:!shadow-[0_12px_40px_-12px_rgba(251,191,36,0.22)]"
+                      ? "!border-2 !border-red-400/65 !bg-red-50/88 !shadow-[0_12px_36px_-10px_rgba(239,68,68,0.16)] dark:!border-red-400/50 dark:!bg-red-950/[0.34] dark:!shadow-[0_12px_40px_-12px_rgba(248,113,113,0.12)]"
                       : ""
                   }`}
                 >
@@ -312,19 +312,19 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
                     aria-expanded={open}
                     className={`flex w-full items-start gap-3 border-b px-4 py-4 text-left transition-colors sm:px-5 ${
                       vehicleNeedsAttention
-                        ? "border-amber-200/80 hover:!bg-amber-50/90 dark:border-amber-500/25 dark:hover:!bg-amber-950/40"
+                        ? "border-red-200/75 hover:!bg-red-50/92 dark:border-red-500/22 dark:hover:!bg-red-950/38"
                         : "border-zinc-200/70 hover:bg-zinc-50/80 dark:border-white/[0.06] dark:hover:bg-white/[0.04]"
                     }`}
                   >
                     <div
                       className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
                         vehicleNeedsAttention
-                          ? "!bg-amber-100/90 dark:!bg-amber-500/15"
+                          ? "!bg-red-100/88 dark:!bg-red-500/12"
                           : "bg-zinc-100 dark:bg-white/[0.08]"
                       }`}
                     >
                       <FileText
-                        className={vehicleNeedsAttention ? "h-5 w-5 text-amber-700 dark:text-amber-300" : "h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]"}
+                        className={vehicleNeedsAttention ? "h-5 w-5 text-red-700 dark:text-red-300" : "h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]"}
                         strokeWidth={2}
                       />
                     </div>
