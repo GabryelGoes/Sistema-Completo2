@@ -164,7 +164,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   };
 
   return (
-    <div className="min-h-0 flex-1 flex flex-col overflow-hidden bg-light-page dark:bg-black">
+    <div className="flex min-h-min flex-col bg-light-page dark:bg-black">
       <header className="shrink-0 border-b border-zinc-200/80 bg-white/80 px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl dark:border-white/[0.08] dark:bg-zinc-950/80">
         <div className="mx-auto flex max-w-3xl items-start gap-3">
           <div className="min-w-0 flex-1 pt-0.5">
@@ -187,7 +187,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-[max(5rem,env(safe-area-inset-bottom))]">
+      <main className="px-4 py-5 pb-[max(5.5rem,env(safe-area-inset-bottom)+3rem)]">
         <div className="mx-auto max-w-3xl space-y-4">
           {loading ? (
             <div className={`${iosPageGlass} p-10 text-center text-[15px] text-zinc-600 dark:text-zinc-300`}>

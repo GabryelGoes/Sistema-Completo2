@@ -482,7 +482,7 @@ export default function App() {
             tabId="orcamentos"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="flex-1 min-h-0 flex flex-col overflow-hidden"
+            className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
           >
             <BudgetsHubView
               blurPlates={cinematographicMode}
@@ -707,7 +707,7 @@ export default function App() {
           tabId="orcamentos"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex-1 min-h-0 flex flex-col overflow-hidden"
+          className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
         >
           <BudgetsHubView
             blurPlates={cinematographicMode}
