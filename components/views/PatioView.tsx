@@ -1729,7 +1729,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
             const canApproveItems =
               patioPermissions === undefined ? true : patioPermissions.canApproveBudgetItems === true;
             if (stillThisCard && canApproveItems && budgets.length > 0) {
-              const first = budgets[0];
+              // Quando houver múltiplos orçamentos, "primeiro" = mais antigo (Orçamento 1).
+              const first = [...budgets].sort(
+                (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+              )[0];
               const lineCount = first.services.length + first.parts.length;
               if (
                 lineCount > 0 &&
