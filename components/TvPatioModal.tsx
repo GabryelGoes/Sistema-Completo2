@@ -480,29 +480,30 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   };
 
   const iosCard =
-    'rounded-[22px] border border-zinc-200/80 dark:border-white/[0.07] bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+    'rounded-[22px] border border-zinc-200/80 bg-white/70 backdrop-blur-2xl shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)]';
 
   /** Fundo único claro (igual à área do preview) em todo o painel da TV do pátio */
   const tvPatioShellBg =
-    'bg-gradient-to-b from-zinc-100/90 via-white/95 to-zinc-50/90 dark:from-zinc-100/90 dark:via-white/95 dark:to-zinc-50/90';
+    'bg-gradient-to-b from-zinc-100/90 via-white/95 to-zinc-50/90';
 
   const iosInput =
-    'w-full rounded-2xl border border-zinc-200/90 dark:border-white/[0.08] bg-white/90 dark:bg-zinc-950/50 px-4 py-3 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow';
+    'w-full rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-[15px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow';
 
-  const iosLabel = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 mb-2';
+  const iosLabel = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 mb-2';
 
   return (
     <ModalPortal>
       <div className="fixed inset-0 z-[120] flex items-stretch justify-stretch bg-black/45 backdrop-blur-[20px]">
       <div
-        className={`relative flex h-[100dvh] w-screen max-w-none min-h-0 flex-1 flex-col overflow-hidden max-lg:portrait:overflow-y-auto max-lg:portrait:overflow-x-hidden max-lg:landscape:flex-col lg:grid lg:min-h-0 ${
+        className={`relative flex h-[100dvh] w-screen max-w-none min-h-0 flex-1 flex-col overflow-hidden text-zinc-900 max-lg:portrait:overflow-y-auto max-lg:portrait:overflow-x-hidden max-lg:landscape:flex-col lg:grid lg:min-h-0 ${
           dataReady ? 'lg:grid-cols-[minmax(0,1fr)_min(420px,100%)]' : 'lg:grid-cols-1'
-        } lg:grid-rows-[auto_minmax(0,1fr)] ${tvPatioShellBg} rounded-none border-0 shadow-none dark:shadow-none`}
+        } lg:grid-rows-[auto_minmax(0,1fr)] ${tvPatioShellBg} rounded-none border-0 shadow-none`}
+        style={{ colorScheme: 'light' }}
       >
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
+          className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/5 text-zinc-600 hover:bg-black/10 transition-colors"
           aria-label="Fechar"
         >
           <X className="w-5 h-5" />
@@ -515,10 +516,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               <img src="/icons/tv-patio-ios.png" alt="TV do Pátio" className="h-full w-full object-cover" />
             </IosAccentIconSquircle>
             <div>
-              <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-900 leading-tight">
+              <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 leading-tight">
                 TV do pátio
               </h2>
-              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5">
+              <p className="text-[13px] text-zinc-500 mt-0.5 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-brand-yellow" />
                 Conteúdo exibido entre as páginas de veículos
               </p>
@@ -528,22 +529,22 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
         {/* Preview — em portrait: logo abaixo do cabeçalho; em lg: coluna direita */}
         {dataReady && (
-          <div className="flex max-lg:landscape:order-1 shrink-0 flex-col border-b border-zinc-200/60 bg-transparent px-5 py-8 dark:border-zinc-200/40 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:border-b-0 lg:border-l lg:border-t-0 lg:border-zinc-200/50 lg:py-10">
+          <div className="flex max-lg:landscape:order-1 shrink-0 flex-col border-b border-zinc-200/60 bg-transparent px-5 py-8 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:border-b-0 lg:border-l lg:border-t-0 lg:border-zinc-200/50 lg:py-10">
             <div className="portrait:order-2 lg:order-1 max-lg:portrait:mt-9">
               <div className="mb-4 flex items-center gap-2 max-lg:portrait:mb-5">
                 <Eye className="h-4 w-4 text-[#007AFF]" />
-                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
                   Preview ao vivo
                 </span>
               </div>
 
-              <div className="mb-5 flex rounded-2xl bg-zinc-200/60 p-1 dark:bg-white/[0.06]">
+              <div className="mb-5 flex rounded-2xl bg-zinc-200/60 p-1">
                 <button
                   type="button"
                   onClick={() => setPreviewTab('draft')}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-semibold transition-all ${
                     previewTab === 'draft'
-                      ? 'bg-white text-zinc-900 shadow-md dark:bg-zinc-800 dark:text-white'
+                      ? 'bg-white text-zinc-900 shadow-md'
                       : 'text-zinc-500'
                   }`}
                 >
@@ -556,7 +557,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                   disabled={slides.length === 0}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-semibold transition-all disabled:opacity-35 ${
                     previewTab === 'library'
-                      ? 'bg-white text-zinc-900 shadow-md dark:bg-zinc-800 dark:text-white'
+                      ? 'bg-white text-zinc-900 shadow-md'
                       : 'text-zinc-500'
                   }`}
                 >
@@ -591,7 +592,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               />
             </div>
 
-            <p className="portrait:order-3 mt-5 px-1 text-center text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 lg:order-3">
+            <p className="portrait:order-3 mt-5 px-1 text-center text-[11px] leading-relaxed text-zinc-500 lg:order-3">
               O preview simula o painel da TV. Imagens e vídeos enviados ficam no Storage da oficina.
             </p>
           </div>
@@ -603,7 +604,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
             {!dataReady &&
               (error ? (
                 <div className={`${iosCard} p-6 sm:p-8 space-y-4 text-center`}>
-                  <p className="text-[14px] text-red-600 dark:text-red-400">{error}</p>
+                  <p className="text-[14px] text-red-600">{error}</p>
                   <button
                     type="button"
                     onClick={() => void load()}
@@ -615,7 +616,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               ) : (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
                   <Loader2 className="w-10 h-10 animate-spin text-cyan-500" />
-                  <p className="text-[14px] text-zinc-500 dark:text-zinc-400">Carregando configurações da TV…</p>
+                  <p className="text-[14px] text-zinc-500">Carregando configurações da TV…</p>
                 </div>
               ))}
             {dataReady && (
@@ -623,10 +624,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 {/* Meta semanal */}
                 <section className={`${iosCard} p-5 sm:p-6`}>
                   <p className={iosLabel}>Meta semanal · barra superior na TV</p>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 p-3 rounded-2xl bg-zinc-100/80 dark:bg-white/[0.04]">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 p-3 rounded-2xl bg-zinc-100/80">
                     <div>
-                      <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Exibir barra na TV</p>
-                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">Liga/desliga a faixa de meta (apenas nas páginas de veículos).</p>
+                      <p className="text-[13px] font-semibold text-zinc-900">Exibir barra na TV</p>
+                      <p className="text-[11px] text-zinc-500 mt-0.5">Liga/desliga a faixa de meta (apenas nas páginas de veículos).</p>
                     </div>
                     <button
                       type="button"
@@ -634,7 +635,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       aria-checked={showWeeklyBar}
                       onClick={() => setShowWeeklyBar((v) => !v)}
                       className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 ${
-                        showWeeklyBar ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-600'
+                        showWeeklyBar ? 'bg-[#34C759]' : 'bg-zinc-300'
                       }`}
                     >
                       <span
@@ -646,7 +647,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-1.5 block">Rótulo</label>
+                      <label className="text-[12px] text-zinc-500 mb-1.5 block">Rótulo</label>
                       <input
                         value={weeklyLabel}
                         onChange={(e) => setWeeklyLabel(e.target.value)}
@@ -654,7 +655,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       />
                     </div>
                     <div>
-                      <label className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-1.5 block">Atual (R$)</label>
+                      <label className="text-[12px] text-zinc-500 mb-1.5 block">Atual (R$)</label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -669,7 +670,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       />
                     </div>
                     <div>
-                      <label className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-1.5 block">Meta (R$)</label>
+                      <label className="text-[12px] text-zinc-500 mb-1.5 block">Meta (R$)</label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -697,8 +698,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 {/* Novo slide */}
                 <section className={`${iosCard} p-5 sm:p-6`}>
                   <p className={iosLabel}>Novo slide</p>
-                  <div className="mb-4 rounded-2xl border border-zinc-200/80 bg-zinc-50/90 px-3 py-2.5 text-[12px] text-zinc-600 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-300">
-                    <span className="font-semibold text-zinc-800 dark:text-zinc-100">Fluxo rápido:</span> escolha o tipo, preencha apenas o que aparecer e toque em <span className="font-semibold">Adicionar à rotação</span>.
+                  <div className="mb-4 rounded-2xl border border-zinc-200/80 bg-zinc-50/90 px-3 py-2.5 text-[12px] text-zinc-600">
+                    <span className="font-semibold text-zinc-800">Fluxo rápido:</span> escolha o tipo, preencha apenas o que aparecer e toque em <span className="font-semibold">Adicionar à rotação</span>.
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
                     {SLIDE_TYPES.map((t) => (
@@ -712,7 +713,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         className={`rounded-2xl px-2 py-3 text-center transition-all ${
                           newType === t.value
                             ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30'
-                            : 'bg-zinc-100/90 dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-white/10'
+                            : 'bg-zinc-100/90 text-zinc-700 hover:bg-zinc-200/80'
                         }`}
                       >
                         <span className="block text-[12px] font-semibold leading-tight">{t.label}</span>
@@ -726,8 +727,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       </button>
                     ))}
                   </div>
-                  <div className="mb-4 rounded-2xl bg-zinc-100/80 px-3 py-2 text-[12px] text-zinc-600 dark:bg-white/[0.04] dark:text-zinc-300">
-                    <span className="font-semibold text-zinc-800 dark:text-zinc-100">Tipo selecionado:</span>{' '}
+                  <div className="mb-4 rounded-2xl bg-zinc-100/80 px-3 py-2 text-[12px] text-zinc-600">
+                    <span className="font-semibold text-zinc-800">Tipo selecionado:</span>{' '}
                     {currentTypeMeta?.label} · {currentTypeMeta?.hint}
                   </div>
 
@@ -757,7 +758,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
                           disabled={uploading}
-                          className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-zinc-300/90 dark:border-white/15 bg-zinc-50/80 dark:bg-white/[0.03] py-8 text-[15px] font-medium text-zinc-600 dark:text-zinc-300 hover:border-[#007AFF]/50 hover:bg-blue-50/50 dark:hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+                          className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-zinc-300/90 bg-zinc-50/80 py-8 text-[15px] font-medium text-zinc-600 hover:border-[#007AFF]/50 hover:bg-blue-50/50 transition-colors disabled:opacity-50"
                         >
                           {uploading ? (
                             <Loader2 className="w-5 h-5 animate-spin" />
@@ -775,10 +776,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             placeholder="https://..."
                           />
                         </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-white/[0.04]">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
                           <div>
-                            <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Mídia em tela cheia</p>
-                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            <p className="text-[13px] font-semibold text-zinc-900">Mídia em tela cheia</p>
+                            <p className="text-[11px] text-zinc-500 mt-0.5">
                               Preenche toda a área da TV (sem bordas). Ideal para imagens de fundo.
                             </p>
                           </div>
@@ -788,7 +789,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             aria-checked={newMediaFullscreen}
                             onClick={() => setNewMediaFullscreen((v) => !v)}
                             className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 ${
-                              newMediaFullscreen ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-600'
+                              newMediaFullscreen ? 'bg-[#34C759]' : 'bg-zinc-300'
                             }`}
                           >
                             <span
@@ -800,8 +801,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         </div>
                         <div>
                           <p className={iosLabel}>Encaixe na TV</p>
-                          <p className="mb-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-                            Evita imagem esticada: use <span className="font-semibold text-zinc-700 dark:text-zinc-200">Inteira</span> para ver tudo com
+                          <p className="mb-2 text-[11px] text-zinc-500">
+                            Evita imagem esticada: use <span className="font-semibold text-zinc-700">Inteira</span> para ver tudo com
                             proporção correta.
                           </p>
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -813,7 +814,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                 className={`rounded-2xl px-2 py-3 text-center transition-all ${
                                   newMediaObjectFit === o.value
                                     ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30'
-                                    : 'bg-zinc-100/90 text-zinc-700 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/10'
+                                    : 'bg-zinc-100/90 text-zinc-700'
                                 }`}
                               >
                                 <span className="block text-[12px] font-semibold leading-tight">{o.label}</span>
@@ -827,7 +828,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               </button>
                             ))}
                           </div>
-                          <p className="mt-2 text-[10px] text-zinc-500 dark:text-zinc-400">
+                          <p className="mt-2 text-[10px] text-zinc-500">
                             Vídeo do YouTube: o player usa a proporção padrão do serviço.
                           </p>
                         </div>
@@ -851,10 +852,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       </div>
                     )}
 
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-white/[0.04]">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
                       <div>
-                        <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Som ao exibir este slide</p>
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                        <p className="text-[13px] font-semibold text-zinc-900">Som ao exibir este slide</p>
+                        <p className="text-[11px] text-zinc-500 mt-0.5">
                           Bip ao entrar neste slide na TV. Na TV o som do canto também precisa estar ligado.
                         </p>
                       </div>
@@ -864,7 +865,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         aria-checked={newPlaySound}
                         onClick={() => setNewPlaySound((v) => !v)}
                         className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 ${
-                          newPlaySound ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-600'
+                          newPlaySound ? 'bg-[#34C759]' : 'bg-zinc-300'
                         }`}
                       >
                         <span
@@ -875,10 +876,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       </button>
                     </div>
                     {newType === 'goal' && (
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-white/[0.04]">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
                         <div>
-                          <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Este slide meta: valores em R$</p>
-                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          <p className="text-[13px] font-semibold text-zinc-900">Este slide meta: valores em R$</p>
+                          <p className="text-[11px] text-zinc-500 mt-0.5">
                             Ligado mostra atual e meta em reais; desligado mostra só a porcentagem na TV.
                           </p>
                         </div>
@@ -888,7 +889,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                           aria-checked={newGoalShowValues}
                           onClick={() => setNewGoalShowValues((v) => !v)}
                           className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 ${
-                            newGoalShowValues ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-600'
+                            newGoalShowValues ? 'bg-[#34C759]' : 'bg-zinc-300'
                           }`}
                         >
                           <span
@@ -916,7 +917,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         type="button"
                         onClick={() => void addSlide()}
                         disabled={loading}
-                        className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-zinc-900 dark:bg-white py-3.5 px-6 text-[15px] font-semibold text-white dark:text-zinc-900 shadow-lg active:scale-[0.99] transition-transform disabled:opacity-50"
+                        className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-zinc-900 py-3.5 px-6 text-[15px] font-semibold text-white shadow-lg active:scale-[0.99] transition-transform disabled:opacity-50"
                       >
                         <Plus className="w-5 h-5" />
                         Adicionar à rotação
@@ -929,9 +930,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 {/* Lista */}
                 <section className={`${iosCard} p-5 sm:p-6`}>
                   <p className={iosLabel}>Slides na fila ({slides.length})</p>
-                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
-                    Toque em <span className="font-semibold text-zinc-600 dark:text-zinc-300">Editar</span> para abrir os campos, use ↑ ↓ para ordenar e{' '}
-                    <span className="font-semibold text-zinc-600 dark:text-zinc-300">Exibir imediatamente</span> para fixar 1 slide na TV.
+                  <p className="text-[12px] text-zinc-500 mb-3">
+                    Toque em <span className="font-semibold text-zinc-600">Editar</span> para abrir os campos, use ↑ ↓ para ordenar e{' '}
+                    <span className="font-semibold text-zinc-600">Exibir imediatamente</span> para fixar 1 slide na TV.
                   </p>
                   <ul className="space-y-3">
                     {slides.map((s, idx) => (
@@ -939,10 +940,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         <div
                           className={`flex w-full flex-wrap items-stretch gap-2 rounded-2xl border px-3 py-2 transition-colors sm:flex-nowrap ${
                             s.pinImmediate
-                              ? 'border-amber-400/50 bg-amber-50/50 dark:bg-amber-500/10 ring-1 ring-amber-400/35'
+                              ? 'border-amber-400/50 bg-amber-50/50 ring-1 ring-amber-400/35'
                               : libraryPreviewId === s.id && previewTab === 'library'
                                 ? 'border-transparent bg-[#007AFF]/12 ring-1 ring-[#007AFF]/30'
-                                : 'border-transparent bg-zinc-50/90 dark:bg-white/[0.04]'
+                                : 'border-transparent bg-zinc-50/90'
                           }`}
                         >
                           <button
@@ -954,7 +955,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             className="min-w-0 flex-1 text-left py-1"
                           >
                             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{s.slideType}</span>
-                            <p className="font-medium text-zinc-900 dark:text-white truncate text-[15px]">{s.title || '(sem título)'}</p>
+                            <p className="font-medium text-zinc-900 truncate text-[15px]">{s.title || '(sem título)'}</p>
                             <p className="text-[11px] text-zinc-500">
                               {s.durationSeconds}s · ordem {s.sortOrder ?? idx} · {s.isActive === false ? 'pausado' : 'ativo'}
                             </p>
@@ -984,7 +985,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                 disabled={loading || s.isActive === false}
                                 onClick={() => void togglePinImmediate(s)}
                                 className={`relative h-7 w-[44px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40 disabled:opacity-35 ${
-                                  s.pinImmediate ? 'bg-amber-500' : 'bg-zinc-300 dark:bg-zinc-600'
+                                  s.pinImmediate ? 'bg-amber-500' : 'bg-zinc-300'
                                 }`}
                               >
                                 <span
@@ -1002,7 +1003,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               title="Subir"
                               disabled={idx === 0 || loading}
                               onClick={() => void moveSlide(idx, -1)}
-                              className="rounded-xl bg-zinc-200/80 dark:bg-white/10 p-2 text-zinc-700 dark:text-zinc-200 disabled:opacity-35"
+                              className="rounded-xl bg-zinc-200/80 p-2 text-zinc-700 disabled:opacity-35"
                             >
                               <ChevronUp className="w-4 h-4" />
                             </button>
@@ -1011,7 +1012,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               title="Descer"
                               disabled={idx >= slides.length - 1 || loading}
                               onClick={() => void moveSlide(idx, 1)}
-                              className="rounded-xl bg-zinc-200/80 dark:bg-white/10 p-2 text-zinc-700 dark:text-zinc-200 disabled:opacity-35"
+                              className="rounded-xl bg-zinc-200/80 p-2 text-zinc-700 disabled:opacity-35"
                             >
                               <ChevronDown className="w-4 h-4" />
                             </button>
@@ -1019,8 +1020,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               type="button"
                               title="Editar"
                               onClick={() => startEdit(s)}
-                              className={`rounded-xl px-3 py-2 text-[11px] font-semibold text-zinc-800 dark:text-zinc-200 ${
-                                editingSlideId === s.id ? 'bg-[#007AFF] text-white' : 'bg-zinc-200/80 dark:bg-white/10'
+                              className={`rounded-xl px-3 py-2 text-[11px] font-semibold text-zinc-800 ${
+                                editingSlideId === s.id ? 'bg-[#007AFF] text-white' : 'bg-zinc-200/80'
                               }`}
                             >
                               <span className="inline-flex items-center gap-1">
@@ -1032,7 +1033,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               type="button"
                               onClick={() => void toggleActive(s)}
                               disabled={loading}
-                              className="rounded-xl bg-zinc-200/80 dark:bg-white/10 px-3 py-2 text-[11px] font-semibold text-zinc-800 dark:text-zinc-200"
+                              className="rounded-xl bg-zinc-200/80 px-3 py-2 text-[11px] font-semibold text-zinc-800"
                             >
                               {s.isActive === false ? 'Ativar' : 'Pausar'}
                             </button>
@@ -1068,7 +1069,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                   className={`rounded-2xl px-2 py-2.5 text-center transition-all ${
                                     editForm.slideType === t.value
                                       ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30'
-                                      : 'bg-zinc-100/90 dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-white/10'
+                                      : 'bg-zinc-100/90 text-zinc-700 hover:bg-zinc-200/80'
                                   }`}
                                 >
                                   <span className="block text-[11px] font-semibold leading-tight">{t.label}</span>
@@ -1107,7 +1108,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                   type="button"
                                   onClick={() => editFileInputRef.current?.click()}
                                   disabled={uploading}
-                                  className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-zinc-300/90 dark:border-white/15 bg-zinc-50/80 dark:bg-white/[0.03] py-6 text-[14px] font-medium text-zinc-600 dark:text-zinc-300 hover:border-[#007AFF]/50 disabled:opacity-50"
+                                  className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-zinc-300/90 bg-zinc-50/80 py-6 text-[14px] font-medium text-zinc-600 hover:border-[#007AFF]/50 disabled:opacity-50"
                                 >
                                   {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImagePlus className="w-5 h-5 text-[#007AFF]" />}
                                   {uploading ? 'Enviando…' : 'Substituir arquivo (imagem ou vídeo)'}
@@ -1121,10 +1122,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                     placeholder="https://..."
                                   />
                                 </div>
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-white/[0.04]">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
                                   <div>
-                                    <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Mídia em tela cheia</p>
-                                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                    <p className="text-[13px] font-semibold text-zinc-900">Mídia em tela cheia</p>
+                                    <p className="text-[11px] text-zinc-500 mt-0.5">
                                       Ligado: imagem/vídeo ocupa toda a área da TV.
                                     </p>
                                   </div>
@@ -1136,7 +1137,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                       setEditForm((f) => (f ? { ...f, mediaFullscreen: !f.mediaFullscreen } : f))
                                     }
                                     className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 ${
-                                      editForm.mediaFullscreen ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-600'
+                                      editForm.mediaFullscreen ? 'bg-[#34C759]' : 'bg-zinc-300'
                                     }`}
                                   >
                                     <span
@@ -1148,8 +1149,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                 </div>
                                 <div>
                                   <p className={iosLabel}>Encaixe na TV</p>
-                                  <p className="mb-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-                                    <span className="font-semibold text-zinc-700 dark:text-zinc-200">Inteira</span> mostra a imagem inteira sem cortar nem
+                                  <p className="mb-2 text-[11px] text-zinc-500">
+                                    <span className="font-semibold text-zinc-700">Inteira</span> mostra a imagem inteira sem cortar nem
                                     esticar (faixas pretas se precisar).
                                   </p>
                                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -1163,7 +1164,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                         className={`rounded-2xl px-2 py-3 text-center transition-all ${
                                           editForm.mediaObjectFit === o.value
                                             ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30'
-                                            : 'bg-zinc-100/90 text-zinc-700 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/10'
+                                            : 'bg-zinc-100/90 text-zinc-700'
                                         }`}
                                       >
                                         <span className="block text-[12px] font-semibold leading-tight">{o.label}</span>
@@ -1213,10 +1214,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                 </p>
                               </div>
                             )}
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-white/[0.04]">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
                               <div>
-                                <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Som ao exibir este slide</p>
-                                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                <p className="text-[13px] font-semibold text-zinc-900">Som ao exibir este slide</p>
+                                <p className="text-[11px] text-zinc-500 mt-0.5">
                                   Bip ao entrar neste slide na TV (som do canto ligado).
                                 </p>
                               </div>
@@ -1228,7 +1229,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                   setEditForm((f) => (f ? { ...f, playSound: !f.playSound } : f))
                                 }
                                 className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 ${
-                                  editForm.playSound ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-600'
+                                  editForm.playSound ? 'bg-[#34C759]' : 'bg-zinc-300'
                                 }`}
                               >
                                 <span
@@ -1239,10 +1240,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               </button>
                             </div>
                             {editForm.slideType === 'goal' && (
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-white/[0.04]">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
                                 <div>
-                                  <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Este slide meta: valores em R$</p>
-                                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                  <p className="text-[13px] font-semibold text-zinc-900">Este slide meta: valores em R$</p>
+                                  <p className="text-[11px] text-zinc-500 mt-0.5">
                                     Ligado mostra atual e meta em reais; desligado mostra só a porcentagem.
                                   </p>
                                 </div>
@@ -1254,7 +1255,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                     setEditForm((f) => (f ? { ...f, goalShowValues: !f.goalShowValues } : f))
                                   }
                                   className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 ${
-                                    editForm.goalShowValues ? 'bg-[#34C759]' : 'bg-zinc-300 dark:bg-zinc-600'
+                                    editForm.goalShowValues ? 'bg-[#34C759]' : 'bg-zinc-300'
                                   }`}
                                 >
                                   <span
@@ -1307,7 +1308,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                   type="button"
                                   onClick={cancelEdit}
                                   disabled={loading}
-                                  className="rounded-2xl border border-zinc-300/90 dark:border-white/15 px-5 py-3 text-[14px] font-semibold text-zinc-700 dark:text-zinc-200"
+                                  className="rounded-2xl border border-zinc-300/90 px-5 py-3 text-[14px] font-semibold text-zinc-700"
                                 >
                                   Cancelar
                                 </button>
@@ -1319,11 +1320,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                     ))}
                   </ul>
                   {slides.length === 0 && (
-                    <p className="text-[13px] text-zinc-500 dark:text-zinc-400 py-4 text-center">Nenhum slide — a TV mostra só os veículos.</p>
+                    <p className="text-[13px] text-zinc-500 py-4 text-center">Nenhum slide — a TV mostra só os veículos.</p>
                   )}
                 </section>
 
-                {error && <p className="text-[13px] text-red-600 dark:text-red-400 px-1">{error}</p>}
+                {error && <p className="text-[13px] text-red-600 px-1">{error}</p>}
               </>
             )}
           </div>
