@@ -57,6 +57,8 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  /** OS com alteração nova não reconhecida — destaque laranja até expandir o card do veículo. */
+  const [pendingVehicleAttention, setPendingVehicleAttention] = useState<Set<string>>(() => new Set());
   const [pulseByBudgetId, setPulseByBudgetId] = useState<Record<string, "created" | "edited">>({});
   const prevSigByBudgetRef = useRef<Map<string, string>>(new Map());
   const isFirstFetchRef = useRef(true);
@@ -91,6 +93,13 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
         baselineIngestRef.current(data);
         if (Object.keys(pulses).length > 0) {
           setPulseByBudgetId((p) => ({ ...p, ...pulses }));
+          const affectedOrders = new Set<string>();
+          for (const row of data) {
+            if (pulses[row.budgetId]) affectedOrders.add(row.serviceOrderId);
+          }
+          if (affectedOrders.size > 0) {
+            setPendingVehicleAttention((prev) => new Set([...prev, ...affectedOrders]));
+          }
         }
       }
     } catch (e: unknown) {
@@ -133,6 +142,11 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   }, [grouped]);
 
   const toggleExpand = (orderId: string) => {
+    setPendingVehicleAttention((prev) => {
+      const next = new Set(prev);
+      next.delete(orderId);
+      return next;
+    });
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(orderId)) next.delete(orderId);
@@ -201,16 +215,37 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
               if (!head) return null;
               const stage = getStageConfig(head.orderStatus);
               const open = expanded.has(orderId);
+              const vehicleNeedsAttention = pendingVehicleAttention.has(orderId);
               return (
-                <section key={orderId} className={`${iosPageGlassOrcamentosVehicleCard} overflow-hidden`}>
+                <section
+                  key={orderId}
+                  className={`${iosPageGlassOrcamentosVehicleCard} overflow-hidden transition-[box-shadow,background-color] duration-300 ${
+                    vehicleNeedsAttention
+                      ? "bg-amber-50/75 shadow-[0_12px_36px_-10px_rgba(217,119,6,0.28)] ring-2 ring-amber-400/55 dark:bg-amber-950/[0.38] dark:shadow-[0_12px_40px_-12px_rgba(251,191,36,0.18)] dark:ring-amber-400/40"
+                      : ""
+                  }`}
+                >
                   <button
                     type="button"
                     onClick={() => toggleExpand(orderId)}
                     aria-expanded={open}
-                    className="flex w-full items-start gap-3 border-b border-zinc-200/70 px-4 py-4 text-left transition-colors hover:bg-zinc-50/80 dark:border-white/[0.06] dark:hover:bg-white/[0.04] sm:px-5"
+                    className={`flex w-full items-start gap-3 border-b px-4 py-4 text-left transition-colors sm:px-5 ${
+                      vehicleNeedsAttention
+                        ? "border-amber-200/80 hover:bg-amber-50/90 dark:border-amber-500/25 dark:hover:bg-amber-950/40"
+                        : "border-zinc-200/70 hover:bg-zinc-50/80 dark:border-white/[0.06] dark:hover:bg-white/[0.04]"
+                    }`}
                   >
-                    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/[0.08]">
-                      <FileText className="h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2} />
+                    <div
+                      className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+                        vehicleNeedsAttention
+                          ? "bg-amber-100/90 dark:bg-amber-500/15"
+                          : "bg-zinc-100 dark:bg-white/[0.08]"
+                      }`}
+                    >
+                      <FileText
+                        className={vehicleNeedsAttention ? "h-5 w-5 text-amber-700 dark:text-amber-300" : "h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]"}
+                        strokeWidth={2}
+                      />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
