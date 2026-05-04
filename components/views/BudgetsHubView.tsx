@@ -155,11 +155,17 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     return () => window.clearInterval(id);
   }, [load]);
 
+  /** Ao focar a aba Orçamentos (incluindo voltar com KeepAlive), zera a bolinha da Home — não só na 1ª montagem. */
   useEffect(() => {
-    onClearHubBadge();
+    if (isHubTabActive) {
+      onClearHubBadge();
+    }
+  }, [isHubTabActive, onClearHubBadge]);
+
+  useEffect(() => {
     void load();
     // montagem inicial apenas
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- baseline e badge vêm do pai na abertura
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load estável
   }, []);
 
   useEffect(() => {
