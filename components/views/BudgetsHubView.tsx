@@ -275,9 +275,9 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
               return (
                 <section
                   key={orderId}
-                  className={`${iosPageGlassOrcamentosVehicleCard} overflow-hidden transition-[box-shadow,background-color] duration-300 ${
+                  className={`${iosPageGlassOrcamentosVehicleCard} overflow-hidden transition-[box-shadow,background-color,border-color] duration-300 ${
                     vehicleNeedsAttention
-                      ? "border-l-[6px] !border-l-amber-500 !bg-amber-50/85 !shadow-[0_12px_36px_-10px_rgba(217,119,6,0.32)] ring-2 ring-amber-400/60 dark:!border-l-amber-400 dark:!bg-amber-950/[0.42] dark:!shadow-[0_12px_40px_-12px_rgba(251,191,36,0.22)] dark:ring-amber-400/45"
+                      ? "!border-2 !border-amber-500/85 !bg-amber-50/85 !shadow-[0_12px_36px_-10px_rgba(217,119,6,0.32)] dark:!border-amber-400/75 dark:!bg-amber-950/[0.42] dark:!shadow-[0_12px_40px_-12px_rgba(251,191,36,0.22)]"
                       : ""
                   }`}
                 >
