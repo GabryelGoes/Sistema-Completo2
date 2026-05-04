@@ -1426,6 +1426,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const id = window.setInterval(() => {
       // Enquanto edita "Dados da ficha", evita sobrescrever campos com refresh periódico.
       if (isDadosFichaExpanded) return;
+      // Mesmo comportamento para edição da queixa/descrição do cliente.
+      if (isEditingDescRef.current) return;
       void syncOpenVehicleModalFromServer();
     }, 3000);
     return () => clearInterval(id);
