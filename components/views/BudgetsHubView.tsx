@@ -140,16 +140,6 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     });
   };
 
-  useEffect(() => {
-    if (orderIdsSorted.length === 0) return;
-    setExpanded((prev) => {
-      if (prev.size > 0) return prev;
-      const next = new Set<string>();
-      orderIdsSorted.slice(0, 4).forEach((id) => next.add(id));
-      return next;
-    });
-  }, [orderIdsSorted]);
-
   const plateDisplay = (plate: string | null) => {
     const p = (plate ?? "").trim();
     if (!p) return "—";
@@ -215,6 +205,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
                   <button
                     type="button"
                     onClick={() => toggleExpand(orderId)}
+                    aria-expanded={open}
                     className="flex w-full items-start gap-3 border-b border-zinc-200/70 px-4 py-4 text-left transition-colors hover:bg-zinc-50/80 dark:border-white/[0.06] dark:hover:bg-white/[0.04] sm:px-5"
                   >
                     <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/[0.08]">
