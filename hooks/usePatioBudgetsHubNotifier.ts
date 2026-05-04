@@ -76,9 +76,9 @@ export function usePatioBudgetsHubNotifier(opts: {
     snapshotRef.current = stableAggregateKey(items);
   }, []);
 
+  /** Só zera o contador — mantém `snapshotRef` para não “perder” o baseline num poll antes do load do hub (evita não notificar novos orçamentos). */
   const clearBadge = useCallback(() => {
     setBadgeCount(0);
-    snapshotRef.current = null;
   }, []);
 
   return { badgeCount, clearBadge, ingestBaselineFromItems, refreshAggregateNow: pollFn };
