@@ -10,6 +10,7 @@ import { ReceptionView } from './components/views/ReceptionView';
 import { PatioView } from './components/views/PatioView';
 import { AgendaView } from './components/views/AgendaView';
 import { HomeView, type HomeAppId } from './components/views/HomeView';
+import { BudgetHubViewerModal } from './components/BudgetHubViewerModal';
 import { BudgetsHubView } from './components/views/BudgetsHubView';
 import { usePatioBudgetsHubNotifier } from './hooks/usePatioBudgetsHubNotifier';
 import { LoginView, getStoredAuth, setStoredAuth, clearStoredAuth } from './components/views/LoginView';
@@ -55,6 +56,8 @@ export default function App() {
   const [assistantPatioOpenBudgetId, setAssistantPatioOpenBudgetId] = useState<string | null>(null);
   /** Incrementa para abrir o modal de histórico de arquivados no Pátio/Laboratório (Zaya). */
   const [assistantPatioOpenHistoryTrigger, setAssistantPatioOpenHistoryTrigger] = useState(0);
+  /** Visualizar orçamento a partir do hub (permanece na aba Orçamentos). */
+  const [hubBudgetViewer, setHubBudgetViewer] = useState<{ serviceOrderId: string; budgetId: string } | null>(null);
 
   const handleNewCommentNotification = (n: Notification) => {
     playNotificationSound();
@@ -121,19 +124,9 @@ export default function App() {
     activeAppTab,
   });
 
-  const handleOpenBudgetFromHub = useCallback(
-    (serviceOrderId: string, budgetId: string) => {
-      if (isLimitedSystemUser) {
-        if (!userAllowedTabs.includes('patio')) return;
-        setUserTab('patio');
-      } else {
-        setCurrentTab('patio');
-      }
-      setAssistantPatioOpenOrderId(serviceOrderId);
-      setAssistantPatioOpenBudgetId(budgetId);
-    },
-    [isLimitedSystemUser, userAllowedTabs]
-  );
+  const handleOpenBudgetFromHub = useCallback((serviceOrderId: string, budgetId: string) => {
+    setHubBudgetViewer({ serviceOrderId, budgetId });
+  }, []);
 
   const navigateToHomeApp = useCallback(() => {
     if (isLimitedSystemUser) {
@@ -377,6 +370,7 @@ export default function App() {
   useBrowserBackLayer(!!commentPopUpNotification, () => setCommentPopUpNotification(null));
   useBrowserBackLayer(isSettingsOpen, () => setIsSettingsOpen(false));
   useBrowserBackLayer(isUserChangePasswordsOpen, () => setIsUserChangePasswordsOpen(false));
+  useBrowserBackLayer(!!hubBudgetViewer, () => setHubBudgetViewer(null));
 
   // Tela de login (antes de entrar no app)
   if (!authSession) {
@@ -602,6 +596,14 @@ export default function App() {
           showPatioAccess={false}
         />
         <ChangePasswordsModal isOpen={isUserChangePasswordsOpen} onClose={() => setIsUserChangePasswordsOpen(false)} />
+        {hubBudgetViewer ? (
+          <BudgetHubViewerModal
+            key={`${hubBudgetViewer.serviceOrderId}-${hubBudgetViewer.budgetId}`}
+            serviceOrderId={hubBudgetViewer.serviceOrderId}
+            budgetId={hubBudgetViewer.budgetId}
+            onClose={() => setHubBudgetViewer(null)}
+          />
+        ) : null}
         <AssistantChat
           theme={theme}
           allowedTabs={userAllowedTabs}
@@ -815,6 +817,14 @@ export default function App() {
         orientation={orientation}
         showPatioAccess={authSession?.role === 'admin' || hasFullAccess}
       />
+      {hubBudgetViewer ? (
+        <BudgetHubViewerModal
+          key={`${hubBudgetViewer.serviceOrderId}-${hubBudgetViewer.budgetId}`}
+          serviceOrderId={hubBudgetViewer.serviceOrderId}
+          budgetId={hubBudgetViewer.budgetId}
+          onClose={() => setHubBudgetViewer(null)}
+        />
+      ) : null}
 
       {/* Central de notificações: admin vê notificações do admin; técnicos veem as deles (target_slug = userId). Só ativa modo técnico quando userId existe para o pop-up de comentários aparecer. */}
       <div className="sr-only" aria-hidden="true">
