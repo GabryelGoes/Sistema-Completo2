@@ -7,6 +7,8 @@ import {
 } from "../../services/apiService";
 import { getStageConfig, getStageStyle } from "../../constants/serviceOrderStages";
 import { iosPageGlass, iosPageGlassOrcamentosVehicleCard, iosLabel } from "../ui/iosModalStyles";
+import { usePatioBudgetsHubLiveSync } from "../../hooks/usePatioBudgetsHubLiveSync";
+
 const BUDGETS_CHANGED = "rda-patio-budgets-changed";
 
 function groupByOrderId(items: PatioVehicleBudgetAggregateItem[]): Map<string, PatioVehicleBudgetAggregateItem[]> {
@@ -39,6 +41,8 @@ function formatWhen(iso: string): string {
 
 export interface BudgetsHubViewProps {
   blurPlates?: boolean;
+  /** Quando a aba Orçamentos está visível, refreshes em tempo real atualizam também o baseline do badge (evita contagem duplicada). */
+  isHubTabActive?: boolean;
   onOpenBudgetInPatio: (serviceOrderId: string, budgetId: string) => void;
   /** Alinha o detector de mudanças (badge/som) com o que o usuário já viu aqui. */
   onIngestNotifierBaseline: (items: Pick<PatioVehicleBudgetAggregateItem, "budgetId" | "contentSignature">[]) => void;
@@ -48,6 +52,7 @@ export interface BudgetsHubViewProps {
 
 export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   blurPlates = false,
+  isHubTabActive = true,
   onOpenBudgetInPatio,
   onIngestNotifierBaseline,
   onClearHubBadge,
@@ -64,8 +69,10 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const isFirstFetchRef = useRef(true);
   const baselineIngestRef = useRef(onIngestNotifierBaseline);
   baselineIngestRef.current = onIngestNotifierBaseline;
+  const isHubTabActiveRef = useRef(isHubTabActive);
+  isHubTabActiveRef.current = isHubTabActive;
 
-  const load = useCallback(async (opts?: { silent?: boolean }) => {
+  const load = useCallback(async (opts?: { silent?: boolean; skipNotifierIngest?: boolean }) => {
     if (opts?.silent) setRefreshing(true);
     else setLoading(true);
     setError(null);
@@ -90,7 +97,9 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
         const nextMap = new Map<string, string>();
         data.forEach((d) => nextMap.set(d.budgetId, d.contentSignature));
         prevSigByBudgetRef.current = nextMap;
-        baselineIngestRef.current(data);
+        if (!opts?.skipNotifierIngest) {
+          baselineIngestRef.current(data);
+        }
         if (Object.keys(pulses).length > 0) {
           setPulseByBudgetId((p) => ({ ...p, ...pulses }));
           const affectedOrders = new Set<string>();
@@ -110,6 +119,15 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     }
   }, []);
 
+  const syncFromRealtime = useCallback(() => {
+    void load({
+      silent: true,
+      skipNotifierIngest: !isHubTabActiveRef.current,
+    });
+  }, [load]);
+
+  usePatioBudgetsHubLiveSync(syncFromRealtime, { enabled: true });
+
   useEffect(() => {
     onClearHubBadge();
     void load();
@@ -118,7 +136,11 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   }, []);
 
   useEffect(() => {
-    const onEvt = () => void load({ silent: true });
+    const onEvt = () =>
+      void load({
+        silent: true,
+        skipNotifierIngest: !isHubTabActiveRef.current,
+      });
     window.addEventListener(BUDGETS_CHANGED, onEvt);
     return () => window.removeEventListener(BUDGETS_CHANGED, onEvt);
   }, [load]);

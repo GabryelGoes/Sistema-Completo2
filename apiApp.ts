@@ -2004,6 +2004,92 @@ export function createApiApp() {
     }
   });
 
+  /** SSE: alterações em orçamentos/OS da oficina → clients atualizam o hub Orçamentos em tempo real. */
+  app.get("/api/patio-budgets-hub/live", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const wid = WORKSHOP_ID;
+
+      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      const flush = (res as { flushHeaders?: () => void }).flushHeaders;
+      if (typeof flush === "function") flush();
+
+      const send = (reason: string) => {
+        try {
+          res.write(`data: ${JSON.stringify({ source: reason, t: Date.now() })}\n\n`);
+        } catch {
+          /* resposta já fechada */
+        }
+      };
+
+      const channelName = `patio-budgets-hub-${wid}-${Date.now()}`;
+      let heartbeat: ReturnType<typeof setInterval> | null = null;
+
+      const channel = supabaseAdmin
+        .channel(channelName)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "budgets", filter: `workshop_id=eq.${wid}` },
+          () => send("budgets")
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "service_orders", filter: `workshop_id=eq.${wid}` },
+          () => send("service_orders")
+        )
+        .subscribe((status, err) => {
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            console.error("[SSE] Realtime falhou para patio-budgets-hub:", err);
+            if (heartbeat) {
+              clearInterval(heartbeat);
+              heartbeat = null;
+            }
+            try {
+              void supabaseAdmin.removeChannel(channel);
+            } catch {
+              /* ignore */
+            }
+            if (!res.writableEnded) res.end();
+          }
+        });
+
+      heartbeat = setInterval(() => {
+        try {
+          res.write(`: ping\n\n`);
+        } catch {
+          if (heartbeat) clearInterval(heartbeat);
+          heartbeat = null;
+        }
+      }, 25000);
+
+      req.on("close", () => {
+        if (heartbeat) {
+          clearInterval(heartbeat);
+          heartbeat = null;
+        }
+        try {
+          void supabaseAdmin.removeChannel(channel);
+        } catch {
+          /* ignore */
+        }
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/patio-budgets-hub/live:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+      }
+    }
+  });
+
   app.post("/api/service-orders", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {

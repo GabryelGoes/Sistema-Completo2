@@ -480,6 +480,7 @@ export default function App() {
           >
             <BudgetsHubView
               blurPlates={cinematographicMode}
+              isHubTabActive={userTab === 'orcamentos'}
               onOpenBudgetInPatio={handleOpenBudgetFromHub}
               onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
               onClearHubBadge={patioBudgetsHub.clearBadge}
@@ -713,6 +714,7 @@ export default function App() {
         >
           <BudgetsHubView
             blurPlates={cinematographicMode}
+            isHubTabActive={currentTab === 'orcamentos'}
             onOpenBudgetInPatio={handleOpenBudgetFromHub}
             onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
             onClearHubBadge={patioBudgetsHub.clearBadge}
