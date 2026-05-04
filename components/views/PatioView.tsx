@@ -88,7 +88,8 @@ import { parseReferenceLinksFromApi } from '../../utils/vehicleReferenceLinks';
 const budgetModalCanvasBg = 'bg-[#f8fcfe]';
 /** Modal de orçamento: cartões / áreas internas. Sempre visual de tema claro (sem variantes dark). */
 const budgetModalPaperInset =
-  'rounded-[22px] border border-sky-200/80 bg-white shadow-[0_1px_3px_rgba(14,116,144,0.06),inset_0_1px_0_rgba(255,255,255,1)]';
+  'rounded-[22px] border border-sky-200/80 bg-white ' +
+  'shadow-[0_6px_22px_-10px_rgba(14,116,144,0.18),0_2px_12px_-4px_rgba(15,23,42,0.08),0_1px_3px_rgba(14,116,144,0.06),inset_0_1px_0_rgba(255,255,255,1)]';
 const budgetModalFieldLabel =
   'block text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700/85 mb-2';
 const budgetModalInput =
@@ -6901,6 +6902,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </button>
                         </div>
                       </div>
+                      <div className={`${budgetModalPaperInset} p-3.5 sm:p-4`}>
                       <div className="space-y-2.5">
                         {budgetServices.map((item) => {
                           const isFocused = suggestionsForServiceId === item.id;
@@ -6915,7 +6917,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <input
                                     type="text"
                                     placeholder="Digite ou escolha um serviço…"
-                                    className={budgetModalInput}
+                                    className={`${budgetModalInput} shadow-none`}
                                     value={item.description}
                                     onChange={(e) => updateServiceDescription(item.id, e.target.value)}
                                     onFocus={() => handleServiceInputFocus(item.id)}
@@ -6939,6 +6941,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           );
                         })}
+                      </div>
                       </div>
                     </div>
 
@@ -7043,7 +7046,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <input
                                 type="text"
                                 placeholder="Nome da peça…"
-                                className={`${budgetModalInput} min-w-0 flex-1`}
+                                className={`${budgetModalInput} min-w-0 flex-1 shadow-none`}
                                 value={item.description}
                                 onChange={(e) => updatePartDescription(item.id, e.target.value)}
                                 onFocus={() => handlePartInputFocus(item.id)}
