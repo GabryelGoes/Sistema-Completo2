@@ -12,12 +12,18 @@ import { usePatioBudgetsHubLiveSync } from "../../hooks/usePatioBudgetsHubLiveSy
 
 const BUDGETS_CHANGED = "rda-patio-budgets-changed";
 
+/** Evita falha no match OS ↔ destaque (UUID com casing diferente entre linhas). */
+function normOrderId(id: string): string {
+  return String(id ?? "").trim().toLowerCase();
+}
+
 function groupByOrderId(items: PatioVehicleBudgetAggregateItem[]): Map<string, PatioVehicleBudgetAggregateItem[]> {
   const m = new Map<string, PatioVehicleBudgetAggregateItem[]>();
   for (const it of items) {
-    const list = m.get(it.serviceOrderId) ?? [];
+    const oid = normOrderId(it.serviceOrderId);
+    const list = m.get(oid) ?? [];
     list.push(it);
-    m.set(it.serviceOrderId, list);
+    m.set(oid, list);
   }
   for (const [, list] of m) {
     list.sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a));
@@ -68,35 +74,41 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const [pulseByBudgetId, setPulseByBudgetId] = useState<Record<string, "created" | "edited">>({});
   const prevSigByBudgetRef = useRef<Map<string, string>>(new Map());
   const isFirstFetchRef = useRef(true);
+  /** Só a última resposta de GET altera estado (evita corrida SSE + poll + mount sobrescrever assinaturas). */
+  const loadRequestGenRef = useRef(0);
   const baselineIngestRef = useRef(onIngestNotifierBaseline);
   baselineIngestRef.current = onIngestNotifierBaseline;
   const isHubTabActiveRef = useRef(isHubTabActive);
   isHubTabActiveRef.current = isHubTabActive;
 
   const load = useCallback(async (opts?: { silent?: boolean; skipNotifierIngest?: boolean }) => {
+    const reqId = ++loadRequestGenRef.current;
     if (opts?.silent) setRefreshing(true);
     else setLoading(true);
     setError(null);
     try {
       const data = await getPatioVehicleBudgetsAggregate();
+      if (reqId !== loadRequestGenRef.current) return;
+
       setItems(data);
 
       if (isFirstFetchRef.current) {
         isFirstFetchRef.current = false;
         const m = new Map<string, string>();
-        data.forEach((d) => m.set(d.budgetId, d.contentSignature));
+        data.forEach((d) => m.set(String(d.budgetId).trim(), d.contentSignature));
         prevSigByBudgetRef.current = m;
         baselineIngestRef.current(data);
       } else {
         const prev = prevSigByBudgetRef.current;
         const pulses: Record<string, "created" | "edited"> = {};
         for (const d of data) {
-          const old = prev.get(d.budgetId);
-          if (old === undefined) pulses[d.budgetId] = "created";
-          else if (old !== d.contentSignature) pulses[d.budgetId] = "edited";
+          const bid = String(d.budgetId).trim();
+          const old = prev.get(bid);
+          if (old === undefined) pulses[bid] = "created";
+          else if (old !== d.contentSignature) pulses[bid] = "edited";
         }
         const nextMap = new Map<string, string>();
-        data.forEach((d) => nextMap.set(d.budgetId, d.contentSignature));
+        data.forEach((d) => nextMap.set(String(d.budgetId).trim(), d.contentSignature));
         prevSigByBudgetRef.current = nextMap;
         if (!opts?.skipNotifierIngest) {
           baselineIngestRef.current(data);
@@ -105,18 +117,22 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
           setPulseByBudgetId((p) => ({ ...p, ...pulses }));
           const affectedOrders = new Set<string>();
           for (const row of data) {
-            if (pulses[row.budgetId]) affectedOrders.add(row.serviceOrderId);
+            const bid = String(row.budgetId).trim();
+            if (pulses[bid]) affectedOrders.add(normOrderId(row.serviceOrderId));
           }
           if (affectedOrders.size > 0) {
-            setPendingVehicleAttention((prev) => new Set([...prev, ...affectedOrders]));
+            setPendingVehicleAttention((pr) => new Set([...pr, ...affectedOrders]));
           }
         }
       }
     } catch (e: unknown) {
+      if (reqId !== loadRequestGenRef.current) return;
       setError((e as Error)?.message ?? "Não foi possível carregar os orçamentos.");
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (reqId === loadRequestGenRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
@@ -261,7 +277,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
                   key={orderId}
                   className={`${iosPageGlassOrcamentosVehicleCard} overflow-hidden transition-[box-shadow,background-color] duration-300 ${
                     vehicleNeedsAttention
-                      ? "!bg-amber-50/75 !shadow-[0_12px_36px_-10px_rgba(217,119,6,0.28)] ring-2 ring-amber-400/55 dark:!bg-amber-950/[0.38] dark:!shadow-[0_12px_40px_-12px_rgba(251,191,36,0.18)] dark:ring-amber-400/40"
+                      ? "border-l-[6px] !border-l-amber-500 !bg-amber-50/85 !shadow-[0_12px_36px_-10px_rgba(217,119,6,0.32)] ring-2 ring-amber-400/60 dark:!border-l-amber-400 dark:!bg-amber-950/[0.42] dark:!shadow-[0_12px_40px_-12px_rgba(251,191,36,0.22)] dark:ring-amber-400/45"
                       : ""
                   }`}
                 >
@@ -320,7 +336,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
                   {open ? (
                     <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
                       {list.map((row) => {
-                        const pulse = pulseByBudgetId[row.budgetId];
+                        const pulse = pulseByBudgetId[String(row.budgetId).trim()];
                         return (
                           <li key={row.budgetId}>
                             <button

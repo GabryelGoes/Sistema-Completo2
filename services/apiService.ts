@@ -1295,7 +1295,10 @@ export interface PatioVehicleBudgetAggregateItem {
 }
 
 export async function getPatioVehicleBudgetsAggregate(): Promise<PatioVehicleBudgetAggregateItem[]> {
-  const response = await fetch(`${API_BASE}/patio-vehicle-budgets-aggregate`);
+  const response = await fetch(`${API_BASE}/patio-vehicle-budgets-aggregate`, {
+    cache: "no-store",
+    headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+  });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao carregar orçamentos (${response.status})`);
