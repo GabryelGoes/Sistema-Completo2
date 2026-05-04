@@ -6,6 +6,7 @@ import {
   User,
   ExternalLink,
   Sparkles,
+  Receipt,
 } from 'lucide-react';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
@@ -23,7 +24,7 @@ import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
 
-export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'settings';
+export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'orcamentos' | 'settings';
 
 interface HomeViewProps {
   onOpenApp: (app: HomeAppId) => void;
@@ -55,6 +56,8 @@ interface HomeViewProps {
   onOpenChangePasswords?: () => void;
   /** Modais no App (ex.: preferências, senhas) que devem ficar acima do hub de configurações */
   globalOverlayModalOpen?: boolean;
+  /** Badge vermelho no ícone Orçamentos (hub do pátio). */
+  patioBudgetsHubBadge?: number;
 }
 
 /** Alinhado ao modal TV do pátio: vidro, sombra suave, cantos iOS. */
@@ -86,6 +89,13 @@ const OPERATIONAL_APPS: {
     id: 'patio',
     label: 'Pátio',
     icon: <img src="/icons/patio-ios.png" alt="Pátio" className="h-full w-full object-cover" />,
+  },
+  {
+    id: 'orcamentos',
+    label: 'Orçamentos',
+    icon: (
+      <Receipt className="h-[56%] w-[56%] text-white drop-shadow-sm" strokeWidth={2.25} aria-hidden />
+    ),
   },
   {
     id: 'laboratorio',
@@ -168,6 +178,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenSettings,
   onOpenChangePasswords,
   globalOverlayModalOpen = false,
+  patioBudgetsHubBadge = 0,
 }) => {
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
   const [isChangePasswordsOpen, setIsChangePasswordsOpen] = useState(false);
@@ -717,13 +728,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       )}
                       {/* pointer-events-none: toque registra no <button> inteiro (cartão + squircle), evita área morta em imagens/WebKit */}
                       <span className="pointer-events-none flex w-full flex-col items-center gap-3">
-                        <IosAccentIconSquircle
-                          variant="tile"
-                          className="pointer-events-none shrink-0 transition-transform duration-300 group-hover:scale-105"
-                          strokeWidth={2.2}
-                        >
-                          {app.icon}
-                        </IosAccentIconSquircle>
+                        <span className="relative inline-flex shrink-0">
+                          <IosAccentIconSquircle
+                            variant="tile"
+                            className="pointer-events-none shrink-0 transition-transform duration-300 group-hover:scale-105"
+                            strokeWidth={2.2}
+                          >
+                            {app.icon}
+                          </IosAccentIconSquircle>
+                          {app.id === 'orcamentos' && patioBudgetsHubBadge > 0 ? (
+                            <span className="pointer-events-none absolute -right-1 -top-1 z-10 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-md ring-2 ring-white dark:ring-zinc-950">
+                              {patioBudgetsHubBadge > 99 ? "99+" : patioBudgetsHubBadge}
+                            </span>
+                          ) : null}
+                        </span>
                         <span className="text-[15px] font-semibold leading-tight text-zinc-900 dark:text-white">
                           {app.label}
                         </span>

@@ -10,6 +10,8 @@ import { ReceptionView } from './components/views/ReceptionView';
 import { PatioView } from './components/views/PatioView';
 import { AgendaView } from './components/views/AgendaView';
 import { HomeView, type HomeAppId } from './components/views/HomeView';
+import { BudgetsHubView } from './components/views/BudgetsHubView';
+import { usePatioBudgetsHubNotifier } from './hooks/usePatioBudgetsHubNotifier';
 import { LoginView, getStoredAuth, setStoredAuth, clearStoredAuth } from './components/views/LoginView';
 import { useOrientation } from './components/views/useOrientation';
 import {
@@ -96,12 +98,15 @@ export default function App() {
   // Usuário limitado: abas conforme permissões (full_access = todas as abas)
   function permissionsToTabs(perms: SystemUserPermissions | undefined): TabId[] {
     if (!perms) return ['home'];
-    if (perms.full_access) return ['home', 'reception', 'agenda', 'patio', 'laboratorio'];
+    if (perms.full_access) return ['home', 'reception', 'agenda', 'patio', 'orcamentos', 'laboratorio'];
     const t: TabId[] = [];
     if (perms.access_home) t.push('home');
     if (perms.access_reception) t.push('reception');
     if (perms.access_agenda) t.push('agenda');
-    if (perms.access_patio) t.push('patio');
+    if (perms.access_patio) {
+      t.push('patio');
+      t.push('orcamentos');
+    }
     if (perms.access_laboratorio) t.push('laboratorio');
     return t.length ? t : ['home'];
   }
@@ -110,6 +115,25 @@ export default function App() {
   const isLimitedSystemUser = authSession?.role === 'user' && !hasFullAccess;
   const [userTab, setUserTab] = useState<TabId>('home');
   const activeAppTab: TabId = isLimitedSystemUser ? userTab : currentTab;
+
+  const patioBudgetsHub = usePatioBudgetsHubNotifier({
+    enabled: Boolean(authSession),
+    activeAppTab,
+  });
+
+  const handleOpenBudgetFromHub = useCallback(
+    (serviceOrderId: string, budgetId: string) => {
+      if (isLimitedSystemUser) {
+        if (!userAllowedTabs.includes('patio')) return;
+        setUserTab('patio');
+      } else {
+        setCurrentTab('patio');
+      }
+      setAssistantPatioOpenOrderId(serviceOrderId);
+      setAssistantPatioOpenBudgetId(budgetId);
+    },
+    [isLimitedSystemUser, userAllowedTabs]
+  );
 
   const navigateToHomeApp = useCallback(() => {
     if (isLimitedSystemUser) {
@@ -451,6 +475,20 @@ export default function App() {
               onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
               globalOverlayModalOpen={isSettingsOpen || isUserChangePasswordsOpen}
+              patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
+            />
+          </KeepAliveTabPanel>
+          <KeepAliveTabPanel
+            tabId="orcamentos"
+            activeTab={userTab}
+            visitedTabs={visitedUserTabs}
+            className="flex-1 min-h-0 flex flex-col overflow-hidden"
+          >
+            <BudgetsHubView
+              blurPlates={cinematographicMode}
+              onOpenBudgetInPatio={handleOpenBudgetFromHub}
+              onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
+              onClearHubBadge={patioBudgetsHub.clearBadge}
             />
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
@@ -661,6 +699,21 @@ export default function App() {
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
             globalOverlayModalOpen={isSettingsOpen || isUserChangePasswordsOpen}
+            patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
+          />
+        </KeepAliveTabPanel>
+
+        <KeepAliveTabPanel
+          tabId="orcamentos"
+          activeTab={currentTab}
+          visitedTabs={visitedTabs}
+          className="flex-1 min-h-0 flex flex-col overflow-hidden"
+        >
+          <BudgetsHubView
+            blurPlates={cinematographicMode}
+            onOpenBudgetInPatio={handleOpenBudgetFromHub}
+            onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
+            onClearHubBadge={patioBudgetsHub.clearBadge}
           />
         </KeepAliveTabPanel>
 
@@ -785,7 +838,7 @@ export default function App() {
       )}
       <AssistantChat
         theme={theme}
-        allowedTabs={['home', 'reception', 'agenda', 'patio', 'laboratorio']}
+        allowedTabs={['home', 'reception', 'agenda', 'patio', 'orcamentos', 'laboratorio']}
         onNavigateTab={setCurrentTab}
         onOpenSettings={() => setIsSettingsOpen(true)}
         serviceOrderActor={

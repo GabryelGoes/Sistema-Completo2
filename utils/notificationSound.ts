@@ -50,6 +50,34 @@ export function playNotificationSound(): void {
 }
 
 /** Som para outras notificações (etapa, queixa, data de entrega, etc.) – tom mais grave. */
+/** Som curto ao criar/editar orçamento no Pátio (hub de orçamentos). */
+export function playBudgetCreatedOrEditedSound(): void {
+  try {
+    const ctx = getContext();
+    if (ctx.state === "suspended") void ctx.resume();
+
+    const now = ctx.currentTime;
+    const freqs = [392, 523.25, 659.25]; // G4, C5, E5 — leve, distinto do toque de comentário
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, now);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const t0 = now + i * 0.07;
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(0.11, t0 + 0.018);
+      gain.gain.linearRampToValueAtTime(0.04, t0 + 0.12);
+      gain.gain.linearRampToValueAtTime(0, t0 + 0.22);
+      osc.start(t0);
+      osc.stop(t0 + 0.24);
+    });
+  } catch {
+    // autoplay / permissões
+  }
+}
+
 export function playOtherNotificationSound(): void {
   try {
     const ctx = getContext();

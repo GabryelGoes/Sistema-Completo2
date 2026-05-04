@@ -3,7 +3,7 @@
  */
 
 /** Abas principais (mesmo conjunto que `TabBar`) — usado para paleta do modo colorido */
-export type NavigationTabId = 'home' | 'reception' | 'agenda' | 'patio' | 'laboratorio';
+export type NavigationTabId = 'home' | 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'orcamentos';
 
 export type AppAppearance = {
   /** Cor principal (#RRGGBB) — usada no modo único; no modo colorido é fallback se uma aba não tiver entrada */
@@ -26,6 +26,7 @@ export const COLORFUL_TAB_ACCENTS: Record<NavigationTabId, string> = {
   home: '#F5D00B',
   patio: '#10B981',
   laboratorio: '#7C3AED',
+  orcamentos: '#EA580C',
 };
 
 export const defaultAppAppearance = (): AppAppearance => ({

@@ -1889,6 +1889,113 @@ export function createApiApp() {
     }
   });
 
+  /** Orçamentos de veículos em OS ativas no Pátio (exclui arquivadas) — hub na home + badge. */
+  app.get("/api/patio-vehicle-budgets-aggregate", async (_req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const { data: orders, error: e1 } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, status, plate, vehicle_model, vehicle_brand, os_number, customer_id")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("order_type", "vehicle")
+        .neq("status", CANCELLED_STATUS);
+
+      if (e1) {
+        console.error("[API] patio-vehicle-budgets-aggregate (orders):", e1);
+        return res.status(500).json({ error: e1.message });
+      }
+
+      const rows = orders ?? [];
+      if (rows.length === 0) {
+        return res.json({ items: [] });
+      }
+
+      const customerIds = [...new Set(rows.map((r: { customer_id?: string }) => r.customer_id).filter(Boolean))] as string[];
+      const customerNameMap: Record<string, string> = {};
+      if (customerIds.length > 0) {
+        const { data: customersData } = await supabaseAdmin
+          .from("customers")
+          .select("id, name")
+          .in("id", customerIds);
+        (customersData ?? []).forEach((c: { id: string; name?: string | null }) => {
+          const n = (c.name ?? "").trim();
+          if (c.id && n) customerNameMap[c.id] = n;
+        });
+      }
+
+      const orderIds = rows.map((r: { id: string }) => r.id);
+      const orderMap = new Map(rows.map((r: Record<string, unknown>) => [r.id as string, r]));
+
+      const { data: budgets, error: e2 } = await supabaseAdmin
+        .from("budgets")
+        .select("id, service_order_id, created_at, diagnosis, services, parts, observations, card_name")
+        .eq("workshop_id", WORKSHOP_ID)
+        .in("service_order_id", orderIds);
+
+      if (e2) {
+        console.error("[API] patio-vehicle-budgets-aggregate (budgets):", e2);
+        return res.status(500).json({ error: e2.message });
+      }
+
+      const items = (budgets ?? []).map((b: Record<string, unknown>) => {
+        const sid = String(b.service_order_id ?? "");
+        const o = orderMap.get(sid) as
+          | {
+              plate?: string | null;
+              vehicle_model?: string | null;
+              vehicle_brand?: string | null;
+              os_number?: number | null;
+              status?: string;
+              customer_id?: string | null;
+            }
+          | undefined;
+        const contentSignature = crypto
+          .createHash("sha256")
+          .update(
+            JSON.stringify({
+              d: b.diagnosis ?? "",
+              s: b.services ?? [],
+              p: b.parts ?? [],
+              o: b.observations ?? "",
+            })
+          )
+          .digest("hex");
+        const cid = o?.customer_id ?? null;
+        const servicesArr = Array.isArray(b.services) ? b.services : [];
+        const partsArr = Array.isArray(b.parts) ? b.parts : [];
+        const diag = typeof b.diagnosis === "string" ? b.diagnosis : "";
+        return {
+          budgetId: String(b.id ?? ""),
+          serviceOrderId: sid,
+          createdAt: String(b.created_at ?? ""),
+          contentSignature,
+          cardName: b.card_name != null ? String(b.card_name) : null,
+          diagnosisPreview: diag.slice(0, 140),
+          servicesCount: servicesArr.length,
+          partsCount: partsArr.length,
+          plate: o?.plate != null ? String(o.plate) : null,
+          vehicleModel: o?.vehicle_model != null ? String(o.vehicle_model) : null,
+          vehicleBrand: o?.vehicle_brand != null ? String(o.vehicle_brand) : null,
+          osNumber: o?.os_number != null && Number.isFinite(Number(o.os_number)) ? Number(o.os_number) : null,
+          orderStatus: o?.status != null ? String(o.status) : "",
+          customerName: cid && customerNameMap[cid] ? customerNameMap[cid] : null,
+        };
+      });
+
+      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      return res.json({ items });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/patio-vehicle-budgets-aggregate:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   app.post("/api/service-orders", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {

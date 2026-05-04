@@ -1251,6 +1251,34 @@ export async function getServiceOrderBudgets(
   return (data ?? []).map(mapApiBudgetToSaved);
 }
 
+/** Item do hub “Orçamentos” (veículos no Pátio, OS não arquivadas). */
+export interface PatioVehicleBudgetAggregateItem {
+  budgetId: string;
+  serviceOrderId: string;
+  createdAt: string;
+  contentSignature: string;
+  cardName: string | null;
+  diagnosisPreview: string;
+  servicesCount: number;
+  partsCount: number;
+  plate: string | null;
+  vehicleModel: string | null;
+  vehicleBrand: string | null;
+  osNumber: number | null;
+  orderStatus: string;
+  customerName: string | null;
+}
+
+export async function getPatioVehicleBudgetsAggregate(): Promise<PatioVehicleBudgetAggregateItem[]> {
+  const response = await fetch(`${API_BASE}/patio-vehicle-budgets-aggregate`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar orçamentos (${response.status})`);
+  }
+  const data = (await response.json()) as { items?: PatioVehicleBudgetAggregateItem[] };
+  return Array.isArray(data.items) ? data.items : [];
+}
+
 export async function createServiceOrderBudget(
   serviceOrderId: string,
   payload: {

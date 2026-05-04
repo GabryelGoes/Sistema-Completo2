@@ -2275,6 +2275,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       await deleteServiceOrderBudget(selectedCard.id, viewingBudget.id);
       setSavedBudgets((prev) => prev.filter((b) => b.id !== viewingBudget.id));
       setViewingBudget(null);
+      window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
     } catch (err: unknown) {
       alert((err as Error)?.message ?? 'Erro ao excluir orçamento.');
     } finally {
@@ -2326,6 +2327,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setSavedBudgets((prev) => prev.map((b) => (b.id === updated.id ? { ...updated, createdAt: b.createdAt } : b)));
       if (viewingBudget?.id === updated.id) setViewingBudget(updated);
       closeBudgetApproval();
+      window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao salvar aprovação.');
     } finally {
@@ -2773,10 +2775,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const updated = await updateServiceOrderBudget(selectedCard.id, editingBudget.id, payload, actorOptions);
         setSavedBudgets(prev => prev.map(b => b.id === editingBudget.id ? updated : b));
         closeBudgetModal();
+        window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
       } else {
         const budget = await createServiceOrderBudget(selectedCard.id, payload, actorOptions);
         setSavedBudgets(prev => [budget, ...prev]);
         closeBudgetModal();
+        window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
       }
     } catch (err: any) {
       alert(err?.message ?? "Erro ao salvar orçamento.");
