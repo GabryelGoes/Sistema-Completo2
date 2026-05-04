@@ -46,6 +46,8 @@ import {
   createWorkshopReminder,
   updateWorkshopReminderRemote,
   deleteWorkshopReminderRemote,
+  budgetLastActivityMs,
+  budgetChronologicalNumber,
   ServiceOrderListItem,
   type WorkshopService,
   type WorkshopPart,
@@ -448,6 +450,8 @@ function BudgetServiceDescriptionTextarea({
 export interface SavedBudget {
   id: string;
   createdAt: string;
+  /** Última edição (API devolve; fallback = createdAt). */
+  updatedAt?: string;
   serviceOrderId: string;
   cardName: string;
   diagnosis: string;
@@ -2374,7 +2378,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
         },
         actorOptions
       );
-      setSavedBudgets((prev) => prev.map((b) => (b.id === updated.id ? { ...updated, createdAt: b.createdAt } : b)));
+      setSavedBudgets((prev) =>
+        prev.map((b) => (b.id === updated.id ? { ...updated, createdAt: b.createdAt, updatedAt: updated.updatedAt } : b))
+      );
       if (viewingBudget?.id === updated.id) setViewingBudget(updated);
       closeBudgetApproval();
       window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
@@ -2392,7 +2398,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/\n/g, '<br>');
-    const dateStr = new Date(budget.createdAt).toLocaleDateString('pt-BR', {
+    const dateStr = new Date(budgetLastActivityMs(budget)).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
@@ -2558,7 +2564,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/\n/g, '<br>');
-    const dateStr = new Date(budget.createdAt).toLocaleDateString('pt-BR', {
+    const dateStr = new Date(budgetLastActivityMs(budget)).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
@@ -4159,14 +4165,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             ) : historySavedBudgets.length > 0 ? (
                               <div className="space-y-2">
                                 {[...historySavedBudgets]
-                                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                                  .map((b, idx) => (
+                                  .sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a))
+                                  .map((b) => (
                                     <div key={b.id} className="rounded-xl border border-zinc-200/70 bg-zinc-50/80 p-3 dark:border-white/[0.08] dark:bg-white/[0.03]">
                                       <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                                        Orçamento {historySavedBudgets.length - idx}
+                                        Orçamento {budgetChronologicalNumber(historySavedBudgets, b.id)}
                                       </p>
                                       <p className="mt-1 text-[13px] text-zinc-700 dark:text-zinc-200">
-                                        {new Date(b.createdAt).toLocaleString('pt-BR')}
+                                        {new Date(budgetLastActivityMs(b)).toLocaleString('pt-BR')}
                                       </p>
                                       <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">
                                         {b.services.length} serviço(s) · {b.parts.length} peça(s)
@@ -5200,15 +5206,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <div className="max-h-[380px] space-y-2.5 overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50">
                               {savedBudgets
                                 .filter((b) => b.serviceOrderId === selectedCard.id)
-                                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-                                .map((budget, index) => {
+                                .sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a))
+                                .map((budget) => {
+                                  const sameOs = savedBudgets.filter((x) => x.serviceOrderId === selectedCard.id);
                                   const preview =
                                     budget.diagnosis?.split('\n')[0]?.slice(0, 42) ||
                                     budget.services[0]?.description?.slice(0, 42) ||
                                     (budget.parts[0] ? `${budget.parts[0].quantity}x ${budget.parts[0].description?.slice(0, 30)}` : '') ||
                                     'Orçamento';
-                                  const dateStr = new Date(budget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                                  const numero = index + 1;
+                                  const dateStr = new Date(budgetLastActivityMs(budget)).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                                  const numero = budgetChronologicalNumber(sameOs, budget.id);
                                   return (
                                     <div
                                       key={budget.id}
@@ -5257,8 +5264,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <div className="mt-3 flex flex-wrap gap-2">
                                     {savedBudgets
                                       .filter((b) => b.serviceOrderId === selectedCard.id)
-                                      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-                                      .map((budget, idx) => (
+                                      .sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a))
+                                      .map((budget) => (
                                         <button
                                           key={budget.id}
                                           type="button"
@@ -5266,7 +5273,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           className="inline-flex items-center gap-2 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.08] px-3 py-2 text-[13px] font-semibold text-[#007AFF] shadow-sm transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/14 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
                                         >
                                           <CheckCircle2 className="h-4 w-4 shrink-0" />
-                                          Aprovar orçamento {idx + 1}
+                                          Aprovar orçamento {budgetChronologicalNumber(
+                                            savedBudgets.filter((x) => x.serviceOrderId === selectedCard.id),
+                                            budget.id
+                                          )}
                                         </button>
                                       ))}
                                   </div>
@@ -6579,13 +6589,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     const sourceBudgets = selectedCard
                       ? savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id)
                       : historySavedBudgets;
-                    const sorted = [...sourceBudgets].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-                    const num = sorted.findIndex((b) => b.id === viewingBudget.id) + 1;
+                    const num = budgetChronologicalNumber(sourceBudgets, viewingBudget.id);
                     return `Orçamento ${num}`;
                   })()}
                 </h2>
                 <p className="text-sm mt-0.5 font-medium" style={{ color: '#000000' }}>
-                  {new Date(viewingBudget.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  {new Date(budgetLastActivityMs(viewingBudget)).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </p>
                 {(selectedCard?.mileageKm || historyServiceOrderDetail?.mileage_km) && (
                   <p className="text-sm mt-1 font-medium" style={{ color: '#000000' }}>

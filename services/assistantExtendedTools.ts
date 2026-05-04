@@ -17,6 +17,7 @@ import {
   updateServiceOrderDescription,
   updateServiceOrderStatus,
   updateServiceOrderTechnician,
+  budgetLastActivityMs,
   type ServiceOrderListItem,
   type ServiceOrderUpdateActor,
   type ServiceOrderType,
@@ -382,6 +383,7 @@ export async function getServiceOrderBudgetsJson(
         pecas: b.parts,
         observacoes: b.observations,
         criado_em: b.createdAt,
+        atualizado_em: b.updatedAt,
       })),
     });
   } catch (e) {
@@ -1105,9 +1107,7 @@ export async function openPatioVehicleBudgetViewJson(
     if (budgets.length === 0) {
       return JSON.stringify({ ok: false, error: "Esta OS não tem orçamentos salvos." });
     }
-    const sorted = [...budgets].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    const sorted = [...budgets].sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a));
     const bidRaw = typeof payload.budget_id === "string" ? payload.budget_id.trim() : "";
     const idxRaw = payload.budget_index;
     const idx =

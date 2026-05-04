@@ -1934,7 +1934,7 @@ export function createApiApp() {
 
       const { data: budgets, error: e2 } = await supabaseAdmin
         .from("budgets")
-        .select("id, service_order_id, created_at, diagnosis, services, parts, observations, card_name")
+        .select("id, service_order_id, created_at, updated_at, diagnosis, services, parts, observations, card_name")
         .eq("workshop_id", WORKSHOP_ID)
         .in("service_order_id", orderIds);
 
@@ -1970,10 +1970,14 @@ export function createApiApp() {
         const servicesArr = Array.isArray(b.services) ? b.services : [];
         const partsArr = Array.isArray(b.parts) ? b.parts : [];
         const diag = typeof b.diagnosis === "string" ? b.diagnosis : "";
+        const createdAt = String(b.created_at ?? "");
+        const updatedAtRaw = b.updated_at != null && String(b.updated_at).trim() !== "" ? String(b.updated_at) : "";
+        const updatedAt = updatedAtRaw || createdAt;
         return {
           budgetId: String(b.id ?? ""),
           serviceOrderId: sid,
-          createdAt: String(b.created_at ?? ""),
+          createdAt,
+          updatedAt,
           contentSignature,
           cardName: b.card_name != null ? String(b.card_name) : null,
           diagnosisPreview: diag.slice(0, 140),
@@ -1988,7 +1992,11 @@ export function createApiApp() {
         };
       });
 
-      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      items.sort(
+        (a, b) =>
+          Math.max(new Date(b.createdAt).getTime(), new Date(b.updatedAt).getTime()) -
+          Math.max(new Date(a.createdAt).getTime(), new Date(a.updatedAt).getTime())
+      );
       return res.json({ items });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/patio-vehicle-budgets-aggregate:", err);
@@ -2544,17 +2552,28 @@ export function createApiApp() {
 
       const { data, error } = await supabaseAdmin
         .from("budgets")
-        .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at")
+        .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at")
         .eq("service_order_id", serviceOrderId)
-        .eq("workshop_id", WORKSHOP_ID)
-        .order("created_at", { ascending: true });
+        .eq("workshop_id", WORKSHOP_ID);
 
       if (error) {
         console.error("[API] Erro ao listar orçamentos:", error);
         return res.status(500).json({ error: error.message });
       }
 
-      return res.json(data ?? []);
+      const rows = (data ?? []).slice();
+      rows.sort((a: { created_at?: string; updated_at?: string }, b: { created_at?: string; updated_at?: string }) => {
+        const ta = Math.max(
+          new Date(a.created_at ?? 0).getTime(),
+          new Date((a.updated_at ?? a.created_at) ?? 0).getTime()
+        );
+        const tb = Math.max(
+          new Date(b.created_at ?? 0).getTime(),
+          new Date((b.updated_at ?? b.created_at) ?? 0).getTime()
+        );
+        return tb - ta;
+      });
+      return res.json(rows);
     } catch (err: any) {
       console.error("[API] Erro em GET /api/service-orders/:id/budgets:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -2616,7 +2635,7 @@ export function createApiApp() {
         const legacy = await supabaseAdmin
           .from("budgets")
           .insert(payload)
-          .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at")
+          .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at")
           .single();
         data = legacy.data;
         error = legacy.error;
@@ -2762,7 +2781,7 @@ export function createApiApp() {
           .eq("id", budgetId)
           .eq("service_order_id", serviceOrderId)
           .eq("workshop_id", WORKSHOP_ID)
-          .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at")
+          .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at")
           .single();
         data = legacy.data;
         error = legacy.error;

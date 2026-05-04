@@ -1212,12 +1212,15 @@ interface ApiBudget {
   parts: { description: string; quantity: string; approved?: boolean }[];
   observations: string;
   created_at: string;
+  updated_at?: string | null;
 }
 
 /** Orçamento no formato do frontend (SavedBudget). approved = aprovado (true) ou reprovado (false) pelo admin. */
 export interface SavedBudgetFromApi {
   id: string;
   createdAt: string;
+  /** Última edição (igual a createdAt até a primeira alteração). */
+  updatedAt: string;
   serviceOrderId: string;
   cardName: string;
   diagnosis: string;
@@ -1226,10 +1229,31 @@ export interface SavedBudgetFromApi {
   observations: string;
 }
 
+/** Timestamp (ms) da última atividade: criação ou última edição. */
+export function budgetLastActivityMs(b: { createdAt: string; updatedAt?: string | null }): number {
+  const c = new Date(b.createdAt).getTime();
+  const raw = b.updatedAt != null && String(b.updatedAt).trim() !== "" ? String(b.updatedAt) : "";
+  const u = raw ? new Date(raw).getTime() : NaN;
+  if (!Number.isFinite(c)) return 0;
+  if (!Number.isFinite(u)) return c;
+  return Math.max(c, u);
+}
+
+/** Número do orçamento na OS por ordem de criação (1 = mais antigo). */
+export function budgetChronologicalNumber(all: { id: string; createdAt: string }[], budgetId: string): number {
+  const sorted = [...all].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const i = sorted.findIndex((x) => x.id === budgetId);
+  return i >= 0 ? i + 1 : 1;
+}
+
 function mapApiBudgetToSaved(b: ApiBudget): SavedBudgetFromApi {
+  const createdAt = b.created_at;
+  const updatedRaw = b.updated_at != null && String(b.updated_at).trim() !== "" ? String(b.updated_at) : "";
+  const updatedAt = updatedRaw || createdAt;
   return {
     id: b.id,
-    createdAt: b.created_at,
+    createdAt,
+    updatedAt,
     serviceOrderId: b.service_order_id,
     cardName: b.card_name ?? "",
     diagnosis: b.diagnosis ?? "",
@@ -1256,6 +1280,7 @@ export interface PatioVehicleBudgetAggregateItem {
   budgetId: string;
   serviceOrderId: string;
   createdAt: string;
+  updatedAt: string;
   contentSignature: string;
   cardName: string | null;
   diagnosisPreview: string;

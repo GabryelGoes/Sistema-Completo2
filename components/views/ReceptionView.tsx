@@ -19,6 +19,8 @@ import {
   uploadServiceOrderPhoto,
   getServiceOrders,
   getServiceOrderBudgets,
+  budgetLastActivityMs,
+  budgetChronologicalNumber,
   getServiceOrderById,
   getServiceOrderPhotos,
   getServiceOrderComments,
@@ -1165,14 +1167,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         ) : (historyBudgetsByOrder[o.id] || []).length === 0 ? (
                           <div className="text-sm text-zinc-500">Nenhum orçamento encontrado para este veículo.</div>
                         ) : (
-                          (historyBudgetsByOrder[o.id] || []).map((b, idx) => (
+                          (() => {
+                            const list = historyBudgetsByOrder[o.id] || [];
+                            const sorted = [...list].sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a));
+                            return sorted.map((b) => (
                             <div key={b.id} className="rounded-lg border border-zinc-200 dark:border-white/10 p-2.5 bg-white dark:bg-white/[0.02]">
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <p className="text-sm font-semibold text-zinc-900 dark:text-white">
-                                  Orçamento {idx + 1}
+                                  Orçamento {budgetChronologicalNumber(list, b.id)}
                                 </p>
                                 <p className="text-xs text-zinc-500">
-                                  {new Date(b.createdAt).toLocaleString('pt-BR')}
+                                  {new Date(budgetLastActivityMs(b)).toLocaleString('pt-BR')}
                                 </p>
                               </div>
                               {b.diagnosis?.trim() && (
@@ -1192,8 +1197,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                 Abrir orçamento completo
                               </button>
                             </div>
-                          ))
-                        )}
+                          ));
+                          })()
+                        )
+                        }
                       </div>
                     )}
                   </div>
@@ -1550,7 +1557,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1 truncate">{historyBudgetDetail.cardName}</p>
                 )}
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                  {new Date(historyBudgetDetail.createdAt).toLocaleString('pt-BR', {
+                  {new Date(budgetLastActivityMs(historyBudgetDetail)).toLocaleString('pt-BR', {
                     day: '2-digit',
                     month: 'long',
                     year: 'numeric',

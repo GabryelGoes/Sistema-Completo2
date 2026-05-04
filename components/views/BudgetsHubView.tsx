@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, FileText, RefreshCw, Sparkles } from "lucide-react";
 import {
+  budgetLastActivityMs,
   getPatioVehicleBudgetsAggregate,
   type PatioVehicleBudgetAggregateItem,
 } from "../../services/apiService";
@@ -16,7 +17,7 @@ function groupByOrderId(items: PatioVehicleBudgetAggregateItem[]): Map<string, P
     m.set(it.serviceOrderId, list);
   }
   for (const [, list] of m) {
-    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    list.sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a));
   }
   return m;
 }
@@ -124,8 +125,8 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     const ids = [...grouped.keys()];
     const latest = (oid: string) => {
       const list = grouped.get(oid);
-      const first = list?.[0];
-      return first ? new Date(first.createdAt).getTime() : 0;
+      if (!list?.length) return 0;
+      return Math.max(...list.map((row) => budgetLastActivityMs(row)));
     };
     ids.sort((a, b) => latest(b) - latest(a));
     return ids;
@@ -265,7 +266,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
                                   </span>
                                 ) : null}
                                 <span className="ml-auto text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
-                                  {formatWhen(row.createdAt)}
+                                  {formatWhen(row.updatedAt)}
                                 </span>
                               </div>
                               <p className="line-clamp-2 text-[15px] leading-snug text-zinc-900 dark:text-zinc-100">
