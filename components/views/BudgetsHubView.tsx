@@ -246,7 +246,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     <div className="flex min-h-min flex-col bg-light-page dark:bg-black">
       <header className="shrink-0 border-b border-zinc-200/80 bg-white/80 px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl dark:border-white/[0.08] dark:bg-zinc-950/80">
         <div className="mx-auto flex w-full max-w-3xl items-start gap-3 lg:mx-0 lg:max-w-none">
-          <div className="ml-[10%] flex min-w-0 flex-1 items-start gap-3 pt-0.5">
+          <div className="ml-[6.5%] flex min-w-0 flex-1 items-start gap-3 pt-0.5">
             <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
               <img src="/icons/orcamentos-ios.png" alt="" className="h-full w-full object-cover" />
             </IosAccentIconSquircle>
