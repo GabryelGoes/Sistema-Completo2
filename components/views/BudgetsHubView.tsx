@@ -7,6 +7,7 @@ import {
 } from "../../services/apiService";
 import { getStageConfig, getStageStyle } from "../../constants/serviceOrderStages";
 import { iosPageGlass, iosPageGlassOrcamentosVehicleCard, iosLabel } from "../ui/iosModalStyles";
+import { IosAccentIconSquircle } from "../ui/IosAccentIconSquircle";
 import { usePatioBudgetsHubLiveSync } from "../../hooks/usePatioBudgetsHubLiveSync";
 
 const BUDGETS_CHANGED = "rda-patio-budgets-changed";
@@ -194,13 +195,20 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     <div className="flex min-h-min flex-col bg-light-page dark:bg-black">
       <header className="shrink-0 border-b border-zinc-200/80 bg-white/80 px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl dark:border-white/[0.08] dark:bg-zinc-950/80">
         <div className="mx-auto flex max-w-3xl items-start gap-3">
-          <div className="ml-[10%] min-w-0 flex-1 pt-0.5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Pátio</p>
-            <h1 className="text-[1.35rem] font-semibold tracking-tight text-zinc-900 dark:text-white">Orçamentos</h1>
-            <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-zinc-600 dark:text-zinc-400">
-              <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-              <span className="truncate">Veículos em andamento no pátio</span>
-            </p>
+          <div className="ml-[10%] flex min-w-0 flex-1 items-start gap-3 pt-0.5">
+            <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
+              <img src="/icons/orcamentos-ios.png" alt="" className="h-full w-full object-cover" />
+            </IosAccentIconSquircle>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                Pátio
+              </p>
+              <h1 className="text-[1.35rem] font-semibold tracking-tight text-zinc-900 dark:text-white">Orçamentos</h1>
+              <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-zinc-600 dark:text-zinc-400">
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
+                <span className="truncate">Veículos em andamento no pátio</span>
+              </p>
+            </div>
           </div>
           <button
             type="button"
