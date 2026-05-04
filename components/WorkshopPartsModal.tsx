@@ -15,7 +15,7 @@ import {
   Tags,
   ChevronDown,
 } from 'lucide-react';
-import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { StorageThumbImg } from './ui/StorageThumbImg';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
@@ -610,14 +610,21 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       cropShape="square"
     />
 
-    <div className={iosModalOverlay}>
-      <div className={`${iosModalShell} w-full max-w-[min(98vw,1600px)] h-[94vh] max-h-[94vh]`}>
-        <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+    <div className="fixed inset-0 z-[100] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden bg-black/45 backdrop-blur-[20px] p-0">
+      <div
+        className={`${iosModalShell} relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden rounded-none border-0 shadow-none sm:rounded-none`}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className={`${iosModalClose} top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))]`}
+          aria-label="Fechar"
+        >
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
-          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+          <div className="px-6 sm:px-8 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pb-4 pr-14 shrink-0">
             <IosModalHeader
               icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Estoque de peças"
@@ -626,7 +633,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             />
           </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 sm:px-8 pb-8 custom-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 sm:px-8 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:max-w-xl">
               Gerencie preço e estoque. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Categorias</span> para
