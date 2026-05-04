@@ -56,7 +56,7 @@ import {
   type ServiceOrderType,
   type ChecklistTemplate,
 } from '../../services/apiService';
-import type { ServiceOrderDetail } from '../../services/apiService';
+import type { ServiceOrderDetail, ApiCustomer } from '../../services/apiService';
 import { SERVICE_ORDER_STAGES, getStageStyle, getStageRingClass, type ServiceOrderStatus } from '../../constants/serviceOrderStages';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
@@ -83,6 +83,58 @@ import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from '../../utils/budgetPrintWithDetail';
 import { PATIO_CARD_TITLE_SEP, parsePatioCardTitle } from '../../utils/patioCardTitle';
+
+/** ID sintético até `getServiceOrderById` responder — não usar em chamadas à API. */
+const SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID = '00000000-0000-4000-8000-000000000001';
+
+function placeholderApiCustomer(displayName: string): ApiCustomer {
+  const now = new Date().toISOString();
+  return {
+    id: SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID,
+    name: displayName.trim() || 'Cliente',
+    cpf: null,
+    phone: '',
+    email: null,
+    cep: null,
+    address: null,
+    city: null,
+    address_number: null,
+    created_at: now,
+  };
+}
+
+/** Detalhe mínimo para o modal abrir já com a ficha (dados do card do quadro); o fetch completa em seguida. */
+function serviceOrderDetailPlaceholderFromCard(card: TrelloCard, orderType: ServiceOrderType): ServiceOrderDetail {
+  const parts = parsePatioCardTitle(card.name);
+  const customerName = parts.customer?.trim() || 'Cliente';
+  const vehicleModel = parts.vehicle?.trim() || '';
+  const plateOrModule = parts.plateOrModule?.trim() || '';
+  const now = new Date().toISOString();
+
+  return {
+    id: card.id,
+    os_number: card.osNumber ?? null,
+    customer_id: SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID,
+    vehicle_model: vehicleModel,
+    module_identification: orderType === 'module' ? plateOrModule || null : null,
+    plate: orderType === 'module' ? '' : (plateOrModule || '---').toUpperCase(),
+    mileage_km: card.mileageKm ?? null,
+    delivery_date: card.deliveryDate ?? null,
+    issue_description: card.desc ?? null,
+    ai_analysis: null,
+    status: card.idList,
+    order_type: orderType,
+    vehicle_category: card.vehicleCategory ?? null,
+    vehicle_brand: card.vehicleBrand ?? null,
+    vehicle_color: card.vehicleColor ?? null,
+    vehicle_year: card.vehicleYear ?? null,
+    vehicle_engine_info: card.vehicleEngineInfo ?? null,
+    reference_links: card.referenceLinks?.length ? card.referenceLinks : null,
+    created_at: card.dateLastActivity || now,
+    updated_at: card.dateLastActivity || now,
+    customers: placeholderApiCustomer(customerName),
+  };
+}
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
 import { parseReferenceLinksFromApi } from '../../utils/vehicleReferenceLinks';
@@ -1601,8 +1653,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setDescText(selectedCard.desc || "");
       setIsEditingDesc(false);
       setLoadingDetails(true);
-      setCardDetails(null);
-      setServiceOrderDetail(null);
+      setCardDetails({ actions: [], attachments: [] });
+      setServiceOrderDetail(serviceOrderDetailPlaceholderFromCard(selectedCard, orderType));
       Promise.all([
         getServiceOrderById(selectedCard.id),
         getServiceOrderPhotos(selectedCard.id),
@@ -1610,6 +1662,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         getServiceOrderComments(selectedCard.id),
       ])
         .then(([order, photos, budgets, comments]) => {
+          if (selectedCardRef.current?.id !== order.id) return;
           setServiceOrderDetail(order);
           setCardDetails({
             actions: (comments ?? []).map(commentToAction),
@@ -1648,7 +1701,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setServiceOrderDetail(null);
       setSavedBudgets([]);
     }
-  }, [selectedCard]);
+  }, [selectedCard, orderType]);
 
   useEffect(() => {
     if (!serviceOrderDetail) {
@@ -2173,6 +2226,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const handleSaveEditFicha = async () => {
     if (!selectedCard || !serviceOrderDetail?.customers?.id) return;
+    if (loadingDetails || serviceOrderDetail.customers.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID) return;
     setEditFichaSaving(true);
     try {
       await updateCustomer(serviceOrderDetail.customers.id, {
@@ -2267,6 +2321,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const handleSaveReferenceLinks = async () => {
     if (!selectedCard || !serviceOrderDetail) return;
+    if (loadingDetails || serviceOrderDetail.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID) return;
     const filtered = referenceLinksDraft
       .map((l) => ({
         id: l.id,
@@ -4715,7 +4770,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <button
                                 type="button"
                                 onClick={handleSaveEditFicha}
-                                disabled={editFichaSaving}
+                                disabled={
+                                  editFichaSaving ||
+                                  loadingDetails ||
+                                  serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
+                                }
                                 className="inline-flex flex-1 min-w-[120px] items-center justify-center gap-1 rounded-lg bg-[#007AFF] px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-45 sm:flex-none"
                               >
                                 {editFichaSaving ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
@@ -5218,7 +5277,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <button
                                         type="button"
                                         onClick={handleSaveReferenceLinks}
-                                        disabled={referenceLinksSaving}
+                                        disabled={
+                                          referenceLinksSaving ||
+                                          loadingDetails ||
+                                          serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
+                                        }
                                         className={`${iosPrimaryButton} inline-flex items-center gap-2 px-6 py-2.5`}
                                       >
                                         {referenceLinksSaving ? (
