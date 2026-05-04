@@ -130,6 +130,16 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   usePatioBudgetsHubLiveSync(syncFromRealtime, { enabled: true });
 
   useEffect(() => {
+    const id = window.setInterval(() => {
+      void load({
+        silent: true,
+        skipNotifierIngest: !isHubTabActiveRef.current,
+      });
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [load]);
+
+  useEffect(() => {
     onClearHubBadge();
     void load();
     // montagem inicial apenas
