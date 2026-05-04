@@ -978,6 +978,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [editingActionId, setEditingActionId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const newCommentRef = useRef('');
+  const editingActionIdRef = useRef<string | null>(null);
+  newCommentRef.current = newComment;
+  editingActionIdRef.current = editingActionId;
 
   const handleJumpToCustomerNameEdit = () => {
     setIsDadosFichaExpanded(true);
@@ -1428,6 +1432,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
       if (isDadosFichaExpanded) return;
       // Mesmo comportamento para edição da queixa/descrição do cliente.
       if (isEditingDescRef.current) return;
+      // Também pausa enquanto houver comentário em digitação/edição.
+      if (newCommentRef.current.trim()) return;
+      if (editingActionIdRef.current) return;
       void syncOpenVehicleModalFromServer();
     }, 3000);
     return () => clearInterval(id);
