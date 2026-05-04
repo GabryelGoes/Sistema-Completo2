@@ -6,7 +6,7 @@ import {
   type PatioVehicleBudgetAggregateItem,
 } from "../../services/apiService";
 import { getStageConfig, getStageStyle } from "../../constants/serviceOrderStages";
-import { iosPageGlass, iosLabel } from "../ui/iosModalStyles";
+import { iosPageGlass, iosPageGlassOrcamentosVehicleCard, iosLabel } from "../ui/iosModalStyles";
 const BUDGETS_CHANGED = "rda-patio-budgets-changed";
 
 function groupByOrderId(items: PatioVehicleBudgetAggregateItem[]): Map<string, PatioVehicleBudgetAggregateItem[]> {
@@ -202,7 +202,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
               const stage = getStageConfig(head.orderStatus);
               const open = expanded.has(orderId);
               return (
-                <section key={orderId} className={`${iosPageGlass} overflow-hidden`}>
+                <section key={orderId} className={`${iosPageGlassOrcamentosVehicleCard} overflow-hidden`}>
                   <button
                     type="button"
                     onClick={() => toggleExpand(orderId)}
