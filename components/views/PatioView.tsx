@@ -418,7 +418,8 @@ function BudgetServiceDescriptionTextarea({
     const el = taRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.max(BUDGET_SERVICE_TEXTAREA_MIN_PX, el.scrollHeight)}px`;
+    // +2px evita barra interna por arredondamento; overflow hidden esconde qualquer sobra
+    el.style.height = `${Math.max(BUDGET_SERVICE_TEXTAREA_MIN_PX, el.scrollHeight + 2)}px`;
   }, []);
 
   useLayoutEffect(() => {
@@ -431,7 +432,7 @@ function BudgetServiceDescriptionTextarea({
       rows={1}
       spellCheck={false}
       placeholder="Digite ou escolha um serviço…"
-      className={`${inputClassName} shadow-none block min-h-[52px] w-full min-w-0 resize-none break-words leading-snug [overflow-wrap:anywhere] [field-sizing:content]`}
+      className={`${inputClassName} shadow-none block min-h-[52px] w-full min-w-0 resize-none overflow-hidden break-words leading-snug [overflow-wrap:anywhere] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:bg-transparent`}
       value={value}
       onChange={(e) => {
         onChange(e.target.value);
