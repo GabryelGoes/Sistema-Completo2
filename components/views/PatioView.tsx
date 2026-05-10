@@ -81,6 +81,7 @@ import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { markdownComponentsApp } from '../ui/markdownUi';
 import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
+import { usePatioBoardLiveSync } from '../../hooks/usePatioBoardLiveSync';
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from '../../utils/budgetPrintWithDetail';
 import { PATIO_CARD_TITLE_SEP, parsePatioCardTitle } from '../../utils/patioCardTitle';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
@@ -1261,17 +1262,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [remindersScopeApi, commentAuthorName, isModuleMode]);
 
+  const fetchRemindersRef = useRef(fetchReminders);
+  fetchRemindersRef.current = fetchReminders;
+
   useEffect(() => {
     fetchReminders();
   }, [fetchReminders]);
-
-  useEffect(() => {
-    if (!isAppTabActive) return;
-    const id = window.setInterval(() => {
-      if (document.visibilityState === 'visible') fetchReminders();
-    }, 90000);
-    return () => window.clearInterval(id);
-  }, [fetchReminders, isAppTabActive]);
 
   useEffect(() => {
     if (isRemindersOpen) fetchReminders();
@@ -1581,6 +1577,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const fetchDataRef = useRef(fetchData);
   fetchDataRef.current = fetchData;
 
+  usePatioBoardLiveSync({
+    orderType,
+    enabled: isAppTabActive,
+    onBoardRefresh: () => fetchDataRef.current(true),
+    onRemindersRefresh: () => fetchRemindersRef.current(),
+  });
+
   useEffect(() => {
     if (selectedCard) {
       const km = selectedCard.mileageKm ?? '';
@@ -1764,14 +1767,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [selectedCard?.id]);
 
-  /** Lista do quadro: só quando esta aba (Pátio/Lab) está visível — evita GET em loop com KeepAlive. Intervalo ≥60s. */
+  /**
+   * Carga inicial ao focar a aba + rede de segurança espaçada (Realtime cobre atualizações em tempo real).
+   */
   useEffect(() => {
     if (!isAppTabActive) return;
     fetchDataRef.current(false);
     const intervalId = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       fetchDataRef.current(true);
-    }, 90000);
+    }, 180000);
     return () => window.clearInterval(intervalId);
   }, [isAppTabActive]);
 
