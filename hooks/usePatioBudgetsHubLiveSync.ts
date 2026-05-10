@@ -117,7 +117,17 @@ export function usePatioBudgetsHubLiveSync(
           fallbackIntervalRef.current = null;
         }
       } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-        console.warn("[usePatioBudgetsHubLiveSync] Canal Realtime falhou:", err);
+        const detail =
+          err instanceof Error
+            ? `${err.name}: ${err.message}`
+            : err && typeof err === "object"
+              ? JSON.stringify(err)
+              : String(err ?? "(sem detalhe do servidor)");
+        console.warn(
+          `[usePatioBudgetsHubLiveSync] Realtime ${status}: ${detail}. ` +
+            "Causa frequente: RLS sem SELECT para `anon` em `budgets` / `service_orders`. " +
+            "Ver migration `20260511120000_realtime_anon_select_policies.sql`."
+        );
         startFallback();
       }
     });

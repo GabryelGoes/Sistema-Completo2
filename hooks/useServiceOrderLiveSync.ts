@@ -169,7 +169,17 @@ export function useServiceOrderLiveSync(
           fallbackIntervalRef.current = null;
         }
       } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-        console.warn("[useServiceOrderLiveSync] Canal Realtime falhou:", err);
+        const detail =
+          err instanceof Error
+            ? `${err.name}: ${err.message}`
+            : err && typeof err === "object"
+              ? JSON.stringify(err)
+              : String(err ?? "(sem detalhe do servidor)");
+        console.warn(
+          `[useServiceOrderLiveSync] Realtime ${status}: ${detail}. ` +
+            "Causa frequente: RLS no Supabase sem política de SELECT para o role `anon` nas tabelas do canal. " +
+            "Aplique a migration `20260511120000_realtime_anon_select_policies.sql` (substituir o UUID placeholder) no SQL Editor do Supabase."
+        );
         startFallback();
       }
     });
