@@ -432,10 +432,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   useEffect(() => {
     if (!isHistoryOpen) return;
     const tick = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       const term = historySearchRef.current ?? '';
       void loadVehicleHistoryRef.current(term);
     };
-    const id = window.setInterval(tick, 8000);
+    const id = window.setInterval(tick, 12000);
     return () => window.clearInterval(id);
   }, [isHistoryOpen]);
 

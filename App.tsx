@@ -106,7 +106,8 @@ export default function App() {
   const patioBudgetsHub = usePatioBudgetsHubNotifier({
     enabled: Boolean(authSession),
     activeTab: activeAppTab,
-    pollMs: 3000,
+    /** ~22s alinhado ao padrão do hook; evita GET agregado a cada 3s (custo em API/banda). */
+    pollMs: 22000,
   });
 
   const handleOpenBudgetFromHub = useCallback((serviceOrderId: string, budgetId: string) => {

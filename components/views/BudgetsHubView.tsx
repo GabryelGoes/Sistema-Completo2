@@ -169,11 +169,12 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
 
   useEffect(() => {
     const id = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       void load({
         silent: true,
         skipNotifierIngest: !isHubTabActiveRef.current,
       });
-    }, 3000);
+    }, 12000);
     return () => window.clearInterval(id);
   }, [load]);
 

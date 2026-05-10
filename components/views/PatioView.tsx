@@ -1424,10 +1424,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
     { enabled: !!selectedHistoryCard && isHistoryOpen }
   );
 
-  /** Enquanto o modal da OS estiver aberto, atualiza dados a cada 3s (complementa o SSE). */
+  /** Enquanto o modal da OS estiver aberto, atualiza dados periodicamente (complementa o SSE). */
   useEffect(() => {
     if (!selectedCard) return;
     const id = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       // Enquanto edita "Dados da ficha", evita sobrescrever campos com refresh periódico.
       if (isDadosFichaExpanded) return;
       // Mesmo comportamento para edição da queixa/descrição do cliente.
@@ -1436,7 +1437,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       if (newCommentRef.current.trim()) return;
       if (editingActionIdRef.current) return;
       void syncOpenVehicleModalFromServer();
-    }, 3000);
+    }, 10000);
     return () => clearInterval(id);
   }, [selectedCard?.id, isDadosFichaExpanded, syncOpenVehicleModalFromServer]);
 
@@ -1444,8 +1445,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useEffect(() => {
     if (!isHistoryOpen || !selectedHistoryCard) return;
     const id = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       void syncHistoryDetailFromServer();
-    }, 3000);
+    }, 10000);
     return () => clearInterval(id);
   }, [isHistoryOpen, selectedHistoryCard?.id, syncHistoryDetailFromServer]);
 
@@ -1778,7 +1780,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   useEffect(() => {
     fetchData(false);
-    const intervalId = setInterval(() => fetchData(true), 5000);
+    const intervalId = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      fetchData(true);
+    }, 15000);
     return () => clearInterval(intervalId);
   }, []);
 

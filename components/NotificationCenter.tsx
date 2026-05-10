@@ -171,11 +171,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       ? { for: "technician" as const, technicianSlug }
       : undefined;
 
-  const POLL_QUICK_MS = 1000;   // poll para novas notificações (quase instantâneo, tipo WhatsApp)
-  const POLL_FULL_MS = 10000;  // atualização completa da lista
+  /** Pausa em segundo plano: ver checks em pollNewOnly / fetchNotifications. */
+  const POLL_QUICK_MS = 8000;   // novas notificações (menos carga que 1s; ainda responsivo)
+  const POLL_FULL_MS = 45000;  // refresh completo da lista
 
   const fetchNotifications = async (since?: string, silent = false) => {
     if (forTechnician && !technicianSlug) return;
+    /** Poll em segundo plano — não bloqueia o primeiro fetch ao abrir o painel (silent=false). */
+    if (silent && typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
     if (!silent) setLoading(true);
     try {
       const list = await getNotifications({ limit: 80, since, ...notifParams });
@@ -218,6 +221,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   const pollNewOnly = async () => {
     if (forTechnician && !technicianSlug) return;
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
     const since = lastCreatedAtRef.current;
     if (!since) return;
     try {
@@ -256,7 +260,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   useEffect(() => {
     fetchNotifications();
     const quick = setInterval(pollNewOnly, POLL_QUICK_MS);
-    const full = setInterval(() => fetchNotifications(), POLL_FULL_MS);
+    const full = setInterval(() => fetchNotifications(undefined, true), POLL_FULL_MS);
     return () => {
       clearInterval(quick);
       clearInterval(full);

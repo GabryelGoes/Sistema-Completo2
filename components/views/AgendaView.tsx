@@ -123,6 +123,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
     if (!detailAppointment) return;
     const detailId = detailAppointment.id;
     const tick = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       const list = await refreshAppointmentsSilent();
       if (!list) return;
       setDetailAppointment((prev) => {
@@ -131,7 +132,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
         return found ?? null;
       });
     };
-    const id = window.setInterval(tick, 8000);
+    const id = window.setInterval(tick, 12000);
     return () => window.clearInterval(id);
   }, [detailAppointment?.id, refreshAppointmentsSilent]);
 

@@ -38,6 +38,7 @@ export function usePatioBudgetsHubNotifier(opts: {
 
   const pollFn = useCallback(async () => {
     if (!enabled) return;
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
     try {
       const items = await getPatioVehicleBudgetsAggregate();
       const compact = items.map((i) => ({ id: i.budgetId, sig: i.contentSignature }));
