@@ -931,7 +931,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           <SettingsRow
                             onClick={() => setIsSystemNotificationsOpen(true)}
                             title="Notificações do sistema"
-                            subtitle="Orçamentos, comentários, OS e avisos Zaya"
+                            subtitle="Orçamentos, comentários, OS e lembretes"
                             icon={
                               <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
                                 <img

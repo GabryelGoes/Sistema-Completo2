@@ -14,7 +14,6 @@ import {
   ChevronRight,
   Loader2,
   X,
-  Sparkles,
 } from 'lucide-react';
 import {
   getNotifications,
@@ -25,11 +24,6 @@ import {
   type Notification,
   type NotificationType,
 } from '../services/apiService';
-
-/** Avisos entregues pela Zaya (modal + voz), não só na central. */
-export function isZayaNotificationType(type: string): boolean {
-  return typeof type === 'string' && type.startsWith('zaya_');
-}
 import { playOtherNotificationSound } from '../utils/notificationSound';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -63,10 +57,6 @@ const TYPE_CONFIG: Record<NotificationType, { label: string; icon: React.ReactNo
   vehicle_registered: { label: 'Veículo cadastrado', icon: <Car className="w-5 h-5" />, accent: 'text-[#007AFF]' },
   complaint_edited: { label: 'Queixa editada', icon: <AlertCircle className="w-5 h-5" />, accent: 'text-rose-500' },
   delivery_date_changed: { label: 'Data de entrega alterada', icon: <Calendar className="w-5 h-5" />, accent: 'text-[#007AFF]' },
-  zaya_stage_aguardando_aprovacao: { label: 'Zaya · Aguardando aprovação', icon: <Sparkles className="w-5 h-5" />, accent: 'text-violet-500' },
-  zaya_stage_finalizado: { label: 'Zaya · Finalizado', icon: <Sparkles className="w-5 h-5" />, accent: 'text-violet-500' },
-  zaya_orcamento_com_aprovacao: { label: 'Zaya · Orçamento aprovado', icon: <Sparkles className="w-5 h-5" />, accent: 'text-violet-500' },
-  zaya_orcamento_com_reprovacao: { label: 'Zaya · Orçamento reprovado', icon: <Sparkles className="w-5 h-5" />, accent: 'text-violet-500' },
 };
 
 function formatNotificationTitle(n: Notification, forTechnician?: boolean): string {
@@ -94,14 +84,6 @@ function formatNotificationTitle(n: Notification, forTechnician?: boolean): stri
       return forTechnician ? `${adminLabel} editou a queixa · ${vehicle}` : `${who} editou a queixa · ${vehicle}`;
     case 'delivery_date_changed':
       return `Data de entrega alterada · ${vehicle}`;
-    case 'zaya_stage_aguardando_aprovacao':
-      return `Zaya · Etapa: aguardando aprovação · ${vehicle}`;
-    case 'zaya_stage_finalizado':
-      return `Zaya · Etapa: finalizado · ${vehicle}`;
-    case 'zaya_orcamento_com_aprovacao':
-      return `Zaya · Itens aprovados no orçamento · ${vehicle}`;
-    case 'zaya_orcamento_com_reprovacao':
-      return `Zaya · Itens reprovados no orçamento · ${vehicle}`;
     default:
       return cfg.label;
   }
@@ -145,8 +127,6 @@ function showNativeDeviceNotification(n: Notification, forTechnician?: boolean):
 interface NotificationCenterProps {
   /** Callback quando há novo comentário (para pop-up + som) */
   onNewCommentNotification?: (notification: Notification) => void;
-  /** Novo aviso configurável da Zaya (abre o modal dela + voz) */
-  onNewZayaAlert?: (notification: Notification) => void;
   /** Callback ao clicar numa notificação (ex.: ir ao veículo/comentários no Pátio) */
   onNotificationClick?: (notification: Notification) => void;
   /** Se true, usa API de notificações do técnico (for=technician&slug=...) */
@@ -159,7 +139,6 @@ interface NotificationCenterProps {
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   onNewCommentNotification,
-  onNewZayaAlert,
   onNotificationClick,
   forTechnician,
   technicianSlug,
@@ -223,8 +202,6 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             const shownNative = showNativeDeviceNotification(n, !!forTechnician);
             if (n.type === 'comment') {
               onNewCommentNotification?.(n);
-            } else if (isZayaNotificationType(n.type)) {
-              onNewZayaAlert?.(n);
             } else if (!shownNative) {
               playOtherNotificationSound();
             }
@@ -263,8 +240,6 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           const shownNative = showNativeDeviceNotification(n, !!forTechnician);
           if (n.type === 'comment') {
             onNewCommentNotification?.(n);
-          } else if (isZayaNotificationType(n.type)) {
-            onNewZayaAlert?.(n);
           } else if (!shownNative) {
             playOtherNotificationSound();
           }

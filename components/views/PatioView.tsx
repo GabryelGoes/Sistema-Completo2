@@ -246,7 +246,7 @@ interface PatioViewProps {
   openServiceOrderId?: string | null;
   /** Seção do modal para rolar após abrir (comentários, orçamentos, queixa). */
   openServiceOrderSection?: OpenServiceOrderSection;
-  /** Após carregar orçamentos, abre o modal de leitura deste id (ex.: assistente Zaya). */
+  /** Após carregar orçamentos, abre o modal de leitura deste id. */
   openBudgetIdAfterLoad?: string | null;
   /** Chamado após abrir o modal e rolar à seção (para limpar o estado de navegação no pai). */
   onOpenServiceOrderHandled?: () => void;
@@ -1222,7 +1222,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, []);
 
   const patioPrimaryOverlayOpen = !!(selectedCard || selectedHistoryCard);
-  /** Sincroniza com {@link AssistantChat}: sombra extra do painel Zaya só em modo claro sobre este modal. */
+  /** Sincroniza com o painel de chat: sombra extra só em modo claro sobre este modal. */
   useEffect(() => {
     const source = isModuleMode ? ('laboratorio' as const) : ('patio' as const);
     window.dispatchEvent(
@@ -1324,7 +1324,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     run();
   }, [remindersStorageKey, remindersScopeApi, commentAuthorName, fetchReminders]);
 
-  /** Sincroniza quando a Zaya ou outra aba atualiza lembretes via API. */
+  /** Sincroniza quando outra aba atualiza lembretes via API. */
   useEffect(() => {
     const onSync = (e: Event) => {
       const ce = e as CustomEvent<{ scope?: string }>;
@@ -1606,7 +1606,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [selectedCard?.id, selectedCard?.mileageKm, selectedCard?.deliveryDate]);
 
-  // Abrir modal do veículo ao clicar em notificação (navegação da central de notificações / assistente Zaya)
+  // Abrir modal do veículo ao clicar em notificação (navegação da central de notificações)
   useEffect(() => {
     if (!openServiceOrderIdProp || openServiceOrderHandledRef.current) return;
     if (cards.length === 0) return;

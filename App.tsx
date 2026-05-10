@@ -23,7 +23,6 @@ import {
   effectivePatioApproveBudgetItems,
   getWorkshopSettings,
 } from './services/apiService';
-import { AssistantChat } from './components/AssistantChat';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
 import { ArrowLeft, X } from 'lucide-react';
 import { applyAccentToRoot, DEFAULT_ACCENT } from './utils/appAppearance';
@@ -48,14 +47,6 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUserChangePasswordsOpen, setIsUserChangePasswordsOpen] = useState(false);
   const [commentPopUpNotification, setCommentPopUpNotification] = useState<Notification | null>(null);
-  /** Dispara entrega do aviso pela Zaya (modal + voz). */
-  const [pendingZayaNotification, setPendingZayaNotification] = useState<Notification | null>(null);
-  /** Abrir modal do Pátio via assistente (Zaya). */
-  const [assistantPatioOpenOrderId, setAssistantPatioOpenOrderId] = useState<string | null>(null);
-  /** Quando definido com orderId, abre o modal de leitura deste orçamento após carregar. */
-  const [assistantPatioOpenBudgetId, setAssistantPatioOpenBudgetId] = useState<string | null>(null);
-  /** Incrementa para abrir o modal de histórico de arquivados no Pátio/Laboratório (Zaya). */
-  const [assistantPatioOpenHistoryTrigger, setAssistantPatioOpenHistoryTrigger] = useState(0);
   /** Visualizar orçamento a partir do hub (permanece na aba Orçamentos). */
   const [hubBudgetViewer, setHubBudgetViewer] = useState<{ serviceOrderId: string; budgetId: string } | null>(null);
 
@@ -63,13 +54,6 @@ export default function App() {
     playNotificationSound();
     setCommentPopUpNotification(n);
   };
-
-  const handleNewZayaAlert = (n: Notification) => {
-    playNotificationSound();
-    setPendingZayaNotification(n);
-  };
-
-  const clearPendingZayaNotification = useCallback(() => setPendingZayaNotification(null), []);
 
   // Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -533,14 +517,6 @@ export default function App() {
               effectsEnabled={effectsEnabled}
               commentAuthorName={authSession.displayName ?? 'Usuário'}
               blurPlates={cinematographicMode}
-              openServiceOrderId={assistantPatioOpenOrderId}
-              openServiceOrderSection={assistantPatioOpenBudgetId ? 'budgets' : null}
-              openBudgetIdAfterLoad={assistantPatioOpenBudgetId}
-              onOpenServiceOrderHandled={() => {
-                setAssistantPatioOpenOrderId(null);
-                setAssistantPatioOpenBudgetId(null);
-              }}
-              openHistoryRequested={assistantPatioOpenHistoryTrigger}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
@@ -561,7 +537,6 @@ export default function App() {
               openServiceOrderId={null}
               openServiceOrderSection={null}
               onOpenServiceOrderHandled={() => {}}
-              openHistoryRequested={assistantPatioOpenHistoryTrigger}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
@@ -571,7 +546,6 @@ export default function App() {
           <NotificationCenter
             theme={theme}
             onNewCommentNotification={handleNewCommentNotification}
-            onNewZayaAlert={handleNewZayaAlert}
             forTechnician={!!authSession.userId}
             technicianSlug={authSession.userId}
           />
@@ -607,37 +581,6 @@ export default function App() {
             onClose={() => setHubBudgetViewer(null)}
           />
         ) : null}
-        <AssistantChat
-          theme={theme}
-          allowedTabs={userAllowedTabs}
-          onNavigateTab={setUserTab}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          serviceOrderActor={{
-            actor: 'technician',
-            actorTechnicianSlug: authSession.userId,
-            actorTechnicianName: authSession.displayName ?? authSession.username ?? '',
-          }}
-          assistantAuthorDisplayName={authSession.displayName ?? authSession.username ?? 'Usuário'}
-          assistantCommentActor="technician"
-          currentTechnicianUserId={authSession.userId}
-          relaySessionRole={
-            authSession.isTechnician && authSession.userId
-              ? 'technician'
-              : authSession.userId
-                ? 'management'
-                : 'none'
-          }
-          onOpenPatioVehicle={(id) => {
-            setUserTab('patio');
-            setAssistantPatioOpenOrderId(id);
-          }}
-          onOpenPatioHistory={(target) => {
-            setUserTab(target);
-            setAssistantPatioOpenHistoryTrigger((n) => n + 1);
-          }}
-          pendingZayaNotification={pendingZayaNotification}
-          onPendingZayaConsumed={clearPendingZayaNotification}
-        />
         <DesktopEscapeCloseBridge activeAppTab={userTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
       </div>
       </BackNavigationProvider>
@@ -775,14 +718,6 @@ export default function App() {
             effectsEnabled={effectsEnabled}
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
-            openServiceOrderId={assistantPatioOpenOrderId}
-            openServiceOrderSection={assistantPatioOpenBudgetId ? 'budgets' : null}
-            openBudgetIdAfterLoad={assistantPatioOpenBudgetId}
-            onOpenServiceOrderHandled={() => {
-              setAssistantPatioOpenOrderId(null);
-              setAssistantPatioOpenBudgetId(null);
-            }}
-            openHistoryRequested={assistantPatioOpenHistoryTrigger}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         </KeepAliveTabPanel>
@@ -803,7 +738,6 @@ export default function App() {
             openServiceOrderId={null}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={() => {}}
-            openHistoryRequested={assistantPatioOpenHistoryTrigger}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         </KeepAliveTabPanel>
@@ -836,7 +770,6 @@ export default function App() {
         <NotificationCenter
           theme={theme}
           onNewCommentNotification={handleNewCommentNotification}
-          onNewZayaAlert={handleNewZayaAlert}
           forTechnician={authSession?.role === 'user' && !!authSession?.userId}
           technicianSlug={authSession?.role === 'user' ? authSession.userId : undefined}
         />
@@ -851,55 +784,6 @@ export default function App() {
           onClose={() => setCommentPopUpNotification(null)}
         />
       )}
-      <AssistantChat
-        theme={theme}
-        allowedTabs={['home', 'reception', 'agenda', 'patio', 'orcamentos', 'laboratorio']}
-        onNavigateTab={setCurrentTab}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        serviceOrderActor={
-          authSession?.role === 'admin'
-            ? { actor: 'admin' }
-            : {
-                actor: 'technician',
-                actorTechnicianSlug: authSession?.userId,
-                actorTechnicianName: authSession?.displayName ?? authSession?.username ?? '',
-              }
-        }
-        assistantAuthorDisplayName={
-          authSession?.role === 'admin'
-            ? adminDisplayName
-            : (authSession?.displayName ?? authSession?.username ?? 'Usuário')
-        }
-        assistantCommentActor={authSession?.role === 'admin' ? 'admin' : 'technician'}
-        currentTechnicianUserId={authSession?.role === 'user' ? authSession.userId : undefined}
-        relaySessionRole={
-          authSession?.role === 'admin'
-            ? 'management'
-            : authSession?.role === 'user' &&
-                authSession.userId &&
-                hasFullAccess &&
-                authSession.isTechnician
-              ? 'both'
-              : authSession?.role === 'user' && hasFullAccess
-                ? 'management'
-                : authSession?.role === 'user' &&
-                    authSession.isTechnician &&
-                    authSession.userId
-                  ? 'technician'
-                  : 'none'
-        }
-        onOpenPatioVehicle={(id, opts) => {
-          setCurrentTab('patio');
-          setAssistantPatioOpenOrderId(id);
-          setAssistantPatioOpenBudgetId(opts?.budgetId ?? null);
-        }}
-        onOpenPatioHistory={(target) => {
-          setCurrentTab(target);
-          setAssistantPatioOpenHistoryTrigger((n) => n + 1);
-        }}
-        pendingZayaNotification={pendingZayaNotification}
-        onPendingZayaConsumed={clearPendingZayaNotification}
-      />
       <DesktopEscapeCloseBridge activeAppTab={currentTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
     </div>
     </BackNavigationProvider>

@@ -2,13 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Bell, Loader2, Sparkles, Trash2, X } from "lucide-react";
 import {
   getSystemNotificationsConfig,
-  getZayaAlerts,
   saveSystemNotificationsConfig,
-  saveZayaAlerts,
-  type ZayaAlertsAvailableUser,
+  type WorkshopUserOption,
 } from "../services/apiService";
 import { SYSTEM_NOTIFICATION_TYPE_OPTIONS } from "../constants/systemNotificationTypes";
-import { ZAYA_ALERT_OPTIONS } from "../constants/zayaAlertTypes";
 import {
   iosModalClose,
   iosModalInsetCard,
@@ -23,7 +20,6 @@ import { useRegisterModalOpen } from "./ui/ModalLayerContext";
 
 type UserDraft = { systemUserId: string; displayName: string };
 type SystemUserDraft = UserDraft & { notificationTypes: string[] };
-type ZayaUserDraft = UserDraft & { alertTypes: string[] };
 
 function toggle(arr: string[], id: string): string[] {
   return arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
@@ -105,13 +101,10 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
   const [adminPassword, setAdminPassword] = useState("");
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
-  const [availableUsers, setAvailableUsers] = useState<ZayaAlertsAvailableUser[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<WorkshopUserOption[]>([]);
   const [systemAdminTypes, setSystemAdminTypes] = useState<string[]>([]);
-  const [zayaAdminTypes, setZayaAdminTypes] = useState<string[]>([]);
   const [systemSubscribers, setSystemSubscribers] = useState<SystemUserDraft[]>([]);
-  const [zayaSubscribers, setZayaSubscribers] = useState<ZayaUserDraft[]>([]);
   const [pickSystemUserId, setPickSystemUserId] = useState("");
-  const [pickZayaUserId, setPickZayaUserId] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
@@ -119,9 +112,8 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
     setMessage(null);
     setAdminPassword("");
     setPickSystemUserId("");
-    setPickZayaUserId("");
-    Promise.all([getSystemNotificationsConfig(), getZayaAlerts()])
-      .then(([sys, zaya]) => {
+    getSystemNotificationsConfig()
+      .then((sys) => {
         setAvailableUsers(sys.availableUsers || []);
         setSystemAdminTypes(sys.adminNotificationTypes || []);
         setSystemSubscribers(
@@ -131,36 +123,19 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
             displayName: s.displayName,
           }))
         );
-        setZayaAdminTypes(zaya.adminAlertTypes || []);
-        setZayaSubscribers(
-          (zaya.subscribers || []).map((s) => ({
-            systemUserId: s.systemUserId,
-            alertTypes: [...(s.alertTypes || [])],
-            displayName: s.displayName,
-          }))
-        );
       })
       .catch((e) => setMessage({ type: "err", text: e instanceof Error ? e.message : "Erro ao carregar." }))
       .finally(() => setLoading(false));
   }, [isOpen]);
 
   const systemIds = new Set(systemSubscribers.map((s) => s.systemUserId));
-  const zayaIds = new Set(zayaSubscribers.map((s) => s.systemUserId));
   const systemPickOptions = availableUsers.filter((u) => !systemIds.has(u.id));
-  const zayaPickOptions = availableUsers.filter((u) => !zayaIds.has(u.id));
 
   const addSystemUser = () => {
     const u = availableUsers.find((x) => x.id === pickSystemUserId);
     if (!u) return;
     setSystemSubscribers((prev) => [...prev, { systemUserId: u.id, notificationTypes: [], displayName: u.displayName || u.username }]);
     setPickSystemUserId("");
-  };
-
-  const addZayaUser = () => {
-    const u = availableUsers.find((x) => x.id === pickZayaUserId);
-    if (!u) return;
-    setZayaSubscribers((prev) => [...prev, { systemUserId: u.id, alertTypes: [], displayName: u.displayName || u.username }]);
-    setPickZayaUserId("");
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -172,22 +147,13 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
     }
     setSaving(true);
     try {
-      await Promise.all([
-        saveSystemNotificationsConfig({
-          adminPassword: adminPassword.trim(),
-          adminNotificationTypes: systemAdminTypes,
-          subscribers: systemSubscribers
-            .filter((s) => s.notificationTypes.length > 0)
-            .map((s) => ({ systemUserId: s.systemUserId, notificationTypes: s.notificationTypes })),
-        }),
-        saveZayaAlerts({
-          adminPassword: adminPassword.trim(),
-          adminAlertTypes: zayaAdminTypes,
-          subscribers: zayaSubscribers
-            .filter((s) => s.alertTypes.length > 0)
-            .map((s) => ({ systemUserId: s.systemUserId, alertTypes: s.alertTypes })),
-        }),
-      ]);
+      await saveSystemNotificationsConfig({
+        adminPassword: adminPassword.trim(),
+        adminNotificationTypes: systemAdminTypes,
+        subscribers: systemSubscribers
+          .filter((s) => s.notificationTypes.length > 0)
+          .map((s) => ({ systemUserId: s.systemUserId, notificationTypes: s.notificationTypes })),
+      });
       setMessage({ type: "ok", text: "Configuração de notificações salva." });
       setAdminPassword("");
     } catch (err) {
@@ -256,50 +222,6 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
                             options={SYSTEM_NOTIFICATION_TYPE_OPTIONS}
                             selected={s.notificationTypes}
                             onToggle={(id) => setSystemSubscribers((prev) => prev.map((x) => (x.systemUserId === s.systemUserId ? { ...x, notificationTypes: toggle(x.notificationTypes, id) } : x)))}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className={`${iosModalInsetCard} p-4`}>
-                <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200 mb-1">Avisos da Zaya</p>
-                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">Configuração dos eventos automáticos da assistente.</p>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200 mb-2">Gerência (admin)</p>
-                    <TypeSwitches
-                      idPrefix="zaya-admin"
-                      options={ZAYA_ALERT_OPTIONS}
-                      selected={zayaAdminTypes}
-                      onToggle={(id) => setZayaAdminTypes((prev) => toggle(prev, id))}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200 mb-2">Usuários do sistema</p>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <select value={pickZayaUserId} onChange={(e) => setPickZayaUserId(e.target.value)} className={`${iosInput} flex-1 min-w-[180px] py-2.5 text-[14px]`}>
-                        <option value="">Adicionar usuário…</option>
-                        {zayaPickOptions.map((u) => (
-                          <option key={u.id} value={u.id}>{u.displayName}</option>
-                        ))}
-                      </select>
-                      <button type="button" onClick={addZayaUser} disabled={!pickZayaUserId} className="rounded-2xl border border-zinc-200/90 dark:border-white/[0.08] px-4 py-2.5 text-[14px] font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100/80 dark:hover:bg-white/[0.06] disabled:opacity-40">Adicionar</button>
-                    </div>
-                    <div className="space-y-4">
-                      {zayaSubscribers.map((s) => (
-                        <div key={s.systemUserId} className="rounded-xl border border-zinc-200/80 dark:border-white/[0.08] p-3 bg-zinc-50/80 dark:bg-black/20">
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <span className="text-[14px] font-medium text-zinc-900 dark:text-white truncate">{s.displayName}</span>
-                            <button type="button" onClick={() => setZayaSubscribers((prev) => prev.filter((x) => x.systemUserId !== s.systemUserId))} className="shrink-0 p-2 rounded-xl text-rose-600 hover:bg-rose-500/10" aria-label="Remover"><Trash2 className="w-4 h-4" /></button>
-                          </div>
-                          <TypeSwitches
-                            idPrefix={`zaya-sub-${s.systemUserId}`}
-                            options={ZAYA_ALERT_OPTIONS}
-                            selected={s.alertTypes}
-                            onToggle={(id) => setZayaSubscribers((prev) => prev.map((x) => (x.systemUserId === s.systemUserId ? { ...x, alertTypes: toggle(x.alertTypes, id) } : x)))}
                           />
                         </div>
                       ))}

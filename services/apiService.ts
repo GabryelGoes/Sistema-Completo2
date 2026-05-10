@@ -964,11 +964,7 @@ export type NotificationType =
   | "vehicle_scheduled"
   | "vehicle_registered"
   | "complaint_edited"
-  | "delivery_date_changed"
-  | "zaya_stage_aguardando_aprovacao"
-  | "zaya_stage_finalizado"
-  | "zaya_orcamento_com_aprovacao"
-  | "zaya_orcamento_com_reprovacao";
+  | "delivery_date_changed";
 
 export interface NotificationPayload {
   service_order_id?: string;
@@ -2077,49 +2073,10 @@ export async function updateWorkshopSettings(
   return response.json();
 }
 
-// ---------- Avisos da Zaya (destinatários e tipos) ----------
-
-export interface ZayaAlertsSubscriberRow {
-  systemUserId: string;
-  alertTypes: string[];
-  displayName: string;
-}
-
-export interface ZayaAlertsAvailableUser {
+export interface WorkshopUserOption {
   id: string;
   username: string;
   displayName: string;
-}
-
-export interface ZayaAlertsConfig {
-  adminAlertTypes: string[];
-  subscribers: ZayaAlertsSubscriberRow[];
-  availableUsers: ZayaAlertsAvailableUser[];
-}
-
-export async function getZayaAlerts(): Promise<ZayaAlertsConfig> {
-  const response = await fetch(`${API_BASE}/workshop/zaya-alerts`);
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Falha ao carregar avisos da Zaya.");
-  }
-  return response.json();
-}
-
-export async function saveZayaAlerts(body: {
-  adminPassword: string;
-  adminAlertTypes: string[];
-  subscribers: { systemUserId: string; alertTypes: string[] }[];
-}): Promise<void> {
-  const response = await fetch(`${API_BASE}/workshop/zaya-alerts`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Falha ao salvar avisos da Zaya.");
-  }
 }
 
 export interface SystemNotificationsSubscriberRow {
@@ -2131,7 +2088,7 @@ export interface SystemNotificationsSubscriberRow {
 export interface SystemNotificationsConfig {
   adminNotificationTypes: string[];
   subscribers: SystemNotificationsSubscriberRow[];
-  availableUsers: ZayaAlertsAvailableUser[];
+  availableUsers: WorkshopUserOption[];
 }
 
 export async function getSystemNotificationsConfig(): Promise<SystemNotificationsConfig> {
@@ -2169,133 +2126,6 @@ export async function deleteServiceOrderWithPassword(serviceOrderId: string, pas
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || "Falha ao excluir veículo.");
-  }
-}
-
-// ---------- Recados Zaya (gerência ↔ técnicos) ----------
-
-export type ZayaRelaySessionRole = "management" | "technician" | "none";
-
-export interface ZayaRelayPendingRow {
-  id: string;
-  body: string;
-  direction: "to_technician" | "to_management";
-  sender_label: string;
-  created_at: string;
-  from_technician_user_id?: string | null;
-}
-
-const relayFetchInit: RequestInit = { cache: "no-store" };
-
-export async function getZayaRelayPendingCountForTechnician(userId: string): Promise<number> {
-  const response = await fetch(
-    `${API_BASE}/zaya-relay/pending-count?${new URLSearchParams({ userId })}`,
-    relayFetchInit
-  );
-  if (!response.ok) return 0;
-  const data = (await response.json()) as { toTechnician?: number };
-  return typeof data.toTechnician === "number" ? data.toTechnician : 0;
-}
-
-export async function getZayaRelayPendingCountForManagement(): Promise<number> {
-  const response = await fetch(
-    `${API_BASE}/zaya-relay/pending-count?${new URLSearchParams({ target: "management" })}`,
-    relayFetchInit
-  );
-  if (!response.ok) return 0;
-  const data = (await response.json()) as { toManagement?: number };
-  return typeof data.toManagement === "number" ? data.toManagement : 0;
-}
-
-export async function getZayaRelayPendingForTechnician(userId: string): Promise<ZayaRelayPendingRow[]> {
-  const response = await fetch(
-    `${API_BASE}/zaya-relay/pending?${new URLSearchParams({ userId })}`,
-    relayFetchInit
-  );
-  if (!response.ok) return [];
-  return response.json();
-}
-
-export async function getZayaRelayPendingForManagement(): Promise<ZayaRelayPendingRow[]> {
-  const response = await fetch(
-    `${API_BASE}/zaya-relay/pending?${new URLSearchParams({ target: "management" })}`,
-    relayFetchInit
-  );
-  if (!response.ok) return [];
-  return response.json();
-}
-
-export async function markZayaRelayOpened(
-  ids: string[],
-  scope: "technician" | "management",
-  userId?: string
-): Promise<void> {
-  const response = await fetch(`${API_BASE}/zaya-relay/mark-opened`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ids, scope, ...(userId ? { userId } : {}) }),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Falha ao marcar recados abertos.");
-  }
-}
-
-export async function createZayaRelayToTechnicians(
-  text: string,
-  recipient: { all: true } | { username: string }
-): Promise<{ ok: boolean; count?: number; recipient_usernames?: string[] }> {
-  const response = await fetch(`${API_BASE}/zaya-relay/send/to-technicians`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(
-      "all" in recipient
-        ? { body: text, recipient_all: true }
-        : { body: text, recipient_username: recipient.username }
-    ),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error((data as { error?: string }).error || "Falha ao enviar recado aos técnicos.");
-  }
-  return data as { ok: boolean; count?: number; recipient_usernames?: string[] };
-}
-
-export async function createZayaRelayToManagement(
-  text: string,
-  fromUserId: string
-): Promise<{ ok: boolean; id?: string }> {
-  const response = await fetch(`${API_BASE}/zaya-relay/send/to-management`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ body: text, fromUserId }),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error((data as { error?: string }).error || "Falha ao enviar recado à gerência.");
-  }
-  return data as { ok: boolean; id?: string };
-}
-
-export async function submitZayaRelayReply(
-  messageId: string,
-  replyText: string,
-  role: "admin" | "technician",
-  userId?: string
-): Promise<void> {
-  const response = await fetch(`${API_BASE}/zaya-relay/reply`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messageId,
-      replyText,
-      role,
-      ...(userId ? { userId } : {}),
-    }),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error((data as { error?: string }).error || "Falha ao registrar resposta.");
   }
 }
 
