@@ -22,9 +22,16 @@ interface AgendaViewProps {
   appointments: Appointment[];
   setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
   blurPlates?: boolean;
+  /** Com KeepAlive: pausa refresh do modal de detalhe fora desta aba. */
+  isAgendaTabActive?: boolean;
 }
 
-export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppointments, blurPlates = false }) => {
+export const AgendaView: React.FC<AgendaViewProps> = ({
+  appointments,
+  setAppointments,
+  blurPlates = false,
+  isAgendaTabActive = true,
+}) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
@@ -118,9 +125,9 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
     return () => window.removeEventListener('keydown', onKey);
   }, [detailAppointment]);
 
-  /** Mantém o modal de detalhe alinhado aos dados da API enquanto estiver aberto. */
+  /** Mantém o modal de detalhe alinhado aos dados da API enquanto estiver aberto (≥60s). */
   useEffect(() => {
-    if (!detailAppointment) return;
+    if (!detailAppointment || !isAgendaTabActive) return;
     const detailId = detailAppointment.id;
     const tick = async () => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
@@ -132,9 +139,9 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ appointments, setAppoint
         return found ?? null;
       });
     };
-    const id = window.setInterval(tick, 12000);
+    const id = window.setInterval(tick, 60000);
     return () => window.clearInterval(id);
-  }, [detailAppointment?.id, refreshAppointmentsSilent]);
+  }, [detailAppointment?.id, refreshAppointmentsSilent, isAgendaTabActive]);
 
   // Load appointments from localStorage on mount (Removed as it's now in App.tsx)
   // Save appointments to localStorage whenever they change (Removed as it's now in App.tsx)

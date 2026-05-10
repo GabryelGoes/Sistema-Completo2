@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { getSupabaseBrowser } from "../services/supabaseBrowser";
 
-const FALLBACK_POLL_MS = 90_000;
+const FALLBACK_POLL_MS = 120_000;
 /** Timeout do join Realtime (evita TIMED_OUT sem mensagem). */
 const SUBSCRIBE_TIMEOUT_MS = 90_000;
 

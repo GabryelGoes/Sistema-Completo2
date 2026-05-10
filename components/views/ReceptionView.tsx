@@ -90,6 +90,8 @@ interface ReceptionViewProps {
   onIntakeSuccess?: (orderType: ServiceOrderType) => void;
   /** Mantém o destino do gesto/botão voltar alinhado ao modo veículo vs módulo (fluxo Pátio/Lab → recepção). */
   onReceptionModeChangeForBack?: (mode: ServiceOrderType) => void;
+  /** KeepAlive: pausa polling do histórico quando outra aba está visível. */
+  isReceptionTabActive?: boolean;
 }
 
 function attachmentMimeType(name: string): string {
@@ -115,6 +117,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   actorOptions,
   onIntakeSuccess,
   onReceptionModeChangeForBack,
+  isReceptionTabActive = true,
 }) => {
   const [receptionMode, setReceptionMode] = useState<ServiceOrderType>(() => {
     try {
@@ -428,17 +431,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     if (isHistoryOpen) void loadVehicleHistory(historySearchRef.current ?? '');
   }, [isHistoryOpen, receptionMode, loadVehicleHistory]);
 
-  /** Mantém lista / filtro do histórico atualizados com o modal aberto. */
+  /** Mantém lista / filtro do histórico atualizados com o modal aberto (≥60s; pausa fora da aba). */
   useEffect(() => {
-    if (!isHistoryOpen) return;
+    if (!isHistoryOpen || !isReceptionTabActive) return;
     const tick = () => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       const term = historySearchRef.current ?? '';
       void loadVehicleHistoryRef.current(term);
     };
-    const id = window.setInterval(tick, 12000);
+    const id = window.setInterval(tick, 60000);
     return () => window.clearInterval(id);
-  }, [isHistoryOpen]);
+  }, [isHistoryOpen, isReceptionTabActive]);
 
   useEffect(() => {
     if (!isHistoryOpen) {

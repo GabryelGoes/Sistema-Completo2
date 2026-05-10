@@ -172,8 +172,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       : undefined;
 
   /** Pausa em segundo plano: ver checks em pollNewOnly / fetchNotifications. */
-  const POLL_QUICK_MS = 8000;   // novas notificações (menos carga que 1s; ainda responsivo)
-  const POLL_FULL_MS = 45000;  // refresh completo da lista
+  const POLL_QUICK_MS = 60000;   // mín. 60s — reduz invocações Vercel / Supabase
+  const POLL_FULL_MS = 120000;   // lista completa menos frequente
 
   const fetchNotifications = async (since?: string, silent = false) => {
     if (forTechnician && !technicianSlug) return;

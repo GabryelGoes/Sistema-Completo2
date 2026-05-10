@@ -167,7 +167,9 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
 
   usePatioBudgetsHubLiveSync(syncFromRealtime, { enabled: true });
 
+  /** Backup lento quando Realtime falha — só com aba Orçamentos visível (KeepAlive). */
   useEffect(() => {
+    if (!isHubTabActive) return;
     const id = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       void load({
@@ -176,7 +178,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
       });
     }, 90000);
     return () => window.clearInterval(id);
-  }, [load]);
+  }, [load, isHubTabActive]);
 
   /** Ao focar a aba: zera o badge, guarda o lote do notifier e recarrega (aro âmbar para o que notificou na Home). */
   useEffect(() => {

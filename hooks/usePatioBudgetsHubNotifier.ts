@@ -30,7 +30,7 @@ export function usePatioBudgetsHubNotifier(opts: {
   activeTab: TabId;
   pollMs?: number;
 }) {
-  const { enabled, activeTab, pollMs = 22000 } = opts;
+  const { enabled, activeTab, pollMs = 60000 } = opts;
   const [badgeCount, setBadgeCount] = useState(0);
   const snapshotRef = useRef<string | null>(null);
   /** Orçamentos que geraram notificação na Home — consumidos pelo hub ao focar a aba (aro âmbar até abrir no pátio). */

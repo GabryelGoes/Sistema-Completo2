@@ -106,8 +106,8 @@ export default function App() {
   const patioBudgetsHub = usePatioBudgetsHubNotifier({
     enabled: Boolean(authSession),
     activeTab: activeAppTab,
-    /** ~22s alinhado ao padrão do hook; evita GET agregado a cada 3s (custo em API/banda). */
-    pollMs: 22000,
+    /** ≥60s — badge Home sem polling agressivo (custo Vercel). */
+    pollMs: 60000,
   });
 
   const handleOpenBudgetFromHub = useCallback((serviceOrderId: string, budgetId: string) => {
@@ -487,6 +487,7 @@ export default function App() {
               onUseCustomerData={handleUseCustomerData}
               onIntakeSuccess={handleReceptionIntakeSuccess}
               onReceptionModeChangeForBack={syncReturnTabFromReceptionMode}
+              isReceptionTabActive={userTab === 'reception'}
               actorOptions={{
                 actor: 'technician',
                 actorTechnicianSlug: authSession.userId,
@@ -504,6 +505,7 @@ export default function App() {
               appointments={appointments}
               setAppointments={setAppointments}
               blurPlates={cinematographicMode}
+              isAgendaTabActive={userTab === 'agenda'}
             />
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
@@ -518,6 +520,7 @@ export default function App() {
               effectsEnabled={effectsEnabled}
               commentAuthorName={authSession.displayName ?? 'Usuário'}
               blurPlates={cinematographicMode}
+              isAppTabActive={userTab === 'patio'}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
@@ -535,6 +538,7 @@ export default function App() {
               effectsEnabled={effectsEnabled}
               commentAuthorName={authSession.displayName ?? 'Usuário'}
               blurPlates={cinematographicMode}
+              isAppTabActive={userTab === 'laboratorio'}
               openServiceOrderId={null}
               openServiceOrderSection={null}
               onOpenServiceOrderHandled={() => {}}
@@ -682,6 +686,7 @@ export default function App() {
             onUseCustomerData={handleUseCustomerData}
             onIntakeSuccess={handleReceptionIntakeSuccess}
             onReceptionModeChangeForBack={syncReturnTabFromReceptionMode}
+            isReceptionTabActive={currentTab === 'reception'}
             actorOptions={
               authSession?.role === 'admin'
                 ? { actor: 'admin' }
@@ -704,6 +709,7 @@ export default function App() {
             appointments={appointments}
             setAppointments={setAppointments}
             blurPlates={cinematographicMode}
+            isAgendaTabActive={currentTab === 'agenda'}
           />
         </KeepAliveTabPanel>
 
@@ -719,6 +725,7 @@ export default function App() {
             effectsEnabled={effectsEnabled}
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
+            isAppTabActive={currentTab === 'patio'}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         </KeepAliveTabPanel>
@@ -736,6 +743,7 @@ export default function App() {
             effectsEnabled={effectsEnabled}
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
+            isAppTabActive={currentTab === 'laboratorio'}
             openServiceOrderId={null}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={() => {}}

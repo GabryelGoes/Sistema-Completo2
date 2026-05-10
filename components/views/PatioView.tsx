@@ -258,6 +258,8 @@ interface PatioViewProps {
   openHistoryRequested?: number;
   /** Exibir apenas veículos (Pátio) ou apenas módulos (Laboratório). */
   orderType?: ServiceOrderType;
+  /** Se false, pausa refreshes periódicos (lista/lembretes) — KeepAlive mantém o componente montado fora da aba. */
+  isAppTabActive?: boolean;
   /** Permissões do pátio para usuários limitados. Se não passado (admin), tudo permitido. */
   patioPermissions?: {
     canDeleteCards?: boolean;
@@ -889,6 +891,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   openHistoryRequested,
   orderType = 'vehicle',
   patioPermissions,
+  isAppTabActive = true,
 }) => {
   /** Admin: sem patioPermissions = tudo permitido. Usuário do sistema: só o que for explicitamente true. */
   const can = (key: keyof NonNullable<PatioViewProps['patioPermissions']>) =>
@@ -1263,11 +1266,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [fetchReminders]);
 
   useEffect(() => {
+    if (!isAppTabActive) return;
     const id = window.setInterval(() => {
       if (document.visibilityState === 'visible') fetchReminders();
-    }, 12000);
+    }, 90000);
     return () => window.clearInterval(id);
-  }, [fetchReminders]);
+  }, [fetchReminders, isAppTabActive]);
 
   useEffect(() => {
     if (isRemindersOpen) fetchReminders();
@@ -1574,6 +1578,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
+  const fetchDataRef = useRef(fetchData);
+  fetchDataRef.current = fetchData;
+
   useEffect(() => {
     if (selectedCard) {
       const km = selectedCard.mileageKm ?? '';
@@ -1757,14 +1764,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [selectedCard?.id]);
 
+  /** Lista do quadro: só quando esta aba (Pátio/Lab) está visível — evita GET em loop com KeepAlive. Intervalo ≥60s. */
   useEffect(() => {
-    fetchData(false);
-    const intervalId = setInterval(() => {
+    if (!isAppTabActive) return;
+    fetchDataRef.current(false);
+    const intervalId = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-      fetchData(true);
-    }, 15000);
-    return () => clearInterval(intervalId);
-  }, []);
+      fetchDataRef.current(true);
+    }, 90000);
+    return () => window.clearInterval(intervalId);
+  }, [isAppTabActive]);
 
   // Carregar templates de checklist do Pátio (criados pelo admin)
   useEffect(() => {
