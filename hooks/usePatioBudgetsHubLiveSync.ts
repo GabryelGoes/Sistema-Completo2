@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { getSupabaseBrowser } from "../services/supabaseBrowser";
 
 const FALLBACK_POLL_MS = 90_000;
+/** Timeout do join Realtime (evita TIMED_OUT sem mensagem). */
+const SUBSCRIBE_TIMEOUT_MS = 90_000;
 
 /**
  * Hub de orçamentos: **Realtime direto no browser** (budgets + OS da oficina),
@@ -103,7 +105,7 @@ export function usePatioBudgetsHubLiveSync(
         console.warn("[usePatioBudgetsHubLiveSync] Realtime não subscreveu a tempo — fallback lento.");
         startFallback();
       }
-    }, 12_000);
+    }, SUBSCRIBE_TIMEOUT_MS + 15_000);
 
     channel.subscribe((status, err) => {
       if (status === "SUBSCRIBED") {
@@ -130,7 +132,7 @@ export function usePatioBudgetsHubLiveSync(
         );
         startFallback();
       }
-    });
+    }, SUBSCRIBE_TIMEOUT_MS);
 
     const onVis = () => {
       if (document.visibilityState === "visible") schedule();
