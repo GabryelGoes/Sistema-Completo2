@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './index.css';
 import './lightModeContrast.css';
 import App from './App';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
@@ -23,10 +24,10 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')
       .then((registration) => {
-        console.log('SW registered: ', registration);
+        if (import.meta.env.DEV) console.log('SW registered:', registration);
       })
       .catch((registrationError) => {
-        console.log('SW registration failed: ', registrationError);
+        if (import.meta.env.DEV) console.warn('SW registration failed:', registrationError);
       });
   });
 }

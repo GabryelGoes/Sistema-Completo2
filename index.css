@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --app-accent: #f5d00b;
+  --app-accent-rgb: 245 208 11;
+  --app-accent-hover: #fcd61e;
+}
+
+body {
+  background-color: #f2f2f7;
+  color: #1c1c1e;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+.dark body {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #e5e5ea;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c7c7cc;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #333;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #aeaeb2;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.budget-modal-light-chrome ::-webkit-scrollbar-track {
+  background: #e5e5ea;
+}
+
+.budget-modal-light-chrome ::-webkit-scrollbar-thumb {
+  background: #c7c7cc;
+  border-radius: 4px;
+}
+
+.budget-modal-light-chrome ::-webkit-scrollbar-thumb:hover {
+  background: #aeaeb2;
+}
+
+.font-vehicle {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-sheet-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-modal-backdrop {
+  animation: modal-backdrop-in 0.35s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+.animate-modal-sheet {
+  animation: modal-sheet-in 0.42s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@keyframes modal-wp-app-in {
+  from {
+    opacity: 0;
+    transform: perspective(1200px) translateY(36px) scale(0.82) rotateX(-10deg);
+    filter: saturate(0.85) blur(1px);
+  }
+
+  to {
+    opacity: 1;
+    transform: perspective(1200px) translateY(0) scale(1) rotateX(0deg);
+    filter: saturate(1) blur(0);
+  }
+}
+
+.animate-modal-wp-app {
+  transform-origin: center 86%;
+  animation: modal-wp-app-in 0.48s cubic-bezier(0.2, 0.85, 0.22, 1) both;
+  will-change: transform, opacity, filter;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-modal-wp-app {
+    animation: modal-sheet-in 0.2s ease-out both;
+    filter: none;
+  }
+}
+
+.blur-plate {
+  filter: blur(8px);
+  -webkit-filter: blur(8px);
+  user-select: none;
+  display: inline-block;
+  min-width: 2ch;
+  letter-spacing: 0.1em;
+}
