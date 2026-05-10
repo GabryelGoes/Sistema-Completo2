@@ -83,6 +83,8 @@ export interface ServiceOrderListItem {
 /** OS em detalhe (com cliente completo para Recepção) */
 export interface ServiceOrderDetail {
   id: string;
+  /** Incluído na resposta GET; usado para Realtime no browser (filtro lembretes). */
+  workshop_id?: string;
   os_number?: number | null;
   customer_id: string;
   vehicle_model: string;

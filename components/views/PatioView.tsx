@@ -1385,6 +1385,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   useServiceOrderLiveSync(selectedCard?.id ?? null, syncOpenVehicleModalFromServer, {
     enabled: !!selectedCard,
+    realtimeCustomerId: serviceOrderDetail?.customer_id,
+    realtimeWorkshopId: serviceOrderDetail?.workshop_id,
   });
 
   const syncHistoryDetailFromServer = React.useCallback(async () => {
@@ -1421,35 +1423,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useServiceOrderLiveSync(
     selectedHistoryCard && isHistoryOpen ? selectedHistoryCard.id : null,
     syncHistoryDetailFromServer,
-    { enabled: !!selectedHistoryCard && isHistoryOpen }
+    {
+      enabled: !!selectedHistoryCard && isHistoryOpen,
+      realtimeCustomerId: historyServiceOrderDetail?.customer_id,
+      realtimeWorkshopId: historyServiceOrderDetail?.workshop_id,
+    }
   );
-
-  /** Enquanto o modal da OS estiver aberto, atualiza dados periodicamente (complementa o SSE). */
-  useEffect(() => {
-    if (!selectedCard) return;
-    const id = window.setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-      // Enquanto edita "Dados da ficha", evita sobrescrever campos com refresh periódico.
-      if (isDadosFichaExpanded) return;
-      // Mesmo comportamento para edição da queixa/descrição do cliente.
-      if (isEditingDescRef.current) return;
-      // Também pausa enquanto houver comentário em digitação/edição.
-      if (newCommentRef.current.trim()) return;
-      if (editingActionIdRef.current) return;
-      void syncOpenVehicleModalFromServer();
-    }, 10000);
-    return () => clearInterval(id);
-  }, [selectedCard?.id, isDadosFichaExpanded, syncOpenVehicleModalFromServer]);
-
-  /** Modal de histórico/arquivado aberto: mesmo intervalo. */
-  useEffect(() => {
-    if (!isHistoryOpen || !selectedHistoryCard) return;
-    const id = window.setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-      void syncHistoryDetailFromServer();
-    }, 10000);
-    return () => clearInterval(id);
-  }, [isHistoryOpen, selectedHistoryCard?.id, syncHistoryDetailFromServer]);
 
   // --- Attachment States ---
   const [isUploading, setIsUploading] = useState(false);

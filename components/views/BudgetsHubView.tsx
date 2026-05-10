@@ -174,7 +174,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
         silent: true,
         skipNotifierIngest: !isHubTabActiveRef.current,
       });
-    }, 12000);
+    }, 90000);
     return () => window.clearInterval(id);
   }, [load]);
 

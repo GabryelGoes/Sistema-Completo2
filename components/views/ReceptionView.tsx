@@ -611,6 +611,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   useServiceOrderLiveSync(archivedDetailOrderId, silentReloadArchivedDetail, {
     enabled: !!archivedDetailOrderId,
+    realtimeCustomerId: archivedDetailData?.customer_id,
+    realtimeWorkshopId: archivedDetailData?.workshop_id,
   });
 
   const syncHistoryBudgetDetailFromServer = useCallback(async () => {
@@ -629,6 +631,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   useServiceOrderLiveSync(historyBudgetDetail?.serviceOrderId ?? null, syncHistoryBudgetDetailFromServer, {
     enabled: !!historyBudgetDetail,
+    realtimeWorkshopId: (import.meta.env.VITE_WORKSHOP_ID as string | undefined) || undefined,
   });
 
   return (

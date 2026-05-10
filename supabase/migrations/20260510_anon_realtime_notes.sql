@@ -1,0 +1,16 @@
+-- Referência: Realtime no browser com `VITE_SUPABASE_ANON_KEY`
+--
+-- O Postgres Changes entrega eventos ao cliente só se o role da chave (anon)
+-- tiver permissão de leitura nas linhas (RLS ou tabela sem RLS).
+--
+-- Se o canal Realtime falhar ou não receber eventos:
+-- 1) Confirme que as tabelas estão em `supabase_realtime` (ver migration 20260331_enable_realtime_for_modal_sync.sql).
+-- 2) No Supabase → Authentication não precisa de utilizadores para anon; o problema costuma ser RLS.
+-- 3) Ajuste políticas por oficina (substitua YOUR_WORKSHOP_UUID pelo mesmo UUID que WORKSHOP_ID no .env do servidor):
+--
+--    -- ALTER TABLE public.service_orders ENABLE ROW LEVEL SECURITY;
+--    -- CREATE POLICY service_orders_anon_read ON public.service_orders
+--    --   FOR SELECT TO anon USING (workshop_id = 'YOUR_WORKSHOP_UUID'::uuid);
+--    (Repita o padrão para customers, budgets, etc., conforme necessidade e segurança do projeto.)
+--
+-- Sem políticas adequadas, o app usa fallback (poll lento) definido nos hooks.
