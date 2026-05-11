@@ -21,6 +21,8 @@ export function useServiceOrderLiveSync(
     debounceMs?: number;
     /** Se Realtime falhar, intervalo do poll de segurança (ms). Default 25s — etapas/chat/anexos não ficam “presos”. */
     fallbackPollMs?: number;
+    /** Se false, não subscreve `workshop_reminders` (evita refetch total do modal a cada lembrete na oficina). */
+    subscribeWorkshopReminders?: boolean;
     enabled?: boolean;
     realtimeCustomerId?: string | null;
     realtimeWorkshopId?: string | null;
@@ -28,6 +30,7 @@ export function useServiceOrderLiveSync(
 ) {
   const debounceMs = options?.debounceMs ?? 200;
   const fallbackPollMs = options?.fallbackPollMs ?? 25_000;
+  const subscribeWorkshopReminders = options?.subscribeWorkshopReminders !== false;
   const enabled = options?.enabled !== false;
   const rawCustomerId = options?.realtimeCustomerId ?? null;
   const realtimeCustomerId =
@@ -169,7 +172,7 @@ export function useServiceOrderLiveSync(
       );
     }
 
-    if (workshopId) {
+    if (workshopId && subscribeWorkshopReminders) {
       extraChannel = extraChannel.on(
         "postgres_changes",
         {
@@ -257,6 +260,7 @@ export function useServiceOrderLiveSync(
     enabled,
     debounceMs,
     fallbackPollMs,
+    subscribeWorkshopReminders,
     realtimeCustomerId,
     realtimeWorkshopId,
   ]);

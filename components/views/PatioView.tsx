@@ -922,14 +922,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [referenceLinksSaving, setReferenceLinksSaving] = useState(false);
   /** Seção "Dados da ficha" no modal: começa minimizada. */
   const [isDadosFichaExpanded, setIsDadosFichaExpanded] = useState(false);
+  /** Evita repor `editFichaForm` a cada `serviceOrderDetail` vindo do Realtime (apaga digitação). */
+  const dadosFichaExpandedPrevRef = useRef(false);
 
   useEffect(() => {
     if (selectedCard?.id) setIsDadosFichaExpanded(false);
   }, [selectedCard?.id]);
 
-  /** Sincroniza o formulário de edição da ficha quando a seção é expandida (para edição inline). */
+  /** Hidrata o formulário só ao expandir a secção (não a cada sync da OS). */
   useEffect(() => {
+    const prev = dadosFichaExpandedPrevRef.current;
+    dadosFichaExpandedPrevRef.current = isDadosFichaExpanded;
     if (!isDadosFichaExpanded || !serviceOrderDetail) return;
+    if (prev) return;
     const c = serviceOrderDetail.customers;
     setEditFichaForm({
       name: c?.name ?? '',
@@ -983,8 +988,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [editingText, setEditingText] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const newCommentRef = useRef('');
+  const sendingCommentRef = useRef(false);
   const editingActionIdRef = useRef<string | null>(null);
   newCommentRef.current = newComment;
+  sendingCommentRef.current = sendingComment;
   editingActionIdRef.current = editingActionId;
 
   const handleJumpToCustomerNameEdit = () => {
@@ -1362,16 +1369,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const freshCard = orderToCard(listItem, nameMap, orderType);
       setSelectedCard((prev) => (prev?.id === id ? freshCard : prev));
       setCards((prev) => prev.map((c) => (c.id === id ? freshCard : c)));
-      setCardDetails({
-        actions: (comments ?? []).map(commentToAction),
-        attachments: photos.map((p, i) => ({
-          id: p.path || String(i),
-          name: p.name,
-          url: p.url,
-          mimeType: attachmentMimeType(p.name),
-          previews: [{ url: p.url, width: 200, height: 200 }],
-        })),
-      });
+      const skipCommentsRefresh =
+        !!newCommentRef.current.trim() ||
+        !!editingActionIdRef.current ||
+        sendingCommentRef.current;
+      const nextAttachments = photos.map((p, i) => ({
+        id: p.path || String(i),
+        name: p.name,
+        url: p.url,
+        mimeType: attachmentMimeType(p.name),
+        previews: [{ url: p.url, width: 200, height: 200 }],
+      }));
+      if (skipCommentsRefresh) {
+        setCardDetails((prev) => ({
+          actions: prev?.actions ?? [],
+          attachments: nextAttachments,
+        }));
+      } else {
+        setCardDetails({
+          actions: (comments ?? []).map(commentToAction),
+          attachments: nextAttachments,
+        });
+      }
       setSavedBudgets(budgets);
       setViewingBudget((prev) => {
         if (!prev) return null;
@@ -1394,6 +1413,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   useServiceOrderLiveSync(selectedCard?.id ?? null, syncOpenVehicleModalFromServer, {
     enabled: !!selectedCard,
+    subscribeWorkshopReminders: false,
     realtimeCustomerId: serviceOrderDetail?.customer_id,
     realtimeWorkshopId: serviceOrderDetail?.workshop_id,
   });
@@ -1434,6 +1454,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     syncHistoryDetailFromServer,
     {
       enabled: !!selectedHistoryCard && isHistoryOpen,
+      subscribeWorkshopReminders: false,
       realtimeCustomerId: historyServiceOrderDetail?.customer_id,
       realtimeWorkshopId: historyServiceOrderDetail?.workshop_id,
     }
