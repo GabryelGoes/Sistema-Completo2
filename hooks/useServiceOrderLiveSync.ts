@@ -2,6 +2,9 @@ import { useEffect, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowser } from "../services/supabaseBrowser";
 
+/** ID sintético do placeholder do modal (PatioView) — não subscrever `customers` com isto. */
+const PLACEHOLDER_CUSTOMER_ID = "00000000-0000-4000-8000-000000000001";
+
 /**
  * Mantém o modal da OS alinhado ao servidor via **Supabase Realtime no browser**.
  *
@@ -16,25 +19,32 @@ export function useServiceOrderLiveSync(
   onSync: () => void | Promise<void>,
   options?: {
     debounceMs?: number;
+    /** Se Realtime falhar, intervalo do poll de segurança (ms). Default 25s — etapas/chat/anexos não ficam “presos”. */
+    fallbackPollMs?: number;
     enabled?: boolean;
     realtimeCustomerId?: string | null;
     realtimeWorkshopId?: string | null;
   }
 ) {
-  const debounceMs = options?.debounceMs ?? 400;
+  const debounceMs = options?.debounceMs ?? 200;
+  const fallbackPollMs = options?.fallbackPollMs ?? 25_000;
   const enabled = options?.enabled !== false;
-  const realtimeCustomerId = options?.realtimeCustomerId ?? null;
+  const rawCustomerId = options?.realtimeCustomerId ?? null;
+  const realtimeCustomerId =
+    rawCustomerId?.trim() && rawCustomerId.trim() !== PLACEHOLDER_CUSTOMER_ID
+      ? rawCustomerId.trim()
+      : null;
   const realtimeWorkshopId = options?.realtimeWorkshopId ?? null;
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fallbackIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fallbackBootTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncedOnceAfterBothChannelsRef = useRef(false);
   const onSyncRef = useRef(onSync);
   onSyncRef.current = onSync;
 
   /** Join Realtime pode demorar com vários bindings; default da lib é curto → TIMED_OUT sem mensagem. */
   const SUBSCRIBE_TIMEOUT_MS = 90_000;
-  const FALLBACK_POLL_MS = 120_000;
 
   const schedule = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -61,7 +71,7 @@ export function useServiceOrderLiveSync(
     fallbackIntervalRef.current = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       void Promise.resolve(onSyncRef.current());
-    }, FALLBACK_POLL_MS);
+    }, fallbackPollMs);
   };
 
   const logSubscribeProblem = (which: string, status: string, err: unknown) => {
@@ -84,11 +94,13 @@ export function useServiceOrderLiveSync(
   useEffect(() => {
     if (!enabled || !serviceOrderId) return;
 
+    syncedOnceAfterBothChannelsRef.current = false;
+
     const workshopId =
       realtimeWorkshopId?.trim() ||
       (import.meta.env.VITE_WORKSHOP_ID as string | undefined)?.trim() ||
       null;
-    const customerId = realtimeCustomerId?.trim() || null;
+    const customerId = realtimeCustomerId;
 
     const supabase = getSupabaseBrowser();
     if (!supabase) {
@@ -183,6 +195,13 @@ export function useServiceOrderLiveSync(
           clearInterval(fallbackIntervalRef.current);
           fallbackIntervalRef.current = null;
         }
+        if (!syncedOnceAfterBothChannelsRef.current) {
+          syncedOnceAfterBothChannelsRef.current = true;
+          queueMicrotask(() => {
+            if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+            void Promise.resolve(onSyncRef.current());
+          });
+        }
       }
     };
 
@@ -212,7 +231,7 @@ export function useServiceOrderLiveSync(
     fallbackBootTimerRef.current = window.setTimeout(() => {
       if (!(coreOk && extraOk)) {
         console.warn(
-          "[useServiceOrderLiveSync] Realtime não subscreveu a tempo — fallback lento (poll)."
+          `[useServiceOrderLiveSync] Realtime não subscreveu a tempo — poll de segurança a cada ${fallbackPollMs / 1000}s.`
         );
         startFallback();
       }
@@ -237,6 +256,7 @@ export function useServiceOrderLiveSync(
     serviceOrderId,
     enabled,
     debounceMs,
+    fallbackPollMs,
     realtimeCustomerId,
     realtimeWorkshopId,
   ]);
