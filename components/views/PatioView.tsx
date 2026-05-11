@@ -1269,6 +1269,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
     fetchReminders();
   }, [fetchReminders]);
 
+  /** Com aba visível: polling curto como antes (Realtime + isto = sensação “ao vivo”). */
+  useEffect(() => {
+    if (!isAppTabActive) return;
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') fetchRemindersRef.current();
+    }, 12000);
+    return () => window.clearInterval(id);
+  }, [isAppTabActive]);
+
   useEffect(() => {
     if (isRemindersOpen) fetchReminders();
   }, [isRemindersOpen, fetchReminders]);
@@ -1768,7 +1777,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [selectedCard?.id]);
 
   /**
-   * Carga inicial ao focar a aba + rede de segurança espaçada (Realtime cobre atualizações em tempo real).
+   * Carga inicial ao focar a aba + refresh periódico (15s) como no comportamento original,
+   * além do Supabase Realtime em `usePatioBoardLiveSync`.
    */
   useEffect(() => {
     if (!isAppTabActive) return;
@@ -1776,7 +1786,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const intervalId = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       fetchDataRef.current(true);
-    }, 180000);
+    }, 15000);
     return () => window.clearInterval(intervalId);
   }, [isAppTabActive]);
 

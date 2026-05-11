@@ -12,9 +12,10 @@ const FALLBACK_POLL_NO_REALTIME_MS = 18_000;
 const FALLBACK_POLL_FAILED_MS = 90_000;
 
 /**
- * Mantém o **quadro** do Pátio/Laboratório alinhado ao servidor via Supabase Realtime:
- * `service_orders` (tipo veículo vs módulo) + `workshop_reminders` (escopo igual).
- * Sem passar pela `/api` em cada mudança.
+ * Mantém o **quadro** do Pátio/Laboratório alinhado ao servidor via Supabase Realtime.
+ * Usa `workshop_id=eq.{id}` em `service_orders` e `workshop_reminders` (igual ao hub de orçamentos):
+ * filtros só por `order_type`/`scope` costumam falhar ou não receber eventos com RLS/replicação.
+ * O `getServiceOrders` no refresh continua a filtrar veículo vs módulo na API.
  */
 export function usePatioBoardLiveSync(opts: {
   orderType: ServiceOrderType;
@@ -83,7 +84,7 @@ export function usePatioBoardLiveSync(opts: {
 
     const workshopId = (import.meta.env.VITE_WORKSHOP_ID as string | undefined)?.trim();
     const supabase = getSupabaseBrowser();
-    const scope = orderType === "module" ? "module" : "vehicle";
+    const scopeTag = orderType === "module" ? "module" : "vehicle";
 
     const clearTimers = () => {
       if (boardTimerRef.current) clearTimeout(boardTimerRef.current);
@@ -110,7 +111,7 @@ export function usePatioBoardLiveSync(opts: {
     subscribedRef.current = false;
 
     const rng = Math.random().toString(36).slice(2);
-    const channelName = `patio-board-${scope}-${rng}`;
+    const channelName = `patio-board-${scopeTag}-${rng}`;
 
     let channel: RealtimeChannel = supabase.channel(channelName);
 
@@ -120,7 +121,7 @@ export function usePatioBoardLiveSync(opts: {
         event: "*",
         schema: "public",
         table: "service_orders",
-        filter: `order_type=eq.${scope}`,
+        filter: `workshop_id=eq.${workshopId}`,
       },
       () => scheduleBoard()
     );
@@ -131,7 +132,7 @@ export function usePatioBoardLiveSync(opts: {
         event: "*",
         schema: "public",
         table: "workshop_reminders",
-        filter: `scope=eq.${scope}`,
+        filter: `workshop_id=eq.${workshopId}`,
       },
       () => scheduleReminders()
     );
@@ -156,6 +157,9 @@ export function usePatioBoardLiveSync(opts: {
           clearInterval(fallbackIntervalRef.current);
           fallbackIntervalRef.current = null;
         }
+        // Alinha com o servidor logo após o join (evita gap até o primeiro evento).
+        scheduleBoard();
+        scheduleReminders();
       } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
         const detail =
           err instanceof Error
