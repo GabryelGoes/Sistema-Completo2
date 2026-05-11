@@ -1708,71 +1708,79 @@ export const PatioView: React.FC<PatioViewProps> = ({
     });
   }, [selectedCard?.id, loadingDetails, cardDetails]);
 
+  /** Só depende do id da OS: `setSelectedCard` no Realtime cria novo objeto a cada sync e não pode re-disparar este efeito (loading infinito / botões a piscar). */
   useEffect(() => {
-    if (selectedCard) {
-      setDescText(selectedCard.desc || "");
-      setIsEditingDesc(false);
-      setLoadingDetails(true);
-      const cached = vehicleCardDetailsCacheRef.current.get(selectedCard.id);
-      setCardDetails(
-        cached
-          ? {
-              actions: cloneCachedActions(cached.actions),
-              attachments: cloneCachedAttachments(cached.attachments),
-            }
-          : { actions: [], attachments: [] }
-      );
-      setServiceOrderDetail(serviceOrderDetailPlaceholderFromCard(selectedCard, orderType));
-      Promise.all([
-        getServiceOrderById(selectedCard.id),
-        getServiceOrderPhotos(selectedCard.id),
-        getServiceOrderBudgets(selectedCard.id),
-        getServiceOrderComments(selectedCard.id),
-      ])
-        .then(([order, photos, budgets, comments]) => {
-          if (selectedCardRef.current?.id !== order.id) return;
-          setServiceOrderDetail(order);
-          setCardDetails({
-            actions: (comments ?? []).map(commentToAction),
-            attachments: photos.map((p, i) => ({
-              id: p.path || String(i),
-              name: p.name,
-              url: p.url,
-              mimeType: attachmentMimeType(p.name),
-              previews: [{ url: p.url, width: 200, height: 200 }],
-            })),
-          });
-          setSavedBudgets(budgets);
-          const pendingApprovalId = pendingBudgetApprovalAfterModalLoadRef.current;
-          if (pendingApprovalId && pendingApprovalId === order.id) {
-            pendingBudgetApprovalAfterModalLoadRef.current = null;
-            const stillThisCard = selectedCardRef.current?.id === order.id;
-            const canApproveItems =
-              patioPermissions === undefined ? true : patioPermissions.canApproveBudgetItems === true;
-            if (stillThisCard && canApproveItems && budgets.length > 0) {
-              // Quando houver múltiplos orçamentos, "primeiro" = mais antigo (Orçamento 1).
-              const first = [...budgets].sort(
-                (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-              )[0];
-              const lineCount = first.services.length + first.parts.length;
-              if (
-                lineCount > 0 &&
-                !budgetHasExplicitApprovalDecisions(first.services, first.parts)
-              ) {
-                setBudgetApprovalTarget(first);
-                setApprovalServices(first.services.map((s) => s.approved === true));
-                setApprovalParts(first.parts.map((p) => p.approved === true));
-              }
-            }
-          }
-        })
-        .catch(err => console.error("Erro ao carregar detalhes", err))
-        .finally(() => setLoadingDetails(false));
-    } else {
+    const card = selectedCardRef.current;
+    if (!card) {
       setServiceOrderDetail(null);
       setSavedBudgets([]);
+      setLoadingDetails(false);
+      return;
     }
-  }, [selectedCard, orderType]);
+    const loadId = card.id;
+    setDescText(card.desc || "");
+    setIsEditingDesc(false);
+    setLoadingDetails(true);
+    const cached = vehicleCardDetailsCacheRef.current.get(loadId);
+    setCardDetails(
+      cached
+        ? {
+            actions: cloneCachedActions(cached.actions),
+            attachments: cloneCachedAttachments(cached.attachments),
+          }
+        : { actions: [], attachments: [] }
+    );
+    setServiceOrderDetail(serviceOrderDetailPlaceholderFromCard(card, orderType));
+    Promise.all([
+      getServiceOrderById(loadId),
+      getServiceOrderPhotos(loadId),
+      getServiceOrderBudgets(loadId),
+      getServiceOrderComments(loadId),
+    ])
+      .then(([order, photos, budgets, comments]) => {
+        if (selectedCardRef.current?.id !== order.id) return;
+        setServiceOrderDetail(order);
+        setCardDetails({
+          actions: (comments ?? []).map(commentToAction),
+          attachments: photos.map((p, i) => ({
+            id: p.path || String(i),
+            name: p.name,
+            url: p.url,
+            mimeType: attachmentMimeType(p.name),
+            previews: [{ url: p.url, width: 200, height: 200 }],
+          })),
+        });
+        setSavedBudgets(budgets);
+        const pendingApprovalId = pendingBudgetApprovalAfterModalLoadRef.current;
+        if (pendingApprovalId && pendingApprovalId === order.id) {
+          pendingBudgetApprovalAfterModalLoadRef.current = null;
+          const stillThisCard = selectedCardRef.current?.id === order.id;
+          const canApproveItems =
+            patioPermissions === undefined ? true : patioPermissions.canApproveBudgetItems === true;
+          if (stillThisCard && canApproveItems && budgets.length > 0) {
+            // Quando houver múltiplos orçamentos, "primeiro" = mais antigo (Orçamento 1).
+            const first = [...budgets].sort(
+              (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            )[0];
+            const lineCount = first.services.length + first.parts.length;
+            if (
+              lineCount > 0 &&
+              !budgetHasExplicitApprovalDecisions(first.services, first.parts)
+            ) {
+              setBudgetApprovalTarget(first);
+              setApprovalServices(first.services.map((s) => s.approved === true));
+              setApprovalParts(first.parts.map((p) => p.approved === true));
+            }
+          }
+        }
+      })
+      .catch((err) => console.error("Erro ao carregar detalhes", err))
+      .finally(() => {
+        const currentId = selectedCardRef.current?.id;
+        if (currentId != null && currentId !== loadId) return;
+        setLoadingDetails(false);
+      });
+  }, [selectedCard?.id, orderType]);
 
   useEffect(() => {
     if (!serviceOrderDetail) {
@@ -1783,8 +1791,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at]);
 
   useEffect(() => {
-    if (!selectedCard) setIsVehicleCategoryModalOpen(false);
-  }, [selectedCard]);
+    if (!selectedCardRef.current) setIsVehicleCategoryModalOpen(false);
+  }, [selectedCard?.id]);
 
   /** Atualiza os detalhes da OS no modal (serviceOrderDetail) sem fechar o modal nem mostrar loading. */
   const refreshModalDetails = React.useCallback(async () => {
