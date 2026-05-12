@@ -3838,7 +3838,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           <div key={boardLayoutMode} className={layoutMotion}>
             {boardLayoutMode === 'trello'
               ? zoomWrap(
-                  <div className="flex max-w-full gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-3 pt-1 [-webkit-overflow-scrolling:touch] scroll-smooth sm:gap-4 md:pb-4">
+                  <div className="patio-board-hscroll flex max-w-full gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] scroll-smooth sm:gap-4 sm:pb-2.5">
                     {stageColumnsSorted.map((stage) => (
                       <div
                         key={stage.id}
@@ -3886,7 +3886,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 )
               : boardLayoutMode === 'by_mechanic'
                 ? zoomWrap(
-                    <div className="flex max-w-full gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-3 pt-1 [-webkit-overflow-scrolling:touch] scroll-smooth sm:gap-4 md:pb-4">
+                    <div className="patio-board-hscroll flex max-w-full gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] scroll-smooth sm:gap-4 sm:pb-2.5">
                       {mechanicColumns.map((col) => (
                         <div
                           key={col.key}

@@ -73,6 +73,36 @@ body {
   background: #aeaeb2;
 }
 
+/** Rolagem horizontal discreta (quadro estilo Trello / colunas no Pátio). */
+.patio-board-hscroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(0 0 0 / 0.14) transparent;
+}
+.dark .patio-board-hscroll {
+  scrollbar-color: rgb(255 255 255 / 0.12) transparent;
+}
+.patio-board-hscroll::-webkit-scrollbar {
+  width: 0;
+  height: 4px;
+}
+.patio-board-hscroll::-webkit-scrollbar-track {
+  margin-inline: 6px;
+  background: transparent;
+}
+.patio-board-hscroll::-webkit-scrollbar-thumb {
+  background: rgb(0 0 0 / 0.12);
+  border-radius: 9999px;
+}
+.patio-board-hscroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(0 0 0 / 0.22);
+}
+.dark .patio-board-hscroll::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.1);
+}
+.dark .patio-board-hscroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(255 255 255 / 0.18);
+}
+
 .font-vehicle {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
