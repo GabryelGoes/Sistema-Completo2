@@ -47,6 +47,22 @@ import { PatioStyleArchiveBoardCard } from '../patio/PatioStyleArchiveBoardCard'
 
 const ARCHIVED_PHOTOS_BATCH = 8;
 
+/** Máximo de fotos opcionais na criação da ficha (recepção). */
+const MAX_RECEPTION_INTAKE_PHOTOS = 12;
+
+function isLikelyImageFile(file: File): boolean {
+  if (file.type.startsWith('image/')) return true;
+  const n = file.name.toLowerCase();
+  return /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(n);
+}
+
+function newReceptionIntakePhotoId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `rf_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+}
+
+type ReceptionIntakePhoto = { id: string; file: Blob; url: string };
+
 const RECEPTION_MODE_KEY = 'app_reception_mode';
 const VEHICLE_CATEGORIES = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
 type VehicleCategory = (typeof VEHICLE_CATEGORIES)[number];
@@ -156,13 +172,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     onReceptionModeChangeForBack?.(receptionMode);
   }, [receptionMode, onReceptionModeChangeForBack]);
 
-  // Refs
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Refs — fotos: câmera (capture) vs galeria (múltiplas)
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
-  // Camera State
-  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [cameraOrientation, setCameraOrientation] = useState<{alpha: number | null, beta: number | null, gamma: number | null} | null>(null);
+  const [intakePhotos, setIntakePhotos] = useState<ReceptionIntakePhoto[]>([]);
+
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
   const historySearchRef = useRef(historySearch);
@@ -258,12 +273,54 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setCustomer(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      setPhotoBlob(file);
-      setPhotoPreview(URL.createObjectURL(file));
+  const removeIntakePhoto = useCallback((id: string) => {
+    setIntakePhotos((prev) => {
+      const found = prev.find((p) => p.id === id);
+      if (found) {
+        try {
+          URL.revokeObjectURL(found.url);
+        } catch {
+          /* ignore */
+        }
+      }
+      return prev.filter((p) => p.id !== id);
+    });
+  }, []);
+
+  const addIntakePhotosFromFiles = useCallback((files: Iterable<File>) => {
+    const list = Array.from(files).filter((f) => isLikelyImageFile(f));
+    if (list.length === 0) return;
+    setIntakePhotos((prev) => {
+      const room = MAX_RECEPTION_INTAKE_PHOTOS - prev.length;
+      if (room <= 0) return prev;
+      const toAdd = list.slice(0, room);
+      const next: ReceptionIntakePhoto[] = [...prev];
+      for (const file of toAdd) {
+        next.push({ id: newReceptionIntakePhotoId(), file, url: URL.createObjectURL(file) });
+      }
+      if (list.length > room) {
+        window.alert(`Só é possível anexar até ${MAX_RECEPTION_INTAKE_PHOTOS} fotos por ficha. As extras foram ignoradas.`);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleCameraInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const files = input.files;
+    if (files && files.length > 0) {
+      addIntakePhotosFromFiles([files[0]]);
     }
+    input.value = '';
+  };
+
+  const handleGalleryInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const files = input.files;
+    if (files && files.length > 0) {
+      addIntakePhotosFromFiles(Array.from(files));
+    }
+    input.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -311,20 +368,27 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     }
 
     try {
-      setStatus({ step: 'creating', message: 'Criando cadastro' });
+      setStatus({
+        step: 'creating',
+        message: intakePhotos.length > 0 ? 'Criando ficha e enviando fotos…' : 'Criando cadastro',
+      });
       const { customer: savedCustomer, serviceOrder } = await saveReceptionIntake(
         { ...customer, issueDescription: customer.issueDescription },
         receptionMode,
         receptionMode === 'vehicle' ? vehicleCategory : null
       );
 
-      // 2) Se houver foto, enviar (com compressão automática para evitar 413 no Vercel)
-      if (photoBlob && serviceOrder?.id) {
-        await uploadServiceOrderPhoto(
-          serviceOrder.id,
-          photoBlob,
-          `entrada_${serviceOrder.id}_${Date.now()}.jpg`
-        );
+      // Fotos opcionais (câmera/galeria) — envio sequencial com compressão no cliente (uploadServiceOrderPhoto)
+      if (serviceOrder?.id && intakePhotos.length > 0) {
+        const photosSnapshot = [...intakePhotos];
+        for (let i = 0; i < photosSnapshot.length; i++) {
+          const shot = photosSnapshot[i];
+          await uploadServiceOrderPhoto(
+            serviceOrder.id,
+            shot.file,
+            `entrada_${serviceOrder.id}_${i + 1}_${Date.now()}.jpg`
+          );
+        }
       }
 
       const osLabel = serviceOrder?.os_number != null ? ` OS #${serviceOrder.os_number}.` : '';
@@ -358,9 +422,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       issueDescription: '',
       trelloCardId: undefined
     });
-    setPhotoBlob(null);
-    setPhotoPreview(null);
-    setCameraOrientation(null);
+    setIntakePhotos((prev) => {
+      prev.forEach((p) => {
+        try {
+          URL.revokeObjectURL(p.url);
+        } catch {
+          /* ignore */
+        }
+      });
+      return [];
+    });
     setVehicleCategory('');
     setPlateLookupError(null);
     lastFetchedPlacaRef.current = null;
@@ -407,13 +478,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     }
   }, [customer.plate]);
 
-  const clearPhoto = () => {
-    setPhotoBlob(null);
-    setPhotoPreview(null);
-    setCameraOrientation(null);
-  };
-
-  // --- Funções de Histórico ---
   const loadVehicleHistory = useCallback(async (term = '') => {
     setHistoryLoading(true);
     try {
@@ -957,54 +1021,87 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
               <div className="h-px bg-zinc-200/80 dark:bg-white/[0.08]" />
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className={`${iosLabel} ml-1`}>
-                  {receptionMode === 'vehicle' ? 'Foto do veículo (opcional)' : 'Foto (opcional)'}
+                  {receptionMode === 'vehicle' ? 'Fotos do veículo (opcional)' : 'Fotos (opcional)'}
                 </label>
+                <p className="ml-1 text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
+                  No celular, <span className="font-semibold text-zinc-600 dark:text-zinc-300">Abrir câmera</span> inicia a
+                  câmera traseira. Use <span className="font-semibold text-zinc-600 dark:text-zinc-300">Galeria</span> para
+                  escolher uma ou várias imagens. Envio ao criar a ficha (até {MAX_RECEPTION_INTAKE_PHOTOS} fotos).
+                </p>
                 <input
+                  ref={cameraInputRef}
                   type="file"
-                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleCameraInputChange}
+                />
+                <input
+                  ref={galleryInputRef}
+                  type="file"
                   className="hidden"
                   accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
-                  onChange={handleFileSelect}
+                  multiple
+                  onChange={handleGalleryInputChange}
                 />
-                {!photoPreview ? (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full rounded-2xl border border-zinc-200/90 bg-white/50 py-4 text-zinc-600 backdrop-blur-md transition-all hover:border-[#007AFF]/45 hover:bg-white/80 active:scale-[0.99] dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
-                  >
-                    <span className="flex items-center justify-center gap-3">
-                      <Camera className="h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2} />
-                      <span className="text-sm font-medium">{receptionMode === 'module' ? 'Foto do módulo (câmera ou galeria)' : 'Foto do veículo (câmera ou galeria)'}</span>
-                    </span>
-                  </button>
-                ) : (
-                  <div className="relative overflow-hidden rounded-[1.25rem] border border-zinc-200/80 bg-zinc-100/80 shadow-inner backdrop-blur-sm dark:border-white/[0.1] dark:bg-black/40">
-                    <img src={photoPreview} alt="Preview" className="h-48 w-full object-cover opacity-80 lg:h-56" />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                      <div className="absolute right-4 top-4 flex gap-2">
+                {intakePhotos.length > 0 ? (
+                  <div className="flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] scroll-smooth">
+                    {intakePhotos.map((p, idx) => (
+                      <div
+                        key={p.id}
+                        className="motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200 relative h-[5.25rem] w-[5.25rem] shrink-0 snap-start overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-100 shadow-sm dark:border-white/10 dark:bg-zinc-900/60 sm:h-24 sm:w-24"
+                      >
+                        <img src={p.url} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                        <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                          {idx + 1}
+                        </span>
                         <button
                           type="button"
-                          onClick={clearPhoto}
-                          className="rounded-full bg-red-500/90 p-2 text-white shadow-lg transition-colors hover:bg-red-600"
-                          title="Remover foto"
+                          onClick={() => removeIntakePhoto(p.id)}
+                          className="absolute right-0.5 top-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-red-500/95 text-white shadow-md transition-transform hover:scale-105 active:scale-95"
+                          aria-label={`Remover foto ${idx + 1}`}
                         >
-                          <X className="h-5 w-5" />
+                          <X className="h-4 w-4" strokeWidth={2.5} />
                         </button>
                       </div>
-                      <div className="absolute bottom-4 left-4 right-4 rounded-xl border border-white/10 bg-black/70 p-3 backdrop-blur-md">
-                        <div className="flex items-center gap-3">
-                          <ImageIcon className="h-5 w-5 text-[#64B5FF]" />
-                          <div className="flex-1">
-                            <p className="text-xs font-bold uppercase text-white">Foto Selecionada</p>
-                            <p className="mt-0.5 text-[10px] text-zinc-300">Clique no X para remover</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                )}
+                ) : null}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                  <button
+                    type="button"
+                    disabled={intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS}
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex min-h-[52px] flex-1 items-center justify-center gap-2.5 rounded-2xl border border-zinc-200/90 bg-white/50 py-3.5 text-zinc-700 backdrop-blur-md transition-all hover:border-[#007AFF]/45 hover:bg-white/90 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-100 dark:hover:bg-white/[0.1]"
+                  >
+                    <Camera className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2} />
+                    <span className="text-left text-sm font-semibold leading-tight">
+                      {intakePhotos.length === 0
+                        ? receptionMode === 'module'
+                          ? 'Abrir câmera (módulo)'
+                          : 'Abrir câmera (veículo)'
+                        : 'Mais uma foto (câmera)'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS}
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-zinc-100/60 py-3.5 text-sm font-semibold text-zinc-800 backdrop-blur-md transition-all hover:bg-zinc-100 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.1]"
+                  >
+                    <ImageIcon className="h-5 w-5 shrink-0 text-zinc-600 dark:text-zinc-300" strokeWidth={2} />
+                    Galeria (uma ou várias)
+                  </button>
+                </div>
+                {intakePhotos.length > 0 ? (
+                  <p className="text-center text-[11px] font-medium text-zinc-500 dark:text-zinc-400 sm:text-left">
+                    {intakePhotos.length === 1
+                      ? '1 foto selecionada'
+                      : `${intakePhotos.length} fotos selecionadas`}
+                  </p>
+                ) : null}
               </div>
 
             </div>
