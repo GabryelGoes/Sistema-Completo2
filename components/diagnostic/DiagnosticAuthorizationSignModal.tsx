@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { PenLine, X, Eraser, Check } from "lucide-react";
+import { useTabletPhonePortraitFullscreen } from "../../hooks/useTabletPhonePortraitFullscreen";
 import { ModalPortal } from "../ui/ModalPortal";
 import {
   DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL,
@@ -42,6 +43,7 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
   const drawingRef = useRef(false);
   const lastRef = useRef<{ x: number; y: number } | null>(null);
   const hasInkRef = useRef(false);
+  const fullScreenPortrait = useTabletPhonePortraitFullscreen();
 
   const redrawBase = useCallback(() => {
     const canvas = canvasRef.current;
@@ -62,6 +64,12 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [open, redrawBase]);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(() => redrawBase(), 80);
+    return () => window.clearTimeout(t);
+  }, [open, fullScreenPortrait, redrawBase]);
 
   const clientToLocal = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -151,13 +159,21 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
   return (
     <ModalPortal>
       <div
-        className="fixed inset-0 z-[240] flex items-end justify-center bg-black/55 p-0 pt-10 backdrop-blur-md sm:items-center sm:p-6 sm:pt-[max(1rem,env(safe-area-inset-top))] sm:pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className={
+          fullScreenPortrait
+            ? "fixed inset-0 z-[240] flex items-stretch justify-stretch bg-black/80 backdrop-blur-md pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
+            : "fixed inset-0 z-[240] flex items-end justify-center bg-black/55 p-0 pt-10 backdrop-blur-md sm:items-center sm:p-6 sm:pt-[max(1rem,env(safe-area-inset-top))] sm:pb-[max(1rem,env(safe-area-inset-bottom))]"
+        }
         role="dialog"
         aria-modal="true"
         aria-labelledby="diag-auth-modal-title"
       >
         <div
-          className="flex max-h-[min(92dvh,920px)] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] border border-zinc-200/90 bg-white shadow-[0_-12px_48px_-16px_rgba(0,0,0,0.35)] dark:border-white/[0.1] dark:bg-zinc-950 sm:max-h-[min(88vh,900px)] sm:rounded-[28px] sm:shadow-2xl"
+          className={
+            fullScreenPortrait
+              ? "flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-white shadow-none dark:bg-zinc-950"
+              : "flex max-h-[min(92dvh,920px)] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] border border-zinc-200/90 bg-white shadow-[0_-12px_48px_-16px_rgba(0,0,0,0.35)] dark:border-white/[0.1] dark:bg-zinc-950 sm:max-h-[min(88vh,900px)] sm:rounded-[28px] sm:shadow-2xl"
+          }
           onClick={(ev) => ev.stopPropagation()}
         >
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/80 px-5 py-4 dark:border-white/[0.08]">
@@ -187,7 +203,13 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 [-webkit-overflow-scrolling:touch]">
+          <div
+            className={
+              fullScreenPortrait
+                ? "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3 [-webkit-overflow-scrolling:touch]"
+                : "min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 [-webkit-overflow-scrolling:touch]"
+            }
+          >
             <DiagnosticAuthorizationTermBody
               className="rounded-2xl border border-zinc-200/80 bg-zinc-50/90 p-4 text-[15px] leading-relaxed text-zinc-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:text-zinc-100 sm:text-[16px] sm:leading-relaxed"
               paragraphClassName="[&:not(:first-child)]:mt-3"
@@ -212,7 +234,13 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-col gap-2 border-t border-zinc-200/80 bg-white/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-white/[0.08] dark:bg-zinc-950/95 sm:flex-row sm:justify-end">
+          <div
+            className={
+              fullScreenPortrait
+                ? "flex shrink-0 flex-col gap-2 border-t border-zinc-200/80 bg-white/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-white/[0.08] dark:bg-zinc-950/95"
+                : "flex shrink-0 flex-col gap-2 border-t border-zinc-200/80 bg-white/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-white/[0.08] dark:bg-zinc-950/95 sm:flex-row sm:justify-end"
+            }
+          >
             <button
               type="button"
               onClick={handleClear}

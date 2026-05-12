@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback } from "react";
 import { Printer, X } from "lucide-react";
 import { ModalPortal } from "../ui/ModalPortal";
+import { useTabletPhonePortraitFullscreen } from "../../hooks/useTabletPhonePortraitFullscreen";
 import {
   DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL,
   DIAGNOSTIC_AUTHORIZATION_TITLE,
@@ -15,27 +16,6 @@ const paperModalStyle: React.CSSProperties = {
     "0 0 0 1px rgba(255,255,255,0.42) inset, 0 2px 4px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.13), 0 20px 50px rgba(0,0,0,0.08)",
   backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='0.045'/%3E%3C/svg%3E")`,
 };
-
-/** Celular/tablet em retrato: folha em tela cheia (alinhado a max-lg do Tailwind). */
-function useTabletPhonePortraitFullscreen() {
-  const [active, setActive] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.matchMedia("(max-width: 1023px) and (orientation: portrait)").matches;
-    } catch {
-      return false;
-    }
-  });
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia("(max-width: 1023px) and (orientation: portrait)");
-    const sync = () => setActive(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-  return active;
-}
 
 export interface DiagnosticAuthorizationSheetModalProps {
   open: boolean;
