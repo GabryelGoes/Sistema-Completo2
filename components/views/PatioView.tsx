@@ -96,8 +96,8 @@ import {
 } from '../../utils/patioBoardGlassCard';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
 import { PatioStyleArchiveBoardCard } from '../patio/PatioStyleArchiveBoardCard';
-import { DiagnosticAuthorizationRecordPanel } from '../diagnostic/DiagnosticAuthorizationRecordPanel';
-import { DiagnosticAuthorizationRecordPanel } from '../diagnostic/DiagnosticAuthorizationRecordPanel';
+import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAuthorizationSheetModal';
+import { getVehiclePhotoPublicUrl } from '../../utils/vehicleStoragePublicUrl';
 
 /** ID sintético até `getServiceOrderById` responder — não usar em chamadas à API. */
 const SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID = '00000000-0000-4000-8000-000000000001';
@@ -1031,6 +1031,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [newReminder, setNewReminder] = useState('');
   const remindersStorageKey = orderType === 'module' ? 'patio-reminders-module' : 'patio-reminders-vehicle';
   const isModuleMode = orderType === 'module';
+  const [diagnosticAuthSheetOpen, setDiagnosticAuthSheetOpen] = useState(false);
+  const diagnosticAuthSheetContext = useMemo(() => {
+    if (isModuleMode) return null;
+    const d = selectedHistoryCard ? historyServiceOrderDetail : serviceOrderDetail;
+    const path = d?.diagnostic_authorization_signature_path;
+    if (!path) return null;
+    const src = getVehiclePhotoPublicUrl(path);
+    if (!src) return null;
+    return { src, signedAt: d.diagnostic_authorization_signed_at ?? null };
+  }, [isModuleMode, selectedHistoryCard, historyServiceOrderDetail, serviceOrderDetail]);
+  const diagnosticAuthSubtitleKm = useMemo(() => {
+    if (isModuleMode) return null;
+    const km = selectedHistoryCard
+      ? historyServiceOrderDetail?.mileage_km
+      : (selectedCard?.mileageKm ?? serviceOrderDetail?.mileage_km);
+    const s = km != null && String(km).trim() !== '' ? String(km).trim() : null;
+    return s ? `Km ${s}` : null;
+  }, [
+    isModuleMode,
+    selectedHistoryCard,
+    historyServiceOrderDetail,
+    selectedCard?.mileageKm,
+    serviceOrderDetail?.mileage_km,
+  ]);
+  useEffect(() => {
+    setDiagnosticAuthSheetOpen(false);
+  }, [selectedCard?.id, selectedHistoryCard?.id]);
   /** Mesmos ícones iOS da Home para cabeçalhos de modais do Pátio / Laboratório. */
   const patioOrLabModuleIcon = (
     <img
@@ -4125,6 +4152,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                         </div>
 
+                        {!isModuleMode && selectedHistoryCard && diagnosticAuthSheetContext ? (
+                          <div>
+                            <p className={uiSectionTitleRow}>
+                              <FileText className="h-3.5 w-3.5" />
+                              Autorização de diagnóstico
+                            </p>
+                            <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+                              <button
+                                type="button"
+                                onClick={() => setDiagnosticAuthSheetOpen(true)}
+                                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200/90 bg-white/80 px-3 py-2.5 text-[12px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]"
+                              >
+                                <Eye className="h-4 w-4 shrink-0" />
+                                Ver autorização de diagnóstico
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+
                         <div>
                           <p className={uiSectionTitleRow}>
                             <Calculator className="h-3.5 w-3.5" />
@@ -4173,12 +4219,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
 
                       <div className="space-y-8">
-                        {!isModuleMode && historyServiceOrderDetail ? (
-                          <DiagnosticAuthorizationRecordPanel
-                            signedAt={historyServiceOrderDetail.diagnostic_authorization_signed_at ?? null}
-                            signaturePath={historyServiceOrderDetail.diagnostic_authorization_signature_path ?? null}
-                          />
-                        ) : null}
                          <div>
                             <p className={uiSectionTitleRow}>
                               <Paperclip className="h-3.5 w-3.5" />
@@ -5902,12 +5942,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
 
                       <div className="min-w-0 space-y-8">
-                        {!isModuleMode && serviceOrderDetail ? (
-                          <div className="lg:sticky lg:top-2 lg:z-[1]">
-                            <DiagnosticAuthorizationRecordPanel
-                              signedAt={serviceOrderDetail.diagnostic_authorization_signed_at ?? null}
-                              signaturePath={serviceOrderDetail.diagnostic_authorization_signature_path ?? null}
-                            />
+                        {!isModuleMode && selectedCard && !selectedHistoryCard && diagnosticAuthSheetContext ? (
+                          <div className="min-w-0 lg:sticky lg:top-2 lg:z-[1]">
+                            <h3 className={`${uiSectionTitleRow} lg:mb-2`}>
+                              <FileText className="h-3.5 w-3.5 shrink-0" />
+                              Autorização de diagnóstico
+                            </h3>
+                            <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+                              <button
+                                type="button"
+                                onClick={() => setDiagnosticAuthSheetOpen(true)}
+                                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200/90 bg-white/80 px-3 py-2.5 text-[12px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]"
+                              >
+                                <Eye className="h-4 w-4 shrink-0" />
+                                Ver autorização de diagnóstico
+                              </button>
+                            </div>
                           </div>
                         ) : null}
                         <div ref={commentsSectionRef}>
@@ -6758,6 +6808,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
         </ModalPortal>
       )}
+
+      {diagnosticAuthSheetOpen && diagnosticAuthSheetContext ? (
+        <DiagnosticAuthorizationSheetModal
+          open
+          onClose={() => setDiagnosticAuthSheetOpen(false)}
+          signatureImageSrc={diagnosticAuthSheetContext.src}
+          signedAt={diagnosticAuthSheetContext.signedAt}
+          subtitleExtra={diagnosticAuthSubtitleKm}
+        />
+      ) : null}
 
       {/* Modal: Aprovar orçamento — mesmo idioma dos outros modais iOS */}
       {budgetApprovalTarget && selectedCard && (

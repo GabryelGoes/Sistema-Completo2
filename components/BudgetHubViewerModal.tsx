@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Check, Printer, RefreshCw, X } from "lucide-react";
+import { Check, Eye, Printer, RefreshCw, X } from "lucide-react";
 import { ModalPortal } from "./ui/ModalPortal";
 import {
   budgetChronologicalNumber,
@@ -12,7 +12,8 @@ import {
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from "../utils/budgetItemDisplay";
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from "../utils/budgetPrintWithDetail";
 import { formatLaborLabel } from "../utils/workshopLaborFormat";
-import { DiagnosticAuthorizationRecordPanel } from "./diagnostic/DiagnosticAuthorizationRecordPanel";
+import { DiagnosticAuthorizationSheetModal } from "./diagnostic/DiagnosticAuthorizationSheetModal";
+import { getVehiclePhotoPublicUrl } from "../utils/vehicleStoragePublicUrl";
 
 export interface BudgetHubViewerModalProps {
   serviceOrderId: string;
@@ -29,6 +30,7 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
   const [budgets, setBudgets] = useState<SavedBudgetFromApi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [diagAuthSheetOpen, setDiagAuthSheetOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,6 +60,10 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
     };
   }, [serviceOrderId, budgetId]);
 
+  useEffect(() => {
+    setDiagAuthSheetOpen(false);
+  }, [serviceOrderId, budgetId]);
+
   const budget = useMemo(
     () => budgets.find((b) => b.id === budgetId) ?? null,
     [budgets, budgetId]
@@ -70,6 +76,15 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
 
   const isModuleMode = detail?.order_type === "module";
   const mileageKm = detail?.mileage_km ?? null;
+
+  const diagAuthSheetSrc = useMemo(() => {
+    const p = detail?.diagnostic_authorization_signature_path;
+    if (!p?.trim()) return null;
+    return getVehiclePhotoPublicUrl(p);
+  }, [detail?.diagnostic_authorization_signature_path]);
+
+  const diagAuthSubtitleKm =
+    mileageKm != null && String(mileageKm).trim() !== "" ? `Km ${String(mileageKm).trim()}` : null;
 
   return (
     <ModalPortal>
@@ -136,13 +151,6 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
               </div>
             ) : (
               <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]">
-                {!isModuleMode && detail ? (
-                  <DiagnosticAuthorizationRecordPanel
-                    variant="paper"
-                    signedAt={detail.diagnostic_authorization_signed_at ?? null}
-                    signaturePath={detail.diagnostic_authorization_signature_path ?? null}
-                  />
-                ) : null}
                 {budget.diagnosis ? (
                   <section>
                     <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "#000000" }}>
@@ -245,6 +253,16 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
 
             {!loading && !error && budget ? (
               <div className="relative z-10 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-black/10 px-6 py-4">
+                {!isModuleMode && diagAuthSheetSrc ? (
+                  <button
+                    type="button"
+                    onClick={() => setDiagAuthSheetOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-black/20 px-5 py-2.5 text-sm font-medium transition-colors hover:bg-black/5"
+                    style={{ color: "#000000" }}
+                  >
+                    <Eye className="h-4 w-4" /> Ver autorização
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => printBudgetWithDetail(budget, detail, { isModuleMode, mileageKm })}
@@ -274,6 +292,16 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
           </div>
         </div>
       </div>
+
+      {diagAuthSheetOpen && diagAuthSheetSrc && detail ? (
+        <DiagnosticAuthorizationSheetModal
+          open
+          onClose={() => setDiagAuthSheetOpen(false)}
+          signatureImageSrc={diagAuthSheetSrc}
+          signedAt={detail.diagnostic_authorization_signed_at ?? null}
+          subtitleExtra={diagAuthSubtitleKm}
+        />
+      ) : null}
     </ModalPortal>
   );
 };

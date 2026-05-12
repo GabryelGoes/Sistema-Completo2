@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2, Printer } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2 } from 'lucide-react';
 import {
   iosModalShell,
   iosModalClose,
@@ -46,8 +46,8 @@ import { firstTwoNames } from '../../utils/personNameFormat';
 import { BOARD_PANORAMIC_ZOOM } from '../../utils/patioBoardGlassCard';
 import { PatioStyleArchiveBoardCard } from '../patio/PatioStyleArchiveBoardCard';
 import { DiagnosticAuthorizationSignModal } from '../diagnostic/DiagnosticAuthorizationSignModal';
-import { DiagnosticAuthorizationCertificateModal } from '../diagnostic/DiagnosticAuthorizationCertificateModal';
-import { DiagnosticAuthorizationRecordPanel } from '../diagnostic/DiagnosticAuthorizationRecordPanel';
+import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAuthorizationSheetModal';
+import { getVehiclePhotoPublicUrl } from '../../utils/vehicleStoragePublicUrl';
 
 const ARCHIVED_PHOTOS_BATCH = 8;
 
@@ -113,13 +113,6 @@ function normalizePlacaLocal(raw: string) {
     .replace(/[^a-zA-Z0-9]/g, '')
     .toUpperCase()
     .slice(0, 8);
-}
-
-function receptionVehicleSummaryForDiag(customer: Customer): string | undefined {
-  const v = [customer.vehicleBrand?.trim(), customer.vehicleModel?.trim()].filter(Boolean).join(' · ');
-  const p = normalizePlacaLocal(customer.plate);
-  const parts = [v || null, p.length >= 7 ? `Placa ${p}` : null].filter(Boolean) as string[];
-  return parts.length ? parts.join(' — ') : undefined;
 }
 
 export const ReceptionView: React.FC<ReceptionViewProps> = ({
@@ -202,7 +195,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [diagAuthSignatureBlob, setDiagAuthSignatureBlob] = useState<Blob | null>(null);
   const [diagAuthSignatureDataUrl, setDiagAuthSignatureDataUrl] = useState<string | null>(null);
   const [diagAuthSignedAt, setDiagAuthSignedAt] = useState<Date | null>(null);
-  const [diagAuthPrintModalOpen, setDiagAuthPrintModalOpen] = useState(false);
+  const [diagAuthSheetOpen, setDiagAuthSheetOpen] = useState(false);
+  const [archivedDiagAuthSheetOpen, setArchivedDiagAuthSheetOpen] = useState(false);
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
@@ -264,7 +258,19 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   useEffect(() => {
     setArchivedPhotosVisibleCount(ARCHIVED_PHOTOS_BATCH);
+    setArchivedDiagAuthSheetOpen(false);
   }, [archivedDetailOrderId]);
+
+  const archivedDiagAuthSignatureSrc = useMemo(() => {
+    const p = archivedDetailData?.diagnostic_authorization_signature_path;
+    if (!p?.trim()) return null;
+    return getVehiclePhotoPublicUrl(p);
+  }, [archivedDetailData?.diagnostic_authorization_signature_path]);
+
+  const intakeDiagAuthSubtitleKm = useMemo(() => {
+    const km = (customer.mileageKm ?? '').trim();
+    return km ? `Km ${km}` : null;
+  }, [customer.mileageKm]);
 
   // Efeito para carregar dados iniciais vindos do Pátio ou Histórico (todos editáveis, inclusive placa)
   useEffect(() => {
@@ -485,7 +491,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setDiagAuthSignatureBlob(null);
     setDiagAuthSignatureDataUrl(null);
     setDiagAuthSignedAt(null);
-    setDiagAuthPrintModalOpen(false);
+    setDiagAuthSheetOpen(false);
     setDiagAuthSignModalOpen(false);
     setStatus({ step: 'idle' });
   };
@@ -1072,7 +1078,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       </p>
                       {diagAuthSignatureBlob ? (
                         <p className="pt-0.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
-                          Documento gerado com assinatura. Use “Imprimir ou PDF” abaixo quando precisar de cópia física ou arquivo.
+                          Assinatura registrada. Toque em Ver autorização para ver o termo (imprimir ou PDF no próprio documento).
                         </p>
                       ) : (
                         <p className="pt-0.5 text-[12px] font-medium text-amber-700 dark:text-amber-400/95">
@@ -1093,11 +1099,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     {diagAuthSignatureDataUrl ? (
                       <button
                         type="button"
-                        onClick={() => setDiagAuthPrintModalOpen(true)}
+                        onClick={() => setDiagAuthSheetOpen(true)}
                         className="inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-white px-4 py-3.5 text-[14px] font-semibold text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.1] sm:min-w-[200px]"
                       >
-                        <Printer className="h-4 w-4 shrink-0 text-zinc-600 dark:text-zinc-300" strokeWidth={2.25} aria-hidden />
-                        Imprimir ou PDF
+                        <Eye className="h-4 w-4 shrink-0 text-zinc-600 dark:text-zinc-300" strokeWidth={2.25} aria-hidden />
+                        Ver autorização de diagnóstico
                       </button>
                     ) : null}
                   </div>
@@ -1220,9 +1226,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       <DiagnosticAuthorizationSignModal
         open={diagAuthSignModalOpen}
         onClose={() => setDiagAuthSignModalOpen(false)}
-        declarantName={(customer.name || '').trim() || undefined}
-        vehicleSummary={receptionVehicleSummaryForDiag(customer)}
-        protocolNote="Cadastro na recepção — será vinculado à OS após o envio da ficha."
         onConfirm={(blob, meta) => {
           setDiagAuthSignatureBlob(blob);
           setDiagAuthSignatureDataUrl(meta.signaturePreviewDataUrl);
@@ -1231,15 +1234,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         }}
       />
 
-      {diagAuthPrintModalOpen && diagAuthSignatureDataUrl ? (
-        <DiagnosticAuthorizationCertificateModal
+      {diagAuthSheetOpen && diagAuthSignatureDataUrl ? (
+        <DiagnosticAuthorizationSheetModal
           open
-          onClose={() => setDiagAuthPrintModalOpen(false)}
-          signatureDataUrl={diagAuthSignatureDataUrl}
-          declarantName={(customer.name || '').trim() || undefined}
-          vehicleSummary={receptionVehicleSummaryForDiag(customer)}
-          protocolNote="Cadastro na recepção — será vinculado à OS após o envio da ficha."
-          issuedAt={diagAuthSignedAt ?? undefined}
+          onClose={() => setDiagAuthSheetOpen(false)}
+          signatureImageSrc={diagAuthSignatureDataUrl}
+          signedAt={diagAuthSignedAt?.toISOString() ?? null}
+          subtitleExtra={intakeDiagAuthSubtitleKm}
         />
       ) : null}
 
@@ -1617,11 +1618,21 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           </div>
 
                           <div className="space-y-8">
-                            {!isModuleDetail ? (
-                              <DiagnosticAuthorizationRecordPanel
-                                signedAt={d.diagnostic_authorization_signed_at ?? null}
-                                signaturePath={d.diagnostic_authorization_signature_path ?? null}
-                              />
+                            {!isModuleDetail && archivedDiagAuthSignatureSrc ? (
+                              <div>
+                                <h3 className="text-zinc-700 dark:text-zinc-300 text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                                  <FileText className="w-4 h-4" />
+                                  Autorização de diagnóstico
+                                </h3>
+                                <button
+                                  type="button"
+                                  onClick={() => setArchivedDiagAuthSheetOpen(true)}
+                                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200/90 bg-white px-4 py-3 text-[13px] font-semibold text-zinc-800 shadow-sm transition-colors hover:bg-zinc-50 dark:border-white/[0.12] dark:bg-zinc-900/60 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                >
+                                  <Eye className="h-4 w-4 shrink-0" />
+                                  Ver autorização de diagnóstico
+                                </button>
+                              </div>
                             ) : null}
                             <div>
                               <h3 className="text-[#007AFF] dark:text-[#7ab8ff] text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -1869,6 +1880,20 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         </div>
         </ModalPortal>
       )}
+
+      {archivedDiagAuthSheetOpen && archivedDetailData && archivedDiagAuthSignatureSrc ? (
+        <DiagnosticAuthorizationSheetModal
+          open
+          onClose={() => setArchivedDiagAuthSheetOpen(false)}
+          signatureImageSrc={archivedDiagAuthSignatureSrc}
+          signedAt={archivedDetailData.diagnostic_authorization_signed_at ?? null}
+          subtitleExtra={
+            archivedDetailData.mileage_km != null && String(archivedDetailData.mileage_km).trim() !== ''
+              ? `Km ${String(archivedDetailData.mileage_km).trim()}`
+              : null
+          }
+        />
+      ) : null}
 
       {previewPdf && (
         <PdfViewerModal src={previewPdf} onClose={() => setPreviewPdf(null)} />
