@@ -181,7 +181,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setDiagAuthSignatureBlob(null);
       setDiagAuthSignatureDataUrl(null);
       setDiagAuthSignedAt(null);
-      setDiagAuthPrintModalOpen(false);
+      setDiagAuthSheetOpen(false);
       setDiagAuthSignModalOpen(false);
     }
   }, [receptionMode]);
