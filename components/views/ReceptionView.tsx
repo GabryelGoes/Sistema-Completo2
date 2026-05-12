@@ -41,28 +41,15 @@ import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
 import { markdownComponentsApp } from '../ui/markdownUi';
 import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
+import { firstTwoNames } from '../../utils/personNameFormat';
+import { BOARD_PANORAMIC_ZOOM } from '../../utils/patioBoardGlassCard';
+import { PatioStyleArchiveBoardCard } from '../patio/PatioStyleArchiveBoardCard';
 
 const ARCHIVED_PHOTOS_BATCH = 8;
 
 const RECEPTION_MODE_KEY = 'app_reception_mode';
 const VEHICLE_CATEGORIES = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
 type VehicleCategory = (typeof VEHICLE_CATEGORIES)[number];
-
-/** Mesmo critério do Pátio: dois primeiros nomes do cliente. */
-function firstTwoNames(fullName: string): string {
-  if (!fullName || !fullName.trim()) return fullName;
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length <= 2) return fullName.trim();
-  return parts.slice(0, 2).join(' ');
-}
-
-/** Tamanho do título do modelo (alinhado ao Pátio / tablet). */
-function getModelTitleClass(modelName: string) {
-  const len = (modelName || '').length;
-  if (len > 40) return 'text-2xl md:text-4xl lg:text-3xl';
-  if (len > 26) return 'text-3xl md:text-5xl lg:text-3xl';
-  return 'text-3xl md:text-5xl lg:text-3xl';
-}
 
 const receptionSectionShell =
   'overflow-hidden rounded-[24px] border border-zinc-300/70 bg-white shadow-[0_8px_30px_-12px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]';
@@ -207,6 +194,32 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [archivedPhotosVisibleCount, setArchivedPhotosVisibleCount] = useState(ARCHIVED_PHOTOS_BATCH);
   const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
   const [previewPdf, setPreviewPdf] = useState<string | null>(null);
+
+  const [isDesktopLandscape, setIsDesktopLandscape] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(min-width: 1024px) and (orientation: landscape)');
+    const apply = () => setIsDesktopLandscape(mq.matches);
+    apply();
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', apply);
+      return () => mq.removeEventListener('change', apply);
+    }
+    mq.addListener(apply);
+    return () => mq.removeListener(apply);
+  }, []);
+
+  const historyBoardPanoramic = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const key =
+        receptionMode === 'module' ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
+      return localStorage.getItem(key) === '1';
+    } catch {
+      return false;
+    }
+  }, [isHistoryOpen, receptionMode]);
 
   useEffect(() => {
     setArchivedPhotosVisibleCount(ARCHIVED_PHOTOS_BATCH);
@@ -1070,149 +1083,118 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   {receptionMode === 'module' ? 'Nenhum módulo arquivado encontrado.' : 'Nenhum veículo arquivado encontrado.'}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {archivedOrders.map((o) => {
-                  const model = (o.vehicle_model || 'Veículo').trim();
-                  const plate = (o.plate || '---').toUpperCase();
-                  const customerName = firstTwoNames((o.customer_name || o.customers?.name || 'Cliente').trim());
-                  return (
+                <div
+                  className="origin-top will-change-[zoom]"
+                  style={
+                    {
+                      zoom: historyBoardPanoramic ? BOARD_PANORAMIC_ZOOM : 1,
+                      transition: 'zoom 0.55s cubic-bezier(0.34, 1.35, 0.25, 1)',
+                    } as React.CSSProperties & { zoom?: number }
+                  }
+                >
                   <div
-                    key={o.id}
-                    className="group bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border border-zinc-200/80 dark:border-white/[0.08] rounded-[22px] p-5 hover:border-[#007AFF]/40 dark:hover:border-[#007AFF]/45 transition-all shadow-[0_2px_20px_-4px_rgba(0,0,0,0.06)] hover:shadow-lg flex flex-col min-h-[200px]"
+                    className={`relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
+                      historyBoardPanoramic
+                        ? 'grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-5 md:gap-3 lg:gap-3.5 2xl:gap-4'
+                        : 'grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 landscape:lg:grid-cols-4'
+                    }`}
                   >
-                    <div className="flex justify-between items-start gap-4 mb-3">
-                      <div className="min-w-0 flex-1">
-                        <h3
-                          className={`font-vehicle ${getModelTitleClass(model)} font-bold text-zinc-900 dark:text-white uppercase leading-[0.95] tracking-tight break-words`}
-                        >
-                          {model}
-                        </h3>
-                        {receptionMode === 'vehicle' && (o.vehicle_color ?? '').trim() ? (
-                          <p className="mt-1 max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400/75 dark:text-zinc-500/85">
-                            {(o.vehicle_color ?? '').trim()}
-                          </p>
-                        ) : null}
-                        <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-white/[0.06] border border-zinc-200/50 dark:border-white/[0.06] w-fit max-w-full">
-                          <User className="w-4 h-4 text-[#007AFF] dark:text-[#7ab8ff] shrink-0" strokeWidth={2} />
-                          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200 truncate tracking-tight">
-                            {customerName}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex-shrink-0">
-                        {receptionMode === 'vehicle' ? (
-                          <div className="w-[120px] bg-white rounded-lg border-2 border-black flex flex-col overflow-hidden shadow-md shadow-black/20 select-none">
-                            <div className="h-4 bg-[#003399] flex items-center justify-between px-2">
-                              <span className="text-[7px] font-bold text-white tracking-wider">BRASIL</span>
-                              <BrazilFlagIcon width={12} height={8} className="rounded-[2px] flex-shrink-0 border border-white/30" />
-                            </div>
-                            <div className="h-9 flex items-center justify-center bg-white">
-                              <span className={`text-black font-mono text-xl font-black tracking-[0.2em] leading-none ${blurPlates ? 'blur-plate' : ''}`}>
-                                {plate}
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="max-w-[140px] rounded-xl border border-zinc-300 dark:border-white/15 bg-zinc-100/80 dark:bg-white/[0.06] px-3 py-2 text-right">
-                            <span className="text-[9px] uppercase font-bold text-zinc-500 dark:text-zinc-400 block">Módulo</span>
-                            <span className="text-sm font-mono font-bold text-zinc-900 dark:text-white break-all">
-                              {(o.module_identification || '—').trim()}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-end justify-between mt-auto pt-3 border-t border-zinc-200/80 dark:border-zinc-800/70">
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-[10px] uppercase text-zinc-500 dark:text-zinc-400 font-bold tracking-wider">Arquivado</span>
-                        <span className="text-lg text-zinc-800 dark:text-zinc-100 font-black tracking-tight leading-none truncate">
-                          {o.updated_at ? new Date(o.updated_at).toLocaleDateString('pt-BR') : '—'}
-                        </span>
-                      </div>
-                      <span className="text-[10px] uppercase font-bold text-zinc-400 dark:text-zinc-500 shrink-0">{o.status}</span>
-                    </div>
-
-                    <div className="mt-3">
-                      <button
-                        type="button"
-                        onClick={() => openArchivedDetail(o)}
-                        className="w-full px-3 py-2.5 rounded-xl text-xs font-bold bg-[#007AFF] text-white hover:bg-[#0A84FF] transition-colors flex items-center justify-center gap-2"
-                      >
-                        Ver detalhes completos
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    <div className="mt-2">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleHistoryBudgets(o.id)}
-                        className="w-full px-3 py-2.5 rounded-xl text-xs font-bold bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white/10 dark:hover:bg-white/15 transition-colors"
-                      >
-                        {expandedHistoryOrderId === o.id ? 'Ocultar orçamentos' : 'Ver orçamentos'}
-                      </button>
-                    </div>
-                    {expandedHistoryOrderId === o.id && (
-                      <div className="mt-3 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-50/90 dark:bg-black/30 p-3 space-y-2">
-                        {historyBudgetsLoadingId === o.id ? (
-                          <div className="text-sm text-zinc-500 flex items-center gap-2">
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                            Carregando orçamentos...
-                          </div>
-                        ) : historyBudgetErrorByOrder[o.id] ? (
-                          <div className="space-y-2">
-                            <div className="text-sm text-red-500">{historyBudgetErrorByOrder[o.id]}</div>
-                            <button
-                              type="button"
-                              onClick={() => handleRetryHistoryBudgets(o.id)}
-                              className="text-xs font-semibold text-zinc-900 dark:text-white underline"
-                            >
-                              Tentar novamente
-                            </button>
-                          </div>
-                        ) : (historyBudgetsByOrder[o.id] || []).length === 0 ? (
-                          <div className="text-sm text-zinc-500">Nenhum orçamento encontrado para este veículo.</div>
-                        ) : (
-                          (() => {
-                            const list = historyBudgetsByOrder[o.id] || [];
-                            const sorted = [...list].sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a));
-                            return sorted.map((b) => (
-                            <div key={b.id} className="rounded-lg border border-zinc-200 dark:border-white/10 p-2.5 bg-white dark:bg-white/[0.02]">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-sm font-semibold text-zinc-900 dark:text-white">
-                                  Orçamento {budgetChronologicalNumber(list, b.id)}
-                                </p>
-                                <p className="text-xs text-zinc-500">
-                                  {new Date(budgetLastActivityMs(b)).toLocaleString('pt-BR')}
-                                </p>
-                              </div>
-                              {b.diagnosis?.trim() && (
-                                <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300 line-clamp-2">
-                                  <span className="font-medium">Diagnóstico:</span> {b.diagnosis}
-                                </p>
-                              )}
-                              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-                                {b.services.length} serviço(s) • {b.parts.length} peça(s)
-                              </p>
+                    {archivedOrders.map((o) => {
+                      const model = (o.vehicle_model || (receptionMode === 'module' ? 'Módulo' : 'Veículo')).trim();
+                      const plateOrModule =
+                        receptionMode === 'vehicle'
+                          ? (o.plate || '---').toUpperCase()
+                          : (o.module_identification || '—').trim();
+                      const customerFull = (o.customer_name || o.customers?.name || '').trim();
+                      return (
+                        <PatioStyleArchiveBoardCard
+                          key={o.id}
+                          boardPanoramic={historyBoardPanoramic}
+                          isDesktopLandscape={isDesktopLandscape}
+                          isModuleMode={receptionMode === 'module'}
+                          blurPlates={blurPlates}
+                          model={model}
+                          plateOrModule={plateOrModule}
+                          customerFullName={customerFull}
+                          vehicleColor={o.vehicle_color}
+                          archivedAt={o.updated_at}
+                          mechanicName={(o.assigned_technician || '').trim() || undefined}
+                          garantiaTag={o.garantia_tag === true}
+                          onOpen={() => openArchivedDetail(o)}
+                          footerAppend={
+                            <>
                               <button
                                 type="button"
-                                onClick={() => setHistoryBudgetDetail(b)}
-                                className="mt-2 w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-[#007AFF] text-white hover:opacity-90 transition-opacity"
+                                onClick={() => handleToggleHistoryBudgets(o.id)}
+                                className="flex w-full min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/90 px-4 py-3 text-[14px] font-semibold text-zinc-800 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.1)] transition-all hover:bg-zinc-50 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.08] dark:text-zinc-100 dark:hover:bg-white/[0.12]"
                               >
-                                <Eye className="w-3.5 h-3.5" />
-                                Abrir orçamento completo
+                                {expandedHistoryOrderId === o.id ? 'Ocultar orçamentos' : 'Ver orçamentos'}
                               </button>
-                            </div>
-                          ));
-                          })()
-                        )
-                        }
-                      </div>
-                    )}
+                              {expandedHistoryOrderId === o.id && (
+                                <div className="mt-3 space-y-2 rounded-[1.25rem] border border-zinc-200/80 bg-zinc-50/90 p-3 dark:border-white/10 dark:bg-black/30">
+                                  {historyBudgetsLoadingId === o.id ? (
+                                    <div className="flex items-center gap-2 text-sm text-zinc-500">
+                                      <RefreshCw className="h-4 w-4 animate-spin" />
+                                      Carregando orçamentos...
+                                    </div>
+                                  ) : historyBudgetErrorByOrder[o.id] ? (
+                                    <div className="space-y-2">
+                                      <div className="text-sm text-red-500">{historyBudgetErrorByOrder[o.id]}</div>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRetryHistoryBudgets(o.id)}
+                                        className="text-xs font-semibold text-zinc-900 underline dark:text-white"
+                                      >
+                                        Tentar novamente
+                                      </button>
+                                    </div>
+                                  ) : (historyBudgetsByOrder[o.id] || []).length === 0 ? (
+                                    <div className="text-sm text-zinc-500">Nenhum orçamento encontrado para este veículo.</div>
+                                  ) : (
+                                    (() => {
+                                      const list = historyBudgetsByOrder[o.id] || [];
+                                      const sorted = [...list].sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a));
+                                      return sorted.map((b) => (
+                                        <div
+                                          key={b.id}
+                                          className="rounded-xl border border-zinc-200/80 bg-white p-2.5 dark:border-white/10 dark:bg-white/[0.02]"
+                                        >
+                                          <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                                              Orçamento {budgetChronologicalNumber(list, b.id)}
+                                            </p>
+                                            <p className="text-xs text-zinc-500">
+                                              {new Date(budgetLastActivityMs(b)).toLocaleString('pt-BR')}
+                                            </p>
+                                          </div>
+                                          {b.diagnosis?.trim() && (
+                                            <p className="mt-1 line-clamp-2 text-sm text-zinc-700 dark:text-zinc-300">
+                                              <span className="font-medium">Diagnóstico:</span> {b.diagnosis}
+                                            </p>
+                                          )}
+                                          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+                                            {b.services.length} serviço(s) • {b.parts.length} peça(s)
+                                          </p>
+                                          <button
+                                            type="button"
+                                            onClick={() => setHistoryBudgetDetail(b)}
+                                            className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#007AFF] px-3 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 sm:w-auto"
+                                          >
+                                            <Eye className="h-3.5 w-3.5" />
+                                            Abrir orçamento completo
+                                          </button>
+                                        </div>
+                                      ));
+                                    })()
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          }
+                        />
+                      );
+                    })}
                   </div>
-                  );
-                })}
                 </div>
               )}
             </div>

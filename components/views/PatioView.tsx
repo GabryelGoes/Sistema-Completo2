@@ -59,7 +59,6 @@ import {
 import type { ServiceOrderDetail, ApiCustomer } from '../../services/apiService';
 import { SERVICE_ORDER_STAGES, getStageStyle, getStageRingClass, type ServiceOrderStatus } from '../../constants/serviceOrderStages';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
-import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import {
@@ -87,6 +86,16 @@ import { PATIO_CARD_TITLE_SEP, parsePatioCardTitle } from '../../utils/patioCard
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
 import { parseReferenceLinksFromApi } from '../../utils/vehicleReferenceLinks';
+import { capitalizeFirst, firstTwoNames } from '../../utils/personNameFormat';
+import { getPatioBoardModelTitleClass } from '../../utils/patioBoardModelTitle';
+import {
+  patioBoardGlassCardShadow,
+  vehicleCardTitleShadow,
+  BOARD_PANORAMIC_ZOOM,
+  DESKTOP_LANDSCAPE_CARD_ZOOM,
+} from '../../utils/patioBoardGlassCard';
+import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
+import { PatioStyleArchiveBoardCard } from '../patio/PatioStyleArchiveBoardCard';
 
 /** ID sintético até `getServiceOrderById` responder — não usar em chamadas à API. */
 const SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID = '00000000-0000-4000-8000-000000000001';
@@ -170,13 +179,6 @@ const budgetModalPaperShell =
 const budgetModalPaperFooter =
   'border-t border-sky-200 ' + budgetModalCanvasBg;
 
-/** Cards do quadro (Pátio / Laboratório): cinza no claro, cinza-claro no escuro — alinhado à Home. */
-const patioBoardGlassCardShadow =
-  'shadow-[0_10px_36px_-8px_rgba(63,63,70,0.20),0_4px_20px_-6px_rgba(82,82,91,0.12),0_1px_3px_rgba(63,63,70,0.08)] ' +
-  'dark:shadow-[0_14px_40px_-10px_rgba(0,0,0,0.44),0_6px_26px_-8px_rgba(0,0,0,0.30),0_2px_10px_-4px_rgba(0,0,0,0.22)] ' +
-  'hover:shadow-[0_14px_44px_-10px_rgba(63,63,70,0.22),0_6px_26px_-8px_rgba(82,82,91,0.14)] ' +
-  'dark:hover:shadow-[0_18px_48px_-12px_rgba(0,0,0,0.50),0_8px_30px_-10px_rgba(0,0,0,0.34),0_3px_14px_-4px_rgba(0,0,0,0.26)]';
-
 /** Nome do cliente no cabeçalho do modal de veículo — caixa com fundo cinza. */
 const vehicleModalCustomerNameBox =
   'rounded-[18px] border border-zinc-300/80 bg-zinc-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:border-zinc-600/50 dark:bg-zinc-800/85 dark:shadow-none';
@@ -221,10 +223,6 @@ const vehicleModalCompactCardFieldRow =
 /** Sombra nos glifos do nome do veículo (só tema escuro — no claro fica sem text-shadow). */
 const vehicleModalTitleShadow =
   'dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.92),0_2px_10px_rgba(0,0,0,0.52),0_0_26px_rgba(0,0,0,0.35)]';
-
-/** Cards da grade: mesma regra — sombra apenas no dark. */
-const vehicleCardTitleShadow =
-  'dark:[text-shadow:0_1px_2px_rgba(0,0,0,0.58),0_2px_10px_rgba(0,0,0,0.32),0_0_26px_rgba(0,0,0,0.2)]';
 
 /** Mesma ideia em texto menor (modais etapa/categoria etc.). */
 const vehicleModalSubtitleNameShadow =
@@ -282,19 +280,6 @@ const BACKEND_LISTS: BoardList[] = SERVICE_ORDER_STAGES.map((s) => ({
   name: s.name,
   pos: s.pos,
 }));
-
-function capitalizeFirst(str: string): string {
-  if (!str || !str.trim()) return str;
-  return str.trim().split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-}
-
-/** Retorna apenas os dois primeiros nomes do cliente (ex.: "João Silva" a partir de "João Silva Santos"). */
-function firstTwoNames(fullName: string): string {
-  if (!fullName || !fullName.trim()) return fullName;
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length <= 2) return fullName.trim();
-  return parts.slice(0, 2).join(' ');
-}
 
 /** Nome amigável do anexo (remove prefixo numérico do storage e extensão só na interface). */
 function attachmentDisplayName(fileName: string): string {
@@ -790,92 +775,6 @@ function commentToAction(c: { id: string; author_display_name: string; text: str
   };
 }
 
-/** Miniatura Mercosul — proporção ~400×130 mm (placa traseira veículo). Fonte condensada próxima ao visual de placagem. */
-type MercosulPlateMockupSize = 'card' | 'cardCompact' | 'cardGrid' | 'modal';
-
-function MercosulPlateMockup(props: {
-  plate: string;
-  blurPlates?: boolean;
-  size: MercosulPlateMockupSize;
-  selectable?: boolean;
-}) {
-  const { plate, blurPlates = false, size, selectable = false } = props;
-  const display = (plate || '—').trim() || '—';
-
-  /** `modal`: miniatura −10% via zoom; letras/números mantêm o mesmo tamanho visual (fonte compensada ÷0,9). */
-  const isCompact = size === 'cardCompact';
-  const isCardGrid = size === 'cardGrid';
-  const isModal = size === 'modal';
-
-  const w = isCompact ? 'w-[122px]' : isCardGrid ? 'w-[148px]' : 'w-[174px]';
-
-  const shadow = isCompact ? 'shadow-md shadow-black/15' : 'shadow-xl shadow-black/25';
-
-  const bandText = isCompact
-    ? 'text-[6.2px]'
-    : isCardGrid
-      ? 'text-[9.4px]'
-      : 'text-[11px]';
-
-  const flagW = isCompact ? 12 : isCardGrid ? 14 : 16;
-  const flagH = isCompact ? 9 : isCardGrid ? 9 : 10;
-
-  const plateText = isCompact
-    ? 'text-[21.5px] sm:text-[22.9px]'
-    : isCardGrid
-      ? 'text-[32px] sm:text-[35.2px]'
-      : isModal
-        ? 'text-[31.8px] sm:text-[34.8px]'
-        : 'text-[37.6px] sm:text-[41.5px]';
-
-  const mockup = (
-    <div
-      className={`${w} aspect-[400/130] grid grid-rows-[20%_80%] overflow-hidden rounded-[7px] border-[2px] border-black bg-white ${shadow} ${selectable ? 'select-text' : 'select-none'} sm:rounded-[9px]`}
-      aria-hidden
-    >
-      <div
-        className={`flex min-h-0 items-center justify-between gap-1 bg-[#003399] ${isCompact ? 'px-1.5' : 'px-2 sm:px-3'}`}
-      >
-        <span className={`font-semibold uppercase leading-none tracking-wide text-white ${bandText}`}>BRASIL</span>
-        <BrazilFlagIcon width={flagW} height={flagH} className="shrink-0 rounded-sm border border-white/35" />
-      </div>
-      <div className={`flex min-h-0 items-center justify-center bg-white ${isCompact ? 'px-1' : 'px-1.5 sm:px-2'}`}>
-        <span
-          className={`font-plate max-w-[100%] text-center font-extrabold uppercase leading-[0.95] tracking-[0.06em] text-black antialiased ${plateText} ${blurPlates ? 'blur-plate' : ''}`}
-        >
-          {display.toUpperCase()}
-        </span>
-      </div>
-    </div>
-  );
-
-  if (isModal) {
-    return (
-      <div
-        className="inline-block origin-center [zoom:0.9]"
-        aria-hidden
-      >
-        {mockup}
-      </div>
-    );
-  }
-
-  /** Nos cartões da grade (não no modal detalhe): −15% só em modo vertical. */
-  const isBoardCardSize = size === 'card' || size === 'cardGrid' || size === 'cardCompact';
-  if (isBoardCardSize) {
-    return (
-      <div
-        className="inline-block origin-right portrait:scale-[0.85]"
-        aria-hidden
-      >
-        {mockup}
-      </div>
-    );
-  }
-
-  return mockup;
-}
-
 const VEHICLE_MODAL_PHOTOS_BATCH = 8;
 
 export const PatioView: React.FC<PatioViewProps> = ({
@@ -1237,13 +1136,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       document.removeEventListener('keydown', onKey);
     };
   }, [isPatioHeaderToolsOpen, updatePatioToolsPopoverPosition]);
-
-  /** Desktop horizontal: usar `zoom` (não `transform: scale`) para o box do layout acompanhar o conteúdo — scale() deixa altura “fantasma” e espaço vazio no card. */
-  const DESKTOP_LANDSCAPE_CARD_ZOOM = 0.65025;
-
-  /** Modo lupa: grade `md:grid-cols-5` → cinco cartões por fileira horizontal (telas ≥768px). Espaçamento vertical: fator `*1.6146` em `calc` (+17%, +15% e +20% cumulativos). */
-  const BOARD_PANORAMIC_ZOOM = 0.72;
-
 
   const selectedCardTitleParts = selectedCard ? parsePatioCardTitle(selectedCard.name) : null;
   const historyCardTitleParts = selectedHistoryCard ? parsePatioCardTitle(selectedHistoryCard.name) : null;
@@ -2849,33 +2741,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return defaultTechStyle;
   };
 
-  /**
-   * Nome do carro: modo lupa = `panoramic`; grade Pátio zoom padrão = `patioGridCard` (−15% vs. título “cheio”);
-   * demais cartões (ex.: histórico) usam tamanho cheio sem `patioGridCard`.
-   */
-  const getModelTitleClass = (modelName: string, panoramic?: boolean, patioGridCard?: boolean) => {
-    const len = (modelName || '').length;
-    if (panoramic) {
-      if (len > 40)
-        return 'text-[1.551rem] md:text-[2.792rem] lg:text-[1.862rem] portrait:text-[1.816rem] portrait:md:text-[3.266rem] portrait:lg:text-[2.178rem]';
-      if (len > 26)
-        return 'text-[1.862rem] md:text-[3.723rem] lg:text-[2.326rem] portrait:text-[2.178rem] portrait:md:text-[4.355rem] portrait:lg:text-[2.722rem]';
-      return 'text-[1.862rem] md:text-[3.723rem] lg:text-[2.326rem] portrait:text-[2.178rem] portrait:md:text-[4.355rem] portrait:lg:text-[2.722rem]';
-    }
-    if (patioGridCard) {
-      if (len > 40)
-        return 'text-[1.977rem] md:text-[3.956rem] lg:text-[2.373rem] portrait:text-[2.314rem] portrait:md:text-[4.627rem] portrait:lg:text-[2.776rem]';
-      if (len > 26)
-        return 'text-[2.373rem] md:text-[3.956rem] lg:text-[3.165rem] portrait:text-[2.776rem] portrait:md:text-[4.627rem] portrait:lg:text-[3.702rem]';
-      return 'text-[2.373rem] md:text-[3.956rem] lg:text-[3.165rem] portrait:text-[2.776rem] portrait:md:text-[4.627rem] portrait:lg:text-[3.702rem]';
-    }
-    if (len > 40)
-      return 'text-[2.326rem] md:text-[4.654rem] lg:text-[2.792rem] portrait:text-[2.722rem] portrait:md:text-[5.444rem] portrait:lg:text-[3.266rem]';
-    if (len > 26)
-      return 'text-[2.792rem] md:text-[4.654rem] lg:text-[3.723rem] portrait:text-[3.266rem] portrait:md:text-[5.444rem] portrait:lg:text-[4.355rem]';
-    return 'text-[2.792rem] md:text-[4.654rem] lg:text-[3.723rem] portrait:text-[3.266rem] portrait:md:text-[5.444rem] portrait:lg:text-[4.355rem]';
-  };
-
   const getCommentAuthorAvatar = (authorName: string, photoUrlFromComment?: string | null): { initial: string; avatarClass: string; useLogo: boolean; photoUrl?: string | null } => {
     const name = (authorName ?? '').trim();
     const initial = name ? name.charAt(0).toUpperCase() : '?';
@@ -3670,7 +3535,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {/* Nome do carro (fonte um pouco menor); portrait: −15% via escala */}
                 <div className={boardPanoramic ? 'mb-[calc(0.25rem*1.6146)] portrait:mb-1' : 'mb-1.5 portrait:mb-1'}>
                   <h3
-                    className={`font-vehicle ${getModelTitleClass(model, boardPanoramic, true)} font-bold text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tight break-words portrait:inline-block portrait:w-full portrait:origin-top-left portrait:scale-[0.85] ${vehicleCardTitleShadow}`}
+                    className={`font-vehicle ${getPatioBoardModelTitleClass(model, boardPanoramic, true)} font-bold text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tight break-words portrait:inline-block portrait:w-full portrait:origin-top-left portrait:scale-[0.85] ${vehicleCardTitleShadow}`}
                   >
                     {model}
                   </h3>
@@ -4028,100 +3893,58 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 : 'Nenhum resultado para a busca. Exibindo os últimos veículos arquivados.'}
                            </div>
                         )}
-                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
-                        {archivedCards.map(card => {
-                           const t = parsePatioCardTitle(card.name);
-                           const model = t.vehicle || card.name;
-                           const plate = t.plateOrModule || '---';
-                           const customerName = t.customer || '';
-                           const archivedWhen = card.dateLastActivity ? new Date(card.dateLastActivity).toLocaleDateString('pt-BR') : '—';
-
-                           return (
-                              <div key={card.id} className="min-h-[180px]">
-                                <div
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={() => handleOpenHistoryCardDetails(card)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                      e.preventDefault();
-                                      handleOpenHistoryCardDetails(card);
-                                    }
-                                  }}
-                                  className={`
-                                    group relative flex h-full min-h-[180px] cursor-pointer flex-col justify-between overflow-hidden
-                                    rounded-[2rem] border bg-white/70 p-5 backdrop-blur-2xl sm:rounded-[2.25rem]
-                                    dark:bg-zinc-900/40 ${patioBoardGlassCardShadow}
-                                    border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]
-                                    hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
-                                    active:scale-[0.99]
-                                  `}
-                                >
-                                  <div className="relative z-10 flex h-full min-h-0 flex-1 flex-col">
-                                    <div className="mb-4 min-h-0 flex-1">
-                                      <div className="mb-2">
-                                        <h3
-                                          className={`font-vehicle ${getModelTitleClass(model)} font-bold text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tight break-words ${vehicleCardTitleShadow}`}
-                                        >
-                                          {model}
-                                        </h3>
-                                        {!isModuleMode && (card.vehicleColor ?? '').trim() ? (
-                                          <p
-                                            className="mt-1 max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400/75 dark:text-zinc-500/85"
-                                            title={`Cor: ${(card.vehicleColor ?? '').trim()}`}
-                                          >
-                                            {(card.vehicleColor ?? '').trim()}
-                                          </p>
-                                        ) : null}
-                                      </div>
-
-                                      {customerName ? (
-                                        <div className="mb-2 flex w-fit max-w-full items-center gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 px-3 py-1.5 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05]">
-                                          <User className="w-4 h-4 shrink-0 text-[#007AFF]" strokeWidth={2} />
-                                          <span className="truncate text-base font-semibold tracking-tight text-zinc-700 dark:text-zinc-200 portrait:text-[0.8rem]">
-                                            {firstTwoNames(customerName)}
-                                          </span>
-                                        </div>
-                                      ) : null}
-
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="min-w-0 flex-1">
-                                          <span className="inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-2xl border border-zinc-200/70 bg-white/55 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-600 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-zinc-300">
-                                            <History className="h-3.5 w-3.5 shrink-0 text-[#007AFF]" strokeWidth={2} />
-                                            Arquivado · {archivedWhen}
-                                          </span>
-                                        </div>
-                                        <div className="flex-shrink-0">
-                                          {!isModuleMode ? (
-                                            <MercosulPlateMockup plate={plate} blurPlates={blurPlates} size="card" />
-                                          ) : (
-                                            <div className="max-w-[140px] rounded-xl border border-zinc-200/70 bg-white/55 px-3 py-2 text-right backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05]">
-                                              <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Módulo</p>
-                                              <p className="truncate font-mono text-sm font-bold text-zinc-900 dark:text-white">{plate}</p>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    <div className="relative mt-auto w-full border-t border-zinc-200/60 pt-3 dark:border-white/[0.06]">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <span className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">Ver ficha completa</span>
-                                        <span className="flex items-center gap-1 text-[13px] font-semibold text-[#007AFF] opacity-90 transition-opacity group-hover:opacity-100">
-                                          Abrir <ArrowRight className="h-3.5 w-3.5" />
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                           );
-                        })}
+                        <div
+                          className="origin-top will-change-[zoom]"
+                          style={
+                            {
+                              zoom: boardPanoramic ? BOARD_PANORAMIC_ZOOM : 1,
+                              transition: 'zoom 0.55s cubic-bezier(0.34, 1.35, 0.25, 1)',
+                            } as React.CSSProperties & { zoom?: number }
+                          }
+                        >
+                          <div
+                            className={`relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
+                              boardPanoramic
+                                ? 'grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-5 md:gap-3 lg:gap-3.5 2xl:gap-4'
+                                : 'grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 landscape:lg:grid-cols-4'
+                            }`}
+                          >
+                            {archivedCards.map((card) => {
+                              const t = parsePatioCardTitle(card.name);
+                              const model = t.vehicle || card.name;
+                              const plate = t.plateOrModule || '---';
+                              const customerFull = t.customer || '';
+                              const member = card.members && card.members.length > 0 ? card.members[0] : null;
+                              const mechanicName = member?.fullName ?? null;
+                              const mechanicStyle =
+                                mechanicName && member
+                                  ? getMechanicButtonStyle(mechanicName, member.id)
+                                  : undefined;
+                              return (
+                                <PatioStyleArchiveBoardCard
+                                  key={card.id}
+                                  boardPanoramic={boardPanoramic}
+                                  isDesktopLandscape={isDesktopLandscape}
+                                  isModuleMode={isModuleMode}
+                                  blurPlates={blurPlates}
+                                  model={model}
+                                  plateOrModule={plate}
+                                  customerFullName={customerFull}
+                                  vehicleColor={card.vehicleColor}
+                                  archivedAt={card.dateLastActivity}
+                                  mechanicName={mechanicName ?? undefined}
+                                  mechanicSquircleClassName={mechanicStyle}
+                                  garantiaTag={card.garantiaTag === true}
+                                  onOpen={() => handleOpenHistoryCardDetails(card)}
+                                />
+                              );
+                            })}
+                          </div>
                         </div>
                      </div>
                   ) : (
-                     <div className={`flex min-h-[240px] flex-col items-center justify-center ${iosModalInsetCard} p-10 text-center`}>
-                        <History className="mb-4 h-14 w-14 text-zinc-300" strokeWidth={1.25} />
+                     <div className={`${iosPageGlass} ring-1 ring-white/40 dark:ring-white/[0.06] mx-auto flex min-h-[240px] max-w-lg flex-col items-center justify-center rounded-[2rem] p-10 text-center`}>
+                        <History className="mb-4 h-14 w-14 text-zinc-300 dark:text-zinc-600" strokeWidth={1.25} />
                         <p className="text-[15px] font-medium text-zinc-600 dark:text-zinc-400">Nenhum registro encontrado.</p>
                         <p className="mt-1 max-w-sm text-[13px] text-zinc-500">Ajuste os termos da busca ou confira os filtros da oficina.</p>
                      </div>
