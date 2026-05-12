@@ -6,6 +6,8 @@ interface ImportMetaEnv {
   readonly VITE_WORKSHOP_ID?: string;
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_ANON_KEY?: string;
+  /** Opcional: bucket de fotos/anexos da OS (padrão no servidor: vehicle-photos). */
+  readonly VITE_SUPABASE_VEHICLE_PHOTOS_BUCKET?: string;
 }
 
 interface ImportMeta {

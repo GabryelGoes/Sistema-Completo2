@@ -96,6 +96,8 @@ import {
 } from '../../utils/patioBoardGlassCard';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
 import { PatioStyleArchiveBoardCard } from '../patio/PatioStyleArchiveBoardCard';
+import { DiagnosticAuthorizationRecordPanel } from '../diagnostic/DiagnosticAuthorizationRecordPanel';
+import { DiagnosticAuthorizationRecordPanel } from '../diagnostic/DiagnosticAuthorizationRecordPanel';
 
 /** ID sintético até `getServiceOrderById` responder — não usar em chamadas à API. */
 const SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID = '00000000-0000-4000-8000-000000000001';
@@ -145,6 +147,8 @@ function serviceOrderDetailPlaceholderFromCard(card: TrelloCard, orderType: Serv
     reference_links: card.referenceLinks?.length ? card.referenceLinks : null,
     created_at: card.dateLastActivity || now,
     updated_at: card.dateLastActivity || now,
+    diagnostic_authorization_signed_at: null,
+    diagnostic_authorization_signature_path: null,
     customers: placeholderApiCustomer(customerName),
   };
 }
@@ -373,6 +377,8 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     vehicle_year: detail.vehicle_year ?? null,
     vehicle_engine_info: detail.vehicle_engine_info ?? null,
     reference_links: parseReferenceLinksFromApi(detail.reference_links),
+    diagnostic_authorization_signed_at: detail.diagnostic_authorization_signed_at ?? null,
+    diagnostic_authorization_signature_path: detail.diagnostic_authorization_signature_path ?? null,
     created_at: detail.created_at,
     updated_at: detail.updated_at,
     customers: detail.customers
@@ -4167,6 +4173,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
 
                       <div className="space-y-8">
+                        {!isModuleMode && historyServiceOrderDetail ? (
+                          <DiagnosticAuthorizationRecordPanel
+                            signedAt={historyServiceOrderDetail.diagnostic_authorization_signed_at ?? null}
+                            signaturePath={historyServiceOrderDetail.diagnostic_authorization_signature_path ?? null}
+                          />
+                        ) : null}
                          <div>
                             <p className={uiSectionTitleRow}>
                               <Paperclip className="h-3.5 w-3.5" />
@@ -5890,6 +5902,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
 
                       <div className="min-w-0 space-y-8">
+                        {!isModuleMode && serviceOrderDetail ? (
+                          <div className="lg:sticky lg:top-2 lg:z-[1]">
+                            <DiagnosticAuthorizationRecordPanel
+                              signedAt={serviceOrderDetail.diagnostic_authorization_signed_at ?? null}
+                              signaturePath={serviceOrderDetail.diagnostic_authorization_signature_path ?? null}
+                            />
+                          </div>
+                        ) : null}
                         <div ref={commentsSectionRef}>
                            <h3 className={`${uiSectionTitleRow} lg:mb-2`}>
                              <MessageSquare className="h-3.5 w-3.5 shrink-0" />

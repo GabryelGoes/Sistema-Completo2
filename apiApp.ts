@@ -1796,7 +1796,7 @@ export function createApiApp() {
       let query = supabaseAdmin
         .from("service_orders")
         .select(
-          "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, created_at, updated_at"
+          "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at"
         )
         .eq("workshop_id", WORKSHOP_ID)
         .order("created_at", { ascending: false });
@@ -4540,6 +4540,7 @@ export function createApiApp() {
         actor,
         actorTechnicianSlug,
         actorTechnicianName,
+        diagnosticAuthorizationSignaturePath,
       } = req.body;
       const isAdminActor = actor !== "technician";
 
@@ -4665,6 +4666,26 @@ export function createApiApp() {
           normalized.push({ id, label, url: href });
         }
         updatePayload.reference_links = normalized;
+      }
+
+      if (diagnosticAuthorizationSignaturePath !== undefined) {
+        const raw = diagnosticAuthorizationSignaturePath;
+        if (raw === null || (typeof raw === "string" && raw.trim() === "")) {
+          updatePayload.diagnostic_authorization_signature_path = null;
+          updatePayload.diagnostic_authorization_signed_at = null;
+        } else if (typeof raw === "string") {
+          const p = raw.trim();
+          const prefix = `${WORKSHOP_ID}/${id}/`;
+          if (!p.startsWith(prefix)) {
+            return res.status(400).json({
+              error: "Caminho da assinatura inválido para esta ordem de serviço.",
+            });
+          }
+          updatePayload.diagnostic_authorization_signature_path = p;
+          updatePayload.diagnostic_authorization_signed_at = new Date().toISOString();
+        } else {
+          return res.status(400).json({ error: "diagnosticAuthorizationSignaturePath inválido." });
+        }
       }
 
       if (Object.keys(updatePayload).length === 0) {

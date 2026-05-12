@@ -12,6 +12,7 @@ import {
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from "../utils/budgetItemDisplay";
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from "../utils/budgetPrintWithDetail";
 import { formatLaborLabel } from "../utils/workshopLaborFormat";
+import { DiagnosticAuthorizationRecordPanel } from "./diagnostic/DiagnosticAuthorizationRecordPanel";
 
 export interface BudgetHubViewerModalProps {
   serviceOrderId: string;
@@ -135,6 +136,13 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
               </div>
             ) : (
               <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]">
+                {!isModuleMode && detail ? (
+                  <DiagnosticAuthorizationRecordPanel
+                    variant="paper"
+                    signedAt={detail.diagnostic_authorization_signed_at ?? null}
+                    signaturePath={detail.diagnostic_authorization_signature_path ?? null}
+                  />
+                ) : null}
                 {budget.diagnosis ? (
                   <section>
                     <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "#000000" }}>

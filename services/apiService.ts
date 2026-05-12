@@ -42,6 +42,8 @@ interface ApiServiceOrder {
   vehicle_color?: string | null;
   vehicle_year?: string | null;
   vehicle_engine_info?: string | null;
+  diagnostic_authorization_signed_at?: string | null;
+  diagnostic_authorization_signature_path?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -73,6 +75,8 @@ export interface ServiceOrderListItem {
   vehicle_engine_info?: string | null;
   /** Links anexados ao modal (JSON no banco). */
   reference_links?: VehicleReferenceLink[] | null;
+  diagnostic_authorization_signed_at?: string | null;
+  diagnostic_authorization_signature_path?: string | null;
   created_at: string;
   updated_at: string;
   customers: { id: string; name: string; phone: string | null } | null;
@@ -102,6 +106,8 @@ export interface ServiceOrderDetail {
   vehicle_year?: string | null;
   vehicle_engine_info?: string | null;
   reference_links?: VehicleReferenceLink[] | null;
+  diagnostic_authorization_signed_at?: string | null;
+  diagnostic_authorization_signature_path?: string | null;
   created_at: string;
   updated_at: string;
   customers: ApiCustomer | null;
@@ -731,6 +737,28 @@ export async function updateServiceOrderType(
 }
 
 /** Atualiza a categoria do veículo (Compacto, Médio/SUV, Pick-Up, Premium). Só modo veículo. */
+/** Grava caminho da imagem da assinatura (Storage) e data/hora no servidor. */
+export async function updateServiceOrderDiagnosticAuthorization(
+  id: string,
+  data: { signaturePath: string | null },
+  options?: ServiceOrderUpdateActor
+): Promise<ApiServiceOrder> {
+  const body = mergeActorIntoBody(
+    { diagnosticAuthorizationSignaturePath: data.signaturePath },
+    options
+  );
+  const response = await fetch(`${API_BASE}/service-orders/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao registrar autorização de diagnóstico (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function updateServiceOrderVehicleCategory(
   id: string,
   vehicleCategory: string | null,

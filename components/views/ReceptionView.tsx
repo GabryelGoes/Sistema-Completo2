@@ -25,6 +25,7 @@ import {
   getServiceOrderPhotos,
   getServiceOrderComments,
   updateServiceOrderStatus,
+  updateServiceOrderDiagnosticAuthorization,
   type ServiceOrderListItem,
   type SavedBudgetFromApi,
   type ServiceOrderType,
@@ -44,6 +45,8 @@ import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
 import { firstTwoNames } from '../../utils/personNameFormat';
 import { BOARD_PANORAMIC_ZOOM } from '../../utils/patioBoardGlassCard';
 import { PatioStyleArchiveBoardCard } from '../patio/PatioStyleArchiveBoardCard';
+import { DiagnosticAuthorizationSignModal } from '../diagnostic/DiagnosticAuthorizationSignModal';
+import { DiagnosticAuthorizationRecordPanel } from '../diagnostic/DiagnosticAuthorizationRecordPanel';
 
 const ARCHIVED_PHOTOS_BATCH = 8;
 
@@ -172,11 +175,20 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     onReceptionModeChangeForBack?.(receptionMode);
   }, [receptionMode, onReceptionModeChangeForBack]);
 
+  useEffect(() => {
+    if (receptionMode !== 'vehicle') {
+      setDiagAuthSignatureBlob(null);
+      setDiagAuthSignModalOpen(false);
+    }
+  }, [receptionMode]);
+
   // Refs — fotos: câmera (capture) vs galeria (múltiplas)
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [intakePhotos, setIntakePhotos] = useState<ReceptionIntakePhoto[]>([]);
+  const [diagAuthSignModalOpen, setDiagAuthSignModalOpen] = useState(false);
+  const [diagAuthSignatureBlob, setDiagAuthSignatureBlob] = useState<Blob | null>(null);
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
@@ -365,6 +377,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         });
         return;
       }
+      if (!diagAuthSignatureBlob) {
+        setStatus({
+          step: 'error',
+          message:
+            'É obrigatório ler e assinar a autorização de diagnóstico técnico. Toque em "Ler termo e assinar" e confirme com a assinatura do cliente.',
+        });
+        return;
+      }
     }
 
     try {
@@ -389,6 +409,19 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             `entrada_${serviceOrder.id}_${i + 1}_${Date.now()}.jpg`
           );
         }
+      }
+
+      if (serviceOrder?.id && receptionMode === 'vehicle' && diagAuthSignatureBlob) {
+        const uploaded = await uploadServiceOrderPhoto(
+          serviceOrder.id,
+          diagAuthSignatureBlob,
+          `AUTORIZACAO_DIAGNOSTICO_${Date.now()}.png`
+        );
+        await updateServiceOrderDiagnosticAuthorization(
+          serviceOrder.id,
+          { signaturePath: uploaded.path },
+          actorOptions
+        );
       }
 
       const osLabel = serviceOrder?.os_number != null ? ` OS #${serviceOrder.os_number}.` : '';
@@ -435,6 +468,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setVehicleCategory('');
     setPlateLookupError(null);
     lastFetchedPlacaRef.current = null;
+    setDiagAuthSignatureBlob(null);
+    setDiagAuthSignModalOpen(false);
     setStatus({ step: 'idle' });
   };
 
@@ -1008,6 +1043,42 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 </div>
               )}
 
+              {receptionMode === 'vehicle' && (
+                <div className="rounded-[22px] border border-[#007AFF]/20 bg-gradient-to-br from-[#007AFF]/[0.06] via-white to-zinc-50/90 p-4 shadow-[0_8px_28px_-14px_rgba(0,122,255,0.25)] dark:border-[#007AFF]/25 dark:from-[#007AFF]/12 dark:via-zinc-950/40 dark:to-zinc-950/20 sm:p-5">
+                  <div className="flex gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#007AFF]/30 bg-white shadow-sm dark:border-[#007AFF]/35 dark:bg-zinc-900/80">
+                      <ShieldCheck className="h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="text-[14px] font-bold leading-snug text-zinc-900 dark:text-white">
+                        Autorização de diagnóstico técnico
+                      </p>
+                      <p className="text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+                        Documento obrigatório para veículo: autorização com valor de diagnóstico e condições de cobrança.
+                        A assinatura do cliente é armazenada na OS e fica disponível no Pátio e nos orçamentos.
+                      </p>
+                      {diagAuthSignatureBlob ? (
+                        <p className="pt-1 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          Assinatura capturada — será enviada ao criar a ficha.
+                        </p>
+                      ) : (
+                        <p className="pt-1 text-[12px] font-medium text-amber-700 dark:text-amber-400/95">
+                          Pendente: abra o termo e colete a assinatura antes de enviar.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDiagAuthSignModalOpen(true)}
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#007AFF]/35 bg-[#007AFF] px-4 py-3.5 text-[14px] font-semibold text-white shadow-md shadow-blue-500/30 transition-all hover:opacity-95 active:scale-[0.99] dark:shadow-blue-900/40"
+                  >
+                    <FileText className="h-4 w-4 shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
+                    {diagAuthSignatureBlob ? 'Reabrir termo e assinar novamente' : 'Ler termo e assinar'}
+                  </button>
+                </div>
+              )}
+
               <div className="relative">
                 <TextArea
                   label="Queixa do cliente"
@@ -1120,6 +1191,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
         </form>
       </div>
+
+      <DiagnosticAuthorizationSignModal
+        open={diagAuthSignModalOpen}
+        onClose={() => setDiagAuthSignModalOpen(false)}
+        onConfirm={(blob) => {
+          setDiagAuthSignatureBlob(blob);
+          setDiagAuthSignModalOpen(false);
+        }}
+      />
 
       {isHistoryOpen && (
         <ModalPortal>
@@ -1495,6 +1575,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           </div>
 
                           <div className="space-y-8">
+                            {!isModuleDetail ? (
+                              <DiagnosticAuthorizationRecordPanel
+                                signedAt={d.diagnostic_authorization_signed_at ?? null}
+                                signaturePath={d.diagnostic_authorization_signature_path ?? null}
+                              />
+                            ) : null}
                             <div>
                               <h3 className="text-[#007AFF] dark:text-[#7ab8ff] text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <Paperclip className="w-4 h-4" />
