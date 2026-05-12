@@ -2,11 +2,11 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Printer, X } from "lucide-react";
 import { ModalPortal } from "../ui/ModalPortal";
 import {
-  DIAGNOSTIC_AUTHORIZATION_PARAGRAPHS,
   DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL,
   DIAGNOSTIC_AUTHORIZATION_TITLE,
 } from "../../utils/diagnosticAuthorizationTerm";
 import { DIAGNOSTIC_AUTHORIZATION_PRINT_CSS } from "../../utils/diagnosticAuthorizationPrintCss";
+import { DiagnosticAuthorizationTermBody } from "./DiagnosticAuthorizationTermBody";
 
 const paperModalStyle: React.CSSProperties = {
   backgroundColor: "#ece5d8",
@@ -132,20 +132,20 @@ export const DiagnosticAuthorizationSheetModal: React.FC<DiagnosticAuthorization
           </div>
 
           <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]">
-            <div className="space-y-4 text-sm leading-relaxed" style={{ color: "#000000" }}>
-              {DIAGNOSTIC_AUTHORIZATION_PARAGRAPHS.map((para, i) => (
-                <p key={i}>{para}</p>
-              ))}
-              <p className="pt-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "#000000" }}>
-                {DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL}
-              </p>
-              <div className="flex min-h-[120px] items-center justify-center rounded-lg border border-black/15 bg-white/80 p-4">
-                <img
-                  src={signatureImageSrc}
-                  alt="Assinatura do cliente"
-                  className="max-h-[140px] w-full object-contain object-center"
-                />
-              </div>
+            <DiagnosticAuthorizationTermBody
+              className="space-y-5 text-base leading-relaxed sm:text-[17px]"
+              paragraphClassName="text-black"
+              calloutClassName="font-extrabold uppercase tracking-wide text-black"
+            />
+            <p className="pt-4 text-sm font-bold uppercase tracking-wider text-black">
+              {DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL}
+            </p>
+            <div className="mt-2 flex min-h-[72px] max-h-[104px] items-center justify-center rounded-lg border border-black/15 bg-white/80 px-3 py-2">
+              <img
+                src={signatureImageSrc}
+                alt="Assinatura do cliente"
+                className="max-h-[88px] w-full object-contain object-center"
+              />
             </div>
           </div>
 

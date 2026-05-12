@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useRef } from "react";
 import { PenLine, X, Eraser, Check } from "lucide-react";
 import { ModalPortal } from "../ui/ModalPortal";
 import {
-  DIAGNOSTIC_AUTHORIZATION_PARAGRAPHS,
   DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL,
   DIAGNOSTIC_AUTHORIZATION_TITLE,
 } from "../../utils/diagnosticAuthorizationTerm";
+import { DiagnosticAuthorizationTermBody } from "./DiagnosticAuthorizationTermBody";
 
 export interface DiagnosticAuthorizationSignModalProps {
   open: boolean;
@@ -17,7 +17,7 @@ function setupCanvas(canvas: HTMLCanvasElement) {
   const rect = canvas.getBoundingClientRect();
   const dpr = Math.min(2.5, typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
   const w = Math.max(320, Math.floor(rect.width || 320));
-  const h = Math.max(160, Math.floor(rect.height || 160));
+  const h = Math.max(120, Math.floor(rect.height || 160));
   canvas.width = Math.floor(w * dpr);
   canvas.height = Math.floor(h * dpr);
   const ctx = canvas.getContext("2d");
@@ -188,21 +188,19 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 [-webkit-overflow-scrolling:touch]">
-            <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50/90 p-4 text-[13px] leading-relaxed text-zinc-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:text-zinc-100">
-              {DIAGNOSTIC_AUTHORIZATION_PARAGRAPHS.map((para, i) => (
-                <p key={i} className={i > 0 ? "mt-3" : ""}>
-                  {para}
-                </p>
-              ))}
-            </div>
+            <DiagnosticAuthorizationTermBody
+              className="rounded-2xl border border-zinc-200/80 bg-zinc-50/90 p-4 text-[15px] leading-relaxed text-zinc-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:text-zinc-100 sm:text-[16px] sm:leading-relaxed"
+              paragraphClassName="[&:not(:first-child)]:mt-3"
+              calloutClassName="font-extrabold uppercase tracking-wide text-zinc-950 dark:text-white"
+            />
 
-            <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+            <p className="mt-5 text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-600 dark:text-zinc-300">
               {DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL}
             </p>
             <div className="mt-2 overflow-hidden rounded-2xl border-2 border-dashed border-zinc-300/95 bg-white dark:border-white/[0.14] dark:bg-zinc-900/30">
               <canvas
                 ref={canvasRef}
-                className="touch-none block h-[min(200px,32vh)] w-full cursor-crosshair select-none"
+                className="touch-none block h-[min(152px,26vh)] w-full cursor-crosshair select-none"
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={endStroke}
