@@ -4158,16 +4158,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <FileText className="h-3.5 w-3.5" />
                               Autorização de diagnóstico
                             </p>
-                            <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
-                              <button
-                                type="button"
-                                onClick={() => setDiagnosticAuthSheetOpen(true)}
-                                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200/90 bg-white/80 px-3 py-2.5 text-[12px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]"
-                              >
-                                <Eye className="h-4 w-4 shrink-0" />
-                                Ver autorização de diagnóstico
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setDiagnosticAuthSheetOpen(true)}
+                              className="group relative w-full overflow-hidden rounded-2xl border border-zinc-200/85 bg-gradient-to-br from-white via-white to-zinc-50/95 text-left shadow-[0_4px_22px_-10px_rgba(0,122,255,0.22),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:border-[#007AFF]/40 hover:shadow-[0_10px_32px_-12px_rgba(0,122,255,0.32)] active:scale-[0.99] dark:border-white/[0.1] dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 dark:shadow-[0_6px_28px_-14px_rgba(0,0,0,0.55)] dark:hover:border-[#007AFF]/35"
+                            >
+                              <span className="flex items-center gap-3.5 px-4 py-3.5">
+                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#007AFF]/14 to-sky-500/10 text-[#007AFF] ring-1 ring-[#007AFF]/18 dark:from-[#007AFF]/28 dark:to-sky-500/14 dark:text-[#7ab8ff] dark:ring-[#007AFF]/22">
+                                  <FileText className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-[14px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">
+                                    Ver autorização de diagnóstico
+                                  </span>
+                                  <span className="mt-1 block text-[11px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
+                                    Documento assinado pelo cliente
+                                  </span>
+                                </span>
+                                <ChevronRight
+                                  className="h-5 w-5 shrink-0 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#007AFF] dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]"
+                                  strokeWidth={2.25}
+                                  aria-hidden
+                                />
+                              </span>
+                            </button>
                           </div>
                         ) : null}
 
@@ -5943,21 +5957,35 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                       <div className="min-w-0 space-y-8">
                         {!isModuleMode && selectedCard && !selectedHistoryCard && diagnosticAuthSheetContext ? (
-                          <div className="min-w-0 lg:sticky lg:top-2 lg:z-[1]">
+                          <div className="min-w-0">
                             <h3 className={`${uiSectionTitleRow} lg:mb-2`}>
                               <FileText className="h-3.5 w-3.5 shrink-0" />
                               Autorização de diagnóstico
                             </h3>
-                            <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
-                              <button
-                                type="button"
-                                onClick={() => setDiagnosticAuthSheetOpen(true)}
-                                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200/90 bg-white/80 px-3 py-2.5 text-[12px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]"
-                              >
-                                <Eye className="h-4 w-4 shrink-0" />
-                                Ver autorização de diagnóstico
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setDiagnosticAuthSheetOpen(true)}
+                              className="group relative w-full overflow-hidden rounded-2xl border border-zinc-200/85 bg-gradient-to-br from-white via-white to-zinc-50/95 text-left shadow-[0_4px_22px_-10px_rgba(0,122,255,0.22),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:border-[#007AFF]/40 hover:shadow-[0_10px_32px_-12px_rgba(0,122,255,0.32)] active:scale-[0.99] dark:border-white/[0.1] dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 dark:shadow-[0_6px_28px_-14px_rgba(0,0,0,0.55)] dark:hover:border-[#007AFF]/35"
+                            >
+                              <span className="flex items-center gap-3.5 px-4 py-3.5">
+                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#007AFF]/14 to-sky-500/10 text-[#007AFF] ring-1 ring-[#007AFF]/18 dark:from-[#007AFF]/28 dark:to-sky-500/14 dark:text-[#7ab8ff] dark:ring-[#007AFF]/22">
+                                  <FileText className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-[14px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">
+                                    Ver autorização de diagnóstico
+                                  </span>
+                                  <span className="mt-1 block text-[11px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
+                                    Documento assinado pelo cliente
+                                  </span>
+                                </span>
+                                <ChevronRight
+                                  className="h-5 w-5 shrink-0 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#007AFF] dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]"
+                                  strokeWidth={2.25}
+                                  aria-hidden
+                                />
+                              </span>
+                            </button>
                           </div>
                         ) : null}
                         <div ref={commentsSectionRef}>
