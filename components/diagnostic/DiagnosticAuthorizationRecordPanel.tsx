@@ -1,10 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Shield } from "lucide-react";
-import {
-  DIAGNOSTIC_AUTHORIZATION_PARAGRAPHS,
-  DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL,
-  DIAGNOSTIC_AUTHORIZATION_TITLE,
-} from "../../utils/diagnosticAuthorizationTerm";
+import { DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL, DIAGNOSTIC_AUTHORIZATION_TITLE } from "../../utils/diagnosticAuthorizationTerm";
+import { DiagnosticAuthorizationLegalText } from "./DiagnosticAuthorizationLegalText";
 import { getVehiclePhotoPublicUrl } from "../../utils/vehicleStoragePublicUrl";
 
 export interface DiagnosticAuthorizationRecordPanelProps {
@@ -47,8 +44,6 @@ export const DiagnosticAuthorizationRecordPanel: React.FC<DiagnosticAuthorizatio
     variant === "paper"
       ? "border-b border-black/10 bg-black/[0.04]"
       : "border-b border-zinc-200/70 bg-zinc-50/80 dark:border-white/[0.08] dark:bg-zinc-950/40";
-
-  const bodyText = variant === "paper" ? "text-[12px] leading-relaxed text-black/85" : "text-[12px] leading-relaxed text-zinc-700 dark:text-zinc-200";
 
   return (
     <section className={`${shell} overflow-hidden ${className}`} aria-labelledby="diag-auth-panel-title">
@@ -98,11 +93,7 @@ export const DiagnosticAuthorizationRecordPanel: React.FC<DiagnosticAuthorizatio
       {termOpen ? (
         <div className="space-y-3 px-3.5 py-3 sm:px-4 sm:py-3.5">
           <div className={`rounded-xl border px-3 py-2.5 ${variant === "paper" ? "border-black/8 bg-white/70" : "border-zinc-200/70 bg-zinc-50/70 dark:border-white/[0.08] dark:bg-white/[0.04]"}`}>
-            {DIAGNOSTIC_AUTHORIZATION_PARAGRAPHS.map((para, i) => (
-              <p key={i} className={`${bodyText} ${i > 0 ? "mt-2" : ""}`}>
-                {para}
-              </p>
-            ))}
+            <DiagnosticAuthorizationLegalText presentation="compact" />
           </div>
 
           <div>

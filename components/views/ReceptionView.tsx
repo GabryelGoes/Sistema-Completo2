@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2 } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2, Printer } from 'lucide-react';
 import {
   iosModalShell,
   iosModalClose,
@@ -46,6 +46,7 @@ import { firstTwoNames } from '../../utils/personNameFormat';
 import { BOARD_PANORAMIC_ZOOM } from '../../utils/patioBoardGlassCard';
 import { PatioStyleArchiveBoardCard } from '../patio/PatioStyleArchiveBoardCard';
 import { DiagnosticAuthorizationSignModal } from '../diagnostic/DiagnosticAuthorizationSignModal';
+import { DiagnosticAuthorizationCertificateModal } from '../diagnostic/DiagnosticAuthorizationCertificateModal';
 import { DiagnosticAuthorizationRecordPanel } from '../diagnostic/DiagnosticAuthorizationRecordPanel';
 
 const ARCHIVED_PHOTOS_BATCH = 8;
@@ -114,6 +115,13 @@ function normalizePlacaLocal(raw: string) {
     .slice(0, 8);
 }
 
+function receptionVehicleSummaryForDiag(customer: Customer): string | undefined {
+  const v = [customer.vehicleBrand?.trim(), customer.vehicleModel?.trim()].filter(Boolean).join(' · ');
+  const p = normalizePlacaLocal(customer.plate);
+  const parts = [v || null, p.length >= 7 ? `Placa ${p}` : null].filter(Boolean) as string[];
+  return parts.length ? parts.join(' — ') : undefined;
+}
+
 export const ReceptionView: React.FC<ReceptionViewProps> = ({
   initialData,
   onDataLoaded,
@@ -178,6 +186,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   useEffect(() => {
     if (receptionMode !== 'vehicle') {
       setDiagAuthSignatureBlob(null);
+      setDiagAuthSignatureDataUrl(null);
+      setDiagAuthSignedAt(null);
+      setDiagAuthPrintModalOpen(false);
       setDiagAuthSignModalOpen(false);
     }
   }, [receptionMode]);
@@ -189,6 +200,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [intakePhotos, setIntakePhotos] = useState<ReceptionIntakePhoto[]>([]);
   const [diagAuthSignModalOpen, setDiagAuthSignModalOpen] = useState(false);
   const [diagAuthSignatureBlob, setDiagAuthSignatureBlob] = useState<Blob | null>(null);
+  const [diagAuthSignatureDataUrl, setDiagAuthSignatureDataUrl] = useState<string | null>(null);
+  const [diagAuthSignedAt, setDiagAuthSignedAt] = useState<Date | null>(null);
+  const [diagAuthPrintModalOpen, setDiagAuthPrintModalOpen] = useState(false);
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
@@ -469,6 +483,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setPlateLookupError(null);
     lastFetchedPlacaRef.current = null;
     setDiagAuthSignatureBlob(null);
+    setDiagAuthSignatureDataUrl(null);
+    setDiagAuthSignedAt(null);
+    setDiagAuthPrintModalOpen(false);
     setDiagAuthSignModalOpen(false);
     setStatus({ step: 'idle' });
   };
@@ -1053,29 +1070,37 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <p className="text-[14px] font-bold leading-snug text-zinc-900 dark:text-white">
                         Autorização de diagnóstico técnico
                       </p>
-                      <p className="text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-                        Documento obrigatório para veículo: autorização com valor de diagnóstico e condições de cobrança.
-                        A assinatura do cliente é armazenada na OS e fica disponível no Pátio e nos orçamentos.
-                      </p>
                       {diagAuthSignatureBlob ? (
-                        <p className="pt-1 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
-                          Assinatura capturada — será enviada ao criar a ficha.
+                        <p className="pt-0.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          Documento gerado com assinatura. Use “Imprimir ou PDF” abaixo quando precisar de cópia física ou arquivo.
                         </p>
                       ) : (
-                        <p className="pt-1 text-[12px] font-medium text-amber-700 dark:text-amber-400/95">
-                          Pendente: abra o termo e colete a assinatura antes de enviar.
+                        <p className="pt-0.5 text-[12px] font-medium text-amber-700 dark:text-amber-400/95">
+                          Pendente: abra o termo e assine antes de enviar a ficha.
                         </p>
                       )}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setDiagAuthSignModalOpen(true)}
-                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#007AFF]/35 bg-[#007AFF] px-4 py-3.5 text-[14px] font-semibold text-white shadow-md shadow-blue-500/30 transition-all hover:opacity-95 active:scale-[0.99] dark:shadow-blue-900/40"
-                  >
-                    <FileText className="h-4 w-4 shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
-                    {diagAuthSignatureBlob ? 'Reabrir termo e assinar novamente' : 'Ler termo e assinar'}
-                  </button>
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setDiagAuthSignModalOpen(true)}
+                      className="flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-[#007AFF]/35 bg-[#007AFF] px-4 py-3.5 text-[14px] font-semibold text-white shadow-md shadow-blue-500/30 transition-all hover:opacity-95 active:scale-[0.99] dark:shadow-blue-900/40 sm:min-w-[200px]"
+                    >
+                      <FileText className="h-4 w-4 shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
+                      {diagAuthSignatureBlob ? 'Reabrir termo e assinar novamente' : 'Ler termo e assinar'}
+                    </button>
+                    {diagAuthSignatureDataUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => setDiagAuthPrintModalOpen(true)}
+                        className="inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-white px-4 py-3.5 text-[14px] font-semibold text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.1] sm:min-w-[200px]"
+                      >
+                        <Printer className="h-4 w-4 shrink-0 text-zinc-600 dark:text-zinc-300" strokeWidth={2.25} aria-hidden />
+                        Imprimir ou PDF
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               )}
 
@@ -1195,11 +1220,28 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       <DiagnosticAuthorizationSignModal
         open={diagAuthSignModalOpen}
         onClose={() => setDiagAuthSignModalOpen(false)}
-        onConfirm={(blob) => {
+        declarantName={(customer.name || '').trim() || undefined}
+        vehicleSummary={receptionVehicleSummaryForDiag(customer)}
+        protocolNote="Cadastro na recepção — será vinculado à OS após o envio da ficha."
+        onConfirm={(blob, meta) => {
           setDiagAuthSignatureBlob(blob);
+          setDiagAuthSignatureDataUrl(meta.signaturePreviewDataUrl);
+          setDiagAuthSignedAt(new Date());
           setDiagAuthSignModalOpen(false);
         }}
       />
+
+      {diagAuthPrintModalOpen && diagAuthSignatureDataUrl ? (
+        <DiagnosticAuthorizationCertificateModal
+          open
+          onClose={() => setDiagAuthPrintModalOpen(false)}
+          signatureDataUrl={diagAuthSignatureDataUrl}
+          declarantName={(customer.name || '').trim() || undefined}
+          vehicleSummary={receptionVehicleSummaryForDiag(customer)}
+          protocolNote="Cadastro na recepção — será vinculado à OS após o envio da ficha."
+          issuedAt={diagAuthSignedAt ?? undefined}
+        />
+      ) : null}
 
       {isHistoryOpen && (
         <ModalPortal>
