@@ -15,10 +15,12 @@ import { Input, TextArea } from '../ui/Input';
 import { ProcessingOverlay } from '../ProcessingOverlay';
 import {
   saveReceptionIntake,
+  saveReceptionIntakeForExistingCustomer,
   consultPlacaFipe,
   uploadServiceOrderPhoto,
   getServiceOrders,
   getServiceOrderBudgets,
+  getCustomers,
   budgetLastActivityMs,
   budgetChronologicalNumber,
   getServiceOrderById,
@@ -32,6 +34,7 @@ import {
   type ServiceOrderDetail,
   type ServiceOrderComment,
   type ServiceOrderUpdateActor,
+  type ApiCustomer,
 } from '../../services/apiService';
 import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
@@ -115,6 +118,29 @@ function normalizePlacaLocal(raw: string) {
     .slice(0, 8);
 }
 
+/** Preenche dados do cliente a partir da API e zera veículo/módulo para nova OS no mesmo cadastro. */
+function receptionFormFromApiCustomer(c: ApiCustomer, preserveIssue: string): Customer {
+  return {
+    name: c.name ?? '',
+    phone: c.phone ?? '',
+    email: (c.email ?? '').trim(),
+    cpf: (c.cpf ?? '').trim(),
+    cep: (c.cep ?? '').trim(),
+    address: (c.address ?? '').trim(),
+    city: (c.city ?? '').trim(),
+    addressNumber: (c.address_number ?? '').trim(),
+    vehicleBrand: '',
+    vehicleModel: '',
+    moduleIdentification: '',
+    plate: '',
+    vehicleColor: '',
+    vehicleYear: '',
+    vehicleEngineInfo: '',
+    mileageKm: '',
+    issueDescription: preserveIssue,
+  };
+}
+
 export const ReceptionView: React.FC<ReceptionViewProps> = ({
   initialData,
   onDataLoaded,
@@ -160,6 +186,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [plateLookupLoading, setPlateLookupLoading] = useState(false);
   const [plateLookupError, setPlateLookupError] = useState<string | null>(null);
   const lastFetchedPlacaRef = useRef<string | null>(null);
+
+  const [intakeUseExistingCustomer, setIntakeUseExistingCustomer] = useState(false);
+  const [intakeExistingCustomerId, setIntakeExistingCustomerId] = useState<string | null>(null);
+  const [intakeCustomerDirectory, setIntakeCustomerDirectory] = useState<ApiCustomer[] | null>(null);
+  const [intakeCustomerDirectoryLoading, setIntakeCustomerDirectoryLoading] = useState(false);
+  const [intakeCustomerDirectoryError, setIntakeCustomerDirectoryError] = useState<string | null>(null);
+  const [intakeCustomerSearch, setIntakeCustomerSearch] = useState('');
 
   useEffect(() => {
     try {
@@ -275,6 +308,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   // Efeito para carregar dados iniciais vindos do Pátio ou Histórico (todos editáveis, inclusive placa)
   useEffect(() => {
     if (initialData) {
+      setIntakeUseExistingCustomer(false);
+      setIntakeExistingCustomerId(null);
+      setIntakeCustomerSearch('');
+      setIntakeCustomerDirectory(null);
+      setIntakeCustomerDirectoryError(null);
+      setIntakeCustomerDirectoryLoading(false);
       setCustomer((prev) => ({
         ...prev,
         name: initialData.name ?? prev.name,
@@ -299,6 +338,56 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       if (onDataLoaded) onDataLoaded();
     }
   }, [initialData, onDataLoaded]);
+
+  useEffect(() => {
+    if (!intakeUseExistingCustomer) return;
+    let cancelled = false;
+    setIntakeCustomerDirectoryLoading(true);
+    setIntakeCustomerDirectoryError(null);
+    void getCustomers()
+      .then((rows) => {
+        if (!cancelled) setIntakeCustomerDirectory(rows);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setIntakeCustomerDirectoryError(
+            e instanceof Error ? e.message : 'Não foi possível carregar os clientes.'
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIntakeCustomerDirectoryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [intakeUseExistingCustomer]);
+
+  const intakeExistingCustomerFiltered = useMemo(() => {
+    const rows = intakeCustomerDirectory;
+    if (!rows?.length) return [];
+    const qRaw = intakeCustomerSearch.trim();
+    const qLower = qRaw.toLowerCase();
+    const qDigits = qRaw.replace(/\D/g, '');
+    let list = rows;
+    if (qLower.length > 0) {
+      list = rows.filter((c) => {
+        const name = (c.name || '').toLowerCase();
+        const phoneDigits = (c.phone || '').replace(/\D/g, '');
+        if (name.includes(qLower)) return true;
+        if (qDigits.length >= 3 && phoneDigits.includes(qDigits)) return true;
+        const cpfDigits = (c.cpf || '').replace(/\D/g, '');
+        if (qDigits.length >= 4 && cpfDigits.includes(qDigits)) return true;
+        return false;
+      });
+    }
+    return list.slice(0, 50);
+  }, [intakeCustomerDirectory, intakeCustomerSearch]);
+
+  const selectIntakeExistingCustomer = useCallback((c: ApiCustomer) => {
+    setIntakeExistingCustomerId(c.id);
+    setCustomer((prev) => receptionFormFromApiCustomer(c, prev.issueDescription));
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -380,6 +469,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       return;
     }
 
+    if (intakeUseExistingCustomer && !intakeExistingCustomerId) {
+      setStatus({
+        step: 'error',
+        message:
+          'Selecione um cliente na lista ou desmarque "Cliente já cadastrado" para fazer um cadastro novo.',
+      });
+      return;
+    }
+
     const isModule = receptionMode === 'module';
     if (!isModule) {
       if (!vehicleCategory) {
@@ -408,15 +506,23 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     }
 
     try {
+      const useExistingFlow = Boolean(intakeUseExistingCustomer && intakeExistingCustomerId);
       setStatus({
         step: 'creating',
         message: intakePhotos.length > 0 ? 'Criando ficha e enviando fotos…' : 'Criando cadastro',
       });
-      const { customer: savedCustomer, serviceOrder } = await saveReceptionIntake(
-        { ...customer, issueDescription: customer.issueDescription },
-        receptionMode,
-        receptionMode === 'vehicle' ? vehicleCategory : null
-      );
+      const { serviceOrder } = useExistingFlow
+        ? await saveReceptionIntakeForExistingCustomer(
+            intakeExistingCustomerId!,
+            { ...customer, issueDescription: customer.issueDescription },
+            receptionMode,
+            receptionMode === 'vehicle' ? vehicleCategory : null
+          )
+        : await saveReceptionIntake(
+            { ...customer, issueDescription: customer.issueDescription },
+            receptionMode,
+            receptionMode === 'vehicle' ? vehicleCategory : null
+          );
 
       // Fotos opcionais (câmera/galeria) — envio sequencial com compressão no cliente (uploadServiceOrderPhoto)
       if (serviceOrder?.id && intakePhotos.length > 0) {
@@ -445,7 +551,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       }
 
       const osLabel = serviceOrder?.os_number != null ? ` OS #${serviceOrder.os_number}.` : '';
-      setStatus({ step: 'success', message: `Cadastro criado com sucesso.${osLabel}` });
+      setStatus({
+        step: 'success',
+        message: useExistingFlow
+          ? `Nova OS criada para o cliente já cadastrado.${osLabel}`
+          : `Cadastro criado com sucesso.${osLabel}`,
+      });
       onIntakeSuccess?.(receptionMode);
     } catch (error: any) {
       console.error(error);
@@ -488,6 +599,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setVehicleCategory('');
     setPlateLookupError(null);
     lastFetchedPlacaRef.current = null;
+    setIntakeUseExistingCustomer(false);
+    setIntakeExistingCustomerId(null);
+    setIntakeCustomerSearch('');
+    setIntakeCustomerDirectory(null);
+    setIntakeCustomerDirectoryError(null);
+    setIntakeCustomerDirectoryLoading(false);
     setDiagAuthSignatureBlob(null);
     setDiagAuthSignatureDataUrl(null);
     setDiagAuthSignedAt(null);
@@ -835,6 +952,94 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <h2 className="border-b border-zinc-200/80 pb-2 text-[14px] font-bold uppercase tracking-[0.08em] text-zinc-700 dark:border-white/[0.08] dark:text-zinc-200">
                 Dados do cliente
               </h2>
+              <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-3 dark:border-white/[0.08] dark:bg-zinc-950/30">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-[#007AFF] focus:ring-[#007AFF] dark:border-zinc-600 dark:focus:ring-[#64B5FF]"
+                    checked={intakeUseExistingCustomer}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setIntakeUseExistingCustomer(on);
+                      if (!on) {
+                        setIntakeExistingCustomerId(null);
+                        setIntakeCustomerSearch('');
+                        setIntakeCustomerDirectory(null);
+                        setIntakeCustomerDirectoryError(null);
+                        setIntakeCustomerDirectoryLoading(false);
+                      }
+                    }}
+                  />
+                  <span className="text-[13px] leading-snug text-zinc-700 dark:text-zinc-200">
+                    <span className="font-semibold">Cliente já cadastrado</span>
+                    <span className="mt-0.5 block text-[12px] font-normal text-zinc-500 dark:text-zinc-400">
+                      Abra uma nova OS (outro veículo ou módulo) reutilizando o cadastro, sem duplicar o cliente.
+                    </span>
+                  </span>
+                </label>
+                {intakeUseExistingCustomer ? (
+                  <div className="mt-3 space-y-2">
+                    {intakeCustomerDirectoryLoading ? (
+                      <p className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                        Carregando lista de clientes…
+                      </p>
+                    ) : null}
+                    {intakeCustomerDirectoryError ? (
+                      <p className="text-xs text-red-600 dark:text-red-400">{intakeCustomerDirectoryError}</p>
+                    ) : null}
+                    {!intakeCustomerDirectoryLoading && intakeCustomerDirectory ? (
+                      <>
+                        <Input
+                          label="Buscar cliente"
+                          autoComplete="off"
+                          value={intakeCustomerSearch}
+                          onChange={(e) => setIntakeCustomerSearch(e.target.value)}
+                          placeholder="Nome, telefone ou CPF"
+                          icon={<Search className="h-4 w-4" />}
+                        />
+                        <div className="max-h-44 overflow-y-auto rounded-lg border border-zinc-200/80 dark:border-white/[0.08]">
+                          {intakeExistingCustomerFiltered.length === 0 ? (
+                            <p className="p-3 text-xs text-zinc-500 dark:text-zinc-400">
+                              Nenhum cliente encontrado. Ajuste a busca.
+                            </p>
+                          ) : (
+                            <ul className="divide-y divide-zinc-100 dark:divide-white/[0.06]">
+                              {intakeExistingCustomerFiltered.map((c) => {
+                                const selected = intakeExistingCustomerId === c.id;
+                                return (
+                                  <li key={c.id}>
+                                    <button
+                                      type="button"
+                                      onClick={() => selectIntakeExistingCustomer(c)}
+                                      className={`flex w-full flex-col gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.06] ${
+                                        selected ? 'bg-[#007AFF]/10 dark:bg-[#64B5FF]/15' : ''
+                                      }`}
+                                    >
+                                      <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                                        {c.name}
+                                      </span>
+                                      <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                                        {c.phone}
+                                        {c.cpf ? ` · CPF ${c.cpf}` : ''}
+                                      </span>
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </div>
+                        {intakeExistingCustomerId ? (
+                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                            Cliente selecionado: preencha os dados do veículo ou do módulo ao lado e envie a ficha.
+                          </p>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
               <div>
                 <Input 
                   label="Nome Completo"

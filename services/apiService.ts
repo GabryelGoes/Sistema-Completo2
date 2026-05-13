@@ -420,6 +420,36 @@ export async function saveReceptionIntake(
   };
 }
 
+/** Nova OS para um cliente que já existe (ex.: segundo carro ou outro módulo). Não cria registro em `customers`. */
+export async function saveReceptionIntakeForExistingCustomer(
+  customerId: string,
+  customer: Customer,
+  orderType: ServiceOrderType = "vehicle",
+  vehicleCategory?: string | null
+) {
+  const createdServiceOrder = await createServiceOrder({
+    customerId,
+    vehicleModel: customer.vehicleModel || "",
+    moduleIdentification: orderType === "module" ? (customer.moduleIdentification ?? null) : undefined,
+    plate: orderType === "vehicle" ? (customer.plate || "").toUpperCase() : undefined,
+    mileageKm: orderType === "vehicle" ? (customer.mileageKm ?? null) : undefined,
+    issueDescription: customer.issueDescription,
+    aiAnalysis: customer.aiAnalysis,
+    orderType,
+    vehicleCategory: orderType === "vehicle" ? vehicleCategory ?? null : null,
+    vehicleBrand: orderType === "vehicle" ? customer.vehicleBrand?.trim() || null : undefined,
+    vehicleColor: orderType === "vehicle" ? customer.vehicleColor?.trim() || null : undefined,
+    vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
+    vehicleEngineInfo: orderType === "vehicle" ? customer.vehicleEngineInfo?.trim() || null : undefined,
+  });
+  const all = await getCustomers();
+  const row = all.find((c) => c.id === customerId);
+  if (!row) {
+    throw new Error("Cliente não encontrado após criar a OS. Atualize a página e confira o cadastro.");
+  }
+  return { customer: row, serviceOrder: createdServiceOrder };
+}
+
 // ---------- Pátio (listagem e movimentação) ----------
 
 export async function getServiceOrders(
