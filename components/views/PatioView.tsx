@@ -263,6 +263,8 @@ interface PatioViewProps {
   orderType?: ServiceOrderType;
   /** Se false, pausa refreshes periódicos (lista/lembretes) — KeepAlive mantém o componente montado fora da aba. */
   isAppTabActive?: boolean;
+  /** Abre a Central do atendimento (tela cheia) já com esta OS — veículos no Pátio. */
+  onOpenVehicleAccompaniment?: (serviceOrderId: string) => void;
   /** Permissões do pátio para usuários limitados. Se não passado (admin), tudo permitido. */
   patioPermissions?: {
     canDeleteCards?: boolean;
@@ -792,6 +794,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   openServiceOrderSection,
   openBudgetIdAfterLoad = null,
   onOpenServiceOrderHandled,
+  onOpenVehicleAccompaniment,
   actorOptions,
   blurPlates = false,
   openHistoryRequested,
@@ -4527,6 +4530,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             Cor ·{' '}
                             {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '').trim()}
                           </p>
+                        ) : null}
+                        {!isModuleMode && onOpenVehicleAccompaniment ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenVehicleAccompaniment(selectedCard.id)}
+                            className={`${vi} group mt-1 flex w-full items-center justify-between gap-3 p-4 text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 hover:border-[#007AFF]/35 active:scale-[0.99] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}
+                          >
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                <ListChecks className="h-full w-full p-1.5 text-[#007AFF]" aria-hidden />
+                              </IosAccentIconSquircle>
+                              <div className="min-w-0">
+                                <p className="text-[15px] font-semibold text-zinc-900 dark:text-white">
+                                  Central do atendimento
+                                </p>
+                                <p className="mt-0.5 text-[12px] leading-snug text-zinc-600 dark:text-zinc-400">
+                                  Checklist de entrada, fotos com marcadores, link para o cliente e avaliação
+                                </p>
+                              </div>
+                            </div>
+                            <ChevronRight
+                              strokeWidth={2.25}
+                              className="h-5 w-5 shrink-0 text-zinc-400 transition-colors group-hover:text-[#007AFF] dark:group-hover:text-[#64B5FF]"
+                              aria-hidden
+                            />
+                          </button>
                         ) : null}
                         {/* Cliente + Km — mesmo grid e cartões que Técnico / Data de entrega */}
                         <div className={`mt-3 grid grid-cols-1 sm:grid-cols-2 ${vehicleModalCompactCardGrid}`}>

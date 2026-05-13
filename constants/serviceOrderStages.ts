@@ -70,3 +70,13 @@ export function getStageRingClass(status: string): string {
   if (status === CANCELLED_STATUS) return DEFAULT_RING_CLASS;
   return DEFAULT_RING_CLASS;
 }
+
+/**
+ * OS ainda em fluxo operacional no Pátio (aparecem no quadro como “em andamento”).
+ * Usado p.ex. para priorizar a lista na Central do atendimento.
+ */
+export function isServiceOrderActivePatioFlow(status: string): boolean {
+  const s = String(status || "").trim();
+  if (!s || s === CANCELLED_STATUS) return false;
+  return s !== "FINALIZADO" && s !== "ORCAMENTO_NAO_APROVADO";
+}

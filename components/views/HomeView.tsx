@@ -17,7 +17,6 @@ import { AdminProfileModal } from '../AdminProfileModal';
 import { SystemUsersModal } from '../SystemUsersModal';
 import { SystemNotificationsModal } from '../SystemNotificationsModal';
 import { TvPatioModal } from '../TvPatioModal';
-import { VehicleAccompanimentModal } from '../VehicleAccompanimentModal';
 import { UserProfileModal } from '../UserProfileModal';
 import type { SystemUserPermissions } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
@@ -54,6 +53,8 @@ interface HomeViewProps {
   systemUserPermissions?: SystemUserPermissions;
   onOpenSettings?: () => void;
   onOpenChangePasswords?: () => void;
+  /** Abre a Central do atendimento em tela cheia (opcional: OS já selecionada). */
+  onOpenVehicleAccompaniment?: (serviceOrderId?: string | null) => void;
   /** Modais no App (ex.: preferências, senhas) que devem ficar acima do hub de configurações */
   globalOverlayModalOpen?: boolean;
   /** Badge vermelho no ícone Orçamentos (hub do pátio). */
@@ -177,6 +178,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenChangePasswords,
   globalOverlayModalOpen = false,
   patioBudgetsHubBadge = 0,
+  onOpenVehicleAccompaniment,
 }) => {
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
   const [isChangePasswordsOpen, setIsChangePasswordsOpen] = useState(false);
@@ -187,7 +189,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isPatioChecklistsOpen, setIsPatioChecklistsOpen] = useState(false);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
-  const [isVehicleAccompanimentOpen, setIsVehicleAccompanimentOpen] = useState(false);
   const [isSystemNotificationsOpen, setIsSystemNotificationsOpen] = useState(false);
   const [isHomeSettingsHubOpen, setIsHomeSettingsHubOpen] = useState(false);
   const [quickLayout, setQuickLayout] = useState<QuickLayoutState>(() => {
@@ -290,7 +291,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isPatioChecklistsOpen ||
       isChangePasswordsOpen ||
       isTvPatioOpen ||
-      isVehicleAccompanimentOpen ||
       (Boolean(technicianId) && isTechnicianProfileOpen) ||
       isAdminProfileOpen ||
       isUserProfileOpen ||
@@ -303,7 +303,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isPatioChecklistsOpen,
       isChangePasswordsOpen,
       isTvPatioOpen,
-      isVehicleAccompanimentOpen,
       technicianId,
       isTechnicianProfileOpen,
       isAdminProfileOpen,
@@ -322,7 +321,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isSystemUsersOpen, () => setIsSystemUsersOpen(false));
   useBrowserBackLayer(Boolean(technicianId) && isTechnicianProfileOpen, () => setIsTechnicianProfileOpen(false));
   useBrowserBackLayer(isTvPatioOpen, () => setIsTvPatioOpen(false));
-  useBrowserBackLayer(isVehicleAccompanimentOpen, () => setIsVehicleAccompanimentOpen(false));
   useBrowserBackLayer(isUserProfileOpen, () => setIsUserProfileOpen(false));
   useBrowserBackLayer(isSystemNotificationsOpen, () => setIsSystemNotificationsOpen(false));
 
@@ -355,7 +353,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         id: 'centro_atendimento' as QuickTileId,
         label: 'Central do atendimento',
         icon: <img src="/icons/recepcao-ios.png" alt="Central do atendimento" className="h-full w-full object-cover" />,
-        onOpen: () => setIsVehicleAccompanimentOpen(true),
+        onOpen: () => onOpenVehicleAccompaniment?.(null),
       },
       {
         id: 'parts_stock' as QuickTileId,
@@ -365,7 +363,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       },
       settingsTile,
     ];
-  }, [onOpenApp, operationalForView, showAdminSection]);
+  }, [onOpenApp, onOpenVehicleAccompaniment, operationalForView, showAdminSection]);
   const operationalById = useMemo(
     () =>
       Object.fromEntries(quickTilesForView.map((tile) => [tile.id, tile])) as Record<
@@ -1057,10 +1055,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </>
       )}
       <TvPatioModal isOpen={isTvPatioOpen} onClose={() => setIsTvPatioOpen(false)} />
-      <VehicleAccompanimentModal
-        isOpen={isVehicleAccompanimentOpen}
-        onClose={() => setIsVehicleAccompanimentOpen(false)}
-      />
       {technicianId && (
         <TechnicianProfileModal
           isOpen={isTechnicianProfileOpen}

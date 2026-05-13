@@ -14,6 +14,7 @@ import {
   type WorkshopVehicleAccompanimentRow,
 } from '../services/apiService';
 import { getVehiclePhotoPublicUrl } from '../utils/vehicleStoragePublicUrl';
+import { isServiceOrderActivePatioFlow } from '../constants/serviceOrderStages';
 
 const iosCard =
   'rounded-[22px] border border-zinc-200/80 dark:border-white/[0.07] bg-white/75 dark:bg-zinc-900/45 backdrop-blur-xl ' +
@@ -47,9 +48,22 @@ function waShareUrl(phoneRaw: string | null | undefined, message: string): strin
 interface VehicleAccompanimentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Ao abrir o modal, pré-seleciona esta OS (ex.: vindo do Pátio). */
+  initialServiceOrderId?: string | null;
 }
 
-export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps> = ({ isOpen, onClose }) => {
+const sortOrdersForUi = (a: ServiceOrderListItem, b: ServiceOrderListItem) => {
+  const na = a.os_number ?? 0;
+  const nb = b.os_number ?? 0;
+  if (na !== nb) return nb - na;
+  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+};
+
+export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps> = ({
+  isOpen,
+  onClose,
+  initialServiceOrderId = null,
+}) => {
   const [orders, setOrders] = useState<ServiceOrderListItem[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string>('');
@@ -64,6 +78,25 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
   const [placaLookup, setPlacaLookup] = useState<PlacaFipeLookupResult | null>(null);
   const [placaLoading, setPlacaLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      wasOpenRef.current = false;
+      return;
+    }
+    if (!wasOpenRef.current) {
+      setSelectedId(initialServiceOrderId ?? "");
+      wasOpenRef.current = true;
+    }
+  }, [isOpen, initialServiceOrderId]);
+
+  const { patioOrders, otherOrders } = useMemo(() => {
+    const nonCancelled = orders.filter((o) => o.status !== "CANCELLED");
+    const patio = nonCancelled.filter((o) => isServiceOrderActivePatioFlow(o.status)).sort(sortOrdersForUi);
+    const other = nonCancelled.filter((o) => !isServiceOrderActivePatioFlow(o.status)).sort(sortOrdersForUi);
+    return { patioOrders: patio, otherOrders: other };
+  }, [orders]);
 
   const selectedOrder = useMemo(
     () => orders.find((o) => o.id === selectedId) ?? null,
@@ -233,27 +266,18 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
     window.open(waShareUrl(selectedOrder?.customers?.phone ?? null, msg), '_blank', 'noopener,noreferrer');
   };
 
-  const sortedOrders = useMemo(() => {
-    return [...orders].sort((a, b) => {
-      const na = a.os_number ?? 0;
-      const nb = b.os_number ?? 0;
-      if (na !== nb) return nb - na;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-  }, [orders]);
-
   if (!isOpen) return null;
 
   return (
     <ModalPortal>
       <div
-        className="fixed inset-0 z-[140] flex flex-col bg-black/50 backdrop-blur-md"
+        className="fixed inset-0 z-[140] flex flex-col bg-zinc-950/90 dark:bg-black/95 backdrop-blur-sm"
         role="dialog"
         aria-modal="true"
         aria-labelledby="vac-title"
       >
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[24px] sm:rounded-[24px] sm:max-w-2xl sm:mx-auto sm:my-6 sm:max-h-[calc(100vh-3rem)] bg-light-page dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/[0.08] shadow-2xl">
-          <header className="flex shrink-0 items-center justify-between gap-3 px-4 py-3 border-b border-zinc-200/80 dark:border-white/[0.08]">
+        <div className="flex min-h-0 h-[100dvh] w-full max-w-none flex-1 flex-col overflow-hidden rounded-none border-0 bg-light-page dark:bg-zinc-950 shadow-none">
+          <header className="flex shrink-0 items-center justify-between gap-3 px-4 py-[max(0.75rem,env(safe-area-inset-top))] pb-3 border-b border-zinc-200/80 dark:border-white/[0.08]">
             <h1 id="vac-title" className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">
               Central do atendimento
             </h1>
@@ -267,7 +291,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
             </button>
           </header>
 
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-4 pb-safe">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {error ? (
               <p className="text-[13px] text-red-600 dark:text-red-400 rounded-2xl bg-red-500/10 border border-red-500/20 px-3 py-2">
                 {error}
@@ -289,12 +313,26 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                   className="w-full rounded-2xl border border-zinc-200 dark:border-white/[0.12] bg-white/90 dark:bg-zinc-950/80 px-3 py-3 text-[15px] text-zinc-900 dark:text-white"
                 >
                   <option value="">Selecione uma OS…</option>
-                  {sortedOrders.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      OS #{o.os_number ?? '—'} · {(o.plate || 'sem placa').toUpperCase()} ·{' '}
-                      {(o.customer_name || o.customers?.name || 'Cliente').slice(0, 40)}
-                    </option>
-                  ))}
+                  {patioOrders.length > 0 ? (
+                    <optgroup label="Veículos no pátio (em andamento)">
+                      {patioOrders.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          OS #{o.os_number ?? '—'} · {(o.plate || 'sem placa').toUpperCase()} ·{' '}
+                          {(o.customer_name || o.customers?.name || 'Cliente').slice(0, 40)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                  {otherOrders.length > 0 ? (
+                    <optgroup label={patioOrders.length > 0 ? 'Demais OS' : 'Ordens de serviço'}>
+                      {otherOrders.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          OS #{o.os_number ?? '—'} · {(o.plate || 'sem placa').toUpperCase()} ·{' '}
+                          {(o.customer_name || o.customers?.name || 'Cliente').slice(0, 40)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
                 </select>
               )}
             </section>

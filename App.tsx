@@ -30,6 +30,7 @@ import { ModalLayerProvider } from './components/ui/ModalLayerContext';
 import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
 import { DesktopEscapeCloseBridge } from './components/ui/DesktopEscapeCloseBridge';
 import { PublicVehicleAccompanimentPage } from './components/public/PublicVehicleAccompanimentPage';
+import { VehicleAccompanimentModal } from './components/VehicleAccompanimentModal';
 
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
@@ -50,6 +51,18 @@ export default function App() {
   const [commentPopUpNotification, setCommentPopUpNotification] = useState<Notification | null>(null);
   /** Visualizar orçamento a partir do hub (permanece na aba Orçamentos). */
   const [hubBudgetViewer, setHubBudgetViewer] = useState<{ serviceOrderId: string; budgetId: string } | null>(null);
+  const [vehicleAccompanimentOpen, setVehicleAccompanimentOpen] = useState(false);
+  const [vehicleAccompanimentPresetId, setVehicleAccompanimentPresetId] = useState<string | null>(null);
+
+  const openVehicleAccompaniment = useCallback((serviceOrderId?: string | null) => {
+    setVehicleAccompanimentPresetId(serviceOrderId ?? null);
+    setVehicleAccompanimentOpen(true);
+  }, []);
+
+  const closeVehicleAccompaniment = useCallback(() => {
+    setVehicleAccompanimentOpen(false);
+    setVehicleAccompanimentPresetId(null);
+  }, []);
 
   const handleNewCommentNotification = (n: Notification) => {
     playNotificationSound();
@@ -468,6 +481,7 @@ export default function App() {
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
               globalOverlayModalOpen={isSettingsOpen || isUserChangePasswordsOpen}
               patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
+              onOpenVehicleAccompaniment={openVehicleAccompaniment}
             />
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
@@ -535,6 +549,7 @@ export default function App() {
               isAppTabActive={userTab === 'patio'}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
+              onOpenVehicleAccompaniment={openVehicleAccompaniment}
             />
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
@@ -598,6 +613,11 @@ export default function App() {
             onClose={() => setHubBudgetViewer(null)}
           />
         ) : null}
+        <VehicleAccompanimentModal
+          isOpen={vehicleAccompanimentOpen}
+          onClose={closeVehicleAccompaniment}
+          initialServiceOrderId={vehicleAccompanimentPresetId}
+        />
         <DesktopEscapeCloseBridge activeAppTab={userTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
       </div>
       </BackNavigationProvider>
@@ -665,6 +685,7 @@ export default function App() {
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
             globalOverlayModalOpen={isSettingsOpen || isUserChangePasswordsOpen}
             patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
+            onOpenVehicleAccompaniment={openVehicleAccompaniment}
           />
         </KeepAliveTabPanel>
 
@@ -739,6 +760,7 @@ export default function App() {
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'patio'}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
+            onOpenVehicleAccompaniment={openVehicleAccompaniment}
           />
         </KeepAliveTabPanel>
 
@@ -785,6 +807,11 @@ export default function App() {
           onClose={() => setHubBudgetViewer(null)}
         />
       ) : null}
+      <VehicleAccompanimentModal
+        isOpen={vehicleAccompanimentOpen}
+        onClose={closeVehicleAccompaniment}
+        initialServiceOrderId={vehicleAccompanimentPresetId}
+      />
 
       {/* Central de notificações: admin vê notificações do admin; técnicos veem as deles (target_slug = userId). Só ativa modo técnico quando userId existe para o pop-up de comentários aparecer. */}
       <div className="sr-only" aria-hidden="true">
