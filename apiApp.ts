@@ -5123,5 +5123,339 @@ export function createApiApp() {
     }
   });
 
+  function publicVehiclePhotoUrl(objectPath: string): string {
+    const base = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
+    const bucket = VEHICLE_PHOTOS_BUCKET;
+    const enc = String(objectPath)
+      .split("/")
+      .map((s) => encodeURIComponent(s))
+      .join("/");
+    return `${base}/storage/v1/object/public/${bucket}/${enc}`;
+  }
+
+  function accompanimentBudgetHasApproved(b: { services?: unknown; parts?: unknown }): boolean {
+    const sv = Array.isArray(b.services) ? b.services : [];
+    const pt = Array.isArray(b.parts) ? b.parts : [];
+    const svcHit = sv.some((s: { approved?: unknown }) => s && s.approved === true);
+    const partHit = pt.some((p: { approved?: unknown }) => p && p.approved === true);
+    return svcHit || partHit;
+  }
+
+  function accompanimentOrderFinalized(status: string): boolean {
+    return (
+      status === "FINALIZADO" ||
+      status === "GARANTIA" ||
+      status === CANCELLED_STATUS ||
+      status === "ORCAMENTO_NAO_APROVADO"
+    );
+  }
+
+  /** Central do atendimento — carregar registo por OS (pode não existir). */
+  app.get("/api/vehicle-accompaniment/by-order/:serviceOrderId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { serviceOrderId } = req.params;
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "ID da OS inválido." });
+      }
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (!so) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if (so.order_type === "module") {
+        return res.status(400).json({ error: "Central do atendimento é apenas para OS de veículo." });
+      }
+      const { data: row, error } = await supabaseAdmin
+        .from("workshop_vehicle_accompaniment")
+        .select("*")
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (error) {
+        console.error("[API] GET vehicle-accompaniment:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json(row ?? null);
+    } catch (err: any) {
+      console.error("[API] GET /api/vehicle-accompaniment/by-order/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  /** Cria registo com token de partilha se ainda não existir. */
+  app.post("/api/vehicle-accompaniment/bootstrap", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const serviceOrderId = typeof req.body?.serviceOrderId === "string" ? req.body.serviceOrderId.trim() : "";
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "serviceOrderId é obrigatório." });
+      }
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (!so) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if (so.order_type === "module") {
+        return res.status(400).json({ error: "Apenas OS de veículo." });
+      }
+      const { data: existing } = await supabaseAdmin
+        .from("workshop_vehicle_accompaniment")
+        .select("*")
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (existing) {
+        return res.json(existing);
+      }
+      const shareToken = crypto.randomUUID();
+      const { data: inserted, error } = await supabaseAdmin
+        .from("workshop_vehicle_accompaniment")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          service_order_id: serviceOrderId,
+          share_token: shareToken,
+          intake_observations: "",
+          intake_photos: [],
+        })
+        .select("*")
+        .single();
+      if (error || !inserted) {
+        console.error("[API] bootstrap vehicle-accompaniment:", error);
+        return res.status(500).json({ error: error?.message ?? "Falha ao criar registo." });
+      }
+      return res.json(inserted);
+    } catch (err: any) {
+      console.error("[API] POST /api/vehicle-accompaniment/bootstrap:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  /** Atualiza observações e fotos (JSON validado levemente). */
+  app.put("/api/vehicle-accompaniment/by-order/:serviceOrderId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { serviceOrderId } = req.params;
+      const obs = typeof req.body?.intake_observations === "string" ? req.body.intake_observations : "";
+      const photosRaw = req.body?.intake_photos;
+      if (!Array.isArray(photosRaw)) {
+        return res.status(400).json({ error: "intake_photos deve ser um array." });
+      }
+      const photos = photosRaw.map((p: unknown, i: number) => {
+        if (!p || typeof p !== "object") return null;
+        const o = p as Record<string, unknown>;
+        const id = typeof o.id === "string" && o.id.trim() ? o.id.trim() : `ph_${i}`;
+        const path = typeof o.path === "string" && o.path.trim() ? o.path.trim() : "";
+        if (!path) return null;
+        const markersRaw = Array.isArray(o.markers) ? o.markers : [];
+        const markers = markersRaw
+          .map((m: unknown, j: number) => {
+            if (!m || typeof m !== "object") return null;
+            const mm = m as Record<string, unknown>;
+            const mid = typeof mm.id === "string" && mm.id.trim() ? mm.id.trim() : `mk_${j}`;
+            const xPct = Number(mm.xPct);
+            const yPct = Number(mm.yPct);
+            const note = typeof mm.note === "string" ? mm.note.slice(0, 500) : "";
+            if (!Number.isFinite(xPct) || !Number.isFinite(yPct)) return null;
+            return { id: mid, xPct, yPct, note };
+          })
+          .filter(Boolean);
+        return { id, path, markers };
+      }).filter(Boolean);
+
+      const { data: row } = await supabaseAdmin
+        .from("workshop_vehicle_accompaniment")
+        .select("id")
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (!row) {
+        return res.status(404).json({ error: "Crie primeiro a central (bootstrap) para esta OS." });
+      }
+      const { error } = await supabaseAdmin
+        .from("workshop_vehicle_accompaniment")
+        .update({
+          intake_observations: obs,
+          intake_photos: photos,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (error) {
+        console.error("[API] PUT vehicle-accompaniment:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      const { data: out } = await supabaseAdmin
+        .from("workshop_vehicle_accompaniment")
+        .select("*")
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      return res.json(out);
+    } catch (err: any) {
+      console.error("[API] PUT /api/vehicle-accompaniment/by-order/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  /** Página pública (cliente): dados da OS, fotos com URLs, orçamentos aprovados, estado de avaliação. */
+  app.get("/api/public/vehicle-accompaniment/:token", async (req, res) => {
+    try {
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const token = String(req.params.token || "").trim();
+      if (!token || token.length > 80) {
+        return res.status(400).json({ error: "Link inválido." });
+      }
+      const { data: acc, error: accErr } = await supabaseAdmin
+        .from("workshop_vehicle_accompaniment")
+        .select("*")
+        .eq("share_token", token)
+        .maybeSingle();
+      if (accErr || !acc) {
+        return res.status(404).json({ error: "Página não encontrada ou link expirado." });
+      }
+      const { data: so, error: soErr } = await supabaseAdmin
+        .from("service_orders")
+        .select(
+          "id, os_number, plate, vehicle_brand, vehicle_model, vehicle_color, vehicle_year, mileage_km, status, order_type, issue_description, customers(name, phone, email)"
+        )
+        .eq("id", acc.service_order_id)
+        .eq("workshop_id", acc.workshop_id)
+        .single();
+      if (soErr || !so) {
+        return res.status(404).json({ error: "Ordem não encontrada." });
+      }
+      let workshopName: string | null = null;
+      const { data: ws } = await supabaseAdmin.from("workshops").select("name").eq("id", acc.workshop_id).maybeSingle();
+      if (ws && typeof (ws as { name?: string }).name === "string") {
+        workshopName = (ws as { name: string }).name;
+      }
+      const { data: budgetsRaw } = await supabaseAdmin
+        .from("budgets")
+        .select("id, diagnosis, services, parts, observations, created_at, updated_at")
+        .eq("service_order_id", acc.service_order_id)
+        .eq("workshop_id", acc.workshop_id);
+      const budgets = (budgetsRaw ?? [])
+        .filter((b) => accompanimentBudgetHasApproved(b as { services?: unknown; parts?: unknown }))
+        .map((b) => ({
+          id: b.id,
+          diagnosis: b.diagnosis,
+          services: b.services,
+          parts: b.parts,
+          observations: b.observations,
+          created_at: b.created_at,
+          updated_at: b.updated_at,
+        }));
+      const photos = Array.isArray(acc.intake_photos)
+        ? acc.intake_photos.map((p: { path?: string; markers?: unknown; id?: string }) => ({
+            id: p.id,
+            path: p.path,
+            url: p.path ? publicVehiclePhotoUrl(String(p.path)) : "",
+            markers: Array.isArray(p.markers) ? p.markers : [],
+          }))
+        : [];
+      const finalized = accompanimentOrderFinalized(String(so.status || ""));
+      return res.json({
+        workshopName,
+        serviceOrder: {
+          os_number: so.os_number,
+          plate: so.plate,
+          vehicle_brand: so.vehicle_brand,
+          vehicle_model: so.vehicle_model,
+          vehicle_color: so.vehicle_color,
+          vehicle_year: so.vehicle_year,
+          mileage_km: so.mileage_km,
+          status: so.status,
+          progressLabel: finalized ? "Finalizado" : "Em andamento",
+          finalized,
+          issue_description: so.issue_description,
+          customer: so.customers,
+        },
+        intake_observations: acc.intake_observations ?? "",
+        intake_photos: photos,
+        budgets,
+        ratings: {
+          attendance: acc.client_rating_attendance,
+          service: acc.client_rating_service,
+          recommend: acc.client_rating_recommend,
+          comment: acc.client_rating_comment,
+          submittedAt: acc.client_rating_at,
+        },
+      });
+    } catch (err: any) {
+      console.error("[API] GET public vehicle-accompaniment:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  /** Cliente submete avaliação (uma vez). */
+  app.patch("/api/public/vehicle-accompaniment/:token", async (req, res) => {
+    try {
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const token = String(req.params.token || "").trim();
+      if (!token || token.length > 80) {
+        return res.status(400).json({ error: "Link inválido." });
+      }
+      const { data: acc } = await supabaseAdmin
+        .from("workshop_vehicle_accompaniment")
+        .select("id, client_rating_at")
+        .eq("share_token", token)
+        .maybeSingle();
+      if (!acc) {
+        return res.status(404).json({ error: "Link inválido." });
+      }
+      if (acc.client_rating_at) {
+        return res.status(409).json({ error: "Avaliação já foi enviada." });
+      }
+      const a = Number(req.body?.client_rating_attendance);
+      const s = Number(req.body?.client_rating_service);
+      const r = Number(req.body?.client_rating_recommend);
+      const comment =
+        typeof req.body?.client_rating_comment === "string" ? req.body.client_rating_comment.trim().slice(0, 2000) : "";
+      if (![1, 2, 3, 4, 5].includes(a) || ![1, 2, 3, 4, 5].includes(s) || ![1, 2, 3, 4, 5].includes(r)) {
+        return res.status(400).json({ error: "Informe as três avaliações de 1 a 5 estrelas." });
+      }
+      const now = new Date().toISOString();
+      const { error } = await supabaseAdmin
+        .from("workshop_vehicle_accompaniment")
+        .update({
+          client_rating_attendance: a,
+          client_rating_service: s,
+          client_rating_recommend: r,
+          client_rating_comment: comment || null,
+          client_rating_at: now,
+          updated_at: now,
+        })
+        .eq("id", acc.id)
+        .is("client_rating_at", null);
+      if (error) {
+        console.error("[API] PATCH public vehicle-accompaniment:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] PATCH public vehicle-accompaniment:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
   return app;
 }

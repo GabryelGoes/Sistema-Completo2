@@ -29,6 +29,7 @@ import { applyAccentToRoot, DEFAULT_ACCENT } from './utils/appAppearance';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
 import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
 import { DesktopEscapeCloseBridge } from './components/ui/DesktopEscapeCloseBridge';
+import { PublicVehicleAccompanimentPage } from './components/public/PublicVehicleAccompanimentPage';
 
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
@@ -357,6 +358,17 @@ export default function App() {
   useBrowserBackLayer(isSettingsOpen, () => setIsSettingsOpen(false));
   useBrowserBackLayer(isUserChangePasswordsOpen, () => setIsUserChangePasswordsOpen(false));
   useBrowserBackLayer(!!hubBudgetViewer, () => setHubBudgetViewer(null));
+
+  const publicAccompToken =
+    typeof window !== 'undefined'
+      ? (() => {
+          const m = window.location.pathname.match(/^\/acompanhamento\/([^/]+)\/?$/);
+          return m?.[1] ? decodeURIComponent(m[1]) : null;
+        })()
+      : null;
+  if (publicAccompToken) {
+    return <PublicVehicleAccompanimentPage token={publicAccompToken} />;
+  }
 
   // Tela de login (antes de entrar no app)
   if (!authSession) {

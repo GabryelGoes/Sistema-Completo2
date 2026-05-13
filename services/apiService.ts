@@ -2324,3 +2324,134 @@ export async function uploadTvPatioMedia(file: File): Promise<{ url: string }> {
   return data as { url: string };
 }
 
+/** Marcador em foto de entrada (% da largura/altura da imagem). */
+export type VehicleAccompanimentMarker = { id: string; xPct: number; yPct: number; note: string };
+
+/** Foto de entrada com caminho no Storage da OS. */
+export type VehicleAccompanimentPhoto = {
+  id: string;
+  path: string;
+  markers: VehicleAccompanimentMarker[];
+};
+
+export type WorkshopVehicleAccompanimentRow = {
+  id: string;
+  workshop_id: string;
+  service_order_id: string;
+  share_token: string;
+  intake_observations: string | null;
+  intake_photos: VehicleAccompanimentPhoto[];
+  client_rating_attendance: number | null;
+  client_rating_service: number | null;
+  client_rating_recommend: number | null;
+  client_rating_comment: string | null;
+  client_rating_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getVehicleAccompanimentByOrder(
+  serviceOrderId: string
+): Promise<WorkshopVehicleAccompanimentRow | null> {
+  const response = await fetch(`${API_BASE}/vehicle-accompaniment/by-order/${encodeURIComponent(serviceOrderId)}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((data as { error?: string }).error || "Falha ao carregar central do atendimento.");
+  }
+  return data as WorkshopVehicleAccompanimentRow | null;
+}
+
+export async function bootstrapVehicleAccompaniment(serviceOrderId: string): Promise<WorkshopVehicleAccompanimentRow> {
+  const response = await fetch(`${API_BASE}/vehicle-accompaniment/bootstrap`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ serviceOrderId }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((data as { error?: string }).error || "Falha ao criar central.");
+  }
+  return data as WorkshopVehicleAccompanimentRow;
+}
+
+export async function putVehicleAccompaniment(
+  serviceOrderId: string,
+  payload: { intake_observations: string; intake_photos: VehicleAccompanimentPhoto[] }
+): Promise<WorkshopVehicleAccompanimentRow> {
+  const response = await fetch(`${API_BASE}/vehicle-accompaniment/by-order/${encodeURIComponent(serviceOrderId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((data as { error?: string }).error || "Falha ao guardar.");
+  }
+  return data as WorkshopVehicleAccompanimentRow;
+}
+
+export type PublicVehicleAccompanimentPayload = {
+  workshopName: string | null;
+  serviceOrder: {
+    os_number?: number | null;
+    plate: string | null;
+    vehicle_brand?: string | null;
+    vehicle_model?: string | null;
+    vehicle_color?: string | null;
+    vehicle_year?: string | null;
+    mileage_km?: string | null;
+    status: string;
+    progressLabel: string;
+    finalized: boolean;
+    issue_description?: string | null;
+    customer: { name?: string; phone?: string | null; email?: string | null } | null;
+  };
+  intake_observations: string;
+  intake_photos: { id?: string; path?: string; url: string; markers: VehicleAccompanimentMarker[] }[];
+  budgets: {
+    id: string;
+    diagnosis?: string | null;
+    services: unknown;
+    parts: unknown;
+    observations?: string | null;
+    created_at?: string;
+    updated_at?: string;
+  }[];
+  ratings: {
+    attendance: number | null;
+    service: number | null;
+    recommend: number | null;
+    comment: string | null;
+    submittedAt: string | null;
+  };
+};
+
+export async function getPublicVehicleAccompaniment(token: string): Promise<PublicVehicleAccompanimentPayload> {
+  const response = await fetch(`${API_BASE}/public/vehicle-accompaniment/${encodeURIComponent(token)}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((data as { error?: string }).error || "Não foi possível carregar a página.");
+  }
+  return data as PublicVehicleAccompanimentPayload;
+}
+
+export async function submitPublicVehicleAccompanimentRatings(
+  token: string,
+  payload: {
+    client_rating_attendance: number;
+    client_rating_service: number;
+    client_rating_recommend: number;
+    client_rating_comment?: string;
+  }
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/public/vehicle-accompaniment/${encodeURIComponent(token)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((data as { error?: string }).error || "Não foi possível enviar a avaliação.");
+  }
+}
+

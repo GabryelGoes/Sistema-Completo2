@@ -17,6 +17,7 @@ import { AdminProfileModal } from '../AdminProfileModal';
 import { SystemUsersModal } from '../SystemUsersModal';
 import { SystemNotificationsModal } from '../SystemNotificationsModal';
 import { TvPatioModal } from '../TvPatioModal';
+import { VehicleAccompanimentModal } from '../VehicleAccompanimentModal';
 import { UserProfileModal } from '../UserProfileModal';
 import type { SystemUserPermissions } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
@@ -102,7 +103,7 @@ const OPERATIONAL_APPS: {
 ];
 
 type QuickTileSize = 'normal' | 'wide';
-type QuickTileId = HomeAppId | 'tv_patio' | 'parts_stock' | 'settings_hub';
+type QuickTileId = HomeAppId | 'tv_patio' | 'centro_atendimento' | 'parts_stock' | 'settings_hub';
 type QuickLayoutState = {
   order: QuickTileId[];
   sizes: Partial<Record<QuickTileId, QuickTileSize>>;
@@ -118,7 +119,7 @@ type QuickDragVisual = {
 };
 
 const DEFAULT_QUICK_ORDER: QuickTileId[] = [...OPERATIONAL_APPS.map((app) => app.id), 'settings_hub'];
-const ALL_QUICK_TILE_IDS: QuickTileId[] = [...DEFAULT_QUICK_ORDER, 'tv_patio', 'parts_stock'];
+const ALL_QUICK_TILE_IDS: QuickTileId[] = [...DEFAULT_QUICK_ORDER, 'tv_patio', 'centro_atendimento', 'parts_stock'];
 
 function SettingsRow({
   onClick,
@@ -186,6 +187,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isPatioChecklistsOpen, setIsPatioChecklistsOpen] = useState(false);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
+  const [isVehicleAccompanimentOpen, setIsVehicleAccompanimentOpen] = useState(false);
   const [isSystemNotificationsOpen, setIsSystemNotificationsOpen] = useState(false);
   const [isHomeSettingsHubOpen, setIsHomeSettingsHubOpen] = useState(false);
   const [quickLayout, setQuickLayout] = useState<QuickLayoutState>(() => {
@@ -288,6 +290,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isPatioChecklistsOpen ||
       isChangePasswordsOpen ||
       isTvPatioOpen ||
+      isVehicleAccompanimentOpen ||
       (Boolean(technicianId) && isTechnicianProfileOpen) ||
       isAdminProfileOpen ||
       isUserProfileOpen ||
@@ -300,6 +303,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isPatioChecklistsOpen,
       isChangePasswordsOpen,
       isTvPatioOpen,
+      isVehicleAccompanimentOpen,
       technicianId,
       isTechnicianProfileOpen,
       isAdminProfileOpen,
@@ -318,6 +322,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isSystemUsersOpen, () => setIsSystemUsersOpen(false));
   useBrowserBackLayer(Boolean(technicianId) && isTechnicianProfileOpen, () => setIsTechnicianProfileOpen(false));
   useBrowserBackLayer(isTvPatioOpen, () => setIsTvPatioOpen(false));
+  useBrowserBackLayer(isVehicleAccompanimentOpen, () => setIsVehicleAccompanimentOpen(false));
   useBrowserBackLayer(isUserProfileOpen, () => setIsUserProfileOpen(false));
   useBrowserBackLayer(isSystemNotificationsOpen, () => setIsSystemNotificationsOpen(false));
 
@@ -345,6 +350,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
         label: 'TV do Pátio',
         icon: <img src="/icons/tv-patio-ios.png" alt="TV do Pátio" className="h-full w-full object-cover" />,
         onOpen: () => setIsTvPatioOpen(true),
+      },
+      {
+        id: 'centro_atendimento' as QuickTileId,
+        label: 'Central do atendimento',
+        icon: <img src="/icons/recepcao-ios.png" alt="Central do atendimento" className="h-full w-full object-cover" />,
+        onOpen: () => setIsVehicleAccompanimentOpen(true),
       },
       {
         id: 'parts_stock' as QuickTileId,
@@ -1046,6 +1057,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </>
       )}
       <TvPatioModal isOpen={isTvPatioOpen} onClose={() => setIsTvPatioOpen(false)} />
+      <VehicleAccompanimentModal
+        isOpen={isVehicleAccompanimentOpen}
+        onClose={() => setIsVehicleAccompanimentOpen(false)}
+      />
       {technicianId && (
         <TechnicianProfileModal
           isOpen={isTechnicianProfileOpen}
