@@ -638,9 +638,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     <ModalPortal>
       <div className="fixed inset-0 z-[120] flex items-stretch justify-stretch bg-black/45 backdrop-blur-[20px]">
       {chimeBanner && (
-        <div className="pointer-events-none fixed inset-x-0 top-0 z-[125] flex justify-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-[125] flex justify-center px-3 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 sm:pt-[max(0.75rem,env(safe-area-inset-top))]">
           <TvChimeBannerCard
-            variant="modal"
+            variant="display"
             phase={chimeBanner.phase}
             kind={chimeBanner.kind}
             title={chimeBanner.title}
