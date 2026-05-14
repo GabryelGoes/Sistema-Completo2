@@ -1205,28 +1205,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
               {receptionMode === 'vehicle' ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Input
-                      label="Marca / montadora"
-                      name="vehicleBrand"
-                      placeholder="Ex: Renault"
-                      value={customer.vehicleBrand ?? ''}
-                      onChange={handleInputChange}
-                      icon={<FileText className="w-4 h-4" />}
-                    />
-                    <Input
-                      label="Modelo (aparece no card)"
-                      name="vehicleModel"
-                      placeholder="Ex: Logan 1.6 — ou preencha pela placa"
-                      value={customer.vehicleModel}
-                      onChange={handleInputChange}
-                      icon={<Car className="w-4 h-4" />}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
+                    <div className="min-w-0 space-y-1.5">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                        <div className="flex-1 min-w-0">
+                        <div className="min-w-0 flex-1">
                           <Input
                             label="Placa"
                             name="plate"
@@ -1247,56 +1229,79 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => void runPlacaLookup(true)}
                           disabled={plateLookupLoading}
-                          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold border border-zinc-200/90 dark:border-white/[0.12] bg-white/90 dark:bg-white/[0.06] text-zinc-800 dark:text-zinc-100 shadow-[0_10px_26px_-8px_rgba(0,0,0,0.15),0_4px_12px_-6px_rgba(0,0,0,0.1)] dark:shadow-none hover:border-[#007AFF]/45 disabled:opacity-50 disabled:pointer-events-none transition-all active:scale-[0.98]"
+                          className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 text-sm font-semibold text-zinc-800 shadow-[0_10px_26px_-8px_rgba(0,0,0,0.15),0_4px_12px_-6px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/45 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none sm:mb-0.5"
                         >
                           {plateLookupLoading ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
+                            <Loader2 className="h-4 w-4 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
                           ) : (
-                            <Search className="w-4 h-4 text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
+                            <Search className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
                           )}
                           Buscar placa
                         </button>
                       </div>
                       {plateLookupError ? (
-                        <p className="text-xs text-red-600 dark:text-red-400 px-1" role="alert">
+                        <p className="px-1 text-xs text-red-600 dark:text-red-400" role="alert">
                           {plateLookupError}
                         </p>
                       ) : null}
                     </div>
-                    <Input
-                      label="Km"
-                      name="mileageKm"
-                      placeholder="Ex: 45000"
-                      value={customer.mileageKm ?? ''}
-                      onChange={handleInputChange}
-                      icon={<Hash className="w-4 h-4" />}
-                    />
+                    <div className="min-w-0">
+                      <Input
+                        label="Km"
+                        name="mileageKm"
+                        placeholder="Ex: 45000"
+                        value={customer.mileageKm ?? ''}
+                        onChange={handleInputChange}
+                        icon={<Hash className="w-4 h-4" />}
+                      />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <Input
-                      label="Cor"
-                      name="vehicleColor"
-                      placeholder="Ex: Branca"
-                      value={customer.vehicleColor ?? ''}
-                      onChange={handleInputChange}
-                      icon={<Sparkles className="w-4 h-4" />}
-                    />
-                    <Input
-                      label="Ano / ano modelo"
-                      name="vehicleYear"
-                      placeholder="Ex: 2010 / 2010"
-                      value={customer.vehicleYear ?? ''}
-                      onChange={handleInputChange}
-                      icon={<Calendar className="w-4 h-4" />}
-                    />
-                    <Input
-                      label="Motor (cilindradas / combustível)"
-                      name="vehicleEngineInfo"
-                      placeholder="Ex: 1598 cc · Flex"
-                      value={customer.vehicleEngineInfo ?? ''}
-                      onChange={handleInputChange}
-                      icon={<Car className="w-4 h-4" />}
-                    />
+
+                  <div className="space-y-4 border-t border-zinc-200/80 pt-4 dark:border-white/[0.08]">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Input
+                        label="Marca / montadora"
+                        name="vehicleBrand"
+                        placeholder="Ex: Renault"
+                        value={customer.vehicleBrand ?? ''}
+                        onChange={handleInputChange}
+                        icon={<FileText className="w-4 h-4" />}
+                      />
+                      <Input
+                        label="Modelo (aparece no card)"
+                        name="vehicleModel"
+                        placeholder="Ex: Logan 1.6 — ou preencha pela placa"
+                        value={customer.vehicleModel}
+                        onChange={handleInputChange}
+                        icon={<Car className="w-4 h-4" />}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                      <Input
+                        label="Cor"
+                        name="vehicleColor"
+                        placeholder="Ex: Branca"
+                        value={customer.vehicleColor ?? ''}
+                        onChange={handleInputChange}
+                        icon={<Sparkles className="w-4 h-4" />}
+                      />
+                      <Input
+                        label="Ano / ano modelo"
+                        name="vehicleYear"
+                        placeholder="Ex: 2010 / 2010"
+                        value={customer.vehicleYear ?? ''}
+                        onChange={handleInputChange}
+                        icon={<Calendar className="w-4 h-4" />}
+                      />
+                      <Input
+                        label="Motor (cilindradas / combustível)"
+                        name="vehicleEngineInfo"
+                        placeholder="Ex: 1598 cc · Flex"
+                        value={customer.vehicleEngineInfo ?? ''}
+                        onChange={handleInputChange}
+                        icon={<Car className="w-4 h-4" />}
+                      />
+                    </div>
                   </div>
                 </div>
               ) : (
