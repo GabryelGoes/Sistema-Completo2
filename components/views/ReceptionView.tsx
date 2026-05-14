@@ -195,6 +195,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [intakeCustomerDirectoryLoading, setIntakeCustomerDirectoryLoading] = useState(false);
   const [intakeCustomerDirectoryError, setIntakeCustomerDirectoryError] = useState<string | null>(null);
   const [intakeCustomerSearch, setIntakeCustomerSearch] = useState('');
+  const [intakeCustomerSearchOpen, setIntakeCustomerSearchOpen] = useState(false);
+  const intakeCustomerBlurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (intakeCustomerBlurTimerRef.current) {
+        clearTimeout(intakeCustomerBlurTimerRef.current);
+        intakeCustomerBlurTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -312,6 +323,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     if (initialData) {
       setIntakeExistingCustomerId(null);
       setIntakeCustomerSearch('');
+      setIntakeCustomerSearchOpen(false);
+      if (intakeCustomerBlurTimerRef.current) {
+        clearTimeout(intakeCustomerBlurTimerRef.current);
+        intakeCustomerBlurTimerRef.current = null;
+      }
       setIntakeCustomerDirectory(null);
       setIntakeCustomerDirectoryError(null);
       setIntakeCustomerDirectoryLoading(false);
@@ -394,12 +410,23 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   const selectIntakeExistingCustomer = useCallback((c: ApiCustomer) => {
     setIntakeExistingCustomerId(c.id);
+    setIntakeCustomerSearch('');
+    setIntakeCustomerSearchOpen(false);
+    if (intakeCustomerBlurTimerRef.current) {
+      clearTimeout(intakeCustomerBlurTimerRef.current);
+      intakeCustomerBlurTimerRef.current = null;
+    }
     setCustomer((prev) => receptionFormFromApiCustomer(c, prev.issueDescription));
   }, []);
 
   const clearIntakeCustomerSelection = useCallback(() => {
     setIntakeExistingCustomerId(null);
     setIntakeCustomerSearch('');
+    setIntakeCustomerSearchOpen(false);
+    if (intakeCustomerBlurTimerRef.current) {
+      clearTimeout(intakeCustomerBlurTimerRef.current);
+      intakeCustomerBlurTimerRef.current = null;
+    }
     setCustomer((prev) => ({
       ...prev,
       name: '',
@@ -627,6 +654,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setIntakeCustomerDirectory(null);
     setIntakeCustomerDirectoryError(null);
     setIntakeCustomerDirectoryLoading(false);
+    setIntakeCustomerSearchOpen(false);
+    if (intakeCustomerBlurTimerRef.current) {
+      clearTimeout(intakeCustomerBlurTimerRef.current);
+      intakeCustomerBlurTimerRef.current = null;
+    }
     setDiagAuthSignatureBlob(null);
     setDiagAuthSignatureDataUrl(null);
     setDiagAuthSignedAt(null);
@@ -989,11 +1021,36 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 Dados do cliente
               </h2>
               <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-3 dark:border-white/[0.08] dark:bg-zinc-950/30">
-                <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
-                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-                    Opcional: selecione um cliente para abrir nova OS no mesmo cadastro.
-                  </p>
-                  {intakeExistingCustomerId ? (
+                <Input
+                  className="[&>label]:sr-only"
+                  label="Buscar cliente"
+                  autoComplete="off"
+                  value={intakeCustomerSearch}
+                  onChange={(e) => setIntakeCustomerSearch(e.target.value)}
+                  placeholder="Buscar cliente"
+                  icon={<Search className="h-4 w-4" />}
+                  onFocus={() => {
+                    if (intakeCustomerBlurTimerRef.current) {
+                      clearTimeout(intakeCustomerBlurTimerRef.current);
+                      intakeCustomerBlurTimerRef.current = null;
+                    }
+                    setIntakeCustomerSearchOpen(true);
+                  }}
+                  onBlur={() => {
+                    if (intakeCustomerBlurTimerRef.current) {
+                      clearTimeout(intakeCustomerBlurTimerRef.current);
+                    }
+                    intakeCustomerBlurTimerRef.current = window.setTimeout(() => {
+                      intakeCustomerBlurTimerRef.current = null;
+                      setIntakeCustomerSearchOpen(false);
+                    }, 180);
+                  }}
+                />
+                {intakeExistingCustomerId ? (
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200/70 pt-2 dark:border-white/[0.08]">
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      Cliente selecionado: preencha o veículo ou o módulo ao lado e envie a ficha.
+                    </p>
                     <button
                       type="button"
                       onClick={clearIntakeCustomerSelection}
@@ -1001,29 +1058,27 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     >
                       Limpar seleção
                     </button>
-                  ) : null}
-                </div>
-                <div className="space-y-2">
-                  {intakeCustomerDirectoryLoading ? (
-                    <p className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-                      Carregando lista de clientes…
+                  </div>
+                ) : null}
+                {intakeCustomerSearchOpen ? (
+                  <div
+                    className="mt-2 space-y-2 rounded-lg border border-zinc-200/80 bg-white/90 p-2 shadow-sm dark:border-white/[0.08] dark:bg-zinc-950/50"
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    <p className="px-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+                      Opcional: nova OS no mesmo cadastro. Digite para filtrar ou role a lista.
                     </p>
-                  ) : null}
-                  {intakeCustomerDirectoryError ? (
-                    <p className="text-xs text-red-600 dark:text-red-400">{intakeCustomerDirectoryError}</p>
-                  ) : null}
-                  {!intakeCustomerDirectoryLoading && intakeCustomerDirectory ? (
-                    <>
-                      <Input
-                        label="Buscar cliente"
-                        autoComplete="off"
-                        value={intakeCustomerSearch}
-                        onChange={(e) => setIntakeCustomerSearch(e.target.value)}
-                        placeholder="Nome, telefone ou CPF"
-                        icon={<Search className="h-4 w-4" />}
-                      />
-                      <div className="max-h-44 overflow-y-auto rounded-lg border border-zinc-200/80 dark:border-white/[0.08]">
+                    {intakeCustomerDirectoryLoading ? (
+                      <p className="flex items-center gap-2 px-1 text-xs text-zinc-500 dark:text-zinc-400">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                        Carregando lista de clientes…
+                      </p>
+                    ) : null}
+                    {intakeCustomerDirectoryError ? (
+                      <p className="px-1 text-xs text-red-600 dark:text-red-400">{intakeCustomerDirectoryError}</p>
+                    ) : null}
+                    {!intakeCustomerDirectoryLoading && intakeCustomerDirectory ? (
+                      <div className="max-h-44 overflow-y-auto rounded-md border border-zinc-200/70 dark:border-white/[0.08]">
                         {intakeExistingCustomerFiltered.length === 0 ? (
                           <p className="p-3 text-xs text-zinc-500 dark:text-zinc-400">
                             Nenhum cliente encontrado. Ajuste a busca.
@@ -1055,14 +1110,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           </ul>
                         )}
                       </div>
-                      {intakeExistingCustomerId ? (
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                          Cliente selecionado: preencha os dados do veículo ou do módulo ao lado e envie a ficha.
-                        </p>
-                      ) : null}
-                    </>
-                  ) : null}
-                </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
