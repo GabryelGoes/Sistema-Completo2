@@ -532,6 +532,11 @@ export default function App() {
               setAppointments={setAppointments}
               blurPlates={cinematographicMode}
               isAgendaTabActive={userTab === 'agenda'}
+              actorOptions={{
+                actor: 'technician',
+                actorTechnicianSlug: authSession.userId,
+                actorTechnicianName: authSession.displayName ?? authSession.username,
+              }}
             />
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
@@ -743,6 +748,15 @@ export default function App() {
             setAppointments={setAppointments}
             blurPlates={cinematographicMode}
             isAgendaTabActive={currentTab === 'agenda'}
+            actorOptions={
+              authSession?.role === 'admin'
+                ? { actor: 'admin' }
+                : {
+                    actor: 'technician',
+                    actorTechnicianSlug: authSession?.userId,
+                    actorTechnicianName: authSession?.displayName ?? authSession?.username,
+                  }
+            }
           />
         </KeepAliveTabPanel>
 

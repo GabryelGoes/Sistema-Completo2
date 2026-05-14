@@ -102,6 +102,8 @@ interface ReceptionViewProps {
   onReceptionModeChangeForBack?: (mode: ServiceOrderType) => void;
   /** KeepAlive: pausa polling do histórico quando outra aba está visível. */
   isReceptionTabActive?: boolean;
+  /** Embutido no modal "Chegou ao pátio" (agenda): oculta o cabeçalho da página Recepção. */
+  hidePageChrome?: boolean;
 }
 
 function attachmentMimeType(name: string): string {
@@ -151,6 +153,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   onIntakeSuccess,
   onReceptionModeChangeForBack,
   isReceptionTabActive = true,
+  hidePageChrome = false,
 }) => {
   const [receptionMode, setReceptionMode] = useState<ServiceOrderType>(() => {
     try {
@@ -909,9 +912,21 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   });
 
   return (
-    <div className="min-h-full w-full bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90">
-    <div className="w-full max-w-none mx-auto px-3 sm:px-4 md:px-6 pb-24 md:pb-28 pt-3 md:pt-6 animate-in fade-in duration-500">
+    <div
+      className={`${
+        hidePageChrome ? 'min-h-0' : 'min-h-full'
+      } w-full bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90`}
+    >
+    <div
+      className={`w-full max-w-none mx-auto animate-in fade-in duration-500 ${
+        hidePageChrome
+          ? 'px-0 sm:px-1 pb-4 pt-0'
+          : 'px-3 sm:px-4 md:px-6 pb-24 md:pb-28 pt-3 md:pt-6'
+      }`}
+    >
 
+      {!hidePageChrome ? (
+      <>
       {/* Cabeçalho — mesmo padrão da página Agenda */}
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0 ml-[8%]">
@@ -941,6 +956,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           </button>
         </div>
       </header>
+      </>
+      ) : null}
 
       {/* Cartão principal — vidro iOS */}
       <div className={`${iosPageGlass} overflow-hidden`}>

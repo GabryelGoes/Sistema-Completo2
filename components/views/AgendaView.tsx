@@ -14,7 +14,13 @@ import {
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { IosModalHeader } from '../ui/IosModalHeader';
 import { Customer, Appointment } from '../../types';
-import { getAppointments, createAppointment, updateAppointment, deleteAppointment } from '../../services/apiService';
+import {
+  getAppointments,
+  createAppointment,
+  updateAppointment,
+  deleteAppointment,
+  type ServiceOrderUpdateActor,
+} from '../../services/apiService';
 import { ReceptionModal } from '../ReceptionModal';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 
@@ -24,6 +30,8 @@ interface AgendaViewProps {
   blurPlates?: boolean;
   /** Com KeepAlive: pausa refresh do modal de detalhe fora desta aba. */
   isAgendaTabActive?: boolean;
+  /** Quem registra autorização de diagnóstico / intake (mesmo papel da aba Recepção). */
+  actorOptions?: ServiceOrderUpdateActor;
 }
 
 export const AgendaView: React.FC<AgendaViewProps> = ({
@@ -31,6 +39,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   setAppointments,
   blurPlates = false,
   isAgendaTabActive = true,
+  actorOptions,
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -838,6 +847,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
         isOpen={receptionModalData !== null}
         initialData={receptionModalData}
         blurPlates={blurPlates}
+        remountKey={receptionSourceAppointmentId}
+        actorOptions={actorOptions}
         onClose={() => { setReceptionModalData(null); setReceptionSourceAppointmentId(null); }}
         onSuccess={async () => {
           if (receptionSourceAppointmentId) {
