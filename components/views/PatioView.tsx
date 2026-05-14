@@ -940,6 +940,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const selectedCardRef = useRef<TrelloCard | null>(null);
   isEditingDescRef.current = isEditingDesc;
   selectedCardRef.current = selectedCard;
+  const isAppTabActiveRef = useRef(isAppTabActive);
+  isAppTabActiveRef.current = isAppTabActive;
 
   /** Último `{ actions, attachments }` por OS — reaproveita fotos/comentários ao reabrir modal ou histórico. */
   const vehicleCardDetailsCacheRef = useRef<Map<string, { actions: TrelloAction[]; attachments: TrelloAttachment[] }>>(
@@ -1162,18 +1164,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(min-width: 1024px) and (orientation: landscape)');
     const apply = () => setIsDesktopLandscape(mq.matches);
-    apply();
-    if (typeof mq.addEventListener === 'function') {
-      mq.addEventListener('change', apply);
-      return () => mq.removeEventListener('change', apply);
-    }
-    mq.addListener(apply);
-    return () => mq.removeListener(apply);
-  }, []);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(orientation: portrait)');
-    const apply = () => setIsPortraitOrientation(mq.matches);
     apply();
     if (typeof mq.addEventListener === 'function') {
       mq.addEventListener('change', apply);
@@ -1624,6 +1614,46 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const fetchDataRef = useRef(fetchData);
   fetchDataRef.current = fetchData;
+
+  /** Retrato/paisagem: matchMedia falha ou “pisca” em alguns móveis ao rotacionar; debounce + dimensões evita zoom errado e sumiço de camada (WebKit). Após orientação, um refresh em fila re-alinha os dados. */
+  const patioOrientationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const patioPostOrientFetchAtRef = useRef(0);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const computePortrait = () =>
+      window.matchMedia('(orientation: portrait)').matches ||
+      (window.innerWidth > 0 && window.innerHeight > window.innerWidth + 2);
+    const applyPortrait = () => {
+      setIsPortraitOrientation(computePortrait());
+    };
+    const debouncedPortrait = () => {
+      if (patioOrientationDebounceRef.current) clearTimeout(patioOrientationDebounceRef.current);
+      patioOrientationDebounceRef.current = window.setTimeout(() => {
+        patioOrientationDebounceRef.current = null;
+        applyPortrait();
+      }, 140);
+    };
+    const onOrientationChange = () => {
+      debouncedPortrait();
+      window.setTimeout(() => {
+        applyPortrait();
+        const now = Date.now();
+        if (now - patioPostOrientFetchAtRef.current < 900) return;
+        patioPostOrientFetchAtRef.current = now;
+        if (isAppTabActiveRef.current && document.visibilityState === 'visible') {
+          fetchDataRef.current(true);
+        }
+      }, 280);
+    };
+    applyPortrait();
+    window.addEventListener('orientationchange', onOrientationChange);
+    window.addEventListener('resize', debouncedPortrait);
+    return () => {
+      if (patioOrientationDebounceRef.current) clearTimeout(patioOrientationDebounceRef.current);
+      window.removeEventListener('orientationchange', onOrientationChange);
+      window.removeEventListener('resize', debouncedPortrait);
+    };
+  }, []);
 
   usePatioBoardLiveSync({
     orderType,
@@ -3518,12 +3548,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
         };
         const zoomWrap = (node: React.ReactNode, variant: 'grid' | 'hscroll' = 'grid') => (
           <div
-            className={zoomOuterClass}
+            className={`${zoomOuterClass} isolate`}
             style={
               {
                 zoom: patioBoardZoomFor(variant),
                 transition: 'zoom 0.55s cubic-bezier(0.34, 1.35, 0.25, 1)',
-              } as React.CSSProperties & { zoom?: number }
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+              } as React.CSSProperties & { zoom?: number; WebkitBackfaceVisibility?: string }
             }
           >
             {node}
