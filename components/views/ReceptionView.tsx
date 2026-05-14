@@ -40,6 +40,7 @@ import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { ModalPortal } from '../ui/ModalPortal';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
+import { useTabletPhonePortraitFullscreen } from '../../hooks/useTabletPhonePortraitFullscreen';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
 import { markdownComponentsApp } from '../ui/markdownUi';
@@ -295,6 +296,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     mq.addListener(apply);
     return () => mq.removeListener(apply);
   }, []);
+
+  const receptionPortraitVertical = useTabletPhonePortraitFullscreen();
 
   const historyBoardPanoramic = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -1008,16 +1011,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           {/* Bloco único da ficha */}
           <div className={`${receptionSectionShell} w-full rounded-[calc(2rem-2px)] sm:rounded-[calc(2.25rem-2px)]`}>
             <div className="p-4 sm:p-5 lg:p-6">
-          <div className="mb-4 flex justify-end">
-             <button
-               type="button"
-               onClick={resetForm}
-               className="inline-flex items-center gap-2 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-3 py-2 text-[12px] font-semibold text-[#007AFF] shadow-[0_12px_28px_-10px_rgba(0,122,255,0.42),0_6px_16px_-8px_rgba(0,0,0,0.1)] transition-all hover:bg-[#007AFF]/15 active:scale-[0.98] dark:border-[#64B5FF]/35 dark:bg-[#64B5FF]/12 dark:text-[#93c5fd] dark:shadow-[0_6px_16px_-10px_rgba(0,122,255,0.45)]"
-               title="Limpar todos os campos"
-             >
-               <Eraser className="h-4 w-4" />
-               Limpar campos
-             </button>
+          <div className={`mb-4 flex justify-end ${receptionPortraitVertical ? 'hidden' : ''}`}>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="inline-flex items-center gap-2 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-3 py-2 text-[12px] font-semibold text-[#007AFF] shadow-[0_12px_28px_-10px_rgba(0,122,255,0.42),0_6px_16px_-8px_rgba(0,0,0,0.1)] transition-all hover:bg-[#007AFF]/15 active:scale-[0.98] dark:border-[#64B5FF]/35 dark:bg-[#64B5FF]/12 dark:text-[#93c5fd] dark:shadow-[0_6px_16px_-10px_rgba(0,122,255,0.45)]"
+              title="Limpar todos os campos"
+            >
+              <Eraser className="h-4 w-4" />
+              Limpar campos
+            </button>
           </div>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-7">
             {/* Dados do cliente — order-2: coluna direita no desktop; após veículo no mobile */}
@@ -1199,9 +1202,30 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
             {/* Veículo/módulo + queixa (foto e enviar ficam em order-3) — order-1: coluna esquerda no desktop */}
             <div className="order-1 space-y-6">
-              <h2 className="border-b border-zinc-200/80 pb-2 text-[14px] font-bold uppercase tracking-[0.08em] text-zinc-700 dark:border-white/[0.08] dark:text-zinc-200">
-                {receptionMode === 'vehicle' ? 'Veículo e atendimento' : 'Módulo e atendimento'}
-              </h2>
+              <div
+                className={`border-b border-zinc-200/80 pb-2 dark:border-white/[0.08] ${
+                  receptionPortraitVertical ? 'flex items-end justify-between gap-2' : ''
+                }`}
+              >
+                <h2
+                  className={`text-[14px] font-bold uppercase tracking-[0.08em] text-zinc-700 dark:text-zinc-200 ${
+                    receptionPortraitVertical ? 'min-w-0 flex-1 leading-tight pr-1' : ''
+                  }`}
+                >
+                  {receptionMode === 'vehicle' ? 'Veículo e atendimento' : 'Módulo e atendimento'}
+                </h2>
+                {receptionPortraitVertical ? (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#007AFF] shadow-[0_8px_20px_-8px_rgba(0,122,255,0.35)] transition-all hover:bg-[#007AFF]/15 active:scale-[0.98] dark:border-[#64B5FF]/35 dark:bg-[#64B5FF]/12 dark:text-[#93c5fd]"
+                    title="Limpar todos os campos"
+                  >
+                    <Eraser className="h-3.5 w-3.5 shrink-0" />
+                    Limpar campos
+                  </button>
+                ) : null}
+              </div>
 
               {receptionMode === 'vehicle' ? (
                 <div className="space-y-4">
