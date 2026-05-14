@@ -843,7 +843,11 @@ export interface ServiceOrderPhoto {
 export async function getServiceOrderPhotos(id: string): Promise<ServiceOrderPhoto[]> {
   const response = await fetch(`${API_BASE}/service-orders/${id}/photos`);
   if (!response.ok) return [];
-  return response.json();
+  const rows = (await response.json()) as ServiceOrderPhoto[];
+  if (!Array.isArray(rows)) return [];
+  return rows.filter(
+    (p) => p && typeof p.name === "string" && !/AUTORIZACAO_DIAGNOSTICO/i.test(p.name)
+  );
 }
 
 /** Limite seguro do corpo no Vercel (serverless ~4,5 MB); evita "Failed to fetch" por corte abrupto. */

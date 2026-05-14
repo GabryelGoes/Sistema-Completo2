@@ -17,15 +17,15 @@ export interface DiagnosticAuthorizationSignModalProps {
 function setupCanvas(canvas: HTMLCanvasElement) {
   const rect = canvas.getBoundingClientRect();
   const dpr = Math.min(2.5, typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
-  const w = Math.max(320, Math.floor(rect.width || 320));
-  const h = Math.max(120, Math.floor(rect.height || 160));
+  const w = Math.max(360, Math.floor(rect.width || 360));
+  const h = Math.max(200, Math.floor(rect.height || 220));
   canvas.width = Math.floor(w * dpr);
   canvas.height = Math.floor(h * dpr);
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
-  ctx.fillStyle = "#fafafa";
+  ctx.fillStyle = "#e4e4e7";
   ctx.fillRect(0, 0, w, h);
   ctx.strokeStyle = "rgba(15,23,42,0.88)";
   ctx.lineWidth = 2.25;
@@ -219,10 +219,10 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
             <p className="mt-5 text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-600 dark:text-zinc-300">
               {DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL}
             </p>
-            <div className="mt-2 overflow-hidden rounded-2xl border-2 border-dashed border-zinc-300/95 bg-white dark:border-white/[0.14] dark:bg-zinc-900/30">
+            <div className="mt-2 rounded-2xl border-2 border-dashed border-zinc-400/80 bg-zinc-200 p-3 shadow-inner dark:border-zinc-500/60 dark:bg-zinc-800/90">
               <canvas
                 ref={canvasRef}
-                className="touch-none block h-[min(152px,26vh)] w-full cursor-crosshair select-none"
+                className="touch-none block min-h-[200px] h-[min(280px,44vh)] w-full cursor-crosshair select-none rounded-xl"
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={endStroke}

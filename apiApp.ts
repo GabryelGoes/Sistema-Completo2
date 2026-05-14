@@ -102,6 +102,11 @@ export function createApiApp() {
     return s || "arquivo";
   }
 
+  /** Assinatura do termo de diagnóstico fica no Storage da OS mas não deve aparecer como anexo da ficha. */
+  function isDiagnosticAuthorizationSignatureFileName(name: string): boolean {
+    return /AUTORIZACAO_DIAGNOSTICO/i.test(String(name || ""));
+  }
+
   // CORS: TV (Patio-View), CORS_ALLOWED_ORIGINS e dev — necessário se o front chama API em outro host (VITE_API_BASE).
   app.use((req, res, next) => {
     const origin = req.headers.origin;
@@ -2454,6 +2459,7 @@ export function createApiApp() {
 
       const photos = (files || [])
         .filter((f) => f.name && !f.name.endsWith("/"))
+        .filter((f) => !isDiagnosticAuthorizationSignatureFileName(f.name))
         .map((f) => {
           const pathInBucket = `${folderPath}/${f.name}`;
           const { data: { publicUrl } } = supabaseAdmin.storage
