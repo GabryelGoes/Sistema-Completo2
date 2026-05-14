@@ -103,7 +103,7 @@ interface ReceptionViewProps {
   /** Quem registra o desarquivamento na API (igual ao Pátio). */
   actorOptions?: ServiceOrderUpdateActor;
   /** Após criar OS com sucesso (ex.: voltar ao Pátio ou Laboratório). */
-  onIntakeSuccess?: (orderType: ServiceOrderType) => void;
+  onIntakeSuccess?: (orderType: ServiceOrderType) => void | Promise<void>;
   /** Mantém o destino do gesto/botão voltar alinhado ao modo veículo vs módulo (fluxo Pátio/Lab → recepção). */
   onReceptionModeChangeForBack?: (mode: ServiceOrderType) => void;
   /** KeepAlive: pausa polling do histórico quando outra aba está visível. */
@@ -615,7 +615,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           ? `Nova OS criada para o cliente selecionado.${osLabel}`
           : `Cadastro criado com sucesso.${osLabel}`,
       });
-      onIntakeSuccess?.(receptionMode);
+      await onIntakeSuccess?.(receptionMode);
     } catch (error: any) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';

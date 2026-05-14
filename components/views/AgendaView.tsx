@@ -19,19 +19,18 @@ import {
   createAppointment,
   updateAppointment,
   deleteAppointment,
-  type ServiceOrderUpdateActor,
 } from '../../services/apiService';
-import { ReceptionModal } from '../ReceptionModal';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
-
-interface AgendaViewProps {
   appointments: Appointment[];
   setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
   blurPlates?: boolean;
   /** Com KeepAlive: pausa refresh do modal de detalhe fora desta aba. */
   isAgendaTabActive?: boolean;
-  /** Quem registra autorização de diagnóstico / intake (mesmo papel da aba Recepção). */
-  actorOptions?: ServiceOrderUpdateActor;
+  /** Abre a aba Recepção em tela cheia com os dados do agendamento (fluxo “Chegou ao pátio”). */
+  onChegouAoPatioNavigateToReception?: (customer: Customer, appointmentId: string) => void;
+  /** Após gesto voltar da Recepção: reabrir o modal de detalhe deste agendamento (uma vez). */
+  pendingDetailAppointmentId?: string | null;
+  onPendingDetailAppointmentConsumed?: () => void;
 }
 
 export const AgendaView: React.FC<AgendaViewProps> = ({
@@ -39,15 +38,14 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   setAppointments,
   blurPlates = false,
   isAgendaTabActive = true,
-  actorOptions,
+  onChegouAoPatioNavigateToReception,
+  pendingDetailAppointmentId = null,
+  onPendingDetailAppointmentConsumed,
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [receptionModalData, setReceptionModalData] = useState<Customer | null>(null);
-  /** Id do agendamento que abriu o modal "Chegou ao Pátio"; ao criar a ficha, este agendamento é removido da agenda. */
-  const [receptionSourceAppointmentId, setReceptionSourceAppointmentId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [newAppointment, setNewAppointment] = useState<Partial<Appointment>>({
     date: new Date(),
@@ -66,6 +64,13 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null);
 
   useRegisterModalOpen(!!detailAppointment || isModalOpen);
+
+  useEffect(() => {
+    if (!pendingDetailAppointmentId || !onPendingDetailAppointmentConsumed) return;
+    const app = appointments.find((a) => a.id === pendingDetailAppointmentId);
+    if (app) setDetailAppointment(app);
+    onPendingDetailAppointmentConsumed();
+  }, [pendingDetailAppointmentId, appointments, onPendingDetailAppointmentConsumed]);
 
   const exportToGoogleCalendar = (app: Appointment) => {
     const [hours, minutes] = app.time.split(':').map(Number);
@@ -249,6 +254,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   };
 
   const handleChegouAoPatio = (app: Appointment) => {
+    if (!onChegouAoPatioNavigateToReception) return;
     const customerData: Customer = {
       name: app.customerName ?? '',
       phone: app.phone ?? '',
@@ -267,8 +273,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       issueDescription: [app.title, app.notes].filter(Boolean).join('\n') || 'Agendamento',
       trelloCardId: app.trelloCardId,
     };
-    setReceptionModalData(customerData);
-    setReceptionSourceAppointmentId(app.id);
+    setDetailAppointment(null);
+    onChegouAoPatioNavigateToReception?.(customerData, app.id);
   };
 
   const handleNewAppointment = (date?: Date) => {
@@ -841,27 +847,6 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
           </div>
         </div>
       )}
-
-      {/* Modal Chegou ao Pátio — recepção preenchida com dados do agendamento */}
-      <ReceptionModal
-        isOpen={receptionModalData !== null}
-        initialData={receptionModalData}
-        blurPlates={blurPlates}
-        remountKey={receptionSourceAppointmentId}
-        actorOptions={actorOptions}
-        onClose={() => { setReceptionModalData(null); setReceptionSourceAppointmentId(null); }}
-        onSuccess={async () => {
-          if (receptionSourceAppointmentId) {
-            try {
-              await deleteAppointment(receptionSourceAppointmentId);
-            } catch (err) {
-              console.error("Erro ao remover agendamento após criar ficha", err);
-            }
-            setReceptionSourceAppointmentId(null);
-          }
-          await fetchAppointments();
-        }}
-      />
 
       {/* Modal Novo Agendamento */}
       {isModalOpen && (

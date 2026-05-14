@@ -22,6 +22,7 @@ import {
   type ServiceOrderType,
   effectivePatioApproveBudgetItems,
   getWorkshopSettings,
+  deleteAppointment,
 } from './services/apiService';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
 import { ArrowLeft, X } from 'lucide-react';
@@ -89,6 +90,10 @@ export default function App() {
   const [receptionForcedMode, setReceptionForcedMode] = useState<'vehicle' | 'module' | null>(null);
   /** Ao fechar a Recepção aberta a partir do Pátio/Lab (criar veículo/módulo ou “usar dados”), voltar para esta aba em vez do Início. */
   const [returnTabAfterReception, setReturnTabAfterReception] = useState<TabId | null>(null);
+  /** Agenda → “Chegou ao pátio”: id do agendamento (excluir após ficha criada; gesto voltar reabre o modal de detalhe). */
+  const [agendaIntakeSourceAppointmentId, setAgendaIntakeSourceAppointmentId] = useState<string | null>(null);
+  /** Após voltar da Recepção para a Agenda: reabrir modal de detalhe deste id (uma vez). */
+  const [agendaPendingDetailAppointmentId, setAgendaPendingDetailAppointmentId] = useState<string | null>(null);
 
   // Nome do admin (vem das configurações da oficina; atualizado ao salvar no Perfil do administrador)
   const [adminDisplayName, setAdminDisplayName] = useState<string>('Rei do ABS');
@@ -148,12 +153,35 @@ export default function App() {
       }
       return;
     }
+    if (returnTabAfterReception === 'agenda') {
+      setReturnTabAfterReception(null);
+      if (agendaIntakeSourceAppointmentId) {
+        setAgendaPendingDetailAppointmentId(agendaIntakeSourceAppointmentId);
+      }
+      if (isLimitedSystemUser) {
+        if (userAllowedTabs.includes('agenda')) setUserTab('agenda');
+        else setUserTab('home');
+      } else {
+        setCurrentTab('agenda');
+      }
+      return;
+    }
     if (isLimitedSystemUser) setUserTab('home');
     else setCurrentTab('home');
-  }, [returnTabAfterReception, isLimitedSystemUser, userAllowedTabs]);
+  }, [returnTabAfterReception, agendaIntakeSourceAppointmentId, isLimitedSystemUser, userAllowedTabs]);
 
   const handleReceptionIntakeSuccess = useCallback(
-    (orderType: 'vehicle' | 'module') => {
+    async (orderType: 'vehicle' | 'module') => {
+      if (agendaIntakeSourceAppointmentId) {
+        try {
+          await deleteAppointment(agendaIntakeSourceAppointmentId);
+          setAppointments((prev) => prev.filter((a) => a.id !== agendaIntakeSourceAppointmentId));
+        } catch (err) {
+          console.error('Erro ao remover agendamento após criar ficha', err);
+        }
+        setAgendaIntakeSourceAppointmentId(null);
+      }
+      setAgendaPendingDetailAppointmentId(null);
       setReturnTabAfterReception(null);
       const target: TabId = orderType === 'module' ? 'laboratorio' : 'patio';
       if (isLimitedSystemUser) {
@@ -163,13 +191,33 @@ export default function App() {
         setCurrentTab(target);
       }
     },
-    [isLimitedSystemUser, userAllowedTabs]
+    [agendaIntakeSourceAppointmentId, isLimitedSystemUser, userAllowedTabs]
   );
+
+  const handleOpenReceptionFromAgenda = useCallback(
+    (customer: Customer, appointmentId: string) => {
+      setPrefillData(customer);
+      setReceptionForcedMode('vehicle');
+      setReturnTabAfterReception('agenda');
+      setAgendaIntakeSourceAppointmentId(appointmentId);
+      if (isLimitedSystemUser) {
+        setUserTab('reception');
+      } else {
+        setCurrentTab('reception');
+      }
+    },
+    [isLimitedSystemUser]
+  );
+
+  const clearAgendaPendingDetailAppointment = useCallback(() => {
+    setAgendaPendingDetailAppointmentId(null);
+  }, []);
 
   /** Enquanto existir “volta para Pátio/Lab”, o modo veículo/módulo define qual aba ao usar voltar. */
   const syncReturnTabFromReceptionMode = useCallback((mode: ServiceOrderType) => {
     setReturnTabAfterReception((prev) => {
       if (prev === null) return null;
+      if (prev === 'agenda') return 'agenda';
       return mode === 'module' ? 'laboratorio' : 'patio';
     });
   }, []);
@@ -177,6 +225,9 @@ export default function App() {
   useEffect(() => {
     if (activeAppTab !== 'reception') {
       setReturnTabAfterReception(null);
+      if (activeAppTab !== 'agenda') {
+        setAgendaIntakeSourceAppointmentId(null);
+      }
     }
   }, [activeAppTab]);
 
@@ -251,6 +302,7 @@ export default function App() {
 
   // Função chamada pelo Pátio / histórico da Recepção para preencher o cadastro com dados de uma OS
   const handleUseCustomerData = (data: Customer) => {
+    setAgendaIntakeSourceAppointmentId(null);
     setPrefillData(data);
     const inferredMode: 'vehicle' | 'module' =
       (data.moduleIdentification ?? '').trim().length > 0 ? 'module' : 'vehicle';
@@ -270,6 +322,7 @@ export default function App() {
     }
     if (app === 'reception') {
       setReturnTabAfterReception(null);
+      setAgendaIntakeSourceAppointmentId(null);
     }
     setCurrentTab(app);
   };
@@ -279,6 +332,7 @@ export default function App() {
       try {
         localStorage.setItem('app_reception_mode', mode);
       } catch (_) {}
+      setAgendaIntakeSourceAppointmentId(null);
       setPrefillData(null);
       setReceptionForcedMode(mode);
       setReturnTabAfterReception(mode === 'module' ? 'laboratorio' : 'patio');
@@ -452,7 +506,10 @@ export default function App() {
               technicianName={authSession.displayName ?? 'Usuário'}
               allowedTabs={userAllowedTabs}
               onOpenApp={(app) => {
-                if (app === 'reception') setReturnTabAfterReception(null);
+                if (app === 'reception') {
+                  setReturnTabAfterReception(null);
+                  setAgendaIntakeSourceAppointmentId(null);
+                }
                 setUserTab(app as TabId);
               }}
               onLogout={handleLogout}
@@ -532,11 +589,9 @@ export default function App() {
               setAppointments={setAppointments}
               blurPlates={cinematographicMode}
               isAgendaTabActive={userTab === 'agenda'}
-              actorOptions={{
-                actor: 'technician',
-                actorTechnicianSlug: authSession.userId,
-                actorTechnicianName: authSession.displayName ?? authSession.username,
-              }}
+              onChegouAoPatioNavigateToReception={handleOpenReceptionFromAgenda}
+              pendingDetailAppointmentId={agendaPendingDetailAppointmentId}
+              onPendingDetailAppointmentConsumed={clearAgendaPendingDetailAppointment}
             />
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
@@ -748,15 +803,9 @@ export default function App() {
             setAppointments={setAppointments}
             blurPlates={cinematographicMode}
             isAgendaTabActive={currentTab === 'agenda'}
-            actorOptions={
-              authSession?.role === 'admin'
-                ? { actor: 'admin' }
-                : {
-                    actor: 'technician',
-                    actorTechnicianSlug: authSession?.userId,
-                    actorTechnicianName: authSession?.displayName ?? authSession?.username,
-                  }
-            }
+            onChegouAoPatioNavigateToReception={handleOpenReceptionFromAgenda}
+            pendingDetailAppointmentId={agendaPendingDetailAppointmentId}
+            onPendingDetailAppointmentConsumed={clearAgendaPendingDetailAppointment}
           />
         </KeepAliveTabPanel>
 
