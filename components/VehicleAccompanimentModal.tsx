@@ -18,7 +18,7 @@ import { getStageConfig, getStageStyle, isServiceOrderActivePatioFlow } from '..
 
 /** Cartão com vidro, sombra em camadas e leve tinta (Central do atendimento). */
 const vacCard =
-  'relative overflow-hidden rounded-[22px] border border-white/55 dark:border-white/[0.09] ' +
+  'relative overflow-hidden rounded-[16px] border border-white/55 dark:border-white/[0.09] ' +
   'bg-gradient-to-br from-white/95 via-white/[0.88] to-zinc-50/92 dark:from-zinc-900/88 dark:via-zinc-900/72 dark:to-zinc-950/92 backdrop-blur-2xl ' +
   'shadow-[0_1px_0_rgba(255,255,255,0.65)_inset,0_8px_32px_-8px_rgba(15,23,42,0.12),0_20px_48px_-16px_rgba(0,122,255,0.14),0_12px_36px_-12px_rgba(245,208,11,0.1)] ' +
   'dark:shadow-[0_1px_0_rgba(255,255,255,0.06)_inset,0_12px_40px_-10px_rgba(0,0,0,0.55),0_24px_56px_-20px_rgba(0,122,255,0.18)]';
@@ -316,7 +316,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
 
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-5 space-y-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable]">
             {error ? (
-              <p className="rounded-2xl border border-red-500/30 bg-gradient-to-br from-red-500/12 to-red-600/5 px-3 py-2.5 text-[13px] text-red-700 shadow-[0_4px_20px_-8px_rgba(220,38,38,0.25)] dark:text-red-300">
+              <p className="rounded-xl border border-red-500/30 bg-gradient-to-br from-red-500/12 to-red-600/5 px-3 py-2.5 text-[13px] text-red-700 shadow-[0_4px_20px_-8px_rgba(220,38,38,0.25)] dark:text-red-300">
                 {error}
               </p>
             ) : null}
@@ -334,7 +334,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                 <select
                   value={selectedId}
                   onChange={(e) => setSelectedId(e.target.value)}
-                  className="w-full rounded-2xl border border-zinc-200/90 bg-white/95 px-3 py-3.5 text-[15px] text-zinc-900 shadow-inner shadow-zinc-900/5 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/90 dark:text-white dark:focus:ring-[#64B5FF]/30"
+                  className="w-full rounded-xl border border-zinc-200/90 bg-white/95 px-3 py-3.5 text-[15px] text-zinc-900 shadow-inner shadow-zinc-900/5 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/90 dark:text-white dark:focus:ring-[#64B5FF]/30"
                 >
                   <option value="">Selecione uma OS…</option>
                   {patioOrders.length > 0 ? (
@@ -385,20 +385,20 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                       onChange={(e) => setPlacaExtra(e.target.value.toUpperCase())}
                       placeholder="Outra placa (opcional)"
                       maxLength={7}
-                      className="flex-1 rounded-2xl border border-zinc-200/90 bg-white/95 px-3 py-2.5 font-mono text-[15px] shadow-inner shadow-zinc-900/5 focus:border-[#007AFF]/45 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20 dark:border-white/[0.12] dark:bg-zinc-950/90"
+                      className="flex-1 rounded-xl border border-zinc-200/90 bg-white/95 px-3 py-2.5 font-mono text-[15px] shadow-inner shadow-zinc-900/5 focus:border-[#007AFF]/45 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20 dark:border-white/[0.12] dark:bg-zinc-950/90"
                     />
                     <button
                       type="button"
                       onClick={() => void handleConsultPlaca()}
                       disabled={placaLoading}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-950 px-4 py-2.5 text-[14px] font-semibold text-white shadow-[0_8px_24px_-6px_rgba(0,0,0,0.35)] transition-transform hover:brightness-110 active:scale-[0.98] disabled:opacity-50 dark:from-white dark:to-zinc-200 dark:text-zinc-900 dark:shadow-[0_8px_28px_-8px_rgba(255,255,255,0.15)]"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-950 px-4 py-2.5 text-[14px] font-semibold text-white shadow-[0_8px_24px_-6px_rgba(0,0,0,0.35)] transition-transform hover:brightness-110 active:scale-[0.98] disabled:opacity-50 dark:from-white dark:to-zinc-200 dark:text-zinc-900 dark:shadow-[0_8px_28px_-8px_rgba(255,255,255,0.15)]"
                     >
                       {placaLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                       Consultar
                     </button>
                   </div>
                   {placaLookup ? (
-                    <div className="rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50/95 to-blue-50/80 p-4 text-[13px] space-y-1 shadow-[0_8px_28px_-12px_rgba(14,165,233,0.25)] dark:border-sky-500/25 dark:from-sky-950/50 dark:to-blue-950/30 dark:shadow-[0_12px_36px_-12px_rgba(56,189,248,0.12)]">
+                    <div className="rounded-xl border border-sky-200/80 bg-gradient-to-br from-sky-50/95 to-blue-50/80 p-4 text-[13px] space-y-1 shadow-[0_8px_28px_-12px_rgba(14,165,233,0.25)] dark:border-sky-500/25 dark:from-sky-950/50 dark:to-blue-950/30 dark:shadow-[0_12px_36px_-12px_rgba(56,189,248,0.12)]">
                       <p className="font-mono font-semibold">{placaLookup.plate}</p>
                       <p>
                         {[placaLookup.vehicleBrand, placaLookup.vehicleModel].filter(Boolean).join(' ') || '—'}
@@ -440,7 +440,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                     Toque na imagem para colocar um marcador. Toque no pin para remover.
                   </p>
                   {photos.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-zinc-300/80 bg-zinc-50/80 py-10 text-center text-sm text-zinc-500 dark:border-white/[0.12] dark:bg-zinc-900/40 dark:text-zinc-400">
+                    <div className="rounded-xl border border-dashed border-zinc-300/80 bg-zinc-50/80 py-10 text-center text-sm text-zinc-500 dark:border-white/[0.12] dark:bg-zinc-900/40 dark:text-zinc-400">
                       Nenhuma foto ainda — use <span className="font-semibold text-sky-600 dark:text-sky-400">Adicionar</span>
                     </div>
                   ) : (
@@ -449,7 +449,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                         <div key={ph.id} className="space-y-2">
                           <div
                             role="presentation"
-                            className="relative w-full cursor-crosshair overflow-hidden rounded-2xl border border-zinc-200/90 bg-zinc-900/5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-black/[0.04] dark:border-white/[0.1] dark:bg-zinc-950 dark:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)] dark:ring-white/[0.05]"
+                            className="relative w-full cursor-crosshair overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-900/5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-black/[0.04] dark:border-white/[0.1] dark:bg-zinc-950 dark:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)] dark:ring-white/[0.05]"
                             onClick={(e) => onPhotoTap(ph.id, e)}
                           >
                             <img
@@ -508,7 +508,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                     value={observations}
                     onChange={(e) => setObservations(e.target.value)}
                     rows={4}
-                    className="w-full rounded-2xl border border-zinc-200/90 bg-white/95 px-3 py-2.5 text-[14px] text-zinc-900 shadow-inner shadow-zinc-900/[0.03] placeholder:text-zinc-400 focus:border-sky-400/50 focus:outline-none focus:ring-2 focus:ring-sky-400/25 dark:border-white/[0.12] dark:bg-zinc-950/80 dark:text-white dark:shadow-black/20"
+                    className="w-full rounded-xl border border-zinc-200/90 bg-white/95 px-3 py-2.5 text-[14px] text-zinc-900 shadow-inner shadow-zinc-900/[0.03] placeholder:text-zinc-400 focus:border-sky-400/50 focus:outline-none focus:ring-2 focus:ring-sky-400/25 dark:border-white/[0.12] dark:bg-zinc-950/80 dark:text-white dark:shadow-black/20"
                     placeholder="Checklist, danos visíveis, acessórios…"
                   />
                 </section>
@@ -541,7 +541,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                 </section>
 
                 {acc?.share_token ? (
-                  <section className="relative overflow-hidden rounded-[22px] border border-zinc-200/80 bg-gradient-to-br from-violet-50/90 via-white/85 to-sky-50/80 p-4 shadow-[0_12px_40px_-14px_rgba(109,40,217,0.15)] dark:border-violet-500/20 dark:from-violet-950/40 dark:via-zinc-900/70 dark:to-sky-950/30 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.5)]">
+                  <section className="relative overflow-hidden rounded-[16px] border border-zinc-200/80 bg-gradient-to-br from-violet-50/90 via-white/85 to-sky-50/80 p-4 shadow-[0_12px_40px_-14px_rgba(109,40,217,0.15)] dark:border-violet-500/20 dark:from-violet-950/40 dark:via-zinc-900/70 dark:to-sky-950/30 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.5)]">
                     <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-violet-400/20 blur-3xl dark:bg-violet-500/10" aria-hidden />
                     <h2 className={`relative mb-2 ${vacSectionTitle}`}>Partilhar com o cliente</h2>
                     <p className="relative mb-3 break-all rounded-xl border border-white/60 bg-white/60 px-2.5 py-2 text-[11px] leading-relaxed text-zinc-600 backdrop-blur-sm dark:border-white/[0.08] dark:bg-zinc-950/40 dark:text-zinc-300">
@@ -551,7 +551,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                       <button
                         type="button"
                         onClick={copyLink}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/95 px-4 py-2.5 text-[14px] font-semibold text-zinc-900 shadow-md transition hover:bg-white active:scale-[0.98] dark:border-white/[0.12] dark:bg-zinc-800/90 dark:text-white dark:shadow-lg"
+                        className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/80 bg-white/95 px-4 py-2.5 text-[14px] font-semibold text-zinc-900 shadow-md transition hover:bg-white active:scale-[0.98] dark:border-white/[0.12] dark:bg-zinc-800/90 dark:text-white dark:shadow-lg"
                       >
                         <Copy className="h-4 w-4" />
                         Copiar link
@@ -559,7 +559,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                       <button
                         type="button"
                         onClick={openWhatsApp}
-                        className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#25D366] to-emerald-600 px-4 py-2.5 text-[14px] font-semibold text-white shadow-[0_6px_22px_-6px_rgba(37,211,102,0.65)] transition hover:brightness-110 active:scale-[0.98]"
+                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#25D366] to-emerald-600 px-4 py-2.5 text-[14px] font-semibold text-white shadow-[0_6px_22px_-6px_rgba(37,211,102,0.65)] transition hover:brightness-110 active:scale-[0.98]"
                       >
                         <MessageCircle className="h-4 w-4" />
                         WhatsApp
@@ -573,7 +573,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                     type="button"
                     onClick={() => void handleSave()}
                     disabled={saving}
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-brand-yellow via-amber-300 to-amber-400 py-3.5 font-semibold text-zinc-950 shadow-[0_6px_24px_-4px_rgba(234,179,8,0.55),inset_0_1px_0_rgba(255,255,255,0.5)] transition hover:brightness-105 active:scale-[0.99] disabled:opacity-50 dark:shadow-[0_8px_28px_-6px_rgba(234,179,8,0.35)]"
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-brand-yellow via-amber-300 to-amber-400 py-3.5 font-semibold text-zinc-950 shadow-[0_6px_24px_-4px_rgba(234,179,8,0.55),inset_0_1px_0_rgba(255,255,255,0.5)] transition hover:brightness-105 active:scale-[0.99] disabled:opacity-50 dark:shadow-[0_8px_28px_-6px_rgba(234,179,8,0.35)]"
                   >
                     {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
                     Guardar
