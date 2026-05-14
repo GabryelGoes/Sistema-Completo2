@@ -25,7 +25,7 @@ function setupCanvas(canvas: HTMLCanvasElement) {
   if (!ctx) return null;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
-  ctx.fillStyle = "#e4e4e7";
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, w, h);
   ctx.strokeStyle = "rgba(15,23,42,0.88)";
   ctx.lineWidth = 2.25;
@@ -171,12 +171,12 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
         <div
           className={
             fullScreenPortrait
-              ? "flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-white shadow-none dark:bg-zinc-950"
-              : "flex max-h-[min(92dvh,920px)] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] border border-zinc-200/90 bg-white shadow-[0_-12px_48px_-16px_rgba(0,0,0,0.35)] dark:border-white/[0.1] dark:bg-zinc-950 sm:max-h-[min(88vh,900px)] sm:rounded-[28px] sm:shadow-2xl"
+              ? "flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-zinc-100 shadow-none dark:bg-zinc-950"
+              : "flex max-h-[min(92dvh,920px)] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] border border-zinc-200/90 bg-zinc-100 shadow-[0_-12px_48px_-16px_rgba(0,0,0,0.35)] dark:border-white/[0.1] dark:bg-zinc-950 sm:max-h-[min(88vh,900px)] sm:rounded-[28px] sm:shadow-2xl"
           }
           onClick={(ev) => ev.stopPropagation()}
         >
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/80 px-5 py-4 dark:border-white/[0.08]">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/80 bg-zinc-100 px-5 py-4 dark:border-white/[0.08] dark:bg-zinc-950">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#007AFF]/25 bg-[#007AFF]/[0.1] dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15">
                 <PenLine className="h-5 w-5 text-[#007AFF] dark:text-[#93c5fd]" strokeWidth={2.25} aria-hidden />
@@ -206,8 +206,8 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
           <div
             className={
               fullScreenPortrait
-                ? "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3 [-webkit-overflow-scrolling:touch]"
-                : "min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 [-webkit-overflow-scrolling:touch]"
+                ? "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-zinc-100 px-4 py-3 [-webkit-overflow-scrolling:touch] dark:bg-zinc-950"
+                : "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-zinc-100 px-5 py-4 [-webkit-overflow-scrolling:touch] dark:bg-zinc-950"
             }
           >
             <DiagnosticAuthorizationTermBody
@@ -219,7 +219,7 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
             <p className="mt-5 text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-600 dark:text-zinc-300">
               {DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL}
             </p>
-            <div className="mt-2 rounded-2xl border-2 border-dashed border-zinc-400/80 bg-zinc-200 p-3 shadow-inner dark:border-zinc-500/60 dark:bg-zinc-800/90">
+            <div className="mt-2 overflow-hidden rounded-2xl border-2 border-dashed border-zinc-300/95 bg-white p-2 dark:border-white/[0.14] dark:bg-zinc-900/40">
               <canvas
                 ref={canvasRef}
                 className="touch-none block min-h-[200px] h-[min(280px,44vh)] w-full cursor-crosshair select-none rounded-xl"
@@ -237,8 +237,8 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
           <div
             className={
               fullScreenPortrait
-                ? "flex shrink-0 flex-col gap-2 border-t border-zinc-200/80 bg-white/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-white/[0.08] dark:bg-zinc-950/95"
-                : "flex shrink-0 flex-col gap-2 border-t border-zinc-200/80 bg-white/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-white/[0.08] dark:bg-zinc-950/95 sm:flex-row sm:justify-end"
+                ? "flex shrink-0 flex-col gap-2 border-t border-zinc-200/80 bg-zinc-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-white/[0.08] dark:bg-zinc-950"
+                : "flex shrink-0 flex-col gap-2 border-t border-zinc-200/80 bg-zinc-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-white/[0.08] dark:bg-zinc-950 sm:flex-row sm:justify-end"
             }
           >
             <button
