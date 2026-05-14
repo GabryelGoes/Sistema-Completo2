@@ -3252,7 +3252,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
                           {boardPanoramic
                             ? 'Voltar ao tamanho padrão da grade'
-                            : 'Modo compacto: mais cartões por fileira (telas médias+)'}
+                            : 'Modo compacto: 3 colunas em retrato; em paisagem larga, até 5 por fileira'}
                         </span>
                       </span>
                     </button>
@@ -3458,7 +3458,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
         const gridClassName = `relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
           boardPanoramic
-            ? 'grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-5 md:gap-3 lg:gap-3.5 2xl:gap-4'
+            ? 'grid-cols-2 gap-2.5 portrait:grid-cols-3 portrait:gap-2 sm:gap-3 md:portrait:grid-cols-3 md:landscape:grid-cols-5 md:gap-3 lg:gap-3.5 2xl:gap-4'
             : 'grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 landscape:lg:grid-cols-4'
         }`;
         const zoomOuterClass =
