@@ -92,6 +92,7 @@ import {
   patioBoardGlassCardShadow,
   vehicleCardTitleShadow,
   BOARD_PANORAMIC_ZOOM,
+  BOARD_PORTRAIT_HSCROLL_ZOOM_MULT,
   DESKTOP_LANDSCAPE_CARD_ZOOM,
 } from '../../utils/patioBoardGlassCard';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
@@ -3463,14 +3464,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
         }`;
         const zoomOuterClass =
           'origin-top will-change-[zoom] motion-safe:transition-[zoom] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]';
-        const patioBoardOuterZoom =
-          boardPanoramic || isPortraitOrientation ? BOARD_PANORAMIC_ZOOM : 1;
-        const zoomOuterStyle = {
-          zoom: patioBoardOuterZoom,
-          transition: 'zoom 0.55s cubic-bezier(0.34, 1.35, 0.25, 1)',
-        } as React.CSSProperties & { zoom?: number };
-        const zoomWrap = (node: React.ReactNode) => (
-          <div className={zoomOuterClass} style={zoomOuterStyle}>
+        const patioBoardZoomFor = (variant: 'grid' | 'hscroll') => {
+          let z =
+            boardPanoramic || isPortraitOrientation ? BOARD_PANORAMIC_ZOOM : 1;
+          if (variant === 'hscroll' && isPortraitOrientation) {
+            z *= BOARD_PORTRAIT_HSCROLL_ZOOM_MULT;
+          }
+          return z;
+        };
+        const zoomWrap = (node: React.ReactNode, variant: 'grid' | 'hscroll' = 'grid') => (
+          <div
+            className={zoomOuterClass}
+            style={
+              {
+                zoom: patioBoardZoomFor(variant),
+                transition: 'zoom 0.55s cubic-bezier(0.34, 1.35, 0.25, 1)',
+              } as React.CSSProperties & { zoom?: number }
+            }
+          >
             {node}
           </div>
         );
@@ -3758,11 +3769,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
           <div key={boardLayoutMode} className={layoutMotion}>
             {boardLayoutMode === 'trello'
               ? zoomWrap(
-                  <div className="patio-board-hscroll flex max-w-full gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] scroll-smooth sm:gap-4 sm:pb-2.5">
+                  <div className="patio-board-hscroll flex max-w-full gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] scroll-smooth portrait:gap-2 portrait:pb-1.5 sm:gap-4 sm:pb-2.5">
                     {stageColumnsSorted.map((stage) => (
                       <div
                         key={stage.id}
-                        className={`flex w-[min(18.5rem,calc(100vw-2.5rem))] shrink-0 snap-start snap-always flex-col rounded-[1.35rem] border border-zinc-200/70 bg-zinc-100/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-md transition-[box-shadow,transform,border-color] duration-300 ease-out dark:border-white/[0.08] dark:bg-zinc-900/45 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
+                        className={`flex w-[min(18.5rem,calc(100vw-2.5rem))] shrink-0 snap-start snap-always portrait:w-[min(15.25rem,calc(92vw-1.25rem))] flex-col rounded-[1.35rem] border border-zinc-200/70 bg-zinc-100/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-md transition-[box-shadow,transform,border-color] duration-300 ease-out dark:border-white/[0.08] dark:bg-zinc-900/45 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
                           trelloDragOverListId === stage.id
                             ? 'scale-[1.01] ring-2 ring-[#007AFF]/55 ring-offset-2 ring-offset-zinc-100/80 dark:ring-[#64B5FF]/60 dark:ring-offset-zinc-950/90'
                             : ''
@@ -3797,20 +3808,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {cardsForStageColumn(stage.id).length}
                           </span>
                         </div>
-                        <div className="flex min-h-[min(12rem,40vh)] flex-1 flex-col gap-3 p-2.5 sm:min-h-[14rem] sm:gap-3.5 sm:p-3">
+                        <div className="flex min-h-[min(12rem,40vh)] flex-1 flex-col gap-3 p-2.5 portrait:gap-2.5 portrait:p-2 sm:min-h-[14rem] sm:gap-3.5 sm:p-3">
                           {cardsForStageColumn(stage.id).map((c) => renderPatioBoardCard(c, true))}
                         </div>
                       </div>
                     ))}
-                  </div>
+                  </div>,
+                  'hscroll'
                 )
               : boardLayoutMode === 'by_mechanic'
                 ? zoomWrap(
-                    <div className="patio-board-hscroll flex max-w-full gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] scroll-smooth sm:gap-4 sm:pb-2.5">
+                    <div className="patio-board-hscroll flex max-w-full gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] scroll-smooth portrait:gap-2 portrait:pb-1.5 sm:gap-4 sm:pb-2.5">
                       {mechanicColumns.map((col) => (
                         <div
                           key={col.key}
-                          className="flex w-[min(18.5rem,calc(100vw-2.5rem))] shrink-0 snap-start snap-always flex-col rounded-[1.35rem] border border-zinc-200/70 bg-zinc-100/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-md transition-shadow duration-300 dark:border-white/[0.08] dark:bg-zinc-900/45 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                          className="flex w-[min(18.5rem,calc(100vw-2.5rem))] shrink-0 snap-start snap-always portrait:w-[min(15.25rem,calc(92vw-1.25rem))] flex-col rounded-[1.35rem] border border-zinc-200/70 bg-zinc-100/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-md transition-shadow duration-300 dark:border-white/[0.08] dark:bg-zinc-900/45 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                         >
                           <div className="flex shrink-0 items-center gap-2 rounded-t-[1.35rem] border-b border-zinc-200/60 bg-white/60 px-3 py-2.5 dark:border-white/[0.08] dark:bg-zinc-950/50 sm:px-3.5">
                             {col.photo ? (
@@ -3833,12 +3845,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               {cardsInMechanicCol(col.key).length}
                             </span>
                           </div>
-                          <div className="flex flex-1 flex-col gap-3 p-2.5 sm:gap-3.5 sm:p-3">
+                          <div className="flex flex-1 flex-col gap-3 p-2.5 portrait:gap-2.5 portrait:p-2 sm:gap-3.5 sm:p-3">
                             {cardsInMechanicCol(col.key).map((c) => renderPatioBoardCard(c, false))}
                           </div>
                         </div>
                       ))}
-                    </div>
+                    </div>,
+                    'hscroll'
                   )
                 : zoomWrap(
                     <div className={gridClassName}>

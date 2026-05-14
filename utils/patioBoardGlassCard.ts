@@ -11,4 +11,10 @@ export const vehicleCardTitleShadow =
 
 export const BOARD_PANORAMIC_ZOOM = 0.72;
 
+/**
+ * Retrato + quadro em colunas horizontais (Trello / por mecânico): multiplica o zoom do wrapper
+ * para aproximar a densidade do modo compacto da grade (cartões mais estreitos por coluna).
+ */
+export const BOARD_PORTRAIT_HSCROLL_ZOOM_MULT = 0.835;
+
 export const DESKTOP_LANDSCAPE_CARD_ZOOM = 0.65025;
