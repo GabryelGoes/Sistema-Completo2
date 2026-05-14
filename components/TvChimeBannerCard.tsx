@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Bell, X } from 'lucide-react';
 import type { TvChimeKind } from '../utils/tvChimeSchedule';
 
@@ -11,14 +11,27 @@ export interface TvChimeBannerCardProps {
   message: string;
   /**
    * `modal` — cartão claro compacto (gestor em secretária).
-   * `preview` — miniatura no modal, estilo TV (fundo escuro, texto amarelo).
-   * `display` — leitura à distância na TV do pátio (como slide tipo «aviso»).
+   * `preview` — miniatura no modal (cartão compacto escuro).
+   * `display` — mesmo layout do slide «aviso» na TV: cabeçalho da marca + fundo preto + letras grandes.
    */
   variant?: 'modal' | 'preview' | 'display';
+  /**
+   * Com `variant="display"`: preenche o contentor pai (ex.: preview da TV), com tipografia mais contida.
+   */
+  displayEmbedded?: boolean;
   onDismiss?: () => void;
-  /** Texto do botão fechar para leitores de ecrã. */
   dismissAriaLabel?: string;
   className?: string;
+}
+
+function formatTvClock(d: Date): string {
+  try {
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  } catch {
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+  }
 }
 
 function panelClass(phase: TvChimeBannerPhase, kind: TvChimeKind): string {
@@ -34,29 +47,45 @@ function panelClass(phase: TvChimeBannerPhase, kind: TvChimeKind): string {
   return 'border-violet-300/80 bg-gradient-to-r from-violet-50 to-white text-violet-950';
 }
 
-/** Painel escuro alto contraste (alinhado ao slide «aviso» na TV). */
 function panelDisplayClass(phase: TvChimeBannerPhase, kind: TvChimeKind): string {
   if (phase === 'pre') {
-    return 'border-2 border-white/30 bg-zinc-950/96 text-zinc-100 shadow-[0_24px_100px_rgba(0,0,0,0.75)]';
+    return 'border border-white/20 bg-zinc-950';
   }
   if (kind === 'lunch') {
-    return 'border-2 border-amber-500/55 bg-gradient-to-b from-amber-950/98 via-zinc-950 to-black text-amber-50 shadow-[0_24px_100px_rgba(0,0,0,0.8)]';
+    return 'border border-amber-500/40 bg-gradient-to-b from-amber-950/90 to-black';
   }
   if (kind === 'departure') {
-    return 'border-2 border-sky-500/50 bg-gradient-to-b from-sky-950/95 via-zinc-950 to-black text-sky-50 shadow-[0_24px_100px_rgba(0,0,0,0.8)]';
+    return 'border border-sky-500/40 bg-gradient-to-b from-sky-950/90 to-black';
   }
-  return 'border-2 border-yellow-500/40 bg-black text-yellow-50 shadow-[0_0_80px_rgba(234,179,8,0.14)]';
+  return 'border border-white/[0.08] bg-black';
 }
 
-function titleDisplayTone(phase: TvChimeBannerPhase, kind: TvChimeKind): string {
-  if (phase === 'pre') return 'text-zinc-50';
-  if (kind === 'lunch') return 'text-amber-200';
-  if (kind === 'departure') return 'text-sky-200';
+function titleNoticeTone(phase: TvChimeBannerPhase, kind: TvChimeKind): string {
+  if (phase === 'pre') return 'text-zinc-100';
+  if (kind === 'lunch') return 'text-amber-300';
+  if (kind === 'departure') return 'text-sky-300';
   return 'text-yellow-400';
 }
 
+/** Cabeçalho igual ao preview do slide na TV (`TvPatioPreview`). */
+function TvPatioBrandHeaderBar({ clockLabel }: { clockLabel: string }) {
+  return (
+    <div className="flex shrink-0 items-end justify-between gap-2 border-b border-white/[0.06] bg-black px-3 pb-1.5 pt-2.5 sm:px-4 sm:pb-2 sm:pt-3">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-[13px] font-black italic leading-none text-yellow-400 sm:text-[15px] md:text-base">
+          REI DO ABS
+        </span>
+        <span className="text-[6px] font-bold uppercase tracking-[0.2em] text-white/35 sm:text-[7px]">
+          Pátio
+        </span>
+      </div>
+      <span className="font-mono text-[7px] tabular-nums text-white/40 sm:text-[8px] md:text-[10px]">{clockLabel}</span>
+    </div>
+  );
+}
+
 /**
- * Faixa de aviso por horário — no pátio usa `display` para legibilidade à distância.
+ * Aviso por horário — `display` replica o slide «aviso» (cabeçalho + área preta + texto grande).
  */
 export function TvChimeBannerCard({
   phase,
@@ -64,54 +93,62 @@ export function TvChimeBannerCard({
   title,
   message,
   variant = 'modal',
+  displayEmbedded = false,
   onDismiss,
   dismissAriaLabel = 'Fechar aviso',
   className = '',
 }: TvChimeBannerCardProps) {
+  const [clock, setClock] = useState(() => formatTvClock(new Date()));
+  useEffect(() => {
+    const id = window.setInterval(() => setClock(formatTvClock(new Date())), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
   if (variant === 'display') {
-    const eyebrow = phase === 'pre' ? 'Lembrete' : 'TV do pátio · Horário';
-    const titleTone = titleDisplayTone(phase, kind);
+    const embedded = displayEmbedded;
+    const eyebrow = phase === 'pre' ? 'Lembrete' : 'Horário programado';
+    const titleTone = titleNoticeTone(phase, kind);
     const isPre = phase === 'pre';
+
+    const titleCls = embedded
+      ? `max-w-full text-pretty text-center font-black uppercase leading-tight tracking-tight ${isPre ? 'text-sm normal-case sm:text-base' : 'text-base sm:text-lg md:text-xl'} ${titleTone}`
+      : `max-w-[min(92vw,72rem)] text-pretty text-center font-black uppercase leading-[1.05] tracking-tight ${isPre ? 'text-[clamp(1.25rem,5.5vmin,3.5rem)] normal-case' : 'text-[clamp(1.75rem,7vmin,5.25rem)]'} ${titleTone}`;
+
+    const eyebrowCls = embedded
+      ? 'text-[8px] font-black uppercase tracking-[0.22em] text-yellow-500/75 sm:text-[9px]'
+      : 'text-[clamp(0.65rem,1.8vmin,0.95rem)] font-black uppercase tracking-[0.26em] text-yellow-500/80';
+
+    const messageCls = embedded
+      ? 'mt-2 max-w-full text-pretty text-center text-[10px] font-medium leading-snug text-zinc-300 sm:mt-3 sm:text-[11px] md:text-xs'
+      : 'mt-4 max-w-[min(56rem,92vw)] text-pretty text-center text-[clamp(1rem,3.4vmin,2.5rem)] font-medium leading-snug text-zinc-300 sm:mt-5';
+
+    const outerFrame = embedded
+      ? `flex h-full min-h-0 w-full flex-col overflow-hidden bg-black ${className}`
+      : `flex max-h-[min(88dvh,920px)] w-full max-w-[min(96rem,calc(100vw-1.5rem))] min-h-[min(52dvh,420px)] flex-col overflow-hidden rounded-[1.2rem] shadow-[0_32px_80px_-16px_rgba(0,0,0,0.65),0_0_0_1px_rgba(255,255,255,0.08)] ring-1 ring-white/10 animate-in zoom-in-95 duration-300 ${className}`;
+
     return (
       <div
-        className={`pointer-events-auto w-full max-w-[min(96rem,calc(100vw-1.5rem))] rounded-3xl border backdrop-blur-md animate-in slide-in-from-top-3 duration-300 ${panelDisplayClass(
-          phase,
-          kind
-        )} px-5 py-8 sm:px-10 sm:py-10 md:px-14 md:py-12 ${className}`}
+        className={`pointer-events-auto relative ${outerFrame} ${panelDisplayClass(phase, kind)}`}
         role="status"
         aria-live="polite"
       >
-        <div className="relative flex flex-col items-center text-center">
-          {onDismiss ? (
-            <button
-              type="button"
-              onClick={onDismiss}
-              className="pointer-events-auto absolute -right-1 -top-1 rounded-full bg-white/10 p-3 text-zinc-300 transition-colors hover:bg-white/20 hover:text-white sm:right-0 sm:top-0"
-              aria-label={dismissAriaLabel}
-            >
-              <X className="h-6 w-6 sm:h-7 sm:w-7" />
-            </button>
-          ) : null}
-          <Bell
-            className="mb-3 h-12 w-12 shrink-0 text-yellow-400 drop-shadow-[0_0_12px_rgba(250,204,21,0.35)] sm:mb-4 sm:h-16 sm:w-16 md:h-20 md:w-20"
-            strokeWidth={2}
-            aria-hidden
-          />
-          <p className="text-[clamp(0.7rem,2.2vmin,1.1rem)] font-black uppercase tracking-[0.28em] text-yellow-500/90">
-            {eyebrow}
-          </p>
-          <p
-            className={`mt-3 max-w-[95vw] font-black leading-[1.05] tracking-tight sm:mt-4 ${
-              isPre
-                ? 'text-[clamp(1.35rem,5.5vmin,3.75rem)] normal-case'
-                : 'text-[clamp(1.85rem,7.5vmin,5.5rem)] uppercase'
-            } ${titleTone}`}
+        {onDismiss ? (
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="absolute right-2 top-2 z-20 rounded-full bg-white/10 p-2.5 text-zinc-200 transition-colors hover:bg-white/20 hover:text-white sm:right-3 sm:top-3 sm:p-3"
+            aria-label={dismissAriaLabel}
           >
-            {title}
-          </p>
-          <p className="mt-4 max-w-[min(56rem,95vw)] text-pretty text-[clamp(1.05rem,3.6vmin,2.85rem)] font-semibold leading-snug text-zinc-200 sm:mt-5">
-            {message}
-          </p>
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
+          </button>
+        ) : null}
+        <TvPatioBrandHeaderBar clockLabel={clock} />
+        <div
+          className={`flex min-h-0 flex-1 flex-col items-center justify-center bg-black px-4 py-6 text-center sm:px-8 sm:py-10 ${embedded ? 'py-4' : 'md:px-12 md:py-14'}`}
+        >
+          <p className={eyebrowCls}>{eyebrow}</p>
+          <p className={`mt-2 sm:mt-3 ${titleCls}`}>{title}</p>
+          <p className={messageCls}>{message}</p>
         </div>
       </div>
     );
@@ -124,7 +161,7 @@ export function TvChimeBannerCard({
     ? 'text-[9px] font-black uppercase tracking-[0.2em] text-yellow-500/85'
     : 'text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500';
   const titleCls = isPreview
-    ? `text-[13px] font-black uppercase leading-tight tracking-tight sm:text-sm ${titleDisplayTone(phase, kind)}`
+    ? `text-[13px] font-black uppercase leading-tight tracking-tight sm:text-sm ${titleNoticeTone(phase, kind)}`
     : 'text-[17px] font-semibold leading-snug tracking-tight';
   const messageCls = isPreview
     ? 'mt-1.5 text-[11px] font-medium leading-snug text-zinc-300 sm:text-xs'
@@ -132,7 +169,7 @@ export function TvChimeBannerCard({
   const iconCls = isPreview
     ? 'mt-0.5 h-4 w-4 shrink-0 text-yellow-400'
     : 'mt-0.5 h-5 w-5 shrink-0 text-[#007AFF]';
-  const iconStroke = isPreview ? 2.2 : 2.2;
+  const iconStroke = 2.2;
   const closeCls = isPreview
     ? 'pointer-events-auto shrink-0 rounded-full bg-white/10 p-1 text-zinc-300 hover:bg-white/20 hover:text-white'
     : 'pointer-events-auto shrink-0 rounded-full p-1 text-zinc-500 hover:bg-black/5 hover:text-zinc-800';

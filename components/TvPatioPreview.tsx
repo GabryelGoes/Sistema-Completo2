@@ -303,10 +303,11 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           {renderSlide()}
           {chimeSchedulePreview && chimeFiringPreview ? (
-            <div className="pointer-events-none absolute inset-0 z-[15] flex items-start justify-center bg-black/30 px-2 pt-2">
-              <div className="pointer-events-auto w-full max-w-[min(100%,20rem)]">
+            <div className="pointer-events-none absolute inset-0 z-[15] flex flex-col bg-black/20">
+              <div className="pointer-events-auto h-full min-h-0 w-full flex-1 p-0">
                 <TvChimeBannerCard
-                  variant="preview"
+                  variant="display"
+                  displayEmbedded
                   phase={chimeFiringPreview.phase}
                   kind={chimeFiringPreview.kind}
                   title={chimeFiringPreview.title}

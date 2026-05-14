@@ -638,14 +638,14 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     <ModalPortal>
       <div className="fixed inset-0 z-[120] flex items-stretch justify-stretch bg-black/45 backdrop-blur-[20px]">
       {chimeBanner && (
-        <div className="pointer-events-none fixed inset-x-0 top-0 z-[125] flex justify-center px-3 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 sm:pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <div className="pointer-events-none fixed inset-0 z-[125] flex items-center justify-center bg-black/55 p-3 sm:p-6">
           <TvChimeBannerCard
             variant="display"
             phase={chimeBanner.phase}
             kind={chimeBanner.kind}
             title={chimeBanner.title}
             message={chimeBanner.message}
-            className="w-full"
+            className="pointer-events-auto w-full"
             onDismiss={() => {
               setChimeBanner(null);
               if (chimeBannerTimerRef.current) {
