@@ -392,8 +392,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setChimeSaving(true);
     setError(null);
     try {
-      await putTvChimeSchedule(chimeConfig);
-      await load();
+      const saved = await putTvChimeSchedule(chimeConfig);
+      setChimeConfig(saved);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao salvar horários da TV.');
     } finally {
@@ -409,8 +409,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setChimeSaving(true);
     setError(null);
     try {
-      await putTvChimeSchedule(next);
-      await load();
+      const saved = await putTvChimeSchedule(next);
+      setChimeConfig(saved);
     } catch (e) {
       setChimeConfig(prev);
       setError(

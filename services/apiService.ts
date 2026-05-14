@@ -2268,7 +2268,7 @@ export async function getTvManage(): Promise<{
   weeklyGoal: TvWeeklyGoal | null;
   chimeSchedule: TvChimeScheduleConfig;
 }> {
-  const response = await fetch(`${API_BASE}/tv/manage`);
+  const response = await fetch(`${API_BASE}/tv/manage`, { cache: 'no-store' });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error || "Falha ao carregar dados da TV.");
@@ -2330,16 +2330,23 @@ export async function getTvPlaylist(): Promise<{
   };
 }
 
-export async function putTvChimeSchedule(config: TvChimeScheduleConfig): Promise<void> {
+export async function putTvChimeSchedule(config: TvChimeScheduleConfig): Promise<TvChimeScheduleConfig> {
   const response = await fetch(`${API_BASE}/tv/chime-schedule`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ config }),
   });
-  const err = await response.json().catch(() => ({}));
+  const err = (await response.json().catch(() => ({}))) as {
+    chimeSchedule?: unknown;
+    error?: string;
+  };
   if (!response.ok) {
-    throw new Error((err as { error?: string }).error || "Falha ao salvar horários da TV.");
+    throw new Error(err.error || "Falha ao salvar horários da TV.");
   }
+  if (err.chimeSchedule !== undefined && err.chimeSchedule !== null) {
+    return normalizeTvChimeConfig(err.chimeSchedule);
+  }
+  return normalizeTvChimeConfig(config);
 }
 
 export async function deleteTvWeeklyGoal(): Promise<void> {

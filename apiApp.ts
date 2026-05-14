@@ -1463,6 +1463,7 @@ export function createApiApp() {
         : null;
 
       const chimeSchedule = await fetchTvChimeScheduleNormalized();
+      res.setHeader("Cache-Control", "no-store");
       return res.json({ slides, weeklyGoal, chimeSchedule });
     } catch (err: any) {
       console.error("[API] GET /api/tv/manage:", err);
@@ -1530,7 +1531,23 @@ export function createApiApp() {
       if (!supabaseAdmin) {
         return res.status(500).json({ error: "Supabase não configurado." });
       }
-      const raw = (req.body as { config?: unknown })?.config;
+      const body =
+        req.body && typeof req.body === "object" && !Array.isArray(req.body)
+          ? (req.body as Record<string, unknown>)
+          : {};
+      let raw: unknown = body.config;
+      if (raw === undefined || raw === null) {
+        const looksLikeConfig =
+          typeof body.masterEnabled === "boolean" ||
+          typeof body.master_enabled === "boolean" ||
+          Array.isArray(body.alerts);
+        if (looksLikeConfig) raw = body;
+      }
+      if (raw === undefined || raw === null) {
+        return res.status(400).json({
+          error: "Corpo inválido: envie { config: { ... } } com a rotina da TV.",
+        });
+      }
       const config = normalizeTvChimeConfig(raw);
       const { error } = await supabaseAdmin.from("workshop_tv_chime_schedule").upsert(
         {
@@ -1543,7 +1560,8 @@ export function createApiApp() {
       if (error) {
         return res.status(500).json({ error: error.message });
       }
-      return res.json({ ok: true });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ ok: true, chimeSchedule: config });
     } catch (err: any) {
       console.error("[API] PUT /api/tv/chime-schedule:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });

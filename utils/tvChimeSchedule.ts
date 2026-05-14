@@ -74,10 +74,15 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
-/** Aceita boolean vindo de JSON/Postgres sem perder true por comparação estrita. */
-function readJsonBool(v: unknown, defaultValue: boolean): boolean {
-  if (v === true || v === 'true' || v === 1 || v === '1') return true;
-  if (v === false || v === 'false' || v === 0 || v === '0') return false;
+/** Lê booleano da primeira chave presente (camelCase ou snake_case no JSONB). */
+function readRecordBool(o: Record<string, unknown>, keys: string[], defaultValue: boolean): boolean {
+  for (const k of keys) {
+    if (!Object.prototype.hasOwnProperty.call(o, k)) continue;
+    const v = o[k];
+    if (v === null || v === undefined) continue;
+    if (v === true || v === 'true' || v === 1 || v === '1') return true;
+    if (v === false || v === 'false' || v === 0 || v === '0') return false;
+  }
   return defaultValue;
 }
 
@@ -95,7 +100,9 @@ export function normalizeTvChimeConfig(raw: unknown): TvChimeScheduleConfig {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return base;
   const o = parsed as Record<string, unknown>;
 
-  const soundPresetRaw = String(o.soundPreset ?? '').toLowerCase();
+  const soundPresetRaw = String(
+    o.soundPreset ?? o.sound_preset ?? ''
+  ).toLowerCase();
   const soundPreset: TvChimeSoundPreset =
     soundPresetRaw === 'bell' || soundPresetRaw === 'digital' ? soundPresetRaw : 'chime';
 
@@ -125,8 +132,8 @@ export function normalizeTvChimeConfig(raw: unknown): TvChimeScheduleConfig {
           id,
           label,
           time,
-          enabled: readJsonBool(r.enabled, true),
-          playSound: readJsonBool(r.playSound, false),
+          enabled: readRecordBool(r, ['enabled', 'Enabled'], true),
+          playSound: readRecordBool(r, ['playSound', 'play_sound'], false),
           weekdays,
           kind,
           message: message || base.alerts.find((x) => x.id === id)?.message || `— ${label}`,
@@ -139,13 +146,39 @@ export function normalizeTvChimeConfig(raw: unknown): TvChimeScheduleConfig {
 
   return {
     version: TV_CHIME_CONFIG_VERSION,
-    masterEnabled: readJsonBool(o.masterEnabled, false),
+    masterEnabled: readRecordBool(o, ['masterEnabled', 'master_enabled', 'MasterEnabled'], false),
     alerts,
-    soundVolume: clamp(Number(o.soundVolume ?? base.soundVolume) || base.soundVolume, 0.05, 1),
-    bannerSeconds: clamp(Math.round(Number(o.bannerSeconds ?? base.bannerSeconds)), 8, 120),
-    preNotifyMinutes: clamp(Math.round(Number(o.preNotifyMinutes ?? 0)), 0, 60),
-    preNotifyPlaySound: readJsonBool(o.preNotifyPlaySound, false),
-    weekendsQuiet: readJsonBool(o.weekendsQuiet, false),
+    soundVolume: clamp(
+      Number(
+        o.soundVolume ??
+          o.sound_volume ??
+          base.soundVolume
+      ) || base.soundVolume,
+      0.05,
+      1
+    ),
+    bannerSeconds: clamp(
+      Math.round(
+        Number(
+          o.bannerSeconds ??
+            o.banner_seconds ??
+            base.bannerSeconds
+        ) || base.bannerSeconds
+      ),
+      8,
+      120
+    ),
+    preNotifyMinutes: clamp(
+      Math.round(Number(o.preNotifyMinutes ?? o.pre_notify_minutes ?? 0)),
+      0,
+      60
+    ),
+    preNotifyPlaySound: readRecordBool(
+      o,
+      ['preNotifyPlaySound', 'pre_notify_play_sound'],
+      false
+    ),
+    weekendsQuiet: readRecordBool(o, ['weekendsQuiet', 'weekends_quiet'], false),
     soundPreset,
   };
 }
