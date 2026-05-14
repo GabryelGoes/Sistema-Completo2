@@ -10,6 +10,7 @@ import {
   SERVICE_ORDER_STAGES,
   CANCELLED_STATUS,
 } from "./constants/serviceOrderStages.js";
+import { normalizeTvChimeConfig } from "./utils/tvChimeSchedule.js";
 import { SYSTEM_NOTIFICATION_IDS } from "./constants/systemNotificationTypes.js";
 
 const PBKDF2_ITERATIONS = 100000;
@@ -1308,6 +1309,21 @@ export function createApiApp() {
     return "cover";
   }
 
+  async function fetchTvChimeScheduleNormalized() {
+    if (!supabaseAdmin || !WORKSHOP_ID) {
+      return normalizeTvChimeConfig(null);
+    }
+    const { data, error } = await supabaseAdmin
+      .from("workshop_tv_chime_schedule")
+      .select("config")
+      .eq("workshop_id", WORKSHOP_ID)
+      .maybeSingle();
+    if (error && (error as { code?: string }).code !== "PGRST116") {
+      console.error("[API] TV chime schedule:", error.message);
+    }
+    return normalizeTvChimeConfig((data as { config?: unknown } | null)?.config ?? null);
+  }
+
   async function fetchTvPlaylistForWorkshop(): Promise<{
     slides: Array<Record<string, unknown>>;
     weeklyGoal: {
@@ -1316,9 +1332,10 @@ export function createApiApp() {
       targetAmount: number;
       showWeeklyBar: boolean;
     } | null;
+    chimeSchedule: ReturnType<typeof normalizeTvChimeConfig>;
   }> {
     if (!supabaseAdmin || !WORKSHOP_ID) {
-      return { slides: [], weeklyGoal: null };
+      return { slides: [], weeklyGoal: null, chimeSchedule: normalizeTvChimeConfig(null) };
     }
     const { data: slideRows, error: slideErr } = await supabaseAdmin
       .from("workshop_tv_slides")
@@ -1375,14 +1392,15 @@ export function createApiApp() {
         }
       : null;
 
-    return { slides, weeklyGoal };
+    const chimeSchedule = await fetchTvChimeScheduleNormalized();
+    return { slides, weeklyGoal, chimeSchedule };
   }
 
   /** Playlist para o painel da TV (sem autenticação; CORS já limita origem do Patio-View). */
   app.get("/api/tv/playlist", async (_req, res) => {
     try {
-      const { slides, weeklyGoal } = await fetchTvPlaylistForWorkshop();
-      return res.json({ slides, weeklyGoal });
+      const { slides, weeklyGoal, chimeSchedule } = await fetchTvPlaylistForWorkshop();
+      return res.json({ slides, weeklyGoal, chimeSchedule });
     } catch (err: any) {
       console.error("[API] GET /api/tv/playlist:", err);
       return res.status(500).json({ error: err?.message ?? "Erro ao carregar playlist da TV." });
@@ -1444,7 +1462,8 @@ export function createApiApp() {
           }
         : null;
 
-      return res.json({ slides, weeklyGoal });
+      const chimeSchedule = await fetchTvChimeScheduleNormalized();
+      return res.json({ slides, weeklyGoal, chimeSchedule });
     } catch (err: any) {
       console.error("[API] GET /api/tv/manage:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
@@ -1499,6 +1518,34 @@ export function createApiApp() {
       return res.json({ ok: true });
     } catch (err: any) {
       console.error("[API] DELETE /api/tv/weekly-goal:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.put("/api/tv/chime-schedule", async (req, res) => {
+    try {
+      if (!WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const raw = (req.body as { config?: unknown })?.config;
+      const config = normalizeTvChimeConfig(raw);
+      const { error } = await supabaseAdmin.from("workshop_tv_chime_schedule").upsert(
+        {
+          workshop_id: WORKSHOP_ID,
+          config,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "workshop_id" }
+      );
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] PUT /api/tv/chime-schedule:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
     }
   });
