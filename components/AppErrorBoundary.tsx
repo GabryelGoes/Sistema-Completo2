@@ -42,7 +42,7 @@ export class AppErrorBoundary extends React.Component<Props, State> {
       const msg = this.state.error?.message ?? '';
       const shortMsg = msg.length > 200 ? msg.slice(0, 200) + '…' : msg;
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white p-6">
+        <div className="h-full min-h-0 flex flex-col items-center justify-center bg-black text-white p-6">
           <div className="max-w-sm w-full text-center space-y-6">
             <p className="text-zinc-400 text-sm">
               Algo deu errado ao carregar o app.

@@ -8,12 +8,24 @@
   --app-accent-hover: #fcd61e;
 }
 
-/** Reduz pull-to-refresh do Chrome/Android (gesto de cima para baixo) no documento. */
+/**
+ * Impede pull-to-refresh global (Chrome/Android): o documento não rola;
+ * só regiões com overflow interno (abas, modais) rolam — overscroll fica contido.
+ */
 html {
-  overscroll-behavior-y: none;
+  height: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
+  height: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
   background-color: #f2f2f7;
   color: #1c1c1e;
   font-family:
@@ -25,10 +37,16 @@ body {
     Arial,
     sans-serif;
   -webkit-font-smoothing: antialiased;
-  overscroll-behavior-y: none;
   transition:
     background-color 0.3s ease,
     color 0.3s ease;
+}
+
+#root {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .dark body {

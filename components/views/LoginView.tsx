@@ -54,14 +54,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-black">
+    <div className="h-full min-h-0 flex flex-col bg-black">
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-black" />
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/3 w-[800px] h-[500px] bg-brand-yellow/10 rounded-full blur-[120px]" />
         <div className="absolute -bottom-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-brand-yellow/5 rounded-full blur-[100px]" />
       </div>
 
-      <div className="relative flex-1 flex flex-col items-center justify-center px-6 py-12 safe-area-pb">
+      <div className="relative flex-1 min-h-0 overflow-y-auto overscroll-none flex flex-col items-center justify-center px-6 py-12 safe-area-pb">
         <div className="w-full max-w-[380px]">
           <div
             className="relative rounded-3xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-2xl overflow-hidden"

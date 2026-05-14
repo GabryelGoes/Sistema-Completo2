@@ -622,7 +622,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           : 'grid-cols-2 lg:grid-cols-4';
 
   return (
-    <div className="min-h-screen flex flex-col safe-area-pb relative overflow-x-hidden">
+    <div className="min-h-full flex flex-col safe-area-pb relative overflow-x-hidden">
       {/* Fundo um pouco mais acinzentado para contraste com os cartões */}
       <div className="fixed inset-0 -z-10 bg-gradient-to-b from-zinc-200/90 via-zinc-100 to-zinc-200/85 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950" />
       <div className="fixed inset-0 -z-10 pointer-events-none opacity-35 dark:opacity-25 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(251,191,36,0.18),transparent),radial-gradient(ellipse_60%_40%_at_100%_0%,rgba(56,189,248,0.1),transparent),radial-gradient(ellipse_50%_35%_at_0%_100%,rgba(167,139,250,0.08),transparent)]" />

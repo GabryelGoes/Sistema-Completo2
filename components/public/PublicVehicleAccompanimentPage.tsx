@@ -228,7 +228,7 @@ export const PublicVehicleAccompanimentPage: React.FC<PublicVehicleAccompaniment
 
   if (loading && !data) {
     return (
-      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-zinc-50 via-light-page to-zinc-100 px-6 text-zinc-900 dark:from-zinc-950 dark:via-[#060810] dark:to-black dark:text-white">
+      <div className="relative flex h-full min-h-0 flex-col items-center justify-center overflow-hidden overscroll-none bg-gradient-to-b from-zinc-50 via-light-page to-zinc-100 px-6 text-zinc-900 dark:from-zinc-950 dark:via-[#060810] dark:to-black dark:text-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(0,122,255,0.12),transparent_55%)]" aria-hidden />
         <div className="pointer-events-none absolute top-1/4 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-brand-yellow/25 blur-[90px]" aria-hidden />
         <Loader2 className="relative h-11 w-11 animate-spin text-[#007AFF] drop-shadow-[0_0_12px_rgba(0,122,255,0.45)]" aria-hidden />
@@ -239,7 +239,7 @@ export const PublicVehicleAccompanimentPage: React.FC<PublicVehicleAccompaniment
 
   if (loadError || !data) {
     return (
-      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-zinc-50 via-light-page to-zinc-100 px-6 text-zinc-900 dark:from-zinc-950 dark:via-[#060810] dark:to-black dark:text-white">
+      <div className="relative flex h-full min-h-0 flex-col items-center justify-center overflow-hidden overscroll-none bg-gradient-to-b from-zinc-50 via-light-page to-zinc-100 px-6 text-zinc-900 dark:from-zinc-950 dark:via-[#060810] dark:to-black dark:text-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_35%_at_50%_20%,rgba(239,68,68,0.08),transparent_55%)]" aria-hidden />
         <p className="relative max-w-md text-center text-[15px] leading-relaxed text-zinc-700 dark:text-zinc-300">
           {loadError ?? 'Página indisponível.'}
@@ -251,14 +251,14 @@ export const PublicVehicleAccompanimentPage: React.FC<PublicVehicleAccompaniment
   const cust = so?.customer;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-zinc-50 via-light-page to-zinc-100 pb-safe text-zinc-900 dark:from-zinc-950 dark:via-[#060810] dark:to-black dark:text-white">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden overscroll-none bg-gradient-to-b from-zinc-50 via-light-page to-zinc-100 pb-safe text-zinc-900 dark:from-zinc-950 dark:via-[#060810] dark:to-black dark:text-white">
       <div className="pointer-events-none fixed inset-0" aria-hidden>
         <div className="absolute -top-24 left-1/2 h-[min(480px,90vw)] w-[min(480px,90vw)] -translate-x-1/2 rounded-full bg-[#007AFF]/20 blur-[100px] dark:bg-[#007AFF]/14" />
         <div className="absolute top-1/3 -right-20 h-72 w-72 rounded-full bg-brand-yellow/30 blur-[95px] dark:bg-brand-yellow/16" />
         <div className="absolute bottom-0 left-0 h-64 w-64 translate-y-1/3 rounded-full bg-violet-400/20 blur-[88px] dark:bg-violet-500/12" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_-10%,rgba(255,255,255,0.35),transparent_52%)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(0,122,255,0.1),transparent_48%)]" />
       </div>
-      <div className="relative mx-auto max-w-lg space-y-5 px-4 pb-12 pt-[max(1rem,env(safe-area-inset-top))]">
+      <div className="relative mx-auto w-full max-w-lg flex-1 min-h-0 overflow-y-auto overscroll-none space-y-5 px-4 pb-12 pt-[max(1rem,env(safe-area-inset-top))]">
         <header className="space-y-3 pt-2 text-center">
           <p className={`${pubSectionTitle} tracking-[0.18em]`}>Acompanhamento</p>
           <h1 className="bg-gradient-to-br from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-2xl font-bold tracking-tight text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400">
