@@ -83,8 +83,6 @@ const receptionPageGlass =
 const receptionSectionShell =
   'overflow-hidden rounded-[24px] border border-zinc-300/70 bg-white shadow-[0_14px_34px_-12px_rgba(0,0,0,0.11),0_7px_22px_-10px_rgba(0,0,0,0.08),0_3px_10px_-5px_rgba(0,0,0,0.06)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]';
 
-  'relative border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-zinc-950/25';
-
 function sortArchivedOrdersNewestFirst(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
   return [...orders].sort(
     (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
@@ -927,8 +925,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   return (
     <div
       className={`${
-        hidePageChrome ? 'min-h-0' : 'min-h-full'
-      } w-full bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90`}
+        hidePageChrome ? 'min-h-0' : 'h-full min-h-0'
+      } w-full overflow-y-auto overscroll-none touch-pan-y bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90`}
     >
     <div
       className={`w-full max-w-none mx-auto animate-in fade-in duration-500 ${
@@ -1573,7 +1571,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 </button>
               </div>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white pb-[max(1rem,env(safe-area-inset-bottom))] dark:bg-zinc-950/25 custom-scrollbar">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-none bg-white pb-[max(1rem,env(safe-area-inset-bottom))] dark:bg-zinc-950/25 custom-scrollbar">
               {historyLoading ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-16 text-zinc-500">
                   <RefreshCw className="h-8 w-8 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" />
@@ -2054,7 +2052,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-5 text-zinc-900 dark:text-zinc-100 [-webkit-overflow-scrolling:touch]">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-none touch-pan-y p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-5 text-zinc-900 dark:text-zinc-100 [-webkit-overflow-scrolling:touch]">
               {historyBudgetDetail.diagnosis?.trim() && (
                 <section>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Diagnóstico</h3>

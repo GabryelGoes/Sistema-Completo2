@@ -4067,7 +4067,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* --- DETALHES DO CARD ARQUIVADO — portal em body para ficar acima da TabBar --- */}
       {selectedHistoryCard && (
          <ModalPortal>
-         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
+         <div className="fixed inset-0 z-[100] flex items-center justify-center overscroll-none touch-pan-y bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
             <div
               className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden ${archivedHistoryModalShell} animate-in zoom-in-95 duration-200`}
             >
@@ -4104,7 +4104,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
                </div>
 
-               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
+               <div className="min-h-0 flex-1 overflow-y-auto overscroll-none custom-scrollbar">
                   <div className="px-6 py-6 pb-4 md:px-10 md:py-8">
                      <div className="mb-6 flex flex-col gap-3">
                         <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-zinc-200/80 bg-zinc-100/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-300">
@@ -4468,7 +4468,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const vin = iosVehicleModalInput;
         return (
         <ModalPortal>
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/35 dark:bg-black/45 backdrop-blur-[20px] animate-in fade-in duration-200 p-1.5 pt-[max(0.45rem,env(safe-area-inset-top))] pb-[max(0.45rem,env(safe-area-inset-bottom))] sm:p-3">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center overscroll-none touch-pan-y bg-black/35 dark:bg-black/45 backdrop-blur-[20px] animate-in fade-in duration-200 p-1.5 pt-[max(0.45rem,env(safe-area-inset-top))] pb-[max(0.45rem,env(safe-area-inset-bottom))] sm:p-3">
            <div className={`relative flex h-[min(97vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-0.35rem))] w-full max-w-[99vw] xl:max-w-[98vw] 2xl:max-w-[97vw] min-h-0 flex-col ${iosVehicleModalShell} animate-modal-wp-app ${modalRingClass}`}>
               
               <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
@@ -4535,7 +4535,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               )}
 
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-none custom-scrollbar">
                   <div className="border-b border-zinc-200/50 p-8 pb-8 dark:border-white/[0.06] md:px-12 md:pb-10">
                      <div className="mb-6 flex flex-col gap-3">
                         <div className="flex flex-wrap items-center gap-2">

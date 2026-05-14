@@ -559,7 +559,7 @@ export default function App() {
             tabId="reception"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="flex-1 min-h-0 w-full overflow-y-auto p-0"
+            className="flex-1 min-h-0 w-full overflow-hidden p-0"
           >
             <ReceptionView
               initialData={prefillData}
@@ -768,7 +768,7 @@ export default function App() {
           tabId="reception"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex-1 min-h-0 w-full overflow-y-auto p-0"
+          className="flex-1 min-h-0 w-full overflow-hidden p-0"
         >
           <ReceptionView
             initialData={prefillData}
