@@ -135,6 +135,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     message: string;
   } | null>(null);
   const [chimePreviewPickId, setChimePreviewPickId] = useState<string | null>(null);
+  /** Secção de avisos programados: minimizada por defeito. */
+  const [chimeSectionExpanded, setChimeSectionExpanded] = useState(false);
   const chimeConfigRef = useRef(chimeConfig);
   chimeConfigRef.current = chimeConfig;
   const chimeBannerTimerRef = useRef<number | null>(null);
@@ -174,6 +176,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       setChimeBanner(null);
       setChimeFiringPreviewInTv(null);
       setChimePreviewPickId(null);
+      setChimeSectionExpanded(false);
       if (chimeBannerTimerRef.current) {
         window.clearTimeout(chimeBannerTimerRef.current);
         chimeBannerTimerRef.current = null;
@@ -955,24 +958,39 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                   </button>
                 </section>
 
-                {/* Avisos por horário (rotina da oficina) */}
+                {/* Avisos por horário (rotina da oficina) — detalhe minimizado por defeito */}
                 <section className={`${iosCard} p-5 sm:p-6`}>
-                  <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex items-start gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between sm:gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setChimeSectionExpanded((v) => !v)}
+                      className="flex min-w-0 flex-1 items-start gap-3 rounded-2xl border border-transparent p-1 text-left transition-colors hover:border-zinc-200/80 hover:bg-zinc-50/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35 sm:items-center sm:py-0.5"
+                      aria-expanded={chimeSectionExpanded}
+                      aria-controls="tv-chime-settings-panel"
+                      id="tv-chime-settings-summary"
+                    >
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#007AFF]/25 bg-[#007AFF]/10">
                         <Clock className="h-5 w-5 text-[#007AFF]" strokeWidth={2.2} />
                       </div>
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className={iosLabel}>Rotina inteligente · horários</p>
                         <h3 className="text-[16px] font-semibold text-zinc-900">Avisos programados na TV</h3>
-                        <p className="mt-1 max-w-prose text-[12px] leading-relaxed text-zinc-500">
-                          Almoço, saída ou eventos personalizados: faixa no painel + som opcional. Os horários seguem o{' '}
-                          <span className="font-semibold text-zinc-700">relógio local do aparelho</span> que exibe a TV.
-                          A configuração é salva na oficina e enviada na playlist pública (<span className="font-mono text-[11px]">chimeSchedule</span>) para o painel Patio-View.
+                        <p className="mt-1 text-[12px] leading-snug text-zinc-500">
+                          {chimeSectionExpanded
+                            ? 'Toque de novo para minimizar as opções abaixo.'
+                            : `${enabledChimeAlerts.length} aviso(s) ativo(s) · rotina ${
+                                chimeConfig.masterEnabled ? 'ligada' : 'desligada'
+                              } · toque para expandir`}
                         </p>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-200/80 bg-zinc-50/90 px-3 py-2.5 sm:flex-col sm:items-end sm:py-3">
+                      <ChevronDown
+                        className={`mt-1 h-5 w-5 shrink-0 text-zinc-400 transition-transform duration-200 sm:mt-0 ${
+                          chimeSectionExpanded ? 'rotate-180' : ''
+                        }`}
+                        aria-hidden
+                      />
+                    </button>
+                    <div className="flex shrink-0 flex-row items-center justify-between gap-3 rounded-2xl border border-zinc-200/80 bg-zinc-50/90 px-3 py-2.5 sm:min-w-[9.5rem] sm:flex-col sm:items-end sm:justify-center sm:py-3">
                       <span className="text-[12px] font-semibold text-zinc-700">Ativar rotina</span>
                       <button
                         type="button"
@@ -992,6 +1010,20 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       </button>
                     </div>
                   </div>
+
+                  {chimeSectionExpanded ? (
+                    <div
+                      id="tv-chime-settings-panel"
+                      role="region"
+                      aria-labelledby="tv-chime-settings-summary"
+                      className="mt-4 border-t border-zinc-200/70 pt-4"
+                    >
+                      <p className="mb-5 max-w-prose text-[12px] leading-relaxed text-zinc-500">
+                        Almoço, saída ou eventos personalizados: faixa no painel + som opcional. Os horários seguem o{' '}
+                        <span className="font-semibold text-zinc-700">relógio local do aparelho</span> que exibe a TV.
+                        A configuração é salva na oficina e enviada na playlist pública (
+                        <span className="font-mono text-[11px]">chimeSchedule</span>) para o painel Patio-View.
+                      </p>
 
                   <div className="mb-5 grid gap-4 rounded-2xl border border-zinc-200/70 bg-zinc-50/60 p-4 sm:grid-cols-2">
                     <div>
@@ -1326,6 +1358,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       'Salvar horários da TV'
                     )}
                   </button>
+                    </div>
+                  ) : null}
                 </section>
 
                 {/* Novo slide */}
