@@ -21,6 +21,8 @@ import {
   deleteAppointment,
 } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
+
+interface AgendaViewProps {
   appointments: Appointment[];
   setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
   blurPlates?: boolean;
