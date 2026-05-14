@@ -1,7 +1,29 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, startOfWeek, addDays, startOfMonth, endOfMonth, endOfWeek, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, Clock, User, Car, AlertCircle, X, RefreshCw, ArrowRight, FileText, Edit2, ExternalLink, Trash2, Phone, Mail, Sparkles } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Clock,
+  User,
+  Car,
+  AlertCircle,
+  X,
+  RefreshCw,
+  ArrowRight,
+  FileText,
+  Edit2,
+  ExternalLink,
+  Trash2,
+  Phone,
+  Mail,
+  Sparkles,
+  BookUser,
+  PenLine,
+  Search,
+  Loader2,
+} from 'lucide-react';
 import {
   iosModalShell,
   iosModalClose,
@@ -19,6 +41,10 @@ import {
   createAppointment,
   updateAppointment,
   deleteAppointment,
+  getCustomers,
+  getServiceOrders,
+  type ApiCustomer,
+  type ServiceOrderListItem,
 } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 
@@ -33,6 +59,46 @@ interface AgendaViewProps {
   /** Após gesto voltar da Recepção: reabrir o modal de detalhe deste agendamento (uma vez). */
   pendingDetailAppointmentId?: string | null;
   onPendingDetailAppointmentConsumed?: () => void;
+}
+
+const OTHER_VEHICLE_KEY = '__other__';
+
+type AgendaRegisteredVehicle = {
+  key: string;
+  customerId: string;
+  displayModel: string;
+  plate: string;
+};
+
+function formatVehicleLabelFromOrder(o: ServiceOrderListItem): string {
+  const brand = (o.vehicle_brand ?? '').toString().trim();
+  const model = (o.vehicle_model ?? '').toString().trim();
+  const parts = [brand, model].filter(Boolean);
+  return parts.length ? parts.join(' ') : model || 'Veículo';
+}
+
+/** Veículos distintos por cliente a partir das OS (tipo veículo). */
+function vehiclesByCustomerFromOrders(orders: ServiceOrderListItem[]): Map<string, AgendaRegisteredVehicle[]> {
+  const map = new Map<string, AgendaRegisteredVehicle[]>();
+  const seen = new Set<string>();
+  for (const o of orders) {
+    if (o.order_type === 'module') continue;
+    const cid = o.customer_id;
+    if (!cid) continue;
+    const plate = (o.plate ?? '').toString().trim().toUpperCase();
+    const displayModel = formatVehicleLabelFromOrder(o);
+    const dk = `${cid}::${plate}::${displayModel}`;
+    if (seen.has(dk)) continue;
+    seen.add(dk);
+    const row: AgendaRegisteredVehicle = { key: dk, customerId: cid, displayModel, plate };
+    const arr = map.get(cid) ?? [];
+    arr.push(row);
+    map.set(cid, arr);
+  }
+  for (const arr of map.values()) {
+    arr.sort((a, b) => a.plate.localeCompare(b.plate) || a.displayModel.localeCompare(b.displayModel));
+  }
+  return map;
 }
 
 export const AgendaView: React.FC<AgendaViewProps> = ({
@@ -65,6 +131,14 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   /** Modal somente leitura ao tocar no veículo no calendário (ou na lista do dia). */
   const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null);
 
+  const [agendaPickerMode, setAgendaPickerMode] = useState<'registered' | 'manual'>('registered');
+  const [pickerCustomers, setPickerCustomers] = useState<ApiCustomer[]>([]);
+  const [pickerOrders, setPickerOrders] = useState<ServiceOrderListItem[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [registeredCustomerId, setRegisteredCustomerId] = useState('');
+  const [registeredVehicleKey, setRegisteredVehicleKey] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+
   useRegisterModalOpen(!!detailAppointment || isModalOpen);
 
   useEffect(() => {
@@ -73,6 +147,112 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
     if (app) setDetailAppointment(app);
     onPendingDetailAppointmentConsumed();
   }, [pendingDetailAppointmentId, appointments, onPendingDetailAppointmentConsumed]);
+
+  const vehiclesByCustomer = useMemo(() => vehiclesByCustomerFromOrders(pickerOrders), [pickerOrders]);
+
+  const filteredPickerCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    const list = [...pickerCustomers].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
+    if (!q) return list;
+    const digits = q.replace(/\D/g, '');
+    return list.filter((c) => {
+      if (c.name.toLowerCase().includes(q)) return true;
+      if ((c.email ?? '').toLowerCase().includes(q)) return true;
+      if (digits.length >= 3 && (c.phone ?? '').replace(/\D/g, '').includes(digits)) return true;
+      return false;
+    });
+  }, [pickerCustomers, customerSearch]);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    let cancelled = false;
+    setPickerLoading(true);
+    void (async () => {
+      try {
+        const [cust, orders] = await Promise.all([getCustomers(), getServiceOrders(undefined, 'vehicle')]);
+        if (cancelled) return;
+        setPickerCustomers(cust);
+        setPickerOrders(orders);
+      } catch {
+        if (!cancelled) {
+          setPickerCustomers([]);
+          setPickerOrders([]);
+          setAgendaPickerMode('manual');
+        }
+      } finally {
+        if (!cancelled) setPickerLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isModalOpen]);
+
+  const resetAgendaPicker = useCallback(() => {
+    setAgendaPickerMode('registered');
+    setRegisteredCustomerId('');
+    setRegisteredVehicleKey('');
+    setCustomerSearch('');
+  }, []);
+
+  const applyRegisteredCustomer = useCallback(
+    (customer: ApiCustomer) => {
+      setRegisteredCustomerId(customer.id);
+      const vehs = vehiclesByCustomer.get(customer.id) ?? [];
+      if (vehs.length > 0) {
+        const v = vehs[0];
+        setRegisteredVehicleKey(v.key);
+        setNewAppointment((prev) => ({
+          ...prev,
+          customerName: customer.name,
+          phone: customer.phone ?? '',
+          email: customer.email ?? '',
+          vehicleModel: v.displayModel,
+          plate: v.plate,
+        }));
+      } else {
+        setRegisteredVehicleKey(OTHER_VEHICLE_KEY);
+        setNewAppointment((prev) => ({
+          ...prev,
+          customerName: customer.name,
+          phone: customer.phone ?? '',
+          email: customer.email ?? '',
+          vehicleModel: '',
+          plate: '',
+        }));
+      }
+    },
+    [vehiclesByCustomer]
+  );
+
+  const applyRegisteredVehicle = useCallback((customer: ApiCustomer, v: AgendaRegisteredVehicle | 'other') => {
+    if (v === 'other') {
+      setRegisteredVehicleKey(OTHER_VEHICLE_KEY);
+      setNewAppointment((prev) => ({
+        ...prev,
+        customerName: customer.name,
+        phone: customer.phone ?? '',
+        email: customer.email ?? '',
+        vehicleModel: '',
+        plate: '',
+      }));
+      return;
+    }
+    setRegisteredVehicleKey(v.key);
+    setNewAppointment((prev) => ({
+      ...prev,
+      customerName: customer.name,
+      phone: customer.phone ?? '',
+      email: customer.email ?? '',
+      vehicleModel: v.displayModel,
+      plate: v.plate,
+    }));
+  }, []);
+
+  const selectedPickerCustomer = useMemo(
+    () => pickerCustomers.find((c) => c.id === registeredCustomerId) ?? null,
+    [pickerCustomers, registeredCustomerId]
+  );
 
   const exportToGoogleCalendar = (app: Appointment) => {
     const [hours, minutes] = app.time.split(':').map(Number);
@@ -97,6 +277,10 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
     const date = app.date instanceof Date ? app.date : (app.date ? new Date(app.date) : new Date());
     setNewAppointment({ ...app, date });
     setIsEditing(true);
+    setAgendaPickerMode('manual');
+    setRegisteredCustomerId('');
+    setRegisteredVehicleKey('');
+    setCustomerSearch('');
     setIsModalOpen(true);
   };
 
@@ -187,12 +371,29 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
     const date = newAppointment.date || selectedDate;
     const time = newAppointment.time || '09:00';
 
+    if (!isEditing && agendaPickerMode === 'registered') {
+      if (!registeredCustomerId) {
+        alert('Selecione um cliente na lista.');
+        return;
+      }
+      const vm = (newAppointment.vehicleModel || '').trim();
+      if (!vm) {
+        alert('Escolha um veículo já atendido na oficina ou toque em «Outro veículo» e informe o modelo.');
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
+      const resolvedCustomerName =
+        !isEditing && agendaPickerMode === 'registered' && selectedPickerCustomer
+          ? selectedPickerCustomer.name
+          : newAppointment.customerName || 'Cliente não informado';
+
       if (isEditing && newAppointment.id) {
         await updateAppointment(newAppointment.id, {
           title: newAppointment.title || 'Sem título',
-          customerName: newAppointment.customerName || 'Cliente não informado',
+          customerName: resolvedCustomerName,
           phone: newAppointment.phone || undefined,
           email: newAppointment.email || undefined,
           vehicleModel: newAppointment.vehicleModel || '',
@@ -206,7 +407,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       } else {
         await createAppointment({
           title: newAppointment.title || 'Sem título',
-          customerName: newAppointment.customerName || 'Cliente não informado',
+          customerName: resolvedCustomerName,
           phone: newAppointment.phone || undefined,
           email: newAppointment.email || undefined,
           vehicleModel: newAppointment.vehicleModel || '',
@@ -229,6 +430,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
 
     setIsModalOpen(false);
     setIsEditing(false);
+    resetAgendaPicker();
     setNewAppointment({
       date: selectedDate,
       time: '09:00',
@@ -239,7 +441,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       email: '',
       vehicleModel: '',
       plate: '',
-      notes: ''
+      notes: '',
     });
   };
 
@@ -280,6 +482,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   };
 
   const handleNewAppointment = (date?: Date) => {
+    resetAgendaPicker();
     const targetDate = date || selectedDate || new Date();
     setIsEditing(false);
     setNewAppointment({
@@ -292,7 +495,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       email: '',
       vehicleModel: '',
       plate: '',
-      notes: ''
+      notes: '',
     });
     setIsModalOpen(true);
   };
@@ -859,6 +1062,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                   onClick={() => {
                     setIsModalOpen(false);
                     setIsEditing(false);
+                    resetAgendaPicker();
                     setNewAppointment({
                       date: selectedDate,
                       time: '09:00',
@@ -882,7 +1086,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                   <IosModalHeader
                     icon={<img src="/icons/agenda-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
                     title={isEditing ? 'Editar agendamento' : 'Novo agendamento'}
-                    subtitle="Serviço, cliente, veículo e horário"
+                    subtitle="Cliente cadastrado ou manual, veículo e horário"
                     gradientClass="from-red-500 to-zinc-900"
                   />
                 </div>
@@ -927,79 +1131,329 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                             </div>
                         </div>
 
-                        <div>
-                            <label className={iosLabel}>Cliente</label>
-                            <div className="relative">
-                                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-                                <input 
-                                    type="text" 
-                                    placeholder="Nome do cliente"
-                                    autoComplete="off"
-                                    className={`${iosInput} pl-10`}
-                                    value={newAppointment.customerName}
-                                    onChange={e => setNewAppointment({...newAppointment, customerName: e.target.value})}
-                                />
-                            </div>
-                        </div>
+                        {!isEditing ? (
+                          <div className="flex rounded-2xl border border-zinc-200/80 bg-zinc-100/50 p-1 dark:border-white/[0.08] dark:bg-zinc-900/40">
+                            <button
+                              type="button"
+                              onClick={() => setAgendaPickerMode('registered')}
+                              className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold transition-colors ${
+                                agendaPickerMode === 'registered'
+                                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white'
+                                  : 'text-zinc-500 dark:text-zinc-400'
+                              }`}
+                            >
+                              <BookUser className="h-4 w-4 shrink-0" />
+                              Cliente cadastrado
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAgendaPickerMode('manual')}
+                              className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold transition-colors ${
+                                agendaPickerMode === 'manual'
+                                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white'
+                                  : 'text-zinc-500 dark:text-zinc-400'
+                              }`}
+                            >
+                              <PenLine className="h-4 w-4 shrink-0" />
+                              Digitar manual
+                            </button>
+                          </div>
+                        ) : null}
 
-                        <div className="grid grid-cols-2 gap-4">
+                        {!isEditing && agendaPickerMode === 'registered' ? (
+                          <div className="space-y-4">
+                            {pickerLoading ? (
+                              <div className="flex items-center justify-center gap-2 py-8 text-sm text-zinc-500 dark:text-zinc-400">
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                                Carregando clientes…
+                              </div>
+                            ) : pickerCustomers.length === 0 ? (
+                              <p className="rounded-2xl border border-dashed border-zinc-300/80 px-4 py-6 text-center text-sm text-zinc-500 dark:border-white/[0.12] dark:text-zinc-400">
+                                Nenhum cliente cadastrado. Use «Digitar manual» ou cadastre o cliente na Recepção.
+                              </p>
+                            ) : (
+                              <>
+                                <div>
+                                  <label className={iosLabel}>Buscar cliente</label>
+                                  <div className="relative">
+                                    <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                    <input
+                                      type="search"
+                                      className={`${iosInput} pl-10`}
+                                      placeholder="Nome, telefone ou e-mail"
+                                      value={customerSearch}
+                                      onChange={(e) => setCustomerSearch(e.target.value)}
+                                      autoComplete="off"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className={iosLabel}>Cliente</label>
+                                  <div className={`${iosModalInsetCard} max-h-52 overflow-y-auto p-1.5`}>
+                                    {filteredPickerCustomers.length === 0 ? (
+                                      <p className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                                        Nenhum resultado.
+                                      </p>
+                                    ) : (
+                                      filteredPickerCustomers.map((c) => (
+                                        <button
+                                          key={c.id}
+                                          type="button"
+                                          onClick={() => applyRegisteredCustomer(c)}
+                                          className={`flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left text-[14px] transition-colors ${
+                                            registeredCustomerId === c.id
+                                              ? 'bg-red-500/12 font-semibold text-red-800 dark:text-red-200'
+                                              : 'text-zinc-900 hover:bg-zinc-100/80 dark:text-white dark:hover:bg-white/[0.06]'
+                                          }`}
+                                        >
+                                          <span>{c.name}</span>
+                                          {c.phone ? (
+                                            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                                              {c.phone}
+                                            </span>
+                                          ) : null}
+                                        </button>
+                                      ))
+                                    )}
+                                  </div>
+                                </div>
+                                {registeredCustomerId && selectedPickerCustomer ? (
+                                  <div className="space-y-4">
+                                    <div className="flex flex-wrap items-end justify-between gap-2">
+                                      <div>
+                                        <p className={iosLabel}>Cliente selecionado</p>
+                                        <p className="text-[15px] font-semibold text-zinc-900 dark:text-white">
+                                          {selectedPickerCustomer.name}
+                                        </p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="shrink-0 text-xs font-semibold text-red-600 hover:underline dark:text-red-400"
+                                        onClick={() => {
+                                          setRegisteredCustomerId('');
+                                          setRegisteredVehicleKey('');
+                                          setNewAppointment((prev) => ({
+                                            ...prev,
+                                            customerName: '',
+                                            phone: '',
+                                            email: '',
+                                            vehicleModel: '',
+                                            plate: '',
+                                          }));
+                                        }}
+                                      >
+                                        Trocar cliente
+                                      </button>
+                                    </div>
+                                    <div>
+                                      <label className={iosLabel}>Veículo</label>
+                                      <p className="mb-2 text-[12px] text-zinc-500 dark:text-zinc-400">
+                                        Escolha um carro já atendido na oficina ou outro veículo deste mesmo cliente.
+                                      </p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {(vehiclesByCustomer.get(registeredCustomerId) ?? []).map((v) => (
+                                          <button
+                                            key={v.key}
+                                            type="button"
+                                            onClick={() => applyRegisteredVehicle(selectedPickerCustomer, v)}
+                                            className={`max-w-[200px] rounded-2xl border px-3 py-2 text-left text-[12px] font-medium transition-colors ${
+                                              registeredVehicleKey === v.key
+                                                ? 'border-red-500/50 bg-red-500/10 text-zinc-900 dark:text-white'
+                                                : 'border-zinc-200/80 bg-white/70 hover:border-red-300/60 dark:border-white/[0.08] dark:bg-zinc-900/50'
+                                            }`}
+                                          >
+                                            <span className="font-mono text-[11px] font-semibold uppercase text-red-600 dark:text-red-400">
+                                              {v.plate || '—'}
+                                            </span>
+                                            <span className="mt-0.5 block font-vehicle text-[13px] leading-snug text-zinc-800 dark:text-zinc-100">
+                                              {v.displayModel}
+                                            </span>
+                                          </button>
+                                        ))}
+                                        <button
+                                          type="button"
+                                          onClick={() => applyRegisteredVehicle(selectedPickerCustomer, 'other')}
+                                          className={`rounded-2xl border px-3 py-2 text-[12px] font-semibold transition-colors ${
+                                            registeredVehicleKey === OTHER_VEHICLE_KEY
+                                              ? 'border-red-500/50 bg-red-500/10 text-zinc-900 dark:text-white'
+                                              : 'border-dashed border-zinc-300/90 text-zinc-600 hover:border-red-400/50 dark:border-white/[0.15] dark:text-zinc-300'
+                                          }`}
+                                        >
+                                          + Outro veículo
+                                        </button>
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                      <div>
+                                        <label className={iosLabel}>Telefone</label>
+                                        <div className="relative">
+                                          <Phone className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                          <input
+                                            type="tel"
+                                            placeholder="(00) 00000-0000"
+                                            autoComplete="off"
+                                            className={`${iosInput} pl-10`}
+                                            value={newAppointment.phone || ''}
+                                            onChange={(e) =>
+                                              setNewAppointment({ ...newAppointment, phone: e.target.value })
+                                            }
+                                          />
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label className={iosLabel}>E-mail</label>
+                                        <div className="relative">
+                                          <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                          <input
+                                            type="email"
+                                            placeholder="email@exemplo.com"
+                                            autoComplete="off"
+                                            className={`${iosInput} pl-10`}
+                                            value={newAppointment.email || ''}
+                                            onChange={(e) =>
+                                              setNewAppointment({ ...newAppointment, email: e.target.value })
+                                            }
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                    {registeredVehicleKey === OTHER_VEHICLE_KEY ? (
+                                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                        <div>
+                                          <label className={iosLabel}>Modelo do veículo</label>
+                                          <div className="relative">
+                                            <Car className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                            <input
+                                              type="text"
+                                              placeholder="Ex.: Civic LXR"
+                                              autoComplete="off"
+                                              className={`${iosInput} pl-10`}
+                                              value={newAppointment.vehicleModel}
+                                              onChange={(e) =>
+                                                setNewAppointment({
+                                                  ...newAppointment,
+                                                  vehicleModel: e.target.value,
+                                                })
+                                              }
+                                            />
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <label className={iosLabel}>Placa</label>
+                                          <div className="relative">
+                                            <FileText className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                            <input
+                                              type="text"
+                                              placeholder="ABC1D23"
+                                              autoComplete="off"
+                                              className={`${iosInput} pl-10 uppercase`}
+                                              value={(newAppointment.plate || '').toUpperCase()}
+                                              onChange={(e) =>
+                                                setNewAppointment({
+                                                  ...newAppointment,
+                                                  plate: e.target.value.toUpperCase(),
+                                                })
+                                              }
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <>
                             <div>
+                              <label className={iosLabel}>Cliente</label>
+                              <div className="relative">
+                                <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                <input
+                                  type="text"
+                                  placeholder="Nome do cliente"
+                                  autoComplete="off"
+                                  className={`${iosInput} pl-10`}
+                                  value={newAppointment.customerName}
+                                  onChange={(e) =>
+                                    setNewAppointment({ ...newAppointment, customerName: e.target.value })
+                                  }
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
                                 <label className={iosLabel}>Telefone</label>
                                 <div className="relative">
-                                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-                                    <input 
-                                        type="tel" 
-                                        placeholder="(00) 00000-0000"
-                                        autoComplete="off"
-                                        className={`${iosInput} pl-10`}
-                                        value={newAppointment.phone || ''}
-                                        onChange={e => setNewAppointment({...newAppointment, phone: e.target.value})}
-                                    />
+                                  <Phone className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                  <input
+                                    type="tel"
+                                    placeholder="(00) 00000-0000"
+                                    autoComplete="off"
+                                    className={`${iosInput} pl-10`}
+                                    value={newAppointment.phone || ''}
+                                    onChange={(e) =>
+                                      setNewAppointment({ ...newAppointment, phone: e.target.value })
+                                    }
+                                  />
                                 </div>
-                            </div>
-                            <div>
+                              </div>
+                              <div>
                                 <label className={iosLabel}>E-mail</label>
                                 <div className="relative">
-                                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-                                    <input 
-                                        type="email" 
-                                        placeholder="email@exemplo.com"
-                                        autoComplete="off"
-                                        className={`${iosInput} pl-10`}
-                                        value={newAppointment.email || ''}
-                                        onChange={e => setNewAppointment({...newAppointment, email: e.target.value})}
-                                    />
+                                  <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                  <input
+                                    type="email"
+                                    placeholder="email@exemplo.com"
+                                    autoComplete="off"
+                                    className={`${iosInput} pl-10`}
+                                    value={newAppointment.email || ''}
+                                    onChange={(e) =>
+                                      setNewAppointment({ ...newAppointment, email: e.target.value })
+                                    }
+                                  />
                                 </div>
+                              </div>
                             </div>
-                        </div>
 
-                        <div>
-                            <label className={iosLabel}>Veículo</label>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className={iosLabel}>Veículo</label>
+                              <div className="grid grid-cols-2 gap-4">
                                 <div className="relative">
-                                    <Car className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-                                    <input 
-                                        type="text" 
-                                        placeholder="Modelo"
-                                        autoComplete="off"
-                                        className={`${iosInput} pl-10`}
-                                        value={newAppointment.vehicleModel}
-                                        onChange={e => setNewAppointment({...newAppointment, vehicleModel: e.target.value})}
-                                    />
+                                  <Car className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                  <input
+                                    type="text"
+                                    placeholder="Modelo"
+                                    autoComplete="off"
+                                    className={`${iosInput} pl-10`}
+                                    value={newAppointment.vehicleModel}
+                                    onChange={(e) =>
+                                      setNewAppointment({ ...newAppointment, vehicleModel: e.target.value })
+                                    }
+                                  />
                                 </div>
                                 <div className="relative">
-                                    <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-                                    <input 
-                                        type="text" 
-                                        placeholder="Placa"
-                                        autoComplete="off"
-                                        className={`${iosInput} pl-10 uppercase`}
-                                        value={newAppointment.plate ? newAppointment.plate.toUpperCase() : ''}
-                                        onChange={e => setNewAppointment({...newAppointment, plate: e.target.value.toUpperCase()})}
-                                    />
+                                  <FileText className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                  <input
+                                    type="text"
+                                    placeholder="Placa"
+                                    autoComplete="off"
+                                    className={`${iosInput} pl-10 uppercase`}
+                                    value={newAppointment.plate ? newAppointment.plate.toUpperCase() : ''}
+                                    onChange={(e) =>
+                                      setNewAppointment({
+                                        ...newAppointment,
+                                        plate: e.target.value.toUpperCase(),
+                                      })
+                                    }
+                                  />
                                 </div>
+                              </div>
                             </div>
-                        </div>
+                          </>
+                        )}
 
                         <div>
                             <label className={iosLabel}>Observações</label>
@@ -1012,11 +1466,12 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                         </div>
 
                         <div className="pt-2 flex justify-end gap-3 border-t border-zinc-200/50 dark:border-white/[0.06] mt-2">
-                            <button 
-                                type="button" 
-                                onClick={() => { 
-                                    setIsModalOpen(false); 
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsModalOpen(false);
                                     setIsEditing(false);
+                                    resetAgendaPicker();
                                     setNewAppointment({
                                         date: selectedDate,
                                         time: '09:00',
