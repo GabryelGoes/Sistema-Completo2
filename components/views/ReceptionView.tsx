@@ -187,7 +187,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [plateLookupError, setPlateLookupError] = useState<string | null>(null);
   const lastFetchedPlacaRef = useRef<string | null>(null);
 
-  const [intakeUseExistingCustomer, setIntakeUseExistingCustomer] = useState(false);
   const [intakeExistingCustomerId, setIntakeExistingCustomerId] = useState<string | null>(null);
   const [intakeCustomerDirectory, setIntakeCustomerDirectory] = useState<ApiCustomer[] | null>(null);
   const [intakeCustomerDirectoryLoading, setIntakeCustomerDirectoryLoading] = useState(false);
@@ -308,7 +307,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   // Efeito para carregar dados iniciais vindos do Pátio ou Histórico (todos editáveis, inclusive placa)
   useEffect(() => {
     if (initialData) {
-      setIntakeUseExistingCustomer(false);
       setIntakeExistingCustomerId(null);
       setIntakeCustomerSearch('');
       setIntakeCustomerDirectory(null);
@@ -340,19 +338,26 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   }, [initialData, onDataLoaded]);
 
   useEffect(() => {
-    if (!intakeUseExistingCustomer) return;
+    if (!isReceptionTabActive) return;
+    if (intakeCustomerDirectory !== null) return;
     let cancelled = false;
     setIntakeCustomerDirectoryLoading(true);
     setIntakeCustomerDirectoryError(null);
     void getCustomers()
       .then((rows) => {
-        if (!cancelled) setIntakeCustomerDirectory(rows);
+        if (!cancelled) {
+          const sorted = [...rows].sort((a, b) =>
+            (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' })
+          );
+          setIntakeCustomerDirectory(sorted);
+        }
       })
       .catch((e: unknown) => {
         if (!cancelled) {
           setIntakeCustomerDirectoryError(
             e instanceof Error ? e.message : 'Não foi possível carregar os clientes.'
           );
+          setIntakeCustomerDirectory([]);
         }
       })
       .finally(() => {
@@ -361,7 +366,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [intakeUseExistingCustomer]);
+  }, [isReceptionTabActive, intakeCustomerDirectory]);
 
   const intakeExistingCustomerFiltered = useMemo(() => {
     const rows = intakeCustomerDirectory;
@@ -387,6 +392,30 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const selectIntakeExistingCustomer = useCallback((c: ApiCustomer) => {
     setIntakeExistingCustomerId(c.id);
     setCustomer((prev) => receptionFormFromApiCustomer(c, prev.issueDescription));
+  }, []);
+
+  const clearIntakeCustomerSelection = useCallback(() => {
+    setIntakeExistingCustomerId(null);
+    setIntakeCustomerSearch('');
+    setCustomer((prev) => ({
+      ...prev,
+      name: '',
+      cpf: '',
+      phone: '',
+      email: '',
+      cep: '',
+      address: '',
+      city: '',
+      addressNumber: '',
+      vehicleBrand: '',
+      vehicleModel: '',
+      moduleIdentification: '',
+      plate: '',
+      vehicleColor: '',
+      vehicleYear: '',
+      vehicleEngineInfo: '',
+      mileageKm: '',
+    }));
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -469,15 +498,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       return;
     }
 
-    if (intakeUseExistingCustomer && !intakeExistingCustomerId) {
-      setStatus({
-        step: 'error',
-        message:
-          'Selecione um cliente na lista ou desmarque "Cliente já cadastrado" para fazer um cadastro novo.',
-      });
-      return;
-    }
-
     const isModule = receptionMode === 'module';
     if (!isModule) {
       if (!vehicleCategory) {
@@ -506,7 +526,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     }
 
     try {
-      const useExistingFlow = Boolean(intakeUseExistingCustomer && intakeExistingCustomerId);
+      const useExistingFlow = Boolean(intakeExistingCustomerId);
       setStatus({
         step: 'creating',
         message: intakePhotos.length > 0 ? 'Criando ficha e enviando fotos…' : 'Criando cadastro',
@@ -554,7 +574,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setStatus({
         step: 'success',
         message: useExistingFlow
-          ? `Nova OS criada para o cliente já cadastrado.${osLabel}`
+          ? `Nova OS criada para o cliente selecionado.${osLabel}`
           : `Cadastro criado com sucesso.${osLabel}`,
       });
       onIntakeSuccess?.(receptionMode);
@@ -599,7 +619,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setVehicleCategory('');
     setPlateLookupError(null);
     lastFetchedPlacaRef.current = null;
-    setIntakeUseExistingCustomer(false);
     setIntakeExistingCustomerId(null);
     setIntakeCustomerSearch('');
     setIntakeCustomerDirectory(null);
@@ -953,95 +972,129 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 Dados do cliente
               </h2>
               <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-3 dark:border-white/[0.08] dark:bg-zinc-950/30">
-                <label className="flex cursor-pointer items-start gap-3">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-[#007AFF] focus:ring-[#007AFF] dark:border-zinc-600 dark:focus:ring-[#64B5FF]"
-                    checked={intakeUseExistingCustomer}
-                    onChange={(e) => {
-                      const on = e.target.checked;
-                      setIntakeUseExistingCustomer(on);
-                      if (!on) {
-                        setIntakeExistingCustomerId(null);
-                        setIntakeCustomerSearch('');
-                        setIntakeCustomerDirectory(null);
-                        setIntakeCustomerDirectoryError(null);
-                        setIntakeCustomerDirectoryLoading(false);
-                      }
-                    }}
-                  />
-                  <span className="text-[13px] leading-snug text-zinc-700 dark:text-zinc-200">
-                    <span className="font-semibold">Cliente já cadastrado</span>
-                    <span className="mt-0.5 block text-[12px] font-normal text-zinc-500 dark:text-zinc-400">
-                      Abra uma nova OS (outro veículo ou módulo) reutilizando o cadastro, sem duplicar o cliente.
-                    </span>
-                  </span>
-                </label>
-                {intakeUseExistingCustomer ? (
-                  <div className="mt-3 space-y-2">
-                    {intakeCustomerDirectoryLoading ? (
-                      <p className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-                        Carregando lista de clientes…
-                      </p>
-                    ) : null}
-                    {intakeCustomerDirectoryError ? (
-                      <p className="text-xs text-red-600 dark:text-red-400">{intakeCustomerDirectoryError}</p>
-                    ) : null}
-                    {!intakeCustomerDirectoryLoading && intakeCustomerDirectory ? (
-                      <>
-                        <Input
-                          label="Buscar cliente"
-                          autoComplete="off"
-                          value={intakeCustomerSearch}
-                          onChange={(e) => setIntakeCustomerSearch(e.target.value)}
-                          placeholder="Nome, telefone ou CPF"
-                          icon={<Search className="h-4 w-4" />}
-                        />
-                        <div className="max-h-44 overflow-y-auto rounded-lg border border-zinc-200/80 dark:border-white/[0.08]">
-                          {intakeExistingCustomerFiltered.length === 0 ? (
-                            <p className="p-3 text-xs text-zinc-500 dark:text-zinc-400">
-                              Nenhum cliente encontrado. Ajuste a busca.
-                            </p>
-                          ) : (
-                            <ul className="divide-y divide-zinc-100 dark:divide-white/[0.06]">
-                              {intakeExistingCustomerFiltered.map((c) => {
-                                const selected = intakeExistingCustomerId === c.id;
-                                return (
-                                  <li key={c.id}>
-                                    <button
-                                      type="button"
-                                      onClick={() => selectIntakeExistingCustomer(c)}
-                                      className={`flex w-full flex-col gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.06] ${
-                                        selected ? 'bg-[#007AFF]/10 dark:bg-[#64B5FF]/15' : ''
-                                      }`}
-                                    >
-                                      <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                                        {c.name}
-                                      </span>
-                                      <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                                        {c.phone}
-                                        {c.cpf ? ` · CPF ${c.cpf}` : ''}
-                                      </span>
-                                    </button>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          )}
-                        </div>
-                        {intakeExistingCustomerId ? (
-                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                            Cliente selecionado: preencha os dados do veículo ou do módulo ao lado e envie a ficha.
+                <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                    Opcional: selecione um cliente para abrir nova OS no mesmo cadastro.
+                  </p>
+                  {intakeExistingCustomerId ? (
+                    <button
+                      type="button"
+                      onClick={clearIntakeCustomerSelection}
+                      className="shrink-0 text-[12px] font-semibold text-[#007AFF] underline-offset-2 hover:underline dark:text-[#7ab8ff]"
+                    >
+                      Limpar seleção
+                    </button>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  {intakeCustomerDirectoryLoading ? (
+                    <p className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                      Carregando lista de clientes…
+                    </p>
+                  ) : null}
+                  {intakeCustomerDirectoryError ? (
+                    <p className="text-xs text-red-600 dark:text-red-400">{intakeCustomerDirectoryError}</p>
+                  ) : null}
+                  {!intakeCustomerDirectoryLoading && intakeCustomerDirectory ? (
+                    <>
+                      <Input
+                        label="Buscar cliente"
+                        autoComplete="off"
+                        value={intakeCustomerSearch}
+                        onChange={(e) => setIntakeCustomerSearch(e.target.value)}
+                        placeholder="Nome, telefone ou CPF"
+                        icon={<Search className="h-4 w-4" />}
+                      />
+                      <div className="max-h-44 overflow-y-auto rounded-lg border border-zinc-200/80 dark:border-white/[0.08]">
+                        {intakeExistingCustomerFiltered.length === 0 ? (
+                          <p className="p-3 text-xs text-zinc-500 dark:text-zinc-400">
+                            Nenhum cliente encontrado. Ajuste a busca.
                           </p>
-                        ) : null}
-                      </>
-                    ) : null}
-                  </div>
-                ) : null}
+                        ) : (
+                          <ul className="divide-y divide-zinc-100 dark:divide-white/[0.06]">
+                            {intakeExistingCustomerFiltered.map((c) => {
+                              const selected = intakeExistingCustomerId === c.id;
+                              return (
+                                <li key={c.id}>
+                                  <button
+                                    type="button"
+                                    onClick={() => selectIntakeExistingCustomer(c)}
+                                    className={`flex w-full flex-col gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.06] ${
+                                      selected ? 'bg-[#007AFF]/10 dark:bg-[#64B5FF]/15' : ''
+                                    }`}
+                                  >
+                                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                                      {c.name}
+                                    </span>
+                                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                                      {c.phone}
+                                      {c.cpf ? ` · CPF ${c.cpf}` : ''}
+                                    </span>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
+                      {intakeExistingCustomerId ? (
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                          Cliente selecionado: preencha os dados do veículo ou do módulo ao lado e envie a ficha.
+                        </p>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="CEP"
+                  name="cep"
+                  placeholder="00000-000"
+                  value={customer.cep}
+                  onChange={handleInputChange}
+                  icon={<MapPin className="w-4 h-4" />}
+                />
+                <Input
+                  label="Cidade"
+                  name="city"
+                  placeholder="Ex: São Paulo"
+                  value={customer.city ?? ''}
+                  onChange={handleInputChange}
+                  icon={<Building2 className="w-4 h-4" />}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="CPF"
+                  name="cpf"
+                  placeholder="000.000.000-00"
+                  value={customer.cpf}
+                  onChange={handleInputChange}
+                  icon={<ShieldCheck className="w-4 h-4" />}
+                />
+                <Input
+                  label="E-mail"
+                  name="email"
+                  placeholder="exemplo@email.com"
+                  value={customer.email}
+                  onChange={handleInputChange}
+                  icon={<Mail className="w-4 h-4" />}
+                />
               </div>
               <div>
-                <Input 
+                <Input
+                  label="Endereço"
+                  name="address"
+                  placeholder="Rua, Avenida, Bairro..."
+                  value={customer.address}
+                  onChange={handleInputChange}
+                  icon={<Map className="w-4 h-4" />}
+                />
+              </div>
+              <div>
+                <Input
                   label="Nome Completo"
                   name="name"
                   placeholder="Ex: João da Silva"
@@ -1052,54 +1105,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input 
-                  label="CPF"
-                  name="cpf"
-                  placeholder="000.000.000-00"
-                  value={customer.cpf}
-                  onChange={handleInputChange}
-                  icon={<ShieldCheck className="w-4 h-4" />}
-                />
-                <Input 
-                  label="Telefone"
-                  name="phone"
-                  placeholder="(11) 99999-9999"
-                  value={customer.phone}
-                  onChange={handleInputChange}
-                  icon={<Smartphone className="w-4 h-4" />}
-                  required
-                />
-              </div>
-              <div>
-                <Input 
-                  label="E-mail"
-                  name="email"
-                  placeholder="exemplo@email.com"
-                  value={customer.email}
-                  onChange={handleInputChange}
-                  icon={<Mail className="w-4 h-4" />}
-                />
-              </div>
-              <div>
-                <Input 
-                  label="Endereço"
-                  name="address"
-                  placeholder="Rua, Avenida, Bairro..."
-                  value={customer.address}
-                  onChange={handleInputChange}
-                  icon={<Map className="w-4 h-4" />}
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input 
-                  label="CEP"
-                  name="cep"
-                  placeholder="00000-000"
-                  value={customer.cep}
-                  onChange={handleInputChange}
-                  icon={<MapPin className="w-4 h-4" />}
-                />
-                <Input 
+                <Input
                   label="Nº"
                   name="addressNumber"
                   placeholder="123"
@@ -1107,15 +1113,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   onChange={handleInputChange}
                   icon={<Hash className="w-4 h-4" />}
                 />
-              </div>
-              <div>
-                <Input 
-                  label="Cidade"
-                  name="city"
-                  placeholder="Ex: São Paulo"
-                  value={customer.city ?? ''}
+                <Input
+                  label="Telefone"
+                  name="phone"
+                  placeholder="(11) 99999-9999"
+                  value={customer.phone}
                   onChange={handleInputChange}
-                  icon={<Building2 className="w-4 h-4" />}
+                  icon={<Smartphone className="w-4 h-4" />}
+                  required
                 />
               </div>
             </div>
