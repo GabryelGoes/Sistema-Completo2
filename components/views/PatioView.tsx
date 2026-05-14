@@ -6382,17 +6382,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <button
                     type="submit"
                     disabled={!newReminder.trim() || reminderSubmitting}
-                    className="group relative flex h-12 w-12 shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl border border-[#007AFF]/35 bg-gradient-to-b from-[#5AACFF] to-[#007AFF] text-white shadow-[0_10px_28px_-6px_rgba(0,122,255,0.55),0_4px_14px_-4px_rgba(0,122,255,0.35),inset_0_1px_0_rgba(255,255,255,0.35)] transition-all hover:brightness-105 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100 dark:from-[#409CFF] dark:to-[#0062CC] dark:shadow-[0_12px_32px_-8px_rgba(0,122,255,0.4)] sm:h-12 sm:w-14"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center self-center rounded-xl bg-[#007AFF] text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#0A84FF]"
                     aria-label="Adicionar lembrete"
                   >
-                    <span
-                      className="pointer-events-none absolute inset-x-0 top-0 h-[46%] rounded-t-2xl bg-gradient-to-b from-white/30 to-transparent opacity-90"
-                      aria-hidden
-                    />
                     {reminderSubmitting ? (
-                      <Loader2 className="relative h-6 w-6 animate-spin" strokeWidth={2.2} />
+                      <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.2} />
                     ) : (
-                      <Plus className="relative h-6 w-6 sm:h-6 sm:w-6" strokeWidth={2.35} />
+                      <Plus className="h-5 w-5" strokeWidth={2.35} />
                     )}
                   </button>
                 </div>
