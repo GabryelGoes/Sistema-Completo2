@@ -2,9 +2,9 @@ import { Customer, type VehicleReferenceLink } from "../types";
 import type { Appointment } from "../types";
 import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
 import { API_BASE } from "./apiConfig";
-import { normalizeTvChimeConfig, type TvChimeScheduleConfig } from "../utils/tvChimeSchedule";
+import { normalizeTvChimeConfig, type TvChimeScheduleConfig } from "@/utils/tvChimeSchedule";
 
-export type { TvChimeAlert, TvChimeKind, TvChimeSoundPreset } from "../utils/tvChimeSchedule";
+export type { TvChimeAlert, TvChimeKind, TvChimeSoundPreset } from "@/utils/tvChimeSchedule";
 
 export interface ApiCustomer {
   id: string;
