@@ -95,7 +95,8 @@ import {
   DESKTOP_LANDSCAPE_CARD_ZOOM,
 } from '../../utils/patioBoardGlassCard';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
-import { PatioStyleArchiveBoardCard } from '../patio/PatioStyleArchiveBoardCard';
+import { ReceptionArchivedHistoryHubCard, boardCardToArchivedHistoryHubOrder } from '../reception/ReceptionArchivedHistoryHubCard';
+import { archivedHistoryModalShell } from '../reception/archivedHistoryModalShell';
 import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAuthorizationSheetModal';
 import { getVehiclePhotoPublicUrl } from '../../utils/vehicleStoragePublicUrl';
 
@@ -3856,140 +3857,104 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* --- MODAL DE HISTÓRICO (BUSCA) — portal em body para ficar acima da TabBar --- */}
       {isHistoryOpen && (
-         <ModalPortal>
-         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
+        <ModalPortal>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-[12px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
             <div
-              className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden ${iosModalShell} animate-modal-wp-app`}
+              className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden ${archivedHistoryModalShell} animate-modal-wp-app`}
             >
-               <button
-                  type="button"
-                  onClick={() => setIsHistoryOpen(false)}
-                  className={iosModalClose}
-                  aria-label="Fechar"
-               >
-                  <X className="h-5 w-5" />
-               </button>
+              <button
+                type="button"
+                onClick={() => setIsHistoryOpen(false)}
+                className={iosModalClose}
+                aria-label="Fechar"
+              >
+                <X className="h-5 w-5" />
+              </button>
 
-               <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
-                  <div className="flex items-start gap-3 pr-10">
-                     <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                        {patioOrLabModuleIcon}
-                     </IosAccentIconSquircle>
-                     <div className="min-w-0 flex-1">
-                        <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[26px]">
-                          {isModuleMode ? 'Histórico de módulos' : 'Histórico de veículos'}
-                        </h2>
-                        <p className="mt-1 flex items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                           <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" />
-                           {isModuleMode ? 'Consulte módulos arquivados na oficina' : 'Consulte OS entregues e arquivadas'}
-                        </p>
-                     </div>
+              <div className="shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-5 pt-7 dark:border-white/[0.07] dark:bg-zinc-950/20 sm:px-8 sm:pt-8">
+                <div className="flex items-start gap-3 pr-10">
+                  <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
+                    {patioOrLabModuleIcon}
+                  </IosAccentIconSquircle>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[26px]">
+                      {isModuleMode ? 'Histórico de módulos' : 'Histórico de veículos'}
+                    </h2>
+                    <p className="mt-1 flex items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                      <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" />
+                      {isModuleMode
+                        ? 'Módulos arquivados — mesmo padrão visual da página Orçamentos'
+                        : 'Veículos arquivados — mesmo padrão visual da página Orçamentos'}
+                    </p>
                   </div>
-               </div>
+                </div>
+              </div>
 
-               <div className="shrink-0 border-b border-zinc-200/50 px-6 py-4 dark:border-white/[0.06] sm:px-8">
-                  <p className={iosLabel}>Busca no arquivo</p>
-                  <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-                     <div className="relative min-w-0 flex-1">
-                        <input
-                           type="text"
-                           placeholder="Placa, nome, CPF, telefone ou CEP…"
-                           value={historySearchPlate}
-                           onChange={(e) => setHistorySearchPlate(e.target.value)}
-                           onKeyDown={(e) => e.key === 'Enter' && handleSearchHistory()}
-                           className={`${iosInput} py-3 pl-10 pr-4`}
-                        />
-                        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                     </div>
-                     <button
-                        type="button"
-                        onClick={() => handleSearchHistory()}
-                        disabled={isLoadingHistory}
-                        className="shrink-0 rounded-2xl bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform active:scale-[0.98] disabled:opacity-45 sm:self-stretch"
-                     >
-                        {isLoadingHistory ? <RefreshCw className="mx-auto h-5 w-5 animate-spin" /> : 'Buscar'}
-                     </button>
+              <div className="shrink-0 border-b border-zinc-200/70 bg-white px-4 py-4 dark:border-white/[0.06] dark:bg-zinc-950/30 sm:px-8">
+                <p className={`${iosLabel} mb-2`}>Busca no arquivo</p>
+                <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-stretch">
+                  <div className="relative min-w-0 flex-1">
+                    <input
+                      type="text"
+                      placeholder="Placa, nome, CPF, telefone ou CEP…"
+                      value={historySearchPlate}
+                      onChange={(e) => setHistorySearchPlate(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearchHistory()}
+                      className={`${iosInput} w-full rounded-2xl border border-zinc-200/90 bg-white py-3 pl-10 pr-4 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.11),0_2px_8px_-4px_rgba(0,0,0,0.07)] dark:border-white/[0.1] dark:bg-zinc-950/50 dark:shadow-none`}
+                    />
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#007AFF]/90 dark:text-[#7ab8ff]" strokeWidth={2} />
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSearchHistory()}
+                    disabled={isLoadingHistory}
+                    className="shrink-0 rounded-2xl border border-[#007AFF]/60 bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-[0_10px_26px_-8px_rgba(37,99,235,0.3),0_4px_14px_-6px_rgba(37,99,235,0.2)] transition-transform active:scale-[0.98] disabled:opacity-45 dark:shadow-lg dark:shadow-blue-500/25 sm:self-stretch"
+                  >
+                    {isLoadingHistory ? <RefreshCw className="mx-auto h-5 w-5 animate-spin" /> : 'Buscar'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-4 py-5 custom-scrollbar dark:bg-zinc-950/25 sm:px-8">
+                {isLoadingHistory ? (
+                  <div className="flex h-full min-h-[200px] flex-col items-center justify-center gap-3 text-zinc-500 dark:text-zinc-400">
+                    <RefreshCw className="h-8 w-8 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" />
+                    <p className="text-[15px]">Buscando no arquivo…</p>
                   </div>
-               </div>
-
-               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
-                  {isLoadingHistory ? (
-                     <div className="flex h-full min-h-[200px] flex-col items-center justify-center gap-3 text-zinc-500 dark:text-zinc-400">
-                        <RefreshCw className="h-8 w-8 animate-spin text-[#007AFF]" />
-                        <p className="text-[15px]">Buscando no arquivo…</p>
-                     </div>
-                  ) : archivedCards.length > 0 ? (
-                     <div>
-                        {historyShowingFallback && (
-                           <div className={`${iosModalInsetCard} mb-4 p-4 text-[13px] text-zinc-600 dark:text-zinc-300`}>
-                              {isModuleMode
-                                ? 'Nenhum resultado para a busca. Exibindo os últimos módulos arquivados.'
-                                : 'Nenhum resultado para a busca. Exibindo os últimos veículos arquivados.'}
-                           </div>
-                        )}
-                        <div
-                          className="origin-top will-change-[zoom]"
-                          style={
-                            {
-                              zoom: boardPanoramic ? BOARD_PANORAMIC_ZOOM : 1,
-                              transition: 'zoom 0.55s cubic-bezier(0.34, 1.35, 0.25, 1)',
-                            } as React.CSSProperties & { zoom?: number }
-                          }
-                        >
-                          <div
-                            className={`relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
-                              boardPanoramic
-                                ? 'grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-5 md:gap-3 lg:gap-3.5 2xl:gap-4'
-                                : 'grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 landscape:lg:grid-cols-4'
-                            }`}
-                          >
-                            {archivedCards.map((card) => {
-                              const t = parsePatioCardTitle(card.name);
-                              const model = t.vehicle || card.name;
-                              const plate = t.plateOrModule || '---';
-                              const customerFull = t.customer || '';
-                              const member = card.members && card.members.length > 0 ? card.members[0] : null;
-                              const mechanicName = member?.fullName ?? null;
-                              const mechanicStyle =
-                                mechanicName && member
-                                  ? getMechanicButtonStyle(mechanicName, member.id)
-                                  : undefined;
-                              return (
-                                <PatioStyleArchiveBoardCard
-                                  key={card.id}
-                                  boardPanoramic={boardPanoramic}
-                                  isDesktopLandscape={isDesktopLandscape}
-                                  isModuleMode={isModuleMode}
-                                  blurPlates={blurPlates}
-                                  model={model}
-                                  plateOrModule={plate}
-                                  customerFullName={customerFull}
-                                  vehicleColor={card.vehicleColor}
-                                  archivedAt={card.dateLastActivity}
-                                  mechanicName={mechanicName ?? undefined}
-                                  mechanicSquircleClassName={mechanicStyle}
-                                  garantiaTag={card.garantiaTag === true}
-                                  onOpen={() => handleOpenHistoryCardDetails(card)}
-                                />
-                              );
-                            })}
-                          </div>
-                        </div>
-                     </div>
-                  ) : (
-                     <div className={`${iosPageGlass} ring-1 ring-white/40 dark:ring-white/[0.06] mx-auto flex min-h-[240px] max-w-lg flex-col items-center justify-center rounded-[2rem] p-10 text-center`}>
-                        <History className="mb-4 h-14 w-14 text-zinc-300 dark:text-zinc-600" strokeWidth={1.25} />
-                        <p className="text-[15px] font-medium text-zinc-600 dark:text-zinc-400">Nenhum registro encontrado.</p>
-                        <p className="mt-1 max-w-sm text-[13px] text-zinc-500">Ajuste os termos da busca ou confira os filtros da oficina.</p>
-                     </div>
-                  )}
-               </div>
-
+                ) : archivedCards.length > 0 ? (
+                  <div className="mx-auto max-w-3xl space-y-4">
+                    {historyShowingFallback && (
+                      <div
+                        className={`rounded-[1.25rem] border border-zinc-200/80 bg-zinc-50/95 p-4 text-[13px] text-zinc-600 shadow-[0_5px_14px_-6px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:text-zinc-300 dark:shadow-none`}
+                      >
+                        {isModuleMode
+                          ? 'Nenhum resultado para a busca. Exibindo os últimos módulos arquivados.'
+                          : 'Nenhum resultado para a busca. Exibindo os últimos veículos arquivados.'}
+                      </div>
+                    )}
+                    {archivedCards.map((card) => (
+                      <ReceptionArchivedHistoryHubCard
+                        key={card.id}
+                        order={boardCardToArchivedHistoryHubOrder(card, isModuleMode)}
+                        isModuleMode={isModuleMode}
+                        blurPlates={blurPlates}
+                        onOpenDetail={() => handleOpenHistoryCardDetails(card)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    className={`mx-auto flex min-h-[240px] max-w-lg flex-col items-center justify-center rounded-[2rem] border border-zinc-200/80 bg-white p-10 text-center shadow-[0_6px_20px_-8px_rgba(0,0,0,0.1)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:shadow-none`}
+                  >
+                    <History className="mb-4 h-14 w-14 text-zinc-300 dark:text-zinc-600" strokeWidth={1.25} />
+                    <p className="text-[15px] font-medium text-zinc-600 dark:text-zinc-400">Nenhum registro encontrado.</p>
+                    <p className="mt-1 max-w-sm text-[13px] text-zinc-500">Ajuste os termos da busca ou confira os filtros da oficina.</p>
+                  </div>
+                )}
+              </div>
             </div>
-         </div>
-         </ModalPortal>
+          </div>
+        </ModalPortal>
       )}
 
       {/* --- DETALHES DO CARD ARQUIVADO — portal em body para ficar acima da TabBar --- */}
@@ -3997,7 +3962,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
          <ModalPortal>
          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
             <div
-              className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+              className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden ${archivedHistoryModalShell} animate-in zoom-in-95 duration-200`}
             >
                <div className="shrink-0 border-b border-zinc-200/60 px-4 py-3 dark:border-white/[0.07] sm:px-6">
                   <div className="flex flex-wrap items-center justify-end gap-2">

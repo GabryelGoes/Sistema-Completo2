@@ -1,7 +1,8 @@
 import React from 'react';
 import { ChevronRight, FileText } from 'lucide-react';
 import { getStageStyle } from '../../constants/serviceOrderStages';
-import type { ServiceOrderListItem } from '../../services/apiService';
+import type { BoardCard } from '../../types';
+import { parsePatioCardTitle } from '../../utils/patioCardTitle';
 
 /** Mesmo chrome visual do hub Orçamentos (`iosPageGlassOrcamentosVehicleCard`), com fundo branco sólido no claro. */
 const receptionHistoryVehicleCardShell =
@@ -20,6 +21,37 @@ function formatArchivedDate(archivedAt: string | Date | null | undefined): strin
   }
 }
 
+/** Dados mínimos — API (`ServiceOrderListItem`) ou quadro do Pátio (`BoardCard` mapeado). */
+export type ArchivedHistoryHubOrderLike = {
+  id: string;
+  vehicle_model: string | null;
+  vehicle_brand?: string | null;
+  module_identification?: string | null;
+  plate: string | null;
+  os_number?: number | null;
+  customer_name?: string | null;
+  customers?: { id: string; name: string; phone: string | null } | null;
+  updated_at: string;
+  garantia_tag?: boolean;
+};
+
+export function boardCardToArchivedHistoryHubOrder(card: BoardCard, isModuleMode: boolean): ArchivedHistoryHubOrderLike {
+  const t = parsePatioCardTitle(card.name);
+  const rawPm = (t.plateOrModule || '').trim();
+  return {
+    id: card.id,
+    vehicle_model: (t.vehicle || card.name || '').trim() || null,
+    vehicle_brand: card.vehicleBrand ?? null,
+    module_identification: isModuleMode ? (rawPm || null) : null,
+    plate: isModuleMode ? null : (rawPm || null),
+    os_number: card.osNumber ?? null,
+    customer_name: (t.customer || '').trim() || null,
+    customers: null,
+    updated_at: card.dateLastActivity,
+    garantia_tag: card.garantiaTag === true,
+  };
+}
+
 function plateDisplay(plate: string | null, blurPlates: boolean): React.ReactNode {
   const p = (plate ?? '').trim();
   if (!p) return '—';
@@ -34,7 +66,7 @@ function plateDisplay(plate: string | null, blurPlates: boolean): React.ReactNod
 }
 
 export type ReceptionArchivedHistoryHubCardProps = {
-  order: ServiceOrderListItem;
+  order: ArchivedHistoryHubOrderLike;
   isModuleMode: boolean;
   blurPlates?: boolean;
   onOpenDetail: () => void;

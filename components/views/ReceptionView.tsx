@@ -47,6 +47,7 @@ import { markdownComponentsApp } from '../ui/markdownUi';
 import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
 import { firstTwoNames } from '../../utils/personNameFormat';
 import { ReceptionArchivedHistoryHubCard } from '../reception/ReceptionArchivedHistoryHubCard';
+import { archivedHistoryModalShell } from '../reception/archivedHistoryModalShell';
 import { DiagnosticAuthorizationSignModal } from '../diagnostic/DiagnosticAuthorizationSignModal';
 import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAuthorizationSheetModal';
 import { getVehiclePhotoPublicUrl } from '../../utils/vehicleStoragePublicUrl';
@@ -82,12 +83,6 @@ const receptionPageGlass =
 const receptionSectionShell =
   'overflow-hidden rounded-[24px] border border-zinc-300/70 bg-white shadow-[0_14px_34px_-12px_rgba(0,0,0,0.11),0_7px_22px_-10px_rgba(0,0,0,0.08),0_3px_10px_-5px_rgba(0,0,0,0.06)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]';
 
-/** Modal histórico (lista + detalhe): painel branco no claro, alinhado ao hub Orçamentos. */
-const receptionHistoryModalShell =
-  'relative w-full flex flex-col min-h-0 overflow-hidden rounded-[2rem] sm:rounded-[2.25rem] border border-zinc-200/80 dark:border-white/[0.07] bg-white backdrop-blur-xl dark:bg-zinc-900/40 dark:backdrop-blur-2xl ' +
-  'shadow-[0_18px_48px_-14px_rgba(0,0,0,0.12),0_8px_24px_-10px_rgba(0,0,0,0.08)] dark:shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]';
-
-const receptionSectionHeader =
   'relative border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-zinc-950/25';
 
 function sortArchivedOrdersNewestFirst(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
@@ -1532,7 +1527,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         <ModalPortal>
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-[12px] p-3 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div
-            className={`${receptionHistoryModalShell} w-full max-w-[90rem] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)]`}
+            className={`${archivedHistoryModalShell} w-full max-w-[90rem] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)]`}
           >
             <button
               type="button"
@@ -1689,7 +1684,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             aria-modal="true"
             aria-labelledby="reception-archived-detail-title"
           >
-            <div className={`${receptionHistoryModalShell} w-full max-w-[90rem] max-h-[90vh] animate-modal-sheet`}>
+            <div className={`${archivedHistoryModalShell} w-full max-w-[90rem] max-h-[90vh] animate-modal-sheet`}>
               <div className="absolute top-4 right-4 z-10 flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                 <button
                   type="button"
