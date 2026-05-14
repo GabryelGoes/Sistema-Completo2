@@ -366,8 +366,31 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setError(null);
     try {
       await putTvChimeSchedule(chimeConfig);
+      await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao salvar horários da TV.');
+    } finally {
+      setChimeSaving(false);
+    }
+  };
+
+  /** O interruptor “Ativar rotina” persiste na API na hora (não depende só do botão Salvar). */
+  const toggleChimeMasterEnabled = async () => {
+    const prev = chimeConfigRef.current;
+    const next = { ...prev, masterEnabled: !prev.masterEnabled };
+    setChimeConfig(next);
+    setChimeSaving(true);
+    setError(null);
+    try {
+      await putTvChimeSchedule(next);
+      await load();
+    } catch (e) {
+      setChimeConfig(prev);
+      setError(
+        e instanceof Error
+          ? e.message
+          : 'Erro ao salvar rotina. Verifique se a migração da TV foi aplicada no Supabase ou use “Salvar horários da TV”.'
+      );
     } finally {
       setChimeSaving(false);
     }
@@ -867,8 +890,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         type="button"
                         role="switch"
                         aria-checked={chimeConfig.masterEnabled}
-                        onClick={() => setChimeConfig((c) => ({ ...c, masterEnabled: !c.masterEnabled }))}
-                        className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 ${
+                        disabled={chimeSaving}
+                        onClick={() => void toggleChimeMasterEnabled()}
+                        className={`relative h-8 w-[51px] shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 disabled:opacity-50 ${
                           chimeConfig.masterEnabled ? 'bg-[#34C759]' : 'bg-zinc-300'
                         }`}
                       >

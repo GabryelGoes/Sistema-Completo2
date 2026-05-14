@@ -74,11 +74,26 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
+/** Aceita boolean vindo de JSON/Postgres sem perder true por comparação estrita. */
+function readJsonBool(v: unknown, defaultValue: boolean): boolean {
+  if (v === true || v === 'true' || v === 1 || v === '1') return true;
+  if (v === false || v === 'false' || v === 0 || v === '0') return false;
+  return defaultValue;
+}
+
 /** Mescla JSON salvo com defaults e valida limites. */
 export function normalizeTvChimeConfig(raw: unknown): TvChimeScheduleConfig {
+  let parsed: unknown = raw;
+  if (typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw) as unknown;
+    } catch {
+      return defaultTvChimeSchedule();
+    }
+  }
   const base = defaultTvChimeSchedule();
-  if (!raw || typeof raw !== 'object') return base;
-  const o = raw as Record<string, unknown>;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return base;
+  const o = parsed as Record<string, unknown>;
 
   const soundPresetRaw = String(o.soundPreset ?? '').toLowerCase();
   const soundPreset: TvChimeSoundPreset =
@@ -110,8 +125,8 @@ export function normalizeTvChimeConfig(raw: unknown): TvChimeScheduleConfig {
           id,
           label,
           time,
-          enabled: r.enabled !== false,
-          playSound: r.playSound === true,
+          enabled: readJsonBool(r.enabled, true),
+          playSound: readJsonBool(r.playSound, false),
           weekdays,
           kind,
           message: message || base.alerts.find((x) => x.id === id)?.message || `— ${label}`,
@@ -124,13 +139,13 @@ export function normalizeTvChimeConfig(raw: unknown): TvChimeScheduleConfig {
 
   return {
     version: TV_CHIME_CONFIG_VERSION,
-    masterEnabled: o.masterEnabled === true,
+    masterEnabled: readJsonBool(o.masterEnabled, false),
     alerts,
     soundVolume: clamp(Number(o.soundVolume ?? base.soundVolume) || base.soundVolume, 0.05, 1),
     bannerSeconds: clamp(Math.round(Number(o.bannerSeconds ?? base.bannerSeconds)), 8, 120),
     preNotifyMinutes: clamp(Math.round(Number(o.preNotifyMinutes ?? 0)), 0, 60),
-    preNotifyPlaySound: o.preNotifyPlaySound === true,
-    weekendsQuiet: o.weekendsQuiet === true,
+    preNotifyPlaySound: readJsonBool(o.preNotifyPlaySound, false),
+    weekendsQuiet: readJsonBool(o.weekendsQuiet, false),
     soundPreset,
   };
 }
