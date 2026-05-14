@@ -77,11 +77,11 @@ type VehicleCategory = (typeof VEHICLE_CATEGORIES)[number];
 /** Vidro do cartão principal da recepção — sombra extra só no claro. */
 const receptionPageGlass =
   'relative w-full rounded-[2rem] sm:rounded-[2.25rem] border border-zinc-200/80 dark:border-white/[0.07] bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl ' +
-  'shadow-[0_22px_56px_-16px_rgba(0,0,0,0.18),0_12px_36px_-12px_rgba(0,0,0,0.14),0_4px_16px_-6px_rgba(0,0,0,0.1)] ' +
+  'shadow-[0_16px_40px_-14px_rgba(0,0,0,0.12),0_8px_24px_-10px_rgba(0,0,0,0.09),0_3px_12px_-5px_rgba(0,0,0,0.06)] ' +
   'dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
 
 const receptionSectionShell =
-  'overflow-hidden rounded-[24px] border border-zinc-300/70 bg-white shadow-[0_18px_44px_-14px_rgba(0,0,0,0.16),0_10px_32px_-12px_rgba(0,0,0,0.12),0_4px_14px_-6px_rgba(0,0,0,0.09)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]';
+  'overflow-hidden rounded-[24px] border border-zinc-300/70 bg-white shadow-[0_14px_34px_-12px_rgba(0,0,0,0.11),0_7px_22px_-10px_rgba(0,0,0,0.08),0_3px_10px_-5px_rgba(0,0,0,0.06)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]';
 
 const receptionSectionHeader =
   'relative border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-zinc-950/25';
@@ -988,7 +988,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           <button
             type="button"
             onClick={() => setIsHistoryOpen(true)}
-            className="inline-flex items-center gap-2 py-2.5 px-4 rounded-2xl text-sm font-semibold border border-zinc-200/80 dark:border-white/[0.1] bg-white/65 dark:bg-white/[0.06] backdrop-blur-xl text-zinc-800 dark:text-zinc-100 hover:bg-white/90 dark:hover:bg-white/10 shadow-[0_12px_32px_-10px_rgba(0,0,0,0.14),0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_20px_-4px_rgba(0,0,0,0.08)] transition-all active:scale-[0.98] shrink-0"
+            className="inline-flex items-center gap-2 py-2.5 px-4 rounded-2xl text-sm font-semibold border border-zinc-200/80 dark:border-white/[0.1] bg-white/65 dark:bg-white/[0.06] backdrop-blur-xl text-zinc-800 dark:text-zinc-100 hover:bg-white/90 dark:hover:bg-white/10 shadow-[0_8px_22px_-8px_rgba(0,0,0,0.1),0_4px_12px_-6px_rgba(0,0,0,0.07),0_1px_4px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_20px_-4px_rgba(0,0,0,0.08)] transition-all active:scale-[0.98] shrink-0"
             title="Consultar histórico de veículos arquivados"
           >
             <History className="w-4 h-4 text-[#007AFF] dark:text-[#7ab8ff]" />
@@ -1006,7 +1006,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
         <form
           onSubmit={handleSubmit}
-          className="relative z-10 [&_input]:shadow-[0_10px_26px_-8px_rgba(0,0,0,0.2),0_4px_14px_-6px_rgba(0,0,0,0.12),0_2px_6px_-3px_rgba(0,0,0,0.08)] [&_textarea]:shadow-[0_10px_26px_-8px_rgba(0,0,0,0.2),0_4px_14px_-6px_rgba(0,0,0,0.12),0_2px_6px_-3px_rgba(0,0,0,0.08)] dark:[&_input]:shadow-none dark:[&_textarea]:shadow-none"
+          className="relative z-10 [&_input]:shadow-[0_6px_18px_-6px_rgba(0,0,0,0.12),0_3px_10px_-4px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] [&_textarea]:shadow-[0_6px_18px_-6px_rgba(0,0,0,0.12),0_3px_10px_-4px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] dark:[&_input]:shadow-none dark:[&_textarea]:shadow-none"
         >
           {/* Bloco único da ficha */}
           <div className={`${receptionSectionShell} w-full rounded-[calc(2rem-2px)] sm:rounded-[calc(2.25rem-2px)]`}>
@@ -1015,7 +1015,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             <button
               type="button"
               onClick={resetForm}
-              className="inline-flex items-center gap-2 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-3 py-2 text-[12px] font-semibold text-[#007AFF] shadow-[0_12px_28px_-10px_rgba(0,122,255,0.42),0_6px_16px_-8px_rgba(0,0,0,0.1)] transition-all hover:bg-[#007AFF]/15 active:scale-[0.98] dark:border-[#64B5FF]/35 dark:bg-[#64B5FF]/12 dark:text-[#93c5fd] dark:shadow-[0_6px_16px_-10px_rgba(0,122,255,0.45)]"
+               className="inline-flex items-center gap-2 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-3 py-2 text-[12px] font-semibold text-[#007AFF] shadow-[0_8px_20px_-8px_rgba(0,122,255,0.28),0_4px_12px_-6px_rgba(0,0,0,0.06)] transition-all hover:bg-[#007AFF]/15 active:scale-[0.98] dark:border-[#64B5FF]/35 dark:bg-[#64B5FF]/12 dark:text-[#93c5fd] dark:shadow-[0_6px_16px_-10px_rgba(0,122,255,0.45)]"
               title="Limpar todos os campos"
             >
               <Eraser className="h-4 w-4" />
@@ -1028,7 +1028,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <h2 className="border-b border-zinc-200/80 pb-2 text-[14px] font-bold uppercase tracking-[0.08em] text-zinc-700 dark:border-white/[0.08] dark:text-zinc-200">
                 Dados do cliente
               </h2>
-              <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-3 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.14),0_6px_16px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.06)] dark:border-white/[0.08] dark:bg-zinc-950/30 dark:shadow-none">
+              <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-3 shadow-[0_8px_22px_-10px_rgba(0,0,0,0.1),0_4px_12px_-6px_rgba(0,0,0,0.07),0_1px_4px_-2px_rgba(0,0,0,0.04)] dark:border-white/[0.08] dark:bg-zinc-950/30 dark:shadow-none">
                 <Input
                   className="[&>label]:sr-only"
                   label="Buscar cliente"
@@ -1070,7 +1070,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 ) : null}
                 {intakeCustomerSearchOpen ? (
                   <div
-                    className="mt-2 space-y-2 rounded-lg border border-zinc-200/80 bg-white/90 p-2 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.16),0_8px_22px_-10px_rgba(0,0,0,0.12),0_2px_10px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:bg-zinc-950/50 dark:shadow-sm"
+                    className="mt-2 space-y-2 rounded-lg border border-zinc-200/80 bg-white/90 p-2 shadow-[0_10px_28px_-10px_rgba(0,0,0,0.11),0_5px_14px_-8px_rgba(0,0,0,0.08),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:border-white/[0.08] dark:bg-zinc-950/50 dark:shadow-sm"
                     onMouseDown={(e) => e.preventDefault()}
                   >
                     <p className="px-1 text-[12px] text-zinc-500 dark:text-zinc-400">
@@ -1086,7 +1086,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <p className="px-1 text-xs text-red-600 dark:text-red-400">{intakeCustomerDirectoryError}</p>
                     ) : null}
                     {!intakeCustomerDirectoryLoading && intakeCustomerDirectory ? (
-                      <div className="max-h-44 overflow-y-auto rounded-md border border-zinc-200/70 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.12),0_2px_8px_-4px_rgba(0,0,0,0.07)] dark:border-white/[0.08] dark:shadow-none">
+                      <div className="max-h-44 overflow-y-auto rounded-md border border-zinc-200/70 shadow-[0_4px_12px_-6px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] dark:border-white/[0.08] dark:shadow-none">
                         {intakeExistingCustomerFiltered.length === 0 ? (
                           <p className="p-3 text-xs text-zinc-500 dark:text-zinc-400">
                             Nenhum cliente encontrado. Ajuste a busca.
@@ -1218,7 +1218,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#007AFF] shadow-[0_8px_20px_-8px_rgba(0,122,255,0.35)] transition-all hover:bg-[#007AFF]/15 active:scale-[0.98] dark:border-[#64B5FF]/35 dark:bg-[#64B5FF]/12 dark:text-[#93c5fd]"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#007AFF] shadow-[0_5px_14px_-6px_rgba(0,122,255,0.22)] transition-all hover:bg-[#007AFF]/15 active:scale-[0.98] dark:border-[#64B5FF]/35 dark:bg-[#64B5FF]/12 dark:text-[#93c5fd]"
                     title="Limpar todos os campos"
                   >
                     <Eraser className="h-3.5 w-3.5 shrink-0" />
@@ -1253,7 +1253,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => void runPlacaLookup(true)}
                           disabled={plateLookupLoading}
-                          className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 text-sm font-semibold text-zinc-800 shadow-[0_10px_26px_-8px_rgba(0,0,0,0.15),0_4px_12px_-6px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/45 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none sm:mb-0.5"
+                          className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 text-sm font-semibold text-zinc-800 shadow-[0_6px_18px_-7px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.06)] transition-all hover:border-[#007AFF]/45 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none sm:mb-0.5"
                         >
                           {plateLookupLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
@@ -1364,8 +1364,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           onClick={() => setVehicleCategory(category)}
                           className={`px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-all active:scale-[0.98] ${
                             selected
-                              ? 'bg-[#007AFF] text-white border-[#007AFF]/85 shadow-[0_14px_34px_-10px_rgba(37,99,235,0.45),0_6px_18px_-8px_rgba(37,99,235,0.3)] dark:shadow-md dark:shadow-blue-500/25'
-                              : 'bg-white/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200 border-zinc-200/90 dark:border-white/[0.1] shadow-[0_8px_22px_-8px_rgba(0,0,0,0.13),0_3px_10px_-4px_rgba(0,0,0,0.08)] dark:shadow-none hover:border-[#007AFF]/45 backdrop-blur-sm'
+                              ? 'bg-[#007AFF] text-white border-[#007AFF]/85 shadow-[0_10px_26px_-8px_rgba(37,99,235,0.32),0_4px_14px_-6px_rgba(37,99,235,0.22)] dark:shadow-md dark:shadow-blue-500/25'
+                              : 'bg-white/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200 border-zinc-200/90 dark:border-white/[0.1] shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:shadow-none hover:border-[#007AFF]/45 backdrop-blur-sm'
                           }`}
                           aria-pressed={selected}
                         >
@@ -1378,9 +1378,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               )}
 
               {receptionMode === 'vehicle' && (
-                <div className="rounded-[22px] border border-[#007AFF]/20 bg-gradient-to-br from-[#007AFF]/[0.06] via-white to-zinc-50/90 p-4 shadow-[0_18px_44px_-14px_rgba(0,122,255,0.32),0_10px_28px_-12px_rgba(0,122,255,0.2),0_4px_14px_-6px_rgba(0,0,0,0.1)] dark:border-[#007AFF]/25 dark:from-[#007AFF]/12 dark:via-zinc-950/40 dark:to-zinc-950/20 dark:shadow-[0_8px_28px_-14px_rgba(0,122,255,0.25)] sm:p-5">
+                <div className="rounded-[22px] border border-[#007AFF]/20 bg-gradient-to-br from-[#007AFF]/[0.06] via-white to-zinc-50/90 p-4 shadow-[0_12px_32px_-12px_rgba(0,122,255,0.22),0_6px_18px_-10px_rgba(0,122,255,0.14),0_3px_10px_-5px_rgba(0,0,0,0.06)] dark:border-[#007AFF]/25 dark:from-[#007AFF]/12 dark:via-zinc-950/40 dark:to-zinc-950/20 dark:shadow-[0_8px_28px_-14px_rgba(0,122,255,0.25)] sm:p-5">
                   <div className="flex gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#007AFF]/30 bg-white shadow-[0_8px_20px_-8px_rgba(0,0,0,0.14),0_3px_10px_-4px_rgba(0,0,0,0.08)] dark:border-[#007AFF]/35 dark:bg-zinc-900/80 dark:shadow-sm">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#007AFF]/30 bg-white shadow-[0_5px_14px_-6px_rgba(0,0,0,0.1),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:border-[#007AFF]/35 dark:bg-zinc-900/80 dark:shadow-sm">
                       <ShieldCheck className="h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                     </div>
                     <div className="min-w-0 flex-1 space-y-1">
@@ -1402,7 +1402,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setDiagAuthSignModalOpen(true)}
-                      className="flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-[#007AFF]/35 bg-[#007AFF] px-4 py-3.5 text-[14px] font-semibold text-white shadow-[0_14px_36px_-10px_rgba(37,99,235,0.45),0_8px_22px_-8px_rgba(37,99,235,0.32)] transition-all hover:opacity-95 active:scale-[0.99] dark:shadow-md dark:shadow-blue-900/40 sm:min-w-[200px]"
+                      className="flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-[#007AFF]/35 bg-[#007AFF] px-4 py-3.5 text-[14px] font-semibold text-white shadow-[0_10px_26px_-8px_rgba(37,99,235,0.32),0_5px_16px_-7px_rgba(37,99,235,0.22)] transition-all hover:opacity-95 active:scale-[0.99] dark:shadow-md dark:shadow-blue-900/40 sm:min-w-[200px]"
                     >
                       <FileText className="h-4 w-4 shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
                       {diagAuthSignatureBlob ? 'Reabrir termo e assinar novamente' : 'Ler termo e assinar'}
@@ -1411,7 +1411,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <button
                         type="button"
                         onClick={() => setDiagAuthSheetOpen(true)}
-                        className="inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-white px-4 py-3.5 text-[14px] font-semibold text-zinc-800 shadow-[0_10px_28px_-10px_rgba(0,0,0,0.14),0_4px_14px_-6px_rgba(0,0,0,0.1)] transition-all hover:bg-zinc-50 active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-sm dark:hover:bg-white/[0.1] sm:min-w-[200px]"
+                        className="inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-white px-4 py-3.5 text-[14px] font-semibold text-zinc-800 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.06)] transition-all hover:bg-zinc-50 active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-sm dark:hover:bg-white/[0.1] sm:min-w-[200px]"
                       >
                         <Eye className="h-4 w-4 shrink-0 text-zinc-600 dark:text-zinc-300" strokeWidth={2.25} aria-hidden />
                         Ver autorização de diagnóstico
@@ -1459,7 +1459,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     {intakePhotos.map((p, idx) => (
                       <div
                         key={p.id}
-                        className="motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200 relative h-[5.25rem] w-[5.25rem] shrink-0 snap-start overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-100 shadow-[0_12px_28px_-10px_rgba(0,0,0,0.16),0_4px_12px_-6px_rgba(0,0,0,0.1)] dark:border-white/10 dark:bg-zinc-900/60 dark:shadow-sm sm:h-24 sm:w-24"
+                        className="motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200 relative h-[5.25rem] w-[5.25rem] shrink-0 snap-start overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-100 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.11),0_2px_8px_-4px_rgba(0,0,0,0.07)] dark:border-white/10 dark:bg-zinc-900/60 dark:shadow-sm sm:h-24 sm:w-24"
                       >
                         <img src={p.url} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
                         <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">
@@ -1482,7 +1482,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     type="button"
                     disabled={intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS}
                     onClick={() => cameraInputRef.current?.click()}
-                    className="flex min-h-[52px] flex-1 items-center justify-center gap-2.5 rounded-2xl border border-zinc-200/90 bg-white/50 py-3.5 text-zinc-700 shadow-[0_10px_28px_-10px_rgba(0,0,0,0.14),0_4px_14px_-6px_rgba(0,0,0,0.09)] backdrop-blur-md transition-all hover:border-[#007AFF]/45 hover:bg-white/90 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]"
+                    className="flex min-h-[52px] flex-1 items-center justify-center gap-2.5 rounded-2xl border border-zinc-200/90 bg-white/50 py-3.5 text-zinc-700 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all hover:border-[#007AFF]/45 hover:bg-white/90 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]"
                   >
                     <Camera className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2} />
                     <span className="text-left text-sm font-semibold leading-tight">
@@ -1497,7 +1497,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     type="button"
                     disabled={intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS}
                     onClick={() => galleryInputRef.current?.click()}
-                    className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-zinc-100/60 py-3.5 text-sm font-semibold text-zinc-800 shadow-[0_10px_28px_-10px_rgba(0,0,0,0.14),0_4px_14px_-6px_rgba(0,0,0,0.09)] backdrop-blur-md transition-all hover:bg-zinc-100 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]"
+                    className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-zinc-100/60 py-3.5 text-sm font-semibold text-zinc-800 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all hover:bg-zinc-100 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]"
                   >
                     <ImageIcon className="h-5 w-5 shrink-0 text-zinc-600 dark:text-zinc-300" strokeWidth={2} />
                     Galeria (uma ou várias)
@@ -1517,7 +1517,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           <div className="pt-4 flex justify-end">
             <button
               type="submit"
-              className="group relative flex min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-[0_20px_48px_-12px_rgba(37,99,235,0.45),0_10px_28px_-10px_rgba(37,99,235,0.32),0_4px_14px_-6px_rgba(0,0,0,0.12)] transition-all hover:opacity-95 active:scale-[0.98] dark:shadow-lg dark:shadow-blue-500/25"
+              className="group relative flex min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-[0_14px_34px_-10px_rgba(37,99,235,0.32),0_6px_18px_-8px_rgba(37,99,235,0.22),0_2px_8px_-4px_rgba(0,0,0,0.08)] transition-all hover:opacity-95 active:scale-[0.98] dark:shadow-lg dark:shadow-blue-500/25"
             >
               Criar ficha
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -1553,7 +1553,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       {isHistoryOpen && (
         <ModalPortal>
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <div className={`${iosModalShell} w-full max-w-[90rem] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] shadow-[0_28px_80px_-20px_rgba(0,0,0,0.22),0_14px_44px_-16px_rgba(0,0,0,0.14),0_6px_20px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]`}>
+          <div className={`${iosModalShell} w-full max-w-[90rem] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] shadow-[0_20px_56px_-16px_rgba(0,0,0,0.16),0_10px_30px_-12px_rgba(0,0,0,0.1),0_4px_14px_-8px_rgba(0,0,0,0.07)] dark:shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]`}>
             <button
               type="button"
               onClick={() => setIsHistoryOpen(false)}
@@ -1586,13 +1586,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         ? 'Buscar por identificação, cliente ou modelo'
                         : 'Buscar por placa, cliente ou modelo'
                     }
-                    className="w-full rounded-2xl border border-zinc-200/90 bg-white/90 py-3 pl-9 pr-3 text-zinc-900 placeholder:text-zinc-400 shadow-[0_10px_26px_-8px_rgba(0,0,0,0.16),0_4px_14px_-6px_rgba(0,0,0,0.1)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-100 dark:shadow-none"
+                    className="w-full rounded-2xl border border-zinc-200/90 bg-white/90 py-3 pl-9 pr-3 text-zinc-900 placeholder:text-zinc-400 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.11),0_2px_8px_-4px_rgba(0,0,0,0.07)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-100 dark:shadow-none"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => loadVehicleHistory(historySearch)}
-                  className="flex h-11 min-w-[44px] items-center justify-center rounded-2xl border border-[#007AFF]/60 bg-[#007AFF] px-4 font-semibold text-white shadow-[0_16px_36px_-10px_rgba(37,99,235,0.42),0_8px_22px_-8px_rgba(37,99,235,0.28)] transition-all hover:brightness-110 active:scale-[0.98] dark:shadow-lg dark:shadow-blue-500/25"
+                  className="flex h-11 min-w-[44px] items-center justify-center rounded-2xl border border-[#007AFF]/60 bg-[#007AFF] px-4 font-semibold text-white shadow-[0_10px_26px_-8px_rgba(37,99,235,0.3),0_4px_14px_-6px_rgba(37,99,235,0.2)] transition-all hover:brightness-110 active:scale-[0.98] dark:shadow-lg dark:shadow-blue-500/25"
                 >
                   <RefreshCw className={`w-4 h-4 ${historyLoading ? 'animate-spin' : ''}`} />
                 </button>
@@ -1652,12 +1652,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleToggleHistoryBudgets(o.id)}
-                                className="flex w-full min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/90 px-4 py-3 text-[14px] font-semibold text-zinc-800 shadow-[0_12px_30px_-10px_rgba(0,0,0,0.15),0_5px_16px_-8px_rgba(0,0,0,0.1)] transition-all hover:bg-zinc-50 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.08] dark:text-zinc-100 dark:shadow-[0_2px_12px_-2px_rgba(0,0,0,0.1)] dark:hover:bg-white/[0.12]"
+                                className="flex w-full min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/90 px-4 py-3 text-[14px] font-semibold text-zinc-800 shadow-[0_8px_20px_-8px_rgba(0,0,0,0.1),0_3px_10px_-5px_rgba(0,0,0,0.06)] transition-all hover:bg-zinc-50 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.08] dark:text-zinc-100 dark:shadow-[0_2px_12px_-2px_rgba(0,0,0,0.1)] dark:hover:bg-white/[0.12]"
                               >
                                 {expandedHistoryOrderId === o.id ? 'Ocultar orçamentos' : 'Ver orçamentos'}
                               </button>
                               {expandedHistoryOrderId === o.id && (
-                                <div className="mt-3 space-y-2 rounded-[1.25rem] border border-zinc-200/80 bg-zinc-50/90 p-3 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.12),0_6px_16px_-8px_rgba(0,0,0,0.08)] dark:border-white/10 dark:bg-black/30 dark:shadow-none">
+                                <div className="mt-3 space-y-2 rounded-[1.25rem] border border-zinc-200/80 bg-zinc-50/90 p-3 shadow-[0_8px_22px_-10px_rgba(0,0,0,0.09),0_3px_10px_-5px_rgba(0,0,0,0.05)] dark:border-white/10 dark:bg-black/30 dark:shadow-none">
                                   {historyBudgetsLoadingId === o.id ? (
                                     <div className="flex items-center gap-2 text-sm text-zinc-500">
                                       <RefreshCw className="h-4 w-4 animate-spin" />
@@ -1738,7 +1738,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             aria-modal="true"
             aria-labelledby="reception-archived-detail-title"
           >
-            <div className={`${iosModalShell} w-full max-w-[90rem] max-h-[90vh] shadow-[0_28px_80px_-20px_rgba(0,0,0,0.22),0_14px_44px_-16px_rgba(0,0,0,0.14),0_6px_20px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)] animate-modal-sheet`}>
+            <div className={`${iosModalShell} w-full max-w-[90rem] max-h-[90vh] shadow-[0_20px_56px_-16px_rgba(0,0,0,0.16),0_10px_30px_-12px_rgba(0,0,0,0.1),0_4px_14px_-8px_rgba(0,0,0,0.07)] dark:shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)] animate-modal-sheet`}>
               <div className="absolute top-4 right-4 z-10 flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                 <button
                   type="button"
