@@ -31,8 +31,9 @@ import {
 } from '../services/apiService';
 import type { TvChimeAlert, TvChimeKind, TvChimeScheduleConfig } from '../utils/tvChimeSchedule';
 import { defaultTvChimeSchedule, normalizeTimeHHmm } from '../utils/tvChimeSchedule';
-import { playTvChimeSound } from '../utils/tvChimeAudio';
+import { playTvChimePreSound, playTvChimeSound } from '../utils/tvChimeAudio';
 import { useTvChimeSchedule, type TvChimeFirePayload } from '../hooks/useTvChimeSchedule';
+import { TvChimeBannerCard } from './TvChimeBannerCard';
 import { TvPatioPreview } from './TvPatioPreview';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
@@ -126,6 +127,14 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     kind: TvChimeKind;
     phase: 'pre' | 'main';
   } | null>(null);
+  /** Pré-visualização da faixa dentro do frame “TV” (aba Horários). */
+  const [chimeFiringPreviewInTv, setChimeFiringPreviewInTv] = useState<{
+    phase: 'pre' | 'main';
+    kind: TvChimeKind;
+    title: string;
+    message: string;
+  } | null>(null);
+  const [chimePreviewPickId, setChimePreviewPickId] = useState<string | null>(null);
   const chimeConfigRef = useRef(chimeConfig);
   chimeConfigRef.current = chimeConfig;
   const chimeBannerTimerRef = useRef<number | null>(null);
@@ -163,6 +172,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       setEditingSlideId(null);
       setEditForm(null);
       setChimeBanner(null);
+      setChimeFiringPreviewInTv(null);
+      setChimePreviewPickId(null);
       if (chimeBannerTimerRef.current) {
         window.clearTimeout(chimeBannerTimerRef.current);
         chimeBannerTimerRef.current = null;
@@ -341,6 +352,22 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     config: chimeConfig,
     onFire: onChimeFire,
   });
+
+  const enabledChimeAlerts = useMemo(
+    () => chimeConfig.alerts.filter((a) => a.enabled),
+    [chimeConfig.alerts]
+  );
+
+  const chimePreviewEffectiveAlertId = useMemo(() => {
+    if (chimePreviewPickId && enabledChimeAlerts.some((a) => a.id === chimePreviewPickId)) {
+      return chimePreviewPickId;
+    }
+    return enabledChimeAlerts[0]?.id ?? null;
+  }, [chimePreviewPickId, enabledChimeAlerts]);
+
+  useEffect(() => {
+    if (previewTab !== 'chimes') setChimeFiringPreviewInTv(null);
+  }, [previewTab]);
 
   if (!isOpen) return null;
 
@@ -608,47 +635,22 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     <ModalPortal>
       <div className="fixed inset-0 z-[120] flex items-stretch justify-stretch bg-black/45 backdrop-blur-[20px]">
       {chimeBanner && (
-        <div
-          className="pointer-events-none fixed inset-x-0 top-0 z-[125] flex justify-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))]"
-          role="status"
-          aria-live="polite"
-        >
-          <div
-            className={`pointer-events-auto max-w-lg w-full rounded-2xl border px-4 py-3 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.25)] backdrop-blur-xl animate-in slide-in-from-top-2 duration-300 ${
-              chimeBanner.phase === 'pre'
-                ? 'border-slate-300/90 bg-white/95 text-slate-900'
-                : chimeBanner.kind === 'lunch'
-                  ? 'border-amber-400/80 bg-gradient-to-r from-amber-50 to-white text-amber-950'
-                  : chimeBanner.kind === 'departure'
-                    ? 'border-[#007AFF]/50 bg-gradient-to-r from-blue-50 to-white text-zinc-900'
-                    : 'border-violet-300/80 bg-gradient-to-r from-violet-50 to-white text-violet-950'
-            }`}
-          >
-            <div className="flex items-start gap-2">
-              <Bell className="mt-0.5 h-5 w-5 shrink-0 text-[#007AFF]" strokeWidth={2.2} aria-hidden />
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500">
-                  {chimeBanner.phase === 'pre' ? 'Lembrete' : 'TV do pátio · Horário'}
-                </p>
-                <p className="text-[17px] font-semibold leading-snug tracking-tight">{chimeBanner.title}</p>
-                <p className="mt-1 text-[13px] leading-snug text-zinc-600">{chimeBanner.message}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setChimeBanner(null);
-                  if (chimeBannerTimerRef.current) {
-                    window.clearTimeout(chimeBannerTimerRef.current);
-                    chimeBannerTimerRef.current = null;
-                  }
-                }}
-                className="pointer-events-auto shrink-0 rounded-full p-1 text-zinc-500 hover:bg-black/5 hover:text-zinc-800"
-                aria-label="Fechar aviso"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-[125] flex justify-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <TvChimeBannerCard
+            variant="modal"
+            phase={chimeBanner.phase}
+            kind={chimeBanner.kind}
+            title={chimeBanner.title}
+            message={chimeBanner.message}
+            className="w-full"
+            onDismiss={() => {
+              setChimeBanner(null);
+              if (chimeBannerTimerRef.current) {
+                window.clearTimeout(chimeBannerTimerRef.current);
+                chimeBannerTimerRef.current = null;
+              }
+            }}
+          />
         </div>
       )}
       <div
@@ -735,6 +737,88 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 </button>
               </div>
 
+              {previewTab === 'chimes' && (
+                <div className="mb-4 space-y-3 rounded-2xl border border-amber-200/80 bg-amber-50/40 px-3 py-3">
+                  <p className={`${iosLabel} mb-0 text-amber-900/90`}>Pré-visualizar faixa no painel</p>
+                  <p className="text-[12px] leading-snug text-zinc-600">
+                    Mesma aparência da faixa quando o horário disparar (pré-aviso ou no horário). Opcional: toca o som conforme a configuração.
+                  </p>
+                  {enabledChimeAlerts.length === 0 ? (
+                    <p className="text-[12px] text-zinc-500">
+                      Ative pelo menos um aviso na lista desta secção para simular.
+                    </p>
+                  ) : (
+                    <>
+                      <label className={`${iosLabel} text-zinc-600`}>Aviso</label>
+                      <select
+                        value={chimePreviewEffectiveAlertId ?? ''}
+                        onChange={(e) => setChimePreviewPickId(e.target.value || null)}
+                        className={`${iosInput} text-[13px]`}
+                      >
+                        {enabledChimeAlerts.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.label || 'Sem nome'} ({a.time})
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <button
+                          type="button"
+                          disabled={chimeConfig.preNotifyMinutes <= 0}
+                          onClick={() => {
+                            const id = chimePreviewEffectiveAlertId;
+                            if (!id || chimeConfig.preNotifyMinutes <= 0) return;
+                            const alert = enabledChimeAlerts.find((x) => x.id === id);
+                            if (!alert) return;
+                            setChimeFiringPreviewInTv({
+                              phase: 'pre',
+                              kind: 'info',
+                              title: `Em ${chimeConfig.preNotifyMinutes} min`,
+                              message: `${alert.label} · ${alert.time}`,
+                            });
+                            if (chimeConfig.preNotifyPlaySound) {
+                              void playTvChimePreSound(chimeConfig.soundVolume);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-800 shadow-sm hover:border-[#007AFF]/40 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Pré-aviso
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const id = chimePreviewEffectiveAlertId;
+                            if (!id) return;
+                            const alert = enabledChimeAlerts.find((x) => x.id === id);
+                            if (!alert) return;
+                            setChimeFiringPreviewInTv({
+                              phase: 'main',
+                              kind: alert.kind,
+                              title: alert.label,
+                              message: alert.message?.trim() || '—',
+                            });
+                            if (alert.playSound) {
+                              void playTvChimeSound(chimeConfig.soundPreset, chimeConfig.soundVolume);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-[#007AFF]/35 bg-[#007AFF] px-3 py-2 text-[12px] font-semibold text-white shadow-sm shadow-blue-500/20 hover:opacity-95"
+                        >
+                          No horário
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!chimeFiringPreviewInTv}
+                          onClick={() => setChimeFiringPreviewInTv(null)}
+                          className="rounded-xl border border-zinc-200/90 bg-zinc-100/90 px-3 py-2 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-200/80 disabled:cursor-not-allowed disabled:opacity-35"
+                        >
+                          Ocultar
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
               {previewTab === 'library' && slides.length > 0 && (
                 <select
                   value={libraryPreviewId ?? ''}
@@ -759,12 +843,16 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 slide={previewTab === 'chimes' ? null : previewSlide}
                 showVehiclesPlaceholder={previewTab === 'draft' && !draftSlide}
                 chimeSchedulePreview={previewTab === 'chimes' ? chimeConfig : null}
+                chimeFiringPreview={previewTab === 'chimes' ? chimeFiringPreviewInTv : null}
+                onChimeFiringPreviewDismiss={
+                  previewTab === 'chimes' ? () => setChimeFiringPreviewInTv(null) : undefined
+                }
               />
             </div>
 
             <p className="portrait:order-3 mt-5 px-1 text-center text-[11px] leading-relaxed text-zinc-500 lg:order-3">
               {previewTab === 'chimes'
-                ? 'Pré-visualização da faixa de horários na TV (lista ordenada por horário). Salve na secção abaixo para enviar ao painel.'
+                ? 'Lista de horários + botões acima para ver a faixa como no disparo. Salve na secção abaixo para enviar ao painel.'
                 : 'O preview simula o painel da TV. Imagens e vídeos enviados ficam no Storage da oficina.'}
             </p>
           </div>

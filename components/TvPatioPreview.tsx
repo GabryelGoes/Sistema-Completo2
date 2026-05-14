@@ -1,7 +1,8 @@
 import React from 'react';
 import type { TvMediaObjectFit, TvSlide } from '../services/apiService';
 import { normalizeTvMediaObjectFit } from '../services/apiService';
-import type { TvChimeAlert, TvChimeScheduleConfig } from '../utils/tvChimeSchedule';
+import type { TvChimeAlert, TvChimeKind, TvChimeScheduleConfig } from '../utils/tvChimeSchedule';
+import { TvChimeBannerCard } from './TvChimeBannerCard';
 
 function mediaObjectFitClass(fit: TvMediaObjectFit | undefined): string {
   switch (normalizeTvMediaObjectFit(fit)) {
@@ -80,6 +81,14 @@ interface TvPatioPreviewProps {
   showVehiclesPlaceholder?: boolean;
   /** Simula na área da TV a faixa dos avisos por horário (aba Horários no modal). */
   chimeSchedulePreview?: TvChimeScheduleConfig | null;
+  /** Sobreposição: aparência da faixa quando dispara (pré-aviso ou no horário). */
+  chimeFiringPreview?: {
+    phase: 'pre' | 'main';
+    kind: TvChimeKind;
+    title: string;
+    message: string;
+  } | null;
+  onChimeFiringPreviewDismiss?: () => void;
 }
 
 /**
@@ -93,6 +102,8 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
   slide,
   showVehiclesPlaceholder = true,
   chimeSchedulePreview = null,
+  chimeFiringPreview = null,
+  onChimeFiringPreviewDismiss,
 }) => {
   const pct =
     weeklyTarget > 0 && Number.isFinite(weeklyCurrent / weeklyTarget)
@@ -289,7 +300,24 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
           </div>
         )}
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{renderSlide()}</div>
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+          {renderSlide()}
+          {chimeSchedulePreview && chimeFiringPreview ? (
+            <div className="pointer-events-none absolute inset-0 z-[15] flex items-start justify-center bg-black/30 px-2 pt-2">
+              <div className="pointer-events-auto w-full max-w-[min(100%,20rem)]">
+                <TvChimeBannerCard
+                  variant="preview"
+                  phase={chimeFiringPreview.phase}
+                  kind={chimeFiringPreview.kind}
+                  title={chimeFiringPreview.title}
+                  message={chimeFiringPreview.message}
+                  onDismiss={onChimeFiringPreviewDismiss}
+                  dismissAriaLabel="Fechar pré-visualização"
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
       <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-12 h-1 rounded-full bg-white/15" />
     </div>
