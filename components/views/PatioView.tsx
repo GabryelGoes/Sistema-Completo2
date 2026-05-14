@@ -1077,6 +1077,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const boardPanoramicStorageKey = isModuleMode ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
   const [boardPanoramic, setBoardPanoramic] = useState(false);
   const [isDesktopLandscape, setIsDesktopLandscape] = useState(false);
+  /** Retrato: encolhe o quadro inteiro (como o zoom do modo “5 colunas”) sem depender do toggle panorâmico. */
+  const [isPortraitOrientation, setIsPortraitOrientation] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(orientation: portrait)').matches : false
+  );
   /** Menu ⋯ do cabeçalho: zoom da grade, busca/atualizar, histórico (portal em body para ficar acima dos cards). */
   const [isPatioHeaderToolsOpen, setIsPatioHeaderToolsOpen] = useState(false);
   const patioHeaderToolsTriggerRef = useRef<HTMLButtonElement>(null);
@@ -1135,6 +1139,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(min-width: 1024px) and (orientation: landscape)');
     const apply = () => setIsDesktopLandscape(mq.matches);
+    apply();
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', apply);
+      return () => mq.removeEventListener('change', apply);
+    }
+    mq.addListener(apply);
+    return () => mq.removeListener(apply);
+  }, []);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(orientation: portrait)');
+    const apply = () => setIsPortraitOrientation(mq.matches);
     apply();
     if (typeof mq.addEventListener === 'function') {
       mq.addEventListener('change', apply);
@@ -3447,8 +3463,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
         }`;
         const zoomOuterClass =
           'origin-top will-change-[zoom] motion-safe:transition-[zoom] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]';
+        const patioBoardOuterZoom =
+          boardPanoramic || isPortraitOrientation ? BOARD_PANORAMIC_ZOOM : 1;
         const zoomOuterStyle = {
-          zoom: boardPanoramic ? BOARD_PANORAMIC_ZOOM : 1,
+          zoom: patioBoardOuterZoom,
           transition: 'zoom 0.55s cubic-bezier(0.34, 1.35, 0.25, 1)',
         } as React.CSSProperties & { zoom?: number };
         const zoomWrap = (node: React.ReactNode) => (
