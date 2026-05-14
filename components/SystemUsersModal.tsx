@@ -1,6 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Pencil, Trash2, Loader2, LayoutGrid, Car, User, ShieldCheck } from 'lucide-react';
-import { iosModalOverlay, iosModalShell, iosModalClose, iosInput } from './ui/iosModalStyles';
+import {
+  X,
+  Plus,
+  Pencil,
+  Trash2,
+  Loader2,
+  LayoutGrid,
+  Car,
+  User,
+  ShieldCheck,
+  Lock,
+  ChevronDown,
+  ChevronLeft,
+  UsersRound,
+} from 'lucide-react';
+import {
+  iosModalOverlay,
+  iosModalShell,
+  iosModalClose,
+  iosInput,
+  iosModalInsetCard,
+  iosAccentPrimaryButton,
+} from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { IosModalHeader } from './ui/IosModalHeader';
 import type { SystemUserPermissions, SystemUser } from '../services/apiService';
@@ -174,6 +195,39 @@ const PATIO_OTHER_LABELS: { key: keyof SystemUserPermissions; label: string }[] 
 ];
 
 const DEFAULT_PERMISSIONS: SystemUserPermissions = {};
+
+function userListInitial(u: SystemUser): string {
+  const n = (u.display_name || u.username || '?').trim();
+  return n ? n.charAt(0).toUpperCase() : '?';
+}
+
+/** Bloco estilo iOS Ajustes com `<summary>` customizado */
+function CollapsibleSection({
+  title,
+  icon,
+  defaultOpen = true,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details defaultOpen={defaultOpen} className={`${iosModalInsetCard} group overflow-hidden`}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 marker:content-none [&::-webkit-details-marker]:hidden hover:bg-zinc-100/60 dark:hover:bg-white/[0.04]">
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-200/80 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+            {icon}
+          </span>
+          <span className="text-[15px] font-semibold text-zinc-900 dark:text-white">{title}</span>
+        </span>
+        <ChevronDown className="h-5 w-5 shrink-0 text-zinc-400 transition-transform duration-200 group-open:rotate-180" />
+      </summary>
+      <div className="border-t border-zinc-200/70 px-4 pb-4 pt-1 dark:border-white/[0.06]">{children}</div>
+    </details>
+  );
+}
 
 interface SystemUsersModalProps {
   isOpen: boolean;
@@ -355,318 +409,383 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
 
   return (
     <div className={iosModalOverlay}>
-      <div className={`${iosModalShell} max-w-3xl w-full max-h-[92vh]`}>
+      <div className={`${iosModalShell} max-w-3xl w-full max-h-[min(92vh,860px)]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
         </button>
 
-        <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
-          <div className="px-5 sm:px-8 pt-7 pb-3 pr-14 shrink-0">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="shrink-0 border-b border-zinc-200/70 bg-gradient-to-b from-white/90 to-white/40 px-5 pb-4 pt-7 pr-14 dark:border-white/[0.06] dark:from-zinc-900/80 dark:to-zinc-950/40">
             <IosModalHeader
               icon={<img src="/icons/usuarios-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Usuários do sistema"
-              subtitle="Logins, permissões de telas e módulos, e aprovação de orçamentos"
+              subtitle="Logins da oficina, permissões por módulo e aprovação de orçamentos"
               gradientClass="from-violet-500 to-indigo-700"
             />
           </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-8 pb-28 space-y-5">
           {!unlocked ? (
-            <form onSubmit={handleUnlock} className="space-y-3">
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Digite a senha de <strong>Gerência</strong> para gerenciar os usuários.
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="Senha do admin"
-                  className={`${iosInput} flex-1`}
-                />
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-6 sm:px-8">
+              <form onSubmit={handleUnlock} className={`${iosModalInsetCard} mx-auto w-full max-w-md space-y-5 p-6 sm:p-8`}>
+                <div className="flex flex-col items-center text-center">
+                  <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/15 text-violet-600 ring-1 ring-violet-500/25 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-400/20">
+                    <Lock className="h-7 w-7" strokeWidth={2} />
+                  </div>
+                  <h3 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-white">Confirmar gerência</h3>
+                  <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+                    Digite a senha de <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Gerência</strong> para
+                    listar e editar usuários do sistema.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <label className="sr-only" htmlFor="system-users-admin-password">
+                    Senha do administrador
+                  </label>
+                  <input
+                    id="system-users-admin-password"
+                    type="password"
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    placeholder="Senha do admin"
+                    autoComplete="current-password"
+                    className={iosInput}
+                  />
+                  <button
+                    type="submit"
+                    disabled={loading || !adminPassword.trim()}
+                    className={`${iosAccentPrimaryButton} flex w-full items-center justify-center gap-2 py-3.5`}
+                  >
+                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                    {loading ? 'Verificando…' : 'Continuar'}
+                  </button>
+                </div>
+                {error ? (
+                  <p className="rounded-xl bg-red-500/10 px-3 py-2 text-center text-sm text-red-600 dark:text-red-400">{error}</p>
+                ) : null}
+              </form>
+            </div>
+          ) : editingId ? (
+            <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200/70 px-5 py-3 dark:border-white/[0.06] sm:px-8">
                 <button
-                  type="submit"
-                  disabled={loading || !adminPassword.trim()}
-                  className="px-4 py-2.5 rounded-xl bg-brand-yellow text-black font-semibold disabled:opacity-50 flex items-center gap-2"
+                  type="button"
+                  onClick={cancelEdit}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[14px] font-medium text-[#007AFF] transition-colors hover:bg-[#007AFF]/10 dark:text-[#64B5FF] dark:hover:bg-[#64B5FF]/10"
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Entrar'}
+                  <ChevronLeft className="h-4 w-4" />
+                  Lista
                 </button>
+                <span className="min-w-0 flex-1 truncate text-center text-[13px] font-medium text-zinc-500 dark:text-zinc-400 sm:text-left">
+                  {editingId === 'new' ? 'Novo usuário' : formUsername}
+                </span>
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-            </form>
-          ) : (
-            <>
-              {editingId ? (
-                <form onSubmit={handleSave} className="space-y-6">
-                  {/* Dados do usuário */}
-                  <section className="rounded-[20px] border border-zinc-200/80 bg-zinc-50/60 p-4 shadow-sm dark:border-zinc-600/60 dark:bg-zinc-900/35">
-                    <h3 className="text-[13px] font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2 mb-3">
-                      <User className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-                      Dados do usuário
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Usuário (login)</label>
-                        <input
-                          type="text"
-                          value={formUsername}
-                          onChange={(e) => setFormUsername(e.target.value)}
-                          placeholder="Ex: joao"
-                          disabled={editingId !== 'new'}
-                          className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white disabled:opacity-60"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
-                          {editingId === 'new' ? 'Senha (mín. 4 caracteres)' : 'Nova senha (deixe em branco para manter)'}
-                        </label>
-                        <input
-                          type="password"
-                          value={formPassword}
-                          onChange={(e) => setFormPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                        />
-                      </div>
-                    </div>
+
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-5 sm:px-8">
+                <section className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
+                  <h3 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    <User className="h-4 w-4 text-violet-600 dark:text-violet-400" strokeWidth={2} />
+                    Identidade
+                  </h3>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
-                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Nome de exibição (opcional)</label>
+                      <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Usuário (login)</label>
                       <input
                         type="text"
-                        value={formDisplayName}
-                        onChange={(e) => setFormDisplayName(e.target.value)}
-                        placeholder="Ex: João Silva"
-                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                        value={formUsername}
+                        onChange={(e) => setFormUsername(e.target.value)}
+                        placeholder="Ex: joao"
+                        disabled={editingId !== 'new'}
+                        className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[15px] text-zinc-900 shadow-sm focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 disabled:opacity-60 dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Cargo (opcional)</label>
+                      <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                        {editingId === 'new' ? 'Senha (mín. 4 caracteres)' : 'Nova senha (opcional)'}
+                      </label>
                       <input
-                        type="text"
-                        value={formJobTitle}
-                        onChange={(e) => setFormJobTitle(e.target.value)}
-                        placeholder="Ex: Mecânico, Recepcionista"
-                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                        type="password"
+                        value={formPassword}
+                        onChange={(e) => setFormPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[15px] text-zinc-900 shadow-sm focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white"
                       />
                     </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Nome de exibição (opcional)</label>
+                    <input
+                      type="text"
+                      value={formDisplayName}
+                      onChange={(e) => setFormDisplayName(e.target.value)}
+                      placeholder="Ex: João Silva"
+                      className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[15px] text-zinc-900 shadow-sm focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Cargo (opcional)</label>
+                    <input
+                      type="text"
+                      value={formJobTitle}
+                      onChange={(e) => setFormJobTitle(e.target.value)}
+                      placeholder="Ex: Mecânico, Recepcionista"
+                      className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[15px] text-zinc-900 shadow-sm focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white"
+                    />
+                  </div>
+                  <div className="border-t border-zinc-200/70 pt-3 dark:border-white/[0.06]">
                     <PermSwitch
                       label="Técnico da oficina"
                       description="Aparece como mecânico nos cards do Pátio/Laboratório"
                       checked={formIsTechnician}
                       onChange={setFormIsTechnician}
                     />
-                  </section>
+                  </div>
+                </section>
 
-                  {/* Acesso completo (igual ao admin) */}
-                  <section>
-                    <div className="rounded-xl border-2 border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/50 p-4">
-                      <PermSwitch
-                        label="Acesso completo ao sistema"
-                        description="Igual ao administrador: todas as telas, seção Administração (usuários, configurações, serviços, checklists, técnicos, senhas) e todas as ações no Pátio/Laboratório."
-                        checked={!!formPermissions.full_access}
-                        onChange={(v) => setPerm('full_access', v)}
+                <div className="rounded-2xl border-2 border-amber-300/80 bg-gradient-to-br from-amber-50 to-orange-50/80 p-4 dark:border-amber-700/50 dark:from-amber-950/40 dark:to-orange-950/20">
+                  <PermSwitch
+                    label="Acesso completo ao sistema"
+                    description="Igual ao administrador: todas as telas, Administração e todas as ações no Pátio/Laboratório."
+                    checked={!!formPermissions.full_access}
+                    onChange={(v) => setPerm('full_access', v)}
+                  />
+                  {formPermissions.full_access ? (
+                    <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs leading-snug text-amber-900 dark:text-amber-200">
+                      <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      As permissões detalhadas abaixo são ignoradas quando o acesso completo está ativo.
+                    </p>
+                  ) : null}
+                </div>
+
+                <CollapsibleSection
+                  title="Telas e navegação"
+                  icon={<LayoutGrid className="h-4 w-4" strokeWidth={2} />}
+                  defaultOpen
+                >
+                  <p className="mb-3 text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    Abas, ícones da página inicial e entradas do hub de configurações.
+                  </p>
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    {HOME_MODULE_ACCESS.map(({ key, label, description, icon, iconAlt }) => (
+                      <PermModuleCard
+                        key={key}
+                        iconSrc={icon}
+                        iconAlt={iconAlt}
+                        label={label}
+                        description={description}
+                        checked={!!formPermissions[key]}
+                        onChange={(v) => setPerm(key, v)}
+                        disabled={!!formPermissions.full_access}
                       />
-                      {formPermissions.full_access && (
-                        <p className="text-xs text-amber-700 dark:text-amber-300 mt-2 flex items-center gap-1.5">
-                          <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-                          As permissões detalhadas abaixo são ignoradas quando o acesso completo está ativo.
-                        </p>
-                      )}
-                    </div>
-                  </section>
-
-                  {/* Telas e módulos da home */}
-                  <section className="rounded-[20px] border border-zinc-200/80 bg-white/70 p-4 dark:border-zinc-600/60 dark:bg-zinc-900/30">
-                    <h3 className="text-[13px] font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
-                      <LayoutGrid className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-                      Telas e navegação
-                    </h3>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 mb-4 leading-relaxed">
-                      Abas do app, ícones da página inicial e entradas do hub de configurações. Cada cartão corresponde a um módulo.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {HOME_MODULE_ACCESS.map(({ key, label, description, icon, iconAlt }) => (
-                        <PermModuleCard
-                          key={key}
-                          iconSrc={icon}
-                          iconAlt={iconAlt}
-                          label={label}
-                          description={description}
-                          checked={!!formPermissions[key]}
-                          onChange={(v) => setPerm(key, v)}
-                          disabled={!!formPermissions.full_access}
-                        />
-                      ))}
-                    </div>
-                  </section>
-
-                  {/* Permissões no Pátio / Laboratório */}
-                  <section className="rounded-[20px] border border-zinc-200/80 bg-zinc-50/50 p-4 dark:border-zinc-600/60 dark:bg-zinc-900/25">
-                    <h3 className="text-[13px] font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2 mb-1">
-                      <Car className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                      Permissões no Pátio e Laboratório
-                    </h3>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-3 leading-relaxed">
-                      O que o usuário pode fazer dentro dos cards (quando tiver acesso às telas Pátio/Laboratório).
-                    </p>
-                    <div className="rounded-xl border border-zinc-200/90 dark:border-zinc-600/70 bg-white/60 dark:bg-zinc-950/30 p-3 space-y-0">
-                      <p className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pt-1 pb-2">Dados do card</p>
-                      {PATIO_DATA_LABELS.map(({ key, label }) => (
-                        <PermSwitch
-                          key={key}
-                          label={label}
-                          checked={!!formPermissions[key]}
-                          onChange={(v) => setPerm(key, v)}
-                          disabled={!!formPermissions.full_access}
-                        />
-                      ))}
-                      <p className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pt-3 pb-2">Orçamentos, comentários e ações</p>
-                      {PATIO_OTHER_LABELS.map(({ key, label }) => (
-                        <PermSwitch
-                          key={key}
-                          label={label}
-                          checked={!!formPermissions[key]}
-                          onChange={(v) => setPerm(key, v)}
-                          disabled={!!formPermissions.full_access}
-                        />
-                      ))}
-                      {formPermissions.full_access ? (
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 pt-2 border-t border-zinc-200 dark:border-zinc-600 mt-2">
-                          Com acesso completo, aprovar itens do orçamento fica sempre permitido (igual ao administrador).
-                        </p>
-                      ) : (
-                        <PermSwitch
-                          label="Aprovar itens do orçamento"
-                          description="Permite aprovar ou reprovar cada serviço e peça no modal de orçamento. Desligado e salvo: bloqueia essa ação mesmo com «Criar e editar orçamentos». Se nunca foi salvo, vale a mesma regra de editar orçamentos."
-                          checked={effectivePatioApproveBudgetItems(formPermissions)}
-                          onChange={(v) => setPerm('patio_approve_budget_items', v)}
-                          disabled={!!formPermissions.full_access}
-                        />
-                      )}
-                    </div>
-                  </section>
-
-                  {error && <p className="text-sm text-red-500">{error}</p>}
-                  <div className="flex gap-2 pt-2">
-                    <button type="button" onClick={cancelEdit} className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300">
-                      Cancelar
-                    </button>
-                    <button type="submit" disabled={saving} className="px-4 py-2 rounded-xl bg-brand-yellow text-black font-semibold disabled:opacity-50 flex items-center gap-2">
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar'}
-                    </button>
+                    ))}
                   </div>
-                </form>
-              ) : (
-                <>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={startAdd}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-yellow text-black font-semibold hover:bg-[#fcd61e]"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Novo usuário
-                    </button>
-                  </div>
+                </CollapsibleSection>
 
-                  {users.length > 0 && (
-                    <section className="rounded-xl border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/30 p-4 space-y-3">
-                      <div className="flex items-start gap-2">
-                        <div className="shrink-0 origin-left scale-[0.92]">
-                          <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                            <img src="/icons/usuarios-ios.png" alt="" className="h-full w-full object-cover" />
-                          </IosAccentIconSquircle>
-                        </div>
+                <CollapsibleSection title="Pátio e Laboratório" icon={<Car className="h-4 w-4" strokeWidth={2} />} defaultOpen>
+                  <p className="mb-3 text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    Ações dentro dos cards (com acesso às telas Pátio/Laboratório).
+                  </p>
+                  <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 p-3 dark:border-zinc-600/60 dark:bg-zinc-950/40">
+                    <p className="pb-2 pt-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Dados do card</p>
+                    {PATIO_DATA_LABELS.map(({ key, label }) => (
+                      <PermSwitch
+                        key={key}
+                        label={label}
+                        checked={!!formPermissions[key]}
+                        onChange={(v) => setPerm(key, v)}
+                        disabled={!!formPermissions.full_access}
+                      />
+                    ))}
+                    <p className="border-t border-zinc-200/80 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 dark:border-zinc-600/60">
+                      Orçamentos e ações
+                    </p>
+                    {PATIO_OTHER_LABELS.map(({ key, label }) => (
+                      <PermSwitch
+                        key={key}
+                        label={label}
+                        checked={!!formPermissions[key]}
+                        onChange={(v) => setPerm(key, v)}
+                        disabled={!!formPermissions.full_access}
+                      />
+                    ))}
+                    {formPermissions.full_access ? (
+                      <p className="mt-2 border-t border-zinc-200/80 pt-2 text-xs text-zinc-500 dark:border-zinc-600/60 dark:text-zinc-400">
+                        Com acesso completo, aprovar itens do orçamento fica sempre permitido.
+                      </p>
+                    ) : (
+                      <PermSwitch
+                        label="Aprovar itens do orçamento"
+                        description="Aprovar ou reprovar serviços e peças no modal de orçamento. Se nunca foi salvo, segue a regra de «Criar e editar orçamentos»."
+                        checked={effectivePatioApproveBudgetItems(formPermissions)}
+                        onChange={(v) => setPerm('patio_approve_budget_items', v)}
+                        disabled={!!formPermissions.full_access}
+                      />
+                    )}
+                  </div>
+                </CollapsibleSection>
+
+                {error ? <p className="text-center text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+              </div>
+
+              <div className="flex shrink-0 gap-3 border-t border-zinc-200/80 bg-white/90 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-md dark:border-white/[0.08] dark:bg-zinc-950/90 sm:px-8">
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="flex-1 rounded-2xl border border-zinc-300/90 py-3.5 text-[15px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800/80 sm:flex-none sm:px-8"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className={`${iosAccentPrimaryButton} flex flex-[2] items-center justify-center gap-2 py-3.5 sm:flex-1`}
+                >
+                  {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                  Salvar
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="flex shrink-0 flex-col gap-3 border-b border-zinc-200/70 px-5 py-4 dark:border-white/[0.06] sm:flex-row sm:items-center sm:justify-between sm:px-8">
+                <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                  <UsersRound className="h-4 w-4 shrink-0 text-zinc-400" />
+                  <span>
+                    <strong className="font-semibold text-zinc-900 dark:text-white">{users.length}</strong>
+                    {users.length === 1 ? ' usuário' : ' usuários'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={startAdd}
+                  className={`${iosAccentPrimaryButton} inline-flex w-full items-center justify-center gap-2 py-3 sm:w-auto sm:px-5`}
+                >
+                  <Plus className="h-4 w-4" />
+                  Novo usuário
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-5 sm:px-8">
+                {users.length > 0 ? (
+                  <section className={`${iosModalInsetCard} overflow-hidden`}>
+                    <div className="border-b border-amber-200/60 bg-amber-50/50 px-4 py-3 dark:border-amber-800/40 dark:bg-amber-950/25">
+                      <div className="flex gap-3">
+                        <IosAccentIconSquircle variant="row" strokeWidth={2.2} className="shrink-0 scale-95">
+                          <img src="/icons/orcamentos-ios.png" alt="" className="h-full w-full object-cover" />
+                        </IosAccentIconSquircle>
                         <div className="min-w-0">
-                          <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Quem pode aprovar itens do orçamento</h3>
-                          <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 leading-snug">
-                            Escolha quais logins podem aprovar ou reprovar serviços e peças no Pátio e no Laboratório. Quem tem{' '}
-                            <strong className="font-semibold text-zinc-800 dark:text-zinc-200">acesso completo</strong> já pode sempre; não precisa ligar o interruptor abaixo.
+                          <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-white">Aprovação de orçamento</h3>
+                          <p className="mt-0.5 text-[12px] leading-snug text-zinc-600 dark:text-zinc-400">
+                            Quem pode aprovar ou reprovar itens no Pátio e no Laboratório. Quem tem{' '}
+                            <strong className="text-zinc-800 dark:text-zinc-200">acesso completo</strong> já dispensa esta opção.
                           </p>
                         </div>
                       </div>
-                      <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-600 bg-white/70 dark:bg-zinc-900/40 p-2 space-y-0">
-                        {users.map((u) => {
-                          const label = (u.display_name || '').trim() || u.username;
-                          const sub =
-                            label !== u.username
-                              ? u.username
-                              : u.job_title || undefined;
-                          if (u.permissions?.full_access) {
-                            return (
-                              <div
-                                key={u.id}
-                                className="flex items-center justify-between gap-3 py-2.5 px-1 border-b border-zinc-100 dark:border-zinc-700/80 last:border-0"
-                              >
-                                <div className="min-w-0">
-                                  <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 block">{label}</span>
-                                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Acesso completo — pode aprovar itens sem configuração extra</span>
-                                </div>
-                                <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0" aria-hidden />
-                              </div>
-                            );
-                          }
+                    </div>
+                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+                      {users.map((u) => {
+                        const label = (u.display_name || '').trim() || u.username;
+                        const sub = label !== u.username ? u.username : u.job_title || undefined;
+                        if (u.permissions?.full_access) {
                           return (
-                            <div key={u.id} className="border-b border-zinc-100 dark:border-zinc-700/80 last:border-0">
-                              <PermSwitch
-                                label={label}
-                                description={sub}
-                                checked={effectivePatioApproveBudgetItems(u.permissions || {})}
-                                onChange={(v) => void handleQuickApprovePermission(u, v)}
-                                disabled={togglingApproveUserId === u.id}
-                              />
+                            <div key={u.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                              <div className="min-w-0">
+                                <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-100">{label}</span>
+                                <span className="text-xs text-zinc-500 dark:text-zinc-400">Acesso completo</span>
+                              </div>
+                              <ShieldCheck className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
                             </div>
                           );
-                        })}
-                      </div>
-                    </section>
-                  )}
+                        }
+                        return (
+                          <div key={u.id} className="px-2 py-1">
+                            <PermSwitch
+                              label={label}
+                              description={sub}
+                              checked={effectivePatioApproveBudgetItems(u.permissions || {})}
+                              onChange={(v) => void handleQuickApprovePermission(u, v)}
+                              disabled={togglingApproveUserId === u.id}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ) : null}
 
-                  <ul className="space-y-2">
-                    {users.length === 0 ? (
-                      <li className="text-sm text-zinc-500 dark:text-zinc-400 py-6 text-center rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
-                        Nenhum usuário cadastrado. Crie um para permitir login com usuário e senha.
-                      </li>
-                    ) : (
-                      users.map((u) => (
-                        <li
-                          key={u.id}
-                          className="flex items-center justify-between gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700"
-                        >
-                          <div className="min-w-0">
-                            <p className="font-medium text-zinc-900 dark:text-white truncate">{u.username}</p>
-                            {(u.display_name || u.job_title) && (
-                              <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
-                                {[u.display_name, u.job_title].filter(Boolean).join(' · ')}
-                              </p>
-                            )}
-                            {u.is_technician && (
-                              <span className="inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">Técnico</span>
-                            )}
+                <div className="space-y-3">
+                  {users.length === 0 ? (
+                    <div className={`${iosModalInsetCard} py-12 text-center`}>
+                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-200/80 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                        <UsersRound className="h-6 w-6" />
+                      </div>
+                      <p className="text-[15px] font-medium text-zinc-800 dark:text-zinc-200">Nenhum usuário ainda</p>
+                      <p className="mx-auto mt-2 max-w-xs text-sm text-zinc-500 dark:text-zinc-400">
+                        Crie um login para a equipe entrar com usuário e senha neste dispositivo.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={startAdd}
+                        className={`${iosAccentPrimaryButton} mx-auto mt-6 inline-flex items-center gap-2 px-6`}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Criar primeiro usuário
+                      </button>
+                    </div>
+                  ) : (
+                    users.map((u) => (
+                      <div
+                        key={u.id}
+                        className={`${iosModalInsetCard} flex items-center gap-3 p-3.5 sm:gap-4`}
+                      >
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-zinc-200 to-zinc-300 text-lg font-semibold text-zinc-700 shadow-inner dark:from-zinc-700 dark:to-zinc-800 dark:text-zinc-100">
+                          {userListInitial(u)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-semibold text-zinc-900 dark:text-white">{u.username}</p>
+                          {(u.display_name || u.job_title) && (
+                            <p className="truncate text-[13px] text-zinc-500 dark:text-zinc-400">
+                              {[u.display_name, u.job_title].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {u.permissions?.full_access ? (
+                              <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                                Acesso total
+                              </span>
+                            ) : null}
+                            {u.is_technician ? (
+                              <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                                Técnico
+                              </span>
+                            ) : null}
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <button type="button" onClick={() => startEdit(u)} className="p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400" title="Editar">
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(u.id)}
-                              disabled={deletingId === u.id}
-                              className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 disabled:opacity-50"
-                              title="Excluir"
-                            >
-                              {deletingId === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                            </button>
-                          </div>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </>
-              )}
-            </>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(u)}
+                            className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-600 transition-colors hover:bg-zinc-200/90 dark:text-zinc-300 dark:hover:bg-zinc-800/80"
+                            title="Editar"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(u.id)}
+                            disabled={deletingId === u.id}
+                            className="flex h-10 w-10 items-center justify-center rounded-xl text-red-600 transition-colors hover:bg-red-500/10 disabled:opacity-50 dark:text-red-400"
+                            title="Excluir"
+                          >
+                            {deletingId === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
           )}
-        </div>
         </div>
       </div>
     </div>
