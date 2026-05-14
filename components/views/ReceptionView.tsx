@@ -46,8 +46,7 @@ import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../ut
 import { markdownComponentsApp } from '../ui/markdownUi';
 import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
 import { firstTwoNames } from '../../utils/personNameFormat';
-import { BOARD_PANORAMIC_ZOOM } from '../../utils/patioBoardGlassCard';
-import { PatioStyleArchiveBoardCard } from '../patio/PatioStyleArchiveBoardCard';
+import { ReceptionArchivedHistoryHubCard } from '../reception/ReceptionArchivedHistoryHubCard';
 import { DiagnosticAuthorizationSignModal } from '../diagnostic/DiagnosticAuthorizationSignModal';
 import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAuthorizationSheetModal';
 import { getVehiclePhotoPublicUrl } from '../../utils/vehicleStoragePublicUrl';
@@ -82,6 +81,11 @@ const receptionPageGlass =
 
 const receptionSectionShell =
   'overflow-hidden rounded-[24px] border border-zinc-300/70 bg-white shadow-[0_14px_34px_-12px_rgba(0,0,0,0.11),0_7px_22px_-10px_rgba(0,0,0,0.08),0_3px_10px_-5px_rgba(0,0,0,0.06)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]';
+
+/** Modal histórico (lista + detalhe): painel branco no claro, alinhado ao hub Orçamentos. */
+const receptionHistoryModalShell =
+  'relative w-full flex flex-col min-h-0 overflow-hidden rounded-[2rem] sm:rounded-[2.25rem] border border-zinc-200/80 dark:border-white/[0.07] bg-white backdrop-blur-xl dark:bg-zinc-900/40 dark:backdrop-blur-2xl ' +
+  'shadow-[0_18px_48px_-14px_rgba(0,0,0,0.12),0_8px_24px_-10px_rgba(0,0,0,0.08)] dark:shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]';
 
 const receptionSectionHeader =
   'relative border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-zinc-950/25';
@@ -282,33 +286,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
   const [previewPdf, setPreviewPdf] = useState<string | null>(null);
 
-  const [isDesktopLandscape, setIsDesktopLandscape] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(min-width: 1024px) and (orientation: landscape)');
-    const apply = () => setIsDesktopLandscape(mq.matches);
-    apply();
-    if (typeof mq.addEventListener === 'function') {
-      mq.addEventListener('change', apply);
-      return () => mq.removeEventListener('change', apply);
-    }
-    mq.addListener(apply);
-    return () => mq.removeListener(apply);
-  }, []);
-
   const receptionPortraitVertical = useTabletPhonePortraitFullscreen();
-
-  const historyBoardPanoramic = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      const key =
-        receptionMode === 'module' ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
-      return localStorage.getItem(key) === '1';
-    } catch {
-      return false;
-    }
-  }, [isHistoryOpen, receptionMode]);
 
   useEffect(() => {
     setArchivedPhotosVisibleCount(ARCHIVED_PHOTOS_BATCH);
@@ -1552,8 +1530,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
       {isHistoryOpen && (
         <ModalPortal>
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <div className={`${iosModalShell} w-full max-w-[90rem] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] shadow-[0_20px_56px_-16px_rgba(0,0,0,0.16),0_10px_30px_-12px_rgba(0,0,0,0.1),0_4px_14px_-8px_rgba(0,0,0,0.07)] dark:shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]`}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-[12px] p-3 sm:p-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div
+            className={`${receptionHistoryModalShell} w-full max-w-[90rem] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)]`}
+          >
             <button
               type="button"
               onClick={() => setIsHistoryOpen(false)}
@@ -1562,20 +1542,20 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
+            <div className="shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-14 dark:border-white/[0.06] dark:bg-zinc-950/20 sm:px-8">
               <IosModalHeader
                 icon={<img src="/icons/recepcao-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
                 title={receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
                 subtitle={
                   receptionMode === 'module'
-                    ? 'Módulos arquivados — mesmo visual do Pátio'
-                    : 'Veículos arquivados — mesmo visual do Pátio'
+                    ? 'Módulos arquivados — mesmo padrão visual da página Orçamentos'
+                    : 'Veículos arquivados — mesmo padrão visual da página Orçamentos'
                 }
               />
             </div>
-            <div className="p-4 sm:p-6 border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/40 dark:bg-white/[0.03]">
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
+            <div className="shrink-0 border-b border-zinc-200/70 bg-white px-4 py-4 dark:border-white/[0.06] dark:bg-zinc-950/30 sm:px-6">
+              <div className="mx-auto flex max-w-3xl items-center gap-2">
+                <div className="relative min-w-0 flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#007AFF]/90 dark:text-[#7ab8ff]" strokeWidth={2} />
                   <input
                     value={historySearch}
@@ -1586,22 +1566,22 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         ? 'Buscar por identificação, cliente ou modelo'
                         : 'Buscar por placa, cliente ou modelo'
                     }
-                    className="w-full rounded-2xl border border-zinc-200/90 bg-white/90 py-3 pl-9 pr-3 text-zinc-900 placeholder:text-zinc-400 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.11),0_2px_8px_-4px_rgba(0,0,0,0.07)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-100 dark:shadow-none"
+                    className="w-full rounded-2xl border border-zinc-200/90 bg-white py-3 pl-9 pr-3 text-zinc-900 placeholder:text-zinc-400 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.11),0_2px_8px_-4px_rgba(0,0,0,0.07)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-100 dark:shadow-none"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => loadVehicleHistory(historySearch)}
-                  className="flex h-11 min-w-[44px] items-center justify-center rounded-2xl border border-[#007AFF]/60 bg-[#007AFF] px-4 font-semibold text-white shadow-[0_10px_26px_-8px_rgba(37,99,235,0.3),0_4px_14px_-6px_rgba(37,99,235,0.2)] transition-all hover:brightness-110 active:scale-[0.98] dark:shadow-lg dark:shadow-blue-500/25"
+                  className="flex h-11 min-w-[44px] shrink-0 items-center justify-center rounded-2xl border border-[#007AFF]/60 bg-[#007AFF] px-4 font-semibold text-white shadow-[0_10px_26px_-8px_rgba(37,99,235,0.3),0_4px_14px_-6px_rgba(37,99,235,0.2)] transition-all hover:brightness-110 active:scale-[0.98] dark:shadow-lg dark:shadow-blue-500/25"
                 >
                   <RefreshCw className={`w-4 h-4 ${historyLoading ? 'animate-spin' : ''}`} />
                 </button>
               </div>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 bg-zinc-50/30 dark:bg-zinc-950/20 custom-scrollbar pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white pb-[max(1rem,env(safe-area-inset-bottom))] dark:bg-zinc-950/25 custom-scrollbar">
               {historyLoading ? (
-                <div className="py-16 flex flex-col items-center justify-center gap-3 text-zinc-500">
-                  <RefreshCw className="w-8 h-8 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" />
+                <div className="flex flex-col items-center justify-center gap-3 py-16 text-zinc-500">
+                  <RefreshCw className="h-8 w-8 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" />
                   <p>Carregando arquivados...</p>
                 </div>
               ) : archivedOrders.length === 0 ? (
@@ -1609,118 +1589,89 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   {receptionMode === 'module' ? 'Nenhum módulo arquivado encontrado.' : 'Nenhum veículo arquivado encontrado.'}
                 </div>
               ) : (
-                <div
-                  className="origin-top will-change-[zoom]"
-                  style={
-                    {
-                      zoom: historyBoardPanoramic ? BOARD_PANORAMIC_ZOOM : 1,
-                      transition: 'zoom 0.55s cubic-bezier(0.34, 1.35, 0.25, 1)',
-                    } as React.CSSProperties & { zoom?: number }
-                  }
-                >
-                  <div
-                    className={`relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
-                      historyBoardPanoramic
-                        ? 'grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-5 md:gap-3 lg:gap-3.5 2xl:gap-4'
-                        : 'grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 landscape:lg:grid-cols-4'
-                    }`}
-                  >
-                    {archivedOrders.map((o) => {
-                      const model = (o.vehicle_model || (receptionMode === 'module' ? 'Módulo' : 'Veículo')).trim();
-                      const plateOrModule =
-                        receptionMode === 'vehicle'
-                          ? (o.plate || '---').toUpperCase()
-                          : (o.module_identification || '—').trim();
-                      const customerFull = (o.customer_name || o.customers?.name || '').trim();
-                      return (
-                        <PatioStyleArchiveBoardCard
-                          key={o.id}
-                          boardPanoramic={historyBoardPanoramic}
-                          isDesktopLandscape={isDesktopLandscape}
-                          isModuleMode={receptionMode === 'module'}
-                          blurPlates={blurPlates}
-                          model={model}
-                          plateOrModule={plateOrModule}
-                          customerFullName={customerFull}
-                          vehicleColor={o.vehicle_color}
-                          archivedAt={o.updated_at}
-                          mechanicName={(o.assigned_technician || '').trim() || undefined}
-                          garantiaTag={o.garantia_tag === true}
-                          onOpen={() => openArchivedDetail(o)}
-                          footerAppend={
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleHistoryBudgets(o.id)}
-                                className="flex w-full min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/90 px-4 py-3 text-[14px] font-semibold text-zinc-800 shadow-[0_8px_20px_-8px_rgba(0,0,0,0.1),0_3px_10px_-5px_rgba(0,0,0,0.06)] transition-all hover:bg-zinc-50 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.08] dark:text-zinc-100 dark:shadow-[0_2px_12px_-2px_rgba(0,0,0,0.1)] dark:hover:bg-white/[0.12]"
-                              >
-                                {expandedHistoryOrderId === o.id ? 'Ocultar orçamentos' : 'Ver orçamentos'}
-                              </button>
-                              {expandedHistoryOrderId === o.id && (
-                                <div className="mt-3 space-y-2 rounded-[1.25rem] border border-zinc-200/80 bg-zinc-50/90 p-3 shadow-[0_8px_22px_-10px_rgba(0,0,0,0.09),0_3px_10px_-5px_rgba(0,0,0,0.05)] dark:border-white/10 dark:bg-black/30 dark:shadow-none">
-                                  {historyBudgetsLoadingId === o.id ? (
-                                    <div className="flex items-center gap-2 text-sm text-zinc-500">
-                                      <RefreshCw className="h-4 w-4 animate-spin" />
-                                      Carregando orçamentos...
-                                    </div>
-                                  ) : historyBudgetErrorByOrder[o.id] ? (
-                                    <div className="space-y-2">
-                                      <div className="text-sm text-red-500">{historyBudgetErrorByOrder[o.id]}</div>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleRetryHistoryBudgets(o.id)}
-                                        className="text-xs font-semibold text-zinc-900 underline dark:text-white"
-                                      >
-                                        Tentar novamente
-                                      </button>
-                                    </div>
-                                  ) : (historyBudgetsByOrder[o.id] || []).length === 0 ? (
-                                    <div className="text-sm text-zinc-500">Nenhum orçamento encontrado para este veículo.</div>
-                                  ) : (
-                                    (() => {
-                                      const list = historyBudgetsByOrder[o.id] || [];
-                                      const sorted = [...list].sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a));
-                                      return sorted.map((b) => (
-                                        <div
-                                          key={b.id}
-                                          className="rounded-xl border border-zinc-200/80 bg-white p-2.5 dark:border-white/10 dark:bg-white/[0.02]"
-                                        >
-                                          <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <p className="text-sm font-semibold text-zinc-900 dark:text-white">
-                                              Orçamento {budgetChronologicalNumber(list, b.id)}
-                                            </p>
-                                            <p className="text-xs text-zinc-500">
-                                              {new Date(budgetLastActivityMs(b)).toLocaleString('pt-BR')}
-                                            </p>
-                                          </div>
-                                          {b.diagnosis?.trim() && (
-                                            <p className="mt-1 line-clamp-2 text-sm text-zinc-700 dark:text-zinc-300">
-                                              <span className="font-medium">Diagnóstico:</span> {b.diagnosis}
-                                            </p>
-                                          )}
-                                          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-                                            {b.services.length} serviço(s) • {b.parts.length} peça(s)
-                                          </p>
-                                          <button
-                                            type="button"
-                                            onClick={() => setHistoryBudgetDetail(b)}
-                                            className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#007AFF] px-3 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 sm:w-auto"
-                                          >
-                                            <Eye className="h-3.5 w-3.5" />
-                                            Abrir orçamento completo
-                                          </button>
-                                        </div>
-                                      ));
-                                    })()
-                                  )}
+                <div className="mx-auto max-w-3xl space-y-4 px-4 py-5 sm:px-6">
+                  {archivedOrders.map((o) => (
+                    <ReceptionArchivedHistoryHubCard
+                      key={o.id}
+                      order={o}
+                      isModuleMode={receptionMode === 'module'}
+                      blurPlates={blurPlates}
+                      onOpenDetail={() => openArchivedDetail(o)}
+                      footerAppend={
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleHistoryBudgets(o.id)}
+                            className="flex w-full min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-zinc-200/80 bg-white px-4 py-3 text-[14px] font-semibold text-zinc-800 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.06)] transition-all hover:bg-zinc-50 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.08] dark:text-zinc-100 dark:shadow-[0_2px_12px_-2px_rgba(0,0,0,0.1)] dark:hover:bg-white/[0.12]"
+                          >
+                            {expandedHistoryOrderId === o.id ? 'Ocultar orçamentos' : 'Ver orçamentos'}
+                          </button>
+                          {expandedHistoryOrderId === o.id && (
+                            <div className="mt-3 space-y-2 rounded-[1.25rem] border border-zinc-200/80 bg-zinc-50/95 p-3 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.09),0_2px_8px_-4px_rgba(0,0,0,0.05)] dark:border-white/10 dark:bg-black/30 dark:shadow-none">
+                              {historyBudgetsLoadingId === o.id ? (
+                                <div className="flex items-center gap-2 text-sm text-zinc-500">
+                                  <RefreshCw className="h-4 w-4 animate-spin" />
+                                  Carregando orçamentos...
                                 </div>
+                              ) : historyBudgetErrorByOrder[o.id] ? (
+                                <div className="space-y-2">
+                                  <div className="text-sm text-red-500">{historyBudgetErrorByOrder[o.id]}</div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRetryHistoryBudgets(o.id)}
+                                    className="text-xs font-semibold text-zinc-900 underline dark:text-white"
+                                  >
+                                    Tentar novamente
+                                  </button>
+                                </div>
+                              ) : (historyBudgetsByOrder[o.id] || []).length === 0 ? (
+                                <div className="text-sm text-zinc-500">Nenhum orçamento encontrado para este veículo.</div>
+                              ) : (
+                                (() => {
+                                  const list = historyBudgetsByOrder[o.id] || [];
+                                  const sorted = [...list].sort((a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a));
+                                  return (
+                                    <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
+                                      {sorted.map((b) => (
+                                        <li key={b.id} className="py-3 first:pt-0 last:pb-0">
+                                          <div className="rounded-xl border border-zinc-200/80 bg-white p-2.5 shadow-[0_5px_14px_-6px_rgba(0,0,0,0.08),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:border-white/10 dark:bg-white/[0.02] dark:shadow-none">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                              <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                                                Orçamento {budgetChronologicalNumber(list, b.id)}
+                                              </p>
+                                              <p className="text-xs text-zinc-500">
+                                                {new Date(budgetLastActivityMs(b)).toLocaleString('pt-BR')}
+                                              </p>
+                                            </div>
+                                            {b.diagnosis?.trim() && (
+                                              <p className="mt-1 line-clamp-2 text-sm text-zinc-700 dark:text-zinc-300">
+                                                <span className="font-medium">Diagnóstico:</span> {b.diagnosis}
+                                              </p>
+                                            )}
+                                            <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+                                              {b.services.length} serviço(s) • {b.parts.length} peça(s)
+                                            </p>
+                                            <button
+                                              type="button"
+                                              onClick={() => setHistoryBudgetDetail(b)}
+                                              className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#007AFF] px-3 py-2 text-xs font-semibold text-white shadow-[0_8px_20px_-8px_rgba(37,99,235,0.32),0_3px_10px_-4px_rgba(37,99,235,0.2)] transition-opacity hover:opacity-90 dark:shadow-lg dark:shadow-blue-500/25 sm:w-auto"
+                                            >
+                                              <Eye className="h-3.5 w-3.5" />
+                                              Abrir orçamento completo
+                                            </button>
+                                          </div>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  );
+                                })()
                               )}
-                            </>
-                          }
-                        />
-                      );
-                    })}
-                  </div>
+                            </div>
+                          )}
+                        </>
+                      }
+                    />
+                  ))}
                 </div>
               )}
             </div>
@@ -1738,7 +1689,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             aria-modal="true"
             aria-labelledby="reception-archived-detail-title"
           >
-            <div className={`${iosModalShell} w-full max-w-[90rem] max-h-[90vh] shadow-[0_20px_56px_-16px_rgba(0,0,0,0.16),0_10px_30px_-12px_rgba(0,0,0,0.1),0_4px_14px_-8px_rgba(0,0,0,0.07)] dark:shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)] animate-modal-sheet`}>
+            <div className={`${receptionHistoryModalShell} w-full max-w-[90rem] max-h-[90vh] animate-modal-sheet`}>
               <div className="absolute top-4 right-4 z-10 flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                 <button
                   type="button"
