@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Pencil, Trash2, Loader2, LayoutGrid, Settings, Car, User, ShieldCheck } from 'lucide-react';
+import { X, Plus, Pencil, Trash2, Loader2, LayoutGrid, Car, User, ShieldCheck } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosInput } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { IosModalHeader } from './ui/IosModalHeader';
@@ -53,24 +53,108 @@ function PermSwitch({
   );
 }
 
-/** Telas que o usuário pode acessar (abas e início) */
-const NAV_LABELS: { key: keyof SystemUserPermissions; label: string; description?: string }[] = [
-  { key: 'access_home', label: 'Tela inicial', description: 'Ver a página inicial' },
-  { key: 'access_reception', label: 'Recepção', description: 'Cadastro de clientes e veículos' },
-  { key: 'access_agenda', label: 'Agenda', description: 'Agendamentos' },
-  { key: 'access_patio', label: 'Pátio', description: 'Veículos em atendimento' },
-  { key: 'access_laboratorio', label: 'Laboratório', description: 'Módulos e eletrônica' },
-];
+/** Cartão com ícone (como na home) + interruptor — módulos da página inicial e hub */
+function PermModuleCard({
+  iconSrc,
+  iconAlt,
+  label,
+  description,
+  checked,
+  onChange,
+  disabled,
+}: {
+  iconSrc: string;
+  iconAlt: string;
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-start justify-between gap-3 rounded-2xl border border-zinc-200/85 bg-white/85 p-3 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.08)] dark:border-zinc-600/70 dark:bg-zinc-900/45 dark:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.35)] ${
+        disabled ? 'opacity-50' : ''
+      }`}
+    >
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <div className="h-11 w-11 shrink-0 overflow-hidden rounded-[14px] border border-zinc-200/80 bg-zinc-50 ring-1 ring-black/[0.04] dark:border-white/[0.08] dark:bg-zinc-800/90 dark:ring-white/[0.06]">
+          <img src={iconSrc} alt={iconAlt} className="h-full w-full object-cover" />
+        </div>
+        <div className="min-w-0 flex-1 pt-0.5">
+          <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 leading-snug block">{label}</span>
+          {description ? (
+            <span className="mt-1 block text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">{description}</span>
+          ) : null}
+        </div>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => !disabled && onChange(!checked)}
+        className={`relative mt-0.5 flex h-7 w-12 shrink-0 items-center rounded-full border-0 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow/50 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900 ${
+          checked ? 'bg-[#34C759] dark:bg-[#30D158]' : 'bg-zinc-300 dark:bg-zinc-600'
+        } ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+      >
+        <span
+          className={`pointer-events-none inline-block h-6 w-6 shrink-0 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ${
+            checked ? 'translate-x-6' : 'translate-x-0.5'
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
 
-/** Ferramentas administrativas (configurações, senhas, técnicos) */
-const TOOLS_LABELS: { key: keyof SystemUserPermissions; label: string; description?: string }[] = [
+/** Telas, abas e módulos exibidos na página inicial / hub de configurações (um interruptor por módulo). */
+const HOME_MODULE_ACCESS: {
+  key: keyof SystemUserPermissions;
+  label: string;
+  description?: string;
+  icon: string;
+  iconAlt: string;
+}[] = [
+  { key: 'access_home', label: 'Tela inicial', description: 'Página inicial e atalho ao hub de configurações', icon: '/logo.png', iconAlt: 'Tela inicial' },
+  { key: 'access_reception', label: 'Recepção', description: 'Aba de cadastro de clientes e veículos', icon: '/icons/recepcao-ios.png', iconAlt: 'Recepção' },
+  { key: 'access_agenda', label: 'Agenda', description: 'Agendamentos', icon: '/icons/agenda-ios.png', iconAlt: 'Agenda' },
+  { key: 'access_patio', label: 'Pátio', description: 'Veículos em atendimento', icon: '/icons/patio-ios.png', iconAlt: 'Pátio' },
+  {
+    key: 'access_orcamentos',
+    label: 'Orçamentos',
+    description: 'Hub de orçamentos (aba). Se desligado, o usuário pode manter só o Pátio sem o hub.',
+    icon: '/icons/orcamentos-ios.png',
+    iconAlt: 'Orçamentos',
+  },
+  { key: 'access_laboratorio', label: 'Laboratório', description: 'Módulos e eletrônica', icon: '/icons/laboratorio-ios.png', iconAlt: 'Laboratório' },
+  { key: 'access_tv_patio', label: 'TV do Pátio', description: 'Modal na home e link do painel externo nas configurações', icon: '/icons/tv-patio-ios.png', iconAlt: 'TV do Pátio' },
+  {
+    key: 'access_centro_atendimento',
+    label: 'Central do atendimento',
+    description: 'Acompanhamento de OS em tela cheia',
+    icon: '/icons/recepcao-ios.png',
+    iconAlt: 'Central do atendimento',
+  },
+  { key: 'access_estoque_pecas', label: 'Estoque de peças', description: 'Catálogo e estoque na home', icon: '/icons/estoque-ios.png', iconAlt: 'Estoque de peças' },
   {
     key: 'access_settings',
-    label: 'Configurações',
-    description: 'Tema claro/escuro, efeitos e modo cinema; cor global da oficina só com «Acesso completo ao sistema»',
+    label: 'Preferências da oficina',
+    description: 'Tema, efeitos e modo cinema (cor global só com acesso completo)',
+    icon: '/icons/configuracoes-ios.png',
+    iconAlt: 'Preferências',
   },
-  { key: 'access_change_passwords', label: 'Alterar senhas', description: 'Senha de gerência e exclusão de veículos' },
-  { key: 'access_technicians', label: 'Técnicos', description: 'Lista de técnicos da oficina (atribuição nos cards)' },
+  { key: 'access_change_passwords', label: 'Alterar senhas', description: 'Senha de gerência e exclusão de veículos', icon: '/icons/senhas-ios.png', iconAlt: 'Senhas' },
+  { key: 'access_technicians', label: 'Técnicos', description: 'Lista para atribuição nos cards do Pátio', icon: '/icons/usuarios-ios.png', iconAlt: 'Técnicos' },
+  { key: 'access_servicos_oficina', label: 'Serviços da oficina', description: 'Catálogo no hub de configurações', icon: '/icons/servicos-oficina-ios.png', iconAlt: 'Serviços' },
+  { key: 'access_checklists_patio', label: 'Checklists do Pátio', description: 'Modelos por etapa', icon: '/icons/checklist-patio-ios.png', iconAlt: 'Checklists' },
+  {
+    key: 'access_notificacoes_sistema',
+    label: 'Notificações do sistema',
+    description: 'Modal de alertas e lembretes',
+    icon: '/icons/tema-sistema-ios.png',
+    iconAlt: 'Notificações',
+  },
 ];
 
 /** Permissões dentro do Pátio/Laboratório */
@@ -271,22 +355,22 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
 
   return (
     <div className={iosModalOverlay}>
-      <div className={`${iosModalShell} max-w-2xl w-full max-h-[90vh]`}>
+      <div className={`${iosModalShell} max-w-3xl w-full max-h-[92vh]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
-          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+          <div className="px-5 sm:px-8 pt-7 pb-3 pr-14 shrink-0">
             <IosModalHeader
               icon={<img src="/icons/usuarios-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Usuários do sistema"
-              subtitle="Logins, permissões, aprovação de orçamentos e acesso ao painel"
+              subtitle="Logins, permissões de telas e módulos, e aprovação de orçamentos"
               gradientClass="from-violet-500 to-indigo-700"
             />
           </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-24 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-8 pb-28 space-y-5">
           {!unlocked ? (
             <form onSubmit={handleUnlock} className="space-y-3">
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -313,11 +397,11 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
           ) : (
             <>
               {editingId ? (
-                <form onSubmit={handleSave} className="space-y-5">
+                <form onSubmit={handleSave} className="space-y-6">
                   {/* Dados do usuário */}
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
-                      <User className="w-4 h-4" />
+                  <section className="rounded-[20px] border border-zinc-200/80 bg-zinc-50/60 p-4 shadow-sm dark:border-zinc-600/60 dark:bg-zinc-900/35">
+                    <h3 className="text-[13px] font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2 mb-3">
+                      <User className="w-4 h-4 text-violet-600 dark:text-violet-400" />
                       Dados do usuário
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -374,7 +458,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                   </section>
 
                   {/* Acesso completo (igual ao admin) */}
-                  <section className="space-y-3">
+                  <section>
                     <div className="rounded-xl border-2 border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/50 p-4">
                       <PermSwitch
                         label="Acesso completo ao sistema"
@@ -391,49 +475,60 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                     </div>
                   </section>
 
-                  {/* Acesso às telas */}
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
-                      <LayoutGrid className="w-4 h-4" />
+                  {/* Telas e módulos da home */}
+                  <section className="rounded-[20px] border border-zinc-200/80 bg-white/70 p-4 dark:border-zinc-600/60 dark:bg-zinc-900/30">
+                    <h3 className="text-[13px] font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
+                      <LayoutGrid className="w-4 h-4 text-sky-600 dark:text-sky-400" />
                       Telas e navegação
                     </h3>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Quais abas e a tela inicial o usuário pode acessar.</p>
-                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/30 p-3 space-y-0">
-                      {NAV_LABELS.map(({ key, label, description }) => (
-                        <PermSwitch key={key} label={label} description={description} checked={!!formPermissions[key]} onChange={(v) => setPerm(key, v)} />
-                      ))}
-                    </div>
-                  </section>
-
-                  {/* Ferramentas (configurações, senhas, técnicos) */}
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
-                      <Settings className="w-4 h-4" />
-                      Ferramentas da oficina
-                    </h3>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Acesso a configurações, alterar senhas e lista de técnicos.</p>
-                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/30 p-3 space-y-0">
-                      {TOOLS_LABELS.map(({ key, label, description }) => (
-                        <PermSwitch key={key} label={label} description={description} checked={!!formPermissions[key]} onChange={(v) => setPerm(key, v)} />
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 mb-4 leading-relaxed">
+                      Abas do app, ícones da página inicial e entradas do hub de configurações. Cada cartão corresponde a um módulo.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {HOME_MODULE_ACCESS.map(({ key, label, description, icon, iconAlt }) => (
+                        <PermModuleCard
+                          key={key}
+                          iconSrc={icon}
+                          iconAlt={iconAlt}
+                          label={label}
+                          description={description}
+                          checked={!!formPermissions[key]}
+                          onChange={(v) => setPerm(key, v)}
+                          disabled={!!formPermissions.full_access}
+                        />
                       ))}
                     </div>
                   </section>
 
                   {/* Permissões no Pátio / Laboratório */}
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
-                      <Car className="w-4 h-4" />
+                  <section className="rounded-[20px] border border-zinc-200/80 bg-zinc-50/50 p-4 dark:border-zinc-600/60 dark:bg-zinc-900/25">
+                    <h3 className="text-[13px] font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2 mb-1">
+                      <Car className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                       Permissões no Pátio e Laboratório
                     </h3>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">O que o usuário pode fazer dentro dos cards (quando tiver acesso às telas Pátio/Laboratório).</p>
-                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/30 p-3 space-y-0">
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-3 leading-relaxed">
+                      O que o usuário pode fazer dentro dos cards (quando tiver acesso às telas Pátio/Laboratório).
+                    </p>
+                    <div className="rounded-xl border border-zinc-200/90 dark:border-zinc-600/70 bg-white/60 dark:bg-zinc-950/30 p-3 space-y-0">
                       <p className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pt-1 pb-2">Dados do card</p>
                       {PATIO_DATA_LABELS.map(({ key, label }) => (
-                        <PermSwitch key={key} label={label} checked={!!formPermissions[key]} onChange={(v) => setPerm(key, v)} />
+                        <PermSwitch
+                          key={key}
+                          label={label}
+                          checked={!!formPermissions[key]}
+                          onChange={(v) => setPerm(key, v)}
+                          disabled={!!formPermissions.full_access}
+                        />
                       ))}
                       <p className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider pt-3 pb-2">Orçamentos, comentários e ações</p>
                       {PATIO_OTHER_LABELS.map(({ key, label }) => (
-                        <PermSwitch key={key} label={label} checked={!!formPermissions[key]} onChange={(v) => setPerm(key, v)} />
+                        <PermSwitch
+                          key={key}
+                          label={label}
+                          checked={!!formPermissions[key]}
+                          onChange={(v) => setPerm(key, v)}
+                          disabled={!!formPermissions.full_access}
+                        />
                       ))}
                       {formPermissions.full_access ? (
                         <p className="text-xs text-zinc-500 dark:text-zinc-400 pt-2 border-t border-zinc-200 dark:border-zinc-600 mt-2">
@@ -445,6 +540,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                           description="Permite aprovar ou reprovar cada serviço e peça no modal de orçamento. Desligado e salvo: bloqueia essa ação mesmo com «Criar e editar orçamentos». Se nunca foi salvo, vale a mesma regra de editar orçamentos."
                           checked={effectivePatioApproveBudgetItems(formPermissions)}
                           onChange={(v) => setPerm('patio_approve_budget_items', v)}
+                          disabled={!!formPermissions.full_access}
                         />
                       )}
                     </div>

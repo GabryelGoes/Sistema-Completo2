@@ -21,6 +21,7 @@ import {
   type SystemUserPermissions,
   type ServiceOrderType,
   effectivePatioApproveBudgetItems,
+  effectiveAccessOrcamentos,
   getWorkshopSettings,
   deleteAppointment,
 } from './services/apiService';
@@ -109,10 +110,8 @@ export default function App() {
     if (perms.access_home) t.push('home');
     if (perms.access_reception) t.push('reception');
     if (perms.access_agenda) t.push('agenda');
-    if (perms.access_patio) {
-      t.push('patio');
-      t.push('orcamentos');
-    }
+    if (perms.access_patio) t.push('patio');
+    if (effectiveAccessOrcamentos(perms)) t.push('orcamentos');
     if (perms.access_laboratorio) t.push('laboratorio');
     return t.length ? t : ['home'];
   }

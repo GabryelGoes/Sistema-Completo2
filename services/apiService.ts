@@ -2,6 +2,9 @@ import { Customer, type VehicleReferenceLink } from "../types";
 import type { Appointment } from "../types";
 import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
 import { API_BASE } from "./apiConfig";
+import { normalizeTvChimeConfig, type TvChimeScheduleConfig } from "../utils/tvChimeSchedule";
+
+export type { TvChimeAlert, TvChimeKind, TvChimeSoundPreset } from "../utils/tvChimeSchedule";
 
 export interface ApiCustomer {
   id: string;
@@ -1816,6 +1819,20 @@ export interface SystemUserPermissions {
   access_agenda?: boolean;
   access_patio?: boolean;
   access_laboratorio?: boolean;
+  /** Hub de orçamentos (aba). Se omitido, segue o mesmo que `access_patio` (compatibilidade). */
+  access_orcamentos?: boolean;
+  /** Tile e modal TV do Pátio; link externo do painel no hub de configurações. */
+  access_tv_patio?: boolean;
+  /** Tile «Central do atendimento» (acompanhamento de OS). */
+  access_centro_atendimento?: boolean;
+  /** Tile «Estoque de peças» e catálogo de peças. */
+  access_estoque_pecas?: boolean;
+  /** Modal «Serviços da oficina» (hub Configurações). */
+  access_servicos_oficina?: boolean;
+  /** Modal «Checklists do Pátio». */
+  access_checklists_patio?: boolean;
+  /** Modal «Notificações do sistema». */
+  access_notificacoes_sistema?: boolean;
   access_settings?: boolean;
   access_change_passwords?: boolean;
   access_technicians?: boolean;
@@ -1839,6 +1856,15 @@ export function effectivePatioApproveBudgetItems(perms: SystemUserPermissions | 
   if (perms.patio_approve_budget_items === true) return true;
   if (perms.patio_approve_budget_items === false) return false;
   return !!perms.patio_edit_budgets;
+}
+
+/** Aba «Orçamentos»: se a chave não existir no JSON, mantém o comportamento antigo (ligado ao Pátio). */
+export function effectiveAccessOrcamentos(perms: SystemUserPermissions | undefined): boolean {
+  if (!perms) return false;
+  if (perms.full_access) return true;
+  if (perms.access_orcamentos === true) return true;
+  if (perms.access_orcamentos === false) return false;
+  return !!perms.access_patio;
 }
 
 export type AuthRole = "admin" | "user";
@@ -2240,6 +2266,7 @@ export interface TvWeeklyGoal {
 export async function getTvManage(): Promise<{
   slides: TvSlide[];
   weeklyGoal: TvWeeklyGoal | null;
+  chimeSchedule: TvChimeScheduleConfig;
 }> {
   const response = await fetch(`${API_BASE}/tv/manage`);
   if (!response.ok) {
@@ -2249,10 +2276,12 @@ export async function getTvManage(): Promise<{
   const d = (await response.json()) as {
     slides: TvSlide[];
     weeklyGoal: TvWeeklyGoal | null;
+    chimeSchedule?: unknown;
   };
   return {
     slides: d.slides ?? [],
     weeklyGoal: d.weeklyGoal ?? null,
+    chimeSchedule: normalizeTvChimeConfig(d.chimeSchedule ?? null),
   };
 }
 
@@ -2278,15 +2307,17 @@ export async function putTvWeeklyGoal(data: {
   }
 }
 
-/** Playlist pública da TV (slides + meta semanal sem senha). */
+/** Playlist pública da TV (slides + meta semanal sem senha). Inclui `chimeSchedule` para o painel reproduzir avisos por horário. */
 export async function getTvPlaylist(): Promise<{
   slides: unknown[];
   weeklyGoal: TvWeeklyGoal | null;
+  chimeSchedule: TvChimeScheduleConfig;
 }> {
   const response = await fetch(`${API_BASE}/tv/playlist`);
   const d = (await response.json().catch(() => ({}))) as {
     slides?: unknown[];
     weeklyGoal?: TvWeeklyGoal | null;
+    chimeSchedule?: unknown;
     error?: string;
   };
   if (!response.ok) {
@@ -2295,7 +2326,20 @@ export async function getTvPlaylist(): Promise<{
   return {
     slides: d.slides ?? [],
     weeklyGoal: d.weeklyGoal ?? null,
+    chimeSchedule: normalizeTvChimeConfig(d.chimeSchedule ?? null),
   };
+}
+
+export async function putTvChimeSchedule(config: TvChimeScheduleConfig): Promise<void> {
+  const response = await fetch(`${API_BASE}/tv/chime-schedule`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ config }),
+  });
+  const err = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((err as { error?: string }).error || "Falha ao salvar horários da TV.");
+  }
 }
 
 export async function deleteTvWeeklyGoal(): Promise<void> {

@@ -18,7 +18,7 @@ import { SystemUsersModal } from '../SystemUsersModal';
 import { SystemNotificationsModal } from '../SystemNotificationsModal';
 import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
-import type { SystemUserPermissions } from '../../services/apiService';
+import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
@@ -219,8 +219,25 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const quickAppsGridRef = useRef<HTMLDivElement>(null);
 
   const perms = systemUserPermissions || {};
+  const isLimitedSystem = isSystemUser && !perms.full_access;
+  const isWorkshopAdmin = !isSystemUser && !isTechnician;
+  const showFullAdminHub = isWorkshopAdmin || (isSystemUser && !!perms.full_access);
+  const showGranularAdminHub =
+    isLimitedSystem &&
+    !!(
+      perms.access_notificacoes_sistema ||
+      perms.access_servicos_oficina ||
+      perms.access_checklists_patio ||
+      perms.access_tv_patio ||
+      perms.access_estoque_pecas
+    );
+  const showAdminSection = showFullAdminHub || showGranularAdminHub;
+  const hasRichQuickGrid =
+    showFullAdminHub ||
+    !!perms.access_tv_patio ||
+    !!perms.access_centro_atendimento ||
+    !!perms.access_estoque_pecas;
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
-  const showAdminSection = (!isTechnician && !isSystemUser) || (isSystemUser && !!perms.full_access);
   const showToolsSection = hasToolsAccess && !perms.full_access;
 
   const headerDisplayName = useMemo(() => {
@@ -324,7 +341,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isUserProfileOpen, () => setIsUserProfileOpen(false));
   useBrowserBackLayer(isSystemNotificationsOpen, () => setIsSystemNotificationsOpen(false));
 
-  const operationalForView = isTechnician ? OPERATIONAL_APPS.filter((a) => allowedTabs.includes(a.id)) : OPERATIONAL_APPS;
+  const operationalForView = useMemo(() => {
+    if (isTechnician) return OPERATIONAL_APPS.filter((a) => allowedTabs.includes(a.id));
+    if (isLimitedSystem) {
+      return OPERATIONAL_APPS.filter((a) => {
+        if (a.id === 'agenda') return !!perms.access_agenda;
+        if (a.id === 'patio') return !!perms.access_patio;
+        if (a.id === 'orcamentos') return effectiveAccessOrcamentos(perms);
+        if (a.id === 'laboratorio') return !!perms.access_laboratorio;
+        return false;
+      });
+    }
+    return OPERATIONAL_APPS;
+  }, [allowedTabs, isLimitedSystem, isTechnician, perms]);
   const quickTilesForView = useMemo(() => {
     const baseTiles = operationalForView.map((app) => ({
       id: app.id as QuickTileId,
@@ -340,30 +369,38 @@ export const HomeView: React.FC<HomeViewProps> = ({
       ),
       onOpen: () => setIsHomeSettingsHubOpen(true),
     };
-    if (!showAdminSection) return [...baseTiles, settingsTile];
-    return [
-      ...baseTiles,
-      {
-        id: 'tv_patio' as QuickTileId,
+    const extraTiles: {
+      id: QuickTileId;
+      label: string;
+      icon: React.ReactElement;
+      onOpen: () => void;
+    }[] = [];
+    if (showFullAdminHub || !!perms.access_tv_patio) {
+      extraTiles.push({
+        id: 'tv_patio',
         label: 'TV do Pátio',
         icon: <img src="/icons/tv-patio-ios.png" alt="TV do Pátio" className="h-full w-full object-cover" />,
         onOpen: () => setIsTvPatioOpen(true),
-      },
-      {
-        id: 'centro_atendimento' as QuickTileId,
+      });
+    }
+    if (showFullAdminHub || !!perms.access_centro_atendimento) {
+      extraTiles.push({
+        id: 'centro_atendimento',
         label: 'Central do atendimento',
         icon: <img src="/icons/recepcao-ios.png" alt="Central do atendimento" className="h-full w-full object-cover" />,
         onOpen: () => onOpenVehicleAccompaniment?.(null),
-      },
-      {
-        id: 'parts_stock' as QuickTileId,
+      });
+    }
+    if (showFullAdminHub || !!perms.access_estoque_pecas) {
+      extraTiles.push({
+        id: 'parts_stock',
         label: 'Estoque de peças',
         icon: <img src="/icons/estoque-ios.png" alt="Estoque de peças" className="h-full w-full object-cover" />,
         onOpen: () => setIsPartsModalOpen(true),
-      },
-      settingsTile,
-    ];
-  }, [onOpenApp, onOpenVehicleAccompaniment, operationalForView, showAdminSection]);
+      });
+    }
+    return [...baseTiles, ...extraTiles, settingsTile];
+  }, [onOpenApp, onOpenVehicleAccompaniment, operationalForView, perms, showFullAdminHub]);
   const operationalById = useMemo(
     () =>
       Object.fromEntries(quickTilesForView.map((tile) => [tile.id, tile])) as Record<
@@ -580,7 +617,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       ? 'grid-cols-1'
       : orderedOperationalApps.length === 2
         ? 'grid-cols-2'
-        : showAdminSection
+        : hasRichQuickGrid
           ? 'grid-cols-2 lg:grid-cols-3'
           : 'grid-cols-2 lg:grid-cols-4';
 
@@ -597,9 +634,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
             <div className="relative shrink-0">
               <div className="absolute -inset-0.5 rounded-[1.15rem] bg-gradient-to-br from-amber-400/50 via-white/20 to-cyan-400/40 opacity-80 dark:opacity-60 blur-[1px] pointer-events-none" />
-              <img
-                src="/logo.png"
-                alt="Rei do ABS"
+        <img
+          src="/logo.png"
+          alt="Rei do ABS"
                 className="relative h-12 w-12 sm:h-14 sm:w-14 object-contain rounded-2xl border border-white/60 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:border-white/10 dark:shadow-black/40 dark:ring-white/10"
               />
             </div>
@@ -608,8 +645,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 Oficina
               </p>
               <h1 className="text-[1.35rem] sm:text-[1.65rem] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight truncate">
-                Rei do ABS
-              </h1>
+          Rei do ABS
+        </h1>
               <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mt-1 flex items-center gap-1.5 min-w-0">
                 <Sparkles className="w-3.5 h-3.5 text-brand-yellow shrink-0" />
                 <span className="truncate">Toque em um módulo para começar</span>
@@ -657,7 +694,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   }`}
                 >
                   {headerInitial}
-                </span>
+              </span>
               )}
             </button>
           </div>
@@ -923,125 +960,139 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <p className={iosSectionHint}>Usuários, avisos e cadastros da oficina</p>
                       <div className={`${iosCard} space-y-0.5 p-2 lg:grid lg:grid-cols-2 lg:gap-0 lg:p-2`}>
                         <div className="space-y-0.5 lg:grid lg:grid-cols-1">
-                          <SettingsRow
-                            onClick={() => setIsSystemUsersOpen(true)}
-                            title="Usuários do sistema"
-                            subtitle="Acessos e permissões"
-                            icon={
-                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                <img
-                                  src="/icons/usuarios-ios.png"
-                                  alt="Usuários do sistema"
-                                  className="h-full w-full object-cover"
-                                />
-                              </IosAccentIconSquircle>
-                            }
-                          />
-                          <SettingsRow
-                            onClick={() => setIsSystemNotificationsOpen(true)}
-                            title="Notificações do sistema"
-                            subtitle="Orçamentos, comentários, OS e lembretes"
-                            icon={
-                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                <img
-                                  src="/icons/tema-sistema-ios.png"
-                                  alt="Notificações do sistema"
-                                  className="h-full w-full object-cover"
-                                />
-                              </IosAccentIconSquircle>
-                            }
-                          />
-                          <SettingsRow
-                            onClick={() => {
-                              setIsHomeSettingsHubOpen(false);
-                              onOpenApp('settings');
-                            }}
-                            title="Tema do sistema"
-                            subtitle="Configurações da oficina"
-                            icon={
-                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                <img
-                                  src="/icons/tema-sistema-ios.png"
-                                  alt="Tema do sistema"
-                                  className="h-full w-full object-cover"
-                                />
-                              </IosAccentIconSquircle>
-                            }
-                          />
-                          <SettingsRow
-                            onClick={() => setIsServicesModalOpen(true)}
-                            title="Serviços da oficina"
-                            subtitle="Catálogo e valores"
-                            icon={
-                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                <img
-                                  src="/icons/servicos-oficina-ios.png"
-                                  alt="Serviços da oficina"
-                                  className="h-full w-full object-cover"
-                                />
-                              </IosAccentIconSquircle>
-                            }
-                          />
+                          {(isWorkshopAdmin || (isSystemUser && !!perms.full_access)) && (
+                            <SettingsRow
+                              onClick={() => setIsSystemUsersOpen(true)}
+                              title="Usuários do sistema"
+                              subtitle="Acessos e permissões"
+                              icon={
+                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                  <img
+                                    src="/icons/usuarios-ios.png"
+                                    alt="Usuários do sistema"
+                                    className="h-full w-full object-cover"
+                                  />
+                                </IosAccentIconSquircle>
+                              }
+                            />
+                          )}
+                          {(showFullAdminHub || !!perms.access_notificacoes_sistema) && (
+                            <SettingsRow
+                              onClick={() => setIsSystemNotificationsOpen(true)}
+                              title="Notificações do sistema"
+                              subtitle="Orçamentos, comentários, OS e lembretes"
+                              icon={
+                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                  <img
+                                    src="/icons/tema-sistema-ios.png"
+                                    alt="Notificações do sistema"
+                                    className="h-full w-full object-cover"
+                                  />
+                                </IosAccentIconSquircle>
+                              }
+                            />
+                          )}
+                          {(showFullAdminHub || (!!perms.access_settings && isSystemUser)) && (
+                            <SettingsRow
+                              onClick={() => {
+                                setIsHomeSettingsHubOpen(false);
+                                onOpenApp('settings');
+                              }}
+                              title="Tema do sistema"
+                              subtitle="Configurações da oficina"
+                              icon={
+                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                  <img
+                                    src="/icons/tema-sistema-ios.png"
+                                    alt="Tema do sistema"
+                                    className="h-full w-full object-cover"
+                                  />
+                                </IosAccentIconSquircle>
+                              }
+                            />
+                          )}
+                          {(showFullAdminHub || !!perms.access_servicos_oficina) && (
+                            <SettingsRow
+                              onClick={() => setIsServicesModalOpen(true)}
+                              title="Serviços da oficina"
+                              subtitle="Catálogo e valores"
+                              icon={
+                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                  <img
+                                    src="/icons/servicos-oficina-ios.png"
+                                    alt="Serviços da oficina"
+                                    className="h-full w-full object-cover"
+                                  />
+                                </IosAccentIconSquircle>
+                              }
+                            />
+                          )}
                         </div>
                         <div className="space-y-0.5 lg:border-l lg:border-zinc-200/60 lg:pl-2 dark:lg:border-white/[0.06]">
-                          <SettingsRow
-                            onClick={() => setIsPatioChecklistsOpen(true)}
-                            title="Checklists do Pátio"
-                            subtitle="Modelos por etapa"
-                            icon={
+                          {(showFullAdminHub || !!perms.access_checklists_patio) && (
+                            <SettingsRow
+                              onClick={() => setIsPatioChecklistsOpen(true)}
+                              title="Checklists do Pátio"
+                              subtitle="Modelos por etapa"
+                              icon={
+                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                  <img
+                                    src="/icons/checklist-patio-ios.png"
+                                    alt="Checklists do Pátio"
+                                    className="h-full w-full object-cover"
+                                  />
+                                </IosAccentIconSquircle>
+                              }
+                            />
+                          )}
+                          {(showFullAdminHub || !!perms.access_tv_patio) && (
+                            <a
+                              href="https://patio-view.vercel.app/"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all duration-200 hover:bg-zinc-100/90 active:scale-[0.99] sm:px-4 sm:py-3.5 dark:hover:bg-white/[0.06]"
+                            >
                               <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
                                 <img
-                                  src="/icons/checklist-patio-ios.png"
-                                  alt="Checklists do Pátio"
+                                  src="/icons/painel-patio-tv-ios.png"
+                                  alt="Painel do Pátio (TV)"
                                   className="h-full w-full object-cover"
                                 />
                               </IosAccentIconSquircle>
-                            }
-                          />
-                          <a
-                            href="https://patio-view.vercel.app/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all duration-200 hover:bg-zinc-100/90 active:scale-[0.99] sm:px-4 sm:py-3.5 dark:hover:bg-white/[0.06]"
-                          >
-                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                              <img
-                                src="/icons/painel-patio-tv-ios.png"
-                                alt="Painel do Pátio (TV)"
-                                className="h-full w-full object-cover"
-                              />
-                            </IosAccentIconSquircle>
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-[15px] font-medium leading-snug text-zinc-900 dark:text-white">
-                                Painel do Pátio (TV)
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-[15px] font-medium leading-snug text-zinc-900 dark:text-white">
+                                  Painel do Pátio (TV)
+                                </span>
+                                <span className="mt-0.5 block text-[12px] text-zinc-950 dark:text-zinc-400">
+                                  Abrir em nova aba
+                                </span>
                               </span>
-                              <span className="mt-0.5 block text-[12px] text-zinc-950 dark:text-zinc-400">
-                                Abrir em nova aba
-                              </span>
-                            </span>
-                            <ExternalLink className="h-5 w-5 shrink-0 text-zinc-400 transition-colors group-hover:text-brand-yellow" />
-                          </a>
-                          <SettingsRow
-                            onClick={() => setIsChangePasswordsOpen(true)}
-                            title="Alterar senhas"
-                            subtitle="Gerência e equipe"
-                            icon={
-                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                <img
-                                  src="/icons/senhas-ios.png"
-                                  alt="Alterar senhas"
-                                  className="h-full w-full object-cover"
-                                />
-                              </IosAccentIconSquircle>
-                            }
-                          />
+                              <ExternalLink className="h-5 w-5 shrink-0 text-zinc-400 transition-colors group-hover:text-brand-yellow" />
+                            </a>
+                          )}
+                          {(showFullAdminHub || (!!perms.access_change_passwords && isSystemUser)) && (
+                            <SettingsRow
+                              onClick={() => setIsChangePasswordsOpen(true)}
+                              title="Alterar senhas"
+                              subtitle="Gerência e equipe"
+                              icon={
+                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                  <img
+                                    src="/icons/senhas-ios.png"
+                                    alt="Alterar senhas"
+                                    className="h-full w-full object-cover"
+                                  />
+                                </IosAccentIconSquircle>
+                              }
+                            />
+                          )}
                         </div>
                       </div>
                     </section>
                   )}
               </div>
             </div>
-          </div>
+      </div>
       ) : null}
 
       {!isTechnician && (
