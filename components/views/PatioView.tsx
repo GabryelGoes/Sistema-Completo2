@@ -6250,7 +6250,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <ModalPortal>
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
           <div
-            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-xl min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+            className="relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-xl min-h-0 flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_24px_64px_-18px_rgba(0,0,0,0.14),0_10px_32px_-12px_rgba(0,0,0,0.08),0_1px_0_0_rgba(255,255,255,0.9)_inset] animate-in zoom-in-95 duration-200 dark:border-white/[0.08] dark:bg-zinc-900 dark:shadow-[0_20px_56px_-14px_rgba(0,0,0,0.55)] sm:rounded-[2.25rem]"
           >
             <button
               type="button"
@@ -6258,13 +6258,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 setReminderSaveError(null);
                 setIsRemindersOpen(false);
               }}
-              className={iosModalClose}
+              className={`${iosModalClose} bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15`}
               aria-label="Fechar lembretes"
             >
               <X className="h-5 w-5" />
             </button>
 
-            <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+            <div className="shrink-0 border-b border-zinc-200/80 bg-zinc-50/90 px-6 pb-5 pt-7 dark:border-white/[0.07] dark:bg-zinc-950/60 sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
                 <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
                   {patioOrLabModuleIcon}
@@ -6284,8 +6284,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className="shrink-0 border-b border-zinc-200/50 px-6 py-4 dark:border-white/[0.06] sm:px-8">
-              <p className={iosLabel}>Novo lembrete</p>
+            <div className="shrink-0 border-b border-zinc-100 bg-white px-6 py-5 dark:border-white/[0.06] dark:bg-zinc-900 sm:px-8">
+              <p className={`${iosLabel} text-zinc-600 dark:text-zinc-300`}>Novo lembrete</p>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
@@ -6326,7 +6326,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     setReminderSubmitting(false);
                   }
                 }}
-                className={`${iosModalInsetCard} p-4 sm:p-5`}
+                className="mt-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/80 p-4 shadow-[0_4px_20px_-6px_rgba(0,0,0,0.08),0_2px_10px_-4px_rgba(0,0,0,0.05)] dark:border-white/[0.08] dark:bg-zinc-950/50 dark:shadow-[0_8px_28px_-12px_rgba(0,0,0,0.35)] sm:p-5"
               >
                 {reminderSaveError && (
                   <p className="mb-3 text-[13px] font-medium text-red-600 dark:text-red-400" role="alert">
@@ -6343,45 +6343,49 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         if (reminderSaveError) setReminderSaveError(null);
                       }}
                       placeholder={isModuleMode ? 'Algo importante para os módulos…' : 'Algo importante para o pátio…'}
-                      className={iosInput}
+                      className="w-full rounded-xl border border-zinc-200/95 bg-white px-4 py-3 text-[15px] text-zinc-900 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06),0_4px_14px_-6px_rgba(0,0,0,0.07)] placeholder:text-zinc-400 focus:border-[#007AFF]/55 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 disabled:opacity-60 dark:border-white/[0.1] dark:bg-zinc-900/80 dark:text-white dark:placeholder:text-zinc-500 dark:shadow-none"
                       disabled={reminderSubmitting}
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={!newReminder.trim() || reminderSubmitting}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center self-center rounded-2xl border border-black/10 bg-brand-yellow text-zinc-950 shadow-lg shadow-brand-yellow/30 transition-transform active:scale-[0.98] hover:brightness-110 disabled:opacity-45 dark:border-black/25 sm:h-auto sm:w-14 sm:rounded-2xl"
+                    className="group relative flex h-12 w-12 shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl border border-[#007AFF]/35 bg-gradient-to-b from-[#5AACFF] to-[#007AFF] text-white shadow-[0_10px_28px_-6px_rgba(0,122,255,0.55),0_4px_14px_-4px_rgba(0,122,255,0.35),inset_0_1px_0_rgba(255,255,255,0.35)] transition-all hover:brightness-105 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100 dark:from-[#409CFF] dark:to-[#0062CC] dark:shadow-[0_12px_32px_-8px_rgba(0,122,255,0.4)] sm:h-12 sm:w-14"
                     aria-label="Adicionar lembrete"
                   >
+                    <span
+                      className="pointer-events-none absolute inset-x-0 top-0 h-[46%] rounded-t-2xl bg-gradient-to-b from-white/30 to-transparent opacity-90"
+                      aria-hidden
+                    />
                     {reminderSubmitting ? (
-                      <Loader2 className="h-6 w-6 animate-spin" strokeWidth={2.2} />
+                      <Loader2 className="relative h-6 w-6 animate-spin" strokeWidth={2.2} />
                     ) : (
-                      <Plus className="h-6 w-6" strokeWidth={2.2} />
+                      <Plus className="relative h-6 w-6 sm:h-6 sm:w-6" strokeWidth={2.35} />
                     )}
                   </button>
                 </div>
               </form>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-zinc-50/50 px-6 py-5 custom-scrollbar dark:bg-zinc-950/40 sm:px-8">
               {remindersLoading && reminders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-16">
                   <Loader2 className="h-9 w-9 animate-spin text-[#007AFF]" strokeWidth={2} />
                   <p className="text-[14px] text-zinc-500 dark:text-zinc-400">Carregando lembretes…</p>
                 </div>
               ) : reminders.length === 0 ? (
-                <div className={`${iosModalInsetCard} py-12 text-center`}>
+                <div className="rounded-2xl border border-zinc-200/90 bg-white py-12 text-center shadow-[0_6px_24px_-8px_rgba(0,0,0,0.08),0_2px_10px_-4px_rgba(0,0,0,0.05)] dark:border-white/[0.08] dark:bg-zinc-900/60 dark:shadow-[0_8px_28px_-12px_rgba(0,0,0,0.4)]">
                   <p className="text-[15px] font-medium text-zinc-700 dark:text-zinc-200">Nada por aqui ainda</p>
                   <p className="mt-2 text-[13px] text-zinc-500 dark:text-zinc-400">
                     Adicione lembretes para o time não esquecer o que importa.
                   </p>
                 </div>
               ) : (
-                <ul className="space-y-2.5">
+                <ul className="space-y-3">
                   {reminders.map((r) => (
                     <li
                       key={r.id}
-                      className={`${iosModalInsetCard} flex items-start gap-3 p-3.5 transition-opacity ${
+                      className={`flex items-start gap-3 rounded-2xl border border-zinc-200/90 bg-white p-3.5 shadow-[0_6px_22px_-8px_rgba(0,0,0,0.09),0_2px_10px_-4px_rgba(0,0,0,0.05)] transition-opacity dark:border-white/[0.08] dark:bg-zinc-900/70 dark:shadow-[0_10px_32px_-12px_rgba(0,0,0,0.45)] ${
                         r.done ? 'opacity-70' : ''
                       }`}
                     >
@@ -6403,28 +6407,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             // ignore
                           }
                         }}
-                        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] transition-colors ${
                           r.done
-                            ? 'border-[#007AFF] bg-[#007AFF] text-white'
-                            : 'border-zinc-300 text-transparent hover:border-[#007AFF]/50 dark:border-white/25 dark:hover:border-[#64B5FF]/60'
+                            ? 'border-[#007AFF] bg-[#007AFF] text-white shadow-[0_4px_14px_-4px_rgba(0,122,255,0.45)]'
+                            : 'border-zinc-300 bg-white text-transparent shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06)] hover:border-[#007AFF]/55 dark:border-zinc-600 dark:bg-zinc-900 dark:hover:border-[#64B5FF]/60'
                         }`}
                         aria-label={r.done ? 'Marcar como pendente' : 'Marcar como feito'}
                       >
                         {r.done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                       </button>
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 overflow-hidden">
                         <p
-                          className={`text-[15px] leading-snug text-zinc-900 break-words dark:text-zinc-100 ${
+                          className={`whitespace-normal break-words text-[15px] leading-relaxed text-zinc-900 [overflow-wrap:anywhere] dark:text-zinc-100 ${
                             r.done ? 'line-through decoration-zinc-400 dark:decoration-zinc-500' : ''
                           }`}
                         >
                           {r.text}
                         </p>
-                        <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                        <p className="mt-1.5 flex flex-wrap gap-x-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
                           <span className="font-medium text-zinc-600 dark:text-zinc-300">
                             {r.createdBy || (isModuleMode ? 'Laboratório' : 'Pátio')}
                           </span>
-                          <span className="mx-1.5 text-zinc-400 dark:text-zinc-600">·</span>
+                          <span className="text-zinc-400 dark:text-zinc-600">·</span>
                           <span>
                             {new Date(r.createdAt).toLocaleString('pt-BR', {
                               day: '2-digit',
@@ -6450,10 +6454,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             // ignore
                           }
                         }}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-black/[0.03] text-zinc-500 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-600 active:scale-95 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-400 dark:hover:text-red-400"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-200/90 bg-red-50/95 text-red-600 shadow-[0_2px_10px_-4px_rgba(239,68,68,0.2)] transition-all hover:border-red-300 hover:bg-red-100 hover:text-red-700 active:scale-95 dark:border-red-500/35 dark:bg-red-950/50 dark:text-red-400 dark:shadow-[0_4px_14px_-6px_rgba(239,68,68,0.15)] dark:hover:border-red-400/50 dark:hover:bg-red-950/70 dark:hover:text-red-300"
                         aria-label="Excluir lembrete"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" strokeWidth={2.1} />
                       </button>
                     </li>
                   ))}
