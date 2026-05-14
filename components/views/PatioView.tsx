@@ -57,7 +57,15 @@ import {
   type ChecklistTemplate,
 } from '../../services/apiService';
 import type { ServiceOrderDetail, ApiCustomer } from '../../services/apiService';
-import { SERVICE_ORDER_STAGES, getStageStyle, getStageRingClass, type ServiceOrderStatus } from '../../constants/serviceOrderStages';
+import {
+  SERVICE_ORDER_STAGES,
+  getStageConfig,
+  getStageStyle,
+  getStageRingClass,
+  FIRST_STAGE,
+  CANCELLED_STATUS,
+  type ServiceOrderStatus,
+} from '../../constants/serviceOrderStages';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
@@ -424,6 +432,20 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     vehicleEngineInfo: o.vehicle_engine_info ?? null,
     referenceLinks: parseReferenceLinksFromApi(o.reference_links),
   };
+}
+
+/**
+ * Status desconhecido ou divergente do quadro: sem coluna correspondente o card some.
+ * Mapeia para a primeira etapa visível (mesmo critério de “ativa” no fluxo).
+ */
+function normalizeStatusForPatioBoard(status: string | undefined): ServiceOrderStatus {
+  const s = String(status ?? '').trim();
+  if (s === CANCELLED_STATUS) return CANCELLED_STATUS;
+  if (getStageConfig(s)) return s as ServiceOrderStatus;
+  if (import.meta.env.DEV) {
+    console.warn('[PatioView] Status de OS não reconhecido no quadro; exibindo em Aguardando avaliação:', status);
+  }
+  return FIRST_STAGE;
 }
 
 /** Lista de arquivados: mais recentemente atualizado (arquivado) primeiro. */
@@ -1550,7 +1572,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return () => window.cancelAnimationFrame(id);
   }, [isPatioPlateSearchModalOpen]);
 
-  const fetchData = async (isBackground = false) => {
+  /** Evita corridas: várias chamadas em paralelo (Realtime + poll 15s + carga inicial) podiam aplicar respostas fora de ordem e “sumir” cards. */
+  const patioBoardFetchChainRef = useRef(Promise.resolve());
+
+  const fetchDataImpl = async (isBackground = false) => {
     if (!isBackground) {
       setError(null);
       setInitialLoading(true);
@@ -1567,15 +1592,34 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setLists(BACKEND_LISTS);
       const nameMap = buildTechnicianNameMap(technicians);
       const onlyActive = orders.filter((o) => o.status !== 'CANCELLED');
-      setCards(onlyActive.map((o) => orderToCard(o, nameMap, orderType)).sort((a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime()));
+      const byId = new Map<string, TrelloCard>();
+      for (const o of onlyActive) {
+        const row: ServiceOrderListItem = {
+          ...o,
+          status: normalizeStatusForPatioBoard(o.status),
+        };
+        const card = orderToCard(row, nameMap, orderType);
+        byId.set(card.id, card);
+      }
+      setCards(
+        [...byId.values()].sort(
+          (a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime()
+        )
+      );
       setAllMembers([]);
-      if (error) setError(null);
+      setError(null);
     } catch (err: any) {
       if (!isBackground) setError(err?.message ?? 'Erro ao carregar ordens.');
-      else console.error("Erro na sincronização:", err);
+      else console.error('Erro na sincronização:', err);
     } finally {
       if (!isBackground) setInitialLoading(false);
     }
+  };
+
+  const fetchData = (isBackground = false) => {
+    patioBoardFetchChainRef.current = patioBoardFetchChainRef.current
+      .then(() => fetchDataImpl(isBackground))
+      .catch(() => {});
   };
 
   const fetchDataRef = useRef(fetchData);
