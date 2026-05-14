@@ -97,7 +97,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const [newMediaFullscreen, setNewMediaFullscreen] = useState(true);
   const [newMediaObjectFit, setNewMediaObjectFit] = useState<TvMediaObjectFit>('cover');
 
-  const [previewTab, setPreviewTab] = useState<'draft' | 'library'>('draft');
+  const [previewTab, setPreviewTab] = useState<'draft' | 'library' | 'chimes'>('draft');
   const [libraryPreviewId, setLibraryPreviewId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
@@ -672,31 +672,43 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 </span>
               </div>
 
-              <div className="mb-5 flex rounded-2xl bg-zinc-200/60 p-1">
+              <div className="mb-5 grid grid-cols-3 gap-1 rounded-2xl bg-zinc-200/60 p-1">
                 <button
                   type="button"
                   onClick={() => setPreviewTab('draft')}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-semibold transition-all ${
+                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2.5 text-[11px] font-semibold transition-all sm:text-[12px] ${
                     previewTab === 'draft'
                       ? 'bg-white text-zinc-900 shadow-md'
                       : 'text-zinc-500'
                   }`}
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Rascunho
+                  <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">Rascunho</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setPreviewTab('library')}
                   disabled={slides.length === 0}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-semibold transition-all disabled:opacity-35 ${
+                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2.5 text-[11px] font-semibold transition-all disabled:opacity-35 sm:text-[12px] ${
                     previewTab === 'library'
                       ? 'bg-white text-zinc-900 shadow-md'
                       : 'text-zinc-500'
                   }`}
                 >
-                  <ListVideo className="h-3.5 w-3.5" />
-                  Na fila
+                  <ListVideo className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">Na fila</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('chimes')}
+                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2.5 text-[11px] font-semibold transition-all sm:text-[12px] ${
+                    previewTab === 'chimes'
+                      ? 'bg-white text-zinc-900 shadow-md'
+                      : 'text-zinc-500'
+                  }`}
+                >
+                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">Horários</span>
                 </button>
               </div>
 
@@ -721,13 +733,16 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 weeklyCurrent={weeklyCurrentNum}
                 weeklyTarget={weeklyTargetNum}
                 showWeeklyStrip={previewShowsWeeklyStrip}
-                slide={previewSlide}
+                slide={previewTab === 'chimes' ? null : previewSlide}
                 showVehiclesPlaceholder={previewTab === 'draft' && !draftSlide}
+                chimeSchedulePreview={previewTab === 'chimes' ? chimeConfig : null}
               />
             </div>
 
             <p className="portrait:order-3 mt-5 px-1 text-center text-[11px] leading-relaxed text-zinc-500 lg:order-3">
-              O preview simula o painel da TV. Imagens e vídeos enviados ficam no Storage da oficina.
+              {previewTab === 'chimes'
+                ? 'Pré-visualização da faixa de horários na TV (lista ordenada por horário). Salve na secção abaixo para enviar ao painel.'
+                : 'O preview simula o painel da TV. Imagens e vídeos enviados ficam no Storage da oficina.'}
             </p>
           </div>
         )}

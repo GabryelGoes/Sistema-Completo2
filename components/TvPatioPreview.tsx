@@ -1,6 +1,7 @@
 import React from 'react';
 import type { TvMediaObjectFit, TvSlide } from '../services/apiService';
 import { normalizeTvMediaObjectFit } from '../services/apiService';
+import type { TvChimeAlert, TvChimeScheduleConfig } from '../utils/tvChimeSchedule';
 
 function mediaObjectFitClass(fit: TvMediaObjectFit | undefined): string {
   switch (normalizeTvMediaObjectFit(fit)) {
@@ -51,6 +52,23 @@ function formatMoney(n: number): string {
   }
 }
 
+const CHIME_DOW: Record<number, string> = {
+  0: 'Dom',
+  1: 'Seg',
+  2: 'Ter',
+  3: 'Qua',
+  4: 'Qui',
+  5: 'Sex',
+  6: 'Sáb',
+};
+
+function formatChimeWeekdays(a: TvChimeAlert): string {
+  if (!a.weekdays.length) return 'Todos os dias';
+  const sorted = [...a.weekdays].sort((x, y) => x - y);
+  if (sorted.join(',') === '1,2,3,4,5') return 'Seg a sex';
+  return sorted.map((d) => CHIME_DOW[d] ?? d).join(' · ');
+}
+
 interface TvPatioPreviewProps {
   weeklyLabel: string;
   weeklyCurrent: number;
@@ -60,6 +78,8 @@ interface TvPatioPreviewProps {
   slide: TvSlide | null;
   /** Quando não há slide, mostra placeholder dos veículos */
   showVehiclesPlaceholder?: boolean;
+  /** Simula na área da TV a faixa dos avisos por horário (aba Horários no modal). */
+  chimeSchedulePreview?: TvChimeScheduleConfig | null;
 }
 
 /**
@@ -72,6 +92,7 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
   showWeeklyStrip = true,
   slide,
   showVehiclesPlaceholder = true,
+  chimeSchedulePreview = null,
 }) => {
   const pct =
     weeklyTarget > 0 && Number.isFinite(weeklyCurrent / weeklyTarget)
@@ -81,13 +102,68 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
 
   /** Imagem/vídeo com URL: sem cabeçalho da marca e área única em tela cheia (como na TV). */
   const isImmersiveMedia =
+    !chimeSchedulePreview &&
     slide != null &&
     !!slide.mediaUrl &&
     (slide.slideType === 'image' || slide.slideType === 'video');
   const showBrandBar = !isImmersiveMedia;
   const showGoalStrip = hasGoal && !isImmersiveMedia;
 
+  const renderChimePreview = () => {
+    const cfg = chimeSchedulePreview;
+    if (!cfg) return null;
+    const alerts = [...cfg.alerts].filter((a) => a.enabled).sort((a, b) => a.time.localeCompare(b.time));
+    return (
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-black">
+        <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-amber-500 to-amber-400 px-2 py-1.5 text-center">
+          <p className="text-[7px] font-black uppercase tracking-[0.18em] text-black/80">Horário · TV Pátio</p>
+          <p className="text-[9px] font-bold leading-tight text-black">
+            {cfg.masterEnabled ? 'Pré-visualização dos avisos' : 'Rotina desligada na configuração'}
+          </p>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-2">
+          {!cfg.masterEnabled ? (
+            <p className="px-1 py-4 text-center text-[8px] font-medium leading-relaxed text-white/45">
+              Ative &quot;Ativar rotina&quot; na secção de horários para disparar estes avisos na TV física.
+            </p>
+          ) : alerts.length === 0 ? (
+            <p className="py-4 text-center text-[8px] text-white/40">Nenhum aviso ativo — adicione horários na lista.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {alerts.map((a) => (
+                <li
+                  key={a.id}
+                  className="rounded-lg border border-white/[0.08] bg-white/[0.05] px-2 py-1.5 text-left"
+                >
+                  <div className="flex items-baseline justify-between gap-1">
+                    <span className="truncate text-[9px] font-black uppercase text-yellow-400">{a.label}</span>
+                    <span className="shrink-0 font-mono text-[9px] font-bold tabular-nums text-white/90">{a.time}</span>
+                  </div>
+                  <p className="mt-0.5 line-clamp-2 text-[7px] leading-snug text-zinc-400">{a.message}</p>
+                  <p className="mt-1 text-[6px] font-semibold uppercase tracking-wider text-white/35">
+                    {formatChimeWeekdays(a)}
+                    {a.playSound ? ' · Som' : ''}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {cfg.masterEnabled && alerts.length > 0 ? (
+          <div className="shrink-0 border-t border-white/10 bg-black/50 px-2 py-1.5">
+            <p className="text-center text-[6px] font-medium leading-snug text-white/35">
+              Na TV, a faixa aparece sobreposta no horário · Tom: {cfg.soundPreset}
+            </p>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   const renderSlide = () => {
+    if (chimeSchedulePreview) {
+      return renderChimePreview();
+    }
     if (!slide) {
       if (!showVehiclesPlaceholder) {
         return (
