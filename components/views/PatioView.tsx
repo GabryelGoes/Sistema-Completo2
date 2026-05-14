@@ -173,12 +173,12 @@ function cloneCachedActions(actions: TrelloAction[]): TrelloAction[] {
 const budgetModalCanvasBg = 'bg-[#f8fcfe]';
 /** Modal de orçamento: cartões / áreas internas. Sempre visual de tema claro (sem variantes dark). */
 const budgetModalPaperInset =
-  'rounded-[22px] border border-sky-200/80 bg-white ' +
+  'rounded-[16px] border border-sky-200/80 bg-white ' +
   'shadow-[0_6px_22px_-10px_rgba(14,116,144,0.18),0_2px_12px_-4px_rgba(15,23,42,0.08),0_1px_3px_rgba(14,116,144,0.06),inset_0_1px_0_rgba(255,255,255,1)]';
 const budgetModalFieldLabel =
   'block text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700/85 mb-2';
 const budgetModalInput =
-  'w-full rounded-2xl border border-sky-200/80 bg-white px-4 py-3 text-[15px] text-slate-800 shadow-sm placeholder:text-sky-400/80 transition-[box-shadow,border-color] focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-300/35';
+  'w-full rounded-xl border border-sky-200/80 bg-white px-4 py-3 text-[15px] text-slate-800 shadow-sm placeholder:text-sky-400/80 transition-[box-shadow,border-color] focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-300/35';
 const budgetModalPaperShell =
   'border-0 ' + budgetModalCanvasBg + ' text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]';
 const budgetModalPaperFooter =
@@ -235,7 +235,7 @@ const vehicleModalSubtitleNameShadow =
 
 /** Botão principal de criar/salvar orçamento — azul no modal de orçamento. */
 const budgetModalCreateBudgetButton =
-  'rounded-2xl border border-sky-600/35 bg-sky-600 text-[15px] font-semibold text-white shadow-md transition-[transform,background-color,border-color,opacity] hover:bg-sky-700 hover:border-sky-700/50 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50';
+  'rounded-xl border border-sky-600/35 bg-sky-600 text-[15px] font-semibold text-white shadow-md transition-[transform,background-color,border-color,opacity] hover:bg-sky-700 hover:border-sky-700/50 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50';
 
 export type OpenServiceOrderSection = 'comments' | 'budgets' | 'description' | null;
 
@@ -7049,7 +7049,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <button
                               type="button"
                               onClick={() => setIsServiceListOpen(true)}
-                              className="inline-flex items-center gap-1.5 rounded-2xl border border-sky-200/80 bg-white px-3 py-2 text-[13px] font-semibold text-slate-800 shadow-sm transition-colors hover:border-sky-300 hover:bg-sky-50"
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200/80 bg-white px-3 py-2 text-[13px] font-semibold text-slate-800 shadow-sm transition-colors hover:border-sky-300 hover:bg-sky-50"
                             >
                               Inserir da lista
                               <ChevronDown className="h-4 w-4 opacity-80" />
@@ -7098,7 +7098,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => removeServiceRow(item.id)}
-                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-red-200/60 bg-red-50/40 text-red-500/85 transition-colors hover:border-red-400 hover:bg-red-100/80 hover:text-red-600"
+                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-200/60 bg-red-50/40 text-red-500/85 transition-colors hover:border-red-400 hover:bg-red-100/80 hover:text-red-600"
                                   aria-label="Remover serviço"
                                 >
                                   <Trash2 className="h-5 w-5" />
@@ -7115,7 +7115,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     {isServiceListOpen && (
                       <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-sm" onClick={() => setIsServiceListOpen(false)}>
                         <div
-                          className={`flex max-h-[70vh] w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 text-slate-800 shadow-xl ${budgetModalCanvasBg}`}
+                          className={`flex max-h-[70vh] w-full max-w-lg flex-col overflow-hidden rounded-[1.5rem] border border-sky-200 text-slate-800 shadow-xl ${budgetModalCanvasBg}`}
                           onClick={(e) => e.stopPropagation()}
                         >
                           <div className="flex items-center justify-between border-b border-sky-200 px-5 py-4">
@@ -7160,7 +7160,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <>
                           <div className="fixed inset-0 z-[215] bg-black/35" onClick={() => setSuggestionsForServiceId(null)} />
                           <div
-                            className="fixed z-[216] max-h-[200px] overflow-y-auto overflow-hidden rounded-[18px] border border-sky-200/80 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(14,116,144,0.2)]"
+                            className="fixed z-[216] max-h-[200px] overflow-y-auto overflow-hidden rounded-[14px] border border-sky-200/80 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(14,116,144,0.2)]"
                             style={{
                               top: suggestionBoxPosition.top,
                               left: suggestionBoxPosition.left,
@@ -7219,7 +7219,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 onBlur={handlePartInputBlur}
                               />
                                 <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-start">
-                                <div className="flex items-center overflow-hidden rounded-2xl border border-sky-200/80 bg-white">
+                                <div className="flex items-center overflow-hidden rounded-xl border border-sky-200/80 bg-white">
                                   <button
                                     type="button"
                                     onClick={() => updatePartQuantity(item.id, -1)}
@@ -7243,7 +7243,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => removePartRow(item.id)}
-                                  className="flex h-10 w-10 items-center justify-center rounded-2xl border border-red-200/60 bg-red-50/40 text-red-500/85 transition-colors hover:border-red-400 hover:bg-red-100/80 hover:text-red-600"
+                                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-200/60 bg-red-50/40 text-red-500/85 transition-colors hover:border-red-400 hover:bg-red-100/80 hover:text-red-600"
                                   aria-label="Remover peça"
                                 >
                                   <Trash2 className="h-5 w-5" />
@@ -7265,7 +7265,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <>
                           <div className="fixed inset-0 z-[215] bg-black/35" onClick={() => setSuggestionsForPartId(null)} />
                           <div
-                            className="fixed z-[216] max-h-[200px] overflow-y-auto overflow-hidden rounded-[18px] border border-sky-200/80 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(14,116,144,0.2)]"
+                            className="fixed z-[216] max-h-[200px] overflow-y-auto overflow-hidden rounded-[14px] border border-sky-200/80 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(14,116,144,0.2)]"
                             style={{
                               top: partSuggestionBoxPosition.top,
                               left: partSuggestionBoxPosition.left,
