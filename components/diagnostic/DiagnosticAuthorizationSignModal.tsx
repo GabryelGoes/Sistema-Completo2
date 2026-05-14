@@ -171,12 +171,12 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
         <div
           className={
             fullScreenPortrait
-              ? "flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-zinc-100 shadow-none dark:bg-zinc-950"
-              : "flex max-h-[min(92dvh,920px)] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] border border-zinc-200/90 bg-zinc-100 shadow-[0_-12px_48px_-16px_rgba(0,0,0,0.35)] dark:border-white/[0.1] dark:bg-zinc-950 sm:max-h-[min(88vh,900px)] sm:rounded-[28px] sm:shadow-2xl"
+              ? "flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-zinc-200 shadow-none dark:bg-zinc-950"
+              : "flex max-h-[min(92dvh,920px)] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] border border-zinc-200/90 bg-zinc-200 shadow-[0_-12px_48px_-16px_rgba(0,0,0,0.35)] dark:border-white/[0.1] dark:bg-zinc-950 sm:max-h-[min(88vh,900px)] sm:rounded-[28px] sm:shadow-2xl"
           }
           onClick={(ev) => ev.stopPropagation()}
         >
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/80 bg-zinc-100 px-5 py-4 dark:border-white/[0.08] dark:bg-zinc-950">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-300/70 bg-zinc-200 px-5 py-4 dark:border-white/[0.08] dark:bg-zinc-950">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#007AFF]/25 bg-[#007AFF]/[0.1] dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15">
                 <PenLine className="h-5 w-5 text-[#007AFF] dark:text-[#93c5fd]" strokeWidth={2.25} aria-hidden />
@@ -184,11 +184,11 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
               <div className="min-w-0">
                 <h2
                   id="diag-auth-modal-title"
-                  className="text-[15px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white"
+                  className="text-[16px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[17px]"
                 >
                   {DIAGNOSTIC_AUTHORIZATION_TITLE}
                 </h2>
-                <p className="mt-0.5 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                <p className="mt-0.5 text-[13px] font-medium text-zinc-600 dark:text-zinc-400 sm:text-[14px]">
                   Leia o texto abaixo e assine com o dedo ou caneta.
                 </p>
               </div>
@@ -196,7 +196,7 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
             <button
               type="button"
               onClick={onClose}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 transition-colors hover:bg-zinc-200 dark:bg-white/[0.08] dark:text-zinc-300 dark:hover:bg-white/[0.12]"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-300/60 text-zinc-700 transition-colors hover:bg-zinc-300 dark:bg-white/[0.08] dark:text-zinc-300 dark:hover:bg-white/[0.12]"
               aria-label="Fechar"
             >
               <X className="h-5 w-5" />
@@ -206,17 +206,17 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
           <div
             className={
               fullScreenPortrait
-                ? "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-zinc-100 px-4 py-3 [-webkit-overflow-scrolling:touch] dark:bg-zinc-950"
-                : "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-zinc-100 px-5 py-4 [-webkit-overflow-scrolling:touch] dark:bg-zinc-950"
+                ? "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-zinc-200 px-4 py-3 [-webkit-overflow-scrolling:touch] dark:bg-zinc-950"
+                : "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-zinc-200 px-5 py-4 [-webkit-overflow-scrolling:touch] dark:bg-zinc-950"
             }
           >
             <DiagnosticAuthorizationTermBody
-              className="rounded-2xl border border-zinc-200/80 bg-zinc-50/90 p-4 text-[15px] leading-relaxed text-zinc-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:text-zinc-100 sm:text-[16px] sm:leading-relaxed"
+              className="rounded-2xl border border-zinc-200/80 bg-zinc-50/90 p-4 text-[16px] leading-relaxed text-zinc-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:text-zinc-100 sm:p-5 sm:text-[17px] sm:leading-relaxed"
               paragraphClassName="[&:not(:first-child)]:mt-3"
               calloutClassName="font-extrabold uppercase tracking-wide text-zinc-950 dark:text-white"
             />
 
-            <p className="mt-5 text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-600 dark:text-zinc-300">
+            <p className="mt-5 text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-700 dark:text-zinc-300 sm:text-[14px]">
               {DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL}
             </p>
             <div className="mt-2 overflow-hidden rounded-2xl border-2 border-dashed border-zinc-300/95 bg-white p-2 dark:border-white/[0.14] dark:bg-zinc-900/40">
@@ -237,14 +237,18 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
           <div
             className={
               fullScreenPortrait
-                ? "flex shrink-0 flex-col gap-2 border-t border-zinc-200/80 bg-zinc-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-white/[0.08] dark:bg-zinc-950"
-                : "flex shrink-0 flex-col gap-2 border-t border-zinc-200/80 bg-zinc-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-white/[0.08] dark:bg-zinc-950 sm:flex-row sm:justify-end"
+                ? "flex shrink-0 flex-row items-stretch gap-2 border-t border-zinc-300/70 bg-zinc-200 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-white/[0.08] dark:bg-zinc-950"
+                : "flex shrink-0 flex-col gap-2 border-t border-zinc-300/70 bg-zinc-200 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-white/[0.08] dark:bg-zinc-950 sm:flex-row sm:justify-end"
             }
           >
             <button
               type="button"
               onClick={handleClear}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-zinc-200/90 bg-zinc-50 px-4 text-[14px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 active:scale-[0.99] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.1] sm:order-1 sm:h-11"
+              className={
+                fullScreenPortrait
+                  ? "inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center gap-1 rounded-2xl border border-zinc-300/90 bg-zinc-50 px-2 text-[12px] font-semibold leading-tight text-zinc-800 transition-colors hover:bg-zinc-100 active:scale-[0.99] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.1]"
+                  : "inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-zinc-50 px-4 text-[14px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 active:scale-[0.99] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.1] sm:order-1 sm:h-11"
+              }
             >
               <Eraser className="h-4 w-4 shrink-0" aria-hidden />
               Limpar
@@ -252,17 +256,29 @@ export const DiagnosticAuthorizationSignModal: React.FC<DiagnosticAuthorizationS
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-12 items-center justify-center rounded-2xl border border-zinc-200/90 px-4 text-[14px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 active:scale-[0.99] dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06] sm:order-2 sm:h-11"
+              className={
+                fullScreenPortrait
+                  ? "inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center rounded-2xl border border-zinc-300/90 px-2 text-[12px] font-semibold leading-tight text-zinc-700 transition-colors hover:bg-zinc-100/80 active:scale-[0.99] dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+                  : "inline-flex h-12 items-center justify-center rounded-2xl border border-zinc-300/90 px-4 text-[14px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 active:scale-[0.99] dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06] sm:order-2 sm:h-11"
+              }
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={handleConfirm}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-5 text-[14px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:opacity-95 active:scale-[0.98] sm:order-3 sm:h-11"
+              className={
+                fullScreenPortrait
+                  ? "inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center gap-1 rounded-2xl bg-[#007AFF] px-2 text-[12px] font-semibold leading-tight text-white shadow-lg shadow-blue-500/25 transition-all hover:opacity-95 active:scale-[0.98]"
+                  : "inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-5 text-[14px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:opacity-95 active:scale-[0.98] sm:order-3 sm:h-11"
+              }
             >
               <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} aria-hidden />
-              Confirmar assinatura
+              {fullScreenPortrait ? (
+                <span className="text-center leading-snug">Confirmar assinatura</span>
+              ) : (
+                "Confirmar assinatura"
+              )}
             </button>
           </div>
         </div>
