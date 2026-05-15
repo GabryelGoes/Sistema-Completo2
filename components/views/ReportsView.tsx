@@ -7,7 +7,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  FileText,
   Gauge,
+  Printer,
   RefreshCw,
   Settings2,
   Shield,
@@ -27,7 +29,14 @@ import {
   reportTechnicianResponsibility,
   reportTopModels,
   downloadCsv,
+  formatPlateDisplay,
 } from '../../utils/workshopReports';
+import {
+  downloadFullWorkshopReportPdf,
+  downloadModelsReportPdf,
+  downloadOrdersReportPdf,
+  downloadTechniciansReportPdf,
+} from '../../utils/workshopReportsPdf';
 
 const REPORTS_SETTINGS_KEY = 'app_reports_settings_v1';
 
@@ -79,13 +88,6 @@ function saveSettings(s: ReportsSettings): void {
   } catch (_) {}
 }
 
-function formatPlate(plate: string | null | undefined, blur: boolean): string {
-  const p = (plate ?? '—').toUpperCase();
-  if (!blur) return p;
-  if (p.length < 3) return '•••';
-  return p.slice(0, 2) + '•••' + p.slice(-1);
-}
-
 export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = false }) => {
   const [settings, setSettings] = useState<ReportsSettings>(() => loadSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -133,6 +135,17 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
 
   const maxModelCount = useMemo(() => modelos.reduce((m, r) => Math.max(m, r.count), 0) || 1, [modelos]);
 
+  const pdfMeta = useMemo(
+    () => ({
+      periodLong: range.longLabel,
+      periodShort: range.shortLabel,
+      scopeNote: settings.includeModules
+        ? 'Escopo do relatório: veículos e módulos (laboratório).'
+        : 'Escopo do relatório: apenas veículos.',
+    }),
+    [range.longLabel, range.shortLabel, settings.includeModules]
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -174,7 +187,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
       return [
         o.os_number != null ? String(o.os_number) : o.id.slice(0, 8),
         o.customer_name ?? o.customers?.name ?? '',
-        formatPlate(o.plate, blurPlates),
+        formatPlateDisplay(o.plate, blurPlates),
         o.vehicle_brand ?? '',
         o.vehicle_model ?? o.module_identification ?? '',
         stLabel,
@@ -186,12 +199,24 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
     downloadCsv(`rei_abs_${safe}_${range.shortLabel.replace(/[^\w]+/g, '-')}.csv`, headers, rows);
   };
 
+  const handlePrintView = useCallback(() => {
+    const prevTitle = document.title;
+    document.title = `Relatórios Rei do ABS — ${range.shortLabel}`;
+    window.print();
+    window.setTimeout(() => {
+      document.title = prevTitle;
+    }, 400);
+  }, [range.shortLabel]);
+
   const shell =
     'rounded-[22px] border border-zinc-200/80 dark:border-white/[0.08] bg-white/75 dark:bg-zinc-900/45 backdrop-blur-2xl ' +
     'shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.45)]';
 
   return (
-    <div className="relative flex min-h-full flex-col gap-4 px-4 pb-28 pt-[max(0.5rem,env(safe-area-inset-top))] md:px-8 md:pb-10 md:pt-8">
+    <div
+      data-reports-print-root
+      className="relative flex min-h-full flex-col gap-4 px-4 pb-28 pt-[max(0.5rem,env(safe-area-inset-top))] md:px-8 md:pb-10 md:pt-8"
+    >
       <div
         className="pointer-events-none absolute inset-0 -z-10 opacity-[0.35] dark:opacity-[0.22]"
         aria-hidden
@@ -262,6 +287,42 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
                 <ChevronRight className="h-5 w-5" />
               </button>
             </div>
+            <button
+              type="button"
+              onClick={handlePrintView}
+              disabled={loading}
+              title="Abre a impressão do sistema. Em «Destino», escolha «Salvar como PDF» para guardar o ficheiro."
+              className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/70 px-3 py-2 text-[13px] font-semibold text-zinc-800 shadow-sm transition hover:bg-white dark:border-white/[0.1] dark:bg-zinc-900/60 dark:text-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-50"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                downloadFullWorkshopReportPdf({
+                  meta: pdfMeta,
+                  blurPlates,
+                  includeModules: settings.includeModules,
+                  kpis: {
+                    entradas: entradas.length,
+                    fluxo: fluxo.length,
+                    garantia: garantia.length,
+                    totalFiltrado: orders.length,
+                  },
+                  entradas,
+                  fluxo,
+                  garantia,
+                  tecnicos,
+                  modelos,
+                })
+              }
+              disabled={loading || !rawOrders}
+              className="inline-flex items-center gap-2 rounded-2xl border border-sky-200/90 bg-sky-500/15 px-3 py-2 text-[13px] font-semibold text-sky-900 shadow-sm transition hover:bg-sky-500/25 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:bg-sky-500/20 disabled:opacity-50"
+            >
+              <FileText className="h-4 w-4" />
+              PDF completo
+            </button>
             <button
               type="button"
               onClick={() => void load()}
@@ -409,13 +470,30 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Entradas no período</h2>
-              <button
-                type="button"
-                onClick={() => exportOrdersCsv(entradas, 'entradas')}
-                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold dark:border-white/[0.1] dark:bg-zinc-900/50"
-              >
-                <Download className="h-4 w-4" /> CSV
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadOrdersReportPdf(
+                      'Entradas',
+                      'Critério: data de criação da OS dentro do período. Respeita o filtro veículos / módulos nas configurações.',
+                      entradas,
+                      pdfMeta,
+                      blurPlates
+                    )
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl border border-sky-200/90 bg-sky-500/10 px-3 py-2 text-[13px] font-semibold text-sky-900 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100"
+                >
+                  <FileText className="h-4 w-4" /> PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => exportOrdersCsv(entradas, 'entradas')}
+                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold dark:border-white/[0.1] dark:bg-zinc-900/50"
+                >
+                  <Download className="h-4 w-4" /> CSV
+                </button>
+              </div>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
               Critério: data de criação da OS dentro de {range.shortLabel}. {settings.includeModules ? 'Inclui módulos.' : 'Apenas veículos.'}
@@ -426,13 +504,30 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Entrada e saída no período</h2>
-              <button
-                type="button"
-                onClick={() => exportOrdersCsv(fluxo, 'entrada_saida')}
-                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold dark:border-white/[0.1] dark:bg-zinc-900/50"
-              >
-                <Download className="h-4 w-4" /> CSV
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadOrdersReportPdf(
+                      'Entrada_e_saida',
+                      'OS arquivadas (entregues) com criação e data de atualização (arquivamento) no período.',
+                      fluxo,
+                      pdfMeta,
+                      blurPlates
+                    )
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl border border-sky-200/90 bg-sky-500/10 px-3 py-2 text-[13px] font-semibold text-sky-900 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100"
+                >
+                  <FileText className="h-4 w-4" /> PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => exportOrdersCsv(fluxo, 'entrada_saida')}
+                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold dark:border-white/[0.1] dark:bg-zinc-900/50"
+                >
+                  <Download className="h-4 w-4" /> CSV
+                </button>
+              </div>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
               Fichas <strong>arquivadas (entregues)</strong> cuja abertura e o arquivamento — pela data de atualização —
@@ -444,24 +539,33 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Responsabilidade por técnico</h2>
-              <button
-                type="button"
-                onClick={() => {
-                  const headers = ['Técnico', 'Quantidade', 'OS (amostra)'];
-                  const rows = tecnicos.map((t) => [
-                    t.displayName,
-                    String(t.count),
-                    t.orders
-                      .slice(0, 8)
-                      .map((o) => (o.os_number != null ? `#${o.os_number}` : o.id.slice(0, 6)))
-                      .join(' '),
-                  ]);
-                  downloadCsv(`rei_abs_tecnicos_${range.shortLabel.replace(/[^\w]+/g, '-')}.csv`, headers, rows);
-                }}
-                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold dark:border-white/[0.1] dark:bg-zinc-900/50"
-              >
-                <Download className="h-4 w-4" /> CSV
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => downloadTechniciansReportPdf(tecnicos, pdfMeta, blurPlates)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-sky-200/90 bg-sky-500/10 px-3 py-2 text-[13px] font-semibold text-sky-900 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100"
+                >
+                  <FileText className="h-4 w-4" /> PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const headers = ['Técnico', 'Quantidade', 'OS (amostra)'];
+                    const rows = tecnicos.map((t) => [
+                      t.displayName,
+                      String(t.count),
+                      t.orders
+                        .slice(0, 8)
+                        .map((o) => (o.os_number != null ? `#${o.os_number}` : o.id.slice(0, 6)))
+                        .join(' '),
+                    ]);
+                    downloadCsv(`rei_abs_tecnicos_${range.shortLabel.replace(/[^\w]+/g, '-')}.csv`, headers, rows);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold dark:border-white/[0.1] dark:bg-zinc-900/50"
+                >
+                  <Download className="h-4 w-4" /> CSV
+                </button>
+              </div>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
               Contagem por técnico atribuído na data de <strong>entrada</strong> (criação da OS) no período.
@@ -491,13 +595,30 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Garantia no período</h2>
-              <button
-                type="button"
-                onClick={() => exportOrdersCsv(garantia, 'garantia')}
-                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold dark:border-white/[0.1] dark:bg-zinc-900/50"
-              >
-                <Download className="h-4 w-4" /> CSV
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadOrdersReportPdf(
+                      'Garantia',
+                      'OS com tag de garantia ou em etapa Garantia, entre as entradas do período.',
+                      garantia,
+                      pdfMeta,
+                      blurPlates
+                    )
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl border border-sky-200/90 bg-sky-500/10 px-3 py-2 text-[13px] font-semibold text-sky-900 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100"
+                >
+                  <FileText className="h-4 w-4" /> PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => exportOrdersCsv(garantia, 'garantia')}
+                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold dark:border-white/[0.1] dark:bg-zinc-900/50"
+                >
+                  <Download className="h-4 w-4" /> CSV
+                </button>
+              </div>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
               OS com <strong>tag de garantia</strong> ou status em etapa <strong>Garantia</strong>, entre as entradas do
@@ -509,17 +630,26 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Modelos mais frequentes</h2>
-              <button
-                type="button"
-                onClick={() => {
-                  const headers = ['Marca', 'Modelo', 'Quantidade'];
-                  const rows = modelos.map((m) => [m.brand, m.model, String(m.count)]);
-                  downloadCsv(`rei_abs_modelos_${range.shortLabel.replace(/[^\w]+/g, '-')}.csv`, headers, rows);
-                }}
-                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold dark:border-white/[0.1] dark:bg-zinc-900/50"
-              >
-                <Download className="h-4 w-4" /> CSV
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => downloadModelsReportPdf(modelos, pdfMeta)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-sky-200/90 bg-sky-500/10 px-3 py-2 text-[13px] font-semibold text-sky-900 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100"
+                >
+                  <FileText className="h-4 w-4" /> PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const headers = ['Marca', 'Modelo', 'Quantidade'];
+                    const rows = modelos.map((m) => [m.brand, m.model, String(m.count)]);
+                    downloadCsv(`rei_abs_modelos_${range.shortLabel.replace(/[^\w]+/g, '-')}.csv`, headers, rows);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold dark:border-white/[0.1] dark:bg-zinc-900/50"
+                >
+                  <Download className="h-4 w-4" /> CSV
+                </button>
+              </div>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
               Ranking entre as <strong>entradas</strong> do período (marca + modelo). Útil para estoque e campanhas.
@@ -588,7 +718,8 @@ function OrderTable({
         </thead>
         <tbody>
           {(compact ? orders.slice(0, 6) : orders).map((o) => {
-            const stName = getStageConfig(o.status)?.name ?? o.status;
+            const stName =
+              getStageConfig(o.status)?.name ?? (o.status === CANCELLED_STATUS ? 'Arquivado' : o.status);
             const stCls = getStageStyle(o.status);
             const vehicle = [o.vehicle_brand, o.vehicle_model].filter(Boolean).join(' ') || o.module_identification || '—';
             return (
@@ -600,7 +731,7 @@ function OrderTable({
                   {o.customer_name ?? o.customers?.name ?? '—'}
                 </td>
                 <td className="border-b border-zinc-100/90 py-2 pr-3 font-mono dark:border-white/[0.06]">
-                  {formatPlate(o.plate, blurPlates)}
+                  {formatPlateDisplay(o.plate, blurPlates)}
                 </td>
                 <td className="border-b border-zinc-100/90 py-2 pr-3 dark:border-white/[0.06]">{vehicle}</td>
                 <td className="border-b border-zinc-100/90 py-2 dark:border-white/[0.06]">

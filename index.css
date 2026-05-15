@@ -196,3 +196,46 @@ body {
   min-width: 2ch;
   letter-spacing: 0.1em;
 }
+
+/* Impressão / «Salvar como PDF» a partir do Centro de relatórios */
+@media print {
+  @page {
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #111 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  [data-reports-print-root],
+  [data-reports-print-root] * {
+    visibility: visible;
+  }
+
+  [data-reports-print-root] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  [data-reports-print-root] .pointer-events-none {
+    display: none !important;
+  }
+}
