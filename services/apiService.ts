@@ -68,6 +68,8 @@ export interface ServiceOrderListItem {
   ai_analysis: string | null;
   status: ServiceOrderStatus;
   assigned_technician: string | null;
+  /** Preenchido pelo backend na listagem. */
+  assigned_technician_name?: string | null;
   garantia_tag?: boolean;
   order_type?: ServiceOrderType;
   /** Recepção — veículo: Compacto, Médio/SUV, Pick-Up, Premium */
@@ -1827,6 +1829,8 @@ export interface SystemUserPermissions {
   access_centro_atendimento?: boolean;
   /** Tile «Estoque de peças» e catálogo de peças. */
   access_estoque_pecas?: boolean;
+  /** Centro de relatórios (módulo na página inicial). */
+  access_relatorios?: boolean;
   /** Modal «Serviços da oficina» (hub Configurações). */
   access_servicos_oficina?: boolean;
   /** Modal «Checklists do Pátio». */

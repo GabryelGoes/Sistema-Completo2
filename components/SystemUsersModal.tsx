@@ -149,6 +149,13 @@ const HOME_MODULE_ACCESS: {
     iconAlt: 'Orçamentos',
   },
   { key: 'access_laboratorio', label: 'Laboratório', description: 'Módulos e eletrônica', icon: '/icons/laboratorio-ios.png', iconAlt: 'Laboratório' },
+  {
+    key: 'access_relatorios',
+    label: 'Relatórios',
+    description: 'Centro de relatórios na página inicial — entradas, entregas, técnicos, garantia e modelos',
+    icon: '/icons/relatorios-ios.svg',
+    iconAlt: 'Relatórios',
+  },
   { key: 'access_tv_patio', label: 'TV do Pátio', description: 'Modal na home e link do painel externo nas configurações', icon: '/icons/tv-patio-ios.png', iconAlt: 'TV do Pátio' },
   {
     key: 'access_centro_atendimento',

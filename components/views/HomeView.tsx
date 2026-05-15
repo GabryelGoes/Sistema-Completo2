@@ -23,7 +23,14 @@ import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
 
-export type HomeAppId = 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'orcamentos' | 'settings';
+export type HomeAppId =
+  | 'reception'
+  | 'agenda'
+  | 'patio'
+  | 'laboratorio'
+  | 'orcamentos'
+  | 'relatorios'
+  | 'settings';
 
 interface HomeViewProps {
   onOpenApp: (app: HomeAppId) => void;
@@ -104,7 +111,12 @@ const OPERATIONAL_APPS: {
 ];
 
 type QuickTileSize = 'normal' | 'wide';
-type QuickTileId = HomeAppId | 'tv_patio' | 'centro_atendimento' | 'parts_stock' | 'settings_hub';
+type QuickTileId =
+  | HomeAppId
+  | 'tv_patio'
+  | 'centro_atendimento'
+  | 'parts_stock'
+  | 'settings_hub';
 type QuickLayoutState = {
   order: QuickTileId[];
   sizes: Partial<Record<QuickTileId, QuickTileSize>>;
@@ -120,7 +132,13 @@ type QuickDragVisual = {
 };
 
 const DEFAULT_QUICK_ORDER: QuickTileId[] = [...OPERATIONAL_APPS.map((app) => app.id), 'settings_hub'];
-const ALL_QUICK_TILE_IDS: QuickTileId[] = [...DEFAULT_QUICK_ORDER, 'tv_patio', 'centro_atendimento', 'parts_stock'];
+const ALL_QUICK_TILE_IDS: QuickTileId[] = [
+  ...DEFAULT_QUICK_ORDER,
+  'tv_patio',
+  'centro_atendimento',
+  'parts_stock',
+  'relatorios',
+];
 
 function SettingsRow({
   onClick,
@@ -229,14 +247,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
       perms.access_servicos_oficina ||
       perms.access_checklists_patio ||
       perms.access_tv_patio ||
-      perms.access_estoque_pecas
+      perms.access_estoque_pecas ||
+      perms.access_relatorios
     );
   const showAdminSection = showFullAdminHub || showGranularAdminHub;
   const hasRichQuickGrid =
     showFullAdminHub ||
     !!perms.access_tv_patio ||
     !!perms.access_centro_atendimento ||
-    !!perms.access_estoque_pecas;
+    !!perms.access_estoque_pecas ||
+    !!perms.access_relatorios;
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
   const showToolsSection = hasToolsAccess && !perms.full_access;
 
@@ -397,6 +417,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
         label: 'Estoque de peças',
         icon: <img src="/icons/estoque-ios.png" alt="Estoque de peças" className="h-full w-full object-cover" />,
         onOpen: () => setIsPartsModalOpen(true),
+      });
+    }
+    if (showFullAdminHub || !!perms.access_relatorios) {
+      extraTiles.push({
+        id: 'relatorios',
+        label: 'Relatórios',
+        icon: (
+          <img src="/icons/relatorios-ios.svg" alt="Relatórios" className="h-full w-full object-cover" />
+        ),
+        onOpen: () => onOpenApp('relatorios'),
       });
     }
     return [...baseTiles, ...extraTiles, settingsTile];

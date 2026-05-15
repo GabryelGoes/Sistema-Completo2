@@ -3,7 +3,27 @@
  */
 
 /** Abas principais (mesmo conjunto que `TabBar`) — usado para paleta do modo colorido */
-export type NavigationTabId = 'home' | 'reception' | 'agenda' | 'patio' | 'laboratorio' | 'orcamentos';
+export type NavigationTabId =
+  | 'home'
+  | 'reception'
+  | 'agenda'
+  | 'patio'
+  | 'laboratorio'
+  | 'orcamentos'
+  | 'relatorios';
+
+/**
+ * Cores fixas por tela no modo colorido (recepção azul, agenda verde, início amarelo, pátio teal, laboratório violeta).
+ */
+export const COLORFUL_TAB_ACCENTS: Record<NavigationTabId, string> = {
+  reception: '#2563EB',
+  agenda: '#059669',
+  home: '#F5D00B',
+  patio: '#10B981',
+  laboratorio: '#7C3AED',
+  orcamentos: '#EA580C',
+  relatorios: '#0284C7',
+};
 
 export type AppAppearance = {
   /** Cor principal (#RRGGBB) — usada no modo único; no modo colorido é fallback se uma aba não tiver entrada */
@@ -16,18 +36,6 @@ export type AppAppearance = {
 };
 
 export const DEFAULT_ACCENT = "#F5D00B";
-
-/**
- * Cores fixas por tela no modo colorido (recepção azul, agenda verde, início amarelo, pátio teal, laboratório violeta).
- */
-export const COLORFUL_TAB_ACCENTS: Record<NavigationTabId, string> = {
-  reception: '#2563EB',
-  agenda: '#059669',
-  home: '#F5D00B',
-  patio: '#10B981',
-  laboratorio: '#7C3AED',
-  orcamentos: '#EA580C',
-};
 
 export const defaultAppAppearance = (): AppAppearance => ({
   accentHex: DEFAULT_ACCENT,
