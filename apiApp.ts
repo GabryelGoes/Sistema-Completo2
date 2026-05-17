@@ -289,6 +289,10 @@ export function createApiApp() {
   async function verifyAdmin(username: string, password: string): Promise<boolean> {
     const normalized = String(username).trim();
     if (normalized.toLowerCase() !== ADMIN_USERNAME.toLowerCase()) return false;
+    return verifyAdminPasswordOnly(password);
+  }
+
+  async function verifyAdminPasswordOnly(password: string): Promise<boolean> {
     const expected = await getAdminPassword();
     return String(password).trim() === expected;
   }
@@ -4895,7 +4899,7 @@ export function createApiApp() {
       if (!pwd) {
         return res.status(400).json({ error: "Informe a senha." });
       }
-      const adminOk = await verifyAdmin(ADMIN_USERNAME, pwd);
+      const adminOk = await verifyAdminPasswordOnly(pwd);
       if (!adminOk) {
         const expected = await supabaseAdmin
           .from("workshop_settings")
@@ -4905,23 +4909,30 @@ export function createApiApp() {
           .maybeSingle();
         const expectedPassword = expected?.data?.value?.trim() ?? "";
         if (!expectedPassword) {
-          return res.status(400).json({
+          return res.status(401).json({
             error:
-              "Configure a senha para excluir veículos em Alterar senhas ou use a senha do administrador.",
+              "Senha incorreta. Use a senha do administrador (login Gerência) ou configure a senha de exclusão em Alterar senhas.",
           });
         }
         if (pwd !== expectedPassword) {
-          return res.status(401).json({ error: "Senha incorreta." });
+          return res.status(401).json({
+            error:
+              "Senha incorreta. Use a senha do administrador (login Gerência) ou a senha de exclusão em Alterar senhas.",
+          });
         }
       }
       const { data, error } = await supabaseAdmin
         .from("service_orders")
-        .update({ status: "CANCELLED", updated_at: new Date().toISOString() })
+        .update({ status: CANCELLED_STATUS, updated_at: new Date().toISOString() })
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
         .select("id")
         .single();
-      if (error || !data) {
+      if (error) {
+        console.error("[API] Falha ao arquivar OS:", id, error);
+        return res.status(500).json({ error: error.message || "Falha ao arquivar a ordem de serviço." });
+      }
+      if (!data) {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
       return res.json({ ok: true });

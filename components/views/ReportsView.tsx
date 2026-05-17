@@ -240,10 +240,16 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
       if (!deleteTarget) return;
       setDeleteSaving(true);
       setDeleteError(null);
+      const targetId = deleteTarget.id;
       try {
-        await deleteServiceOrderWithAdminPassword(deleteTarget.id, adminPassword);
+        await deleteServiceOrderWithAdminPassword(targetId, adminPassword);
+        setRawOrders((prev) =>
+          prev
+            ? prev.map((o) => (o.id === targetId ? { ...o, status: CANCELLED_STATUS } : o))
+            : prev
+        );
         setDeleteTarget(null);
-        await load();
+        void load();
       } catch (e) {
         setDeleteError(e instanceof Error ? e.message : 'Não foi possível excluir a OS.');
       } finally {

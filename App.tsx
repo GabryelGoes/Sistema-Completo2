@@ -120,14 +120,8 @@ export default function App() {
   const userAllowedTabs = authSession?.role === 'user' ? permissionsToTabs(authSession.permissions) : [];
   const hasFullAccess = authSession?.role === 'user' && !!authSession?.permissions?.full_access;
   const isLimitedSystemUser = authSession?.role === 'user' && !hasFullAccess;
-  const canDeleteOrdersInReports =
-    authSession?.role === 'admin' ||
-    (authSession?.role === 'user' &&
-      Boolean(
-        authSession.permissions?.full_access ||
-          authSession.permissions?.patio_delete_cards ||
-          authSession.permissions?.access_relatorios
-      ));
+  /** Qualquer usuário logado pode tentar excluir; a senha do admin (ou de exclusão) é a proteção. */
+  const canDeleteOrdersInReports = Boolean(authSession);
   const [userTab, setUserTab] = useState<TabId>('home');
   const activeAppTab: TabId = isLimitedSystemUser ? userTab : currentTab;
 

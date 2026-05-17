@@ -36,12 +36,15 @@ export const DeleteServiceOrderModal: React.FC<DeleteServiceOrderModalProps> = (
   return (
     <ModalPortal>
       <div
-        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
+        className="fixed inset-0 z-[300] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-os-title"
       >
-        <div className="w-full max-w-sm rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-xl dark:border-white/[0.1] dark:bg-zinc-900">
+        <div
+          className="w-full max-w-sm rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-xl dark:border-white/[0.1] dark:bg-zinc-900"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="mb-4 flex items-start justify-between gap-3">
             <h3 id="delete-os-title" className="flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
               <Trash2 className="h-5 w-5 shrink-0 text-red-500" />
@@ -59,15 +62,15 @@ export const DeleteServiceOrderModal: React.FC<DeleteServiceOrderModalProps> = (
           </div>
           <p className="mb-4 text-[14px] leading-relaxed text-zinc-600 dark:text-zinc-400">
             A OS <strong className="text-zinc-800 dark:text-zinc-200">{orderLabel}</strong> será arquivada
-            (cancelada) e deixará de aparecer nos fluxos ativos. Digite a <strong>senha do administrador</strong>{' '}
-            para confirmar.
+            (cancelada) e sairá das listas de entradas e relatórios ativos. Use a{' '}
+            <strong>mesma senha do login Gerência</strong> ou a senha de exclusão configurada em Alterar senhas.
           </p>
           <form onSubmit={handleSubmit} className="space-y-3">
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Senha do administrador"
+              placeholder="Senha do admin ou de exclusão"
               className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[15px] text-zinc-900 outline-none ring-sky-500/30 focus:ring-2 dark:border-white/[0.12] dark:bg-zinc-950 dark:text-white"
               autoFocus
               disabled={saving}

@@ -4500,7 +4500,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       Excluir veículo do sistema
                     </h3>
                     <p className="mb-4 text-[14px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-                      Este veículo será arquivado (OS cancelada). Use a senha do administrador ou a senha configurada em &quot;Alterar senhas&quot;.
+                      Este veículo será arquivado (OS cancelada). Use a mesma senha do login Gerência ou a senha em &quot;Alterar senhas&quot; (excluir veículos).
                     </p>
                     <input
                       type="password"

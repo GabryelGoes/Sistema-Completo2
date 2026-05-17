@@ -68,12 +68,17 @@ export function filterModuleOrders(orders: ServiceOrderListItem[]): ServiceOrder
   return orders.filter((o) => (o.order_type ?? 'vehicle') === 'module');
 }
 
+/** OS ativas (exclui arquivadas/canceladas). */
+export function excludeCancelledOrders(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
+  return orders.filter((o) => o.status !== CANCELLED_STATUS);
+}
+
 export function ordersEnteredInPeriod(
   orders: ServiceOrderListItem[],
   start: Date,
   end: Date
 ): ServiceOrderListItem[] {
-  return orders.filter((o) => isDateInRange(o.created_at, start, end));
+  return orders.filter((o) => o.status !== CANCELLED_STATUS && isDateInRange(o.created_at, start, end));
 }
 
 /**
@@ -99,6 +104,7 @@ export function ordersWarrantyInPeriod(
   end: Date
 ): ServiceOrderListItem[] {
   return orders.filter((o) => {
+    if (o.status === CANCELLED_STATUS) return false;
     if (!isDateInRange(o.created_at, start, end)) return false;
     return !!o.garantia_tag || o.status === 'GARANTIA';
   });
@@ -116,7 +122,7 @@ export function reportTechnicianResponsibility(
   start: Date,
   end: Date
 ): TechnicianCountRow[] {
-  const inPeriod = orders.filter((o) => isDateInRange(o.created_at, start, end));
+  const inPeriod = orders.filter((o) => o.status !== CANCELLED_STATUS && isDateInRange(o.created_at, start, end));
   const map = new Map<string, { displayName: string; orders: ServiceOrderListItem[] }>();
   for (const o of inPeriod) {
     const rawTech = o.assigned_technician?.trim();
