@@ -1855,6 +1855,39 @@ export function createApiApp() {
   });
 
   // ----------------- ORDENS DE SERVIÇO -----------------
+  const SERVICE_ORDERS_LIST_SELECT =
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+  const SERVICE_ORDERS_PAGE_SIZE = 1000;
+
+  /** PostgREST limita ~1000 linhas por request — pagina até trazer todas as OS da oficina. */
+  async function fetchAllServiceOrderRows(filters: {
+    status?: string;
+    orderType?: string;
+  }): Promise<Record<string, unknown>[]> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return [];
+    const all: Record<string, unknown>[] = [];
+    let offset = 0;
+    for (;;) {
+      let query = supabaseAdmin
+        .from("service_orders")
+        .select(SERVICE_ORDERS_LIST_SELECT)
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("created_at", { ascending: false })
+        .range(offset, offset + SERVICE_ORDERS_PAGE_SIZE - 1);
+      if (filters.status) query = query.eq("status", filters.status);
+      if (filters.orderType === "vehicle" || filters.orderType === "module") {
+        query = query.eq("order_type", filters.orderType);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      const batch = (data ?? []) as Record<string, unknown>[];
+      all.push(...batch);
+      if (batch.length < SERVICE_ORDERS_PAGE_SIZE) break;
+      offset += SERVICE_ORDERS_PAGE_SIZE;
+    }
+    return all;
+  }
+
   app.get("/api/service-orders", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -1867,29 +1900,7 @@ export function createApiApp() {
       const status = req.query.status as string | undefined;
       const orderType = req.query.orderType as string | undefined;
 
-      let query = supabaseAdmin
-        .from("service_orders")
-        .select(
-          "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at"
-        )
-        .eq("workshop_id", WORKSHOP_ID)
-        .order("created_at", { ascending: false });
-
-      if (status) {
-        query = query.eq("status", status);
-      }
-      if (orderType === "vehicle" || orderType === "module") {
-        query = query.eq("order_type", orderType);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error("[API] Erro ao listar service_orders:", error);
-        return res.status(500).json({ error: error.message });
-      }
-
-      const rows = data ?? [];
+      const rows = await fetchAllServiceOrderRows({ status, orderType });
       const customerIds = [...new Set((rows as { customer_id?: string }[]).map((r) => r.customer_id).filter(Boolean))] as string[];
       const customerNameMap: Record<string, string> = {};
       if (customerIds.length > 0) {

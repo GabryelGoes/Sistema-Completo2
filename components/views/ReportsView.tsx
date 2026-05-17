@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
   CalendarRange,
@@ -29,6 +29,7 @@ import {
   filterVehicleOrders,
   filterModuleOrders,
   getPeriodRange,
+  formatPeriodBounds,
   ordersEnteredAndArchivedInPeriod,
   ordersEnteredInPeriod,
   ordersWarrantyInPeriod,
@@ -57,19 +58,19 @@ const DEFAULT_SETTINGS: ReportsSettings = {
 type ReportSection = 'entradas' | 'fluxo' | 'tecnicos' | 'garantia' | 'laboratorio';
 
 const SECTIONS: { id: ReportSection; label: string; hint: string; icon: React.ReactNode }[] = [
-  { id: 'entradas', label: 'Entradas', hint: 'VeÃ­culos que entraram no perÃ­odo', icon: <Car className="h-4 w-4" /> },
+  { id: 'entradas', label: 'Entradas', hint: 'Veículos que entraram no período', icon: <Car className="h-4 w-4" /> },
   {
     id: 'fluxo',
-    label: 'Entrada e saÃ­da',
-    hint: 'Entregues no perÃ­odo (mesma janela de entrada e arquivamento)',
+    label: 'Entrada e saída',
+    hint: 'Arquivadas (entregues) no período — data de arquivamento',
     icon: <ArrowLeftRight className="h-4 w-4" />,
   },
-  { id: 'tecnicos', label: 'Por tÃ©cnico', hint: 'ResponsÃ¡veis na data de entrada', icon: <Users className="h-4 w-4" /> },
+  { id: 'tecnicos', label: 'Por técnico', hint: 'Responsáveis na data de entrada', icon: <Users className="h-4 w-4" /> },
   { id: 'garantia', label: 'Garantia', hint: 'Marcadas como garantia ou etapa Garantia', icon: <Shield className="h-4 w-4" /> },
   {
     id: 'laboratorio',
-    label: 'LaboratÃ³rio',
-    hint: 'MÃ³dulos do laboratÃ³rio no perÃ­odo',
+    label: 'Laboratório',
+    hint: 'Módulos do laboratório no período',
     icon: <CircuitBoard className="h-4 w-4" />,
   },
 ];
@@ -96,7 +97,7 @@ function saveSettings(s: ReportsSettings): void {
 function orderDeleteLabel(o: ServiceOrderListItem, blurPlates: boolean): string {
   const num = o.os_number != null ? `#${o.os_number}` : o.id.slice(0, 8);
   const plate = formatPlateDisplay(o.plate, blurPlates);
-  return plate && plate !== 'â€”' ? `${num} Â· ${plate}` : num;
+  return plate && plate !== '—' ? `${num} · ${plate}` : num;
 }
 
 export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boolean }> = ({
@@ -105,7 +106,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
 }) => {
   const [settings, setSettings] = useState<ReportsSettings>(() => loadSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [periodMode, setPeriodMode] = useState<ReportPeriodMode>('week');
+  const [periodMode, setPeriodMode] = useState<ReportPeriodMode>('month');
   const [referenceDate, setReferenceDate] = useState(() => new Date());
   const [activeSection, setActiveSection] = useState<ReportSection>('entradas');
   const [rawOrders, setRawOrders] = useState<ServiceOrderListItem[] | null>(null);
@@ -174,7 +175,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
     () => ({
       periodLong: range.longLabel,
       periodShort: range.shortLabel,
-      scopeNote: 'VeÃ­culos nas secÃ§Ãµes principais; mÃ³dulos do laboratÃ³rio na aba LaboratÃ³rio.',
+      scopeNote: 'Veículos nas secções principais; módulos do laboratório na aba Laboratório.',
     }),
     [range.longLabel, range.shortLabel]
   );
@@ -206,7 +207,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
       const data = await getServiceOrders();
       setRawOrders(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'NÃ£o foi possÃ­vel carregar as ordens.');
+      setError(e instanceof Error ? e.message : 'Não foi possível carregar as ordens.');
       setRawOrders([]);
     } finally {
       setLoading(false);
@@ -226,6 +227,13 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
     }
     setReferenceDate(d);
   };
+
+  const goToCurrentPeriod = () => setReferenceDate(new Date());
+
+  const periodBoundsLabel = useMemo(
+    () => formatPeriodBounds(range.start, range.end),
+    [range.start, range.end]
+  );
 
   const persistSettings = (next: ReportsSettings) => {
     setSettings(next);
@@ -257,7 +265,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
         setDeleteTarget(null);
         void load();
       } catch (e) {
-        setDeleteError(e instanceof Error ? e.message : 'NÃ£o foi possÃ­vel excluir a OS.');
+        setDeleteError(e instanceof Error ? e.message : 'Não foi possível excluir a OS.');
       } finally {
         setDeleteSaving(false);
       }
@@ -290,14 +298,19 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
         <div className="relative flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0 space-y-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-600 dark:text-sky-400">
-              InteligÃªncia operacional
+              Inteligência operacional
             </p>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white md:text-[1.75rem]">
-              Centro de relatÃ³rios
+              Centro de relatórios
             </h1>
             <p className="max-w-xl text-[14px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-              {range.longLabel}. Indicadores em tempo real â€” veÃ­culos (entradas, entregas, tÃ©cnicos, garantia) e mÃ³dulos
-              do laboratÃ³rio em aba dedicada.
+              {range.longLabel}. Entradas e garantia usam a <strong>data de criação</strong> da OS; navegue por mês para
+              ver o histórico completo do banco.
+              {rawOrders && !loading ? (
+                <span className="mt-1 block text-[12px] text-zinc-500 dark:text-zinc-500">
+                  Base carregada: {rawOrders.length} ordens no total ({vehicleOrders.length} veículos).
+                </span>
+              ) : null}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 md:justify-end">
@@ -322,7 +335,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                     : 'text-zinc-600 dark:text-zinc-400'
                 }`}
               >
-                MÃªs
+                Mês
               </button>
             </div>
             <div className="flex items-center gap-1 rounded-2xl border border-zinc-200/90 bg-white/60 px-1 py-1 dark:border-white/[0.1] dark:bg-zinc-950/40">
@@ -330,28 +343,41 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                 type="button"
                 onClick={() => bumpPeriod(-1)}
                 className="rounded-xl p-2 text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
-                aria-label="PerÃ­odo anterior"
+                aria-label="Período anterior"
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
-              <span className="flex items-center gap-1.5 px-2 text-[13px] font-medium text-zinc-700 dark:text-zinc-200">
-                <CalendarRange className="h-4 w-4 text-sky-500" />
-                {range.shortLabel}
+              <span
+                className="flex min-w-0 flex-col items-center gap-0.5 px-2 text-center"
+                title={periodBoundsLabel}
+              >
+                <span className="flex items-center gap-1.5 text-[13px] font-medium text-zinc-700 dark:text-zinc-200">
+                  <CalendarRange className="h-4 w-4 shrink-0 text-sky-500" />
+                  {range.shortLabel}
+                </span>
+                <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">{periodBoundsLabel}</span>
               </span>
               <button
                 type="button"
                 onClick={() => bumpPeriod(1)}
                 className="rounded-xl p-2 text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
-                aria-label="PrÃ³ximo perÃ­odo"
+                aria-label="Próximo período"
               >
                 <ChevronRight className="h-5 w-5" />
               </button>
             </div>
             <button
               type="button"
+              onClick={goToCurrentPeriod}
+              className="rounded-2xl border border-zinc-200/90 bg-white/60 px-3 py-2 text-[13px] font-semibold text-zinc-700 transition hover:bg-white dark:border-white/[0.1] dark:bg-zinc-950/40 dark:text-zinc-200 dark:hover:bg-zinc-900/60"
+            >
+              Hoje
+            </button>
+            <button
+              type="button"
               onClick={() => printFullWorkshopReportPdf(fullReportPayload)}
               disabled={loading || !rawOrders}
-              title="Abre o relatÃ³rio completo para impressÃ£o ou Â«Salvar como PDFÂ»"
+              title="Abre o relatório completo para impressão ou «Salvar como PDF»"
               className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/70 px-3 py-2 text-[13px] font-semibold text-zinc-800 shadow-sm transition hover:bg-white dark:border-white/[0.1] dark:bg-zinc-900/60 dark:text-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-50"
             >
               <Printer className="h-4 w-4" />
@@ -385,7 +411,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               }`}
             >
               <Settings2 className="h-4 w-4" />
-              ConfiguraÃ§Ãµes
+              Configurações
             </button>
           </div>
         </div>
@@ -394,7 +420,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
           <div className="relative mt-5 max-w-md border-t border-zinc-200/70 pt-5 dark:border-white/[0.08]">
             <div className="rounded-2xl border border-zinc-200/80 bg-white/50 p-3 dark:border-white/[0.08] dark:bg-zinc-950/30">
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                InÃ­cio da semana
+                Início da semana
               </p>
               <div className="flex gap-2">
                 <button
@@ -428,9 +454,9 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           { label: 'Entradas', value: entradas.length, icon: <Car className="h-5 w-5" />, tone: 'from-sky-500/20 to-sky-600/5', lightBorder: 'border-sky-200/90', lightBg: 'from-sky-100 via-sky-50/90 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(14,165,233,0.35)]', iconLight: 'bg-sky-500/15 text-sky-700' },
-          { label: 'Entrega no perÃ­odo', value: fluxo.length, icon: <Wrench className="h-5 w-5" />, tone: 'from-emerald-500/20 to-teal-600/5', lightBorder: 'border-emerald-200/90', lightBg: 'from-emerald-100 via-emerald-50/90 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(16,185,129,0.35)]', iconLight: 'bg-emerald-500/15 text-emerald-700' },
+          { label: 'Entrega no período', value: fluxo.length, icon: <Wrench className="h-5 w-5" />, tone: 'from-emerald-500/20 to-teal-600/5', lightBorder: 'border-emerald-200/90', lightBg: 'from-emerald-100 via-emerald-50/90 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(16,185,129,0.35)]', iconLight: 'bg-emerald-500/15 text-emerald-700' },
           { label: 'Garantia', value: garantia.length, icon: <Shield className="h-5 w-5" />, tone: 'from-rose-500/20 to-orange-500/5', lightBorder: 'border-rose-200/90', lightBg: 'from-rose-100 via-orange-50/80 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(244,63,94,0.3)]', iconLight: 'bg-rose-500/15 text-rose-700' },
-          { label: 'MÃ³dulos (lab.)', value: modulosEntradas.length, icon: <CircuitBoard className="h-5 w-5" />, tone: 'from-violet-500/20 to-indigo-600/5', lightBorder: 'border-violet-200/90', lightBg: 'from-violet-100 via-indigo-50/80 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(139,92,246,0.35)]', iconLight: 'bg-violet-500/15 text-violet-700' },
+          { label: 'Módulos (lab.)', value: modulosEntradas.length, icon: <CircuitBoard className="h-5 w-5" />, tone: 'from-violet-500/20 to-indigo-600/5', lightBorder: 'border-violet-200/90', lightBg: 'from-violet-100 via-indigo-50/80 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(139,92,246,0.35)]', iconLight: 'bg-violet-500/15 text-violet-700' },
         ].map((k) => (
           <div
             key={k.label}
@@ -445,7 +471,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               </span>
             </div>
             <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-white">
-              {loading ? 'â€”' : k.value}
+              {loading ? '—' : k.value}
             </p>
           </div>
         ))}
@@ -476,7 +502,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                       : 'bg-zinc-200/90 text-zinc-700 dark:bg-white/[0.08] dark:text-zinc-300'
                   }`}
                 >
-                  {loading ? 'â€”' : sectionCounts[s.id]}
+                  {loading ? '—' : sectionCounts[s.id]}
                 </span>
               </button>
             );
@@ -494,13 +520,13 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
         {loading && !rawOrders ? (
           <div className="flex flex-col items-center justify-center gap-3 py-20 text-zinc-500">
             <RefreshCw className="h-10 w-10 animate-spin text-sky-500" />
-            <p className="text-[15px] font-medium">Carregando base da oficinaâ€¦</p>
+            <p className="text-[15px] font-medium">Carregando base da oficina…</p>
           </div>
         ) : activeSection === 'entradas' ? (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
-                Entradas no perÃ­odo
+                Entradas no período
                 <span className="ml-2 rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[13px] font-bold text-sky-800 dark:text-sky-200">
                   {entradas.length}
                 </span>
@@ -511,7 +537,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                   onClick={() =>
                     downloadOrdersReportPdf(
                       'Entradas',
-                      'CritÃ©rio: data de criaÃ§Ã£o da OS de veÃ­culo dentro do perÃ­odo.',
+                      'Critério: data de criação da OS de veículo dentro do período.',
                       entradas,
                       pdfMeta,
                       blurPlates
@@ -526,7 +552,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                   onClick={() =>
                     printOrdersReportPdf(
                       'Entradas',
-                      'CritÃ©rio: data de criaÃ§Ã£o da OS de veÃ­culo dentro do perÃ­odo.',
+                      'Critério: data de criação da OS de veículo dentro do período.',
                       entradas,
                       pdfMeta,
                       blurPlates
@@ -539,12 +565,12 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               </div>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
-              CritÃ©rio: data de criaÃ§Ã£o da OS de veÃ­culo dentro de {range.shortLabel}.
+              Critério: data de criação da OS de veículo dentro de {range.shortLabel}.
             </p>
             <OrderTable
               orders={entradas}
               blurPlates={blurPlates}
-              empty="Nenhuma entrada neste perÃ­odo."
+              empty="Nenhuma entrada neste período."
               canDelete={canDeleteOrders}
               onDelete={requestDeleteOrder}
               onOpenDetail={openOrderDetail}
@@ -554,7 +580,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
-                Entrada e saÃ­da no perÃ­odo
+                Entrada e saída no período
                 <span className="ml-2 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[13px] font-bold text-emerald-800 dark:text-emerald-200">
                   {fluxo.length}
                 </span>
@@ -565,7 +591,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                   onClick={() =>
                     downloadOrdersReportPdf(
                       'Entrada_e_saida',
-                      'OS arquivadas (entregues) com criaÃ§Ã£o e data de atualizaÃ§Ã£o (arquivamento) no perÃ­odo.',
+                      'OS arquivadas (entregues) com data de arquivamento (atualização) no período.',
                       fluxo,
                       pdfMeta,
                       blurPlates
@@ -580,7 +606,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                   onClick={() =>
                     printOrdersReportPdf(
                       'Entrada_e_saida',
-                      'OS arquivadas (entregues) com criaÃ§Ã£o e data de atualizaÃ§Ã£o (arquivamento) no perÃ­odo.',
+                      'OS arquivadas (entregues) com data de arquivamento (atualização) no período.',
                       fluxo,
                       pdfMeta,
                       blurPlates
@@ -593,13 +619,13 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               </div>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
-              Fichas <strong>arquivadas (entregues)</strong> cuja abertura e o arquivamento â€” pela data de atualizaÃ§Ã£o â€”
-              caem neste perÃ­odo. Ideal para medir o fluxo quando entrada e saÃ­da ocorrem na mesma janela.
+              Fichas <strong>arquivadas (entregues)</strong> cuja data de arquivamento (última atualização) cai neste
+              período — inclui OS abertas em meses anteriores e finalizadas aqui.
             </p>
             <OrderTable
               orders={fluxo}
               blurPlates={blurPlates}
-              empty="Nenhum veÃ­culo com esse perfil no perÃ­odo."
+              empty="Nenhum veículo com esse perfil no período."
               canDelete={canDeleteOrders}
               onDelete={requestDeleteOrder}
               onOpenDetail={openOrderDetail}
@@ -609,7 +635,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
-                Responsabilidade por tÃ©cnico
+                Responsabilidade por técnico
                 <span className="ml-2 rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[13px] font-bold text-sky-800 dark:text-sky-200">
                   {sectionCounts.tecnicos}
                 </span>
@@ -632,11 +658,11 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               </div>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
-              Contagem por tÃ©cnico atribuÃ­do na data de <strong>entrada</strong> (criaÃ§Ã£o da OS) no perÃ­odo.
+              Contagem por técnico atribuído na data de <strong>entrada</strong> (criação da OS) no período.
             </p>
             <div className="space-y-3">
               {tecnicos.length === 0 ? (
-                <p className="py-12 text-center text-zinc-500">Nenhuma OS com entrada no perÃ­odo.</p>
+                <p className="py-12 text-center text-zinc-500">Nenhuma OS com entrada no período.</p>
               ) : (
                 tecnicos.map((t) => (
                   <div
@@ -666,7 +692,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
-                Garantia no perÃ­odo
+                Garantia no período
                 <span className="ml-2 rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[13px] font-bold text-rose-800 dark:text-rose-200">
                   {garantia.length}
                 </span>
@@ -677,7 +703,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                   onClick={() =>
                     downloadOrdersReportPdf(
                       'Garantia',
-                      'OS com tag de garantia ou em etapa Garantia, entre as entradas do perÃ­odo.',
+                      'OS com tag de garantia ou em etapa Garantia, entre as entradas do período.',
                       garantia,
                       pdfMeta,
                       blurPlates
@@ -692,7 +718,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                   onClick={() =>
                     printOrdersReportPdf(
                       'Garantia',
-                      'OS com tag de garantia ou em etapa Garantia, entre as entradas do perÃ­odo.',
+                      'OS com tag de garantia ou em etapa Garantia, entre as entradas do período.',
                       garantia,
                       pdfMeta,
                       blurPlates
@@ -706,12 +732,12 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
               OS com <strong>tag de garantia</strong> ou status em etapa <strong>Garantia</strong>, entre as entradas do
-              perÃ­odo.
+              período.
             </p>
             <OrderTable
               orders={garantia}
               blurPlates={blurPlates}
-              empty="Nenhuma OS de garantia neste perÃ­odo."
+              empty="Nenhuma OS de garantia neste período."
               canDelete={canDeleteOrders}
               onDelete={requestDeleteOrder}
               onOpenDetail={openOrderDetail}
@@ -720,23 +746,23 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
         ) : activeSection === 'laboratorio' ? (
           <div className="space-y-8">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">LaboratÃ³rio â€” mÃ³dulos</h2>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Laboratório — módulos</h2>
               <span className="rounded-full bg-violet-500/15 px-3 py-1 text-[12px] font-bold text-violet-800 dark:text-violet-200">
-                {modulosEntradas.length} entradas Â· {modulosFluxo.length} entrega Â· {modulosGarantia.length} garantia
+                {modulosEntradas.length} entradas · {modulosFluxo.length} entrega · {modulosGarantia.length} garantia
               </span>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
-              Ordens de serviÃ§o do tipo <strong>mÃ³dulo</strong> (laboratÃ³rio), com os mesmos critÃ©rios das abas de veÃ­culos.
+              Ordens de serviço do tipo <strong>módulo</strong> (laboratório), com os mesmos critérios das abas de veículos.
             </p>
 
             <LabReportBlock
-              title="Entradas no perÃ­odo"
+              title="Entradas no período"
               count={modulosEntradas.length}
               badgeClass="bg-sky-500/15 text-sky-800 dark:text-sky-200"
               orders={modulosEntradas}
               pdfSlug="Lab_entradas"
-              pdfNote="MÃ³dulos: data de criaÃ§Ã£o no perÃ­odo."
-              empty="Nenhum mÃ³dulo com entrada neste perÃ­odo."
+              pdfNote="Módulos: data de criação no período."
+              empty="Nenhum módulo com entrada neste período."
               pdfMeta={pdfMeta}
               blurPlates={blurPlates}
               printBtnClass={printSectionBtnClass}
@@ -745,13 +771,13 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               onOpenDetail={openOrderDetail}
             />
             <LabReportBlock
-              title="Entrada e saÃ­da no perÃ­odo"
+              title="Entrada e saída no período"
               count={modulosFluxo.length}
               badgeClass="bg-emerald-500/15 text-emerald-800 dark:text-emerald-200"
               orders={modulosFluxo}
               pdfSlug="Lab_entrada_saida"
-              pdfNote="MÃ³dulos arquivados com criaÃ§Ã£o e arquivamento no perÃ­odo."
-              empty="Nenhum mÃ³dulo com esse perfil no perÃ­odo."
+              pdfNote="Módulos arquivados com criação e arquivamento no período."
+              empty="Nenhum módulo com esse perfil no período."
               pdfMeta={pdfMeta}
               blurPlates={blurPlates}
               printBtnClass={printSectionBtnClass}
@@ -761,13 +787,13 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               onOpenDetail={openOrderDetail}
             />
             <LabReportBlock
-              title="Garantia no perÃ­odo"
+              title="Garantia no período"
               count={modulosGarantia.length}
               badgeClass="bg-rose-500/15 text-rose-800 dark:text-rose-200"
               orders={modulosGarantia}
               pdfSlug="Lab_garantia"
-              pdfNote="MÃ³dulos com tag de garantia ou etapa Garantia."
-              empty="Nenhum mÃ³dulo de garantia neste perÃ­odo."
+              pdfNote="Módulos com tag de garantia ou etapa Garantia."
+              empty="Nenhum módulo de garantia neste período."
               pdfMeta={pdfMeta}
               blurPlates={blurPlates}
               printBtnClass={printSectionBtnClass}
@@ -894,7 +920,7 @@ function OrderTable({
     <div className="space-y-2">
       {onOpenDetail ? (
         <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-          Clique na linha para abrir queixa, anexos e orÃ§amentos.
+          Clique na linha para abrir queixa, anexos e orçamentos.
         </p>
       ) : null}
       <div className="max-h-[min(70vh,560px)] overflow-auto rounded-xl border border-zinc-200/60 dark:border-white/[0.06]">
@@ -904,11 +930,11 @@ function OrderTable({
             <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">OS</th>
             <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Cliente</th>
             <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Placa / ID</th>
-            <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">VeÃ­culo / MÃ³dulo</th>
+            <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Veículo / Módulo</th>
             <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Status</th>
             {canDelete ? (
               <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 text-right dark:border-white/[0.08]">
-                AÃ§Ãµes
+                Ações
               </th>
             ) : null}
           </tr>
@@ -918,7 +944,7 @@ function OrderTable({
             const stName =
               getStageConfig(o.status)?.name ?? (o.status === CANCELLED_STATUS ? 'Arquivado' : o.status);
             const stCls = getStageStyle(o.status);
-            const vehicle = [o.vehicle_brand, o.vehicle_model].filter(Boolean).join(' ') || o.module_identification || 'â€”';
+            const vehicle = [o.vehicle_brand, o.vehicle_model].filter(Boolean).join(' ') || o.module_identification || '—';
             return (
               <tr
                 key={o.id}
@@ -928,13 +954,13 @@ function OrderTable({
                     : ''
                 }`}
                 onClick={onOpenDetail ? () => onOpenDetail(o) : undefined}
-                title={onOpenDetail ? 'Ver queixa, anexos e orÃ§amentos' : undefined}
+                title={onOpenDetail ? 'Ver queixa, anexos e orçamentos' : undefined}
               >
                 <td className="border-b border-zinc-100/90 px-3 py-2 font-mono text-[12px] dark:border-white/[0.06]">
                   {o.os_number != null ? `#${o.os_number}` : o.id.slice(0, 8)}
                 </td>
                 <td className="border-b border-zinc-100/90 px-3 py-2 dark:border-white/[0.06]">
-                  {o.customer_name ?? o.customers?.name ?? 'â€”'}
+                  {o.customer_name ?? o.customers?.name ?? '—'}
                 </td>
                 <td className="border-b border-zinc-100/90 px-3 py-2 font-mono dark:border-white/[0.06]">
                   {formatPlateDisplay(o.plate, blurPlates)}
@@ -955,7 +981,7 @@ function OrderTable({
                       }}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-red-500/10 hover:text-red-600 dark:hover:bg-red-500/15"
                       title="Excluir OS (senha do admin)"
-                      aria-label="Excluir ordem de serviÃ§o"
+                      aria-label="Excluir ordem de serviço"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

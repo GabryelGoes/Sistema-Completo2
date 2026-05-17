@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import { Eye, FileText, Paperclip, RefreshCw, Wallet, X } from 'lucide-react';
@@ -91,7 +91,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
         setBudgets(bud);
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'NÃ£o foi possÃ­vel carregar os detalhes da OS.');
+          setError(e instanceof Error ? e.message : 'Não foi possível carregar os detalhes da OS.');
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -106,7 +106,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
   const isModule = detail?.order_type === 'module';
   const statusName = useMemo(() => {
     const st = detail?.status ?? order?.status;
-    if (!st) return 'â€”';
+    if (!st) return '—';
     return getStageConfig(st)?.name ?? (st === CANCELLED_STATUS ? 'Arquivado' : st);
   }, [detail?.status, order?.status]);
   const statusCls = getStageStyle(detail?.status ?? order?.status ?? '');
@@ -126,7 +126,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
     order?.vehicle_model?.trim() ||
     detail?.module_identification?.trim() ||
     order?.module_identification ||
-    'Ordem de serviÃ§o';
+    'Ordem de serviço';
 
   return (
     <>
@@ -158,7 +158,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
                   {titleVehicle}
                 </h2>
                 <div className="flex flex-wrap items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-400">
-                  <span>{detail?.customers?.name ?? order?.customer_name ?? 'â€”'}</span>
+                  <span>{detail?.customers?.name ?? order?.customer_name ?? '—'}</span>
                   {!isModule && (
                     <span className={`font-mono ${blurPlates ? 'blur-plate' : ''}`}>
                       {formatPlateDisplay(detail?.plate ?? order?.plate ?? '', blurPlates)}
@@ -166,7 +166,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
                   )}
                   {isModule && (
                     <span className="font-mono">
-                      {(detail?.module_identification ?? order?.module_identification ?? 'â€”').trim()}
+                      {(detail?.module_identification ?? order?.module_identification ?? '—').trim()}
                     </span>
                   )}
                   <span className={`inline-flex rounded-lg border px-2 py-0.5 text-[11px] font-semibold ${statusCls}`}>
@@ -188,7 +188,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
               {loading && !detail ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-16 text-zinc-500">
                   <RefreshCw className="h-9 w-9 animate-spin text-sky-500" />
-                  <p className="text-[14px] font-medium">Carregando queixa, anexos e orÃ§amentosâ€¦</p>
+                  <p className="text-[14px] font-medium">Carregando queixa, anexos e orçamentos⬦</p>
                 </div>
               ) : error ? (
                 <p className="py-12 text-center text-[14px] text-red-600 dark:text-red-400">{error}</p>
@@ -243,7 +243,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
                                     <span className="line-clamp-2 break-all text-xs font-medium text-zinc-700 dark:text-zinc-200">
                                       {att.name}
                                     </span>
-                                    <span className="text-[10px] font-bold text-red-500">PDF Â· toque para ver</span>
+                                    <span className="text-[10px] font-bold text-red-500">PDF · toque para ver</span>
                                   </div>
                                 </button>
                               );
@@ -297,7 +297,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
                   <section>
                     <h3 className={`${uiSectionTitleRow} text-violet-700 dark:text-violet-300`}>
                       <Wallet className="h-3.5 w-3.5" />
-                      OrÃ§amentos
+                      Orçamentos
                       {budgets.length > 0 ? (
                         <span className="ml-2 rounded-full bg-violet-500/15 px-2 py-0.5 text-[11px] font-bold text-violet-800 dark:text-violet-200">
                           {budgets.length}
@@ -305,7 +305,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
                       ) : null}
                     </h3>
                     {sortedBudgets.length === 0 ? (
-                      <p className="text-[14px] italic text-zinc-500">Nenhum orÃ§amento nesta OS.</p>
+                      <p className="text-[14px] italic text-zinc-500">Nenhum orçamento nesta OS.</p>
                     ) : (
                       <ul className="space-y-2">
                         {sortedBudgets.map((b) => (
@@ -315,7 +315,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
                           >
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
-                                OrÃ§amento {budgetChronologicalNumber(budgets, b.id)}
+                                Orçamento {budgetChronologicalNumber(budgets, b.id)}
                               </p>
                               <p className="text-[12px] text-zinc-500">
                                 {new Date(budgetLastActivityMs(b)).toLocaleString('pt-BR')}
@@ -323,11 +323,11 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
                             </div>
                             {b.diagnosis?.trim() ? (
                               <p className="mt-1 line-clamp-2 text-[13px] text-zinc-600 dark:text-zinc-400">
-                                <span className="font-medium">DiagnÃ³stico:</span> {b.diagnosis}
+                                <span className="font-medium">Diagnóstico:</span> {b.diagnosis}
                               </p>
                             ) : null}
                             <p className="mt-1 text-[12px] text-zinc-500">
-                              {b.services.length} serviÃ§o(s) Â· {b.parts.length} peÃ§a(s)
+                              {b.services.length} serviço(s) · {b.parts.length} peça(s)
                             </p>
                             <button
                               type="button"
@@ -335,7 +335,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
                               className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-3 py-2.5 text-[13px] font-semibold text-white transition hover:bg-sky-700 sm:w-auto"
                             >
                               <Eye className="h-4 w-4" />
-                              Abrir orÃ§amento completo
+                              Abrir orçamento completo
                             </button>
                           </li>
                         ))}

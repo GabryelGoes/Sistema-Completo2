@@ -3,7 +3,8 @@ import {
   endOfWeek,
   startOfMonth,
   endOfMonth,
-  isWithinInterval,
+  startOfDay,
+  endOfDay,
   parseISO,
   format,
 } from 'date-fns';
@@ -26,33 +27,66 @@ export function getPeriodRange(
 ): { start: Date; end: Date; shortLabel: string; longLabel: string } {
   const wk = weekStartsOnOption(weekStart);
   if (mode === 'week') {
-    const start = startOfWeek(reference, { weekStartsOn: wk, locale: ptBR });
-    const end = endOfWeek(reference, { weekStartsOn: wk, locale: ptBR });
+    const start = startOfDay(startOfWeek(reference, { weekStartsOn: wk, locale: ptBR }));
+    const end = endOfDay(endOfWeek(reference, { weekStartsOn: wk, locale: ptBR }));
+    const bounds = formatPeriodBounds(start, end);
     return {
       start,
       end,
       shortLabel: `Sem. ${format(start, 'dd/MM', { locale: ptBR })}`,
-      longLabel: `${format(start, "d 'de' MMMM", { locale: ptBR })} – ${format(end, "d 'de' MMMM yyyy", { locale: ptBR })}`,
+      longLabel: `${format(start, "d 'de' MMMM", { locale: ptBR })} – ${format(end, "d 'de' MMMM yyyy", { locale: ptBR })} (${bounds})`,
     };
   }
-  const start = startOfMonth(reference);
-  const end = endOfMonth(reference);
+  const start = startOfDay(startOfMonth(reference));
+  const end = endOfDay(endOfMonth(reference));
+  const bounds = formatPeriodBounds(start, end);
   return {
     start,
     end,
     shortLabel: format(start, 'MMM/yyyy', { locale: ptBR }),
-    longLabel: format(start, "MMMM 'de' yyyy", { locale: ptBR }),
+    longLabel: `${format(start, "MMMM 'de' yyyy", { locale: ptBR })} · ${bounds}`,
   };
 }
 
-export function isDateInRange(iso: string, start: Date, end: Date): boolean {
+/** Intervalo legível para conferência (dia civil local). */
+export function formatPeriodBounds(start: Date, end: Date): string {
+  return `${format(start, 'dd/MM/yyyy', { locale: ptBR })} – ${format(end, 'dd/MM/yyyy', { locale: ptBR })}`;
+}
+
+/** Dia civil local (yyyy-MM-dd) para comparar períodos sem erro de fuso. */
+export function toLocalDateKey(iso: string | null | undefined): string | null {
+  if (!iso || typeof iso !== 'string') return null;
+  const trimmed = iso.trim();
+  if (!trimmed) return null;
   try {
-    const d = parseISO(iso);
-    if (Number.isNaN(d.getTime())) return false;
-    return isWithinInterval(d, { start, end });
+    // Só data (Postgres date): meio-dia local evita virar dia anterior/posterior
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(trimmed)
+      ? parseISO(`${trimmed}T12:00:00`)
+      : parseISO(trimmed);
+    if (Number.isNaN(d.getTime())) {
+      const fallback = new Date(trimmed);
+      if (Number.isNaN(fallback.getTime())) return null;
+      return format(fallback, 'yyyy-MM-dd');
+    }
+    return format(d, 'yyyy-MM-dd');
   } catch {
-    return false;
+    return null;
   }
+}
+
+/**
+ * Verifica se a data da OS (dia civil local) está em [start, end], inclusive.
+ */
+export function isDateInRange(iso: string, start: Date, end: Date): boolean {
+  const key = toLocalDateKey(iso);
+  if (!key) return false;
+  const startKey = format(start, 'yyyy-MM-dd');
+  const endKey = format(end, 'yyyy-MM-dd');
+  return key >= startKey && key <= endKey;
+}
+
+export function isModuleOrder(o: ServiceOrderListItem): boolean {
+  return String(o.order_type ?? 'vehicle').trim().toLowerCase() === 'module';
 }
 
 export function filterVehicleOrders(
@@ -60,12 +94,12 @@ export function filterVehicleOrders(
   includeModules: boolean
 ): ServiceOrderListItem[] {
   if (includeModules) return orders;
-  return orders.filter((o) => (o.order_type ?? 'vehicle') === 'vehicle');
+  return orders.filter((o) => !isModuleOrder(o));
 }
 
 /** Apenas ordens do laboratório (módulos). */
 export function filterModuleOrders(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
-  return orders.filter((o) => (o.order_type ?? 'vehicle') === 'module');
+  return orders.filter((o) => isModuleOrder(o));
 }
 
 /** OS ativas (exclui arquivadas/canceladas). */
@@ -73,17 +107,18 @@ export function excludeCancelledOrders(orders: ServiceOrderListItem[]): ServiceO
   return orders.filter((o) => o.status !== CANCELLED_STATUS);
 }
 
+/** Entradas: data de criação no período (inclui OS já arquivadas — histórico fiel ao banco). */
 export function ordersEnteredInPeriod(
   orders: ServiceOrderListItem[],
   start: Date,
   end: Date
 ): ServiceOrderListItem[] {
-  return orders.filter((o) => o.status !== CANCELLED_STATUS && isDateInRange(o.created_at, start, end));
+  return orders.filter((o) => isDateInRange(o.created_at, start, end));
 }
 
 /**
- * OS criada e arquivada (entregue) no mesmo período.
- * Usa `updated_at` como aproximação da data de arquivamento.
+ * OS arquivadas (entregues) no período — data de arquivamento = `updated_at`.
+ * Inclui veículos abertos em meses anteriores e entregues neste período.
  */
 export function ordersEnteredAndArchivedInPeriod(
   orders: ServiceOrderListItem[],
@@ -91,10 +126,7 @@ export function ordersEnteredAndArchivedInPeriod(
   end: Date
 ): ServiceOrderListItem[] {
   return orders.filter(
-    (o) =>
-      o.status === CANCELLED_STATUS &&
-      isDateInRange(o.created_at, start, end) &&
-      isDateInRange(o.updated_at, start, end)
+    (o) => o.status === CANCELLED_STATUS && isDateInRange(o.updated_at, start, end)
   );
 }
 
@@ -104,7 +136,6 @@ export function ordersWarrantyInPeriod(
   end: Date
 ): ServiceOrderListItem[] {
   return orders.filter((o) => {
-    if (o.status === CANCELLED_STATUS) return false;
     if (!isDateInRange(o.created_at, start, end)) return false;
     return !!o.garantia_tag || o.status === 'GARANTIA';
   });
@@ -122,7 +153,7 @@ export function reportTechnicianResponsibility(
   start: Date,
   end: Date
 ): TechnicianCountRow[] {
-  const inPeriod = orders.filter((o) => o.status !== CANCELLED_STATUS && isDateInRange(o.created_at, start, end));
+  const inPeriod = orders.filter((o) => isDateInRange(o.created_at, start, end));
   const map = new Map<string, { displayName: string; orders: ServiceOrderListItem[] }>();
   for (const o of inPeriod) {
     const rawTech = o.assigned_technician?.trim();
