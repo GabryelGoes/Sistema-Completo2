@@ -4500,13 +4500,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       Excluir veículo do sistema
                     </h3>
                     <p className="mb-4 text-[14px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-                      Este veículo será arquivado (OS cancelada). Digite a senha configurada em &quot;Alterar senhas&quot; para confirmar.
+                      Este veículo será arquivado (OS cancelada). Use a senha do administrador ou a senha configurada em &quot;Alterar senhas&quot;.
                     </p>
                     <input
                       type="password"
                       value={deleteVehiclePassword}
                       onChange={(e) => setDeleteVehiclePassword(e.target.value)}
-                      placeholder="Senha"
+                      placeholder="Senha do admin ou de exclusão"
                       className={`${vin} mb-3`}
                       autoFocus
                     />

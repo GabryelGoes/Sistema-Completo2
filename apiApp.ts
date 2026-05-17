@@ -4891,18 +4891,28 @@ export function createApiApp() {
       }
       const { id } = req.params;
       const { password } = req.body || {};
-      const expected = await supabaseAdmin
-        .from("workshop_settings")
-        .select("value")
-        .eq("workshop_id", WORKSHOP_ID)
-        .eq("key", "vehicle_delete_password")
-        .maybeSingle();
-      const expectedPassword = expected?.data?.value?.trim() ?? "";
-      if (!expectedPassword) {
-        return res.status(400).json({ error: "Configure a senha para excluir veículos em Alterar senhas (página inicial)." });
+      const pwd = String(password ?? "").trim();
+      if (!pwd) {
+        return res.status(400).json({ error: "Informe a senha." });
       }
-      if (String(password).trim() !== expectedPassword) {
-        return res.status(401).json({ error: "Senha incorreta." });
+      const adminOk = await verifyAdmin(ADMIN_USERNAME, pwd);
+      if (!adminOk) {
+        const expected = await supabaseAdmin
+          .from("workshop_settings")
+          .select("value")
+          .eq("workshop_id", WORKSHOP_ID)
+          .eq("key", "vehicle_delete_password")
+          .maybeSingle();
+        const expectedPassword = expected?.data?.value?.trim() ?? "";
+        if (!expectedPassword) {
+          return res.status(400).json({
+            error:
+              "Configure a senha para excluir veículos em Alterar senhas ou use a senha do administrador.",
+          });
+        }
+        if (pwd !== expectedPassword) {
+          return res.status(401).json({ error: "Senha incorreta." });
+        }
       }
       const { data, error } = await supabaseAdmin
         .from("service_orders")

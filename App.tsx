@@ -120,6 +120,14 @@ export default function App() {
   const userAllowedTabs = authSession?.role === 'user' ? permissionsToTabs(authSession.permissions) : [];
   const hasFullAccess = authSession?.role === 'user' && !!authSession?.permissions?.full_access;
   const isLimitedSystemUser = authSession?.role === 'user' && !hasFullAccess;
+  const canDeleteOrdersInReports =
+    authSession?.role === 'admin' ||
+    (authSession?.role === 'user' &&
+      Boolean(
+        authSession.permissions?.full_access ||
+          authSession.permissions?.patio_delete_cards ||
+          authSession.permissions?.access_relatorios
+      ));
   const [userTab, setUserTab] = useState<TabId>('home');
   const activeAppTab: TabId = isLimitedSystemUser ? userTab : currentTab;
 
@@ -563,7 +571,7 @@ export default function App() {
             visitedTabs={visitedUserTabs}
             className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
           >
-            <ReportsView blurPlates={cinematographicMode} />
+            <ReportsView blurPlates={cinematographicMode} canDeleteOrders={canDeleteOrdersInReports} />
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
             tabId="reception"
@@ -780,7 +788,7 @@ export default function App() {
           visitedTabs={visitedTabs}
           className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
         >
-          <ReportsView blurPlates={cinematographicMode} />
+          <ReportsView blurPlates={cinematographicMode} canDeleteOrders={canDeleteOrdersInReports} />
         </KeepAliveTabPanel>
 
         <KeepAliveTabPanel

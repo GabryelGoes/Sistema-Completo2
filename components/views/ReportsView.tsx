@@ -11,10 +11,16 @@ import {
   RefreshCw,
   Settings2,
   Shield,
+  Trash2,
   Users,
   Wrench,
 } from 'lucide-react';
-import { getServiceOrders, type ServiceOrderListItem } from '../../services/apiService';
+import { DeleteServiceOrderModal } from '../DeleteServiceOrderModal';
+import {
+  deleteServiceOrderWithAdminPassword,
+  getServiceOrders,
+  type ServiceOrderListItem,
+} from '../../services/apiService';
 import { getStageConfig, getStageStyle, CANCELLED_STATUS } from '../../constants/serviceOrderStages';
 import {
   type ReportPeriodMode,
@@ -86,7 +92,16 @@ function saveSettings(s: ReportsSettings): void {
   } catch (_) {}
 }
 
-export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = false }) => {
+function orderDeleteLabel(o: ServiceOrderListItem, blurPlates: boolean): string {
+  const num = o.os_number != null ? `#${o.os_number}` : o.id.slice(0, 8);
+  const plate = formatPlateDisplay(o.plate, blurPlates);
+  return plate && plate !== '—' ? `${num} · ${plate}` : num;
+}
+
+export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boolean }> = ({
+  blurPlates = false,
+  canDeleteOrders = false,
+}) => {
   const [settings, setSettings] = useState<ReportsSettings>(() => loadSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [periodMode, setPeriodMode] = useState<ReportPeriodMode>('week');
@@ -95,6 +110,9 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
   const [rawOrders, setRawOrders] = useState<ServiceOrderListItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ServiceOrderListItem | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const range = useMemo(
     () => getPeriodRange(periodMode, referenceDate, settings.weekStartsOn),
@@ -211,6 +229,29 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
     setSettings(next);
     saveSettings(next);
   };
+
+  const requestDeleteOrder = useCallback((order: ServiceOrderListItem) => {
+    setDeleteError(null);
+    setDeleteTarget(order);
+  }, []);
+
+  const handleConfirmDeleteOrder = useCallback(
+    async (adminPassword: string) => {
+      if (!deleteTarget) return;
+      setDeleteSaving(true);
+      setDeleteError(null);
+      try {
+        await deleteServiceOrderWithAdminPassword(deleteTarget.id, adminPassword);
+        setDeleteTarget(null);
+        await load();
+      } catch (e) {
+        setDeleteError(e instanceof Error ? e.message : 'Não foi possível excluir a OS.');
+      } finally {
+        setDeleteSaving(false);
+      }
+    },
+    [deleteTarget, load]
+  );
 
   const printSectionBtnClass =
     'inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold text-zinc-800 transition hover:bg-zinc-50 dark:border-white/[0.1] dark:bg-zinc-900/50 dark:text-zinc-100 dark:hover:bg-zinc-900/80';
@@ -488,7 +529,13 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
               Critério: data de criação da OS de veículo dentro de {range.shortLabel}.
             </p>
-            <OrderTable orders={entradas} blurPlates={blurPlates} empty="Nenhuma entrada neste período." />
+            <OrderTable
+              orders={entradas}
+              blurPlates={blurPlates}
+              empty="Nenhuma entrada neste período."
+              canDelete={canDeleteOrders}
+              onDelete={requestDeleteOrder}
+            />
           </div>
         ) : activeSection === 'fluxo' ? (
           <div className="space-y-4">
@@ -536,7 +583,13 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
               Fichas <strong>arquivadas (entregues)</strong> cuja abertura e o arquivamento — pela data de atualização —
               caem neste período. Ideal para medir o fluxo quando entrada e saída ocorrem na mesma janela.
             </p>
-            <OrderTable orders={fluxo} blurPlates={blurPlates} empty="Nenhum veículo com esse perfil no período." />
+            <OrderTable
+              orders={fluxo}
+              blurPlates={blurPlates}
+              empty="Nenhum veículo com esse perfil no período."
+              canDelete={canDeleteOrders}
+              onDelete={requestDeleteOrder}
+            />
           </div>
         ) : activeSection === 'tecnicos' ? (
           <div className="space-y-4">
@@ -582,7 +635,13 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
                         {t.count} {t.count === 1 ? 'OS' : 'OS'}
                       </span>
                     </div>
-                    <OrderTable orders={t.orders} blurPlates={blurPlates} empty="" />
+                    <OrderTable
+                      orders={t.orders}
+                      blurPlates={blurPlates}
+                      empty=""
+                      canDelete={canDeleteOrders}
+                      onDelete={requestDeleteOrder}
+                    />
                   </div>
                 ))
               )}
@@ -634,7 +693,13 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
               OS com <strong>tag de garantia</strong> ou status em etapa <strong>Garantia</strong>, entre as entradas do
               período.
             </p>
-            <OrderTable orders={garantia} blurPlates={blurPlates} empty="Nenhuma OS de garantia neste período." />
+            <OrderTable
+              orders={garantia}
+              blurPlates={blurPlates}
+              empty="Nenhuma OS de garantia neste período."
+              canDelete={canDeleteOrders}
+              onDelete={requestDeleteOrder}
+            />
           </div>
         ) : activeSection === 'laboratorio' ? (
           <div className="space-y-8">
@@ -659,6 +724,8 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
               pdfMeta={pdfMeta}
               blurPlates={blurPlates}
               printBtnClass={printSectionBtnClass}
+              canDelete={canDeleteOrders}
+              onDelete={requestDeleteOrder}
             />
             <LabReportBlock
               title="Entrada e saída no período"
@@ -672,6 +739,8 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
               blurPlates={blurPlates}
               printBtnClass={printSectionBtnClass}
               bordered
+              canDelete={canDeleteOrders}
+              onDelete={requestDeleteOrder}
             />
             <LabReportBlock
               title="Garantia no período"
@@ -685,10 +754,25 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
               blurPlates={blurPlates}
               printBtnClass={printSectionBtnClass}
               bordered
+              canDelete={canDeleteOrders}
+              onDelete={requestDeleteOrder}
             />
           </div>
         ) : null}
       </section>
+
+      <DeleteServiceOrderModal
+        open={deleteTarget != null}
+        orderLabel={deleteTarget ? orderDeleteLabel(deleteTarget, blurPlates) : ''}
+        saving={deleteSaving}
+        error={deleteError}
+        onClose={() => {
+          if (deleteSaving) return;
+          setDeleteTarget(null);
+          setDeleteError(null);
+        }}
+        onConfirm={handleConfirmDeleteOrder}
+      />
     </div>
   );
 };
@@ -705,6 +789,8 @@ type LabReportBlockProps = {
   blurPlates: boolean;
   printBtnClass: string;
   bordered?: boolean;
+  canDelete?: boolean;
+  onDelete?: (order: ServiceOrderListItem) => void;
 };
 
 function LabReportBlock({
@@ -719,6 +805,8 @@ function LabReportBlock({
   blurPlates,
   printBtnClass,
   bordered,
+  canDelete,
+  onDelete,
 }: LabReportBlockProps) {
   return (
     <div className={`space-y-3 ${bordered ? 'border-t border-zinc-200/70 pt-6 dark:border-white/[0.08]' : ''}`}>
@@ -744,7 +832,7 @@ function LabReportBlock({
           </button>
         </div>
       </div>
-      <OrderTable orders={orders} blurPlates={blurPlates} empty={empty} />
+      <OrderTable orders={orders} blurPlates={blurPlates} empty={empty} canDelete={canDelete} onDelete={onDelete} />
     </div>
   );
 }
@@ -753,10 +841,14 @@ function OrderTable({
   orders,
   blurPlates,
   empty,
+  canDelete,
+  onDelete,
 }: {
   orders: ServiceOrderListItem[];
   blurPlates: boolean;
   empty: string;
+  canDelete?: boolean;
+  onDelete?: (order: ServiceOrderListItem) => void;
 }) {
   if (orders.length === 0 && empty) {
     return <p className="py-10 text-center text-[14px] text-zinc-500">{empty}</p>;
@@ -772,6 +864,11 @@ function OrderTable({
             <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Placa / ID</th>
             <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Veículo / Módulo</th>
             <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Status</th>
+            {canDelete ? (
+              <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 text-right dark:border-white/[0.08]">
+                Ações
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -797,6 +894,19 @@ function OrderTable({
                     {stName}
                   </span>
                 </td>
+                {canDelete && onDelete ? (
+                  <td className="border-b border-zinc-100/90 px-3 py-2 text-right dark:border-white/[0.06]">
+                    <button
+                      type="button"
+                      onClick={() => onDelete(o)}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-red-500/10 hover:text-red-600 dark:hover:bg-red-500/15"
+                      title="Excluir OS (senha do admin)"
+                      aria-label="Excluir ordem de serviço"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                ) : null}
               </tr>
             );
           })}

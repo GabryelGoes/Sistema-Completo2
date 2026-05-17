@@ -2210,7 +2210,10 @@ export async function saveSystemNotificationsConfig(body: {
   }
 }
 
-/** Exclui o veículo do sistema (marca OS como CANCELLED). Exige a senha configurada em Alterar senhas. */
+/**
+ * Arquiva a OS (status CANCELLED).
+ * Aceita a senha do administrador ou a senha configurada em Alterar senhas (excluir veículos).
+ */
 export async function deleteServiceOrderWithPassword(serviceOrderId: string, password: string): Promise<void> {
   const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/delete-with-password`, {
     method: "POST",
@@ -2219,8 +2222,16 @@ export async function deleteServiceOrderWithPassword(serviceOrderId: string, pas
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Falha ao excluir veículo.");
+    throw new Error(err.error || "Falha ao excluir ordem de serviço.");
   }
+}
+
+/** Atalho: excluir OS com senha do administrador (mesmo endpoint que deleteServiceOrderWithPassword). */
+export async function deleteServiceOrderWithAdminPassword(
+  serviceOrderId: string,
+  adminPassword: string
+): Promise<void> {
+  return deleteServiceOrderWithPassword(serviceOrderId, adminPassword);
 }
 
 /** --- TV do pátio (playlist) --- */
