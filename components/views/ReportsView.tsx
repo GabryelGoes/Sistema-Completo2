@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
   CalendarRange,
@@ -16,6 +16,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { DeleteServiceOrderModal } from '../DeleteServiceOrderModal';
+import { ReportServiceOrderDetailModal } from '../ReportServiceOrderDetailModal';
 import {
   deleteServiceOrderWithAdminPassword,
   getServiceOrders,
@@ -56,19 +57,19 @@ const DEFAULT_SETTINGS: ReportsSettings = {
 type ReportSection = 'entradas' | 'fluxo' | 'tecnicos' | 'garantia' | 'laboratorio';
 
 const SECTIONS: { id: ReportSection; label: string; hint: string; icon: React.ReactNode }[] = [
-  { id: 'entradas', label: 'Entradas', hint: 'Veículos que entraram no período', icon: <Car className="h-4 w-4" /> },
+  { id: 'entradas', label: 'Entradas', hint: 'VeÃ­culos que entraram no perÃ­odo', icon: <Car className="h-4 w-4" /> },
   {
     id: 'fluxo',
-    label: 'Entrada e saída',
-    hint: 'Entregues no período (mesma janela de entrada e arquivamento)',
+    label: 'Entrada e saÃ­da',
+    hint: 'Entregues no perÃ­odo (mesma janela de entrada e arquivamento)',
     icon: <ArrowLeftRight className="h-4 w-4" />,
   },
-  { id: 'tecnicos', label: 'Por técnico', hint: 'Responsáveis na data de entrada', icon: <Users className="h-4 w-4" /> },
+  { id: 'tecnicos', label: 'Por tÃ©cnico', hint: 'ResponsÃ¡veis na data de entrada', icon: <Users className="h-4 w-4" /> },
   { id: 'garantia', label: 'Garantia', hint: 'Marcadas como garantia ou etapa Garantia', icon: <Shield className="h-4 w-4" /> },
   {
     id: 'laboratorio',
-    label: 'Laboratório',
-    hint: 'Módulos do laboratório no período',
+    label: 'LaboratÃ³rio',
+    hint: 'MÃ³dulos do laboratÃ³rio no perÃ­odo',
     icon: <CircuitBoard className="h-4 w-4" />,
   },
 ];
@@ -95,7 +96,7 @@ function saveSettings(s: ReportsSettings): void {
 function orderDeleteLabel(o: ServiceOrderListItem, blurPlates: boolean): string {
   const num = o.os_number != null ? `#${o.os_number}` : o.id.slice(0, 8);
   const plate = formatPlateDisplay(o.plate, blurPlates);
-  return plate && plate !== '—' ? `${num} · ${plate}` : num;
+  return plate && plate !== 'â€”' ? `${num} Â· ${plate}` : num;
 }
 
 export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boolean }> = ({
@@ -113,6 +114,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
   const [deleteTarget, setDeleteTarget] = useState<ServiceOrderListItem | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [detailOrder, setDetailOrder] = useState<ServiceOrderListItem | null>(null);
 
   const range = useMemo(
     () => getPeriodRange(periodMode, referenceDate, settings.weekStartsOn),
@@ -172,7 +174,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
     () => ({
       periodLong: range.longLabel,
       periodShort: range.shortLabel,
-      scopeNote: 'Veículos nas secções principais; módulos do laboratório na aba Laboratório.',
+      scopeNote: 'VeÃ­culos nas secÃ§Ãµes principais; mÃ³dulos do laboratÃ³rio na aba LaboratÃ³rio.',
     }),
     [range.longLabel, range.shortLabel]
   );
@@ -204,7 +206,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
       const data = await getServiceOrders();
       setRawOrders(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Não foi possível carregar as ordens.');
+      setError(e instanceof Error ? e.message : 'NÃ£o foi possÃ­vel carregar as ordens.');
       setRawOrders([]);
     } finally {
       setLoading(false);
@@ -235,6 +237,10 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
     setDeleteTarget(order);
   }, []);
 
+  const openOrderDetail = useCallback((order: ServiceOrderListItem) => {
+    setDetailOrder(order);
+  }, []);
+
   const handleConfirmDeleteOrder = useCallback(
     async (adminPassword: string) => {
       if (!deleteTarget) return;
@@ -251,7 +257,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
         setDeleteTarget(null);
         void load();
       } catch (e) {
-        setDeleteError(e instanceof Error ? e.message : 'Não foi possível excluir a OS.');
+        setDeleteError(e instanceof Error ? e.message : 'NÃ£o foi possÃ­vel excluir a OS.');
       } finally {
         setDeleteSaving(false);
       }
@@ -284,14 +290,14 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
         <div className="relative flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0 space-y-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-600 dark:text-sky-400">
-              Inteligência operacional
+              InteligÃªncia operacional
             </p>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white md:text-[1.75rem]">
-              Centro de relatórios
+              Centro de relatÃ³rios
             </h1>
             <p className="max-w-xl text-[14px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-              {range.longLabel}. Indicadores em tempo real — veículos (entradas, entregas, técnicos, garantia) e módulos
-              do laboratório em aba dedicada.
+              {range.longLabel}. Indicadores em tempo real â€” veÃ­culos (entradas, entregas, tÃ©cnicos, garantia) e mÃ³dulos
+              do laboratÃ³rio em aba dedicada.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 md:justify-end">
@@ -316,7 +322,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                     : 'text-zinc-600 dark:text-zinc-400'
                 }`}
               >
-                Mês
+                MÃªs
               </button>
             </div>
             <div className="flex items-center gap-1 rounded-2xl border border-zinc-200/90 bg-white/60 px-1 py-1 dark:border-white/[0.1] dark:bg-zinc-950/40">
@@ -324,7 +330,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                 type="button"
                 onClick={() => bumpPeriod(-1)}
                 className="rounded-xl p-2 text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
-                aria-label="Período anterior"
+                aria-label="PerÃ­odo anterior"
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
@@ -336,7 +342,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                 type="button"
                 onClick={() => bumpPeriod(1)}
                 className="rounded-xl p-2 text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
-                aria-label="Próximo período"
+                aria-label="PrÃ³ximo perÃ­odo"
               >
                 <ChevronRight className="h-5 w-5" />
               </button>
@@ -345,7 +351,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               type="button"
               onClick={() => printFullWorkshopReportPdf(fullReportPayload)}
               disabled={loading || !rawOrders}
-              title="Abre o relatório completo para impressão ou «Salvar como PDF»"
+              title="Abre o relatÃ³rio completo para impressÃ£o ou Â«Salvar como PDFÂ»"
               className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/70 px-3 py-2 text-[13px] font-semibold text-zinc-800 shadow-sm transition hover:bg-white dark:border-white/[0.1] dark:bg-zinc-900/60 dark:text-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-50"
             >
               <Printer className="h-4 w-4" />
@@ -379,7 +385,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               }`}
             >
               <Settings2 className="h-4 w-4" />
-              Configurações
+              ConfiguraÃ§Ãµes
             </button>
           </div>
         </div>
@@ -388,7 +394,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
           <div className="relative mt-5 max-w-md border-t border-zinc-200/70 pt-5 dark:border-white/[0.08]">
             <div className="rounded-2xl border border-zinc-200/80 bg-white/50 p-3 dark:border-white/[0.08] dark:bg-zinc-950/30">
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                Início da semana
+                InÃ­cio da semana
               </p>
               <div className="flex gap-2">
                 <button
@@ -422,9 +428,9 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           { label: 'Entradas', value: entradas.length, icon: <Car className="h-5 w-5" />, tone: 'from-sky-500/20 to-sky-600/5', lightBorder: 'border-sky-200/90', lightBg: 'from-sky-100 via-sky-50/90 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(14,165,233,0.35)]', iconLight: 'bg-sky-500/15 text-sky-700' },
-          { label: 'Entrega no período', value: fluxo.length, icon: <Wrench className="h-5 w-5" />, tone: 'from-emerald-500/20 to-teal-600/5', lightBorder: 'border-emerald-200/90', lightBg: 'from-emerald-100 via-emerald-50/90 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(16,185,129,0.35)]', iconLight: 'bg-emerald-500/15 text-emerald-700' },
+          { label: 'Entrega no perÃ­odo', value: fluxo.length, icon: <Wrench className="h-5 w-5" />, tone: 'from-emerald-500/20 to-teal-600/5', lightBorder: 'border-emerald-200/90', lightBg: 'from-emerald-100 via-emerald-50/90 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(16,185,129,0.35)]', iconLight: 'bg-emerald-500/15 text-emerald-700' },
           { label: 'Garantia', value: garantia.length, icon: <Shield className="h-5 w-5" />, tone: 'from-rose-500/20 to-orange-500/5', lightBorder: 'border-rose-200/90', lightBg: 'from-rose-100 via-orange-50/80 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(244,63,94,0.3)]', iconLight: 'bg-rose-500/15 text-rose-700' },
-          { label: 'Módulos (lab.)', value: modulosEntradas.length, icon: <CircuitBoard className="h-5 w-5" />, tone: 'from-violet-500/20 to-indigo-600/5', lightBorder: 'border-violet-200/90', lightBg: 'from-violet-100 via-indigo-50/80 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(139,92,246,0.35)]', iconLight: 'bg-violet-500/15 text-violet-700' },
+          { label: 'MÃ³dulos (lab.)', value: modulosEntradas.length, icon: <CircuitBoard className="h-5 w-5" />, tone: 'from-violet-500/20 to-indigo-600/5', lightBorder: 'border-violet-200/90', lightBg: 'from-violet-100 via-indigo-50/80 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(139,92,246,0.35)]', iconLight: 'bg-violet-500/15 text-violet-700' },
         ].map((k) => (
           <div
             key={k.label}
@@ -439,7 +445,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               </span>
             </div>
             <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-white">
-              {loading ? '—' : k.value}
+              {loading ? 'â€”' : k.value}
             </p>
           </div>
         ))}
@@ -470,7 +476,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                       : 'bg-zinc-200/90 text-zinc-700 dark:bg-white/[0.08] dark:text-zinc-300'
                   }`}
                 >
-                  {loading ? '—' : sectionCounts[s.id]}
+                  {loading ? 'â€”' : sectionCounts[s.id]}
                 </span>
               </button>
             );
@@ -488,13 +494,13 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
         {loading && !rawOrders ? (
           <div className="flex flex-col items-center justify-center gap-3 py-20 text-zinc-500">
             <RefreshCw className="h-10 w-10 animate-spin text-sky-500" />
-            <p className="text-[15px] font-medium">Carregando base da oficina…</p>
+            <p className="text-[15px] font-medium">Carregando base da oficinaâ€¦</p>
           </div>
         ) : activeSection === 'entradas' ? (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
-                Entradas no período
+                Entradas no perÃ­odo
                 <span className="ml-2 rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[13px] font-bold text-sky-800 dark:text-sky-200">
                   {entradas.length}
                 </span>
@@ -505,7 +511,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                   onClick={() =>
                     downloadOrdersReportPdf(
                       'Entradas',
-                      'Critério: data de criação da OS de veículo dentro do período.',
+                      'CritÃ©rio: data de criaÃ§Ã£o da OS de veÃ­culo dentro do perÃ­odo.',
                       entradas,
                       pdfMeta,
                       blurPlates
@@ -520,7 +526,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                   onClick={() =>
                     printOrdersReportPdf(
                       'Entradas',
-                      'Critério: data de criação da OS de veículo dentro do período.',
+                      'CritÃ©rio: data de criaÃ§Ã£o da OS de veÃ­culo dentro do perÃ­odo.',
                       entradas,
                       pdfMeta,
                       blurPlates
@@ -533,21 +539,22 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               </div>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
-              Critério: data de criação da OS de veículo dentro de {range.shortLabel}.
+              CritÃ©rio: data de criaÃ§Ã£o da OS de veÃ­culo dentro de {range.shortLabel}.
             </p>
             <OrderTable
               orders={entradas}
               blurPlates={blurPlates}
-              empty="Nenhuma entrada neste período."
+              empty="Nenhuma entrada neste perÃ­odo."
               canDelete={canDeleteOrders}
               onDelete={requestDeleteOrder}
+              onOpenDetail={openOrderDetail}
             />
           </div>
         ) : activeSection === 'fluxo' ? (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
-                Entrada e saída no período
+                Entrada e saÃ­da no perÃ­odo
                 <span className="ml-2 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[13px] font-bold text-emerald-800 dark:text-emerald-200">
                   {fluxo.length}
                 </span>
@@ -558,7 +565,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                   onClick={() =>
                     downloadOrdersReportPdf(
                       'Entrada_e_saida',
-                      'OS arquivadas (entregues) com criação e data de atualização (arquivamento) no período.',
+                      'OS arquivadas (entregues) com criaÃ§Ã£o e data de atualizaÃ§Ã£o (arquivamento) no perÃ­odo.',
                       fluxo,
                       pdfMeta,
                       blurPlates
@@ -573,7 +580,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                   onClick={() =>
                     printOrdersReportPdf(
                       'Entrada_e_saida',
-                      'OS arquivadas (entregues) com criação e data de atualização (arquivamento) no período.',
+                      'OS arquivadas (entregues) com criaÃ§Ã£o e data de atualizaÃ§Ã£o (arquivamento) no perÃ­odo.',
                       fluxo,
                       pdfMeta,
                       blurPlates
@@ -586,22 +593,23 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               </div>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
-              Fichas <strong>arquivadas (entregues)</strong> cuja abertura e o arquivamento — pela data de atualização —
-              caem neste período. Ideal para medir o fluxo quando entrada e saída ocorrem na mesma janela.
+              Fichas <strong>arquivadas (entregues)</strong> cuja abertura e o arquivamento â€” pela data de atualizaÃ§Ã£o â€”
+              caem neste perÃ­odo. Ideal para medir o fluxo quando entrada e saÃ­da ocorrem na mesma janela.
             </p>
             <OrderTable
               orders={fluxo}
               blurPlates={blurPlates}
-              empty="Nenhum veículo com esse perfil no período."
+              empty="Nenhum veÃ­culo com esse perfil no perÃ­odo."
               canDelete={canDeleteOrders}
               onDelete={requestDeleteOrder}
+              onOpenDetail={openOrderDetail}
             />
           </div>
         ) : activeSection === 'tecnicos' ? (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
-                Responsabilidade por técnico
+                Responsabilidade por tÃ©cnico
                 <span className="ml-2 rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[13px] font-bold text-sky-800 dark:text-sky-200">
                   {sectionCounts.tecnicos}
                 </span>
@@ -624,11 +632,11 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               </div>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
-              Contagem por técnico atribuído na data de <strong>entrada</strong> (criação da OS) no período.
+              Contagem por tÃ©cnico atribuÃ­do na data de <strong>entrada</strong> (criaÃ§Ã£o da OS) no perÃ­odo.
             </p>
             <div className="space-y-3">
               {tecnicos.length === 0 ? (
-                <p className="py-12 text-center text-zinc-500">Nenhuma OS com entrada no período.</p>
+                <p className="py-12 text-center text-zinc-500">Nenhuma OS com entrada no perÃ­odo.</p>
               ) : (
                 tecnicos.map((t) => (
                   <div
@@ -647,6 +655,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                       empty=""
                       canDelete={canDeleteOrders}
                       onDelete={requestDeleteOrder}
+                      onOpenDetail={openOrderDetail}
                     />
                   </div>
                 ))
@@ -657,7 +666,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
-                Garantia no período
+                Garantia no perÃ­odo
                 <span className="ml-2 rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[13px] font-bold text-rose-800 dark:text-rose-200">
                   {garantia.length}
                 </span>
@@ -668,7 +677,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                   onClick={() =>
                     downloadOrdersReportPdf(
                       'Garantia',
-                      'OS com tag de garantia ou em etapa Garantia, entre as entradas do período.',
+                      'OS com tag de garantia ou em etapa Garantia, entre as entradas do perÃ­odo.',
                       garantia,
                       pdfMeta,
                       blurPlates
@@ -683,7 +692,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                   onClick={() =>
                     printOrdersReportPdf(
                       'Garantia',
-                      'OS com tag de garantia ou em etapa Garantia, entre as entradas do período.',
+                      'OS com tag de garantia ou em etapa Garantia, entre as entradas do perÃ­odo.',
                       garantia,
                       pdfMeta,
                       blurPlates
@@ -697,75 +706,85 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
               OS com <strong>tag de garantia</strong> ou status em etapa <strong>Garantia</strong>, entre as entradas do
-              período.
+              perÃ­odo.
             </p>
             <OrderTable
               orders={garantia}
               blurPlates={blurPlates}
-              empty="Nenhuma OS de garantia neste período."
+              empty="Nenhuma OS de garantia neste perÃ­odo."
               canDelete={canDeleteOrders}
               onDelete={requestDeleteOrder}
+              onOpenDetail={openOrderDetail}
             />
           </div>
         ) : activeSection === 'laboratorio' ? (
           <div className="space-y-8">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Laboratório — módulos</h2>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">LaboratÃ³rio â€” mÃ³dulos</h2>
               <span className="rounded-full bg-violet-500/15 px-3 py-1 text-[12px] font-bold text-violet-800 dark:text-violet-200">
-                {modulosEntradas.length} entradas · {modulosFluxo.length} entrega · {modulosGarantia.length} garantia
+                {modulosEntradas.length} entradas Â· {modulosFluxo.length} entrega Â· {modulosGarantia.length} garantia
               </span>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
-              Ordens de serviço do tipo <strong>módulo</strong> (laboratório), com os mesmos critérios das abas de veículos.
+              Ordens de serviÃ§o do tipo <strong>mÃ³dulo</strong> (laboratÃ³rio), com os mesmos critÃ©rios das abas de veÃ­culos.
             </p>
 
             <LabReportBlock
-              title="Entradas no período"
+              title="Entradas no perÃ­odo"
               count={modulosEntradas.length}
               badgeClass="bg-sky-500/15 text-sky-800 dark:text-sky-200"
               orders={modulosEntradas}
               pdfSlug="Lab_entradas"
-              pdfNote="Módulos: data de criação no período."
-              empty="Nenhum módulo com entrada neste período."
+              pdfNote="MÃ³dulos: data de criaÃ§Ã£o no perÃ­odo."
+              empty="Nenhum mÃ³dulo com entrada neste perÃ­odo."
               pdfMeta={pdfMeta}
               blurPlates={blurPlates}
               printBtnClass={printSectionBtnClass}
               canDelete={canDeleteOrders}
               onDelete={requestDeleteOrder}
+              onOpenDetail={openOrderDetail}
             />
             <LabReportBlock
-              title="Entrada e saída no período"
+              title="Entrada e saÃ­da no perÃ­odo"
               count={modulosFluxo.length}
               badgeClass="bg-emerald-500/15 text-emerald-800 dark:text-emerald-200"
               orders={modulosFluxo}
               pdfSlug="Lab_entrada_saida"
-              pdfNote="Módulos arquivados com criação e arquivamento no período."
-              empty="Nenhum módulo com esse perfil no período."
+              pdfNote="MÃ³dulos arquivados com criaÃ§Ã£o e arquivamento no perÃ­odo."
+              empty="Nenhum mÃ³dulo com esse perfil no perÃ­odo."
               pdfMeta={pdfMeta}
               blurPlates={blurPlates}
               printBtnClass={printSectionBtnClass}
               bordered
               canDelete={canDeleteOrders}
               onDelete={requestDeleteOrder}
+              onOpenDetail={openOrderDetail}
             />
             <LabReportBlock
-              title="Garantia no período"
+              title="Garantia no perÃ­odo"
               count={modulosGarantia.length}
               badgeClass="bg-rose-500/15 text-rose-800 dark:text-rose-200"
               orders={modulosGarantia}
               pdfSlug="Lab_garantia"
-              pdfNote="Módulos com tag de garantia ou etapa Garantia."
-              empty="Nenhum módulo de garantia neste período."
+              pdfNote="MÃ³dulos com tag de garantia ou etapa Garantia."
+              empty="Nenhum mÃ³dulo de garantia neste perÃ­odo."
               pdfMeta={pdfMeta}
               blurPlates={blurPlates}
               printBtnClass={printSectionBtnClass}
               bordered
               canDelete={canDeleteOrders}
               onDelete={requestDeleteOrder}
+              onOpenDetail={openOrderDetail}
             />
           </div>
         ) : null}
       </section>
+
+      <ReportServiceOrderDetailModal
+        order={detailOrder}
+        blurPlates={blurPlates}
+        onClose={() => setDetailOrder(null)}
+      />
 
       <DeleteServiceOrderModal
         open={deleteTarget != null}
@@ -797,6 +816,7 @@ type LabReportBlockProps = {
   bordered?: boolean;
   canDelete?: boolean;
   onDelete?: (order: ServiceOrderListItem) => void;
+  onOpenDetail?: (order: ServiceOrderListItem) => void;
 };
 
 function LabReportBlock({
@@ -813,6 +833,7 @@ function LabReportBlock({
   bordered,
   canDelete,
   onDelete,
+  onOpenDetail,
 }: LabReportBlockProps) {
   return (
     <div className={`space-y-3 ${bordered ? 'border-t border-zinc-200/70 pt-6 dark:border-white/[0.08]' : ''}`}>
@@ -838,7 +859,14 @@ function LabReportBlock({
           </button>
         </div>
       </div>
-      <OrderTable orders={orders} blurPlates={blurPlates} empty={empty} canDelete={canDelete} onDelete={onDelete} />
+      <OrderTable
+        orders={orders}
+        blurPlates={blurPlates}
+        empty={empty}
+        canDelete={canDelete}
+        onDelete={onDelete}
+        onOpenDetail={onOpenDetail}
+      />
     </div>
   );
 }
@@ -849,30 +877,38 @@ function OrderTable({
   empty,
   canDelete,
   onDelete,
+  onOpenDetail,
 }: {
   orders: ServiceOrderListItem[];
   blurPlates: boolean;
   empty: string;
   canDelete?: boolean;
   onDelete?: (order: ServiceOrderListItem) => void;
+  onOpenDetail?: (order: ServiceOrderListItem) => void;
 }) {
   if (orders.length === 0 && empty) {
     return <p className="py-10 text-center text-[14px] text-zinc-500">{empty}</p>;
   }
   if (orders.length === 0) return null;
   return (
-    <div className="max-h-[min(70vh,560px)] overflow-auto rounded-xl border border-zinc-200/60 dark:border-white/[0.06]">
+    <div className="space-y-2">
+      {onOpenDetail ? (
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+          Clique na linha para abrir queixa, anexos e orÃ§amentos.
+        </p>
+      ) : null}
+      <div className="max-h-[min(70vh,560px)] overflow-auto rounded-xl border border-zinc-200/60 dark:border-white/[0.06]">
       <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-[13px]">
         <thead className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm dark:bg-zinc-900/95">
           <tr className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">OS</th>
             <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Cliente</th>
             <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Placa / ID</th>
-            <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Veículo / Módulo</th>
+            <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">VeÃ­culo / MÃ³dulo</th>
             <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Status</th>
             {canDelete ? (
               <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 text-right dark:border-white/[0.08]">
-                Ações
+                AÃ§Ãµes
               </th>
             ) : null}
           </tr>
@@ -882,14 +918,23 @@ function OrderTable({
             const stName =
               getStageConfig(o.status)?.name ?? (o.status === CANCELLED_STATUS ? 'Arquivado' : o.status);
             const stCls = getStageStyle(o.status);
-            const vehicle = [o.vehicle_brand, o.vehicle_model].filter(Boolean).join(' ') || o.module_identification || '—';
+            const vehicle = [o.vehicle_brand, o.vehicle_model].filter(Boolean).join(' ') || o.module_identification || 'â€”';
             return (
-              <tr key={o.id} className="text-zinc-800 dark:text-zinc-200">
+              <tr
+                key={o.id}
+                className={`text-zinc-800 dark:text-zinc-200 ${
+                  onOpenDetail
+                    ? 'cursor-pointer transition-colors hover:bg-sky-500/[0.06] dark:hover:bg-sky-500/10'
+                    : ''
+                }`}
+                onClick={onOpenDetail ? () => onOpenDetail(o) : undefined}
+                title={onOpenDetail ? 'Ver queixa, anexos e orÃ§amentos' : undefined}
+              >
                 <td className="border-b border-zinc-100/90 px-3 py-2 font-mono text-[12px] dark:border-white/[0.06]">
                   {o.os_number != null ? `#${o.os_number}` : o.id.slice(0, 8)}
                 </td>
                 <td className="border-b border-zinc-100/90 px-3 py-2 dark:border-white/[0.06]">
-                  {o.customer_name ?? o.customers?.name ?? '—'}
+                  {o.customer_name ?? o.customers?.name ?? 'â€”'}
                 </td>
                 <td className="border-b border-zinc-100/90 px-3 py-2 font-mono dark:border-white/[0.06]">
                   {formatPlateDisplay(o.plate, blurPlates)}
@@ -904,10 +949,13 @@ function OrderTable({
                   <td className="border-b border-zinc-100/90 px-3 py-2 text-right dark:border-white/[0.06]">
                     <button
                       type="button"
-                      onClick={() => onDelete(o)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(o);
+                      }}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-red-500/10 hover:text-red-600 dark:hover:bg-red-500/15"
                       title="Excluir OS (senha do admin)"
-                      aria-label="Excluir ordem de serviço"
+                      aria-label="Excluir ordem de serviÃ§o"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -918,6 +966,7 @@ function OrderTable({
           })}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }
