@@ -36,6 +36,32 @@ function safeFilenamePart(s: string): string {
   return s.replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'relatorio';
 }
 
+/** Abre o diálogo de impressão do sistema (ou «Salvar como PDF» no destino). */
+function emitPdf(doc: jsPDF, mode: 'save' | 'print', filename: string): void {
+  if (mode === 'save') {
+    doc.save(filename);
+    return;
+  }
+  doc.autoPrint();
+  const blobUrl = doc.output('bloburl');
+  const win = window.open(blobUrl, '_blank');
+  if (!win) {
+    doc.save(filename);
+    URL.revokeObjectURL(blobUrl);
+    return;
+  }
+  const triggerPrint = () => {
+    try {
+      win.focus();
+      win.print();
+    } catch {
+      doc.save(filename);
+    }
+  };
+  win.addEventListener('load', triggerPrint);
+  window.setTimeout(triggerPrint, 600);
+}
+
 function drawBrandHeader(doc: jsPDF): number {
   const pageW = doc.internal.pageSize.getWidth();
   doc.setFillColor(2, 132, 199);
@@ -125,14 +151,13 @@ function drawTable(
   return y + 4;
 }
 
-/** PDF da secção atual (lista de OS). */
-export function downloadOrdersReportPdf(
+function buildOrdersReportDoc(
   sectionTitle: string,
   footnote: string,
   orders: ServiceOrderListItem[],
   meta: WorkshopReportPdfMeta,
   blurPlates: boolean
-): void {
+): { doc: jsPDF; filename: string } {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   let y = drawBrandHeader(doc);
   y = drawMetaBlock(doc, y, meta, sectionTitle);
@@ -145,29 +170,48 @@ export function downloadOrdersReportPdf(
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'normal');
 
-  const name = `rei_abs_${safeFilenamePart(sectionTitle)}_${safeFilenamePart(meta.periodShort)}.pdf`;
+  const filename = `rei_abs_${safeFilenamePart(sectionTitle)}_${safeFilenamePart(meta.periodShort)}.pdf`;
 
   if (orders.length === 0) {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
     doc.text('Nenhum registro no período para este critério.', MARGIN, y);
-    doc.save(name);
-    return;
+    return { doc, filename };
   }
 
   const headers = ['OS', 'Cliente', 'Placa', 'Veículo', 'Status'];
   const rows = ordersToTableRows(orders, blurPlates);
   drawTable(doc, y, headers, rows, ORDER_COL_WIDTHS);
 
-  doc.save(name);
+  return { doc, filename };
 }
 
-/** PDF: ranking de modelos. */
-export function downloadModelsReportPdf(
-  models: ModelRankRow[],
-  meta: WorkshopReportPdfMeta
+/** PDF da secção atual (lista de OS). */
+export function downloadOrdersReportPdf(
+  sectionTitle: string,
+  footnote: string,
+  orders: ServiceOrderListItem[],
+  meta: WorkshopReportPdfMeta,
+  blurPlates: boolean
 ): void {
+  const { doc, filename } = buildOrdersReportDoc(sectionTitle, footnote, orders, meta, blurPlates);
+  emitPdf(doc, 'save', filename);
+}
+
+export function printOrdersReportPdf(
+  sectionTitle: string,
+  footnote: string,
+  orders: ServiceOrderListItem[],
+  meta: WorkshopReportPdfMeta,
+  blurPlates: boolean
+): void {
+  const { doc, filename } = buildOrdersReportDoc(sectionTitle, footnote, orders, meta, blurPlates);
+  emitPdf(doc, 'print', filename);
+}
+
+function buildModelsReportDoc(models: ModelRankRow[], meta: WorkshopReportPdfMeta): { doc: jsPDF; filename: string } {
+  const filename = `rei_abs_modelos_${safeFilenamePart(meta.periodShort)}.pdf`;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   let y = drawBrandHeader(doc);
   y = drawMetaBlock(doc, y, meta, 'Modelos mais frequentes');
@@ -176,22 +220,32 @@ export function downloadModelsReportPdf(
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
     doc.text('Nenhum modelo registrado nas entradas deste período.', MARGIN, y);
-    doc.save(`rei_abs_modelos_${safeFilenamePart(meta.periodShort)}.pdf`);
-    return;
+    return { doc, filename };
   }
   const headers = ['#', 'Marca', 'Modelo', 'Qtd.'];
   const colW = [12, 45, 95, 30];
   const rows = models.map((m, i) => [String(i + 1), m.brand, m.model, String(m.count)]);
   drawTable(doc, y, headers, rows, colW);
-  doc.save(`rei_abs_modelos_${safeFilenamePart(meta.periodShort)}.pdf`);
+  return { doc, filename };
 }
 
-/** PDF: resumo por técnico (tabelas por bloco). */
-export function downloadTechniciansReportPdf(
+/** PDF: ranking de modelos. */
+export function downloadModelsReportPdf(models: ModelRankRow[], meta: WorkshopReportPdfMeta): void {
+  const { doc, filename } = buildModelsReportDoc(models, meta);
+  emitPdf(doc, 'save', filename);
+}
+
+export function printModelsReportPdf(models: ModelRankRow[], meta: WorkshopReportPdfMeta): void {
+  const { doc, filename } = buildModelsReportDoc(models, meta);
+  emitPdf(doc, 'print', filename);
+}
+
+function buildTechniciansReportDoc(
   technicians: TechnicianCountRow[],
   meta: WorkshopReportPdfMeta,
   blurPlates: boolean
-): void {
+): { doc: jsPDF; filename: string } {
+  const filename = `rei_abs_tecnicos_${safeFilenamePart(meta.periodShort)}.pdf`;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   let y = drawBrandHeader(doc);
   y = drawMetaBlock(doc, y, meta, 'Responsabilidade por técnico (data de entrada)');
@@ -201,8 +255,7 @@ export function downloadTechniciansReportPdf(
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
     doc.text('Nenhuma OS com entrada no período.', MARGIN, y);
-    doc.save(`rei_abs_tecnicos_${safeFilenamePart(meta.periodShort)}.pdf`);
-    return;
+    return { doc, filename };
   }
 
   const headers = ['OS', 'Cliente', 'Placa', 'Veículo', 'Status'];
@@ -222,11 +275,29 @@ export function downloadTechniciansReportPdf(
     y = drawTable(doc, y, headers, rows, ORDER_COL_WIDTHS);
   }
 
-  doc.save(`rei_abs_tecnicos_${safeFilenamePart(meta.periodShort)}.pdf`);
+  return { doc, filename };
 }
 
-/** Um único PDF com todas as secções (síntese + tabelas resumidas). */
-export function downloadFullWorkshopReportPdf(opts: {
+/** PDF: resumo por técnico (tabelas por bloco). */
+export function downloadTechniciansReportPdf(
+  technicians: TechnicianCountRow[],
+  meta: WorkshopReportPdfMeta,
+  blurPlates: boolean
+): void {
+  const { doc, filename } = buildTechniciansReportDoc(technicians, meta, blurPlates);
+  emitPdf(doc, 'save', filename);
+}
+
+export function printTechniciansReportPdf(
+  technicians: TechnicianCountRow[],
+  meta: WorkshopReportPdfMeta,
+  blurPlates: boolean
+): void {
+  const { doc, filename } = buildTechniciansReportDoc(technicians, meta, blurPlates);
+  emitPdf(doc, 'print', filename);
+}
+
+export type FullWorkshopReportPdfOpts = {
   meta: WorkshopReportPdfMeta;
   blurPlates: boolean;
   includeModules: boolean;
@@ -236,8 +307,11 @@ export function downloadFullWorkshopReportPdf(opts: {
   garantia: ServiceOrderListItem[];
   tecnicos: TechnicianCountRow[];
   modelos: ModelRankRow[];
-}): void {
+};
+
+function buildFullWorkshopReportDoc(opts: FullWorkshopReportPdfOpts): { doc: jsPDF; filename: string } {
   const { meta, blurPlates, includeModules, kpis, entradas, fluxo, garantia, tecnicos, modelos } = opts;
+  const filename = `rei_abs_relatorio_completo_${safeFilenamePart(meta.periodShort)}.pdf`;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   let y = drawBrandHeader(doc);
   y = drawMetaBlock(doc, y, meta, 'Relatório consolidado');
@@ -280,7 +354,7 @@ export function downloadFullWorkshopReportPdf(opts: {
     if (orders.length > maxRows) {
       doc.setFontSize(8);
       doc.setTextColor(120, 120, 120);
-      doc.text(`… e mais ${orders.length - maxRows} registro(s) (exporte CSV na secção para lista completa).`, MARGIN, y);
+      doc.text(`… e mais ${orders.length - maxRows} registro(s) (use Imprimir na secção para lista completa).`, MARGIN, y);
       y += 5;
       doc.setTextColor(0, 0, 0);
     }
@@ -334,5 +408,16 @@ export function downloadFullWorkshopReportPdf(opts: {
     y = drawTable(doc, y, hdr, mrows, colW);
   }
 
-  doc.save(`rei_abs_relatorio_completo_${safeFilenamePart(meta.periodShort)}.pdf`);
+  return { doc, filename };
+}
+
+/** Um único PDF com todas as secções (síntese + tabelas resumidas). */
+export function downloadFullWorkshopReportPdf(opts: FullWorkshopReportPdfOpts): void {
+  const { doc, filename } = buildFullWorkshopReportDoc(opts);
+  emitPdf(doc, 'save', filename);
+}
+
+export function printFullWorkshopReportPdf(opts: FullWorkshopReportPdfOpts): void {
+  const { doc, filename } = buildFullWorkshopReportDoc(opts);
+  emitPdf(doc, 'print', filename);
 }
