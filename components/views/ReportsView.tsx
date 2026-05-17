@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
   CalendarRange,
@@ -17,11 +17,7 @@ import {
 } from 'lucide-react';
 import { DeleteServiceOrderModal } from '../DeleteServiceOrderModal';
 import { ReportServiceOrderDetailModal } from '../ReportServiceOrderDetailModal';
-import {
-  deleteServiceOrderWithAdminPassword,
-  getServiceOrders,
-  type ServiceOrderListItem,
-} from '../../services/apiService';
+import { getServiceOrders, type ServiceOrderListItem } from '../../services/apiService';
 import { getStageConfig, getStageStyle, CANCELLED_STATUS } from '../../constants/serviceOrderStages';
 import {
   type ReportPeriodMode,
@@ -46,6 +42,7 @@ import {
 } from '../../utils/workshopReportsPdf';
 
 const REPORTS_SETTINGS_KEY = 'app_reports_settings_v1';
+const REPORTS_HIDDEN_ORDERS_KEY = 'app_reports_hidden_order_ids_v1';
 
 type ReportsSettings = {
   weekStartsOn: ReportWeekStart;
@@ -94,6 +91,24 @@ function saveSettings(s: ReportsSettings): void {
   } catch (_) {}
 }
 
+function loadHiddenOrderIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(REPORTS_HIDDEN_ORDERS_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((id): id is string => typeof id === 'string' && id.length > 0));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveHiddenOrderIds(ids: Set<string>): void {
+  try {
+    localStorage.setItem(REPORTS_HIDDEN_ORDERS_KEY, JSON.stringify([...ids]));
+  } catch (_) {}
+}
+
 function orderDeleteLabel(o: ServiceOrderListItem, blurPlates: boolean): string {
   const num = o.os_number != null ? `#${o.os_number}` : o.id.slice(0, 8);
   const plate = formatPlateDisplay(o.plate, blurPlates);
@@ -116,14 +131,21 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [detailOrder, setDetailOrder] = useState<ServiceOrderListItem | null>(null);
+  const [hiddenOrderIds, setHiddenOrderIds] = useState<Set<string>>(() => loadHiddenOrderIds());
 
   const range = useMemo(
     () => getPeriodRange(periodMode, referenceDate, settings.weekStartsOn),
     [periodMode, referenceDate, settings.weekStartsOn]
   );
 
-  const vehicleOrders = useMemo(() => filterVehicleOrders(rawOrders ?? [], false), [rawOrders]);
-  const moduleOrders = useMemo(() => filterModuleOrders(rawOrders ?? []), [rawOrders]);
+  const visibleOrders = useMemo(() => {
+    const list = rawOrders ?? [];
+    if (hiddenOrderIds.size === 0) return list;
+    return list.filter((o) => !hiddenOrderIds.has(o.id));
+  }, [rawOrders, hiddenOrderIds]);
+
+  const vehicleOrders = useMemo(() => filterVehicleOrders(visibleOrders, false), [visibleOrders]);
+  const moduleOrders = useMemo(() => filterModuleOrders(visibleOrders), [visibleOrders]);
 
   const entradas = useMemo(
     () => ordersEnteredInPeriod(vehicleOrders, range.start, range.end),
@@ -249,29 +271,27 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
     setDetailOrder(order);
   }, []);
 
-  const handleConfirmDeleteOrder = useCallback(
-    async (adminPassword: string) => {
-      if (!deleteTarget) return;
-      setDeleteSaving(true);
-      setDeleteError(null);
-      const targetId = deleteTarget.id;
-      try {
-        await deleteServiceOrderWithAdminPassword(targetId, adminPassword);
-        setRawOrders((prev) =>
-          prev
-            ? prev.map((o) => (o.id === targetId ? { ...o, status: CANCELLED_STATUS } : o))
-            : prev
-        );
-        setDeleteTarget(null);
-        void load();
-      } catch (e) {
-        setDeleteError(e instanceof Error ? e.message : 'Não foi possível excluir a OS.');
-      } finally {
-        setDeleteSaving(false);
-      }
-    },
-    [deleteTarget, load]
-  );
+  const handleConfirmHideFromReports = useCallback(() => {
+    if (!deleteTarget) return;
+    setDeleteSaving(true);
+    setDeleteError(null);
+    const targetId = deleteTarget.id;
+    setHiddenOrderIds((prev) => {
+      const next = new Set(prev);
+      next.add(targetId);
+      saveHiddenOrderIds(next);
+      return next;
+    });
+    setDeleteTarget(null);
+    setDeleteSaving(false);
+  }, [deleteTarget]);
+
+  const restoreHiddenOrders = useCallback(() => {
+    setHiddenOrderIds(new Set());
+    try {
+      localStorage.removeItem(REPORTS_HIDDEN_ORDERS_KEY);
+    } catch (_) {}
+  }, []);
 
   const printSectionBtnClass =
     'inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-2 text-[13px] font-semibold text-zinc-800 transition hover:bg-zinc-50 dark:border-white/[0.1] dark:bg-zinc-900/50 dark:text-zinc-100 dark:hover:bg-zinc-900/80';
@@ -447,6 +467,20 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
                 </button>
               </div>
             </div>
+            {hiddenOrderIds.size > 0 ? (
+              <div className="mt-3 rounded-2xl border border-amber-200/80 bg-amber-50/80 p-3 dark:border-amber-500/20 dark:bg-amber-500/10">
+                <p className="text-[13px] text-amber-900 dark:text-amber-100">
+                  {hiddenOrderIds.size} OS oculta(s) só neste relatório (permanecem no sistema).
+                </p>
+                <button
+                  type="button"
+                  onClick={restoreHiddenOrders}
+                  className="mt-2 text-[13px] font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-200"
+                >
+                  Mostrar todas novamente
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </header>
@@ -822,7 +856,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
           setDeleteTarget(null);
           setDeleteError(null);
         }}
-        onConfirm={handleConfirmDeleteOrder}
+        onConfirm={handleConfirmHideFromReports}
       />
     </div>
   );
@@ -980,8 +1014,8 @@ function OrderTable({
                         onDelete(o);
                       }}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-red-500/10 hover:text-red-600 dark:hover:bg-red-500/15"
-                      title="Excluir OS (senha do admin)"
-                      aria-label="Excluir ordem de serviço"
+                      title="Remover deste relatório (não apaga do banco)"
+                      aria-label="Remover ordem deste relatório"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
