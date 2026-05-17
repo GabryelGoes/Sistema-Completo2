@@ -167,6 +167,14 @@ export function reportTopModels(
     .map(([key, v]) => ({ key, brand: v.brand, model: v.model, count: v.count }));
 }
 
+/** Placa para relatório / exportação (respeita modo cinema). */
+export function formatPlateDisplay(plate: string | null | undefined, blur: boolean): string {
+  const p = (plate ?? '—').toUpperCase();
+  if (!blur) return p;
+  if (p.length < 3) return '•••';
+  return p.slice(0, 2) + '•••' + p.slice(-1);
+}
+
 export function downloadCsv(filename: string, headers: string[], rows: string[][]): void {
   const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
   const body = [headers.map(esc).join(','), ...rows.map((r) => r.map(esc).join(','))].join('\n');
