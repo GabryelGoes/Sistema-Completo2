@@ -63,6 +63,11 @@ export function filterVehicleOrders(
   return orders.filter((o) => (o.order_type ?? 'vehicle') === 'vehicle');
 }
 
+/** Apenas ordens do laboratório (módulos). */
+export function filterModuleOrders(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
+  return orders.filter((o) => (o.order_type ?? 'vehicle') === 'module');
+}
+
 export function ordersEnteredInPeriod(
   orders: ServiceOrderListItem[],
   start: Date,

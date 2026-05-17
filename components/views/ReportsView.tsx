@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
-  BarChart3,
   CalendarRange,
   Car,
   ChevronLeft,
   ChevronRight,
+  CircuitBoard,
   FileText,
-  Gauge,
   Printer,
   RefreshCw,
   Settings2,
@@ -21,20 +20,18 @@ import {
   type ReportPeriodMode,
   type ReportWeekStart,
   filterVehicleOrders,
+  filterModuleOrders,
   getPeriodRange,
   ordersEnteredAndArchivedInPeriod,
   ordersEnteredInPeriod,
   ordersWarrantyInPeriod,
   reportTechnicianResponsibility,
-  reportTopModels,
   formatPlateDisplay,
 } from '../../utils/workshopReports';
 import {
   downloadFullWorkshopReportPdf,
-  downloadModelsReportPdf,
   downloadOrdersReportPdf,
   downloadTechniciansReportPdf,
-  printModelsReportPdf,
   printOrdersReportPdf,
   printTechniciansReportPdf,
   printFullWorkshopReportPdf,
@@ -43,18 +40,14 @@ import {
 const REPORTS_SETTINGS_KEY = 'app_reports_settings_v1';
 
 type ReportsSettings = {
-  includeModules: boolean;
   weekStartsOn: ReportWeekStart;
-  topModelsLimit: number;
 };
 
 const DEFAULT_SETTINGS: ReportsSettings = {
-  includeModules: false,
   weekStartsOn: 'monday',
-  topModelsLimit: 16,
 };
 
-type ReportSection = 'entradas' | 'fluxo' | 'tecnicos' | 'garantia' | 'modelos';
+type ReportSection = 'entradas' | 'fluxo' | 'tecnicos' | 'garantia' | 'laboratorio';
 
 const SECTIONS: { id: ReportSection; label: string; hint: string; icon: React.ReactNode }[] = [
   { id: 'entradas', label: 'Entradas', hint: 'Veículos que entraram no período', icon: <Car className="h-4 w-4" /> },
@@ -66,7 +59,12 @@ const SECTIONS: { id: ReportSection; label: string; hint: string; icon: React.Re
   },
   { id: 'tecnicos', label: 'Por técnico', hint: 'Responsáveis na data de entrada', icon: <Users className="h-4 w-4" /> },
   { id: 'garantia', label: 'Garantia', hint: 'Marcadas como garantia ou etapa Garantia', icon: <Shield className="h-4 w-4" /> },
-  { id: 'modelos', label: 'Top modelos', hint: 'Marcas e modelos mais frequentes', icon: <BarChart3 className="h-4 w-4" /> },
+  {
+    id: 'laboratorio',
+    label: 'Laboratório',
+    hint: 'Módulos do laboratório no período',
+    icon: <CircuitBoard className="h-4 w-4" />,
+  },
 ];
 
 function loadSettings(): ReportsSettings {
@@ -75,9 +73,7 @@ function loadSettings(): ReportsSettings {
     if (!raw) return DEFAULT_SETTINGS;
     const p = JSON.parse(raw) as Partial<ReportsSettings>;
     return {
-      includeModules: p.includeModules === true,
       weekStartsOn: p.weekStartsOn === 'sunday' ? 'sunday' : 'monday',
-      topModelsLimit: typeof p.topModelsLimit === 'number' && p.topModelsLimit >= 5 && p.topModelsLimit <= 40 ? p.topModelsLimit : 16,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -105,47 +101,82 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
     [periodMode, referenceDate, settings.weekStartsOn]
   );
 
-  const orders = useMemo(
-    () => filterVehicleOrders(rawOrders ?? [], settings.includeModules),
-    [rawOrders, settings.includeModules]
-  );
+  const vehicleOrders = useMemo(() => filterVehicleOrders(rawOrders ?? [], false), [rawOrders]);
+  const moduleOrders = useMemo(() => filterModuleOrders(rawOrders ?? []), [rawOrders]);
 
   const entradas = useMemo(
-    () => ordersEnteredInPeriod(orders, range.start, range.end),
-    [orders, range.start, range.end]
+    () => ordersEnteredInPeriod(vehicleOrders, range.start, range.end),
+    [vehicleOrders, range.start, range.end]
   );
 
   const fluxo = useMemo(
-    () => ordersEnteredAndArchivedInPeriod(orders, range.start, range.end),
-    [orders, range.start, range.end]
+    () => ordersEnteredAndArchivedInPeriod(vehicleOrders, range.start, range.end),
+    [vehicleOrders, range.start, range.end]
   );
 
   const tecnicos = useMemo(
-    () => reportTechnicianResponsibility(orders, range.start, range.end),
-    [orders, range.start, range.end]
+    () => reportTechnicianResponsibility(vehicleOrders, range.start, range.end),
+    [vehicleOrders, range.start, range.end]
   );
 
   const garantia = useMemo(
-    () => ordersWarrantyInPeriod(orders, range.start, range.end),
-    [orders, range.start, range.end]
+    () => ordersWarrantyInPeriod(vehicleOrders, range.start, range.end),
+    [vehicleOrders, range.start, range.end]
   );
 
-  const modelos = useMemo(
-    () => reportTopModels(orders, range.start, range.end, settings.topModelsLimit),
-    [orders, range.start, range.end, settings.topModelsLimit]
+  const modulosEntradas = useMemo(
+    () => ordersEnteredInPeriod(moduleOrders, range.start, range.end),
+    [moduleOrders, range.start, range.end]
   );
 
-  const maxModelCount = useMemo(() => modelos.reduce((m, r) => Math.max(m, r.count), 0) || 1, [modelos]);
+  const modulosFluxo = useMemo(
+    () => ordersEnteredAndArchivedInPeriod(moduleOrders, range.start, range.end),
+    [moduleOrders, range.start, range.end]
+  );
+
+  const modulosGarantia = useMemo(
+    () => ordersWarrantyInPeriod(moduleOrders, range.start, range.end),
+    [moduleOrders, range.start, range.end]
+  );
+
+  const sectionCounts = useMemo<Record<ReportSection, number>>(
+    () => ({
+      entradas: entradas.length,
+      fluxo: fluxo.length,
+      tecnicos: tecnicos.reduce((sum, t) => sum + t.count, 0),
+      garantia: garantia.length,
+      laboratorio: modulosEntradas.length + modulosFluxo.length + modulosGarantia.length,
+    }),
+    [entradas.length, fluxo.length, tecnicos, garantia.length, modulosEntradas.length, modulosFluxo.length, modulosGarantia.length]
+  );
 
   const pdfMeta = useMemo(
     () => ({
       periodLong: range.longLabel,
       periodShort: range.shortLabel,
-      scopeNote: settings.includeModules
-        ? 'Escopo do relatório: veículos e módulos (laboratório).'
-        : 'Escopo do relatório: apenas veículos.',
+      scopeNote: 'Veículos nas secções principais; módulos do laboratório na aba Laboratório.',
     }),
-    [range.longLabel, range.shortLabel, settings.includeModules]
+    [range.longLabel, range.shortLabel]
+  );
+
+  const fullReportPayload = useMemo(
+    () => ({
+      meta: pdfMeta,
+      blurPlates,
+      kpis: {
+        entradas: entradas.length,
+        fluxo: fluxo.length,
+        garantia: garantia.length,
+        modulosEntradas: modulosEntradas.length,
+      },
+      entradas,
+      fluxo,
+      garantia,
+      tecnicos,
+      modulosEntradas,
+      modulosFluxo,
+    }),
+    [pdfMeta, blurPlates, entradas, fluxo, garantia, tecnicos, modulosEntradas, modulosFluxo]
   );
 
   const load = useCallback(async () => {
@@ -212,8 +243,8 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
               Centro de relatórios
             </h1>
             <p className="max-w-xl text-[14px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-              {range.longLabel}. Indicadores alimentados em tempo real pelas ordens de serviço — entradas, entregas,
-              responsáveis, garantia e mix de modelos.
+              {range.longLabel}. Indicadores em tempo real — veículos (entradas, entregas, técnicos, garantia) e módulos
+              do laboratório em aba dedicada.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 md:justify-end">
@@ -265,24 +296,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
             </div>
             <button
               type="button"
-              onClick={() =>
-                printFullWorkshopReportPdf({
-                  meta: pdfMeta,
-                  blurPlates,
-                  includeModules: settings.includeModules,
-                  kpis: {
-                    entradas: entradas.length,
-                    fluxo: fluxo.length,
-                    garantia: garantia.length,
-                    totalFiltrado: orders.length,
-                  },
-                  entradas,
-                  fluxo,
-                  garantia,
-                  tecnicos,
-                  modelos,
-                })
-              }
+              onClick={() => printFullWorkshopReportPdf(fullReportPayload)}
               disabled={loading || !rawOrders}
               title="Abre o relatório completo para impressão ou «Salvar como PDF»"
               className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/70 px-3 py-2 text-[13px] font-semibold text-zinc-800 shadow-sm transition hover:bg-white dark:border-white/[0.1] dark:bg-zinc-900/60 dark:text-zinc-100 dark:hover:bg-zinc-900 disabled:opacity-50"
@@ -292,24 +306,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
             </button>
             <button
               type="button"
-              onClick={() =>
-                downloadFullWorkshopReportPdf({
-                  meta: pdfMeta,
-                  blurPlates,
-                  includeModules: settings.includeModules,
-                  kpis: {
-                    entradas: entradas.length,
-                    fluxo: fluxo.length,
-                    garantia: garantia.length,
-                    totalFiltrado: orders.length,
-                  },
-                  entradas,
-                  fluxo,
-                  garantia,
-                  tecnicos,
-                  modelos,
-                })
-              }
+              onClick={() => downloadFullWorkshopReportPdf(fullReportPayload)}
               disabled={loading || !rawOrders}
               className="inline-flex items-center gap-2 rounded-2xl border border-sky-200/90 bg-sky-500/15 px-3 py-2 text-[13px] font-semibold text-sky-900 shadow-sm transition hover:bg-sky-500/25 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:bg-sky-500/20 disabled:opacity-50"
             >
@@ -341,16 +338,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
         </div>
 
         {settingsOpen ? (
-          <div className="relative mt-5 grid gap-4 border-t border-zinc-200/70 pt-5 dark:border-white/[0.08] sm:grid-cols-2 lg:grid-cols-3">
-            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-zinc-200/80 bg-white/50 p-3 dark:border-white/[0.08] dark:bg-zinc-950/30">
-              <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200">Incluir laboratório (módulos)</span>
-              <input
-                type="checkbox"
-                checked={settings.includeModules}
-                onChange={(e) => persistSettings({ ...settings, includeModules: e.target.checked })}
-                className="h-5 w-5 accent-sky-600"
-              />
-            </label>
+          <div className="relative mt-5 max-w-md border-t border-zinc-200/70 pt-5 dark:border-white/[0.08]">
             <div className="rounded-2xl border border-zinc-200/80 bg-white/50 p-3 dark:border-white/[0.08] dark:bg-zinc-950/30">
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 Início da semana
@@ -380,39 +368,26 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
                 </button>
               </div>
             </div>
-            <div className="rounded-2xl border border-zinc-200/80 bg-white/50 p-3 dark:border-white/[0.08] dark:bg-zinc-950/30">
-              <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                <Gauge className="h-3.5 w-3.5" /> Top modelos (quantidade)
-              </p>
-              <input
-                type="range"
-                min={5}
-                max={40}
-                step={1}
-                value={settings.topModelsLimit}
-                onChange={(e) => persistSettings({ ...settings, topModelsLimit: Number(e.target.value) })}
-                className="w-full accent-sky-600"
-              />
-              <p className="mt-1 text-center text-[12px] font-mono text-zinc-600 dark:text-zinc-400">{settings.topModelsLimit}</p>
-            </div>
           </div>
         ) : null}
       </header>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { label: 'Entradas', value: entradas.length, icon: <Car className="h-5 w-5" />, tone: 'from-sky-500/20 to-sky-600/5' },
-          { label: 'Entrega no período', value: fluxo.length, icon: <Wrench className="h-5 w-5" />, tone: 'from-emerald-500/20 to-teal-600/5' },
-          { label: 'Garantia', value: garantia.length, icon: <Shield className="h-5 w-5" />, tone: 'from-rose-500/20 to-orange-500/5' },
-          { label: 'Ordens (filtro)', value: orders.length, icon: <BarChart3 className="h-5 w-5" />, tone: 'from-violet-500/20 to-indigo-600/5' },
+          { label: 'Entradas', value: entradas.length, icon: <Car className="h-5 w-5" />, tone: 'from-sky-500/20 to-sky-600/5', lightBorder: 'border-sky-200/90', lightBg: 'from-sky-100 via-sky-50/90 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(14,165,233,0.35)]', iconLight: 'bg-sky-500/15 text-sky-700' },
+          { label: 'Entrega no período', value: fluxo.length, icon: <Wrench className="h-5 w-5" />, tone: 'from-emerald-500/20 to-teal-600/5', lightBorder: 'border-emerald-200/90', lightBg: 'from-emerald-100 via-emerald-50/90 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(16,185,129,0.35)]', iconLight: 'bg-emerald-500/15 text-emerald-700' },
+          { label: 'Garantia', value: garantia.length, icon: <Shield className="h-5 w-5" />, tone: 'from-rose-500/20 to-orange-500/5', lightBorder: 'border-rose-200/90', lightBg: 'from-rose-100 via-orange-50/80 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(244,63,94,0.3)]', iconLight: 'bg-rose-500/15 text-rose-700' },
+          { label: 'Módulos (lab.)', value: modulosEntradas.length, icon: <CircuitBoard className="h-5 w-5" />, tone: 'from-violet-500/20 to-indigo-600/5', lightBorder: 'border-violet-200/90', lightBg: 'from-violet-100 via-indigo-50/80 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(139,92,246,0.35)]', iconLight: 'bg-violet-500/15 text-violet-700' },
         ].map((k) => (
           <div
             key={k.label}
-            className={`relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-gradient-to-br ${k.tone} p-4 dark:border-white/[0.08]`}
+            className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 ${k.lightBorder} ${k.lightBg} ${k.lightShadow} dark:border-white/[0.08] dark:bg-gradient-to-br ${k.tone}`}
           >
             <div className="flex items-start justify-between gap-2">
-              <span className="text-[12px] font-medium text-zinc-600 dark:text-zinc-400">{k.label}</span>
-              <span className="rounded-xl bg-white/70 p-2 text-zinc-800 shadow-sm dark:bg-zinc-900/70 dark:text-zinc-100">
+              <span className="text-[12px] font-semibold text-zinc-700 dark:font-medium dark:text-zinc-400">{k.label}</span>
+              <span
+                className={`rounded-xl p-2 shadow-sm ${k.iconLight} dark:bg-zinc-900/70 dark:text-zinc-100 dark:shadow-none`}
+              >
                 {k.icon}
               </span>
             </div>
@@ -441,6 +416,15 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
               >
                 {s.icon}
                 <span className="text-[13px] font-semibold whitespace-nowrap">{s.label}</span>
+                <span
+                  className={`min-w-[1.5rem] rounded-full px-2 py-0.5 text-center text-[11px] font-bold tabular-nums ${
+                    active
+                      ? 'bg-white/20 text-white dark:bg-zinc-900/15 dark:text-zinc-900'
+                      : 'bg-zinc-200/90 text-zinc-700 dark:bg-white/[0.08] dark:text-zinc-300'
+                  }`}
+                >
+                  {loading ? '—' : sectionCounts[s.id]}
+                </span>
               </button>
             );
           })}
@@ -462,14 +446,19 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
         ) : activeSection === 'entradas' ? (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Entradas no período</h2>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                Entradas no período
+                <span className="ml-2 rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[13px] font-bold text-sky-800 dark:text-sky-200">
+                  {entradas.length}
+                </span>
+              </h2>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() =>
                     downloadOrdersReportPdf(
                       'Entradas',
-                      'Critério: data de criação da OS dentro do período. Respeita o filtro veículos / módulos nas configurações.',
+                      'Critério: data de criação da OS de veículo dentro do período.',
                       entradas,
                       pdfMeta,
                       blurPlates
@@ -484,7 +473,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
                   onClick={() =>
                     printOrdersReportPdf(
                       'Entradas',
-                      'Critério: data de criação da OS dentro do período. Respeita o filtro veículos / módulos nas configurações.',
+                      'Critério: data de criação da OS de veículo dentro do período.',
                       entradas,
                       pdfMeta,
                       blurPlates
@@ -497,14 +486,19 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
               </div>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
-              Critério: data de criação da OS dentro de {range.shortLabel}. {settings.includeModules ? 'Inclui módulos.' : 'Apenas veículos.'}
+              Critério: data de criação da OS de veículo dentro de {range.shortLabel}.
             </p>
             <OrderTable orders={entradas} blurPlates={blurPlates} empty="Nenhuma entrada neste período." />
           </div>
         ) : activeSection === 'fluxo' ? (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Entrada e saída no período</h2>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                Entrada e saída no período
+                <span className="ml-2 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[13px] font-bold text-emerald-800 dark:text-emerald-200">
+                  {fluxo.length}
+                </span>
+              </h2>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -547,7 +541,12 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
         ) : activeSection === 'tecnicos' ? (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Responsabilidade por técnico</h2>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                Responsabilidade por técnico
+                <span className="ml-2 rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[13px] font-bold text-sky-800 dark:text-sky-200">
+                  {sectionCounts.tecnicos}
+                </span>
+              </h2>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -583,7 +582,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
                         {t.count} {t.count === 1 ? 'OS' : 'OS'}
                       </span>
                     </div>
-                    <OrderTable orders={t.orders} blurPlates={blurPlates} compact empty="" />
+                    <OrderTable orders={t.orders} blurPlates={blurPlates} empty="" />
                   </div>
                 ))
               )}
@@ -592,7 +591,12 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
         ) : activeSection === 'garantia' ? (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Garantia no período</h2>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                Garantia no período
+                <span className="ml-2 rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[13px] font-bold text-rose-800 dark:text-rose-200">
+                  {garantia.length}
+                </span>
+              </h2>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -632,74 +636,126 @@ export const ReportsView: React.FC<{ blurPlates?: boolean }> = ({ blurPlates = f
             </p>
             <OrderTable orders={garantia} blurPlates={blurPlates} empty="Nenhuma OS de garantia neste período." />
           </div>
-        ) : (
-          <div className="space-y-4">
+        ) : activeSection === 'laboratorio' ? (
+          <div className="space-y-8">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Modelos mais frequentes</h2>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => downloadModelsReportPdf(modelos, pdfMeta)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-sky-200/90 bg-sky-500/10 px-3 py-2 text-[13px] font-semibold text-sky-900 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100"
-                >
-                  <FileText className="h-4 w-4" /> PDF
-                </button>
-                <button
-                  type="button"
-                  onClick={() => printModelsReportPdf(modelos, pdfMeta)}
-                  className={printSectionBtnClass}
-                >
-                  <Printer className="h-4 w-4" /> Imprimir
-                </button>
-              </div>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Laboratório — módulos</h2>
+              <span className="rounded-full bg-violet-500/15 px-3 py-1 text-[12px] font-bold text-violet-800 dark:text-violet-200">
+                {modulosEntradas.length} entradas · {modulosFluxo.length} entrega · {modulosGarantia.length} garantia
+              </span>
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
-              Ranking entre as <strong>entradas</strong> do período (marca + modelo). Útil para estoque e campanhas.
+              Ordens de serviço do tipo <strong>módulo</strong> (laboratório), com os mesmos critérios das abas de veículos.
             </p>
-            {modelos.length === 0 ? (
-              <p className="py-12 text-center text-zinc-500">Sem dados para o período.</p>
-            ) : (
-              <ul className="space-y-3">
-                {modelos.map((m, idx) => (
-                  <li
-                    key={m.key}
-                    className="rounded-2xl border border-zinc-200/70 bg-white/40 p-3 dark:border-white/[0.08] dark:bg-zinc-950/35"
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-2 text-[14px] font-medium text-zinc-900 dark:text-white">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-900 text-[12px] font-bold text-white dark:bg-white dark:text-zinc-900">
-                          {idx + 1}
-                        </span>
-                        {m.brand} · {m.model}
-                      </span>
-                      <span className="text-[14px] font-bold tabular-nums text-sky-600 dark:text-sky-400">{m.count}</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-zinc-200/80 dark:bg-zinc-800">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-sky-500 to-violet-500 transition-all"
-                        style={{ width: `${Math.max(8, (m.count / maxModelCount) * 100)}%` }}
-                      />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+
+            <LabReportBlock
+              title="Entradas no período"
+              count={modulosEntradas.length}
+              badgeClass="bg-sky-500/15 text-sky-800 dark:text-sky-200"
+              orders={modulosEntradas}
+              pdfSlug="Lab_entradas"
+              pdfNote="Módulos: data de criação no período."
+              empty="Nenhum módulo com entrada neste período."
+              pdfMeta={pdfMeta}
+              blurPlates={blurPlates}
+              printBtnClass={printSectionBtnClass}
+            />
+            <LabReportBlock
+              title="Entrada e saída no período"
+              count={modulosFluxo.length}
+              badgeClass="bg-emerald-500/15 text-emerald-800 dark:text-emerald-200"
+              orders={modulosFluxo}
+              pdfSlug="Lab_entrada_saida"
+              pdfNote="Módulos arquivados com criação e arquivamento no período."
+              empty="Nenhum módulo com esse perfil no período."
+              pdfMeta={pdfMeta}
+              blurPlates={blurPlates}
+              printBtnClass={printSectionBtnClass}
+              bordered
+            />
+            <LabReportBlock
+              title="Garantia no período"
+              count={modulosGarantia.length}
+              badgeClass="bg-rose-500/15 text-rose-800 dark:text-rose-200"
+              orders={modulosGarantia}
+              pdfSlug="Lab_garantia"
+              pdfNote="Módulos com tag de garantia ou etapa Garantia."
+              empty="Nenhum módulo de garantia neste período."
+              pdfMeta={pdfMeta}
+              blurPlates={blurPlates}
+              printBtnClass={printSectionBtnClass}
+              bordered
+            />
           </div>
-        )}
+        ) : null}
       </section>
     </div>
   );
 };
 
+type LabReportBlockProps = {
+  title: string;
+  count: number;
+  badgeClass: string;
+  orders: ServiceOrderListItem[];
+  pdfSlug: string;
+  pdfNote: string;
+  empty: string;
+  pdfMeta: { periodLong: string; periodShort: string; scopeNote: string };
+  blurPlates: boolean;
+  printBtnClass: string;
+  bordered?: boolean;
+};
+
+function LabReportBlock({
+  title,
+  count,
+  badgeClass,
+  orders,
+  pdfSlug,
+  pdfNote,
+  empty,
+  pdfMeta,
+  blurPlates,
+  printBtnClass,
+  bordered,
+}: LabReportBlockProps) {
+  return (
+    <div className={`space-y-3 ${bordered ? 'border-t border-zinc-200/70 pt-6 dark:border-white/[0.08]' : ''}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-white">
+          {title}
+          <span className={`ml-2 rounded-full px-2 py-0.5 text-[12px] font-bold ${badgeClass}`}>{count}</span>
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => downloadOrdersReportPdf(pdfSlug, pdfNote, orders, pdfMeta, blurPlates)}
+            className="inline-flex items-center gap-2 rounded-xl border border-sky-200/90 bg-sky-500/10 px-3 py-2 text-[13px] font-semibold text-sky-900 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100"
+          >
+            <FileText className="h-4 w-4" /> PDF
+          </button>
+          <button
+            type="button"
+            onClick={() => printOrdersReportPdf(pdfSlug, pdfNote, orders, pdfMeta, blurPlates)}
+            className={printBtnClass}
+          >
+            <Printer className="h-4 w-4" /> Imprimir
+          </button>
+        </div>
+      </div>
+      <OrderTable orders={orders} blurPlates={blurPlates} empty={empty} />
+    </div>
+  );
+}
+
 function OrderTable({
   orders,
   blurPlates,
-  compact,
   empty,
 }: {
   orders: ServiceOrderListItem[];
   blurPlates: boolean;
-  compact?: boolean;
   empty: string;
 }) {
   if (orders.length === 0 && empty) {
@@ -707,36 +763,36 @@ function OrderTable({
   }
   if (orders.length === 0) return null;
   return (
-    <div className={`overflow-x-auto ${compact ? 'mt-2' : ''}`}>
+    <div className="max-h-[min(70vh,560px)] overflow-auto rounded-xl border border-zinc-200/60 dark:border-white/[0.06]">
       <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-[13px]">
-        <thead>
+        <thead className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm dark:bg-zinc-900/95">
           <tr className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            <th className="border-b border-zinc-200/80 pb-2 pr-3 dark:border-white/[0.08]">OS</th>
-            <th className="border-b border-zinc-200/80 pb-2 pr-3 dark:border-white/[0.08]">Cliente</th>
-            <th className="border-b border-zinc-200/80 pb-2 pr-3 dark:border-white/[0.08]">Placa / ID</th>
-            <th className="border-b border-zinc-200/80 pb-2 pr-3 dark:border-white/[0.08]">Veículo</th>
-            <th className="border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]">Status</th>
+            <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">OS</th>
+            <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Cliente</th>
+            <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Placa / ID</th>
+            <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Veículo / Módulo</th>
+            <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Status</th>
           </tr>
         </thead>
         <tbody>
-          {(compact ? orders.slice(0, 6) : orders).map((o) => {
+          {orders.map((o) => {
             const stName =
               getStageConfig(o.status)?.name ?? (o.status === CANCELLED_STATUS ? 'Arquivado' : o.status);
             const stCls = getStageStyle(o.status);
             const vehicle = [o.vehicle_brand, o.vehicle_model].filter(Boolean).join(' ') || o.module_identification || '—';
             return (
               <tr key={o.id} className="text-zinc-800 dark:text-zinc-200">
-                <td className="border-b border-zinc-100/90 py-2 pr-3 font-mono text-[12px] dark:border-white/[0.06]">
+                <td className="border-b border-zinc-100/90 px-3 py-2 font-mono text-[12px] dark:border-white/[0.06]">
                   {o.os_number != null ? `#${o.os_number}` : o.id.slice(0, 8)}
                 </td>
-                <td className="border-b border-zinc-100/90 py-2 pr-3 dark:border-white/[0.06]">
+                <td className="border-b border-zinc-100/90 px-3 py-2 dark:border-white/[0.06]">
                   {o.customer_name ?? o.customers?.name ?? '—'}
                 </td>
-                <td className="border-b border-zinc-100/90 py-2 pr-3 font-mono dark:border-white/[0.06]">
+                <td className="border-b border-zinc-100/90 px-3 py-2 font-mono dark:border-white/[0.06]">
                   {formatPlateDisplay(o.plate, blurPlates)}
                 </td>
-                <td className="border-b border-zinc-100/90 py-2 pr-3 dark:border-white/[0.06]">{vehicle}</td>
-                <td className="border-b border-zinc-100/90 py-2 dark:border-white/[0.06]">
+                <td className="border-b border-zinc-100/90 px-3 py-2 dark:border-white/[0.06]">{vehicle}</td>
+                <td className="border-b border-zinc-100/90 px-3 py-2 dark:border-white/[0.06]">
                   <span className={`inline-flex rounded-lg border px-2 py-0.5 text-[11px] font-semibold ${stCls}`}>
                     {stName}
                   </span>
@@ -746,9 +802,6 @@ function OrderTable({
           })}
         </tbody>
       </table>
-      {compact && orders.length > 6 ? (
-        <p className="mt-2 text-center text-[12px] text-zinc-500">+{orders.length - 6} registros neste grupo</p>
-      ) : null}
     </div>
   );
 }

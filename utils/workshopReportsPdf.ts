@@ -300,17 +300,22 @@ export function printTechniciansReportPdf(
 export type FullWorkshopReportPdfOpts = {
   meta: WorkshopReportPdfMeta;
   blurPlates: boolean;
-  includeModules: boolean;
-  kpis: { entradas: number; fluxo: number; garantia: number; totalFiltrado: number };
+  kpis: {
+    entradas: number;
+    fluxo: number;
+    garantia: number;
+    modulosEntradas: number;
+  };
   entradas: ServiceOrderListItem[];
   fluxo: ServiceOrderListItem[];
   garantia: ServiceOrderListItem[];
   tecnicos: TechnicianCountRow[];
-  modelos: ModelRankRow[];
+  modulosEntradas?: ServiceOrderListItem[];
+  modulosFluxo?: ServiceOrderListItem[];
 };
 
 function buildFullWorkshopReportDoc(opts: FullWorkshopReportPdfOpts): { doc: jsPDF; filename: string } {
-  const { meta, blurPlates, includeModules, kpis, entradas, fluxo, garantia, tecnicos, modelos } = opts;
+  const { meta, blurPlates, kpis, entradas, fluxo, garantia, tecnicos, modulosEntradas = [], modulosFluxo = [] } = opts;
   const filename = `rei_abs_relatorio_completo_${safeFilenamePart(meta.periodShort)}.pdf`;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   let y = drawBrandHeader(doc);
@@ -322,12 +327,11 @@ function buildFullWorkshopReportDoc(opts: FullWorkshopReportPdfOpts): { doc: jsP
   y += 6;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  const scopeExtra = includeModules ? ' e módulos' : '';
   const lines = [
-    `Entradas no período: ${kpis.entradas}`,
-    `Entrada e saída (mesmo período): ${kpis.fluxo}`,
-    `Garantia (entradas): ${kpis.garantia}`,
-    `Base filtrada (veículos${scopeExtra}): ${kpis.totalFiltrado} OS`,
+    `Entradas veículos no período: ${kpis.entradas}`,
+    `Entrada e saída veículos: ${kpis.fluxo}`,
+    `Garantia veículos: ${kpis.garantia}`,
+    `Entradas laboratório (módulos): ${kpis.modulosEntradas}`,
   ];
   lines.forEach((ln) => {
     doc.text(ln, MARGIN, y);
@@ -392,21 +396,8 @@ function buildFullWorkshopReportDoc(opts: FullWorkshopReportPdfOpts): { doc: jsP
     y += 2;
   }
 
-  if (modelos.length > 0) {
-    if (y > doc.internal.pageSize.getHeight() - 40) {
-      doc.addPage();
-      y = MARGIN + 4;
-    }
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('Top modelos', MARGIN, y);
-    y += 6;
-    doc.setFont('helvetica', 'normal');
-    const hdr = ['#', 'Marca', 'Modelo', 'Qtd.'];
-    const colW = [12, 45, 95, 30];
-    const mrows = modelos.map((m, i) => [String(i + 1), m.brand, m.model, String(m.count)]);
-    y = drawTable(doc, y, hdr, mrows, colW);
-  }
+  addSection('Laboratório — entradas', modulosEntradas);
+  addSection('Laboratório — entrada e saída', modulosFluxo);
 
   return { doc, filename };
 }
