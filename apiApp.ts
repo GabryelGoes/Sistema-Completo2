@@ -6016,13 +6016,46 @@ export function createApiApp() {
 
   async function resolveTechnicianName(technicianId: string | null | undefined): Promise<string> {
     if (!technicianId || !supabaseAdmin || !WORKSHOP_ID) return "";
-    const { data } = await supabaseAdmin
+    const { data: wt } = await supabaseAdmin
       .from("workshop_technicians")
       .select("name")
       .eq("id", technicianId)
       .eq("workshop_id", WORKSHOP_ID)
       .maybeSingle();
-    return (data?.name ?? "").toString().trim();
+    const wtName = (wt?.name ?? "").toString().trim();
+    if (wtName) return wtName;
+    const { data: su } = await supabaseAdmin
+      .from("workshop_system_users")
+      .select("display_name, username")
+      .eq("id", technicianId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("is_technician", true)
+      .maybeSingle();
+    if (!su) return "";
+    return ((su as { display_name?: string | null; username?: string | null }).display_name ||
+      (su as { username?: string | null }).username ||
+      ""
+    )
+      .toString()
+      .trim();
+  }
+
+  async function resolveSystemUserTechnicianDisplayName(userId: string): Promise<string> {
+    if (!userId || !supabaseAdmin || !WORKSHOP_ID) return "";
+    const { data } = await supabaseAdmin
+      .from("workshop_system_users")
+      .select("display_name, username")
+      .eq("id", userId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("is_technician", true)
+      .maybeSingle();
+    if (!data) return "";
+    return ((data as { display_name?: string | null; username?: string | null }).display_name ||
+      (data as { username?: string | null }).username ||
+      ""
+    )
+      .toString()
+      .trim();
   }
 
   async function assertQualityIncidentInWorkshop(incidentId: string) {
@@ -6043,6 +6076,10 @@ export function createApiApp() {
       const status = typeof req.query.status === "string" ? req.query.status.trim() : "";
       const technicianId =
         typeof req.query.technicianId === "string" ? req.query.technicianId.trim() : "";
+      const technicianSystemUserId =
+        typeof req.query.technicianSystemUserId === "string"
+          ? req.query.technicianSystemUserId.trim()
+          : "";
       const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
       const severity = typeof req.query.severity === "string" ? req.query.severity.trim() : "";
       const from = typeof req.query.from === "string" ? req.query.from.trim() : "";
@@ -6057,6 +6094,11 @@ export function createApiApp() {
 
       if (status && status !== "all") query = query.eq("status", status);
       if (technicianId) query = query.eq("technician_id", technicianId);
+      if (technicianSystemUserId) {
+        const sysName = await resolveSystemUserTechnicianDisplayName(technicianSystemUserId);
+        if (sysName) query = query.eq("technician_name", sysName);
+        else query = query.eq("technician_id", "00000000-0000-0000-0000-000000000000");
+      }
       if (category) query = query.eq("category", category);
       if (severity) query = query.eq("severity", severity);
       if (from) query = query.gte("occurred_at", from);

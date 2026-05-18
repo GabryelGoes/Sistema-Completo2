@@ -12,14 +12,17 @@ import {
 import { QualityIncidentEditorModal } from '../QualityIncidentEditorModal';
 import {
   getQualityIncidents,
-  getWorkshopTechnicians,
   type AuthSession,
   type QualityIncident,
   type QualityIncidentCategory,
   type QualityIncidentSeverity,
   type QualityIncidentStatus,
-  type WorkshopTechnician,
 } from '../../services/apiService';
+import {
+  getQualityRadarTechnicianOptions,
+  qualityRadarTechnicianFilterParam,
+  type QualityRadarTechnicianOption,
+} from '../../utils/qualityRadarTechnicians';
 import {
   QUALITY_CATEGORY_LABEL,
   QUALITY_RADAR_ICON,
@@ -68,7 +71,7 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
   const [activeTab, setActiveTab] = useState<TabId>('ocorrencias');
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>('month');
   const [items, setItems] = useState<QualityIncident[] | null>(null);
-  const [technicians, setTechnicians] = useState<WorkshopTechnician[]>([]);
+  const [technicians, setTechnicians] = useState<QualityRadarTechnicianOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -89,17 +92,18 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
     setLoading(true);
     setError(null);
     try {
+      const techFilter = qualityRadarTechnicianFilterParam(filterTechnicianId);
       const [data, techs] = await Promise.all([
         getQualityIncidents({
           from,
           to,
-          technicianId: filterTechnicianId || undefined,
+          ...techFilter,
           category: filterCategory || undefined,
           severity: filterSeverity || undefined,
           status: filterStatus || undefined,
           q: search.trim() || undefined,
         }),
-        getWorkshopTechnicians(),
+        getQualityRadarTechnicianOptions(),
       ]);
       setItems(data);
       setTechnicians(techs);
@@ -140,9 +144,9 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
     setEditorOpen(true);
   };
 
-  const filterByTechnician = (techId: string | null, techName: string) => {
+  const filterByTechnician = (selectValue: string | null, techName: string) => {
     setActiveTab('ocorrencias');
-    if (techId) setFilterTechnicianId(techId);
+    if (selectValue) setFilterTechnicianId(selectValue);
     else {
       setFilterTechnicianId('');
       setSearch(techName);
@@ -392,6 +396,7 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
         <ReportByTechnicianPanel
           report={report}
           loading={loading}
+          technicians={technicians}
           onSelectTechnician={filterByTechnician}
         />
       )}
@@ -414,11 +419,13 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
 function ReportByTechnicianPanel({
   report,
   loading,
+  technicians,
   onSelectTechnician,
 }: {
   report: ReturnType<typeof buildQualityRadarReport>;
   loading: boolean;
-  onSelectTechnician: (techId: string | null, techName: string) => void;
+  technicians: QualityRadarTechnicianOption[];
+  onSelectTechnician: (selectValue: string | null, techName: string) => void;
 }) {
   if (loading) {
     return (
@@ -460,7 +467,12 @@ function ReportByTechnicianPanel({
 
       <div className="grid gap-3 lg:grid-cols-2">
         {report.technicians.map((row) => (
-          <TechnicianReportCard key={row.technicianId ?? row.technicianName} row={row} onSelect={onSelectTechnician} />
+          <TechnicianReportCard
+            key={row.technicianId ?? row.technicianName}
+            row={row}
+            technicians={technicians}
+            onSelect={onSelectTechnician}
+          />
         ))}
       </div>
     </div>
@@ -469,18 +481,30 @@ function ReportByTechnicianPanel({
 
 function TechnicianReportCard({
   row,
+  technicians,
   onSelect,
 }: {
   row: TechnicianQualityRow;
-  onSelect: (techId: string | null, techName: string) => void;
+  technicians: QualityRadarTechnicianOption[];
+  onSelect: (selectValue: string | null, techName: string) => void;
 }) {
   const score = technicianScore(row);
   const maxCat = Math.max(...Object.values(row.byCategory), 1);
 
+  const resolveSelectValue = (): string | null => {
+    if (row.technicianId) {
+      const wt = technicians.find((t) => t.workshopTechnicianId === row.technicianId);
+      if (wt) return wt.id;
+    }
+    const nameNorm = row.technicianName.trim().toLowerCase();
+    const byName = technicians.find((t) => t.name.trim().toLowerCase() === nameNorm);
+    return byName?.id ?? null;
+  };
+
   return (
     <button
       type="button"
-      onClick={() => onSelect(row.technicianId, row.technicianName)}
+      onClick={() => onSelect(resolveSelectValue(), row.technicianName)}
       className={`${shell} w-full p-4 text-left transition hover:border-rose-400/50 hover:shadow-lg`}
     >
       <div className="flex items-start justify-between gap-3">

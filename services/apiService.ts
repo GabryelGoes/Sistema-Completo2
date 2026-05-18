@@ -544,6 +544,8 @@ export type QualityIncidentDetail = QualityIncident & {
 export async function getQualityIncidents(params?: {
   status?: string;
   technicianId?: string;
+  /** Usuário do sistema (is_technician) — filtra por technician_name na ocorrência. */
+  technicianSystemUserId?: string;
   category?: string;
   severity?: string;
   from?: string;
@@ -553,6 +555,7 @@ export async function getQualityIncidents(params?: {
   const search = new URLSearchParams();
   if (params?.status) search.set("status", params.status);
   if (params?.technicianId) search.set("technicianId", params.technicianId);
+  if (params?.technicianSystemUserId) search.set("technicianSystemUserId", params.technicianSystemUserId);
   if (params?.category) search.set("category", params.category);
   if (params?.severity) search.set("severity", params.severity);
   if (params?.from) search.set("from", params.from);

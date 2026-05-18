@@ -7,15 +7,19 @@ import {
   deleteQualityIncident,
   deleteQualityIncidentAttachment,
   getQualityIncidentById,
-  getWorkshopTechnicians,
   updateQualityIncident,
   uploadQualityIncidentAttachment,
   type QualityIncidentAttachment,
   type QualityIncidentCategory,
   type QualityIncidentSeverity,
   type QualityIncidentStatus,
-  type WorkshopTechnician,
 } from '../services/apiService';
+import {
+  getQualityRadarTechnicianOptions,
+  qualityRadarTechnicianSelectValue,
+  resolveQualityRadarTechnicianPayload,
+  type QualityRadarTechnicianOption,
+} from '../utils/qualityRadarTechnicians';
 import {
   QUALITY_CATEGORIES,
   QUALITY_SEVERITIES,
@@ -56,7 +60,7 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [technicians, setTechnicians] = useState<WorkshopTechnician[]>([]);
+  const [technicians, setTechnicians] = useState<QualityRadarTechnicianOption[]>([]);
   const [attachments, setAttachments] = useState<QualityIncidentAttachment[]>([]);
 
   const [technicianId, setTechnicianId] = useState('');
@@ -80,7 +84,7 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
 
   useEffect(() => {
     if (!open) return;
-    void getWorkshopTechnicians()
+    void getQualityRadarTechnicianOptions()
       .then(setTechnicians)
       .catch(() => setTechnicians([]));
   }, [open]);
@@ -118,9 +122,11 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
     setLoading(true);
     setError(null);
     void getQualityIncidentById(incidentId)
-      .then((d) => {
+      .then(async (d) => {
         if (cancelled) return;
-        setTechnicianId(d.technicianId ?? '');
+        const opts = technicians.length ? technicians : await getQualityRadarTechnicianOptions();
+        if (!cancelled && !technicians.length) setTechnicians(opts);
+        setTechnicianId(qualityRadarTechnicianSelectValue(d.technicianId, d.technicianName, opts));
         setTitle(d.title);
         setCategory(d.category);
         setSeverity(d.severity);
@@ -149,12 +155,14 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
     };
   }, [open, incidentId]);
 
-  const selectedTechName =
-    technicians.find((t) => t.id === technicianId)?.name ?? '';
-
-  const buildPayload = () => ({
-    technicianId: technicianId || null,
-    technicianName: selectedTechName,
+  const buildPayload = () => {
+    const { technicianId: wtId, technicianName } = resolveQualityRadarTechnicianPayload(
+      technicianId,
+      technicians
+    );
+    return {
+    technicianId: wtId,
+    technicianName,
     title: title.trim() || 'Ocorrência sem título',
     category,
     severity,
@@ -174,10 +182,12 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
       .map((t) => t.trim())
       .filter(Boolean),
     resolvedByName: status === 'resolvida' ? authorName : undefined,
-  });
+  };
+  };
 
   const handleSave = async () => {
-    if (!technicianId) {
+    const { technicianName: techName } = resolveQualityRadarTechnicianPayload(technicianId, technicians);
+    if (!technicianId || !techName) {
       setError('Selecione o mecânico responsável pela ocorrência.');
       return;
     }
