@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
   CalendarRange,
@@ -487,24 +487,40 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { label: 'Entradas', value: entradas.length, icon: <Car className="h-5 w-5" />, tone: 'from-sky-500/20 to-sky-600/5', lightBorder: 'border-sky-200/90', lightBg: 'from-sky-100 via-sky-50/90 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(14,165,233,0.35)]', iconLight: 'bg-sky-500/15 text-sky-700' },
-          { label: 'Entrega no período', value: fluxo.length, icon: <Wrench className="h-5 w-5" />, tone: 'from-emerald-500/20 to-teal-600/5', lightBorder: 'border-emerald-200/90', lightBg: 'from-emerald-100 via-emerald-50/90 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(16,185,129,0.35)]', iconLight: 'bg-emerald-500/15 text-emerald-700' },
-          { label: 'Garantia', value: garantia.length, icon: <Shield className="h-5 w-5" />, tone: 'from-rose-500/20 to-orange-500/5', lightBorder: 'border-rose-200/90', lightBg: 'from-rose-100 via-orange-50/80 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(244,63,94,0.3)]', iconLight: 'bg-rose-500/15 text-rose-700' },
-          { label: 'Módulos (lab.)', value: modulosEntradas.length, icon: <CircuitBoard className="h-5 w-5" />, tone: 'from-violet-500/20 to-indigo-600/5', lightBorder: 'border-violet-200/90', lightBg: 'from-violet-100 via-indigo-50/80 to-white', lightShadow: 'shadow-[0_4px_20px_-6px_rgba(139,92,246,0.35)]', iconLight: 'bg-violet-500/15 text-violet-700' },
+          {
+            label: 'Entradas',
+            value: entradas.length,
+            icon: <Car className="h-5 w-5" />,
+            card: 'border-sky-600 bg-sky-500 shadow-[0_6px_20px_-4px_rgba(14,165,233,0.45)]',
+          },
+          {
+            label: 'Entrega no período',
+            value: fluxo.length,
+            icon: <Wrench className="h-5 w-5" />,
+            card: 'border-emerald-600 bg-emerald-500 shadow-[0_6px_20px_-4px_rgba(16,185,129,0.45)]',
+          },
+          {
+            label: 'Garantia',
+            value: garantia.length,
+            icon: <Shield className="h-5 w-5" />,
+            card: 'border-rose-600 bg-rose-500 shadow-[0_6px_20px_-4px_rgba(244,63,94,0.4)]',
+          },
+          {
+            label: 'Módulos (lab.)',
+            value: modulosEntradas.length,
+            icon: <CircuitBoard className="h-5 w-5" />,
+            card: 'border-violet-600 bg-violet-500 shadow-[0_6px_20px_-4px_rgba(139,92,246,0.45)]',
+          },
         ].map((k) => (
           <div
             key={k.label}
-            className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 ${k.lightBorder} ${k.lightBg} ${k.lightShadow} dark:border-white/[0.08] dark:bg-gradient-to-br ${k.tone}`}
+            className={`relative overflow-hidden rounded-2xl border p-4 text-white ${k.card}`}
           >
             <div className="flex items-start justify-between gap-2">
-              <span className="text-[12px] font-semibold text-zinc-700 dark:font-medium dark:text-zinc-400">{k.label}</span>
-              <span
-                className={`rounded-xl p-2 shadow-sm ${k.iconLight} dark:bg-zinc-900/70 dark:text-zinc-100 dark:shadow-none`}
-              >
-                {k.icon}
-              </span>
+              <span className="text-[12px] font-semibold leading-snug text-white/95">{k.label}</span>
+              <span className="rounded-xl bg-white/20 p-2 text-white">{k.icon}</span>
             </div>
-            <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-white">
+            <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-white">
               {loading ? '—' : k.value}
             </p>
           </div>
