@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  BookOpen,
   LayoutGrid,
   List,
   Plus,
@@ -16,6 +15,7 @@ import {
   type ErrorBulletinStatus,
 } from '../../services/apiService';
 import type { AuthSession } from '../../services/apiService';
+import { ERROR_BULLETIN_ICON } from '../../constants/errorBulletinIcon';
 
 const SETTINGS_KEY = 'app_error_bulletin_settings_v1';
 
@@ -164,7 +164,7 @@ export const ErrorBulletinView: React.FC<{ authSession?: AuthSession | null }> =
               Base técnica da oficina
             </p>
             <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight md:text-[1.75rem]">
-              <BookOpen className="h-7 w-7 shrink-0" />
+              <img src={ERROR_BULLETIN_ICON} alt="" className="h-9 w-9 shrink-0 rounded-xl object-cover" />
               Boletim de Erros
             </h1>
             <p className="max-w-xl text-[14px] leading-relaxed text-amber-50">

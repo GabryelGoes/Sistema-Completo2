@@ -21,6 +21,7 @@ import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import { SYSTEM_NOTIFICATIONS_ICON } from '../../constants/systemNotificationsIcon';
 import { QUALITY_RADAR_ICON } from '../../constants/qualityRadar';
+import { ERROR_BULLETIN_ICON } from '../../constants/errorBulletinIcon';
 import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
@@ -513,7 +514,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         id: 'boletim_erros',
         label: 'Boletim de Erros',
         icon: (
-          <img src="/icons/boletim-erros.svg" alt="Boletim de Erros" className="h-full w-full object-cover" />
+          <img src={ERROR_BULLETIN_ICON} alt="Boletim de Erros" className="h-full w-full object-cover" />
         ),
         onOpen: () => onOpenApp('boletim_erros'),
       });

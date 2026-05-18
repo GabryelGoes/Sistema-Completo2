@@ -26,6 +26,7 @@ import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { SYSTEM_NOTIFICATIONS_ICON } from '../constants/systemNotificationsIcon';
 import { QUALITY_RADAR_ICON } from '../constants/qualityRadar';
+import { ERROR_BULLETIN_ICON } from '../constants/errorBulletinIcon';
 import type { SystemUserPermissions, SystemUser } from '../services/apiService';
 import {
   getSystemUsers,
@@ -162,7 +163,7 @@ const HOME_MODULE_ACCESS: {
     key: 'access_boletim_erros',
     label: 'Boletim de Erros',
     description: 'Base de DTC, sintomas, soluções e anexos técnicos',
-    icon: '/icons/boletim-erros.svg',
+    icon: ERROR_BULLETIN_ICON,
     iconAlt: 'Boletim de Erros',
   },
   {
