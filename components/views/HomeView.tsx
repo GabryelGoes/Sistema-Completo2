@@ -20,6 +20,7 @@ import { SystemNotificationsModal } from '../SystemNotificationsModal';
 import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import { SYSTEM_NOTIFICATIONS_ICON } from '../../constants/systemNotificationsIcon';
+import { QUALITY_RADAR_ICON } from '../../constants/qualityRadar';
 import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
@@ -522,7 +523,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         id: 'radar_qualidade',
         label: 'Radar de Qualidade',
         icon: (
-          <img src="/icons/radar-qualidade.svg" alt="Radar de Qualidade" className="h-full w-full object-cover" />
+          <img src={QUALITY_RADAR_ICON} alt="Radar de Qualidade" className="h-full w-full object-cover" />
         ),
         onOpen: () => onOpenApp('radar_qualidade'),
       });

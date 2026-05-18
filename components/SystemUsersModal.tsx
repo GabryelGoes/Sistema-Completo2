@@ -25,6 +25,7 @@ import {
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { SYSTEM_NOTIFICATIONS_ICON } from '../constants/systemNotificationsIcon';
+import { QUALITY_RADAR_ICON } from '../constants/qualityRadar';
 import type { SystemUserPermissions, SystemUser } from '../services/apiService';
 import {
   getSystemUsers,
@@ -168,7 +169,7 @@ const HOME_MODULE_ACCESS: {
     key: 'access_radar_qualidade',
     label: 'Radar de Qualidade',
     description: 'Registro de ocorrências por mecânico e relatório da equipe',
-    icon: '/icons/radar-qualidade.svg',
+    icon: QUALITY_RADAR_ICON,
     iconAlt: 'Radar de Qualidade',
   },
   { key: 'access_tv_patio', label: 'TV do Pátio', description: 'Modal na home e link do painel externo nas configurações', icon: '/icons/tv-patio-ios.png', iconAlt: 'TV do Pátio' },

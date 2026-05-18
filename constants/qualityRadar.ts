@@ -4,7 +4,7 @@ export const QUALITY_RADAR_MODULE_TITLE = 'Radar de Qualidade';
 export const QUALITY_RADAR_MODULE_SUBTITLE =
   'Registre ocorrências por mecânico, acompanhe severidade e gere relatórios da equipe.';
 
-export const QUALITY_RADAR_ICON = '/icons/radar-qualidade.svg';
+export const QUALITY_RADAR_ICON = '/icons/radar-qualidade-ios.png';
 
 export type QualityIncidentCategory =
   | 'montagem'
