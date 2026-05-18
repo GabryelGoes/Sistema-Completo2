@@ -3,7 +3,12 @@ import crypto from "crypto";
 import path from "path";
 import express from "express";
 import multer from "multer";
-import { supabaseAdmin, VEHICLE_PHOTOS_BUCKET, TV_PATIO_BUCKET } from "./supabaseClient.js";
+import {
+  supabaseAdmin,
+  VEHICLE_PHOTOS_BUCKET,
+  TV_PATIO_BUCKET,
+  ERROR_BULLETINS_BUCKET,
+} from "./supabaseClient.js";
 import {
   FIRST_STAGE,
   ALL_STATUSES,
@@ -5556,6 +5561,397 @@ export function createApiApp() {
       return res.json({ ok: true });
     } catch (err: any) {
       console.error("[API] PATCH public vehicle-accompaniment:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  // ----------------- BOLETIM DE ERROS -----------------
+  const mapBulletinRow = (row: Record<string, unknown>) => ({
+    id: row.id,
+    workshopId: row.workshop_id,
+    title: row.title ?? "",
+    vehicleBrand: row.vehicle_brand ?? "",
+    vehicleModel: row.vehicle_model ?? "",
+    vehicleYear: row.vehicle_year ?? "",
+    plate: row.plate ?? "",
+    engineInfo: row.engine_info ?? "",
+    dtcCodes: row.dtc_codes ?? "",
+    symptoms: row.symptoms ?? "",
+    solution: row.solution ?? "",
+    notes: row.notes ?? "",
+    status: row.status ?? "published",
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    referenceLinks: Array.isArray(row.reference_links) ? row.reference_links : [],
+    serviceOrderId: row.service_order_id ?? null,
+    createdByUserId: row.created_by_user_id ?? null,
+    createdByName: row.created_by_name ?? "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  });
+
+  const mapAttachmentRow = (row: Record<string, unknown>) => ({
+    id: row.id,
+    bulletinId: row.bulletin_id,
+    kind: row.kind ?? "file",
+    name: row.name ?? "",
+    url: row.url ?? "",
+    storagePath: row.storage_path ?? null,
+    mimeType: row.mime_type ?? null,
+    fileSizeBytes: row.file_size_bytes ?? null,
+    sortOrder: row.sort_order ?? 0,
+    createdAt: row.created_at,
+  });
+
+  async function assertBulletinInWorkshop(bulletinId: string) {
+    const { data, error } = await supabaseAdmin!
+      .from("workshop_error_bulletins")
+      .select("id, workshop_id")
+      .eq("id", bulletinId)
+      .single();
+    if (error || !data || data.workshop_id !== WORKSHOP_ID) return null;
+    return data;
+  }
+
+  app.get("/api/error-bulletins", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const status = typeof req.query.status === "string" ? req.query.status.trim() : "";
+      const q = typeof req.query.q === "string" ? req.query.q.trim().toLowerCase() : "";
+
+      let query = supabaseAdmin
+        .from("workshop_error_bulletins")
+        .select("*")
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("updated_at", { ascending: false });
+
+      if (status && status !== "all") {
+        query = query.eq("status", status);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error("[API] GET error-bulletins:", error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      let rows = (data ?? []) as Record<string, unknown>[];
+      if (q) {
+        rows = rows.filter((row) => {
+          const hay = [
+            row.title,
+            row.vehicle_brand,
+            row.vehicle_model,
+            row.plate,
+            row.dtc_codes,
+            row.symptoms,
+            row.solution,
+            ...(Array.isArray(row.tags) ? row.tags : []),
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          return hay.includes(q);
+        });
+      }
+
+      return res.json(rows.map(mapBulletinRow));
+    } catch (err: any) {
+      console.error("[API] GET error-bulletins:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.get("/api/error-bulletins/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const id = String(req.params.id || "").trim();
+      const { data: bulletin, error } = await supabaseAdmin
+        .from("workshop_error_bulletins")
+        .select("*")
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+
+      if (error || !bulletin) {
+        return res.status(404).json({ error: "Boletim não encontrado." });
+      }
+
+      const { data: attachments } = await supabaseAdmin
+        .from("workshop_error_bulletin_attachments")
+        .select("*")
+        .eq("bulletin_id", id)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+
+      return res.json({
+        ...mapBulletinRow(bulletin as Record<string, unknown>),
+        attachments: (attachments ?? []).map((a) =>
+          mapAttachmentRow(a as Record<string, unknown>)
+        ),
+      });
+    } catch (err: any) {
+      console.error("[API] GET error-bulletins/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.post("/api/error-bulletins", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const b = req.body ?? {};
+      const now = new Date().toISOString();
+      const { data, error } = await supabaseAdmin
+        .from("workshop_error_bulletins")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          title: (b.title ?? "").toString().trim(),
+          vehicle_brand: b.vehicleBrand ?? null,
+          vehicle_model: b.vehicleModel ?? null,
+          vehicle_year: b.vehicleYear ?? null,
+          plate: b.plate ? String(b.plate).toUpperCase() : null,
+          engine_info: b.engineInfo ?? null,
+          dtc_codes: (b.dtcCodes ?? "").toString(),
+          symptoms: (b.symptoms ?? "").toString(),
+          solution: (b.solution ?? "").toString(),
+          notes: (b.notes ?? "").toString(),
+          status: ["draft", "published", "archived"].includes(b.status) ? b.status : "published",
+          tags: Array.isArray(b.tags) ? b.tags.map((t: unknown) => String(t).trim()).filter(Boolean) : [],
+          reference_links: Array.isArray(b.referenceLinks) ? b.referenceLinks : [],
+          service_order_id: b.serviceOrderId ?? null,
+          created_by_user_id: b.createdByUserId ?? null,
+          created_by_name: (b.createdByName ?? "").toString(),
+          updated_at: now,
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        console.error("[API] POST error-bulletins:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(201).json(mapBulletinRow(data as Record<string, unknown>));
+    } catch (err: any) {
+      console.error("[API] POST error-bulletins:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.patch("/api/error-bulletins/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const id = String(req.params.id || "").trim();
+      const existing = await assertBulletinInWorkshop(id);
+      if (!existing) return res.status(404).json({ error: "Boletim não encontrado." });
+
+      const b = req.body ?? {};
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (b.title !== undefined) updates.title = String(b.title).trim();
+      if (b.vehicleBrand !== undefined) updates.vehicle_brand = b.vehicleBrand;
+      if (b.vehicleModel !== undefined) updates.vehicle_model = b.vehicleModel;
+      if (b.vehicleYear !== undefined) updates.vehicle_year = b.vehicleYear;
+      if (b.plate !== undefined) updates.plate = b.plate ? String(b.plate).toUpperCase() : null;
+      if (b.engineInfo !== undefined) updates.engine_info = b.engineInfo;
+      if (b.dtcCodes !== undefined) updates.dtc_codes = String(b.dtcCodes);
+      if (b.symptoms !== undefined) updates.symptoms = String(b.symptoms);
+      if (b.solution !== undefined) updates.solution = String(b.solution);
+      if (b.notes !== undefined) updates.notes = String(b.notes);
+      if (b.status !== undefined && ["draft", "published", "archived"].includes(b.status)) {
+        updates.status = b.status;
+      }
+      if (b.tags !== undefined && Array.isArray(b.tags)) {
+        updates.tags = b.tags.map((t: unknown) => String(t).trim()).filter(Boolean);
+      }
+      if (b.referenceLinks !== undefined && Array.isArray(b.referenceLinks)) {
+        updates.reference_links = b.referenceLinks;
+      }
+      if (b.serviceOrderId !== undefined) updates.service_order_id = b.serviceOrderId;
+
+      const { data, error } = await supabaseAdmin
+        .from("workshop_error_bulletins")
+        .update(updates)
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("*")
+        .single();
+
+      if (error) {
+        console.error("[API] PATCH error-bulletins:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json(mapBulletinRow(data as Record<string, unknown>));
+    } catch (err: any) {
+      console.error("[API] PATCH error-bulletins:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.delete("/api/error-bulletins/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const id = String(req.params.id || "").trim();
+      const existing = await assertBulletinInWorkshop(id);
+      if (!existing) return res.status(404).json({ error: "Boletim não encontrado." });
+
+      const { error } = await supabaseAdmin
+        .from("workshop_error_bulletins")
+        .delete()
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID);
+
+      if (error) {
+        console.error("[API] DELETE error-bulletins:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] DELETE error-bulletins:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.post("/api/error-bulletins/:id/attachments", upload.single("file"), async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const bulletinId = String(req.params.id || "").trim();
+      const existing = await assertBulletinInWorkshop(bulletinId);
+      if (!existing) return res.status(404).json({ error: "Boletim não encontrado." });
+
+      const file = req.file;
+      if (!file) return res.status(400).json({ error: "Arquivo não enviado." });
+
+      const safeName = sanitizeVehiclePhotoFileName(file.originalname);
+      const pathInBucket = `${WORKSHOP_ID}/bulletins/${bulletinId}/${Date.now()}_${safeName}`;
+      const isPhoto = (file.mimetype || "").startsWith("image/");
+
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(ERROR_BULLETINS_BUCKET)
+        .upload(pathInBucket, file.buffer, { contentType: file.mimetype, upsert: false });
+
+      if (uploadError) {
+        console.error("[API] upload error-bulletin attachment:", uploadError);
+        return res.status(500).json({ error: uploadError.message });
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabaseAdmin.storage.from(ERROR_BULLETINS_BUCKET).getPublicUrl(pathInBucket);
+
+      const { data: row, error } = await supabaseAdmin
+        .from("workshop_error_bulletin_attachments")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          bulletin_id: bulletinId,
+          kind: isPhoto ? "photo" : "document",
+          name: safeName,
+          url: publicUrl,
+          storage_path: pathInBucket,
+          mime_type: file.mimetype,
+          file_size_bytes: file.size,
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      await supabaseAdmin
+        .from("workshop_error_bulletins")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", bulletinId);
+
+      return res.status(201).json(mapAttachmentRow(row as Record<string, unknown>));
+    } catch (err: any) {
+      console.error("[API] POST error-bulletin attachment:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.post("/api/error-bulletins/:id/links", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const bulletinId = String(req.params.id || "").trim();
+      const existing = await assertBulletinInWorkshop(bulletinId);
+      if (!existing) return res.status(404).json({ error: "Boletim não encontrado." });
+
+      const name = (req.body?.name ?? req.body?.title ?? "Link").toString().trim();
+      const url = (req.body?.url ?? "").toString().trim();
+      if (!url) return res.status(400).json({ error: "URL obrigatória." });
+
+      const { data: row, error } = await supabaseAdmin
+        .from("workshop_error_bulletin_attachments")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          bulletin_id: bulletinId,
+          kind: "link",
+          name: name || "Link",
+          url,
+          storage_path: null,
+        })
+        .select("*")
+        .single();
+
+      if (error) return res.status(500).json({ error: error.message });
+
+      await supabaseAdmin
+        .from("workshop_error_bulletins")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", bulletinId);
+
+      return res.status(201).json(mapAttachmentRow(row as Record<string, unknown>));
+    } catch (err: any) {
+      console.error("[API] POST error-bulletin link:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.delete("/api/error-bulletins/:id/attachments/:attachmentId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const bulletinId = String(req.params.id || "").trim();
+      const attachmentId = String(req.params.attachmentId || "").trim();
+      const existing = await assertBulletinInWorkshop(bulletinId);
+      if (!existing) return res.status(404).json({ error: "Boletim não encontrado." });
+
+      const { data: att } = await supabaseAdmin
+        .from("workshop_error_bulletin_attachments")
+        .select("*")
+        .eq("id", attachmentId)
+        .eq("bulletin_id", bulletinId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+
+      if (!att) return res.status(404).json({ error: "Anexo não encontrado." });
+
+      if (att.storage_path) {
+        await supabaseAdmin.storage.from(ERROR_BULLETINS_BUCKET).remove([att.storage_path]);
+      }
+
+      const { error } = await supabaseAdmin
+        .from("workshop_error_bulletin_attachments")
+        .delete()
+        .eq("id", attachmentId);
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] DELETE error-bulletin attachment:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
     }
   });

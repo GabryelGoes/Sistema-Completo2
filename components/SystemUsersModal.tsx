@@ -156,6 +156,13 @@ const HOME_MODULE_ACCESS: {
     icon: '/icons/relatorios-ios.svg',
     iconAlt: 'Relatórios',
   },
+  {
+    key: 'access_boletim_erros',
+    label: 'Boletim de Erros',
+    description: 'Base de DTC, sintomas, soluções e anexos técnicos',
+    icon: '/icons/boletim-erros.svg',
+    iconAlt: 'Boletim de Erros',
+  },
   { key: 'access_tv_patio', label: 'TV do Pátio', description: 'Modal na home e link do painel externo nas configurações', icon: '/icons/tv-patio-ios.png', iconAlt: 'TV do Pátio' },
   {
     key: 'access_centro_atendimento',

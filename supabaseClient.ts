@@ -26,3 +26,7 @@ export const VEHICLE_PHOTOS_BUCKET =
 /** Bucket Storage para imagens/vídeos da TV do pátio (público leitura). */
 export const TV_PATIO_BUCKET = process.env.SUPABASE_TV_PATIO_BUCKET || "tv-patio";
 
+/** Bucket Storage para anexos do Boletim de Erros (público leitura). */
+export const ERROR_BULLETINS_BUCKET =
+  process.env.SUPABASE_ERROR_BULLETINS_BUCKET || "error-bulletins";
+

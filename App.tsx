@@ -13,6 +13,7 @@ import { HomeView, type HomeAppId } from './components/views/HomeView';
 import { BudgetHubViewerModal } from './components/BudgetHubViewerModal';
 import { BudgetsHubView } from './components/views/BudgetsHubView';
 import { ReportsView } from './components/views/ReportsView';
+import { ErrorBulletinView } from './components/views/ErrorBulletinView';
 import { usePatioBudgetsHubNotifier } from './hooks/usePatioBudgetsHubNotifier';
 import { LoginView, getStoredAuth, setStoredAuth, clearStoredAuth } from './components/views/LoginView';
 import { useOrientation } from './components/views/useOrientation';
@@ -106,7 +107,7 @@ export default function App() {
   // Usuário limitado: abas conforme permissões (full_access = todas as abas)
   function permissionsToTabs(perms: SystemUserPermissions | undefined): TabId[] {
     if (!perms) return ['home'];
-    if (perms.full_access) return ['home', 'reception', 'agenda', 'patio', 'orcamentos', 'relatorios', 'laboratorio'];
+    if (perms.full_access) return ['home', 'reception', 'agenda', 'patio', 'orcamentos', 'relatorios', 'laboratorio', 'boletim_erros'];
     const t: TabId[] = [];
     if (perms.access_home) t.push('home');
     if (perms.access_reception) t.push('reception');
@@ -114,6 +115,7 @@ export default function App() {
     if (perms.access_patio) t.push('patio');
     if (effectiveAccessOrcamentos(perms)) t.push('orcamentos');
     if (perms.access_relatorios) t.push('relatorios');
+    if (perms.access_boletim_erros) t.push('boletim_erros');
     if (perms.access_laboratorio) t.push('laboratorio');
     return t.length ? t : ['home'];
   }
@@ -568,6 +570,14 @@ export default function App() {
             <ReportsView blurPlates={cinematographicMode} canDeleteOrders={canDeleteOrdersInReports} />
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
+            tabId="boletim_erros"
+            activeTab={userTab}
+            visitedTabs={visitedUserTabs}
+            className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
+          >
+            <ErrorBulletinView authSession={authSession} />
+          </KeepAliveTabPanel>
+          <KeepAliveTabPanel
             tabId="reception"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
@@ -783,6 +793,15 @@ export default function App() {
           className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
         >
           <ReportsView blurPlates={cinematographicMode} canDeleteOrders={canDeleteOrdersInReports} />
+        </KeepAliveTabPanel>
+
+        <KeepAliveTabPanel
+          tabId="boletim_erros"
+          activeTab={currentTab}
+          visitedTabs={visitedTabs}
+          className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
+        >
+          <ErrorBulletinView authSession={authSession} />
         </KeepAliveTabPanel>
 
         <KeepAliveTabPanel

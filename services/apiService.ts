@@ -283,6 +283,196 @@ export async function deleteAppointment(id: string): Promise<void> {
   }
 }
 
+// ---------- Boletim de Erros ----------
+
+export type ErrorBulletinStatus = "draft" | "published" | "archived";
+
+export type ErrorBulletinReferenceLink = {
+  title?: string;
+  url: string;
+};
+
+export type ErrorBulletinAttachment = {
+  id: string;
+  bulletinId: string;
+  kind: "photo" | "document" | "link";
+  name: string;
+  url: string;
+  storagePath?: string | null;
+  mimeType?: string | null;
+  fileSizeBytes?: number | null;
+  sortOrder: number;
+  createdAt: string;
+};
+
+export type ErrorBulletin = {
+  id: string;
+  workshopId: string;
+  title: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  vehicleYear: string;
+  plate: string;
+  engineInfo: string;
+  dtcCodes: string;
+  symptoms: string;
+  solution: string;
+  notes: string;
+  status: ErrorBulletinStatus;
+  tags: string[];
+  referenceLinks: ErrorBulletinReferenceLink[];
+  serviceOrderId: string | null;
+  createdByUserId: string | null;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ErrorBulletinDetail = ErrorBulletin & {
+  attachments: ErrorBulletinAttachment[];
+};
+
+export async function getErrorBulletins(params?: {
+  status?: string;
+  q?: string;
+}): Promise<ErrorBulletin[]> {
+  const search = new URLSearchParams();
+  if (params?.status) search.set("status", params.status);
+  if (params?.q) search.set("q", params.q);
+  const qs = search.toString();
+  const response = await fetch(`${API_BASE}/error-bulletins${qs ? `?${qs}` : ""}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar boletins (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function getErrorBulletinById(id: string): Promise<ErrorBulletinDetail> {
+  const response = await fetch(`${API_BASE}/error-bulletins/${id}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar boletim (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function createErrorBulletin(payload: {
+  title?: string;
+  vehicleBrand?: string;
+  vehicleModel?: string;
+  vehicleYear?: string;
+  plate?: string;
+  engineInfo?: string;
+  dtcCodes?: string;
+  symptoms?: string;
+  solution?: string;
+  notes?: string;
+  status?: ErrorBulletinStatus;
+  tags?: string[];
+  referenceLinks?: ErrorBulletinReferenceLink[];
+  serviceOrderId?: string | null;
+  createdByUserId?: string | null;
+  createdByName?: string;
+}): Promise<ErrorBulletin> {
+  const response = await fetch(`${API_BASE}/error-bulletins`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao criar boletim (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function updateErrorBulletin(
+  id: string,
+  payload: Partial<{
+    title: string;
+    vehicleBrand: string;
+    vehicleModel: string;
+    vehicleYear: string;
+    plate: string;
+    engineInfo: string;
+    dtcCodes: string;
+    symptoms: string;
+    solution: string;
+    notes: string;
+    status: ErrorBulletinStatus;
+    tags: string[];
+    referenceLinks: ErrorBulletinReferenceLink[];
+    serviceOrderId: string | null;
+  }>
+): Promise<ErrorBulletin> {
+  const response = await fetch(`${API_BASE}/error-bulletins/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar boletim (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteErrorBulletin(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/error-bulletins/${id}`, { method: "DELETE" });
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir boletim (${response.status})`);
+  }
+}
+
+export async function uploadErrorBulletinAttachment(
+  bulletinId: string,
+  file: File
+): Promise<ErrorBulletinAttachment> {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(`${API_BASE}/error-bulletins/${bulletinId}/attachments`, {
+    method: "POST",
+    body: form,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao enviar anexo (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function addErrorBulletinLink(
+  bulletinId: string,
+  payload: { name?: string; url: string }
+): Promise<ErrorBulletinAttachment> {
+  const response = await fetch(`${API_BASE}/error-bulletins/${bulletinId}/links`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao adicionar link (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteErrorBulletinAttachment(
+  bulletinId: string,
+  attachmentId: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/error-bulletins/${bulletinId}/attachments/${attachmentId}`,
+    { method: "DELETE" }
+  );
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao remover anexo (${response.status})`);
+  }
+}
+
 export async function createCustomer(customer: Customer): Promise<ApiCustomer> {
   const response = await fetch(`${API_BASE}/customers`, {
     method: "POST",
@@ -1831,6 +2021,8 @@ export interface SystemUserPermissions {
   access_estoque_pecas?: boolean;
   /** Centro de relatórios (módulo na página inicial). */
   access_relatorios?: boolean;
+  /** Boletim de Erros — base de conhecimento DTC/sintomas/soluções. */
+  access_boletim_erros?: boolean;
   /** Modal «Serviços da oficina» (hub Configurações). */
   access_servicos_oficina?: boolean;
   /** Modal «Checklists do Pátio». */

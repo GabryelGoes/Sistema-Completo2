@@ -30,6 +30,7 @@ export type HomeAppId =
   | 'laboratorio'
   | 'orcamentos'
   | 'relatorios'
+  | 'boletim_erros'
   | 'settings';
 
 interface HomeViewProps {
@@ -138,6 +139,7 @@ const ALL_QUICK_TILE_IDS: QuickTileId[] = [
   'centro_atendimento',
   'parts_stock',
   'relatorios',
+  'boletim_erros',
 ];
 
 function SettingsRow({
@@ -427,6 +429,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <img src="/icons/relatorios-ios.svg" alt="Relatórios" className="h-full w-full object-cover" />
         ),
         onOpen: () => onOpenApp('relatorios'),
+      });
+    }
+    if (showFullAdminHub || !!perms.access_boletim_erros) {
+      extraTiles.push({
+        id: 'boletim_erros',
+        label: 'Boletim de Erros',
+        icon: (
+          <img src="/icons/boletim-erros.svg" alt="Boletim de Erros" className="h-full w-full object-cover" />
+        ),
+        onOpen: () => onOpenApp('boletim_erros'),
       });
     }
     return [...baseTiles, ...extraTiles, settingsTile];
