@@ -33,6 +33,7 @@ export type HomeAppId =
   | 'orcamentos'
   | 'relatorios'
   | 'boletim_erros'
+  | 'radar_qualidade'
   | 'settings';
 
 interface HomeViewProps {
@@ -142,6 +143,7 @@ const ALL_QUICK_TILE_IDS: QuickTileId[] = [
   'parts_stock',
   'relatorios',
   'boletim_erros',
+  'radar_qualidade',
 ];
 
 function SettingsRow({
@@ -513,6 +515,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <img src="/icons/boletim-erros.svg" alt="Boletim de Erros" className="h-full w-full object-cover" />
         ),
         onOpen: () => onOpenApp('boletim_erros'),
+      });
+    }
+    if (showFullAdminHub || !!perms.access_radar_qualidade) {
+      extraTiles.push({
+        id: 'radar_qualidade',
+        label: 'Radar de Qualidade',
+        icon: (
+          <img src="/icons/radar-qualidade.svg" alt="Radar de Qualidade" className="h-full w-full object-cover" />
+        ),
+        onOpen: () => onOpenApp('radar_qualidade'),
       });
     }
     return [...baseTiles, ...extraTiles, settingsTile];

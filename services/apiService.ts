@@ -473,6 +473,237 @@ export async function deleteErrorBulletinAttachment(
   }
 }
 
+// ---------- Radar de Qualidade (ocorrências por mecânico) ----------
+
+export type QualityIncidentCategory =
+  | "montagem"
+  | "diagnostico"
+  | "retrabalho"
+  | "prazo"
+  | "comunicacao"
+  | "seguranca"
+  | "peca_material"
+  | "cliente"
+  | "outro";
+
+export type QualityIncidentSeverity = "baixa" | "media" | "alta" | "critica";
+
+export type QualityIncidentStatus =
+  | "aberta"
+  | "em_analise"
+  | "plano_acao"
+  | "resolvida"
+  | "arquivada";
+
+export type QualityIncidentAttachment = {
+  id: string;
+  incidentId: string;
+  kind: "photo" | "document" | "link";
+  name: string;
+  url: string;
+  storagePath?: string | null;
+  mimeType?: string | null;
+  fileSizeBytes?: number | null;
+  sortOrder: number;
+  createdAt: string;
+};
+
+export type QualityIncident = {
+  id: string;
+  workshopId: string;
+  technicianId: string | null;
+  technicianName: string;
+  title: string;
+  category: QualityIncidentCategory;
+  severity: QualityIncidentSeverity;
+  status: QualityIncidentStatus;
+  occurredAt: string;
+  description: string;
+  impact: string;
+  rootCause: string;
+  correctiveAction: string;
+  preventiveAction: string;
+  lessonLearned: string;
+  plate: string;
+  vehicleSummary: string;
+  serviceOrderId: string | null;
+  serviceOrderLabel: string;
+  registeredByUserId: string | null;
+  registeredByName: string;
+  resolvedAt: string | null;
+  resolvedByName: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type QualityIncidentDetail = QualityIncident & {
+  attachments: QualityIncidentAttachment[];
+};
+
+export async function getQualityIncidents(params?: {
+  status?: string;
+  technicianId?: string;
+  category?: string;
+  severity?: string;
+  from?: string;
+  to?: string;
+  q?: string;
+}): Promise<QualityIncident[]> {
+  const search = new URLSearchParams();
+  if (params?.status) search.set("status", params.status);
+  if (params?.technicianId) search.set("technicianId", params.technicianId);
+  if (params?.category) search.set("category", params.category);
+  if (params?.severity) search.set("severity", params.severity);
+  if (params?.from) search.set("from", params.from);
+  if (params?.to) search.set("to", params.to);
+  if (params?.q) search.set("q", params.q);
+  const qs = search.toString();
+  const response = await fetch(`${API_BASE}/quality-incidents${qs ? `?${qs}` : ""}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar ocorrências (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function getQualityIncidentById(id: string): Promise<QualityIncidentDetail> {
+  const response = await fetch(`${API_BASE}/quality-incidents/${id}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar ocorrência (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function createQualityIncident(payload: {
+  technicianId?: string | null;
+  technicianName?: string;
+  title?: string;
+  category?: QualityIncidentCategory;
+  severity?: QualityIncidentSeverity;
+  status?: QualityIncidentStatus;
+  occurredAt?: string;
+  description?: string;
+  impact?: string;
+  rootCause?: string;
+  correctiveAction?: string;
+  preventiveAction?: string;
+  lessonLearned?: string;
+  plate?: string;
+  vehicleSummary?: string;
+  serviceOrderId?: string | null;
+  serviceOrderLabel?: string;
+  registeredByUserId?: string | null;
+  registeredByName?: string;
+  resolvedAt?: string | null;
+  resolvedByName?: string;
+  tags?: string[];
+}): Promise<QualityIncident> {
+  const response = await fetch(`${API_BASE}/quality-incidents`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao registrar ocorrência (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function updateQualityIncident(
+  id: string,
+  payload: Partial<{
+    technicianId: string | null;
+    technicianName: string;
+    title: string;
+    category: QualityIncidentCategory;
+    severity: QualityIncidentSeverity;
+    status: QualityIncidentStatus;
+    occurredAt: string;
+    description: string;
+    impact: string;
+    rootCause: string;
+    correctiveAction: string;
+    preventiveAction: string;
+    lessonLearned: string;
+    plate: string;
+    vehicleSummary: string;
+    serviceOrderId: string | null;
+    serviceOrderLabel: string;
+    resolvedAt: string | null;
+    resolvedByName: string;
+    tags: string[];
+  }>
+): Promise<QualityIncident> {
+  const response = await fetch(`${API_BASE}/quality-incidents/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar ocorrência (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteQualityIncident(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/quality-incidents/${id}`, { method: "DELETE" });
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir ocorrência (${response.status})`);
+  }
+}
+
+export async function uploadQualityIncidentAttachment(
+  incidentId: string,
+  file: File
+): Promise<QualityIncidentAttachment> {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(`${API_BASE}/quality-incidents/${incidentId}/attachments`, {
+    method: "POST",
+    body: form,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao enviar anexo (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function addQualityIncidentLink(
+  incidentId: string,
+  payload: { name?: string; url: string }
+): Promise<QualityIncidentAttachment> {
+  const response = await fetch(`${API_BASE}/quality-incidents/${incidentId}/links`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao adicionar link (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteQualityIncidentAttachment(
+  incidentId: string,
+  attachmentId: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/quality-incidents/${incidentId}/attachments/${attachmentId}`,
+    { method: "DELETE" }
+  );
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao remover anexo (${response.status})`);
+  }
+}
+
 export async function createCustomer(customer: Customer): Promise<ApiCustomer> {
   const response = await fetch(`${API_BASE}/customers`, {
     method: "POST",
@@ -2023,6 +2254,8 @@ export interface SystemUserPermissions {
   access_relatorios?: boolean;
   /** Boletim de Erros — base de conhecimento DTC/sintomas/soluções. */
   access_boletim_erros?: boolean;
+  /** Radar de Qualidade — ocorrências e relatório por mecânico. */
+  access_radar_qualidade?: boolean;
   /** Modal «Serviços da oficina» (hub Configurações). */
   access_servicos_oficina?: boolean;
   /** Modal «Checklists do Pátio». */

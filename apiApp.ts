@@ -8,6 +8,7 @@ import {
   VEHICLE_PHOTOS_BUCKET,
   TV_PATIO_BUCKET,
   ERROR_BULLETINS_BUCKET,
+  QUALITY_INCIDENTS_BUCKET,
 } from "./supabaseClient.js";
 import {
   FIRST_STAGE,
@@ -5952,6 +5953,468 @@ export function createApiApp() {
       return res.status(204).send();
     } catch (err: any) {
       console.error("[API] DELETE error-bulletin attachment:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  // ----------------- RADAR DE QUALIDADE (ocorrências por mecânico) -----------------
+  const QUALITY_CATEGORIES = [
+    "montagem",
+    "diagnostico",
+    "retrabalho",
+    "prazo",
+    "comunicacao",
+    "seguranca",
+    "peca_material",
+    "cliente",
+    "outro",
+  ] as const;
+  const QUALITY_SEVERITIES = ["baixa", "media", "alta", "critica"] as const;
+  const QUALITY_STATUSES = ["aberta", "em_analise", "plano_acao", "resolvida", "arquivada"] as const;
+
+  const mapQualityIncidentRow = (row: Record<string, unknown>) => ({
+    id: row.id,
+    workshopId: row.workshop_id,
+    technicianId: row.technician_id ?? null,
+    technicianName: row.technician_name ?? "",
+    title: row.title ?? "",
+    category: row.category ?? "outro",
+    severity: row.severity ?? "media",
+    status: row.status ?? "aberta",
+    occurredAt: row.occurred_at,
+    description: row.description ?? "",
+    impact: row.impact ?? "",
+    rootCause: row.root_cause ?? "",
+    correctiveAction: row.corrective_action ?? "",
+    preventiveAction: row.preventive_action ?? "",
+    lessonLearned: row.lesson_learned ?? "",
+    plate: row.plate ?? "",
+    vehicleSummary: row.vehicle_summary ?? "",
+    serviceOrderId: row.service_order_id ?? null,
+    serviceOrderLabel: row.service_order_label ?? "",
+    registeredByUserId: row.registered_by_user_id ?? null,
+    registeredByName: row.registered_by_name ?? "",
+    resolvedAt: row.resolved_at ?? null,
+    resolvedByName: row.resolved_by_name ?? "",
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  });
+
+  const mapQualityAttachmentRow = (row: Record<string, unknown>) => ({
+    id: row.id,
+    incidentId: row.incident_id,
+    kind: row.kind ?? "file",
+    name: row.name ?? "",
+    url: row.url ?? "",
+    storagePath: row.storage_path ?? null,
+    mimeType: row.mime_type ?? null,
+    fileSizeBytes: row.file_size_bytes ?? null,
+    sortOrder: row.sort_order ?? 0,
+    createdAt: row.created_at,
+  });
+
+  async function resolveTechnicianName(technicianId: string | null | undefined): Promise<string> {
+    if (!technicianId || !supabaseAdmin || !WORKSHOP_ID) return "";
+    const { data } = await supabaseAdmin
+      .from("workshop_technicians")
+      .select("name")
+      .eq("id", technicianId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .maybeSingle();
+    return (data?.name ?? "").toString().trim();
+  }
+
+  async function assertQualityIncidentInWorkshop(incidentId: string) {
+    const { data, error } = await supabaseAdmin!
+      .from("workshop_technician_incidents")
+      .select("id, workshop_id")
+      .eq("id", incidentId)
+      .single();
+    if (error || !data || data.workshop_id !== WORKSHOP_ID) return null;
+    return data;
+  }
+
+  app.get("/api/quality-incidents", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const status = typeof req.query.status === "string" ? req.query.status.trim() : "";
+      const technicianId =
+        typeof req.query.technicianId === "string" ? req.query.technicianId.trim() : "";
+      const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
+      const severity = typeof req.query.severity === "string" ? req.query.severity.trim() : "";
+      const from = typeof req.query.from === "string" ? req.query.from.trim() : "";
+      const to = typeof req.query.to === "string" ? req.query.to.trim() : "";
+      const q = typeof req.query.q === "string" ? req.query.q.trim().toLowerCase() : "";
+
+      let query = supabaseAdmin
+        .from("workshop_technician_incidents")
+        .select("*")
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("occurred_at", { ascending: false });
+
+      if (status && status !== "all") query = query.eq("status", status);
+      if (technicianId) query = query.eq("technician_id", technicianId);
+      if (category) query = query.eq("category", category);
+      if (severity) query = query.eq("severity", severity);
+      if (from) query = query.gte("occurred_at", from);
+      if (to) query = query.lte("occurred_at", to);
+
+      const { data, error } = await query;
+      if (error) {
+        console.error("[API] GET quality-incidents:", error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      let rows = (data ?? []) as Record<string, unknown>[];
+      if (q) {
+        rows = rows.filter((row) => {
+          const hay = [
+            row.title,
+            row.technician_name,
+            row.description,
+            row.plate,
+            row.vehicle_summary,
+            row.service_order_label,
+            ...(Array.isArray(row.tags) ? row.tags : []),
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          return hay.includes(q);
+        });
+      }
+
+      return res.json(rows.map(mapQualityIncidentRow));
+    } catch (err: any) {
+      console.error("[API] GET quality-incidents:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.get("/api/quality-incidents/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const id = String(req.params.id || "").trim();
+      const { data: incident, error } = await supabaseAdmin
+        .from("workshop_technician_incidents")
+        .select("*")
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+
+      if (error || !incident) {
+        return res.status(404).json({ error: "Ocorrência não encontrada." });
+      }
+
+      const { data: attachments } = await supabaseAdmin
+        .from("workshop_technician_incident_attachments")
+        .select("*")
+        .eq("incident_id", id)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+
+      return res.json({
+        ...mapQualityIncidentRow(incident as Record<string, unknown>),
+        attachments: (attachments ?? []).map((a) =>
+          mapQualityAttachmentRow(a as Record<string, unknown>)
+        ),
+      });
+    } catch (err: any) {
+      console.error("[API] GET quality-incidents/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.post("/api/quality-incidents", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const b = req.body ?? {};
+      const now = new Date().toISOString();
+      const technicianId = b.technicianId ?? null;
+      let technicianName = (b.technicianName ?? "").toString().trim();
+      if (technicianId && !technicianName) {
+        technicianName = await resolveTechnicianName(technicianId);
+      }
+      const status = QUALITY_STATUSES.includes(b.status) ? b.status : "aberta";
+      const resolvedAt =
+        status === "resolvida"
+          ? b.resolvedAt ?? now
+          : b.resolvedAt ?? null;
+
+      const { data, error } = await supabaseAdmin
+        .from("workshop_technician_incidents")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          technician_id: technicianId,
+          technician_name: technicianName,
+          title: (b.title ?? "").toString().trim(),
+          category: QUALITY_CATEGORIES.includes(b.category) ? b.category : "outro",
+          severity: QUALITY_SEVERITIES.includes(b.severity) ? b.severity : "media",
+          status,
+          occurred_at: b.occurredAt ?? now,
+          description: (b.description ?? "").toString(),
+          impact: (b.impact ?? "").toString(),
+          root_cause: (b.rootCause ?? "").toString(),
+          corrective_action: (b.correctiveAction ?? "").toString(),
+          preventive_action: (b.preventiveAction ?? "").toString(),
+          lesson_learned: (b.lessonLearned ?? "").toString(),
+          plate: b.plate ? String(b.plate).toUpperCase() : null,
+          vehicle_summary: b.vehicleSummary ?? null,
+          service_order_id: b.serviceOrderId ?? null,
+          service_order_label: b.serviceOrderLabel ?? null,
+          registered_by_user_id: b.registeredByUserId ?? null,
+          registered_by_name: (b.registeredByName ?? "").toString(),
+          resolved_at: resolvedAt,
+          resolved_by_name: b.resolvedByName ?? null,
+          tags: Array.isArray(b.tags) ? b.tags.map((t: unknown) => String(t).trim()).filter(Boolean) : [],
+          updated_at: now,
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        console.error("[API] POST quality-incidents:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(201).json(mapQualityIncidentRow(data as Record<string, unknown>));
+    } catch (err: any) {
+      console.error("[API] POST quality-incidents:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.patch("/api/quality-incidents/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const id = String(req.params.id || "").trim();
+      const existing = await assertQualityIncidentInWorkshop(id);
+      if (!existing) return res.status(404).json({ error: "Ocorrência não encontrada." });
+
+      const b = req.body ?? {};
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (b.technicianId !== undefined) {
+        updates.technician_id = b.technicianId;
+        if (b.technicianId) {
+          const name = await resolveTechnicianName(b.technicianId);
+          if (name) updates.technician_name = name;
+        }
+      }
+      if (b.technicianName !== undefined) updates.technician_name = String(b.technicianName).trim();
+      if (b.title !== undefined) updates.title = String(b.title).trim();
+      if (b.category !== undefined && QUALITY_CATEGORIES.includes(b.category)) {
+        updates.category = b.category;
+      }
+      if (b.severity !== undefined && QUALITY_SEVERITIES.includes(b.severity)) {
+        updates.severity = b.severity;
+      }
+      if (b.status !== undefined && QUALITY_STATUSES.includes(b.status)) {
+        updates.status = b.status;
+        if (b.status === "resolvida" && b.resolvedAt === undefined) {
+          updates.resolved_at = new Date().toISOString();
+        }
+      }
+      if (b.occurredAt !== undefined) updates.occurred_at = b.occurredAt;
+      if (b.description !== undefined) updates.description = String(b.description);
+      if (b.impact !== undefined) updates.impact = String(b.impact);
+      if (b.rootCause !== undefined) updates.root_cause = String(b.rootCause);
+      if (b.correctiveAction !== undefined) updates.corrective_action = String(b.correctiveAction);
+      if (b.preventiveAction !== undefined) updates.preventive_action = String(b.preventiveAction);
+      if (b.lessonLearned !== undefined) updates.lesson_learned = String(b.lessonLearned);
+      if (b.plate !== undefined) updates.plate = b.plate ? String(b.plate).toUpperCase() : null;
+      if (b.vehicleSummary !== undefined) updates.vehicle_summary = b.vehicleSummary;
+      if (b.serviceOrderId !== undefined) updates.service_order_id = b.serviceOrderId;
+      if (b.serviceOrderLabel !== undefined) updates.service_order_label = b.serviceOrderLabel;
+      if (b.resolvedAt !== undefined) updates.resolved_at = b.resolvedAt;
+      if (b.resolvedByName !== undefined) updates.resolved_by_name = b.resolvedByName;
+      if (b.tags !== undefined && Array.isArray(b.tags)) {
+        updates.tags = b.tags.map((t: unknown) => String(t).trim()).filter(Boolean);
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("workshop_technician_incidents")
+        .update(updates)
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("*")
+        .single();
+
+      if (error) {
+        console.error("[API] PATCH quality-incidents:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json(mapQualityIncidentRow(data as Record<string, unknown>));
+    } catch (err: any) {
+      console.error("[API] PATCH quality-incidents:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.delete("/api/quality-incidents/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const id = String(req.params.id || "").trim();
+      const existing = await assertQualityIncidentInWorkshop(id);
+      if (!existing) return res.status(404).json({ error: "Ocorrência não encontrada." });
+
+      const { error } = await supabaseAdmin
+        .from("workshop_technician_incidents")
+        .delete()
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID);
+
+      if (error) {
+        console.error("[API] DELETE quality-incidents:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] DELETE quality-incidents:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.post("/api/quality-incidents/:id/attachments", upload.single("file"), async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const incidentId = String(req.params.id || "").trim();
+      const existing = await assertQualityIncidentInWorkshop(incidentId);
+      if (!existing) return res.status(404).json({ error: "Ocorrência não encontrada." });
+
+      const file = req.file;
+      if (!file) return res.status(400).json({ error: "Arquivo não enviado." });
+
+      const safeName = sanitizeVehiclePhotoFileName(file.originalname);
+      const pathInBucket = `${WORKSHOP_ID}/incidents/${incidentId}/${Date.now()}_${safeName}`;
+      const isPhoto = (file.mimetype || "").startsWith("image/");
+
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(QUALITY_INCIDENTS_BUCKET)
+        .upload(pathInBucket, file.buffer, { contentType: file.mimetype, upsert: false });
+
+      if (uploadError) {
+        console.error("[API] upload quality-incident attachment:", uploadError);
+        return res.status(500).json({ error: uploadError.message });
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabaseAdmin.storage.from(QUALITY_INCIDENTS_BUCKET).getPublicUrl(pathInBucket);
+
+      const { data: row, error } = await supabaseAdmin
+        .from("workshop_technician_incident_attachments")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          incident_id: incidentId,
+          kind: isPhoto ? "photo" : "document",
+          name: safeName,
+          url: publicUrl,
+          storage_path: pathInBucket,
+          mime_type: file.mimetype,
+          file_size_bytes: file.size,
+        })
+        .select("*")
+        .single();
+
+      if (error) return res.status(500).json({ error: error.message });
+
+      await supabaseAdmin
+        .from("workshop_technician_incidents")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", incidentId);
+
+      return res.status(201).json(mapQualityAttachmentRow(row as Record<string, unknown>));
+    } catch (err: any) {
+      console.error("[API] POST quality-incident attachment:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.post("/api/quality-incidents/:id/links", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const incidentId = String(req.params.id || "").trim();
+      const existing = await assertQualityIncidentInWorkshop(incidentId);
+      if (!existing) return res.status(404).json({ error: "Ocorrência não encontrada." });
+
+      const name = (req.body?.name ?? req.body?.title ?? "Link").toString().trim();
+      const url = (req.body?.url ?? "").toString().trim();
+      if (!url) return res.status(400).json({ error: "URL obrigatória." });
+
+      const { data: row, error } = await supabaseAdmin
+        .from("workshop_technician_incident_attachments")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          incident_id: incidentId,
+          kind: "link",
+          name: name || "Link",
+          url,
+          storage_path: null,
+        })
+        .select("*")
+        .single();
+
+      if (error) return res.status(500).json({ error: error.message });
+
+      await supabaseAdmin
+        .from("workshop_technician_incidents")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", incidentId);
+
+      return res.status(201).json(mapQualityAttachmentRow(row as Record<string, unknown>));
+    } catch (err: any) {
+      console.error("[API] POST quality-incident link:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.delete("/api/quality-incidents/:id/attachments/:attachmentId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
+      }
+      const incidentId = String(req.params.id || "").trim();
+      const attachmentId = String(req.params.attachmentId || "").trim();
+      const existing = await assertQualityIncidentInWorkshop(incidentId);
+      if (!existing) return res.status(404).json({ error: "Ocorrência não encontrada." });
+
+      const { data: att } = await supabaseAdmin
+        .from("workshop_technician_incident_attachments")
+        .select("*")
+        .eq("id", attachmentId)
+        .eq("incident_id", incidentId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+
+      if (!att) return res.status(404).json({ error: "Anexo não encontrado." });
+
+      if (att.storage_path) {
+        await supabaseAdmin.storage.from(QUALITY_INCIDENTS_BUCKET).remove([att.storage_path]);
+      }
+
+      const { error } = await supabaseAdmin
+        .from("workshop_technician_incident_attachments")
+        .delete()
+        .eq("id", attachmentId);
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] DELETE quality-incident attachment:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
     }
   });

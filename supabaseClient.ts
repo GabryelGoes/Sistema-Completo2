@@ -30,3 +30,6 @@ export const TV_PATIO_BUCKET = process.env.SUPABASE_TV_PATIO_BUCKET || "tv-patio
 export const ERROR_BULLETINS_BUCKET =
   process.env.SUPABASE_ERROR_BULLETINS_BUCKET || "error-bulletins";
 
+export const QUALITY_INCIDENTS_BUCKET =
+  process.env.SUPABASE_QUALITY_INCIDENTS_BUCKET || "quality-incidents";
+

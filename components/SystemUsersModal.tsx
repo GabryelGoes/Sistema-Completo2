@@ -164,6 +164,13 @@ const HOME_MODULE_ACCESS: {
     icon: '/icons/boletim-erros.svg',
     iconAlt: 'Boletim de Erros',
   },
+  {
+    key: 'access_radar_qualidade',
+    label: 'Radar de Qualidade',
+    description: 'Registro de ocorrências por mecânico e relatório da equipe',
+    icon: '/icons/radar-qualidade.svg',
+    iconAlt: 'Radar de Qualidade',
+  },
   { key: 'access_tv_patio', label: 'TV do Pátio', description: 'Modal na home e link do painel externo nas configurações', icon: '/icons/tv-patio-ios.png', iconAlt: 'TV do Pátio' },
   {
     key: 'access_centro_atendimento',

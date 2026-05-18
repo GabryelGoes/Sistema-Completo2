@@ -11,7 +11,8 @@ export type NavigationTabId =
   | 'laboratorio'
   | 'orcamentos'
   | 'relatorios'
-  | 'boletim_erros';
+  | 'boletim_erros'
+  | 'radar_qualidade';
 
 /**
  * Cores fixas por tela no modo colorido (recepção azul, agenda verde, início amarelo, pátio teal, laboratório violeta).
@@ -25,6 +26,7 @@ export const COLORFUL_TAB_ACCENTS: Record<NavigationTabId, string> = {
   orcamentos: '#EA580C',
   relatorios: '#0284C7',
   boletim_erros: '#D97706',
+  radar_qualidade: '#E11D48',
 };
 
 export type AppAppearance = {
