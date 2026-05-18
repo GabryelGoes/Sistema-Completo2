@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   ChevronRight,
@@ -18,6 +19,7 @@ import { SystemUsersModal } from '../SystemUsersModal';
 import { SystemNotificationsModal } from '../SystemNotificationsModal';
 import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
+import { SYSTEM_NOTIFICATIONS_ICON } from '../../constants/systemNotificationsIcon';
 import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
@@ -211,6 +213,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
   const [isSystemNotificationsOpen, setIsSystemNotificationsOpen] = useState(false);
   const [isHomeSettingsHubOpen, setIsHomeSettingsHubOpen] = useState(false);
+  const [isHeaderProfileMenuOpen, setIsHeaderProfileMenuOpen] = useState(false);
+  const headerProfileTriggerRef = useRef<HTMLButtonElement>(null);
+  const headerProfileMenuRef = useRef<HTMLDivElement>(null);
+  const [headerProfileMenuStyle, setHeaderProfileMenuStyle] = useState<React.CSSProperties>({});
   const [quickLayout, setQuickLayout] = useState<QuickLayoutState>(() => {
     try {
       const raw = localStorage.getItem(QUICK_APPS_LAYOUT_KEY);
@@ -288,18 +294,29 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return iosSquircleBackgroundFromHex(h);
   }, [headerPhotoUrl, isSystemUser, systemUserAccentColor]);
 
-  const headerProfileAriaLabel = isSystemUser
+  const headerProfileMenuProfileTitle = isSystemUser
     ? 'Configurações de perfil'
     : isTechnician
-      ? 'Meu perfil'
+      ? technicianId
+        ? 'Meu perfil'
+        : 'Configurações'
       : 'Perfil do administrador';
+
+  const headerProfileMenuProfileHint = isSystemUser
+    ? 'Nome, foto e cor'
+    : isTechnician
+      ? technicianId
+        ? 'Nome e foto'
+        : 'Hub de configurações'
+      : 'Nome e foto da gerência';
 
   /** Abre após o ciclo de eventos: evita “click-through” (o `click` após `pointerup` atingir linhas do hub que acabou de montar). */
   const openAfterInputCycle = useCallback((fn: () => void) => {
     window.setTimeout(fn, 0);
   }, []);
 
-  const handleHeaderProfileClick = useCallback(() => {
+  const openHeaderProfileEditor = useCallback(() => {
+    setIsHeaderProfileMenuOpen(false);
     openAfterInputCycle(() => {
       if (isSystemUser) {
         setIsUserProfileOpen(true);
@@ -316,6 +333,62 @@ export const HomeView: React.FC<HomeViewProps> = ({
       setIsHomeSettingsHubOpen(true);
     });
   }, [isSystemUser, isTechnician, technicianId, openAfterInputCycle]);
+
+  const handleHeaderProfileClick = useCallback(() => {
+    setIsHeaderProfileMenuOpen((prev) => !prev);
+  }, []);
+
+  const handleHeaderLogout = useCallback(() => {
+    setIsHeaderProfileMenuOpen(false);
+    onLogout?.();
+  }, [onLogout]);
+
+  const updateHeaderProfileMenuPosition = useCallback(() => {
+    const btn = headerProfileTriggerRef.current;
+    if (!btn || typeof window === 'undefined') return;
+    const rect = btn.getBoundingClientRect();
+    const menuWidth = 248;
+    let left = rect.right - menuWidth;
+    left = Math.max(12, Math.min(left, window.innerWidth - menuWidth - 12));
+    setHeaderProfileMenuStyle({
+      position: 'fixed',
+      top: rect.bottom + 8,
+      left,
+      width: menuWidth,
+      zIndex: 99999,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isHeaderProfileMenuOpen) return;
+    updateHeaderProfileMenuPosition();
+  }, [isHeaderProfileMenuOpen, updateHeaderProfileMenuPosition]);
+
+  useEffect(() => {
+    if (!isHeaderProfileMenuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (headerProfileTriggerRef.current?.contains(t)) return;
+      if (headerProfileMenuRef.current?.contains(t)) return;
+      setIsHeaderProfileMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      setIsHeaderProfileMenuOpen(false);
+    };
+    window.addEventListener('resize', updateHeaderProfileMenuPosition);
+    window.addEventListener('scroll', updateHeaderProfileMenuPosition, true);
+    document.addEventListener('click', onDoc, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('resize', updateHeaderProfileMenuPosition);
+      window.removeEventListener('scroll', updateHeaderProfileMenuPosition, true);
+      document.removeEventListener('click', onDoc, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [isHeaderProfileMenuOpen, updateHeaderProfileMenuPosition]);
 
   /** Oculta TabBar como um modal; sem portal no body (evita cobrir modais renderizados no root). */
   useRegisterModalOpen(isHomeSettingsHubOpen);
@@ -362,6 +435,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isTvPatioOpen, () => setIsTvPatioOpen(false));
   useBrowserBackLayer(isUserProfileOpen, () => setIsUserProfileOpen(false));
   useBrowserBackLayer(isSystemNotificationsOpen, () => setIsSystemNotificationsOpen(false));
+  useBrowserBackLayer(isHeaderProfileMenuOpen, () => setIsHeaderProfileMenuOpen(false));
 
   const operationalForView = useMemo(() => {
     if (isTechnician) return OPERATIONAL_APPS.filter((a) => allowedTabs.includes(a.id));
@@ -712,14 +786,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </span>
             </div>
             <button
+              ref={headerProfileTriggerRef}
               type="button"
               onClick={handleHeaderProfileClick}
-              aria-label={headerProfileAriaLabel}
+              aria-label="Menu da conta"
+              aria-expanded={isHeaderProfileMenuOpen}
+              aria-haspopup="menu"
               className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-200/90 shadow-md ring-1 ring-black/[0.04] transition-transform hover:opacity-95 active:scale-[0.96] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-white/12 dark:ring-white/10 dark:focus-visible:ring-offset-zinc-950 sm:h-12 sm:w-12 ${
                 headerPhotoUrl || headerAvatarAccentStyle
                   ? ''
                   : 'bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-600 dark:to-zinc-700'
-              }`}
+              } ${isHeaderProfileMenuOpen ? 'ring-2 ring-[#007AFF]/55' : ''}`}
               style={headerAvatarAccentStyle}
             >
               {headerPhotoUrl ? (
@@ -739,6 +816,55 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </span>
               )}
             </button>
+            {isHeaderProfileMenuOpen && typeof document !== 'undefined'
+              ? createPortal(
+                  <div
+                    ref={headerProfileMenuRef}
+                    role="menu"
+                    style={headerProfileMenuStyle}
+                    className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white py-1.5 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08]"
+                      onClick={openHeaderProfileEditor}
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 text-zinc-700 dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-zinc-200">
+                        <User className="h-[18px] w-[18px]" strokeWidth={2.2} aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[14px] font-semibold leading-snug">{headerProfileMenuProfileTitle}</span>
+                        <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                          {headerProfileMenuProfileHint}
+                        </span>
+                      </span>
+                    </button>
+                    {onLogout ? (
+                      <>
+                        <div className="mx-3 my-1 h-px bg-zinc-100 dark:bg-white/[0.08]" />
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-red-50/90 dark:hover:bg-red-500/10"
+                          onClick={handleHeaderLogout}
+                        >
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-200/80 bg-red-50 text-red-600 dark:border-red-500/25 dark:bg-red-500/15 dark:text-red-400">
+                            <LogOut className="h-[18px] w-[18px]" strokeWidth={2.2} aria-hidden />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[14px] font-semibold leading-snug text-red-600 dark:text-red-400">Sair</span>
+                            <span className="mt-0.5 block text-[11px] font-normal leading-snug text-red-500/80 dark:text-red-400/70">
+                              Encerrar sessão neste dispositivo
+                            </span>
+                          </span>
+                        </button>
+                      </>
+                    ) : null}
+                  </div>,
+                  document.body
+                )
+              : null}
           </div>
         </div>
       </header>
@@ -1026,7 +1152,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               icon={
                                 <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
                                   <img
-                                    src="/icons/tema-sistema-ios.png"
+                                    src={SYSTEM_NOTIFICATIONS_ICON}
                                     alt="Notificações do sistema"
                                     className="h-full w-full object-cover"
                                   />

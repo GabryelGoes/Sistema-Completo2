@@ -24,6 +24,7 @@ import {
 } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { IosModalHeader } from './ui/IosModalHeader';
+import { SYSTEM_NOTIFICATIONS_ICON } from '../constants/systemNotificationsIcon';
 import type { SystemUserPermissions, SystemUser } from '../services/apiService';
 import {
   getSystemUsers,
@@ -187,7 +188,7 @@ const HOME_MODULE_ACCESS: {
     key: 'access_notificacoes_sistema',
     label: 'Notificações do sistema',
     description: 'Modal de alertas e lembretes',
-    icon: '/icons/tema-sistema-ios.png',
+    icon: SYSTEM_NOTIFICATIONS_ICON,
     iconAlt: 'Notificações',
   },
 ];

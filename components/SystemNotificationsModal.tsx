@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Bell, Loader2, Sparkles, Trash2, X } from "lucide-react";
+import { Loader2, Sparkles, Trash2, X } from "lucide-react";
+import { SYSTEM_NOTIFICATIONS_ICON } from "../constants/systemNotificationsIcon";
 import {
   getSystemNotificationsConfig,
   saveSystemNotificationsConfig,
@@ -174,10 +175,9 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
         </button>
         <div className="p-5 sm:p-6 pt-14">
           <IosModalHeader
-            icon={<Bell className="w-6 h-6 text-white" strokeWidth={2.2} />}
+            icon={<img src={SYSTEM_NOTIFICATIONS_ICON} alt="" className="h-full w-full min-h-0 object-cover" />}
             title="Notificações do sistema"
             subtitle="Controle central de todos os tipos de notificações da oficina"
-            gradientClass="from-sky-500 to-blue-700"
           />
 
           {loading ? (
