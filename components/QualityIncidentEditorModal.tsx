@@ -30,6 +30,12 @@ import {
 } from '../constants/qualityRadar';
 import { compressImageForUpload } from '../utils/imageUpload';
 import { isAttachmentImage, isAttachmentPdf } from '../utils/attachmentPreviewHelpers';
+import { VehicleOrderPickerSection } from './VehicleOrderPickerSection';
+import {
+  serviceOrderLabelFromOrder,
+  vehicleSummaryFromOrder,
+} from '../utils/vehicleOrderPicker';
+import type { ServiceOrderListItem } from '../services/apiService';
 
 const inputClass =
   'w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[14px] text-zinc-900 outline-none focus:ring-2 focus:ring-rose-500/30 dark:border-white/[0.12] dark:bg-zinc-950 dark:text-white';
@@ -87,6 +93,7 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
   const [linkUrl, setLinkUrl] = useState('');
   const [previewImages, setPreviewImages] = useState<{ urls: string[]; currentIndex: number } | null>(null);
   const [previewPdf, setPreviewPdf] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const { imageAttachments, pdfAttachments, otherAttachments } = useMemo(() => {
     const images: QualityIncidentAttachment[] = [];
@@ -127,8 +134,16 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
     setAttachments([]);
     setLinkName('');
     setLinkUrl('');
+    setSelectedOrderId(null);
     setError(null);
   };
+
+  const applyOrderToForm = useCallback((o: ServiceOrderListItem) => {
+    setPlate((o.plate ?? '').trim().toUpperCase());
+    setVehicleSummary(vehicleSummaryFromOrder(o));
+    setServiceOrderLabel(serviceOrderLabelFromOrder(o));
+    setSelectedOrderId(o.id);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -459,6 +474,15 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
                       onChange={(e) => setLessonLearned(e.target.value)}
                     />
                   </div>
+                  <VehicleOrderPickerSection
+                    open={open}
+                    accent="rose"
+                    inputClass={inputClass}
+                    labelClass={labelClass}
+                    selectedOrderId={selectedOrderId}
+                    onSelectOrder={applyOrderToForm}
+                    onClearSelection={() => setSelectedOrderId(null)}
+                  />
                   <div>
                     <label className={labelClass}>Placa</label>
                     <input className={inputClass} value={plate} onChange={(e) => setPlate(e.target.value)} />

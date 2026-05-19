@@ -32,6 +32,12 @@ import {
   type ServiceOrderListItem,
 } from '../services/apiService';
 import { CANCELLED_STATUS } from '../constants/serviceOrderStages';
+import {
+  filterOrders,
+  formatOrderPickLabel,
+  sortOrdersByRecent,
+  type VehiclePickMode,
+} from '../utils/vehicleOrderPicker';
 import { compressImageForUpload } from '../utils/imageUpload';
 import { isAttachmentImage, isAttachmentPdf } from '../utils/attachmentPreviewHelpers';
 
@@ -48,47 +54,11 @@ type Props = {
   onSaved: () => void;
 };
 
-type VehiclePickMode = 'manual' | 'patio' | 'archived';
-
 function parseDtcLines(raw: string): string[] {
   return raw
     .split(/[\n,;]+/)
     .map((s) => s.trim().toUpperCase())
     .filter(Boolean);
-}
-
-function sortOrdersByRecent(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
-  return [...orders].sort(
-    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-  );
-}
-
-function formatOrderPickLabel(o: ServiceOrderListItem): string {
-  const plate = (o.plate ?? '').trim().toUpperCase() || '—';
-  const model = (o.vehicle_model ?? '').trim() || 'Veículo';
-  const brand = (o.vehicle_brand ?? '').trim();
-  const vehicle = [brand, model].filter(Boolean).join(' ') || model;
-  const os = o.os_number != null ? ` · OS #${o.os_number}` : '';
-  const client = (o.customer_name ?? o.customers?.name ?? '').trim();
-  return client ? `${plate} — ${vehicle}${os} (${client})` : `${plate} — ${vehicle}${os}`;
-}
-
-function filterOrders(orders: ServiceOrderListItem[], query: string): ServiceOrderListItem[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return orders;
-  const digits = q.replace(/\D/g, '');
-  return orders.filter((o) => {
-    const plate = (o.plate ?? '').toLowerCase();
-    const model = (o.vehicle_model ?? '').toLowerCase();
-    const brand = (o.vehicle_brand ?? '').toLowerCase();
-    const name = (o.customer_name ?? o.customers?.name ?? '').toLowerCase();
-    const os = o.os_number != null ? String(o.os_number) : '';
-    if (plate.includes(q) || model.includes(q) || brand.includes(q) || name.includes(q) || os.includes(q)) {
-      return true;
-    }
-    if (digits.length >= 3 && (o.plate ?? '').replace(/\D/g, '').includes(digits)) return true;
-    return false;
-  });
 }
 
 export const ErrorBulletinEditorModal: React.FC<Props> = ({
@@ -127,10 +97,6 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     const pdfs: ErrorBulletinAttachment[] = [];
     const others: ErrorBulletinAttachment[] = [];
     for (const att of attachments) {
-      if (att.kind === 'link') {
-        others.push(att);
-        continue;
-      }
       if (isAttachmentImage(att)) images.push(att);
       else if (isAttachmentPdf(att)) pdfs.push(att);
       else others.push(att);
