@@ -2,6 +2,7 @@ import { Customer, type VehicleReferenceLink } from "../types";
 import type { Appointment } from "../types";
 import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
 import { API_BASE } from "./apiConfig";
+import { compressImageForUpload } from "../utils/imageUpload";
 import { normalizeTvChimeConfig, type TvChimeScheduleConfig } from "@/utils/tvChimeSchedule";
 
 export type { TvChimeAlert, TvChimeKind, TvChimeSoundPreset } from "@/utils/tvChimeSchedule";
@@ -1287,7 +1288,6 @@ export async function uploadServiceOrderPhoto(
   file: Blob,
   fileName: string
 ): Promise<ServiceOrderPhoto> {
-  const { compressImageForUpload } = await import("../utils/imageUpload");
   const toSend = await compressImageForUpload(file, 3 * 1024 * 1024);
   if (toSend.size > UPLOAD_MAX_BYTES) {
     throw new Error(
