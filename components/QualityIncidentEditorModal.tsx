@@ -1,6 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ExternalLink, Loader2, Save, Trash2, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ExternalLink, FileText, Image as ImageIcon, Loader2, Save, Trash2, X, ZoomIn } from 'lucide-react';
+import { Lightbox } from './Lightbox';
+import { PdfViewerModal } from './PdfViewerModal';
 import { ModalPortal } from './ui/ModalPortal';
+import { StorageThumbImg } from './ui/StorageThumbImg';
 import {
   addQualityIncidentLink,
   createQualityIncident,
@@ -26,6 +29,7 @@ import {
   QUALITY_STATUSES,
 } from '../constants/qualityRadar';
 import { compressImageForUpload } from '../utils/imageUpload';
+import { isAttachmentImage, isAttachmentPdf } from '../utils/attachmentPreviewHelpers';
 
 const inputClass =
   'w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[14px] text-zinc-900 outline-none focus:ring-2 focus:ring-rose-500/30 dark:border-white/[0.12] dark:bg-zinc-950 dark:text-white';
@@ -81,6 +85,20 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
   const [tagsRaw, setTagsRaw] = useState('');
   const [linkName, setLinkName] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [previewImages, setPreviewImages] = useState<{ urls: string[]; currentIndex: number } | null>(null);
+  const [previewPdf, setPreviewPdf] = useState<string | null>(null);
+
+  const { imageAttachments, pdfAttachments, otherAttachments } = useMemo(() => {
+    const images: QualityIncidentAttachment[] = [];
+    const pdfs: QualityIncidentAttachment[] = [];
+    const others: QualityIncidentAttachment[] = [];
+    for (const att of attachments) {
+      if (isAttachmentImage(att)) images.push(att);
+      else if (isAttachmentPdf(att)) pdfs.push(att);
+      else others.push(att);
+    }
+    return { imageAttachments: images, pdfAttachments: pdfs, otherAttachments: others };
+  }, [attachments]);
 
   useEffect(() => {
     if (!open) return;
@@ -188,7 +206,7 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
   const handleSave = async () => {
     const { technicianName: techName } = resolveQualityRadarTechnicianPayload(technicianId, technicians);
     if (!technicianId || !techName) {
-      setError('Selecione o usuário responsável pela ocorrência.');
+      setError('Selecione o mecânico responsável pela ocorrência.');
       return;
     }
     if (!description.trim()) {
@@ -318,7 +336,7 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
-                    <label className={labelClass}>Usuário *</label>
+                    <label className={labelClass}>Mecânico *</label>
                     <select
                       className={inputClass}
                       value={technicianId}
@@ -499,32 +517,137 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
                         Link
                       </button>
                     </div>
-                    <ul className="space-y-2">
-                      {attachments.map((att) => (
-                        <li
-                          key={att.id}
-                          className="flex items-center justify-between gap-2 rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-950/50"
-                        >
-                          <a
-                            href={att.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex min-w-0 items-center gap-2 text-[13px] text-rose-600 dark:text-rose-400"
+                    {imageAttachments.length > 0 ? (
+                      <div className="mb-4">
+                        <div className="mb-2 flex items-center gap-2">
+                          <ImageIcon className="h-4 w-4 text-rose-600 dark:text-rose-400" aria-hidden />
+                          <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                            Fotos
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-zinc-200/70 bg-white/70 p-2.5 dark:border-white/[0.08] dark:bg-white/[0.03]">
+                          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                            {imageAttachments.map((att) => (
+                              <div key={att.id} className="flex min-w-0 flex-col gap-1">
+                                <div className="relative rounded-[14px] bg-gradient-to-r from-rose-500 via-rose-400 to-rose-600 p-[2px] shadow-[0_6px_16px_-8px_rgba(244,63,94,0.35)]">
+                                  <div className="group relative aspect-square overflow-hidden rounded-[12px] bg-zinc-100 dark:bg-zinc-900">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setPreviewImages({
+                                          urls: imageAttachments.map((a) => a.url),
+                                          currentIndex: imageAttachments.findIndex((a) => a.id === att.id),
+                                        })
+                                      }
+                                      className="absolute inset-0 h-full w-full focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                                    >
+                                      <StorageThumbImg
+                                        src={att.url}
+                                        alt={att.name}
+                                        className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                        sizes="(max-width: 640px) 45vw, 180px"
+                                        thumbMaxWidth={200}
+                                        thumbMaxHeight={200}
+                                        thumbQuality={50}
+                                      />
+                                      <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 via-transparent to-transparent pb-2 opacity-0 transition-opacity group-hover:opacity-100">
+                                        <ZoomIn className="h-6 w-6 text-white drop-shadow-lg" />
+                                      </div>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleRemoveAttachment(att)}
+                                      className="absolute right-1.5 top-1.5 rounded-lg bg-black/50 p-1.5 text-white transition hover:bg-red-600"
+                                      aria-label="Remover foto"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                                <span
+                                  className="line-clamp-2 text-[10px] font-medium leading-tight text-zinc-600 dark:text-zinc-400 sm:text-[11px]"
+                                  title={att.name}
+                                >
+                                  {att.name}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {pdfAttachments.length > 0 ? (
+                      <div className="mb-4">
+                        <div className="mb-2 flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-rose-600 dark:text-rose-400" aria-hidden />
+                          <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                            Documentos PDF
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {pdfAttachments.map((att) => (
+                            <div
+                              key={att.id}
+                              className="relative flex min-w-[140px] max-w-[200px] flex-col rounded-xl border border-zinc-200/80 bg-white dark:border-white/[0.08] dark:bg-zinc-950/40"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => setPreviewPdf(att.url)}
+                                className="flex flex-col items-center gap-2 p-4 text-center transition hover:border-rose-400/40"
+                              >
+                                <FileText className="h-8 w-8 text-red-500" />
+                                <span className="line-clamp-2 break-all text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                                  {att.name}
+                                </span>
+                                <span className="text-[10px] font-bold text-red-500">Toque para ver</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleRemoveAttachment(att)}
+                                className="absolute right-1 top-1 rounded-lg bg-black/40 p-1 text-white hover:bg-red-600"
+                                aria-label="Remover PDF"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {otherAttachments.length > 0 ? (
+                      <ul className="space-y-2">
+                        {otherAttachments.map((att) => (
+                          <li
+                            key={att.id}
+                            className="flex items-center justify-between gap-2 rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-950/50"
                           >
-                            <ExternalLink className="h-4 w-4 shrink-0" />
-                            <span className="truncate">{att.name}</span>
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => void handleRemoveAttachment(att)}
-                            className="shrink-0 rounded-lg p-1.5 text-red-500 hover:bg-red-500/10"
-                            aria-label="Remover anexo"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                            <a
+                              href={att.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex min-w-0 items-center gap-2 text-[13px] text-rose-600 dark:text-rose-400"
+                            >
+                              <ExternalLink className="h-4 w-4 shrink-0" />
+                              <span className="truncate">{att.name}</span>
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => void handleRemoveAttachment(att)}
+                              className="shrink-0 rounded-lg p-1.5 text-red-500 hover:bg-red-500/10"
+                              aria-label="Remover anexo"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+
+                    {attachments.length === 0 ? (
+                      <p className="text-[12px] text-zinc-500 dark:text-zinc-400">Nenhum anexo ainda.</p>
+                    ) : null}
                   </div>
                 ) : (
                   <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
@@ -569,6 +692,14 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
           </div>
         </div>
       </div>
+      {previewImages ? (
+        <Lightbox
+          images={previewImages.urls}
+          initialIndex={previewImages.currentIndex}
+          onClose={() => setPreviewImages(null)}
+        />
+      ) : null}
+      {previewPdf ? <PdfViewerModal src={previewPdf} onClose={() => setPreviewPdf(null)} /> : null}
     </ModalPortal>
   );
 };
