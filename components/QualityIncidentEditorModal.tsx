@@ -188,7 +188,7 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
   const handleSave = async () => {
     const { technicianName: techName } = resolveQualityRadarTechnicianPayload(technicianId, technicians);
     if (!technicianId || !techName) {
-      setError('Selecione o mecânico responsável pela ocorrência.');
+      setError('Selecione o usuário responsável pela ocorrência.');
       return;
     }
     if (!description.trim()) {
@@ -318,7 +318,7 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
-                    <label className={labelClass}>Mecânico *</label>
+                    <label className={labelClass}>Usuário *</label>
                     <select
                       className={inputClass}
                       value={technicianId}

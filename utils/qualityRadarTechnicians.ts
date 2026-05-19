@@ -1,13 +1,12 @@
 import {
-  getSystemUserTechnicians,
+  getSystemUsersDirectory,
   getWorkshopTechnicians,
-  type SystemUserTechnician,
-  type WorkshopTechnician,
+  type SystemUserDirectoryEntry,
 } from '../services/apiService';
 
 /** Prefixo no valor do select para técnicos da tabela workshop_technicians. */
 export const QUALITY_RADAR_WT_PREFIX = 'wt:';
-/** Prefixo para usuários do sistema marcados como técnico (mesma lista do Pátio). */
+/** Prefixo para usuários do sistema (workshop_system_users). */
 export const QUALITY_RADAR_SU_PREFIX = 'su:';
 
 export type QualityRadarTechnicianOption = {
@@ -22,18 +21,21 @@ function normalizeName(s: string): string {
   return s.trim().toLowerCase();
 }
 
-function systemUserDisplayName(u: SystemUserTechnician): string {
-  return (u.display_name || u.username || '').trim();
+function systemUserDisplayName(u: SystemUserDirectoryEntry): string {
+  const display = (u.display_name || '').trim();
+  const username = (u.username || '').trim();
+  if (display) return display;
+  return username;
 }
 
 /**
- * Lista unificada: técnicos cadastrados em Administração + usuários do sistema com «é técnico».
+ * Lista unificada: técnicos cadastrados em Administração + todos os usuários do sistema.
  * Evita duplicar o mesmo nome quando já existe em workshop_technicians.
  */
 export async function getQualityRadarTechnicianOptions(): Promise<QualityRadarTechnicianOption[]> {
-  const [workshop, system] = await Promise.all([
+  const [workshop, systemUsers] = await Promise.all([
     getWorkshopTechnicians(),
-    getSystemUserTechnicians(),
+    getSystemUsersDirectory(),
   ]);
 
   const byKey = new Map<string, QualityRadarTechnicianOption>();
@@ -50,7 +52,7 @@ export async function getQualityRadarTechnicianOptions(): Promise<QualityRadarTe
     });
   }
 
-  for (const u of system) {
+  for (const u of systemUsers) {
     const name = systemUserDisplayName(u);
     if (!name) continue;
     const key = normalizeName(name);

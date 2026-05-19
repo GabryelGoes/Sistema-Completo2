@@ -2378,6 +2378,23 @@ export async function getSystemUserTechnicians(): Promise<SystemUserTechnician[]
   return response.json();
 }
 
+/** Todos os usuários do sistema (nome para selects — ex.: Radar de Qualidade). */
+export interface SystemUserDirectoryEntry {
+  id: string;
+  username: string;
+  display_name: string | null;
+  job_title: string | null;
+}
+
+export async function getSystemUsersDirectory(): Promise<SystemUserDirectoryEntry[]> {
+  const response = await fetch(`${API_BASE}/system-users/directory`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao listar usuários do sistema.");
+  }
+  return response.json();
+}
+
 export async function createSystemUser(
   adminPassword: string,
   data: {

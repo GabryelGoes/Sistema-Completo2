@@ -756,6 +756,27 @@ export function createApiApp() {
     }
   });
 
+  /** Lista resumida de todos os usuários (sem senha) — Radar de Qualidade, selects, etc. */
+  app.get("/api/system-users/directory", async (_req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("id, username, display_name, job_title")
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("username", { ascending: true });
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json(data ?? []);
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/system-users/directory:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   // Lista de técnicos para atribuição nos cards: usuários do sistema com is_technician = true
   app.get("/api/system-users/technicians", async (_req, res) => {
     try {
@@ -6029,7 +6050,6 @@ export function createApiApp() {
       .select("display_name, username")
       .eq("id", technicianId)
       .eq("workshop_id", WORKSHOP_ID)
-      .eq("is_technician", true)
       .maybeSingle();
     if (!su) return "";
     return ((su as { display_name?: string | null; username?: string | null }).display_name ||
@@ -6040,14 +6060,13 @@ export function createApiApp() {
       .trim();
   }
 
-  async function resolveSystemUserTechnicianDisplayName(userId: string): Promise<string> {
+  async function resolveSystemUserDisplayName(userId: string): Promise<string> {
     if (!userId || !supabaseAdmin || !WORKSHOP_ID) return "";
     const { data } = await supabaseAdmin
       .from("workshop_system_users")
       .select("display_name, username")
       .eq("id", userId)
       .eq("workshop_id", WORKSHOP_ID)
-      .eq("is_technician", true)
       .maybeSingle();
     if (!data) return "";
     return ((data as { display_name?: string | null; username?: string | null }).display_name ||
@@ -6095,7 +6114,7 @@ export function createApiApp() {
       if (status && status !== "all") query = query.eq("status", status);
       if (technicianId) query = query.eq("technician_id", technicianId);
       if (technicianSystemUserId) {
-        const sysName = await resolveSystemUserTechnicianDisplayName(technicianSystemUserId);
+        const sysName = await resolveSystemUserDisplayName(technicianSystemUserId);
         if (sysName) query = query.eq("technician_name", sysName);
         else query = query.eq("technician_id", "00000000-0000-0000-0000-000000000000");
       }
