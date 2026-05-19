@@ -1,28 +1,39 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Archive,
+  Car,
   ExternalLink,
   FileText,
   Image as ImageIcon,
   Link2,
   Loader2,
   Save,
+  Search,
   Trash2,
   X,
+  ZoomIn,
 } from 'lucide-react';
+import { Lightbox } from './Lightbox';
+import { PdfViewerModal } from './PdfViewerModal';
 import { ModalPortal } from './ui/ModalPortal';
+import { StorageThumbImg } from './ui/StorageThumbImg';
 import {
   addErrorBulletinLink,
   createErrorBulletin,
   deleteErrorBulletin,
   deleteErrorBulletinAttachment,
   getErrorBulletinById,
+  getServiceOrders,
   updateErrorBulletin,
   uploadErrorBulletinAttachment,
   type ErrorBulletinAttachment,
   type ErrorBulletinDetail,
   type ErrorBulletinStatus,
+  type ServiceOrderListItem,
 } from '../services/apiService';
+import { CANCELLED_STATUS } from '../constants/serviceOrderStages';
 import { compressImageForUpload } from '../utils/imageUpload';
+import { isAttachmentImage, isAttachmentPdf } from '../utils/attachmentPreviewHelpers';
 
 const inputClass =
   'w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[14px] text-zinc-900 outline-none focus:ring-2 focus:ring-amber-500/30 dark:border-white/[0.12] dark:bg-zinc-950 dark:text-white';
@@ -37,11 +48,47 @@ type Props = {
   onSaved: () => void;
 };
 
+type VehiclePickMode = 'manual' | 'patio' | 'archived';
+
 function parseDtcLines(raw: string): string[] {
   return raw
     .split(/[\n,;]+/)
     .map((s) => s.trim().toUpperCase())
     .filter(Boolean);
+}
+
+function sortOrdersByRecent(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
+  return [...orders].sort(
+    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+  );
+}
+
+function formatOrderPickLabel(o: ServiceOrderListItem): string {
+  const plate = (o.plate ?? '').trim().toUpperCase() || '—';
+  const model = (o.vehicle_model ?? '').trim() || 'Veículo';
+  const brand = (o.vehicle_brand ?? '').trim();
+  const vehicle = [brand, model].filter(Boolean).join(' ') || model;
+  const os = o.os_number != null ? ` · OS #${o.os_number}` : '';
+  const client = (o.customer_name ?? o.customers?.name ?? '').trim();
+  return client ? `${plate} — ${vehicle}${os} (${client})` : `${plate} — ${vehicle}${os}`;
+}
+
+function filterOrders(orders: ServiceOrderListItem[], query: string): ServiceOrderListItem[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return orders;
+  const digits = q.replace(/\D/g, '');
+  return orders.filter((o) => {
+    const plate = (o.plate ?? '').toLowerCase();
+    const model = (o.vehicle_model ?? '').toLowerCase();
+    const brand = (o.vehicle_brand ?? '').toLowerCase();
+    const name = (o.customer_name ?? o.customers?.name ?? '').toLowerCase();
+    const os = o.os_number != null ? String(o.os_number) : '';
+    if (plate.includes(q) || model.includes(q) || brand.includes(q) || name.includes(q) || os.includes(q)) {
+      return true;
+    }
+    if (digits.length >= 3 && (o.plate ?? '').replace(/\D/g, '').includes(digits)) return true;
+    return false;
+  });
 }
 
 export const ErrorBulletinEditorModal: React.FC<Props> = ({
@@ -72,6 +119,31 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
   const [tagsRaw, setTagsRaw] = useState('');
   const [linkName, setLinkName] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [previewImages, setPreviewImages] = useState<{ urls: string[]; currentIndex: number } | null>(null);
+  const [previewPdf, setPreviewPdf] = useState<string | null>(null);
+
+  const { imageAttachments, pdfAttachments, otherAttachments } = useMemo(() => {
+    const images: ErrorBulletinAttachment[] = [];
+    const pdfs: ErrorBulletinAttachment[] = [];
+    const others: ErrorBulletinAttachment[] = [];
+    for (const att of attachments) {
+      if (att.kind === 'link') {
+        others.push(att);
+        continue;
+      }
+      if (isAttachmentImage(att)) images.push(att);
+      else if (isAttachmentPdf(att)) pdfs.push(att);
+      else others.push(att);
+    }
+    return { imageAttachments: images, pdfAttachments: pdfs, otherAttachments: others };
+  }, [attachments]);
+
+  const [vehiclePickMode, setVehiclePickMode] = useState<VehiclePickMode>('manual');
+  const [patioOrders, setPatioOrders] = useState<ServiceOrderListItem[]>([]);
+  const [archivedOrders, setArchivedOrders] = useState<ServiceOrderListItem[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const applyDetail = (d: ErrorBulletinDetail) => {
     setTitle(d.title);
@@ -105,8 +177,58 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     setAttachments([]);
     setLinkName('');
     setLinkUrl('');
+    setVehiclePickMode('manual');
+    setPatioOrders([]);
+    setArchivedOrders([]);
+    setVehicleSearch('');
+    setSelectedOrderId(null);
     setError(null);
   };
+
+  const applyOrderToForm = useCallback((o: ServiceOrderListItem) => {
+    setVehicleBrand((o.vehicle_brand ?? '').trim());
+    setVehicleModel((o.vehicle_model ?? '').trim());
+    setVehicleYear((o.vehicle_year ?? '').trim());
+    setPlate((o.plate ?? '').trim().toUpperCase());
+    setEngineInfo((o.vehicle_engine_info ?? '').trim());
+    setSelectedOrderId(o.id);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setOrdersLoading(true);
+    void (async () => {
+      try {
+        const [activeAll, archived] = await Promise.all([
+          getServiceOrders(undefined, 'vehicle'),
+          getServiceOrders(CANCELLED_STATUS, 'vehicle'),
+        ]);
+        if (cancelled) return;
+        const patio = sortOrdersByRecent(
+          activeAll.filter((o) => o.status !== CANCELLED_STATUS && (o.order_type ?? 'vehicle') === 'vehicle')
+        );
+        setPatioOrders(patio);
+        setArchivedOrders(sortOrdersByRecent(archived));
+      } catch {
+        if (!cancelled) {
+          setPatioOrders([]);
+          setArchivedOrders([]);
+        }
+      } finally {
+        if (!cancelled) setOrdersLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  const pickerOrders = vehiclePickMode === 'archived' ? archivedOrders : patioOrders;
+  const filteredPickerOrders = useMemo(
+    () => filterOrders(pickerOrders, vehicleSearch),
+    [pickerOrders, vehicleSearch]
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -285,6 +407,98 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                     <label className={labelClass}>Título do registro</label>
                     <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex.: Falha ABS — Corolla 2018" />
                   </div>
+
+                  <div className="sm:col-span-2 rounded-2xl border border-zinc-200/90 bg-zinc-50/80 p-4 dark:border-white/[0.1] dark:bg-zinc-950/50">
+                    <p className={labelClass}>Veículo</p>
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {(
+                        [
+                          { id: 'manual' as const, label: 'Digitar manualmente' },
+                          { id: 'patio' as const, label: 'No pátio', icon: Car },
+                          { id: 'archived' as const, label: 'Arquivados', icon: Archive },
+                        ] as const
+                      ).map(({ id, label, icon: Icon }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => {
+                            setVehiclePickMode(id);
+                            setVehicleSearch('');
+                            if (id === 'manual') setSelectedOrderId(null);
+                          }}
+                          className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition-colors ${
+                            vehiclePickMode === id
+                              ? 'bg-amber-500 text-white shadow-sm'
+                              : 'bg-white text-zinc-700 ring-1 ring-zinc-200/90 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-200 dark:ring-white/[0.12] dark:hover:bg-zinc-800'
+                          }`}
+                        >
+                          {Icon ? <Icon className="h-4 w-4 shrink-0" strokeWidth={2} /> : null}
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {vehiclePickMode !== 'manual' ? (
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                          <input
+                            className={`${inputClass} pl-9`}
+                            value={vehicleSearch}
+                            onChange={(e) => setVehicleSearch(e.target.value)}
+                            placeholder={
+                              vehiclePickMode === 'patio'
+                                ? 'Buscar placa, modelo, cliente ou OS…'
+                                : 'Buscar veículo arquivado…'
+                            }
+                          />
+                        </div>
+                        {ordersLoading ? (
+                          <div className="flex items-center gap-2 py-6 text-[13px] text-zinc-500">
+                            <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
+                            Carregando veículos…
+                          </div>
+                        ) : filteredPickerOrders.length === 0 ? (
+                          <p className="py-4 text-center text-[13px] text-zinc-500 dark:text-zinc-400">
+                            {vehiclePickMode === 'patio'
+                              ? 'Nenhum veículo no pátio.'
+                              : 'Nenhum veículo arquivado encontrado.'}
+                          </p>
+                        ) : (
+                          <ul className="max-h-44 space-y-1 overflow-y-auto overscroll-contain rounded-xl border border-zinc-200/80 bg-white p-1 dark:border-white/[0.08] dark:bg-zinc-950">
+                            {filteredPickerOrders.map((o) => {
+                              const selected = selectedOrderId === o.id;
+                              return (
+                                <li key={o.id}>
+                                  <button
+                                    type="button"
+                                    onClick={() => applyOrderToForm(o)}
+                                    className={`w-full rounded-lg px-3 py-2.5 text-left text-[13px] transition-colors ${
+                                      selected
+                                        ? 'bg-amber-500/15 font-semibold text-amber-900 ring-1 ring-amber-500/40 dark:text-amber-100'
+                                        : 'text-zinc-800 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-white/[0.06]'
+                                    }`}
+                                  >
+                                    {formatOrderPickLabel(o)}
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                        {selectedOrderId ? (
+                          <p className="text-[12px] text-emerald-700 dark:text-emerald-400">
+                            Veículo selecionado — os campos abaixo foram preenchidos e podem ser ajustados.
+                          </p>
+                        ) : (
+                          <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                            Toque em um veículo da lista para preencher marca, modelo, placa e motor.
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+
                   <div>
                     <label className={labelClass}>Marca</label>
                     <input className={inputClass} value={vehicleBrand} onChange={(e) => setVehicleBrand(e.target.value)} />
@@ -392,44 +606,152 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                         <Link2 className="h-4 w-4" /> Link
                       </button>
                     </div>
-                    {attachments.length === 0 ? (
-                      <p className="text-[13px] text-zinc-500">Nenhum anexo ainda.</p>
-                    ) : (
+                    {imageAttachments.length > 0 ? (
+                      <div className="mb-4">
+                        <div className="mb-2 flex items-center gap-2">
+                          <ImageIcon className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+                          <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                            Fotos
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-zinc-200/70 bg-white/70 p-2.5 dark:border-white/[0.08] dark:bg-white/[0.03]">
+                          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                            {imageAttachments.map((att) => (
+                              <div key={att.id} className="flex min-w-0 flex-col gap-1">
+                                <div className="relative rounded-[14px] bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 p-[2px] shadow-[0_6px_16px_-8px_rgba(245,158,11,0.35)]">
+                                  <div className="group relative aspect-square overflow-hidden rounded-[12px] bg-zinc-100 dark:bg-zinc-900">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setPreviewImages({
+                                          urls: imageAttachments.map((a) => a.url),
+                                          currentIndex: imageAttachments.findIndex((a) => a.id === att.id),
+                                        })
+                                      }
+                                      className="absolute inset-0 h-full w-full focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                                    >
+                                      <StorageThumbImg
+                                        src={att.url}
+                                        alt={att.name}
+                                        className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                        sizes="(max-width: 640px) 45vw, 180px"
+                                        thumbMaxWidth={200}
+                                        thumbMaxHeight={200}
+                                        thumbQuality={50}
+                                      />
+                                      <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 via-transparent to-transparent pb-2 opacity-0 transition-opacity group-hover:opacity-100">
+                                        <ZoomIn className="h-6 w-6 text-white drop-shadow-lg" />
+                                      </div>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleRemoveAttachment(att)}
+                                      className="absolute right-1.5 top-1.5 rounded-lg bg-black/50 p-1.5 text-white transition hover:bg-red-600"
+                                      aria-label="Remover foto"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                                <span
+                                  className="line-clamp-2 text-[10px] font-medium leading-tight text-zinc-600 dark:text-zinc-400 sm:text-[11px]"
+                                  title={att.name}
+                                >
+                                  {att.name}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {pdfAttachments.length > 0 ? (
+                      <div className="mb-4">
+                        <div className="mb-2 flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+                          <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                            Documentos PDF
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {pdfAttachments.map((att) => (
+                            <div
+                              key={att.id}
+                              className="relative flex min-w-[140px] max-w-[200px] flex-col rounded-xl border border-zinc-200/80 bg-white dark:border-white/[0.08] dark:bg-zinc-950/40"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => setPreviewPdf(att.url)}
+                                className="flex flex-col items-center gap-2 p-4 text-center transition hover:border-amber-400/40"
+                              >
+                                <FileText className="h-8 w-8 text-red-500" />
+                                <span className="line-clamp-2 break-all text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                                  {att.name}
+                                </span>
+                                <span className="text-[10px] font-bold text-red-500">Toque para ver</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleRemoveAttachment(att)}
+                                className="absolute right-1 top-1 rounded-lg bg-black/40 p-1 text-white hover:bg-red-600"
+                                aria-label="Remover PDF"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {otherAttachments.length > 0 ? (
                       <ul className="space-y-2">
-                        {attachments.map((att) => (
+                        {otherAttachments.map((att) => (
                           <li
                             key={att.id}
-                            className="flex items-center gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-2 dark:border-white/[0.08] dark:bg-zinc-900"
+                            className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-2 dark:border-white/[0.08] dark:bg-zinc-900"
                           >
-                            {att.kind === 'photo' ? (
-                              <ImageIcon className="h-4 w-4 shrink-0 text-amber-600" />
-                            ) : att.kind === 'link' ? (
-                              <Link2 className="h-4 w-4 shrink-0 text-sky-600" />
-                            ) : (
-                              <FileText className="h-4 w-4 shrink-0 text-zinc-500" />
-                            )}
-                            <a
-                              href={att.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="min-w-0 flex-1 truncate text-[13px] font-medium text-sky-700 hover:underline dark:text-sky-300"
-                            >
-                              {att.name}
-                            </a>
-                            <a href={att.url} target="_blank" rel="noopener noreferrer" className="p-1 text-zinc-500">
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
+                            <div className="flex min-w-0 items-center gap-2">
+                              {att.kind === 'link' ? (
+                                <Link2 className="h-4 w-4 shrink-0 text-sky-600" />
+                              ) : (
+                                <FileText className="h-4 w-4 shrink-0 text-zinc-500" />
+                              )}
+                              <a
+                                href={att.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="min-w-0 truncate text-[13px] font-medium text-sky-700 hover:underline dark:text-sky-300"
+                              >
+                                {att.name}
+                              </a>
+                              <a
+                                href={att.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="shrink-0 p-1 text-zinc-500"
+                                aria-label="Abrir em nova aba"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            </div>
                             <button
                               type="button"
                               onClick={() => void handleRemoveAttachment(att)}
-                              className="p-1 text-red-500 hover:bg-red-500/10 rounded-lg"
+                              className="shrink-0 rounded-lg p-1.5 text-red-500 hover:bg-red-500/10"
+                              aria-label="Remover anexo"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </li>
                         ))}
                       </ul>
-                    )}
+                    ) : null}
+
+                    {attachments.length === 0 ? (
+                      <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Nenhum anexo ainda.</p>
+                    ) : null}
                   </div>
                 ) : (
                   <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-[13px] text-amber-900 dark:text-amber-200">
@@ -472,6 +794,14 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
           </div>
         </div>
       </div>
+      {previewImages ? (
+        <Lightbox
+          images={previewImages.urls}
+          initialIndex={previewImages.currentIndex}
+          onClose={() => setPreviewImages(null)}
+        />
+      ) : null}
+      {previewPdf ? <PdfViewerModal src={previewPdf} onClose={() => setPreviewPdf(null)} /> : null}
     </ModalPortal>
   );
 };

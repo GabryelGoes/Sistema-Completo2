@@ -29,9 +29,9 @@ import {
   deleteAppointment,
 } from './services/apiService';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
-import { ArrowLeft, X } from 'lucide-react';
 import { applyAccentToRoot, DEFAULT_ACCENT } from './utils/appAppearance';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
+import { OverlayPageNavBar } from './components/ui/OverlayPageNavBar';
 import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
 import { DesktopEscapeCloseBridge } from './components/ui/DesktopEscapeCloseBridge';
 import { PublicVehicleAccompanimentPage } from './components/public/PublicVehicleAccompanimentPage';
@@ -482,26 +482,7 @@ export default function App() {
         data-effects={effectsEnabled ? 'on' : 'off'}
       >
         <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
-        {userTab !== 'home' && (
-          <div className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
-            <button
-              type="button"
-              onClick={handleOverlayCloseOrBack}
-              className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
-              aria-label="Voltar"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              onClick={handleOverlayCloseOrBack}
-              className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
-              aria-label="Fechar página"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        )}
+        <OverlayPageNavBar visible={userTab !== 'home'} onBack={handleOverlayCloseOrBack} />
         <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
           <KeepAliveTabPanel
             tabId="home"
@@ -725,26 +706,7 @@ export default function App() {
       data-effects={effectsEnabled ? 'on' : 'off'}
     >
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
-      {currentTab !== 'home' && (
-        <div className="pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
-          <button
-            type="button"
-            onClick={handleOverlayCloseOrBack}
-            className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
-            aria-label="Voltar"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={handleOverlayCloseOrBack}
-            className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
-            aria-label="Fechar página"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      )}
+      <OverlayPageNavBar visible={currentTab !== 'home'} onBack={handleOverlayCloseOrBack} />
 
       <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
         <KeepAliveTabPanel

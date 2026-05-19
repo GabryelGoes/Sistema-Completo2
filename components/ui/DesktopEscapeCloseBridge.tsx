@@ -6,7 +6,7 @@ const POINTER_FINE = '(pointer: fine)';
 
 /**
  * Em ambientes com ponteiro fino (desktop), Escape equivale ao gesto “voltar” da pilha
- * e, sem camadas, ao botão “Fechar página” (X) fora da Home.
+ * e, sem camadas, ao botão “Voltar” fora da Home.
  * Deve ser o último filho da árvore autenticada para não sobrepor listeners mais específicos.
  */
 export function DesktopEscapeCloseBridge({
