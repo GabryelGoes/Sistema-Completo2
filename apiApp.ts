@@ -1323,7 +1323,22 @@ export function createApiApp() {
     }
   });
 
-  // ----------------- TV DO PÁTIO (playlist pública + gestão admin) -----------------
+  // ----------------- TVs (pátio + laboratório): playlist pública + gestão admin -----------------
+  type TvScope = "patio" | "laboratorio";
+
+  function parseTvScope(raw: unknown): TvScope {
+    const s = String(raw ?? "patio").toLowerCase().trim();
+    if (s === "laboratorio" || s === "laboratory" || s === "lab") return "laboratorio";
+    return "patio";
+  }
+
+  function tvScopeFromRequest(req: express.Request): TvScope {
+    const q = req.query?.scope;
+    const body = req.body as { tvScope?: unknown; scope?: unknown } | undefined;
+    const fromBody = body?.tvScope ?? body?.scope;
+    return parseTvScope(q ?? fromBody);
+  }
+
   const TV_BODY_FULLSCREEN_MARKER = "[[tv_fullscreen_image]]";
   function parseTvBodyAndFullscreen(raw: unknown): { body: string; mediaFullscreen: boolean } {
     const text = String(raw ?? "");
@@ -1342,7 +1357,7 @@ export function createApiApp() {
     return "cover";
   }
 
-  async function fetchTvChimeScheduleNormalized() {
+  async function fetchTvChimeScheduleNormalized(scope: TvScope) {
     if (!supabaseAdmin || !WORKSHOP_ID) {
       return normalizeTvChimeConfig(null);
     }
@@ -1350,6 +1365,7 @@ export function createApiApp() {
       .from("workshop_tv_chime_schedule")
       .select("config")
       .eq("workshop_id", WORKSHOP_ID)
+      .eq("tv_scope", scope)
       .maybeSingle();
     if (error && (error as { code?: string }).code !== "PGRST116") {
       console.error("[API] TV chime schedule:", error.message);
@@ -1357,7 +1373,7 @@ export function createApiApp() {
     return normalizeTvChimeConfig((data as { config?: unknown } | null)?.config ?? null);
   }
 
-  async function fetchTvPlaylistForWorkshop(): Promise<{
+  async function fetchTvPlaylistForWorkshop(scope: TvScope): Promise<{
     slides: Array<Record<string, unknown>>;
     weeklyGoal: {
       label: string;
@@ -1376,6 +1392,7 @@ export function createApiApp() {
         "id, slide_type, title, body, media_url, duration_seconds, sort_order, is_active, goal_current, goal_target, goal_label, play_sound, goal_show_values, pin_immediate, media_object_fit"
       )
       .eq("workshop_id", WORKSHOP_ID)
+      .eq("tv_scope", scope)
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true });
@@ -1414,6 +1431,7 @@ export function createApiApp() {
       .from("workshop_tv_weekly_goal")
       .select("label, current_amount, target_amount, show_weekly_bar")
       .eq("workshop_id", WORKSHOP_ID)
+      .eq("tv_scope", scope)
       .maybeSingle();
 
     const weeklyGoal = goalRow
@@ -1425,24 +1443,26 @@ export function createApiApp() {
         }
       : null;
 
-    const chimeSchedule = await fetchTvChimeScheduleNormalized();
+    const chimeSchedule = await fetchTvChimeScheduleNormalized(scope);
     return { slides, weeklyGoal, chimeSchedule };
   }
 
-  /** Playlist para o painel da TV (sem autenticação; CORS já limita origem do Patio-View). */
-  app.get("/api/tv/playlist", async (_req, res) => {
+  /** Playlist para painel da TV (?scope=patio | laboratorio). */
+  app.get("/api/tv/playlist", async (req, res) => {
     try {
-      const { slides, weeklyGoal, chimeSchedule } = await fetchTvPlaylistForWorkshop();
-      return res.json({ slides, weeklyGoal, chimeSchedule });
+      const scope = tvScopeFromRequest(req);
+      const { slides, weeklyGoal, chimeSchedule } = await fetchTvPlaylistForWorkshop(scope);
+      return res.json({ slides, weeklyGoal, chimeSchedule, tvScope: scope });
     } catch (err: any) {
       console.error("[API] GET /api/tv/playlist:", err);
       return res.status(500).json({ error: err?.message ?? "Erro ao carregar playlist da TV." });
     }
   });
 
-  /** Lista completa (inclui inativos) para tela de gestão — mesmo acesso do app logado (sem senha extra). */
-  app.get("/api/tv/manage", async (_req, res) => {
+  /** Lista completa (inclui inativos) para gestão no app (?scope=patio | laboratorio). */
+  app.get("/api/tv/manage", async (req, res) => {
     try {
+      const scope = tvScopeFromRequest(req);
       if (!WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
@@ -1453,6 +1473,7 @@ export function createApiApp() {
         .from("workshop_tv_slides")
         .select("*")
         .eq("workshop_id", WORKSHOP_ID)
+        .eq("tv_scope", scope)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true });
       if (error) {
@@ -1484,6 +1505,7 @@ export function createApiApp() {
         .from("workshop_tv_weekly_goal")
         .select("*")
         .eq("workshop_id", WORKSHOP_ID)
+        .eq("tv_scope", scope)
         .maybeSingle();
 
       const weeklyGoal = goalRow
@@ -1495,9 +1517,9 @@ export function createApiApp() {
           }
         : null;
 
-      const chimeSchedule = await fetchTvChimeScheduleNormalized();
+      const chimeSchedule = await fetchTvChimeScheduleNormalized(scope);
       res.setHeader("Cache-Control", "no-store");
-      return res.json({ slides, weeklyGoal, chimeSchedule });
+      return res.json({ slides, weeklyGoal, chimeSchedule, tvScope: scope });
     } catch (err: any) {
       console.error("[API] GET /api/tv/manage:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
@@ -1506,6 +1528,7 @@ export function createApiApp() {
 
   app.put("/api/tv/weekly-goal", async (req, res) => {
     try {
+      const scope = tvScopeFromRequest(req);
       const { label, currentAmount, targetAmount, showWeeklyBar } = req.body || {};
       if (!WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
@@ -1515,6 +1538,7 @@ export function createApiApp() {
       }
       const row = {
         workshop_id: WORKSHOP_ID,
+        tv_scope: scope,
         label: typeof label === "string" && label.trim() ? label.trim() : "Meta semanal",
         current_amount: Number(currentAmount) || 0,
         target_amount: Number(targetAmount) || 0,
@@ -1522,7 +1546,7 @@ export function createApiApp() {
         updated_at: new Date().toISOString(),
       };
       const { error } = await supabaseAdmin.from("workshop_tv_weekly_goal").upsert(row, {
-        onConflict: "workshop_id",
+        onConflict: "workshop_id,tv_scope",
       });
       if (error) {
         return res.status(500).json({ error: error.message });
@@ -1534,8 +1558,9 @@ export function createApiApp() {
     }
   });
 
-  app.delete("/api/tv/weekly-goal", async (_req, res) => {
+  app.delete("/api/tv/weekly-goal", async (req, res) => {
     try {
+      const scope = tvScopeFromRequest(req);
       if (!WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
@@ -1545,7 +1570,8 @@ export function createApiApp() {
       const { error } = await supabaseAdmin
         .from("workshop_tv_weekly_goal")
         .delete()
-        .eq("workshop_id", WORKSHOP_ID);
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("tv_scope", scope);
       if (error) {
         return res.status(500).json({ error: error.message });
       }
@@ -1558,6 +1584,7 @@ export function createApiApp() {
 
   app.put("/api/tv/chime-schedule", async (req, res) => {
     try {
+      const scope = tvScopeFromRequest(req);
       if (!WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
@@ -1585,10 +1612,11 @@ export function createApiApp() {
       const { error } = await supabaseAdmin.from("workshop_tv_chime_schedule").upsert(
         {
           workshop_id: WORKSHOP_ID,
+          tv_scope: scope,
           config,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "workshop_id" }
+        { onConflict: "workshop_id,tv_scope" }
       );
       if (error) {
         return res.status(500).json({ error: error.message });
@@ -1617,8 +1645,10 @@ export function createApiApp() {
       }
       const mediaFullscreen = s.mediaFullscreen === true;
       const mediaObjectFit = normalizeTvMediaObjectFit(s.mediaObjectFit);
+      const scope = parseTvScope(s.tvScope ?? (req.body as { tvScope?: unknown })?.tvScope ?? req.query?.scope);
       const insert = {
         workshop_id: WORKSHOP_ID,
+        tv_scope: scope,
         slide_type: slideType,
         title: s.title != null ? String(s.title) : null,
         body: buildTvBodyWithFullscreen(s.body, mediaFullscreen),
@@ -1684,10 +1714,20 @@ export function createApiApp() {
         const raw = s.pinImmediate;
         const pinOn = raw === true || raw === "true" || raw === 1 || raw === "1";
         if (pinOn) {
+          const { data: scopeRow } = await supabaseAdmin
+            .from("workshop_tv_slides")
+            .select("tv_scope")
+            .eq("id", id)
+            .eq("workshop_id", WORKSHOP_ID)
+            .maybeSingle();
+          const pinScope = parseTvScope(
+            (scopeRow as { tv_scope?: string } | null)?.tv_scope ?? req.query?.scope
+          );
           const { error: clearErr } = await supabaseAdmin
             .from("workshop_tv_slides")
             .update({ pin_immediate: false, updated_at: new Date().toISOString() })
-            .eq("workshop_id", WORKSHOP_ID);
+            .eq("workshop_id", WORKSHOP_ID)
+            .eq("tv_scope", pinScope);
           if (clearErr) {
             console.error("[API] PATCH tv/slides clear pin_immediate:", clearErr);
             return res.status(500).json({ error: clearErr.message });

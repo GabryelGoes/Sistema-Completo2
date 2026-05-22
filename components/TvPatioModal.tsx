@@ -18,7 +18,7 @@ import {
   Volume2,
   Clock,
 } from 'lucide-react';
-import type { TvMediaObjectFit, TvSlide, TvSlideType } from '../services/apiService';
+import type { TvMediaObjectFit, TvScope, TvSlide, TvSlideType } from '../services/apiService';
 import {
   getTvManage,
   normalizeTvMediaObjectFit,
@@ -74,6 +74,7 @@ interface TvPatioModalProps {
 }
 
 export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) => {
+  const [tvScope, setTvScope] = useState<TvScope>('patio');
   const [dataReady, setDataReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -145,7 +146,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setLoading(true);
     setError(null);
     try {
-      const data = await getTvManage();
+      const data = await getTvManage(tvScope);
       setSlides(data.slides);
       setChimeConfig(data.chimeSchedule);
       if (data.weeklyGoal) {
@@ -184,7 +185,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       return;
     }
     void load();
-  }, [isOpen]);
+  }, [isOpen, tvScope]);
 
   const draftSlide = useMemo((): TvSlide | null => {
     if (newType === 'goal') {
@@ -378,12 +379,15 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setLoading(true);
     setError(null);
     try {
-      await putTvWeeklyGoal({
-        label: weeklyLabel,
-        currentAmount: weeklyCurrentNum,
-        targetAmount: weeklyTargetNum,
-        showWeeklyBar,
-      });
+      await putTvWeeklyGoal(
+        {
+          label: weeklyLabel,
+          currentAmount: weeklyCurrentNum,
+          targetAmount: weeklyTargetNum,
+          showWeeklyBar,
+        },
+        tvScope
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
     } finally {
@@ -395,7 +399,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setChimeSaving(true);
     setError(null);
     try {
-      const saved = await putTvChimeSchedule(chimeConfig);
+      const saved = await putTvChimeSchedule(chimeConfig, tvScope);
       setChimeConfig(saved);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao salvar horários da TV.');
@@ -412,7 +416,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setChimeSaving(true);
     setError(null);
     try {
-      const saved = await putTvChimeSchedule(next);
+      const saved = await putTvChimeSchedule(next, tvScope);
       setChimeConfig(saved);
     } catch (e) {
       setChimeConfig(prev);
@@ -430,22 +434,25 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setLoading(true);
     setError(null);
     try {
-      await createTvSlide({
-        slideType: newType,
-        title: newTitle,
-        body: newBody,
-        mediaUrl: newMediaUrl.trim() || null,
-        durationSeconds: Math.min(300, Math.max(3, newDuration)),
-        sortOrder: slides.length,
-        isActive: true,
-        goalCurrent: newType === 'goal' ? newGoalCurrent : null,
-        goalTarget: newType === 'goal' ? newGoalTarget : null,
-        goalLabel: newType === 'goal' ? newGoalLabel : null,
-        playSound: newPlaySound,
-        goalShowValues: newType === 'goal' ? newGoalShowValues : false,
-        mediaFullscreen: (newType === 'image' || newType === 'video') ? newMediaFullscreen : false,
-        mediaObjectFit: (newType === 'image' || newType === 'video') ? newMediaObjectFit : undefined,
-      });
+      await createTvSlide(
+        {
+          slideType: newType,
+          title: newTitle,
+          body: newBody,
+          mediaUrl: newMediaUrl.trim() || null,
+          durationSeconds: Math.min(300, Math.max(3, newDuration)),
+          sortOrder: slides.length,
+          isActive: true,
+          goalCurrent: newType === 'goal' ? newGoalCurrent : null,
+          goalTarget: newType === 'goal' ? newGoalTarget : null,
+          goalLabel: newType === 'goal' ? newGoalLabel : null,
+          playSound: newPlaySound,
+          goalShowValues: newType === 'goal' ? newGoalShowValues : false,
+          mediaFullscreen: (newType === 'image' || newType === 'video') ? newMediaFullscreen : false,
+          mediaObjectFit: (newType === 'image' || newType === 'video') ? newMediaObjectFit : undefined,
+        },
+        tvScope
+      );
       setNewTitle('');
       setNewBody('');
       setNewMediaUrl('');
@@ -675,17 +682,57 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         <header className="shrink-0 px-6 pt-8 pb-6 sm:px-8 max-lg:landscape:order-2 lg:col-start-1 lg:row-start-1 lg:pr-12">
           <div className="flex items-center gap-3 mb-1">
             <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-              <img src="/icons/tv-patio-ios.png" alt="TV do Pátio" className="h-full w-full object-cover" />
+              <img
+                src={tvScope === 'laboratorio' ? '/icons/laboratorio-ios.png' : '/icons/tv-patio-ios.png'}
+                alt={tvScope === 'laboratorio' ? 'TV Laboratório' : 'TV Pátio'}
+                className="h-full w-full object-cover"
+              />
             </IosAccentIconSquircle>
             <div>
               <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 leading-tight">
-                TV do pátio
+                TVs da oficina
               </h2>
               <p className="text-[13px] text-zinc-500 mt-0.5 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-brand-yellow" />
-                Conteúdo exibido entre as páginas de veículos
+                <Sparkles className={`w-3.5 h-3.5 ${tvScope === 'laboratorio' ? 'text-violet-500' : 'text-brand-yellow'}`} />
+                {tvScope === 'laboratorio'
+                  ? 'Conteúdo entre as páginas de módulos (Laboratório)'
+                  : 'Conteúdo entre as páginas de veículos (Pátio)'}
               </p>
             </div>
+          </div>
+          <div className="mt-4 flex max-w-md gap-1 rounded-2xl bg-zinc-200/70 p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setTvScope('patio');
+                setPreviewTab('draft');
+                setEditingSlideId(null);
+                setEditForm(null);
+              }}
+              className={`flex-1 rounded-xl py-2.5 text-[12px] font-semibold transition-all ${
+                tvScope === 'patio'
+                  ? 'bg-white text-zinc-900 shadow-md'
+                  : 'text-zinc-600 hover:text-zinc-900'
+              }`}
+            >
+              TV Pátio
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTvScope('laboratorio');
+                setPreviewTab('draft');
+                setEditingSlideId(null);
+                setEditForm(null);
+              }}
+              className={`flex-1 rounded-xl py-2.5 text-[12px] font-semibold transition-all ${
+                tvScope === 'laboratorio'
+                  ? 'bg-white text-violet-900 shadow-md ring-1 ring-violet-200'
+                  : 'text-zinc-600 hover:text-violet-900'
+              }`}
+            >
+              TV Laboratório
+            </button>
           </div>
         </header>
 

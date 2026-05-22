@@ -2724,12 +2724,19 @@ export interface TvWeeklyGoal {
   showWeeklyBar?: boolean;
 }
 
-export async function getTvManage(): Promise<{
+/** Painel TV: pátio (veículos) ou laboratório (módulos). */
+export type TvScope = "patio" | "laboratorio";
+
+function tvScopeQuery(scope: TvScope): string {
+  return `scope=${encodeURIComponent(scope)}`;
+}
+
+export async function getTvManage(scope: TvScope = "patio"): Promise<{
   slides: TvSlide[];
   weeklyGoal: TvWeeklyGoal | null;
   chimeSchedule: TvChimeScheduleConfig;
 }> {
-  const response = await fetch(`${API_BASE}/tv/manage`, { cache: 'no-store' });
+  const response = await fetch(`${API_BASE}/tv/manage?${tvScopeQuery(scope)}`, { cache: 'no-store' });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error || "Falha ao carregar dados da TV.");
@@ -2746,12 +2753,15 @@ export async function getTvManage(): Promise<{
   };
 }
 
-export async function putTvWeeklyGoal(data: {
-  label: string;
-  currentAmount: number;
-  targetAmount: number;
-  showWeeklyBar?: boolean;
-}): Promise<void> {
+export async function putTvWeeklyGoal(
+  data: {
+    label: string;
+    currentAmount: number;
+    targetAmount: number;
+    showWeeklyBar?: boolean;
+  },
+  scope: TvScope = "patio"
+): Promise<void> {
   const response = await fetch(`${API_BASE}/tv/weekly-goal`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -2760,6 +2770,7 @@ export async function putTvWeeklyGoal(data: {
       currentAmount: data.currentAmount,
       targetAmount: data.targetAmount,
       showWeeklyBar: data.showWeeklyBar !== false,
+      tvScope: scope,
     }),
   });
   const err = await response.json().catch(() => ({}));
@@ -2769,12 +2780,12 @@ export async function putTvWeeklyGoal(data: {
 }
 
 /** Playlist pública da TV (slides + meta semanal sem senha). Inclui `chimeSchedule` para o painel reproduzir avisos por horário. */
-export async function getTvPlaylist(): Promise<{
+export async function getTvPlaylist(scope: TvScope = "patio"): Promise<{
   slides: unknown[];
   weeklyGoal: TvWeeklyGoal | null;
   chimeSchedule: TvChimeScheduleConfig;
 }> {
-  const response = await fetch(`${API_BASE}/tv/playlist`);
+  const response = await fetch(`${API_BASE}/tv/playlist?${tvScopeQuery(scope)}`);
   const d = (await response.json().catch(() => ({}))) as {
     slides?: unknown[];
     weeklyGoal?: TvWeeklyGoal | null;
@@ -2791,11 +2802,14 @@ export async function getTvPlaylist(): Promise<{
   };
 }
 
-export async function putTvChimeSchedule(config: TvChimeScheduleConfig): Promise<TvChimeScheduleConfig> {
+export async function putTvChimeSchedule(
+  config: TvChimeScheduleConfig,
+  scope: TvScope = "patio"
+): Promise<TvChimeScheduleConfig> {
   const response = await fetch(`${API_BASE}/tv/chime-schedule`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ config }),
+    body: JSON.stringify({ config, tvScope: scope }),
   });
   const err = (await response.json().catch(() => ({}))) as {
     chimeSchedule?: unknown;
@@ -2810,11 +2824,11 @@ export async function putTvChimeSchedule(config: TvChimeScheduleConfig): Promise
   return normalizeTvChimeConfig(config);
 }
 
-export async function deleteTvWeeklyGoal(): Promise<void> {
-  const response = await fetch(`${API_BASE}/tv/weekly-goal`, {
+export async function deleteTvWeeklyGoal(scope: TvScope = "patio"): Promise<void> {
+  const response = await fetch(`${API_BASE}/tv/weekly-goal?${tvScopeQuery(scope)}`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ tvScope: scope }),
   });
   const err = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -2822,11 +2836,14 @@ export async function deleteTvWeeklyGoal(): Promise<void> {
   }
 }
 
-export async function createTvSlide(slide: Omit<TvSlide, "id"> & { isActive?: boolean }): Promise<string> {
+export async function createTvSlide(
+  slide: Omit<TvSlide, "id"> & { isActive?: boolean },
+  scope: TvScope = "patio"
+): Promise<string> {
   const response = await fetch(`${API_BASE}/tv/slides`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ slide }),
+    body: JSON.stringify({ slide, tvScope: scope }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

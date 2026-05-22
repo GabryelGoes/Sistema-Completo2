@@ -478,8 +478,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     if (showFullAdminHub || !!perms.access_tv_patio) {
       extraTiles.push({
         id: 'tv_patio',
-        label: 'TV do Pátio',
-        icon: <img src="/icons/tv-patio-ios.png" alt="TV do Pátio" className="h-full w-full object-cover" />,
+        label: 'TVs da oficina',
+        icon: <img src="/icons/tv-patio-ios.png" alt="TVs Pátio e Laboratório" className="h-full w-full object-cover" />,
         onOpen: () => setIsTvPatioOpen(true),
       });
     }
