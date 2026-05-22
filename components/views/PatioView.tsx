@@ -58,11 +58,12 @@ import {
 } from '../../services/apiService';
 import type { ServiceOrderDetail, ApiCustomer } from '../../services/apiService';
 import {
-  SERVICE_ORDER_STAGES,
+  getServiceOrderStages,
   getStageConfig,
   getStageStyle,
   getStageRingClass,
-  FIRST_STAGE,
+  normalizeStatusForFlow,
+  type ServiceOrderFlowKind,
   CANCELLED_STATUS,
   type ServiceOrderStatus,
 } from '../../constants/serviceOrderStages';
@@ -293,11 +294,9 @@ interface PatioViewProps {
   };
 }
 
-const BACKEND_LISTS: BoardList[] = SERVICE_ORDER_STAGES.map((s) => ({
-  id: s.id,
-  name: s.name,
-  pos: s.pos,
-}));
+function boardListsFromStages(stages: ReturnType<typeof getServiceOrderStages>): BoardList[] {
+  return stages.map((s) => ({ id: s.id, name: s.name, pos: s.pos }));
+}
 
 /** Nome amigável do anexo (remove prefixo numérico do storage e extensão só na interface). */
 function attachmentDisplayName(fileName: string): string {
@@ -434,20 +433,6 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     vehicleEngineInfo: o.vehicle_engine_info ?? null,
     referenceLinks: parseReferenceLinksFromApi(o.reference_links),
   };
-}
-
-/**
- * Status desconhecido ou divergente do quadro: sem coluna correspondente o card some.
- * Mapeia para a primeira etapa visível (mesmo critério de “ativa” no fluxo).
- */
-function normalizeStatusForPatioBoard(status: string | undefined): ServiceOrderStatus {
-  const s = String(status ?? '').trim();
-  if (s === CANCELLED_STATUS) return CANCELLED_STATUS;
-  if (getStageConfig(s)) return s as ServiceOrderStatus;
-  if (import.meta.env.DEV) {
-    console.warn('[PatioView] Status de OS não reconhecido no quadro; exibindo em Aguardando avaliação:', status);
-  }
-  return FIRST_STAGE;
 }
 
 /** Lista de arquivados: mais recentemente atualizado (arquivado) primeiro. */
@@ -1076,6 +1061,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [newReminder, setNewReminder] = useState('');
   const remindersStorageKey = orderType === 'module' ? 'patio-reminders-module' : 'patio-reminders-vehicle';
   const isModuleMode = orderType === 'module';
+  const flowKind: ServiceOrderFlowKind = isModuleMode ? 'module' : 'vehicle';
+  const boardStages = useMemo(() => getServiceOrderStages(flowKind), [flowKind]);
   const [diagnosticAuthSheetOpen, setDiagnosticAuthSheetOpen] = useState(false);
   const diagnosticAuthSheetContext = useMemo(() => {
     if (isModuleMode) return null;
@@ -1595,14 +1582,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
         // Nenhum usuário marcado como técnico ainda
       }
       setSystemTechnicians(technicians);
-      setLists(BACKEND_LISTS);
+      setLists(boardListsFromStages(boardStages));
       const nameMap = buildTechnicianNameMap(technicians);
       const onlyActive = orders.filter((o) => o.status !== 'CANCELLED');
       const byId = new Map<string, TrelloCard>();
       for (const o of onlyActive) {
         const row: ServiceOrderListItem = {
           ...o,
-          status: normalizeStatusForPatioBoard(o.status),
+          status: normalizeStatusForFlow(o.status, flowKind),
         };
         const card = orderToCard(row, nameMap, orderType);
         byId.set(card.id, card);
@@ -2879,7 +2866,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const handleUnarchive = async (card: BoardCard) => {
     try {
-      await updateServiceOrderStatus(card.id, 'FINALIZADO', actorOptions);
+      await updateServiceOrderStatus(
+        card.id,
+        isModuleMode ? 'PRONTO_PRA_RETIRADA' : 'FINALIZADO',
+        actorOptions
+      );
       setSelectedHistoryCard(null);
       setArchivedCards((prev) => prev.filter((c) => c.id !== card.id));
       fetchData(true);
@@ -2890,7 +2881,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const getStatusConfig = (listName: string, listId?: string) => {
-    const byName = SERVICE_ORDER_STAGES.find(
+    const byName = boardStages.find(
       (s) => s.name.toLowerCase() === listName.toLowerCase()
     );
     if (byName) return { style: byName.style, label: byName.name, ringClass: byName.ringClass };
@@ -3546,7 +3537,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. (z-0 para dropdown do cabeçalho z-50 ficar acima) */}
       <div className="relative z-0 mx-auto w-full max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3">
       {(() => {
-        const stageOrder = SERVICE_ORDER_STAGES.map((s) => s.id);
+        const stageOrder = boardStages.map((s) => s.id);
         const byStage = (a: TrelloCard, b: TrelloCard) => {
           const ia = stageOrder.indexOf(a.idList);
           const ib = stageOrder.indexOf(b.idList);
@@ -3563,7 +3554,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         };
         const sortedCardsList =
           boardLayoutMode === 'recent_first' ? [...cards].sort(byRecentGlobal) : [...cards].sort(byStage);
-        const stageColumnsSorted = [...SERVICE_ORDER_STAGES].sort((a, b) => a.pos - b.pos);
+        const stageColumnsSorted = [...boardStages].sort((a, b) => a.pos - b.pos);
         const techIdsKnown = new Set(TECHNICIANS.map((t) => t.id));
         const showMechanicOtherCol = cards.some((c) => {
           const mid = c.members?.[0]?.id;

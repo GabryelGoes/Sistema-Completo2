@@ -3,6 +3,7 @@ import { ChevronRight, FileText } from 'lucide-react';
 import { getStageStyle } from '../../constants/serviceOrderStages';
 import type { BoardCard } from '../../types';
 import { parsePatioCardTitle } from '../../utils/patioCardTitle';
+import { labProductDisplayLabel, moduleVehicleKindLabel } from '../../utils/moduleMetadata';
 
 /** Mesmo chrome visual do hub Orçamentos (`iosPageGlassOrcamentosVehicleCard`), com fundo branco sólido no claro. */
 const receptionHistoryVehicleCardShell =
@@ -27,6 +28,9 @@ export type ArchivedHistoryHubOrderLike = {
   vehicle_model: string | null;
   vehicle_brand?: string | null;
   module_identification?: string | null;
+  module_kind?: string | null;
+  module_vehicle_kind?: string | null;
+  module_product_other?: string | null;
   plate: string | null;
   os_number?: number | null;
   customer_name?: string | null;
@@ -137,6 +141,16 @@ export function ReceptionArchivedHistoryHubCard({
           <p className="mt-1 truncate text-[15px] font-semibold text-zinc-900 dark:text-white">{titleLine}</p>
           {customerFull ? (
             <p className="mt-0.5 truncate text-[13px] text-zinc-600 dark:text-zinc-400">{customerFull}</p>
+          ) : null}
+          {isModuleMode && (order.module_kind || order.module_vehicle_kind) ? (
+            <p className="mt-1 text-[12px] font-medium text-violet-700 dark:text-violet-300">
+              {[
+                labProductDisplayLabel(order.module_kind, order.module_product_other),
+                moduleVehicleKindLabel(order.module_vehicle_kind),
+              ]
+                .filter((s) => s !== '—')
+                .join(' · ')}
+            </p>
           ) : null}
           <p className="mt-2 text-[12px] font-medium text-zinc-500 dark:text-zinc-500">Toque para abrir a ficha completa</p>
         </div>

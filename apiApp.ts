@@ -17,6 +17,7 @@ import {
   CANCELLED_STATUS,
 } from "./constants/serviceOrderStages.js";
 import { normalizeTvChimeConfig } from "./utils/tvChimeSchedule.js";
+import { parseModuleKind, parseModuleVehicleKind } from "./utils/moduleMetadata.js";
 import { SYSTEM_NOTIFICATION_IDS } from "./constants/systemNotificationTypes.js";
 
 const PBKDF2_ITERATIONS = 100000;
@@ -1925,7 +1926,7 @@ export function createApiApp() {
 
   // ----------------- ORDENS DE SERVIÇO -----------------
   const SERVICE_ORDERS_LIST_SELECT =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   const SERVICE_ORDERS_PAGE_SIZE = 1000;
 
   /** PostgREST limita ~1000 linhas por request — pagina até trazer todas as OS da oficina. */
@@ -2260,9 +2261,17 @@ export function createApiApp() {
         vehicleYear: bodyVehicleYear,
         vehicleEngineInfo: bodyVehicleEngineInfo,
         vehicleBrand: bodyVehicleBrand,
+        moduleKind: bodyModuleKind,
+        moduleVehicleKind: bodyModuleVehicleKind,
+        moduleProductOther: bodyModuleProductOther,
       } = req.body;
 
       const orderType = bodyOrderType === "module" ? "module" : "vehicle";
+      const trimOrNull = (v: unknown) => {
+        if (v == null) return null;
+        const t = String(v).trim();
+        return t === "" ? null : t;
+      };
 
       if (!customerId) {
         return res.status(400).json({ error: "customerId é obrigatório." });
@@ -2274,7 +2283,28 @@ export function createApiApp() {
       }
       if (orderType === "module" && !vehicleModel && !moduleIdentification) {
         return res.status(400).json({
-          error: "Para módulos: preencha ao menos Veículo ou Identificação do módulo.",
+          error: "Para o laboratório: preencha ao menos Veículo ou Identificação do produto.",
+        });
+      }
+      const moduleKindParsed =
+        orderType === "module" ? parseModuleKind(bodyModuleKind) : null;
+      const moduleVehicleKindParsed =
+        orderType === "module" ? parseModuleVehicleKind(bodyModuleVehicleKind) : null;
+      const moduleProductOtherTrimmed =
+        orderType === "module" ? trimOrNull(bodyModuleProductOther) : null;
+      if (orderType === "module" && !moduleKindParsed) {
+        return res.status(400).json({
+          error: "Selecione o tipo de produto do laboratório.",
+        });
+      }
+      if (orderType === "module" && moduleKindParsed === "outro" && !moduleProductOtherTrimmed) {
+        return res.status(400).json({
+          error: 'Ao escolher "Outro produto", descreva qual peça entrou.',
+        });
+      }
+      if (orderType === "module" && !moduleVehicleKindParsed) {
+        return res.status(400).json({
+          error: "Informe se o produto é de carro ou de moto.",
         });
       }
 
@@ -2297,11 +2327,6 @@ export function createApiApp() {
           ? bodyVehicleCategory.trim() || null
           : null;
 
-      const trimOrNull = (v: unknown) => {
-        if (v == null) return null;
-        const t = String(v).trim();
-        return t === "" ? null : t;
-      };
       const vehicleColorIns =
         orderType === "vehicle" ? trimOrNull(bodyVehicleColor) : null;
       const vehicleYearIns =
@@ -2320,6 +2345,12 @@ export function createApiApp() {
           vehicle_model: vehicleModel ?? null,
           vehicle_brand: vehicleBrandIns,
           module_identification: orderType === "module" ? (moduleIdentification ?? null) : null,
+          module_kind: moduleKindParsed,
+          module_vehicle_kind: moduleVehicleKindParsed,
+          module_product_other:
+            orderType === "module" && moduleKindParsed === "outro"
+              ? moduleProductOtherTrimmed
+              : null,
           plate: orderType === "vehicle" ? String(plate || '').toUpperCase() : null,
           mileage_km: orderType === "vehicle" && mileageKm != null && String(mileageKm).trim() !== '' ? String(mileageKm).trim() : null,
           issue_description: issueDescription ?? null,
@@ -4692,6 +4723,9 @@ export function createApiApp() {
         vehicleYear: bodyVehicleYearPut,
         vehicleEngineInfo: bodyVehicleEngineInfoPut,
         vehicleBrand: bodyVehicleBrandPut,
+        moduleKind: bodyModuleKindPut,
+        moduleVehicleKind: bodyModuleVehicleKindPut,
+        moduleProductOther: bodyModuleProductOtherPut,
         actor,
         actorTechnicianSlug,
         actorTechnicianName,
@@ -4711,6 +4745,27 @@ export function createApiApp() {
       }
       if (moduleIdentification !== undefined) {
         updatePayload.module_identification = typeof moduleIdentification === "string" ? moduleIdentification.trim() : null;
+      }
+      if (bodyModuleKindPut !== undefined) {
+        const mk = parseModuleKind(bodyModuleKindPut);
+        updatePayload.module_kind = mk;
+      }
+      if (bodyModuleVehicleKindPut !== undefined) {
+        const mv = parseModuleVehicleKind(bodyModuleVehicleKindPut);
+        updatePayload.module_vehicle_kind = mv;
+      }
+      if (bodyModuleProductOtherPut !== undefined) {
+        const otherT =
+          bodyModuleProductOtherPut == null
+            ? null
+            : String(bodyModuleProductOtherPut).trim() || null;
+        updatePayload.module_product_other = otherT;
+      }
+      if (bodyModuleKindPut !== undefined) {
+        const mkPut = parseModuleKind(bodyModuleKindPut);
+        if (mkPut !== "outro") {
+          updatePayload.module_product_other = null;
+        }
       }
       if (plate !== undefined) {
         updatePayload.plate = typeof plate === "string" ? String(plate).trim().toUpperCase() : "";
@@ -4764,6 +4819,9 @@ export function createApiApp() {
           updatePayload.vehicle_year = null;
           updatePayload.vehicle_engine_info = null;
           updatePayload.vehicle_brand = null;
+        } else if (bodyOrderType === "vehicle") {
+          updatePayload.module_kind = null;
+          updatePayload.module_vehicle_kind = null;
         }
       }
       if (bodyVehicleCategoryPut !== undefined) {

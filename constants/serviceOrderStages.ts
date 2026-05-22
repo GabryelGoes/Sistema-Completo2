@@ -1,6 +1,6 @@
 /**
  * Etapas do fluxo de ordem de serviço.
- * Ordem e cores usadas no Pátio e no backend.
+ * Pátio (veículos) e Laboratório (módulos/produtos) têm colunas diferentes.
  */
 
 export type ServiceOrderStatus =
@@ -13,6 +13,7 @@ export type ServiceOrderStatus =
   | "EM_SERVICO"
   | "FASE_DE_TESTE"
   | "FINALIZADO"
+  | "PRONTO_PRA_RETIRADA"
   | "GARANTIA"
   | "ORCAMENTO_NAO_APROVADO"
   | "CANCELLED";
@@ -22,15 +23,15 @@ export interface StageConfig {
   name: string;
   /** Classes Tailwind para o badge (bg, text, border) */
   style: string;
-  /** Classes Tailwind para aro do modal (ring + ring-offset) */
+  /** Classes Tailwind para o aro do modal (ring + ring-offset) */
   ringClass: string;
   pos: number;
 }
 
+/** Fluxo do Pátio (veículos) — 10 etapas operacionais + garantia. */
 export const SERVICE_ORDER_STAGES: StageConfig[] = [
   { id: "GARANTIA", name: "Garantia", style: "bg-red-600 text-white border-red-600", ringClass: "ring-2 ring-red-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 0 },
   { id: "AGUARDANDO_AVALIACAO", name: "Aguardando avaliação", style: "bg-zinc-500 text-white border-zinc-600", ringClass: "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 1 },
-  /** Amarelo fixo do fluxo — não usa `brand-yellow` (cor configurável do app) para não misturar com a personalização. */
   { id: "AVALIACAO_TECNICA", name: "Avaliação técnica", style: "bg-[#F5D00B] text-black border-[#F5D00B]", ringClass: "ring-2 ring-[#F5D00B] ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 2 },
   { id: "AGUARDANDO_APROVACAO", name: "Aguardando aprovação", style: "bg-amber-500 text-amber-950 border-amber-600", ringClass: "ring-2 ring-amber-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 3 },
   { id: "ORCAMENTO_APROVADO", name: "Orçamento aprovado", style: "bg-orange-600 text-white border-orange-600", ringClass: "ring-2 ring-orange-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 4 },
@@ -42,6 +43,26 @@ export const SERVICE_ORDER_STAGES: StageConfig[] = [
   { id: "ORCAMENTO_NAO_APROVADO", name: "Orçamento não aprovado", style: "bg-violet-600 text-white border-violet-600", ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 10 },
 ];
 
+/** Fluxo do Laboratório — sem peças disponíveis, fase de teste nem finalizado (usa pronto pra retirada). */
+export const LABORATORY_SERVICE_ORDER_STAGES: StageConfig[] = [
+  { id: "GARANTIA", name: "Garantia", style: "bg-red-600 text-white border-red-600", ringClass: "ring-2 ring-red-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 0 },
+  { id: "AGUARDANDO_AVALIACAO", name: "Aguardando avaliação", style: "bg-zinc-500 text-white border-zinc-600", ringClass: "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 1 },
+  { id: "AVALIACAO_TECNICA", name: "Avaliação técnica", style: "bg-[#F5D00B] text-black border-[#F5D00B]", ringClass: "ring-2 ring-[#F5D00B] ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 2 },
+  { id: "AGUARDANDO_APROVACAO", name: "Aguardando aprovação", style: "bg-amber-500 text-amber-950 border-amber-600", ringClass: "ring-2 ring-amber-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 3 },
+  { id: "ORCAMENTO_APROVADO", name: "Orçamento aprovado", style: "bg-orange-600 text-white border-orange-600", ringClass: "ring-2 ring-orange-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 4 },
+  { id: "AGUARDANDO_PECAS", name: "Aguardando peças", style: "bg-teal-500 text-white border-teal-500", ringClass: "ring-2 ring-teal-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 5 },
+  { id: "EM_SERVICO", name: "Em serviço", style: "bg-blue-600 text-white border-blue-600", ringClass: "ring-2 ring-blue-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 6 },
+  { id: "PRONTO_PRA_RETIRADA", name: "Pronto pra retirada", style: "bg-green-400 text-green-950 border-green-500", ringClass: "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 7 },
+  { id: "ORCAMENTO_NAO_APROVADO", name: "Orçamento não aprovado", style: "bg-violet-600 text-white border-violet-600", ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 8 },
+];
+
+/** Status legados do pátio ainda aceitos no banco — mapeados ao abrir o quadro do laboratório. */
+export const LABORATORY_LEGACY_STATUS_MAP: Partial<Record<string, ServiceOrderStatus>> = {
+  FINALIZADO: "PRONTO_PRA_RETIRADA",
+  PECAS_DISPONIVEIS: "AGUARDANDO_PECAS",
+  FASE_DE_TESTE: "EM_SERVICO",
+};
+
 /** Primeira etapa (nova OS na recepção) */
 export const FIRST_STAGE: ServiceOrderStatus = "AGUARDANDO_AVALIACAO";
 
@@ -49,25 +70,65 @@ export const FIRST_STAGE: ServiceOrderStatus = "AGUARDANDO_AVALIACAO";
 export const CANCELLED_STATUS: ServiceOrderStatus = "CANCELLED";
 
 export const ALL_STATUSES: ServiceOrderStatus[] = [
-  ...SERVICE_ORDER_STAGES.map((s) => s.id),
-  CANCELLED_STATUS,
+  ...new Set([
+    ...SERVICE_ORDER_STAGES.map((s) => s.id),
+    ...LABORATORY_SERVICE_ORDER_STAGES.map((s) => s.id),
+    CANCELLED_STATUS,
+  ]),
 ];
 
-export function getStageConfig(status: string): StageConfig | undefined {
-  return SERVICE_ORDER_STAGES.find((s) => s.id === status);
+export type ServiceOrderFlowKind = "vehicle" | "module";
+
+export function getServiceOrderStages(flow: ServiceOrderFlowKind = "vehicle"): StageConfig[] {
+  return flow === "module" ? LABORATORY_SERVICE_ORDER_STAGES : SERVICE_ORDER_STAGES;
 }
 
-export function getStageStyle(status: string): string {
-  const stage = getStageConfig(status);
+export function normalizeStatusForFlow(
+  status: string | undefined,
+  flow: ServiceOrderFlowKind = "vehicle"
+): ServiceOrderStatus {
+  const s = String(status ?? "").trim();
+  if (s === CANCELLED_STATUS) return CANCELLED_STATUS;
+  const stages = getServiceOrderStages(flow);
+  if (stages.some((st) => st.id === s)) return s as ServiceOrderStatus;
+  if (flow === "module") {
+    const mapped = LABORATORY_LEGACY_STATUS_MAP[s];
+    if (mapped) return mapped;
+  }
+  return FIRST_STAGE;
+}
+
+export function getStageConfig(
+  status: string,
+  flow?: ServiceOrderFlowKind
+): StageConfig | undefined {
+  const s = String(status ?? "").trim();
+  if (flow === "module") {
+    const mapped = LABORATORY_LEGACY_STATUS_MAP[s];
+    const id = (mapped ?? s) as ServiceOrderStatus;
+    return (
+      LABORATORY_SERVICE_ORDER_STAGES.find((st) => st.id === id) ??
+      SERVICE_ORDER_STAGES.find((st) => st.id === s)
+    );
+  }
+  return (
+    SERVICE_ORDER_STAGES.find((st) => st.id === s) ??
+    LABORATORY_SERVICE_ORDER_STAGES.find((st) => st.id === s)
+  );
+}
+
+export function getStageStyle(status: string, flow?: ServiceOrderFlowKind): string {
+  const stage = getStageConfig(status, flow);
   if (stage) return stage.style;
   if (status === CANCELLED_STATUS) return "bg-zinc-600 text-zinc-300 border-zinc-600";
   return "bg-zinc-500 text-white border-zinc-600";
 }
 
-const DEFAULT_RING_CLASS = "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]";
+const DEFAULT_RING_CLASS =
+  "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]";
 
-export function getStageRingClass(status: string): string {
-  const stage = getStageConfig(status);
+export function getStageRingClass(status: string, flow?: ServiceOrderFlowKind): string {
+  const stage = getStageConfig(status, flow);
   if (stage) return stage.ringClass;
   if (status === CANCELLED_STATUS) return DEFAULT_RING_CLASS;
   return DEFAULT_RING_CLASS;
@@ -75,10 +136,23 @@ export function getStageRingClass(status: string): string {
 
 /**
  * OS ainda em fluxo operacional no Pátio (aparecem no quadro como “em andamento”).
- * Usado p.ex. para priorizar a lista na Central do atendimento.
  */
 export function isServiceOrderActivePatioFlow(status: string): boolean {
   const s = String(status || "").trim();
   if (!s || s === CANCELLED_STATUS) return false;
   return s !== "FINALIZADO" && s !== "ORCAMENTO_NAO_APROVADO";
+}
+
+/** OS ainda em fluxo no Laboratório. */
+export function isServiceOrderActiveLabFlow(status: string): boolean {
+  const s = String(status || "").trim();
+  if (!s || s === CANCELLED_STATUS) return false;
+  if (s === "FINALIZADO") return false;
+  return s !== "PRONTO_PRA_RETIRADA" && s !== "ORCAMENTO_NAO_APROVADO";
+}
+
+export function isServiceOrderActiveFlow(status: string, flow: ServiceOrderFlowKind): boolean {
+  return flow === "module"
+    ? isServiceOrderActiveLabFlow(status)
+    : isServiceOrderActivePatioFlow(status);
 }

@@ -63,6 +63,9 @@ export interface ServiceOrderListItem {
   customer_id: string;
   vehicle_model: string | null;
   module_identification: string | null;
+  module_kind?: string | null;
+  module_vehicle_kind?: string | null;
+  module_product_other?: string | null;
   plate: string | null;
   mileage_km: string | null;
   delivery_date: string | null;
@@ -100,6 +103,9 @@ export interface ServiceOrderDetail {
   customer_id: string;
   vehicle_model: string;
   module_identification: string | null;
+  module_kind?: string | null;
+  module_vehicle_kind?: string | null;
+  module_product_other?: string | null;
   plate: string;
   mileage_km: string | null;
   delivery_date: string | null;
@@ -766,6 +772,9 @@ export async function createServiceOrder(params: {
   customerId: string;
   vehicleModel: string;
   moduleIdentification?: string | null;
+  moduleKind?: string | null;
+  moduleVehicleKind?: string | null;
+  moduleProductOther?: string | null;
   plate?: string | null;
   mileageKm?: string | null;
   issueDescription?: string;
@@ -801,6 +810,9 @@ export async function createServiceOrder(params: {
     body.plate = null;
     body.mileageKm = null;
     body.moduleIdentification = params.moduleIdentification ?? null;
+    if (params.moduleKind) body.moduleKind = params.moduleKind;
+    if (params.moduleVehicleKind) body.moduleVehicleKind = params.moduleVehicleKind;
+    if (params.moduleProductOther) body.moduleProductOther = params.moduleProductOther;
   }
   const response = await fetch(`${API_BASE}/service-orders`, {
     method: "POST",
@@ -832,6 +844,12 @@ export async function saveReceptionIntake(
     customerId: createdCustomer.id,
     vehicleModel: customer.vehicleModel || '',
     moduleIdentification: orderType === "module" ? (customer.moduleIdentification ?? null) : undefined,
+    moduleKind: orderType === "module" ? customer.moduleKind ?? null : undefined,
+    moduleVehicleKind: orderType === "module" ? customer.moduleVehicleKind ?? null : undefined,
+    moduleProductOther:
+      orderType === "module" && customer.moduleKind === "outro"
+        ? customer.moduleProductOther?.trim() || null
+        : undefined,
     plate: orderType === "vehicle" ? (customer.plate || '').toUpperCase() : undefined,
     mileageKm: orderType === "vehicle" ? (customer.mileageKm ?? null) : undefined,
     issueDescription: customer.issueDescription,
@@ -862,6 +880,12 @@ export async function saveReceptionIntakeForExistingCustomer(
     customerId,
     vehicleModel: customer.vehicleModel || "",
     moduleIdentification: orderType === "module" ? (customer.moduleIdentification ?? null) : undefined,
+    moduleKind: orderType === "module" ? customer.moduleKind ?? null : undefined,
+    moduleVehicleKind: orderType === "module" ? customer.moduleVehicleKind ?? null : undefined,
+    moduleProductOther:
+      orderType === "module" && customer.moduleKind === "outro"
+        ? customer.moduleProductOther?.trim() || null
+        : undefined,
     plate: orderType === "vehicle" ? (customer.plate || "").toUpperCase() : undefined,
     mileageKm: orderType === "vehicle" ? (customer.mileageKm ?? null) : undefined,
     issueDescription: customer.issueDescription,

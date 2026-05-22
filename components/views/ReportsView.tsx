@@ -24,6 +24,7 @@ import {
   type ReportWeekStart,
   filterVehicleOrders,
   filterModuleOrders,
+  isModuleOrder,
   getPeriodRange,
   formatPeriodBounds,
   ordersEnteredAndArchivedInPeriod,
@@ -992,7 +993,8 @@ function OrderTable({
         <tbody>
           {orders.map((o) => {
             const stName =
-              getStageConfig(o.status)?.name ?? (o.status === CANCELLED_STATUS ? 'Arquivado' : o.status);
+              getStageConfig(o.status, isModuleOrder(o) ? 'module' : 'vehicle')?.name ??
+              (o.status === CANCELLED_STATUS ? 'Arquivado' : o.status);
             const stCls = getStageStyle(o.status);
             const vehicle = [o.vehicle_brand, o.vehicle_model].filter(Boolean).join(' ') || o.module_identification || '—';
             return (

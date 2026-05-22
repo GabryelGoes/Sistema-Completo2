@@ -13,6 +13,12 @@ export interface Customer {
   vehicleModel: string;
   /** Apenas modo módulo (Laboratório): identificação do módulo */
   moduleIdentification?: string;
+  /** Laboratório: tipo de produto (módulos, pinça, outro) */
+  moduleKind?: 'completo' | 'eletronico' | 'hidraulico' | 'pinca_freio' | 'outro';
+  /** Quando moduleKind=outro: descrição livre da peça */
+  moduleProductOther?: string;
+  /** Modo módulo: módulo de carro ou moto */
+  moduleVehicleKind?: 'carro' | 'moto';
   plate: string;
   /** Cor do veículo (ex.: consulta PlacaFipe) */
   vehicleColor?: string;

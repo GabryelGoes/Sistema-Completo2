@@ -52,6 +52,16 @@ import { archivedHistoryModalShell } from '../reception/archivedHistoryModalShel
 import { DiagnosticAuthorizationSignModal } from '../diagnostic/DiagnosticAuthorizationSignModal';
 import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAuthorizationSheetModal';
 import { getVehiclePhotoPublicUrl } from '../../utils/vehicleStoragePublicUrl';
+import {
+  MODULE_KIND_OPTIONS,
+  MODULE_VEHICLE_KIND_OPTIONS,
+  labProductDisplayLabel,
+  moduleVehicleKindLabel,
+  parseModuleKind,
+  parseModuleVehicleKind,
+  type ModuleKind,
+  type ModuleVehicleKind,
+} from '../../utils/moduleMetadata';
 
 const ARCHIVED_PHOTOS_BATCH = 8;
 
@@ -190,6 +200,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   const [status, setStatus] = useState<ProcessingStatus>({ step: 'idle' });
   const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory | ''>('');
+  const [moduleKind, setModuleKind] = useState<ModuleKind | ''>('');
+  const [moduleVehicleKind, setModuleVehicleKind] = useState<ModuleVehicleKind | ''>('');
+  const [moduleProductOther, setModuleProductOther] = useState('');
   const [plateLookupLoading, setPlateLookupLoading] = useState(false);
   const [plateLookupError, setPlateLookupError] = useState<string | null>(null);
   const lastFetchedPlacaRef = useRef<string | null>(null);
@@ -233,6 +246,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setDiagAuthSignedAt(null);
       setDiagAuthSheetOpen(false);
       setDiagAuthSignModalOpen(false);
+      setVehicleCategory('');
+    } else {
+      setModuleKind('');
+      setModuleVehicleKind('');
+      setModuleProductOther('');
     }
   }, [receptionMode]);
 
@@ -509,7 +527,38 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     }
 
     const isModule = receptionMode === 'module';
-    if (!isModule) {
+    if (isModule) {
+      if (!moduleKind) {
+        setStatus({
+          step: 'error',
+          message: 'Selecione o tipo de produto do laboratório.',
+        });
+        return;
+      }
+      if (moduleKind === 'outro' && !(moduleProductOther ?? '').trim()) {
+        setStatus({
+          step: 'error',
+          message: 'Descreva qual produto entrou (campo "Outro produto").',
+        });
+        return;
+      }
+      if (!moduleVehicleKind) {
+        setStatus({
+          step: 'error',
+          message: 'Informe se o produto é de carro ou de moto.',
+        });
+        return;
+      }
+      const vm = (customer.vehicleModel ?? '').trim();
+      const mid = (customer.moduleIdentification ?? '').trim();
+      if (!vm && !mid) {
+        setStatus({
+          step: 'error',
+          message: 'Preencha ao menos o veículo ou a identificação do produto.',
+        });
+        return;
+      }
+    } else {
       if (!vehicleCategory) {
         setStatus({
           step: 'error',
@@ -541,15 +590,23 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         step: 'creating',
         message: intakePhotos.length > 0 ? 'Criando ficha e enviando fotos…' : 'Criando cadastro',
       });
+      const intakeCustomer: Customer = {
+        ...customer,
+        issueDescription: customer.issueDescription,
+        moduleKind: isModule ? moduleKind : undefined,
+        moduleVehicleKind: isModule ? moduleVehicleKind : undefined,
+        moduleProductOther:
+          isModule && moduleKind === 'outro' ? moduleProductOther.trim() : undefined,
+      };
       const { serviceOrder } = useExistingFlow
         ? await saveReceptionIntakeForExistingCustomer(
             intakeExistingCustomerId!,
-            { ...customer, issueDescription: customer.issueDescription },
+            intakeCustomer,
             receptionMode,
             receptionMode === 'vehicle' ? vehicleCategory : null
           )
         : await saveReceptionIntake(
-            { ...customer, issueDescription: customer.issueDescription },
+            intakeCustomer,
             receptionMode,
             receptionMode === 'vehicle' ? vehicleCategory : null
           );
@@ -627,6 +684,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       return [];
     });
     setVehicleCategory('');
+    setModuleKind('');
+    setModuleVehicleKind('');
+    setModuleProductOther('');
     setPlateLookupError(null);
     lastFetchedPlacaRef.current = null;
     setIntakeExistingCustomerId(null);
@@ -860,6 +920,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       localStorage.setItem(RECEPTION_MODE_KEY, mode);
     } catch (_) {}
     setReceptionMode(mode);
+    setModuleKind(parseModuleKind(detail.module_kind) ?? '');
+    setModuleVehicleKind(parseModuleVehicleKind(detail.module_vehicle_kind) ?? '');
+    setModuleProductOther((detail.module_product_other ?? '').trim());
     setArchivedDetailOrderId(null);
     setArchivedDetailData(null);
     setArchivedDetailPhotos([]);
@@ -964,7 +1027,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             title="Consultar histórico de veículos arquivados"
           >
             <History className="w-4 h-4 text-[#007AFF] dark:text-[#7ab8ff]" />
-            {receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
+            {receptionMode === 'module' ? 'Histórico do laboratório' : 'Histórico de veículos'}
           </button>
         </div>
       </header>
@@ -1184,7 +1247,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     receptionPortraitVertical ? 'min-w-0 flex-1 leading-tight pr-1' : ''
                   }`}
                 >
-                  {receptionMode === 'vehicle' ? 'Veículo e atendimento' : 'Módulo e atendimento'}
+                  {receptionMode === 'vehicle' ? 'Veículo e atendimento' : 'Produto e atendimento'}
                 </h2>
                 {receptionPortraitVertical ? (
                   <button
@@ -1311,13 +1374,81 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     icon={<Package className="w-4 h-4" />}
                   />
                   <Input 
-                    label="Identificação do módulo"
+                    label="Identificação do produto"
                     name="moduleIdentification"
-                    placeholder="Ex: Módulo ABS XYZ"
+                    placeholder="Ex: ABS dianteiro, pinça LD, código da peça…"
                     value={customer.moduleIdentification ?? ''}
                     onChange={handleInputChange}
                     icon={<Package className="w-4 h-4" />}
                   />
+                  <div className="sm:col-span-2 space-y-4">
+                    <div>
+                      <label className={`${iosLabel} ml-1`}>
+                        Tipo de produto <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {MODULE_KIND_OPTIONS.map((opt) => {
+                          const selected = moduleKind === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => {
+                                setModuleKind(opt.value);
+                                if (opt.value !== 'outro') setModuleProductOther('');
+                              }}
+                              className={`px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-all active:scale-[0.98] ${
+                                selected
+                                  ? 'bg-violet-600 text-white border-violet-600/85 shadow-[0_10px_26px_-8px_rgba(124,58,237,0.32),0_4px_14px_-6px_rgba(124,58,237,0.22)] dark:shadow-md dark:shadow-violet-500/25'
+                                  : 'bg-white/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200 border-zinc-200/90 dark:border-white/[0.1] shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:shadow-none hover:border-violet-500/45 backdrop-blur-sm'
+                              }`}
+                              aria-pressed={selected}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {moduleKind === 'outro' && (
+                        <div className="mt-3">
+                          <Input
+                            label="Qual produto entrou?"
+                            name="moduleProductOther"
+                            required
+                            placeholder="Ex: bomba de direção, atuador, válvula solenoide…"
+                            value={moduleProductOther}
+                            onChange={(e) => setModuleProductOther(e.target.value)}
+                            icon={<Package className="w-4 h-4" />}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className={`${iosLabel} ml-1`}>
+                        Produto de <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {MODULE_VEHICLE_KIND_OPTIONS.map((opt) => {
+                          const selected = moduleVehicleKind === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => setModuleVehicleKind(opt.value)}
+                              className={`px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-all active:scale-[0.98] ${
+                                selected
+                                  ? 'bg-violet-600 text-white border-violet-600/85 shadow-[0_10px_26px_-8px_rgba(124,58,237,0.32),0_4px_14px_-6px_rgba(124,58,237,0.22)] dark:shadow-md dark:shadow-violet-500/25'
+                                  : 'bg-white/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200 border-zinc-200/90 dark:border-white/[0.1] shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:shadow-none hover:border-violet-500/45 backdrop-blur-sm'
+                              }`}
+                              aria-pressed={selected}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1539,10 +1670,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             <div className="shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-14 dark:border-white/[0.06] dark:bg-zinc-950/20 sm:px-8">
               <IosModalHeader
                 icon={<img src="/icons/recepcao-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
-                title={receptionMode === 'module' ? 'Histórico de módulos' : 'Histórico de veículos'}
+                title={receptionMode === 'module' ? 'Histórico do laboratório' : 'Histórico de veículos'}
                 subtitle={
                   receptionMode === 'module'
-                    ? 'Módulos arquivados — mesmo padrão visual da página Orçamentos'
+                    ? 'Produtos do laboratório arquivados — mesmo padrão visual da página Orçamentos'
                     : 'Veículos arquivados — mesmo padrão visual da página Orçamentos'
                 }
               />
@@ -1580,7 +1711,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 </div>
               ) : archivedOrders.length === 0 ? (
                 <div className="py-16 text-center text-zinc-500">
-                  {receptionMode === 'module' ? 'Nenhum módulo arquivado encontrado.' : 'Nenhum veículo arquivado encontrado.'}
+                  {receptionMode === 'module' ? 'Nenhum produto arquivado encontrado.' : 'Nenhum veículo arquivado encontrado.'}
                 </div>
               ) : (
                 <div className="mx-auto max-w-3xl space-y-4 px-4 py-5 sm:px-6">
@@ -1777,12 +1908,22 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                             </div>
                           )}
                           {isModuleDetail && (
-                            <div className="rounded-xl border border-zinc-300 dark:border-white/15 bg-zinc-100/80 dark:bg-white/[0.06] px-4 py-3">
-                              <span className="text-[10px] uppercase font-bold text-zinc-500 dark:text-zinc-400">Identificação do módulo</span>
-                              <p className="text-lg font-mono font-bold text-zinc-900 dark:text-white mt-1">
-                                {(d.module_identification || '—').trim()}
-                              </p>
-                            </div>
+                            <>
+                              <div className="rounded-xl border border-zinc-300 dark:border-white/15 bg-zinc-100/80 dark:bg-white/[0.06] px-4 py-3">
+                                <span className="text-[10px] uppercase font-bold text-zinc-500 dark:text-zinc-400">Identificação do produto</span>
+                                <p className="text-lg font-mono font-bold text-zinc-900 dark:text-white mt-1">
+                                  {(d.module_identification || '—').trim()}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <span className="rounded-full border border-violet-300/80 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-800 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-200">
+                                  {labProductDisplayLabel(d.module_kind, d.module_product_other)}
+                                </span>
+                                <span className="rounded-full border border-violet-300/80 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-800 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-200">
+                                  {moduleVehicleKindLabel(d.module_vehicle_kind)}
+                                </span>
+                              </div>
+                            </>
                           )}
                           <div className="flex items-center gap-2 px-4 py-2">
                             <User className="w-5 h-5 text-zinc-500" />
