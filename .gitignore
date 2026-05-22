@@ -32,5 +32,6 @@ dist-ssr
 supabase/.temp/
 .supabase/
 
-# Clone local do repositório Patio-View (deploy separado em github.com/GabryelGoes/Patio-View)
+# Clones locais dos painéis de TV (deploy separado no GitHub/Vercel)
 Patio-View/
+Laboratorio-View/

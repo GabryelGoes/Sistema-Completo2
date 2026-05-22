@@ -38,11 +38,12 @@ function verifyPassword(password: string, stored: string): boolean {
 }
 
 /**
- * Origens do painel da TV (Patio-View em patio-view.vercel.app) — CORS.
+ * Origens dos painéis de TV (Patio-View, Laboratorio-View) — CORS.
  * PATIO_VIEW_ORIGINS / PATIO_VIEW_ORIGIN: lista extra (domínios adicionais).
- * https://patio-view.vercel.app é sempre incluído (painel da TV).
+ * patio-view.vercel.app e laboratorio-view.vercel.app são sempre incluídos.
  */
 const PATIO_VIEW_TV_ORIGIN = "https://patio-view.vercel.app";
+const LABORATORIO_VIEW_TV_ORIGIN = "https://laboratorio-view.vercel.app";
 
 function parsePatioViewOrigins(): string[] {
   const raw = process.env.PATIO_VIEW_ORIGINS || process.env.PATIO_VIEW_ORIGIN || PATIO_VIEW_TV_ORIGIN;
@@ -52,6 +53,7 @@ function parsePatioViewOrigins(): string[] {
     .filter(Boolean);
   const merged = [...list];
   if (!merged.includes(PATIO_VIEW_TV_ORIGIN)) merged.push(PATIO_VIEW_TV_ORIGIN);
+  if (!merged.includes(LABORATORIO_VIEW_TV_ORIGIN)) merged.push(LABORATORIO_VIEW_TV_ORIGIN);
   return merged;
 }
 
