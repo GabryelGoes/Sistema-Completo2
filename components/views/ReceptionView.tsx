@@ -43,6 +43,7 @@ import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { useTabletPhonePortraitFullscreen } from '../../hooks/useTabletPhonePortraitFullscreen';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
+import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { markdownComponentsApp } from '../ui/markdownUi';
 import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
 import { firstTwoNames } from '../../utils/personNameFormat';
@@ -2098,15 +2099,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         {p.approved !== true && p.approved !== false && (
                           <span className="w-4 h-4 shrink-0 text-center font-bold text-zinc-400 mt-0.5" aria-hidden>—</span>
                         )}
-                        <span>
+                        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                           <span
                             className={
                               historyBudgetApprovalContrast && p.approved === true ? 'font-bold' : 'font-semibold'
                             }
                           >
-                            ({p.quantity}x)
-                          </span>{' '}
-                          {p.description}
+                            ({p.quantity}x) {p.description}
+                          </span>
+                          {p.fromStock ? <BudgetPartStockBadge /> : null}
                         </span>
                       </li>
                     ))}

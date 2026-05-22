@@ -93,6 +93,8 @@ import { printBudgetMechanicWithDetail, printBudgetWithDetail } from '../../util
 import { PATIO_CARD_TITLE_SEP, parsePatioCardTitle } from '../../utils/patioCardTitle';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
+import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
+import { resolveBudgetPartStockFlags, type BudgetPartFields } from '../../utils/budgetPartStock';
 import { parseReferenceLinksFromApi } from '../../utils/vehicleReferenceLinks';
 import { capitalizeFirst, firstTwoNames } from '../../utils/personNameFormat';
 import { getPatioBoardModelTitleClass } from '../../utils/patioBoardModelTitle';
@@ -467,6 +469,20 @@ interface BudgetPartItem {
   id: string;
   description: string;
   quantity: string;
+  fromStock?: boolean;
+  workshopPartId?: string;
+}
+
+function mapBudgetPartToPayload(p: BudgetPartItem): BudgetPartFields {
+  const row: BudgetPartFields = {
+    description: p.description.trim(),
+    quantity: (p.quantity || '1').trim(),
+  };
+  if (p.fromStock) {
+    row.fromStock = true;
+    if (p.workshopPartId) row.workshopPartId = p.workshopPartId;
+  }
+  return row;
 }
 
 const BUDGET_SERVICE_TEXTAREA_MIN_PX = 52;
@@ -529,7 +545,7 @@ export interface SavedBudget {
   cardName: string;
   diagnosis: string;
   services: { description: string; approved?: boolean; labor_hours?: number | null }[];
-  parts: { description: string; quantity: string; approved?: boolean }[];
+  parts: BudgetPartFields[];
   observations: string;
 }
 
@@ -2523,9 +2539,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
               s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? Number(s.labor_hours) : null,
           }))
         : [{ id: '1', description: '', laborHours: null }]);
-      setBudgetParts(budgetToEdit.parts.length > 0
-        ? budgetToEdit.parts.map((p, i) => ({ id: `p-${budgetToEdit.id}-${i}`, description: p.description, quantity: p.quantity || '1' }))
-        : [{ id: '1', description: '', quantity: '1' }]);
+      setBudgetParts(
+        budgetToEdit.parts.length > 0
+          ? budgetToEdit.parts.map((p, i) => ({
+              id: `p-${budgetToEdit.id}-${i}`,
+              description: p.description,
+              quantity: p.quantity || '1',
+              fromStock: p.fromStock === true,
+              workshopPartId: p.workshopPartId,
+            }))
+          : [{ id: '1', description: '', quantity: '1' }]
+      );
       setBudgetObservations(budgetToEdit.observations ?? '');
     } else {
       setEditingBudget(null);
@@ -2536,7 +2560,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
     setIsBudgetOpen(true);
     getWorkshopServices().then(setWorkshopServices).catch(() => setWorkshopServices([]));
-    getWorkshopParts().then(setWorkshopParts).catch(() => setWorkshopParts([]));
+    void getWorkshopParts()
+      .then((catalog) => {
+        setWorkshopParts(catalog);
+        if (isEdit && budgetToEdit && budgetToEdit.parts.length > 0) {
+          setBudgetParts(
+            budgetToEdit.parts.map((p, i) => {
+              const flags = resolveBudgetPartStockFlags(p.description, catalog, p);
+              return {
+                id: `p-${budgetToEdit.id}-${i}`,
+                description: p.description,
+                quantity: p.quantity || '1',
+                ...flags,
+              };
+            })
+          );
+        }
+      })
+      .catch(() => setWorkshopParts([]));
   };
 
   const handleDeleteBudget = async () => {
@@ -2579,11 +2620,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
         approved: approvalServices[i] ?? false,
         labor_hours: s.labor_hours ?? null,
       }));
-      const parts = budgetApprovalTarget.parts.map((p, i) => ({
-        description: p.description,
-        quantity: p.quantity,
-        approved: approvalParts[i] ?? false,
-      }));
+      const parts = budgetApprovalTarget.parts.map((p, i) => {
+        const row: BudgetPartFields = {
+          description: p.description,
+          quantity: p.quantity,
+          approved: approvalParts[i] ?? false,
+        };
+        if (p.fromStock) {
+          row.fromStock = true;
+          if (p.workshopPartId) row.workshopPartId = p.workshopPartId;
+        }
+        return row;
+      });
       const updated = await updateServiceOrderBudget(
         selectedCard.id,
         budgetApprovalTarget.id,
@@ -2655,7 +2703,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const updatePartDescription = (id: string, value: string) => {
-    setBudgetParts(budgetParts.map(item => item.id === id ? { ...item, description: value } : item));
+    setBudgetParts((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const flags = resolveBudgetPartStockFlags(value, workshopParts, item);
+        return { ...item, description: value, ...flags };
+      })
+    );
   };
 
   const updatePartQuantity = (id: string, delta: number) => {
@@ -2747,8 +2801,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setSuggestionsForServiceId(null);
   };
 
-  const applyPartSuggestion = (itemId: string, name: string) => {
-    updatePartDescription(itemId, name);
+  const applyPartSuggestion = (itemId: string, part: WorkshopPart) => {
+    setBudgetParts((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? { ...item, description: part.name, fromStock: true, workshopPartId: part.id }
+          : item
+      )
+    );
     setSuggestionsForPartId(null);
   };
 
@@ -2777,8 +2837,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
             labor_hours: s.laborHours != null && Number.isFinite(Number(s.laborHours)) ? Number(s.laborHours) : null,
           })),
       parts: editingBudget
-        ? validParts.map((p, i) => ({ description: p.description.trim(), quantity: (p.quantity || '1').trim(), approved: editingBudget.parts[i]?.approved }))
-        : validParts.map(p => ({ description: p.description.trim(), quantity: (p.quantity || '1').trim() })),
+        ? validParts.map((p, i) => ({
+            ...mapBudgetPartToPayload(p),
+            approved: editingBudget.parts[i]?.approved,
+          }))
+        : validParts.map(mapBudgetPartToPayload),
       observations: budgetObservations.trim(),
     };
 
@@ -6832,7 +6895,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         {p.approved === true && <Check className="w-4 h-4 shrink-0 text-emerald-700" aria-label="Aprovado" />}
                         {p.approved === false && <X className="w-4 h-4 shrink-0 text-red-700" aria-label="Reprovado" />}
                         {p.approved !== true && p.approved !== false && <span className="w-4 h-4 shrink-0 font-bold" style={{ color: '#000000' }} aria-label="Pendente">—</span>}
-                        <span style={{ color: '#000000' }}>
+                        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2" style={{ color: '#000000' }}>
                           <span
                             className={
                               viewingBudgetApprovalContrast && p.approved === true
@@ -6840,9 +6903,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 : 'font-medium'
                             }
                           >
-                            ({p.quantity}x)
-                          </span>{' '}
-                          {p.description}
+                            ({p.quantity}x) {p.description}
+                          </span>
+                          {p.fromStock ? <BudgetPartStockBadge /> : null}
                         </span>
                       </li>
                     ))}
@@ -7026,7 +7089,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         >
                           <span className="absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 left-0.5" style={{ transform: approvalParts[i] ? 'translateX(20px)' : 'translateX(0)' }} />
                         </button>
-                        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 flex-1">({p.quantity}x) {p.description}</span>
+                        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                          <span>
+                            ({p.quantity}x) {p.description}
+                          </span>
+                          {p.fromStock ? <BudgetPartStockBadge /> : null}
+                        </span>
                         <span className={`text-xs font-semibold shrink-0 ${approvalParts[i] ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                           {approvalParts[i] ? 'Aprovado' : 'Reprovado'}
                         </span>
@@ -7298,15 +7366,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               ref={isFocusedPart ? focusedPartInputRef : undefined}
                               className={`${budgetModalPaperInset} flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center`}
                             >
-                              <input
-                                type="text"
-                                placeholder="Nome da peça…"
-                                className={`${budgetModalInput} min-w-0 flex-1 shadow-none`}
-                                value={item.description}
-                                onChange={(e) => updatePartDescription(item.id, e.target.value)}
-                                onFocus={() => handlePartInputFocus(item.id)}
-                                onBlur={handlePartInputBlur}
-                              />
+                              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                                {item.fromStock ? <BudgetPartStockBadge className="self-start" /> : null}
+                                <input
+                                  type="text"
+                                  placeholder="Nome da peça…"
+                                  className={`${budgetModalInput} min-w-0 w-full shadow-none`}
+                                  value={item.description}
+                                  onChange={(e) => updatePartDescription(item.id, e.target.value)}
+                                  onFocus={() => handlePartInputFocus(item.id)}
+                                  onBlur={handlePartInputBlur}
+                                />
+                              </div>
                                 <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-start">
                                 <div className="flex items-center overflow-hidden rounded-xl border border-sky-200/80 bg-white">
                                   <button
@@ -7366,10 +7437,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <button
                                 key={p.id}
                                 type="button"
-                                onMouseDown={() => suggestionsForPartId && applyPartSuggestion(suggestionsForPartId, p.name)}
-                                className="w-full px-4 py-2.5 text-left text-[14px] text-slate-800 transition-colors hover:bg-sky-50"
+                                onMouseDown={() => suggestionsForPartId && applyPartSuggestion(suggestionsForPartId, p)}
+                                className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-[14px] text-slate-800 transition-colors hover:bg-sky-50"
                               >
-                                {p.name}
+                                <span className="min-w-0 truncate font-medium">{p.name}</span>
+                                <span className="shrink-0 text-[11px] font-semibold text-amber-800/90">
+                                  Estoque{p.stock_qty != null ? ` · ${p.stock_qty}` : ''}
+                                </span>
                               </button>
                             ))}
                           </div>

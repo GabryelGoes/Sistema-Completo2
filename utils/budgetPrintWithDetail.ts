@@ -62,7 +62,10 @@ export function printBudgetWithDetail(
       : "";
     return `<li>${status}${esc(s.description)}${dur}</li>`;
   };
-  const partLine = (p: { description: string; quantity: string; approved?: boolean }, includeStatus = true) => {
+  const partLine = (
+    p: { description: string; quantity: string; approved?: boolean; fromStock?: boolean },
+    includeStatus = true
+  ) => {
     const status = includeStatus
       ? p.approved === true
         ? `<span class="status ok">APROVADO</span> `
@@ -70,7 +73,8 @@ export function printBudgetWithDetail(
           ? `<span class="status no">REPROVADO</span> `
           : `<span class="status wait">PENDENTE</span> `
       : "";
-    return `<li>${status}<strong>(${esc(p.quantity)}x)</strong> ${esc(p.description)}</li>`;
+    const stockTag = p.fromStock ? `<span class="stock-tag">[Estoque]</span> ` : "";
+    return `<li>${status}<strong>(${esc(p.quantity)}x)</strong> ${stockTag}${esc(p.description)}</li>`;
   };
 
   const approvedExecutionHtml = hasApprovalDecision
@@ -152,6 +156,7 @@ export function printBudgetWithDetail(
     .status.ok { background: #e6f5e9; color: #1f6b2a; border: 1px solid #b7e0be; }
     .status.no { background: #fbe8e8; color: #9d1f1f; border: 1px solid #efb6b6; }
     .status.wait { background: #f3efe7; color: #6f665c; border: 1px solid #ded6c7; }
+    .stock-tag { display: inline-block; margin-right: 4px; border-radius: 4px; padding: 0 5px; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; vertical-align: middle; }
     ul { list-style: disc; margin-left: 20px; }
     li { margin: 4px 0; padding-bottom: 4px; border-bottom: 1px dashed #cfc6b6; }
     li:last-child { border-bottom: 0; }

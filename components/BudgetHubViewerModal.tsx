@@ -10,6 +10,7 @@ import {
   type ServiceOrderDetail,
 } from "../services/apiService";
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from "../utils/budgetItemDisplay";
+import { BudgetPartStockBadge } from "./ui/BudgetPartStockBadge";
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from "../utils/budgetPrintWithDetail";
 import { formatLaborLabel } from "../utils/workshopLaborFormat";
 import { DiagnosticAuthorizationSheetModal } from "./diagnostic/DiagnosticAuthorizationSheetModal";
@@ -223,15 +224,15 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
                               —
                             </span>
                           ) : null}
-                          <span style={{ color: "#000000" }}>
+                          <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2" style={{ color: "#000000" }}>
                             <span
                               className={
                                 approvalContrast && p.approved === true ? "font-semibold" : "font-medium"
                               }
                             >
-                              ({p.quantity}x)
-                            </span>{" "}
-                            {p.description}
+                              ({p.quantity}x) {p.description}
+                            </span>
+                            {p.fromStock ? <BudgetPartStockBadge /> : null}
                           </span>
                         </li>
                       ))}

@@ -3,6 +3,7 @@ import type { Appointment } from "../types";
 import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
 import { API_BASE } from "./apiConfig";
 import { compressImageForUpload } from "../utils/imageUpload";
+import type { BudgetPartFields } from "../utils/budgetPartStock";
 import { normalizeTvChimeConfig, type TvChimeScheduleConfig } from "@/utils/tvChimeSchedule";
 
 export type { TvChimeAlert, TvChimeKind, TvChimeSoundPreset } from "@/utils/tvChimeSchedule";
@@ -1698,7 +1699,7 @@ interface ApiBudget {
   card_name: string | null;
   diagnosis: string;
   services: { description: string; approved?: boolean; labor_hours?: number | null }[];
-  parts: { description: string; quantity: string; approved?: boolean }[];
+  parts: BudgetPartFields[];
   observations: string;
   created_at: string;
   updated_at?: string | null;
@@ -1714,7 +1715,7 @@ export interface SavedBudgetFromApi {
   cardName: string;
   diagnosis: string;
   services: { description: string; approved?: boolean; labor_hours?: number | null }[];
-  parts: { description: string; quantity: string; approved?: boolean }[];
+  parts: BudgetPartFields[];
   observations: string;
 }
 
