@@ -2304,7 +2304,7 @@ export function createApiApp() {
       }
       if (orderType === "module" && !moduleVehicleKindParsed) {
         return res.status(400).json({
-          error: "Informe se o produto é de veículo ou de motocicleta.",
+          error: "Informe se o produto é de automóvel ou de motocicleta.",
         });
       }
 

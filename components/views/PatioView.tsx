@@ -67,7 +67,16 @@ import {
   CANCELLED_STATUS,
   type ServiceOrderStatus,
 } from '../../constants/serviceOrderStages';
-import { labProductDisplayLabel, moduleVehicleKindLabel } from '../../utils/moduleMetadata';
+import {
+  MODULE_KIND_OPTIONS,
+  MODULE_VEHICLE_KIND_OPTIONS,
+  labProductDisplayLabel,
+  moduleVehicleKindLabel,
+  parseModuleKind,
+  parseModuleVehicleKind,
+  type ModuleKind,
+  type ModuleVehicleKind,
+} from '../../utils/moduleMetadata';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
@@ -886,6 +895,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
       vehicleColor: serviceOrderDetail.vehicle_color ?? '',
       vehicleYear: serviceOrderDetail.vehicle_year ?? '',
       vehicleEngineInfo: serviceOrderDetail.vehicle_engine_info ?? '',
+      moduleKind: parseModuleKind(serviceOrderDetail.module_kind) ?? '',
+      moduleVehicleKind: parseModuleVehicleKind(serviceOrderDetail.module_vehicle_kind) ?? '',
+      moduleProductOther: serviceOrderDetail.module_product_other ?? '',
     });
   }, [isDadosFichaExpanded, serviceOrderDetail]);
 
@@ -893,6 +905,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     name: string; cpf: string; phone: string; email: string; cep: string; address: string; addressNumber: string;
     vehicleModel: string; vehicleBrand: string; moduleIdentification: string; plate: string; mileageKm: string;
     vehicleColor: string; vehicleYear: string; vehicleEngineInfo: string;
+    moduleKind: ModuleKind | '';
+    moduleVehicleKind: ModuleVehicleKind | '';
+    moduleProductOther: string;
   }>({
     name: '',
     cpf: '',
@@ -909,6 +924,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     vehicleColor: '',
     vehicleYear: '',
     vehicleEngineInfo: '',
+    moduleKind: '',
+    moduleVehicleKind: '',
+    moduleProductOther: '',
   });
   const [editFichaPlateLookupLoading, setEditFichaPlateLookupLoading] = useState(false);
   const [editFichaPlateLookupError, setEditFichaPlateLookupError] = useState<string | null>(null);
@@ -2408,6 +2426,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const handleSaveEditFicha = async () => {
     if (!selectedCard || !serviceOrderDetail?.customers?.id) return;
     if (loadingDetails || serviceOrderDetail.customers.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID) return;
+    if (isModuleMode) {
+      if (!editFichaForm.moduleKind) {
+        alert('Selecione o tipo de produto.');
+        return;
+      }
+      if (editFichaForm.moduleKind === 'outro' && !editFichaForm.moduleProductOther.trim()) {
+        alert('Descreva qual produto entrou (campo "Outro produto").');
+        return;
+      }
+      if (!editFichaForm.moduleVehicleKind) {
+        alert('Selecione se o produto é de automóvel ou de motocicleta.');
+        return;
+      }
+    }
     setEditFichaSaving(true);
     try {
       await updateCustomer(serviceOrderDetail.customers.id, {
@@ -2427,6 +2459,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
         vehicleColor: isModuleMode ? undefined : editFichaForm.vehicleColor.trim() || null,
         vehicleYear: isModuleMode ? undefined : editFichaForm.vehicleYear.trim() || null,
         vehicleEngineInfo: isModuleMode ? undefined : editFichaForm.vehicleEngineInfo.trim() || null,
+        moduleKind: isModuleMode ? editFichaForm.moduleKind || null : undefined,
+        moduleVehicleKind: isModuleMode ? editFichaForm.moduleVehicleKind || null : undefined,
+        moduleProductOther:
+          isModuleMode && editFichaForm.moduleKind === 'outro'
+            ? editFichaForm.moduleProductOther.trim() || null
+            : isModuleMode
+              ? null
+              : undefined,
       }, actorOptions);
       if (!isModuleMode) {
         await updateServiceOrderMileage(selectedCard.id, editFichaForm.mileageKm.trim() || null, actorOptions);
@@ -4966,8 +5006,64 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={vin} placeholder="Ex: BMW 320i" />
                                       </div>
                                       <div>
-                                        <label className={iosLabel}>Identificação do módulo</label>
+                                        <label className={iosLabel}>Identificação do produto</label>
                                         <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className={vin} placeholder="Ex: Módulo ABS XYZ" />
+                                      </div>
+                                      <div>
+                                        <label className={iosLabel}>Tipo de produto</label>
+                                        <select
+                                          value={editFichaForm.moduleKind}
+                                          onChange={(e) => {
+                                            const next = e.target.value as ModuleKind | '';
+                                            setEditFichaForm((f) => ({
+                                              ...f,
+                                              moduleKind: next,
+                                              moduleProductOther: next === 'outro' ? f.moduleProductOther : '',
+                                            }));
+                                          }}
+                                          className={vin}
+                                        >
+                                          <option value="">Selecione…</option>
+                                          {MODULE_KIND_OPTIONS.map((opt) => (
+                                            <option key={opt.value} value={opt.value}>
+                                              {opt.label}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      {editFichaForm.moduleKind === 'outro' && (
+                                        <div>
+                                          <label className={iosLabel}>Qual produto entrou?</label>
+                                          <input
+                                            value={editFichaForm.moduleProductOther}
+                                            onChange={(e) => setEditFichaForm((f) => ({ ...f, moduleProductOther: e.target.value }))}
+                                            className={vin}
+                                            placeholder="Ex: bomba de direção, atuador…"
+                                          />
+                                        </div>
+                                      )}
+                                      <div>
+                                        <label className={iosLabel}>Produto de</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                          {MODULE_VEHICLE_KIND_OPTIONS.map((opt) => {
+                                            const selected = editFichaForm.moduleVehicleKind === opt.value;
+                                            return (
+                                              <button
+                                                key={opt.value}
+                                                type="button"
+                                                onClick={() => setEditFichaForm((f) => ({ ...f, moduleVehicleKind: opt.value }))}
+                                                className={`rounded-2xl border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.98] ${
+                                                  selected
+                                                    ? 'border-violet-600/85 bg-violet-600 text-white shadow-md shadow-violet-500/25'
+                                                    : 'border-zinc-200/90 bg-white/80 text-zinc-700 hover:border-violet-500/45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-200'
+                                                }`}
+                                                aria-pressed={selected}
+                                              >
+                                                {opt.label}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
                                       </div>
                                     </>
                                   )}

@@ -557,7 +557,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       if (!moduleVehicleKind) {
         setStatus({
           step: 'error',
-          message: 'Informe se o produto é de veículo ou de motocicleta.',
+          message: 'Informe se o produto é de automóvel ou de motocicleta.',
         });
         return;
       }
@@ -1646,7 +1646,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   Produto
                 </h2>
                 <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                  Tipo de produto e se é de veículo ou motocicleta
+                  Tipo de produto e se é de automóvel ou motocicleta
                 </p>
                 {(moduleKind || moduleVehicleKind) ? (
                   <div className="mt-3 flex flex-wrap gap-2">

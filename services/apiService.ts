@@ -1158,6 +1158,9 @@ export async function updateServiceOrderVehicle(
     vehicleColor?: string | null;
     vehicleYear?: string | null;
     vehicleEngineInfo?: string | null;
+    moduleKind?: string | null;
+    moduleVehicleKind?: string | null;
+    moduleProductOther?: string | null;
   },
   options?: ServiceOrderUpdateActor
 ): Promise<ApiServiceOrder> {
@@ -1188,6 +1191,24 @@ export async function updateServiceOrderVehicle(
       data.vehicleEngineInfo == null || String(data.vehicleEngineInfo).trim() === ""
         ? null
         : String(data.vehicleEngineInfo).trim();
+  }
+  if (data.moduleKind !== undefined) {
+    body.moduleKind =
+      data.moduleKind == null || String(data.moduleKind).trim() === ""
+        ? null
+        : String(data.moduleKind).trim();
+  }
+  if (data.moduleVehicleKind !== undefined) {
+    body.moduleVehicleKind =
+      data.moduleVehicleKind == null || String(data.moduleVehicleKind).trim() === ""
+        ? null
+        : String(data.moduleVehicleKind).trim();
+  }
+  if (data.moduleProductOther !== undefined) {
+    body.moduleProductOther =
+      data.moduleProductOther == null || String(data.moduleProductOther).trim() === ""
+        ? null
+        : String(data.moduleProductOther).trim();
   }
   const merged = mergeActorIntoBody(body, options);
   const response = await fetch(`${API_BASE}/service-orders/${id}`, {

@@ -18,8 +18,8 @@ export const MODULE_KIND_OPTIONS: { value: ModuleKind; label: string }[] = [
 ];
 
 export const MODULE_VEHICLE_KIND_OPTIONS: { value: ModuleVehicleKind; label: string }[] = [
-  { value: 'carro', label: 'Veículo' },
-  { value: 'moto', label: 'Motocicleta' },
+  { value: 'carro', label: 'Automóveis' },
+  { value: 'moto', label: 'Motocicletas' },
 ];
 
 const MODULE_KIND_LABELS: Record<ModuleKind, string> = {
@@ -31,8 +31,8 @@ const MODULE_KIND_LABELS: Record<ModuleKind, string> = {
 };
 
 const MODULE_VEHICLE_LABELS: Record<ModuleVehicleKind, string> = {
-  carro: 'Veículo',
-  moto: 'Motocicleta',
+  carro: 'Automóveis',
+  moto: 'Motocicletas',
 };
 
 export function parseModuleKind(raw: unknown): ModuleKind | null {
