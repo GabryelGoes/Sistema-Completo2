@@ -1482,6 +1482,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [isVehicleEditOpen, setIsVehicleEditOpen] = useState(false);
   const [isDeleteVehicleOpen, setIsDeleteVehicleOpen] = useState(false);
   const [deleteVehiclePassword, setDeleteVehiclePassword] = useState('');
+  const [deleteVehiclePasswordReadonly, setDeleteVehiclePasswordReadonly] = useState(true);
   const [deleteVehicleSaving, setDeleteVehicleSaving] = useState(false);
   const [deleteVehicleError, setDeleteVehicleError] = useState<string | null>(null);
   const [vehicleEditModel, setVehicleEditModel] = useState('');
@@ -1496,6 +1497,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [patioPlateSearchApiInfo, setPatioPlateSearchApiInfo] = useState<PlacaFipeLookupResult | null>(null);
   const [isPatioPlateSearchModalOpen, setIsPatioPlateSearchModalOpen] = useState(false);
   const patioPlateSearchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isDeleteVehicleOpen) {
+      setDeleteVehiclePasswordReadonly(true);
+      return;
+    }
+    setDeleteVehiclePassword('');
+    setDeleteVehiclePasswordReadonly(true);
+  }, [isDeleteVehicleOpen]);
+
+  const closeDeleteVehicleModal = useCallback(() => {
+    setIsDeleteVehicleOpen(false);
+    setDeleteVehiclePassword('');
+    setDeleteVehiclePasswordReadonly(true);
+    setDeleteVehicleError(null);
+  }, []);
 
   const closePatioPlateSearchModal = useCallback(() => {
     setIsPatioPlateSearchModalOpen(false);
@@ -2243,6 +2260,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setSelectedCard(null);
       setIsDeleteVehicleOpen(false);
       setDeleteVehiclePassword('');
+      setDeleteVehiclePasswordReadonly(true);
     } catch (e: any) {
       setDeleteVehicleError(e?.message ?? 'Erro ao excluir.');
     } finally {
@@ -4530,9 +4548,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {can('canDeleteCards') && (
                 <button
                   type="button"
-                  onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setIsDeleteVehicleOpen(true); }}
+                  onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setDeleteVehiclePasswordReadonly(true); setIsDeleteVehicleOpen(true); }}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-red-500/15 hover:text-red-600 dark:bg-white/10 dark:hover:bg-red-500/20"
-                  title="Excluir veículo do sistema"
+                  title={isModuleMode ? 'Excluir produto do laboratório' : 'Excluir veículo do sistema'}
                 >
                   <Trash2 className="h-5 w-5" />
                 </button>
@@ -4552,40 +4570,58 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className={`${vi} w-full max-w-sm p-6 shadow-xl`}>
                     <h3 className="mb-2 flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
                       <Trash2 className="h-5 w-5 text-red-500" />
-                      Excluir veículo do sistema
+                      {isModuleMode ? 'Excluir produto do laboratório' : 'Excluir veículo do sistema'}
                     </h3>
                     <p className="mb-4 text-[14px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-                      Este veículo será arquivado (OS cancelada). Use a mesma senha do login Gerência ou a senha em &quot;Alterar senhas&quot; (excluir veículos).
+                      {isModuleMode
+                        ? 'Este produto será arquivado (OS cancelada). Use a mesma senha do login Gerência ou a senha em "Alterar senhas" (excluir veículos).'
+                        : 'Este veículo será arquivado (OS cancelada). Use a mesma senha do login Gerência ou a senha em "Alterar senhas" (excluir veículos).'}
                     </p>
-                    <input
-                      type="password"
-                      value={deleteVehiclePassword}
-                      onChange={(e) => setDeleteVehiclePassword(e.target.value)}
-                      placeholder="Senha do admin ou de exclusão"
-                      className={`${vin} mb-3`}
-                      autoFocus
-                    />
-                    {deleteVehicleError && (
-                      <p className="text-sm text-red-600 dark:text-red-400 mb-3">{deleteVehicleError}</p>
-                    )}
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => { setIsDeleteVehicleOpen(false); setDeleteVehiclePassword(''); setDeleteVehicleError(null); }}
-                        className="flex-1 rounded-xl border border-zinc-200/90 py-3 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleConfirmDeleteVehicle}
-                        disabled={deleteVehicleSaving || !deleteVehiclePassword.trim()}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 py-3 text-[15px] font-semibold text-white transition-opacity hover:opacity-95 disabled:opacity-50"
-                      >
-                        {deleteVehicleSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                        Excluir
-                      </button>
-                    </div>
+                    <form
+                      autoComplete="off"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void handleConfirmDeleteVehicle();
+                      }}
+                    >
+                      <input
+                        type="password"
+                        id="patio-os-delete-confirm"
+                        name="patio-os-delete-confirm"
+                        value={deleteVehiclePassword}
+                        onChange={(e) => setDeleteVehiclePassword(e.target.value)}
+                        placeholder="Senha do admin ou de exclusão"
+                        className={`${vin} mb-3`}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck={false}
+                        data-lpignore="true"
+                        data-1p-ignore
+                        readOnly={deleteVehiclePasswordReadonly}
+                        onFocus={() => setDeleteVehiclePasswordReadonly(false)}
+                      />
+                      {deleteVehicleError && (
+                        <p className="text-sm text-red-600 dark:text-red-400 mb-3">{deleteVehicleError}</p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={closeDeleteVehicleModal}
+                          className="flex-1 rounded-xl border border-zinc-200/90 py-3 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={deleteVehicleSaving || !deleteVehiclePassword.trim()}
+                          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 py-3 text-[15px] font-semibold text-white transition-opacity hover:opacity-95 disabled:opacity-50"
+                        >
+                          {deleteVehicleSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          Excluir
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
               )}
