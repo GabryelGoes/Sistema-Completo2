@@ -275,7 +275,7 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
               onChange={(e) => setFilterTechnicianId(e.target.value)}
               className="rounded-2xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[14px] dark:border-white/[0.1] dark:bg-zinc-950 dark:text-white"
             >
-              <option value="">Todos os usuários</option>
+              <option value="">Todos os mecânicos</option>
               {technicians.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
