@@ -2294,7 +2294,7 @@ export function createApiApp() {
         orderType === "module" ? trimOrNull(bodyModuleProductOther) : null;
       if (orderType === "module" && !moduleKindParsed) {
         return res.status(400).json({
-          error: "Selecione o tipo de produto do laboratório.",
+          error: "Selecione o produto.",
         });
       }
       if (orderType === "module" && moduleKindParsed === "outro" && !moduleProductOtherTrimmed) {
@@ -2304,7 +2304,7 @@ export function createApiApp() {
       }
       if (orderType === "module" && !moduleVehicleKindParsed) {
         return res.status(400).json({
-          error: "Informe se o produto é de carro ou de moto.",
+          error: "Informe se o produto é de veículo ou de motocicleta.",
         });
       }
 

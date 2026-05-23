@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2 } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2, ChevronDown } from 'lucide-react';
 import {
   iosModalShell,
   iosModalClose,
@@ -203,6 +203,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [moduleKind, setModuleKind] = useState<ModuleKind | ''>('');
   const [moduleVehicleKind, setModuleVehicleKind] = useState<ModuleVehicleKind | ''>('');
   const [moduleProductOther, setModuleProductOther] = useState('');
+  const [moduleKindPickerOpen, setModuleKindPickerOpen] = useState(false);
   const [plateLookupLoading, setPlateLookupLoading] = useState(false);
   const [plateLookupError, setPlateLookupError] = useState<string | null>(null);
   const lastFetchedPlacaRef = useRef<string | null>(null);
@@ -251,6 +252,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setModuleKind('');
       setModuleVehicleKind('');
       setModuleProductOther('');
+      setModuleKindPickerOpen(false);
     }
   }, [receptionMode]);
 
@@ -531,7 +533,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       if (!moduleKind) {
         setStatus({
           step: 'error',
-          message: 'Selecione o tipo de produto do laboratório.',
+          message: 'Selecione o produto.',
         });
         return;
       }
@@ -545,7 +547,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       if (!moduleVehicleKind) {
         setStatus({
           step: 'error',
-          message: 'Informe se o produto é de carro ou de moto.',
+          message: 'Informe se o produto é de veículo ou de motocicleta.',
         });
         return;
       }
@@ -1383,32 +1385,32 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   />
                   <div className="sm:col-span-2 space-y-4">
                     <div>
-                      <label className={`${iosLabel} ml-1`}>
-                        Tipo de produto <span className="text-red-500">*</span>
+                      <label className={`${iosLabel} ml-1`} id="reception-module-kind-label">
+                        Produto <span className="text-red-500">*</span>
                       </label>
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        {MODULE_KIND_OPTIONS.map((opt) => {
-                          const selected = moduleKind === opt.value;
-                          return (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => {
-                                setModuleKind(opt.value);
-                                if (opt.value !== 'outro') setModuleProductOther('');
-                              }}
-                              className={`px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-all active:scale-[0.98] ${
-                                selected
-                                  ? 'bg-violet-600 text-white border-violet-600/85 shadow-[0_10px_26px_-8px_rgba(124,58,237,0.32),0_4px_14px_-6px_rgba(124,58,237,0.22)] dark:shadow-md dark:shadow-violet-500/25'
-                                  : 'bg-white/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200 border-zinc-200/90 dark:border-white/[0.1] shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:shadow-none hover:border-violet-500/45 backdrop-blur-sm'
-                              }`}
-                              aria-pressed={selected}
-                            >
-                              {opt.label}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <button
+                        type="button"
+                        id="reception-module-kind-trigger"
+                        aria-haspopup="dialog"
+                        aria-expanded={moduleKindPickerOpen}
+                        aria-labelledby="reception-module-kind-label"
+                        onClick={() => setModuleKindPickerOpen(true)}
+                        className="flex w-full min-h-[46px] items-center justify-between gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-left text-[15px] shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] transition-colors hover:border-violet-500/45 focus:outline-none focus:ring-2 focus:ring-violet-500/35 focus:border-violet-500/50 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:shadow-none"
+                      >
+                        <span
+                          className={`min-w-0 truncate font-semibold ${
+                            moduleKind ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400'
+                          }`}
+                        >
+                          {moduleKind
+                            ? labProductDisplayLabel(
+                                moduleKind,
+                                moduleKind === 'outro' ? moduleProductOther : undefined
+                              )
+                            : 'Selecione o produto'}
+                        </span>
+                        <ChevronDown className="h-5 w-5 shrink-0 text-zinc-500" aria-hidden />
+                      </button>
                       {moduleKind === 'outro' && (
                         <div className="mt-3">
                           <Input
@@ -1631,6 +1633,71 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
         </form>
       </div>
+
+      {moduleKindPickerOpen ? (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-[12px] p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
+            onClick={() => setModuleKindPickerOpen(false)}
+            role="presentation"
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="reception-module-kind-modal-title"
+              className={`${iosModalShell} relative w-full max-w-md max-h-[min(70vh,28rem)]`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setModuleKindPickerOpen(false)}
+                className={iosModalClose}
+                aria-label="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="shrink-0 border-b border-zinc-200/70 px-5 pb-4 pt-7 pr-14 dark:border-white/[0.06]">
+                <h2
+                  id="reception-module-kind-modal-title"
+                  className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50"
+                >
+                  Produto
+                </h2>
+                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                  Escolha o tipo de produto do laboratório
+                </p>
+              </div>
+              <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2 custom-scrollbar">
+                {MODULE_KIND_OPTIONS.map((opt) => {
+                  const selected = moduleKind === opt.value;
+                  return (
+                    <li key={opt.value}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModuleKind(opt.value);
+                          if (opt.value !== 'outro') setModuleProductOther('');
+                          setModuleKindPickerOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left text-[15px] transition-colors ${
+                          selected
+                            ? 'bg-violet-500/12 font-semibold text-violet-950 dark:bg-violet-400/18 dark:text-violet-50'
+                            : 'font-medium text-zinc-800 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.06]'
+                        }`}
+                      >
+                        <span className="min-w-0 leading-snug">{opt.label}</span>
+                        {selected ? (
+                          <Check className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-300" strokeWidth={2.5} aria-hidden />
+                        ) : null}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        </ModalPortal>
+      ) : null}
 
       <DiagnosticAuthorizationSignModal
         open={diagAuthSignModalOpen}
