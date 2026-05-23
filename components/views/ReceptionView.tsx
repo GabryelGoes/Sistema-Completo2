@@ -134,8 +134,8 @@ function normalizePlacaLocal(raw: string) {
     .slice(0, 8);
 }
 
-/** Preenche dados do cliente a partir da API e zera veículo/módulo para nova OS no mesmo cadastro. */
-function receptionFormFromApiCustomer(c: ApiCustomer, preserveIssue: string): Customer {
+/** Preenche dados do cliente a partir da API, preservando veículo/módulo já digitados no formulário. */
+function receptionFormFromApiCustomer(c: ApiCustomer, prev: Customer): Customer {
   return {
     name: c.name ?? '',
     phone: c.phone ?? '',
@@ -145,15 +145,16 @@ function receptionFormFromApiCustomer(c: ApiCustomer, preserveIssue: string): Cu
     address: (c.address ?? '').trim(),
     city: (c.city ?? '').trim(),
     addressNumber: (c.address_number ?? '').trim(),
-    vehicleBrand: '',
-    vehicleModel: '',
-    moduleIdentification: '',
-    plate: '',
-    vehicleColor: '',
-    vehicleYear: '',
-    vehicleEngineInfo: '',
-    mileageKm: '',
-    issueDescription: preserveIssue,
+    vehicleBrand: prev.vehicleBrand,
+    vehicleModel: prev.vehicleModel,
+    moduleIdentification: prev.moduleIdentification,
+    plate: prev.plate,
+    vehicleColor: prev.vehicleColor,
+    vehicleYear: prev.vehicleYear,
+    vehicleEngineInfo: prev.vehicleEngineInfo,
+    mileageKm: prev.mileageKm,
+    issueDescription: prev.issueDescription,
+    trelloCardId: prev.trelloCardId,
   };
 }
 
@@ -318,6 +319,23 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     return km ? `Km ${km}` : null;
   }, [customer.mileageKm]);
 
+  const modulePickerSummary = useMemo(() => {
+    const parts: string[] = [];
+    if (moduleKind) {
+      parts.push(
+        labProductDisplayLabel(
+          moduleKind,
+          moduleKind === 'outro' ? moduleProductOther : undefined
+        )
+      );
+    }
+    if (moduleVehicleKind) {
+      parts.push(moduleVehicleKindLabel(moduleVehicleKind));
+    }
+    if (parts.length === 0) return 'Selecione o produto';
+    return parts.join(' · ');
+  }, [moduleKind, moduleVehicleKind, moduleProductOther]);
+
   // Efeito para carregar dados iniciais vindos do Pátio ou Histórico (todos editáveis, inclusive placa)
   useEffect(() => {
     if (initialData) {
@@ -416,7 +434,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       clearTimeout(intakeCustomerBlurTimerRef.current);
       intakeCustomerBlurTimerRef.current = null;
     }
-    setCustomer((prev) => receptionFormFromApiCustomer(c, prev.issueDescription));
+    setCustomer((prev) => receptionFormFromApiCustomer(c, prev));
   }, []);
 
   const clearIntakeCustomerSelection = useCallback(() => {
@@ -437,14 +455,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       address: '',
       city: '',
       addressNumber: '',
-      vehicleBrand: '',
-      vehicleModel: '',
-      moduleIdentification: '',
-      plate: '',
-      vehicleColor: '',
-      vehicleYear: '',
-      vehicleEngineInfo: '',
-      mileageKm: '',
     }));
   }, []);
 
@@ -1094,7 +1104,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 {intakeExistingCustomerId ? (
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200/70 pt-2 dark:border-white/[0.08]">
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                      Cliente selecionado: preencha o veículo ou o módulo ao lado e envie a ficha.
+                      Cliente selecionado — os dados do veículo ou produto ao lado são mantidos.
                     </p>
                     <button
                       type="button"
@@ -1399,15 +1409,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       >
                         <span
                           className={`min-w-0 truncate font-semibold ${
-                            moduleKind ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400'
+                            moduleKind || moduleVehicleKind
+                              ? 'text-zinc-900 dark:text-zinc-100'
+                              : 'text-zinc-500 dark:text-zinc-400'
                           }`}
                         >
-                          {moduleKind
-                            ? labProductDisplayLabel(
-                                moduleKind,
-                                moduleKind === 'outro' ? moduleProductOther : undefined
-                              )
-                            : 'Selecione o produto'}
+                          {modulePickerSummary}
                         </span>
                         <ChevronDown className="h-5 w-5 shrink-0 text-zinc-500" aria-hidden />
                       </button>
@@ -1424,31 +1431,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           />
                         </div>
                       )}
-                    </div>
-                    <div>
-                      <label className={`${iosLabel} ml-1`}>
-                        Produto de <span className="text-red-500">*</span>
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {MODULE_VEHICLE_KIND_OPTIONS.map((opt) => {
-                          const selected = moduleVehicleKind === opt.value;
-                          return (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => setModuleVehicleKind(opt.value)}
-                              className={`px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-all active:scale-[0.98] ${
-                                selected
-                                  ? 'bg-violet-600 text-white border-violet-600/85 shadow-[0_10px_26px_-8px_rgba(124,58,237,0.32),0_4px_14px_-6px_rgba(124,58,237,0.22)] dark:shadow-md dark:shadow-violet-500/25'
-                                  : 'bg-white/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200 border-zinc-200/90 dark:border-white/[0.1] shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:shadow-none hover:border-violet-500/45 backdrop-blur-sm'
-                              }`}
-                              aria-pressed={selected}
-                            >
-                              {opt.label}
-                            </button>
-                          );
-                        })}
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -1645,7 +1627,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               role="dialog"
               aria-modal="true"
               aria-labelledby="reception-module-kind-modal-title"
-              className={`${iosModalShell} relative w-full max-w-md max-h-[min(70vh,28rem)]`}
+              className={`${iosModalShell} relative flex w-full max-w-md max-h-[min(85vh,36rem)] flex-col`}
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -1664,36 +1646,93 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   Produto
                 </h2>
                 <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                  Escolha o tipo de produto do laboratório
+                  Tipo de produto e se é de veículo ou motocicleta
                 </p>
+                {(moduleKind || moduleVehicleKind) ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {moduleKind ? (
+                      <span className="inline-flex max-w-full items-center rounded-lg border border-violet-300/80 bg-violet-50 px-2.5 py-1 text-[12px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100">
+                        <span className="truncate">
+                          {labProductDisplayLabel(
+                            moduleKind,
+                            moduleKind === 'outro' ? moduleProductOther : undefined
+                          )}
+                        </span>
+                      </span>
+                    ) : null}
+                    {moduleVehicleKind ? (
+                      <span className="inline-flex items-center rounded-lg border border-violet-300/80 bg-violet-50 px-2.5 py-1 text-[12px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100">
+                        {moduleVehicleKindLabel(moduleVehicleKind)}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
-              <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2 custom-scrollbar">
-                {MODULE_KIND_OPTIONS.map((opt) => {
-                  const selected = moduleKind === opt.value;
-                  return (
-                    <li key={opt.value}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setModuleKind(opt.value);
-                          if (opt.value !== 'outro') setModuleProductOther('');
-                          setModuleKindPickerOpen(false);
-                        }}
-                        className={`flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left text-[15px] transition-colors ${
-                          selected
-                            ? 'bg-violet-500/12 font-semibold text-violet-950 dark:bg-violet-400/18 dark:text-violet-50'
-                            : 'font-medium text-zinc-800 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.06]'
-                        }`}
-                      >
-                        <span className="min-w-0 leading-snug">{opt.label}</span>
-                        {selected ? (
-                          <Check className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-300" strokeWidth={2.5} aria-hidden />
-                        ) : null}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
+                <p className="px-5 pt-3 pb-1 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400">
+                  Tipo de produto
+                </p>
+                <ul>
+                  {MODULE_KIND_OPTIONS.map((opt) => {
+                    const selected = moduleKind === opt.value;
+                    return (
+                      <li key={opt.value}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setModuleKind(opt.value);
+                            if (opt.value !== 'outro') setModuleProductOther('');
+                          }}
+                          className={`flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left text-[15px] transition-colors ${
+                            selected
+                              ? 'bg-violet-500/12 font-semibold text-violet-950 dark:bg-violet-400/18 dark:text-violet-50'
+                              : 'font-medium text-zinc-800 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.06]'
+                          }`}
+                        >
+                          <span className="min-w-0 leading-snug">{opt.label}</span>
+                          {selected ? (
+                            <Check className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-300" strokeWidth={2.5} aria-hidden />
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="mt-2 border-t border-zinc-200/70 px-5 pt-4 pb-2 dark:border-white/[0.06]">
+                  <p className="pb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400">
+                    Produto de
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {MODULE_VEHICLE_KIND_OPTIONS.map((opt) => {
+                      const selected = moduleVehicleKind === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setModuleVehicleKind(opt.value)}
+                          className={`rounded-2xl border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.98] ${
+                            selected
+                              ? 'border-violet-600/85 bg-violet-600 text-white shadow-[0_10px_26px_-8px_rgba(124,58,237,0.32)] dark:shadow-md dark:shadow-violet-500/25'
+                              : 'border-zinc-200/90 bg-white/80 text-zinc-700 hover:border-violet-500/45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-200'
+                          }`}
+                          aria-pressed={selected}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div className="shrink-0 border-t border-zinc-200/70 p-4 dark:border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => setModuleKindPickerOpen(false)}
+                  className="w-full rounded-2xl bg-violet-600 px-4 py-3 text-[15px] font-semibold text-white shadow-lg shadow-violet-500/25 transition-all hover:brightness-110 active:scale-[0.98] dark:shadow-violet-500/20"
+                >
+                  Concluir
+                </button>
+              </div>
             </div>
           </div>
         </ModalPortal>

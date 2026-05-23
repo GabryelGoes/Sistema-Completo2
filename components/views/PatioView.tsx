@@ -67,6 +67,7 @@ import {
   CANCELLED_STATUS,
   type ServiceOrderStatus,
 } from '../../constants/serviceOrderStages';
+import { labProductDisplayLabel, moduleVehicleKindLabel } from '../../utils/moduleMetadata';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
@@ -4802,6 +4803,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         {(serviceOrderDetail.vehicle_model ?? '').trim().toUpperCase()}
                                       </span>
                                     ) : null}
+                                    {serviceOrderDetail.module_kind ? (
+                                      <span className="inline-flex max-w-[min(100%,14rem)] items-center rounded-lg border border-violet-300/80 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100">
+                                        <span className="truncate">
+                                          {labProductDisplayLabel(
+                                            serviceOrderDetail.module_kind,
+                                            serviceOrderDetail.module_product_other
+                                          )}
+                                        </span>
+                                      </span>
+                                    ) : null}
+                                    {serviceOrderDetail.module_vehicle_kind ? (
+                                      <span className="inline-flex items-center rounded-lg border border-violet-300/80 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100">
+                                        {moduleVehicleKindLabel(serviceOrderDetail.module_vehicle_kind)}
+                                      </span>
+                                    ) : null}
                                   </>
                                 ) : (
                                   <>
@@ -5034,6 +5050,31 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                     </div>
                                   )}
+                                  {isModuleMode && serviceOrderDetail.module_kind ? (
+                                    <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                      <Tag className="h-[18px] w-[18px] shrink-0 text-violet-600/90 dark:text-violet-300" />
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Tipo de produto</p>
+                                        <p className="mt-0.5 text-[15px] portrait:text-[17.55px] font-medium text-zinc-900 dark:text-white">
+                                          {labProductDisplayLabel(
+                                            serviceOrderDetail.module_kind,
+                                            serviceOrderDetail.module_product_other
+                                          )}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                  {isModuleMode && serviceOrderDetail.module_vehicle_kind ? (
+                                    <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                      <Wrench className="h-[18px] w-[18px] shrink-0 text-violet-600/90 dark:text-violet-300" />
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Produto de</p>
+                                        <p className="mt-0.5 text-[15px] portrait:text-[17.55px] font-medium text-zinc-900 dark:text-white">
+                                          {moduleVehicleKindLabel(serviceOrderDetail.module_vehicle_kind)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ) : null}
                                   {!isModuleMode && (
                                     <>
                                       <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
