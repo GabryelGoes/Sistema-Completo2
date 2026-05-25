@@ -1,6 +1,8 @@
-import React from 'react';
-import { Loader2, Pencil, Trash2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Loader2, Pencil, Trash2, ZoomIn } from 'lucide-react';
+import { Lightbox } from './Lightbox';
 import { PartPhotoImg } from './ui/PartPhotoImg';
+import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import type { WorkshopPart, WorkshopPartCategory, WorkshopPartPurchase } from '../services/apiService';
 import { WORKSHOP_PART_PHOTOS_MAX } from '../services/apiService';
 import {
@@ -79,6 +81,21 @@ export function WorkshopPartDetailView({
   const fe = part.fiscal_extra ?? {};
   const hasFiscal = Object.values(fe).some((v) => v != null && String(v).trim() !== '');
 
+  const photoUrls = useMemo(
+    () =>
+      photos
+        .map((slot) => (slot.remoteUrl ?? slot.previewUrl)?.trim())
+        .filter((url): url is string => !!url),
+    [photos]
+  );
+
+  const [previewImages, setPreviewImages] = useState<{
+    urls: string[];
+    currentIndex: number;
+  } | null>(null);
+
+  useBrowserBackLayer(!!previewImages, () => setPreviewImages(null));
+
   return (
     <div className="space-y-5">
       {loading ? (
@@ -90,24 +107,55 @@ export function WorkshopPartDetailView({
           <div className="space-y-2">
             <p className={labelCls}>Fotos</p>
             {photos.length > 0 ? (
-              <div className="grid grid-cols-3 gap-3 max-w-[min(100%,420px)]">
-                {photos.map((slot, index) => (
+              <>
+                <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                  Toque em uma foto para ampliar · pinça ou toque duplo para zoom
+                </p>
+                <div className="grid grid-cols-3 gap-3 max-w-[min(100%,420px)]">
+                {photos.map((slot, index) => {
+                  const url = (slot.remoteUrl ?? slot.previewUrl)?.trim();
+                  const canPreview = !!url;
+                  return (
                   <div
                     key={slot.id}
-                    className="relative aspect-square overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-100 dark:border-white/10 dark:bg-white/[0.03]"
+                    className="group relative aspect-square overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-100 dark:border-white/10 dark:bg-white/[0.03]"
                   >
-                    <PartPhotoImg
-                      src={slot.remoteUrl ?? slot.previewUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
+                    {canPreview ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewImages({
+                            urls: photoUrls,
+                            currentIndex: index,
+                          })
+                        }
+                        className="absolute inset-0 h-full w-full focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                        aria-label={`Ampliar foto ${index + 1} de ${photos.length}`}
+                      >
+                        <PartPhotoImg
+                          src={url}
+                          alt=""
+                          className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/25 group-active:bg-black/35">
+                          <ZoomIn className="h-7 w-7 text-white opacity-0 drop-shadow-lg transition-opacity group-hover:opacity-100" />
+                        </div>
+                      </button>
+                    ) : (
+                      <PartPhotoImg
+                        src={url}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    )}
                     {index === 0 ? (
-                      <span className="absolute left-1 top-1 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">
+                      <span className="pointer-events-none absolute left-1 top-1 z-[1] rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">
                         Capa
                       </span>
                     ) : null}
                   </div>
-                ))}
+                  );
+                })}
                 {photos.length < WORKSHOP_PART_PHOTOS_MAX
                   ? Array.from({ length: WORKSHOP_PART_PHOTOS_MAX - photos.length }).map((_, i) => (
                       <div
@@ -117,7 +165,8 @@ export function WorkshopPartDetailView({
                       />
                     ))
                   : null}
-              </div>
+                </div>
+              </>
             ) : (
               <p className={`${valueCls} text-zinc-500 dark:text-zinc-400`}>Sem fotos cadastradas.</p>
             )}
@@ -274,6 +323,14 @@ export function WorkshopPartDetailView({
           Editar produto
         </button>
       </div>
+
+      {previewImages ? (
+        <Lightbox
+          images={previewImages.urls}
+          initialIndex={previewImages.currentIndex >= 0 ? previewImages.currentIndex : 0}
+          onClose={() => setPreviewImages(null)}
+        />
+      ) : null}
     </div>
   );
 }
