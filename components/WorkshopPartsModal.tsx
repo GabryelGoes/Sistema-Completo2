@@ -24,6 +24,10 @@ import { PartPhotoImg } from './ui/PartPhotoImg';
 import { RegistrationPortal } from './ui/RegistrationPortal';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import {
+  desktopShellNestedOverlayClass,
+  desktopShellViewportOverlayClass,
+} from '../utils/desktopShellOverlay';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
   getWorkshopParts,
@@ -861,7 +865,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     />
 
     <ModalPortal>
-    <div className="fixed inset-0 z-[100] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden bg-white dark:bg-zinc-950 p-0">
+    <div
+      className={`${desktopShellViewportOverlayClass(isDesktopShell)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
+    >
       <div className="relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
         <button
           type="button"
@@ -1212,7 +1218,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       <div
         className={
           isDesktopShell
-            ? 'fixed inset-0 z-[115] flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden bg-white dark:bg-zinc-950'
+            ? `${desktopShellNestedOverlayClass(isDesktopShell)} flex min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-zinc-950`
             : 'fixed inset-0 z-[115] flex items-center justify-center bg-black/50 p-2 sm:p-4'
         }
         onClick={isDesktopShell ? undefined : handleRegistrationBackdropClick}
@@ -1310,7 +1316,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         <div
           className={
             isDesktopShell
-              ? 'fixed inset-0 z-[115] flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden bg-white dark:bg-zinc-950'
+              ? `${desktopShellNestedOverlayClass(isDesktopShell)} flex min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-zinc-950`
               : 'fixed inset-0 z-[115] flex items-center justify-center bg-black/50 p-2 sm:p-4'
           }
           onClick={isDesktopShell ? undefined : handleViewBackdropClick}
@@ -1370,7 +1376,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
     {isCategoriesModalOpen && (
       <div
-        className="fixed inset-0 z-[118] flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-[12px]"
+        className={`${desktopShellNestedOverlayClass(isDesktopShell, 'z-[118]')} flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-[12px]`}
         onClick={closeCategoriesModal}
         role="presentation"
       >

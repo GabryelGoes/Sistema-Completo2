@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X, Loader2, Camera, Copy, MessageCircle, Trash2, MapPin, Search, Save } from 'lucide-react';
 import { ModalPortal } from './ui/ModalPortal';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { desktopShellViewportOverlayClass } from '../utils/desktopShellOverlay';
 import type { PlacaFipeLookupResult, ServiceOrderListItem, VehicleAccompanimentPhoto } from '../services/apiService';
 import {
   bootstrapVehicleAccompaniment,
@@ -275,12 +277,14 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
     window.open(waShareUrl(selectedOrder?.customers?.phone ?? null, msg), '_blank', 'noopener,noreferrer');
   };
 
+  const isDesktopShell = useDesktopShellLayout();
+
   if (!isOpen) return null;
 
   return (
     <ModalPortal>
       <div
-        className="fixed inset-0 z-[140] flex flex-col bg-zinc-950/80 backdrop-blur-md dark:bg-black/85"
+        className={`${desktopShellViewportOverlayClass(isDesktopShell, 'z-[140]')} flex flex-col bg-zinc-950/80 backdrop-blur-md dark:bg-black/85`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="vac-title"
@@ -293,7 +297,9 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(255,255,255,0.14),transparent_55%)] dark:bg-[radial-gradient(ellipse_70%_45%_at_50%_0%,rgba(0,122,255,0.12),transparent_50%)]" />
         </div>
 
-        <div className="relative flex min-h-0 h-[100dvh] w-full max-w-none flex-1 flex-col overflow-hidden rounded-none border-0 bg-gradient-to-b from-zinc-50/95 via-light-page to-zinc-100/90 dark:from-zinc-950 dark:via-[#0a0c12] dark:to-black">
+        <div
+          className={`relative flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden rounded-none border-0 bg-gradient-to-b from-zinc-50/95 via-light-page to-zinc-100/90 dark:from-zinc-950 dark:via-[#0a0c12] dark:to-black${isDesktopShell ? '' : ' h-[100dvh]'}`}
+        >
           <header className="relative flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/60 bg-gradient-to-r from-white/80 via-[#f0f4ff]/90 to-[#fff9e6]/80 px-4 py-[max(0.75rem,env(safe-area-inset-top))] pb-3 backdrop-blur-xl dark:border-white/[0.07] dark:from-zinc-900/80 dark:via-[#0d1528]/85 dark:to-zinc-950/80">
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#007AFF]/35 to-transparent dark:via-[#64B5FF]/30" />
             <div>

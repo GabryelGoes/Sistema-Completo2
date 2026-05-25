@@ -4,6 +4,8 @@ import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from
 import { IosModalHeader } from './ui/IosModalHeader';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { useDeviceTypeContext } from './ui/DeviceTypeContext';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { desktopShellViewportOverlayClass } from '../utils/desktopShellOverlay';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -30,13 +32,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   orientation,
 }) => {
   useRegisterModalOpen(isOpen);
+  const isDesktopShell = useDesktopShellLayout();
   const { label: deviceLabel, deviceType, viewportWidth, isTouch } = useDeviceTypeContext();
   const orientationLabel =
     orientation === 'landscape' ? 'Paisagem' : orientation === 'portrait' ? 'Retrato' : '—';
   if (!isOpen) return null;
 
   return (
-    <div className={iosModalOverlay}>
+    <div
+      className={
+        isDesktopShell
+          ? `${desktopShellViewportOverlayClass(true)} flex items-center justify-center p-3 sm:p-6 bg-black/45 backdrop-blur-[20px]`
+          : iosModalOverlay
+      }
+    >
       <div className={`${iosModalShell} max-h-[94vh] max-w-xl`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />

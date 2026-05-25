@@ -25,6 +25,7 @@ import { ERROR_BULLETIN_ICON } from '../../constants/errorBulletinIcon';
 import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
+import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverlay';
 import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
 import { desktopHomeHubCard } from '../ui/desktopCardStyles';
 
@@ -1038,7 +1039,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {isHomeSettingsHubOpen ? (
           <div
-            className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-light-page dark:bg-black"
+            className={`${desktopShellViewportOverlayClass(desktopShell)} flex flex-col overflow-hidden bg-light-page dark:bg-black`}
             role="dialog"
             aria-modal="true"
             aria-label="Configurações"

@@ -8,6 +8,24 @@ html[data-desktop-shell='true'] {
   /* Faixa dos cards e indicador da sidebar — azul (não usa o amarelo global da oficina). */
   --desktop-shell-accent: #2563eb;
   --desktop-shell-accent-rgb: 37 99 235;
+  --desktop-sidebar-width: 13.5rem;
+  --desktop-topbar-height: 2.75rem;
+}
+
+html[data-desktop-shell='true'][data-desktop-sidebar-collapsed='true'] {
+  --desktop-sidebar-width: 4.25rem;
+}
+
+/** Modais/portais no body: ocupam só a área de conteúdo (não cobrem sidebar/topbar). */
+html[data-desktop-shell='true'] .desktop-shell-viewport-overlay {
+  top: var(--desktop-topbar-height);
+  right: 0;
+  bottom: 0;
+  left: var(--desktop-sidebar-width);
+  width: auto;
+  height: auto;
+  max-height: none;
+  transition: left 0.2s ease;
 }
 
 html[data-desktop-shell='true'] body,

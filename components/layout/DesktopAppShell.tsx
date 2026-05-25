@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Headphones, Settings } from 'lucide-react';
 import { NotificationCenter, type NotificationCenterProps } from '../NotificationCenter';
 import { DesktopShellAccountMenu } from './DesktopShellAccountMenu';
@@ -87,6 +87,19 @@ export function DesktopAppShell({
   children,
 }: DesktopAppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    if (sidebarCollapsed) {
+      root.dataset.desktopSidebarCollapsed = 'true';
+    } else {
+      delete root.dataset.desktopSidebarCollapsed;
+    }
+    return () => {
+      delete root.dataset.desktopSidebarCollapsed;
+    };
+  }, [sidebarCollapsed]);
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => {
