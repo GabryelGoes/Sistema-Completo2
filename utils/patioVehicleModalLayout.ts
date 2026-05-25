@@ -1,9 +1,4 @@
-import {
-  iosModalClose,
-  iosVehicleModalInsetCard,
-  iosVehicleModalInput,
-  iosVehicleModalShell,
-} from '../components/ui/iosModalStyles';
+import { iosModalClose, iosVehicleModalInsetCard, iosVehicleModalInput } from '../components/ui/iosModalStyles';
 
 export type PatioVehicleModalCompact = {
   grid: string;
@@ -27,19 +22,24 @@ export type PatioVehicleModalCompact = {
 };
 
 export type PatioVehicleModalLayout = {
-  rootClass: string;
   overlay: string;
   shell: string;
-  insetCard: string;
-  input: string;
-  headerPad: string;
+  scroll: string;
+  header: string;
   headerInner: string;
+  headerMeta: string;
   title: string;
   brandSubtitle: string;
-  mainGrid: string;
+  body: string;
+  mainCol: string;
+  asideCol: string;
+  insetCard: string;
+  input: string;
   closeBtn: string;
   assignHintLabel: string;
   openHintLabel: string;
+  sectionTitle: string;
+  commentsList: string;
   compact: PatioVehicleModalCompact;
 };
 
@@ -75,105 +75,104 @@ const COMPACT_MOBILE: PatioVehicleModalCompact = {
 };
 
 const COMPACT_DESKTOP: PatioVehicleModalCompact = {
-  grid: 'gap-3 sm:gap-4',
-  row: 'relative flex items-center gap-3 px-4 py-3.5',
-  splitRow: 'relative flex flex-row flex-wrap items-center gap-3 px-4 py-3.5',
+  grid: 'gap-4',
+  row: 'relative flex items-center gap-3.5 px-5 py-4',
+  splitRow: 'relative flex flex-row flex-wrap items-center gap-4 px-5 py-4',
   iconSquircle:
-    'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]',
-  iconGlyph: 'h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]',
+    'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]',
+  iconGlyph: 'h-6 w-6 text-[#007AFF] dark:text-[#7ab8ff]',
   titleText:
-    'bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[13px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 xl:text-[14px]',
-  bodyText: 'mt-0.5 truncate text-[14px] font-semibold leading-snug text-zinc-900 dark:text-white',
-  assignHint: 'mt-0.5 text-[14px] font-semibold leading-snug text-[#007AFF] dark:text-[#7ab8ff]',
-  chevron: 'relative z-[1] h-4 w-4 shrink-0',
+    'bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[14px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 xl:text-[15px]',
+  bodyText: 'mt-1 truncate text-[15px] font-semibold leading-snug text-zinc-900 dark:text-white',
+  assignHint: 'mt-1 text-[15px] font-semibold leading-snug text-[#007AFF] dark:text-[#7ab8ff]',
+  chevron: 'relative z-[1] h-5 w-5 shrink-0',
   numericInput:
-    'min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-3 py-2 text-[15px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500 max-w-[220px]',
+    'min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-3.5 py-2.5 text-[16px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500 max-w-[240px]',
   dateInput:
-    'min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-3 py-2 text-[15px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white max-w-[220px]',
+    'min-w-0 flex-1 rounded-xl border border-zinc-300/90 bg-zinc-50 px-3.5 py-2.5 text-[16px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white max-w-[240px]',
   saveBtn:
-    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-white shadow-md transition-all hover:brightness-105 disabled:opacity-50 disabled:hover:brightness-100',
+    'inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-xl px-4 py-2.5 text-[14px] font-semibold text-white shadow-md transition-all hover:brightness-105 disabled:opacity-50 disabled:hover:brightness-100',
   saveIcon: 'h-4 w-4',
-  salvo: 'text-[12px] font-semibold text-green-600 dark:text-green-400',
+  salvo: 'text-[13px] font-semibold text-green-600 dark:text-green-400',
   mechanicWrap:
-    'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-md',
+    'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-md',
   mechanicWrench:
-    'h-5 w-5 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]',
+    'h-6 w-6 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]',
   emptyTech:
-    'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12',
-  fieldRow: 'flex min-w-0 flex-1 flex-wrap items-center gap-2 ml-auto justify-end',
+    'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12',
+  fieldRow: 'flex min-w-0 flex-1 flex-wrap items-center gap-2.5 ml-auto justify-end',
 };
 
-const MOBILE_OVERLAY =
-  'fixed inset-0 z-[100] flex items-center justify-center overscroll-none touch-pan-y bg-black/35 dark:bg-black/45 backdrop-blur-[20px] animate-in fade-in duration-200 p-1.5 pt-[max(0.45rem,env(safe-area-inset-top))] pb-[max(0.45rem,env(safe-area-inset-bottom))] sm:p-3';
-
-const MOBILE_SHELL =
-  'relative flex h-[min(97vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-0.35rem))] w-full max-w-[99vw] xl:max-w-[98vw] 2xl:max-w-[97vw] min-h-0 flex-col';
-
-const DESKTOP_OVERLAY =
-  'patio-vehicle-modal patio-vehicle-modal--desktop fixed inset-0 z-[100] flex flex-col overscroll-none bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200 p-0';
-
-const DESKTOP_SHELL =
-  'patio-vehicle-modal__shell relative flex h-full min-h-0 w-full max-h-[100dvh] max-w-none flex-col overflow-hidden rounded-none border-0 shadow-none dark:shadow-none';
-
-const DESKTOP_INSET_CARD =
-  'patio-vm-card rounded-[18px] border border-zinc-300/70 bg-white ' +
-  'shadow-[0_10px_32px_-10px_rgba(63,63,70,0.16),0_4px_16px_-6px_rgba(82,82,91,0.10)] ' +
-  'dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
-
-const DESKTOP_INPUT =
-  'w-full rounded-xl border border-zinc-300/85 bg-zinc-50 px-4 py-3.5 text-[16px] leading-relaxed text-zinc-950 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500';
-
-export function getPatioVehicleModalLayout(isDesktop: boolean): PatioVehicleModalLayout {
-  if (!isDesktop) {
+export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayout {
+  if (!isPc) {
     return {
-      rootClass: '',
-      overlay: MOBILE_OVERLAY,
-      shell: `${MOBILE_SHELL} ${iosVehicleModalShell}`,
-      insetCard: iosVehicleModalInsetCard,
-      input: iosVehicleModalInput,
-      headerPad: 'border-b border-zinc-200/50 p-8 pb-8 dark:border-white/[0.06] md:px-12 md:pb-10',
+      overlay:
+        'fixed inset-0 z-[100] flex items-center justify-center overscroll-none touch-pan-y bg-black/35 dark:bg-black/45 backdrop-blur-[20px] animate-in fade-in duration-200 p-1.5 pt-[max(0.45rem,env(safe-area-inset-top))] pb-[max(0.45rem,env(safe-area-inset-bottom))] sm:p-3',
+      shell:
+        'relative flex h-[min(97vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-0.35rem))] w-full max-w-[99vw] xl:max-w-[98vw] 2xl:max-w-[97vw] min-h-0 flex-col overflow-hidden rounded-[1.5rem] sm:rounded-[1.625rem] border border-zinc-300/90 bg-[#F2F2F7] shadow-[0_2px_16px_-4px_rgba(0,0,0,0.1)] backdrop-blur-none dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]',
+      scroll: 'min-h-0 flex-1 overflow-y-auto overscroll-none custom-scrollbar',
+      header: 'border-b border-zinc-200/50 p-8 pb-8 dark:border-white/[0.06] md:px-12 md:pb-10',
       headerInner: 'mb-6 flex flex-col gap-3',
+      headerMeta: 'flex flex-col gap-2',
       title:
         'font-vehicle min-w-0 flex-1 truncate text-[2.79rem] md:text-[4.185rem] portrait:text-[2.74rem] portrait:md:text-[4.11rem] font-bold text-zinc-900 dark:text-white tracking-tight uppercase leading-none',
       brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400',
-      mainGrid:
-        'grid grid-cols-1 gap-6 p-8 pt-3 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:gap-7 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(232px,288px)]',
+      body: 'grid grid-cols-1 gap-6 p-8 pt-3 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:gap-7 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(232px,288px)]',
+      mainCol: 'min-w-0 space-y-6',
+      asideCol: 'min-w-0 space-y-8',
+      insetCard: iosVehicleModalInsetCard,
+      input: iosVehicleModalInput,
       closeBtn:
         'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15',
       assignHintLabel: 'Toque para atribuir',
       openHintLabel: 'Toque para abrir',
+      sectionTitle: '',
+      commentsList:
+        'custom-scrollbar max-h-[min(420px,52vh)] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-4 dark:bg-black/25 sm:p-5 sm:space-y-5 lg:max-h-[min(220px,32vh)] lg:space-y-3 lg:p-3',
       compact: COMPACT_MOBILE,
     };
   }
 
   return {
-    rootClass: 'patio-vehicle-modal patio-vehicle-modal--desktop',
-    overlay: DESKTOP_OVERLAY,
-    shell: `${DESKTOP_SHELL} ${iosVehicleModalShell}`,
-    insetCard: DESKTOP_INSET_CARD,
-    input: DESKTOP_INPUT,
-    headerPad: 'border-b border-zinc-200/50 px-10 py-8 dark:border-white/[0.06] xl:px-14 xl:py-10',
-    headerInner: 'mb-8 flex flex-col gap-4 max-w-[1680px] mx-auto w-full',
+    overlay:
+      'patio-vehicle-modal patio-vehicle-modal--desktop fixed inset-0 z-[100] flex flex-col overflow-hidden overscroll-none bg-[#E8E8ED] dark:bg-[#0a0a0a] animate-in fade-in duration-200',
+    shell:
+      'patio-vehicle-modal__shell relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#E8E8ED] shadow-none dark:bg-[#0a0a0a] dark:shadow-none',
+    scroll: 'patio-vm-scroll min-h-0 flex-1 overflow-hidden',
+    header:
+      'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-8 py-5 pr-32 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-12 xl:py-6 xl:pr-36',
+    headerInner: 'mx-auto flex w-full max-w-[1920px] flex-col gap-4',
+    headerMeta:
+      'patio-vm-header-meta mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4',
     title:
-      'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2.35rem] xl:text-[3rem] 2xl:text-[3.35rem] font-bold text-zinc-900 dark:text-white tracking-tight uppercase leading-none',
-    brandSubtitle: 'text-[13px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',
-    mainGrid:
-      'patio-vehicle-modal__main-grid grid grid-cols-1 gap-8 px-10 pt-4 pb-10 xl:px-14 xl:gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start max-w-[1800px] mx-auto w-full',
+      'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2.75rem] font-bold uppercase leading-[0.95] tracking-tight text-zinc-900 dark:text-white xl:text-[3.5rem] 2xl:text-[4rem]',
+    brandSubtitle: 'text-[13px] font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400',
+    body: 'patio-vm-desktop-body mx-auto grid h-full min-h-0 w-full max-w-[1920px] flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(380px,440px)]',
+    mainCol:
+      'patio-vm-main-col min-h-0 min-w-0 space-y-8 overflow-y-auto overscroll-none custom-scrollbar px-8 py-7 xl:px-10 xl:py-8',
+    asideCol:
+      'patio-vm-aside-col min-h-0 min-w-0 space-y-7 overflow-y-auto overscroll-none custom-scrollbar border-t border-zinc-300/70 bg-[#F2F2F7]/90 px-7 py-7 dark:border-white/[0.08] dark:bg-zinc-950/50 lg:border-l lg:border-t-0 xl:px-9 xl:py-8',
+    insetCard:
+      'patio-vm-card rounded-[20px] border border-zinc-300/80 bg-white shadow-[0_12px_40px_-12px_rgba(63,63,70,0.18),0_4px_16px_-6px_rgba(82,82,91,0.10)] dark:border-white/[0.08] dark:bg-zinc-900/55 dark:backdrop-blur-xl dark:shadow-[0_12px_48px_-16px_rgba(0,0,0,0.55)]',
+    input:
+      'w-full rounded-xl border border-zinc-300/85 bg-zinc-50 px-4 py-3.5 text-[17px] leading-relaxed text-zinc-950 placeholder:text-zinc-500 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 transition-shadow dark:border-white/[0.1] dark:bg-zinc-950/60 dark:text-white dark:placeholder:text-zinc-500',
     closeBtn:
-      'patio-vehicle-modal__icon-btn flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/12 dark:bg-white/10 dark:hover:bg-white/18',
+      'patio-vehicle-modal__icon-btn flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-full border border-zinc-300/80 bg-white text-zinc-600 shadow-sm transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700',
     assignHintLabel: 'Clique para atribuir',
     openHintLabel: 'Clique para abrir',
+    sectionTitle: 'text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400 mb-3 flex items-center gap-2',
+    commentsList:
+      'custom-scrollbar max-h-[min(720px,calc(100dvh-280px))] space-y-5 overflow-y-auto bg-[#F2F2F7]/80 p-5 dark:bg-black/25',
     compact: COMPACT_DESKTOP,
   };
 }
 
-/** Overlay/shell para modais de histórico arquivado (lista e detalhe). */
-export function getPatioHistoryModalLayout(isDesktop: boolean): {
+export function getPatioHistoryModalLayout(isPc: boolean): {
   overlay: string;
   shell: string;
   closeBtn: string;
 } {
-  if (!isDesktop) {
+  if (!isPc) {
     return {
       overlay:
         'fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-[12px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200',
@@ -184,10 +183,10 @@ export function getPatioHistoryModalLayout(isDesktop: boolean): {
   }
   return {
     overlay:
-      'patio-vehicle-modal patio-vehicle-modal--desktop fixed inset-0 z-[100] flex flex-col overscroll-none bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200 p-0',
+      'patio-vehicle-modal patio-vehicle-modal--desktop fixed inset-0 z-[100] flex flex-col overflow-hidden overscroll-none bg-[#E8E8ED] dark:bg-[#0a0a0a] animate-in fade-in duration-200',
     shell:
-      'patio-vehicle-modal__shell relative flex h-full min-h-0 w-full max-h-[100dvh] max-w-none flex-col overflow-hidden rounded-none',
+      'patio-vehicle-modal__shell relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#E8E8ED] dark:bg-[#0a0a0a]',
     closeBtn:
-      'patio-vehicle-modal__icon-btn absolute top-5 right-5 z-20 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/12 dark:bg-white/10 dark:hover:bg-white/18',
+      'patio-vehicle-modal__icon-btn absolute top-6 right-6 z-20 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-zinc-300/80 bg-white text-zinc-600 shadow-sm transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700',
   };
 }

@@ -1091,9 +1091,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Visão panorâmica: cartões menores para caber mais na tela (Pátio / Laboratório independentes). */
   const boardPanoramicStorageKey = isModuleMode ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
   const [boardPanoramic, setBoardPanoramic] = useState(false);
-  const { isDesktop, isTablet, isSmartphone } = useDeviceTypeContext();
-  const patioVehicleVm = useMemo(() => getPatioVehicleModalLayout(isDesktop), [isDesktop]);
-  const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isDesktop), [isDesktop]);
+  const { isDesktop, isTablet, isSmartphone, viewportWidth } = useDeviceTypeContext();
+  /** Modal de veículo em layout PC: tela cheia, duas colunas, tipografia ampla (≥1024px e não smartphone). */
+  const isPatioPcModal = !isSmartphone && viewportWidth >= 1024;
+  const patioVehicleVm = useMemo(() => getPatioVehicleModalLayout(isPatioPcModal), [isPatioPcModal]);
+  const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isPatioPcModal), [isPatioPcModal]);
   /** Retrato: encolhe o quadro inteiro (como o zoom do modo “5 colunas”) sem depender do toggle panorâmico. */
   const [isPortraitOrientation, setIsPortraitOrientation] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(orientation: portrait)').matches : false
@@ -4143,9 +4145,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
          <ModalPortal>
          <div className={patioHistoryVm.overlay}>
             <div
-              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${isDesktop ? 'animate-modal-wp-app' : 'animate-in zoom-in-95 duration-200'}`}
+              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${isPatioPcModal ? 'animate-modal-wp-app' : 'animate-in zoom-in-95 duration-200'}`}
             >
-               <div className={`shrink-0 border-b border-zinc-200/60 dark:border-white/[0.07] ${isDesktop ? 'px-10 py-4 xl:px-14' : 'px-4 py-3 sm:px-6'}`}>
+               <div className={`shrink-0 border-b border-zinc-200/60 dark:border-white/[0.07] ${isPatioPcModal ? 'px-10 py-4 xl:px-14' : 'px-4 py-3 sm:px-6'}`}>
                   <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
                     type="button"
@@ -4179,13 +4181,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                </div>
 
                <div className="min-h-0 flex-1 overflow-y-auto overscroll-none custom-scrollbar">
-                  <div className={isDesktop ? 'px-10 py-8 pb-4 xl:px-14 xl:py-10 max-w-[1680px] mx-auto w-full' : 'px-6 py-6 pb-4 md:px-10 md:py-8'}>
+                  <div className={isPatioPcModal ? 'px-10 py-8 pb-4 xl:px-14 xl:py-10 max-w-[1680px] mx-auto w-full' : 'px-6 py-6 pb-4 md:px-10 md:py-8'}>
                      <div className="mb-6 flex flex-col gap-3">
                         <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-zinc-200/80 bg-zinc-100/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-300">
                           Arquivado
                         </span>
                         <h1
-                          className={`${isDesktop ? patioVehicleVm.title : 'text-[1.74375rem] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-[2.79rem] portrait:text-[2.19375rem] portrait:md:text-[3.51rem]'} ${vehicleModalTitleShadow}`}
+                          className={`${isPatioPcModal ? patioVehicleVm.title : 'text-[1.74375rem] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-[2.79rem] portrait:text-[2.19375rem] portrait:md:text-[3.51rem]'} ${vehicleModalTitleShadow}`}
                         >
                           {historyCardTitleParts?.vehicle}
                         </h1>
@@ -4546,7 +4548,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <div className={patioVehicleVm.overlay}>
            <div className={`${patioVehicleVm.shell} animate-modal-wp-app ${modalRingClass}`}>
               
-              <div className={`absolute z-20 flex items-center gap-2 ${isDesktop ? 'top-5 right-5' : 'top-4 right-4'}`}>
+              <div className={`absolute z-20 flex items-center gap-2 ${isPatioPcModal ? 'top-6 right-6 xl:top-7 xl:right-8' : 'top-4 right-4'}`}>
                 {can('canDeleteCards') && (
                 <button
                   type="button"
@@ -4568,7 +4570,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
 
               {can('canDeleteCards') && isDeleteVehicleOpen && (
-                <div className={`absolute inset-0 z-30 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm ${isDesktop ? 'rounded-none' : 'rounded-[1.5rem] sm:rounded-[1.625rem]'}`}>
+                <div className={`absolute inset-0 z-30 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm ${isPatioPcModal ? 'rounded-none' : 'rounded-[1.5rem] sm:rounded-[1.625rem]'}`}>
                   <div className={`${vi} w-full max-w-sm p-6 shadow-xl`}>
                     <h3 className="mb-2 flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
                       <Trash2 className="h-5 w-5 text-red-500" />
@@ -4628,8 +4630,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               )}
 
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-none custom-scrollbar">
-                  <div className={patioVehicleVm.headerPad}>
+              <div className={patioVehicleVm.scroll}>
+                  <div className={patioVehicleVm.header}>
                      <div className={patioVehicleVm.headerInner}>
                         <div className="flex flex-wrap items-center gap-2">
                           {(serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null && (
@@ -4681,8 +4683,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           {!isModuleMode && (
                             <div
                               className={
-                                isDesktop
-                                  ? 'inline-flex shrink-0 origin-right scale-[1.12] items-center justify-center'
+                                isPatioPcModal
+                                  ? 'inline-flex shrink-0 origin-right scale-[1.15] items-center justify-center'
                                   : 'inline-flex shrink-0 origin-right scale-[1.2] portrait:scale-[0.936] items-center justify-center'
                               }
                             >
@@ -4706,7 +4708,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <button
                             type="button"
                             onClick={() => onOpenVehicleAccompaniment(selectedCard.id)}
-                            className={`${vi} patio-vm-card group mt-1 flex w-full cursor-pointer items-center justify-between gap-3 p-4 text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 hover:border-[#007AFF]/35 ${isDesktop ? '' : 'active:scale-[0.99]'} dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}
+                            className={`${vi} patio-vm-card group mt-1 flex w-full cursor-pointer items-center justify-between gap-3 p-4 text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 hover:border-[#007AFF]/35 ${isPatioPcModal ? '' : 'active:scale-[0.99]'} dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}
                           >
                             <div className="flex min-w-0 flex-1 items-center gap-3">
                               <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
@@ -4728,14 +4730,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             />
                           </button>
                         ) : null}
-                        {/* Cliente + Km — mesmo grid e cartões que Técnico / Data de entrega */}
-                        <div className={`mt-3 grid grid-cols-1 sm:grid-cols-2 ${c.grid}`}>
+                        {/* Cliente + Km + Técnico + Data — faixa de meta (4 colunas no PC) */}
+                        <div className={`${patioVehicleVm.headerMeta} ${c.grid}`}>
                           <button
                             type="button"
                             onClick={handleJumpToCustomerNameEdit}
                             disabled={!can('canEditFicha')}
                             title={can('canEditFicha') ? 'Editar nome do cliente em Dados da ficha' : 'Dados do cliente'}
-                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isDesktop ? 'cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${!isModuleMode && can('canEditMileage') ? '' : 'sm:col-span-2'}`}
+                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isPatioPcModal ? 'cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${!isModuleMode && can('canEditMileage') ? '' : 'sm:col-span-2'}`}
                           >
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -4784,7 +4786,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     value={mileageEditValue}
                                     onChange={(e) => setMileageEditValue(e.target.value)}
                                     placeholder="Ex: 45000"
-                                    className={`${c.numericInput} sm:max-w-none${isDesktop ? '' : ' portrait:w-[51%] portrait:flex-none'}`}
+                                    className={`${c.numericInput} sm:max-w-none${isPatioPcModal ? '' : ' portrait:w-[51%] portrait:flex-none'}`}
                                   />
                                   <button
                                     type="button"
@@ -4805,6 +4807,95 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                               </div>
                             </div>
+                          )}
+                          {can('canAssignTechnician') && (
+                          <button
+                            type="button"
+                            onClick={() => setCardForMemberAssignment(selectedCard)}
+                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isPatioPcModal ? 'cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]`}
+                          >
+                            <div
+                              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
+                              aria-hidden
+                            />
+                            <div
+                              className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
+                              aria-hidden
+                            />
+                            <div className={c.row}>
+                              {selectedCard.members && selectedCard.members.length > 0 ? (
+                                <>
+                                  <div className={`${c.mechanicWrap} ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
+                                    <Wrench className={c.mechanicWrench} strokeWidth={2.35} aria-hidden />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className={c.titleText}>Técnico responsável</p>
+                                    <p className={c.bodyText}>
+                                      {capitalizeFirst(selectedCard.members[0].fullName)}
+                                    </p>
+                                  </div>
+                                  <ChevronRight strokeWidth={2.25} className={`${c.chevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
+                                </>
+                              ) : (
+                                <>
+                                  <div className={c.emptyTech}>
+                                    <Wrench className={c.iconGlyph} strokeWidth={2.35} aria-hidden />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className={c.titleText}>Técnico responsável</p>
+                                    <p className={c.assignHint}>{patioVehicleVm.assignHintLabel}</p>
+                                  </div>
+                                  <ChevronRight strokeWidth={2.25} className={`${c.chevron} text-zinc-400 transition-colors group-hover:text-[#007AFF]/70 dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
+                                </>
+                              )}
+                            </div>
+                          </button>
+                          )}
+                          {can('canEditDeliveryDate') && (
+                          <div className={`${vi} relative overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
+                            <div
+                              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
+                              aria-hidden
+                            />
+                            <div
+                              className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
+                              aria-hidden
+                            />
+                            <div className={c.splitRow}>
+                              <div className="flex min-w-0 flex-1 items-center gap-2">
+                                <div className={c.iconSquircle}>
+                                  <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
+                                </div>
+                                <div className="min-w-0 flex-1 sm:pb-0">
+                                  <p className={c.titleText}>Data de entrega</p>
+                                </div>
+                              </div>
+                              <div className={c.fieldRow}>
+                                <input
+                                  type="date"
+                                  value={deliveryDateEditValue}
+                                  onChange={(e) => setDeliveryDateEditValue(e.target.value)}
+                                  className={c.dateInput}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleSaveDeliveryDate}
+                                  disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
+                                  className={`${c.saveBtn} ${
+                                    deliveryDateEditValue !== lastSavedDeliveryDate
+                                      ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
+                                      : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
+                                  }`}
+                                >
+                                  {savingDeliveryDate ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
+                                  Salvar
+                                </button>
+                                {deliveryDateSavedMessage && (
+                                  <span className={c.salvo}>Salvo!</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                           )}
                         </div>
 
@@ -5323,104 +5414,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
                     </div>
                   )}
-                        {/* Técnico + Data de entrega — compactos (mesmo idioma visual, menos altura) */}
-                        <div className={`mt-2 grid grid-cols-1 sm:grid-cols-2 ${c.grid}`}>
-                          {can('canAssignTechnician') && (
-                          <button
-                            type="button"
-                            onClick={() => setCardForMemberAssignment(selectedCard)}
-                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isDesktop ? 'cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]`}
-                          >
-                            <div
-                              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
-                              aria-hidden
-                            />
-                            <div
-                              className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
-                              aria-hidden
-                            />
-                            <div className={c.row}>
-                              {selectedCard.members && selectedCard.members.length > 0 ? (
-                                <>
-                                  <div className={`${c.mechanicWrap} ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
-                                    <Wrench className={c.mechanicWrench} strokeWidth={2.35} aria-hidden />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className={c.titleText}>Técnico responsável</p>
-                                    <p className={c.bodyText}>
-                                      {capitalizeFirst(selectedCard.members[0].fullName)}
-                                    </p>
-                                  </div>
-                                  <ChevronRight strokeWidth={2.25} className={`${c.chevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
-                                </>
-                              ) : (
-                                <>
-                                  <div className={c.emptyTech}>
-                                    <Wrench className={c.iconGlyph} strokeWidth={2.35} aria-hidden />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className={c.titleText}>Técnico responsável</p>
-                                    <p className={c.assignHint}>{patioVehicleVm.assignHintLabel}</p>
-                                  </div>
-                                  <ChevronRight strokeWidth={2.25} className={`${c.chevron} text-zinc-400 transition-colors group-hover:text-[#007AFF]/70 dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
-                                </>
-                              )}
-                            </div>
-                          </button>
-                          )}
-                          {can('canEditDeliveryDate') && (
-                          <div className={`${vi} relative overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
-                            <div
-                              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
-                              aria-hidden
-                            />
-                            <div
-                              className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
-                              aria-hidden
-                            />
-                            <div className={c.splitRow}>
-                              <div className="flex min-w-0 flex-1 items-center gap-2">
-                                <div className={c.iconSquircle}>
-                                  <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
-                                </div>
-                                <div className="min-w-0 flex-1 sm:pb-0">
-                                  <p className={c.titleText}>Data de entrega</p>
-                                </div>
-                              </div>
-                              <div className={c.fieldRow}>
-                                <input
-                                  type="date"
-                                  value={deliveryDateEditValue}
-                                  onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                  className={c.dateInput}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={handleSaveDeliveryDate}
-                                  disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
-                                  className={`${c.saveBtn} ${
-                                    deliveryDateEditValue !== lastSavedDeliveryDate
-                                      ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
-                                      : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
-                                  }`}
-                                >
-                                  {savingDeliveryDate ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
-                                  Salvar
-                                </button>
-                                {deliveryDateSavedMessage && (
-                                  <span className={c.salvo}>Salvo!</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          )}
-                        </div>
                      </div>
                   </div>
 
-                  <div className={patioVehicleVm.mainGrid}>
-                      
-                      <div className="min-w-0 space-y-6">
+                  <div className={patioVehicleVm.body}>
+                      <div className={patioVehicleVm.mainCol}>
                         <div ref={descriptionSectionRef}>
                           <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
                             <div className="relative min-w-0">
@@ -5438,7 +5436,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
                                   <FileText className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                 </div>
-                                <p className={`bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 ${isDesktop ? 'text-[17px] xl:text-[18px]' : 'text-[16px] sm:text-[17px]'}`}>
+                                <p className={`bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 ${isPatioPcModal ? 'text-[18px] xl:text-[20px]' : 'text-[16px] sm:text-[17px]'}`}>
                                   Queixa do cliente
                                 </p>
                               </div>
@@ -6251,10 +6249,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                       </div>
 
-                      <div className="min-w-0 space-y-8">
+                      <div className={patioVehicleVm.asideCol}>
                         {!isModuleMode && selectedCard && !selectedHistoryCard && diagnosticAuthSheetContext ? (
                           <div className="min-w-0">
-                            <h3 className={`${uiSectionTitleRow} lg:mb-2`}>
+                            <h3 className={isPatioPcModal ? patioVehicleVm.sectionTitle : `${uiSectionTitleRow} lg:mb-2`}>
                               <FileText className="h-3.5 w-3.5 shrink-0" />
                               Autorização de diagnóstico
                             </h3>
@@ -6285,13 +6283,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                         ) : null}
                         <div ref={commentsSectionRef}>
-                           <h3 className={`${uiSectionTitleRow} lg:mb-2`}>
-                             <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                           <h3 className={isPatioPcModal ? patioVehicleVm.sectionTitle : `${uiSectionTitleRow} lg:mb-2`}>
+                             <MessageSquare className={isPatioPcModal ? 'h-4 w-4 shrink-0' : 'h-3.5 w-3.5 shrink-0'} />
                              Comentários
                           </h3>
 
                           <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
-                             <div ref={commentsListRef} className="custom-scrollbar max-h-[min(420px,52vh)] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-4 dark:bg-black/25 sm:p-5 sm:space-y-5 lg:max-h-[min(220px,32vh)] lg:space-y-3 lg:p-3">
+                             <div ref={commentsListRef} className={patioVehicleVm.commentsList}>
                                 {cardDetails?.actions && cardDetails.actions.length > 0 ? (
                                    cardDetails.actions.map(action => {
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);

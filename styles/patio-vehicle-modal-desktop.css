@@ -1,20 +1,21 @@
 /**
- * Modal de veículo/produto no Pátio — modo desktop (mouse, tela cheia, tipografia ampla).
- * Ativo quando html[data-device="desktop"] e o overlay tem .patio-vehicle-modal--desktop.
+ * Modal de veículo no Pátio — modo PC (≥1024px, não smartphone).
  */
 
-html[data-device='desktop'] .patio-vehicle-modal--desktop {
+html[data-device='desktop'] .patio-vehicle-modal--desktop,
+html[data-device='tablet'] .patio-vehicle-modal--desktop {
   cursor: default;
 }
 
-html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vehicle-modal__shell {
-  animation: patio-vm-desktop-in 0.22s ease-out;
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vehicle-modal__shell,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vehicle-modal__shell {
+  animation: patio-vm-desktop-in 0.24s ease-out;
 }
 
 @keyframes patio-vm-desktop-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -22,38 +23,36 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vehicle-modal__
   }
 }
 
-html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-card {
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-card,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-card {
   transition:
     border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.12s ease;
+    box-shadow 0.18s ease;
 }
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop button.patio-vm-card,
-html[data-device='desktop'] .patio-vehicle-modal--desktop a.patio-vm-card {
+html[data-device='desktop'] .patio-vehicle-modal--desktop a.patio-vm-card,
+html[data-device='tablet'] .patio-vehicle-modal--desktop button.patio-vm-card,
+html[data-device='tablet'] .patio-vehicle-modal--desktop a.patio-vm-card {
   cursor: pointer;
 }
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop button.patio-vm-card:hover,
-html[data-device='desktop'] .patio-vehicle-modal--desktop a.patio-vm-card:hover {
-  border-color: rgba(0, 122, 255, 0.35);
+html[data-device='desktop'] .patio-vehicle-modal--desktop a.patio-vm-card:hover,
+html[data-device='tablet'] .patio-vehicle-modal--desktop button.patio-vm-card:hover,
+html[data-device='tablet'] .patio-vehicle-modal--desktop a.patio-vm-card:hover {
+  border-color: rgba(0, 122, 255, 0.42);
   box-shadow:
-    0 12px 36px -12px rgba(63, 63, 70, 0.2),
-    0 4px 14px -6px rgba(0, 122, 255, 0.08);
+    0 16px 44px -14px rgba(63, 63, 70, 0.22),
+    0 6px 18px -8px rgba(0, 122, 255, 0.12);
 }
 
-html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vehicle-modal__icon-btn {
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vehicle-modal__icon-btn,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vehicle-modal__icon-btn {
   cursor: pointer;
 }
 
-html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vehicle-modal__main-grid .custom-scrollbar {
-  scrollbar-width: thin;
-}
-
-html[data-device='desktop'] .patio-vehicle-modal--desktop [class*='active:scale'] {
-  /* No desktop, evita “encolher” ao clicar — feedback fica no hover. */
-}
-
-html[data-device='desktop'] .patio-vehicle-modal--desktop button:not(:disabled):active {
+html[data-device='desktop'] .patio-vehicle-modal--desktop button:not(:disabled):active,
+html[data-device='tablet'] .patio-vehicle-modal--desktop button:not(:disabled):active {
   transform: none;
 }
