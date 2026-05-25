@@ -52,6 +52,7 @@ import {
   WorkshopPartRegistrationForm,
   type PartPhotoSlot,
 } from './WorkshopPartRegistrationForm';
+import { WorkshopPartDetailView } from './WorkshopPartDetailView';
 import {
   formValuesToApiPayload,
   purchaseDraftToPayload,
@@ -151,6 +152,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [registrationPart, setRegistrationPart] = useState<WorkshopPart | null>(null);
   const [registrationPurchases, setRegistrationPurchases] = useState<WorkshopPartPurchaseDraft[]>([]);
   const [loadingRegistrationPurchases, setLoadingRegistrationPurchases] = useState(false);
+
+  const [viewPart, setViewPart] = useState<WorkshopPart | null>(null);
+  const [viewPhotos, setViewPhotos] = useState<PartPhotoSlot[]>([]);
+  const [viewPurchases, setViewPurchases] = useState<WorkshopPartPurchase[]>([]);
+  const [loadingViewPart, setLoadingViewPart] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -292,19 +298,51 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     resetNewProductDraft();
   }, [resetNewProductDraft]);
 
+  const closeProductView = useCallback(() => {
+    setViewPart(null);
+    setViewPhotos([]);
+    setViewPurchases([]);
+    setLoadingViewPart(false);
+  }, []);
+
   useEffect(() => {
-    if (!isOpen) closeRegistration();
-  }, [isOpen, closeRegistration]);
+    if (!isOpen) {
+      closeRegistration();
+      closeProductView();
+    }
+  }, [isOpen, closeRegistration, closeProductView]);
 
   const openCreateRegistration = useCallback(() => {
+    closeProductView();
     setRegistrationMode('create');
     setRegistrationPart(null);
     setRegistrationPurchases([]);
     resetNewProductDraft();
     setError(null);
-  }, [resetNewProductDraft]);
+  }, [resetNewProductDraft, closeProductView]);
+
+  const openProductView = useCallback(async (part: WorkshopPart) => {
+    const latest = parts.find((p) => p.id === part.id) ?? part;
+    setViewPart(latest);
+    setLoadingViewPart(true);
+    setError(null);
+    try {
+      const [purchases, photos] = await Promise.all([
+        getWorkshopPartPurchases(latest.id),
+        getWorkshopPartPhotos(latest.id).catch(() => []),
+      ]);
+      setViewPurchases(purchases);
+      setViewPhotos(workshopPartPhotosToSlots(photos, latest.photo_url));
+    } catch {
+      setViewPurchases([]);
+      setViewPhotos(workshopPartToPhotoSlots(latest));
+    } finally {
+      setLoadingViewPart(false);
+    }
+  }, [parts]);
 
   const openEditRegistration = useCallback(async (part: WorkshopPart) => {
+    closeProductView();
     setRegistrationMode('edit');
     setRegistrationPart(part);
     setPendingPhotos((prev) => {
@@ -326,7 +364,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     } finally {
       setLoadingRegistrationPurchases(false);
     }
-  }, []);
+  }, [closeProductView]);
+
+  const handleEditFromView = useCallback(() => {
+    if (!viewPart) return;
+    const part = viewPart;
+    closeProductView();
+    void openEditRegistration(part);
+  }, [viewPart, closeProductView, openEditRegistration]);
 
   useEffect(() => {
     if (!registrationMode) return;
@@ -352,6 +397,22 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [registrationMode, closeRegistration, photoEditorFile]);
+
+  useEffect(() => {
+    if (!viewPart) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      closeProductView();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [viewPart, closeProductView]);
+
+  const handleViewBackdropClick = useCallback(() => {
+    closeProductView();
+  }, [closeProductView]);
 
   const syncPurchasesForPart = async (partId: string, drafts: WorkshopPartPurchaseDraft[]) => {
     const existing = await getWorkshopPartPurchases(partId);
@@ -464,6 +525,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       await deleteWorkshopPart(id);
       setParts((prev) => prev.filter((p) => p.id !== id));
       if (registrationPart?.id === id) closeRegistration();
+      if (viewPart?.id === id) closeProductView();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao excluir peça.');
     }
@@ -582,6 +644,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
   const registrationPhotoSlots: PartPhotoSlot[] =
     registrationMode === 'create' ? pendingPhotos.map((p) => ({ id: p.id, previewUrl: p.previewUrl })) : registrationPhotos;
+
+  useBrowserBackLayer(!!viewPart, closeProductView);
 
   /** Gesto voltar / history.back: fecha cadastro; se o editor de foto estiver aberto, cancela a foto antes. */
   useBrowserBackLayer(
@@ -823,8 +887,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:max-w-xl">
               Gerencie preço e estoque. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Categorias</span> para
               organizar o catálogo. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Adicionar produto</span> para
-              cadastrar. Para <span className="font-medium text-zinc-600 dark:text-zinc-300">foto e ajustes</span>, abra o item tocando
-              no nome.
+              cadastrar. Toque no nome do item para <span className="font-medium text-zinc-600 dark:text-zinc-300">ver detalhes</span>; use o
+              ícone de lápis para editar.
             </p>
             <div className="flex flex-wrap gap-2 justify-end shrink-0">
               <button
@@ -1088,9 +1152,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       <>
                         <button
                           type="button"
-                          onClick={() => void openEditRegistration(p)}
+                          onClick={() => void openProductView(p)}
                           className="w-full min-w-0 flex flex-[1_1_100%] items-center gap-3 text-left rounded-xl -my-1 -ml-2 pl-2 pr-2 py-1.5 hover:bg-zinc-200/70 dark:hover:bg-white/[0.07] transition-colors cursor-pointer md:col-span-1 md:flex-[unset] md:w-auto"
-                          title="Abrir produto — foto e ajustes"
+                          title="Ver detalhes do produto"
                         >
                           <div className="isolate w-10 h-10 shrink-0 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 pointer-events-none dark:border-white/10 dark:bg-white/5">
                             {p.photo_url ? (
@@ -1238,6 +1302,69 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           </div>
         </div>
       </div>
+      </RegistrationPortal>
+    ) : null}
+
+    {viewPart ? (
+      <RegistrationPortal>
+        <div
+          className={
+            isDesktopShell
+              ? 'fixed inset-0 z-[115] flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden bg-white dark:bg-zinc-950'
+              : 'fixed inset-0 z-[115] flex items-center justify-center bg-black/50 p-2 sm:p-4'
+          }
+          onClick={isDesktopShell ? undefined : handleViewBackdropClick}
+          role="presentation"
+        >
+          <div
+            className={
+              isDesktopShell
+                ? 'relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950'
+                : 'relative flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_8px_40px_-12px_rgba(0,0,0,0.12)] dark:border-white/[0.08] dark:bg-zinc-950 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] sm:rounded-[2.25rem]'
+            }
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <button
+              type="button"
+              onClick={closeProductView}
+              className={
+                isDesktopShell
+                  ? `${iosModalClose} top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))]`
+                  : iosModalClose
+              }
+              aria-label="Fechar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div
+              className={
+                isDesktopShell
+                  ? 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pr-14 dark:border-white/[0.06] dark:bg-transparent sm:px-8'
+                  : 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-14 dark:border-white/[0.06] dark:bg-transparent'
+              }
+            >
+              <IosModalHeader
+                icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
+                title="Estoque — visualização"
+                subtitle={viewPart.name}
+                gradientClass="from-emerald-500 to-teal-700"
+              />
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y bg-white px-6 py-6 sm:px-8 custom-scrollbar [scrollbar-gutter:stable] dark:bg-transparent">
+              <WorkshopPartDetailView
+                part={parts.find((p) => p.id === viewPart.id) ?? viewPart}
+                photos={viewPhotos}
+                purchases={viewPurchases}
+                categories={categories}
+                loading={loadingViewPart}
+                onEdit={handleEditFromView}
+                onDelete={() => void handleDelete(viewPart.id)}
+              />
+            </div>
+          </div>
+        </div>
       </RegistrationPortal>
     ) : null}
 
