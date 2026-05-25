@@ -29,15 +29,56 @@ html[data-desktop-shell='true'] .desktop-shell-sidebar {
   background: #fff;
   border-right: 1px solid #d4d4d4;
   box-shadow: 1px 0 0 rgba(0, 0, 0, 0.04);
+  transition: width 0.2s ease;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed {
+  width: 4.25rem;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  min-height: 3.5rem;
+  padding: 0.5rem 0.45rem;
+  border-bottom: 1px solid #e8e8e8;
+  background: #0a0a0a;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-sidebar-head {
+  justify-content: center;
+  padding: 0.5rem 0.35rem;
 }
 
 html[data-desktop-shell='true'] .desktop-shell-sidebar-logo {
   display: flex;
+  flex: 1;
+  min-width: 0;
   align-items: center;
   justify-content: center;
-  padding: 0.85rem 0.75rem;
-  border-bottom: 1px solid #e8e8e8;
-  background: #0a0a0a;
+  padding: 0.2rem 0;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-sidebar-toggle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.4rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fafafa;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 html[data-desktop-shell='true'] .desktop-shell-sidebar-nav {
@@ -75,6 +116,43 @@ html[data-desktop-shell='true'] .desktop-shell-nav-item--active {
   box-shadow: inset 3px 0 0 rgb(var(--app-accent-rgb) / 1);
 }
 
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-item {
+  justify-content: center;
+  gap: 0;
+  padding: 0.55rem 0.4rem;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-item--active {
+  box-shadow: inset 0 3px 0 rgb(var(--app-accent-rgb) / 1);
+}
+
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-label,
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-support-label {
+  display: none;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-item {
+  position: relative;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-badge {
+  position: absolute;
+  top: 0.2rem;
+  right: 0.35rem;
+  margin-left: 0;
+  min-width: 1rem;
+  min-height: 1rem;
+  padding: 0 0.2rem;
+  font-size: 8px;
+  line-height: 1rem;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-support {
+  margin: 0.5rem 0.4rem 0.75rem;
+  padding: 0.55rem;
+  justify-content: center;
+}
+
 html[data-desktop-shell='true'] .desktop-shell-nav-icon {
   width: 1.35rem;
   height: 1.35rem;
@@ -98,10 +176,39 @@ html[data-desktop-shell='true'] .desktop-shell-topbar {
   gap: 0.5rem;
   min-height: 2.75rem;
   padding: 0 0.75rem 0 1rem;
-  background: linear-gradient(180deg, #1d6fd8 0%, #1558b8 100%);
+  --desktop-topbar-accent: #f5d00b;
+  background: linear-gradient(
+    180deg,
+    var(--desktop-topbar-accent) 0%,
+    color-mix(in srgb, var(--desktop-topbar-accent) 72%, black) 100%
+  );
   color: #fff;
-  border-bottom: 1px solid #0f4a9a;
+  border-bottom: 1px solid color-mix(in srgb, var(--desktop-topbar-accent) 58%, black);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset;
+  transition:
+    background 0.22s ease,
+    border-color 0.22s ease;
+}
+
+/* Resumo (amarelo): texto escuro para contraste */
+html[data-desktop-shell='true'] .desktop-shell-topbar[data-accent-tone='dark'] {
+  color: #18181b;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-topbar[data-accent-tone='dark'] .desktop-shell-topbar-title {
+  color: #18181b;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-topbar[data-accent-tone='dark'] .desktop-shell-topbar-actions > span {
+  color: rgba(24, 24, 27, 0.78);
+}
+
+html[data-desktop-shell='true'] .desktop-shell-topbar[data-accent-tone='dark'] .desktop-shell-topbar-btn {
+  color: #18181b;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-topbar[data-accent-tone='dark'] .desktop-shell-topbar-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
 }
 
 html[data-desktop-shell='true'] .desktop-shell-topbar-title {
@@ -214,7 +321,7 @@ html[data-desktop-shell='true'] .desktop-shell-support {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
   padding: 0.5rem 0.75rem;
   border-radius: 9999px;
   border: 1px solid #bbf7d0;

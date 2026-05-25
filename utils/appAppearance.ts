@@ -29,6 +29,11 @@ export const COLORFUL_TAB_ACCENTS: Record<NavigationTabId, string> = {
   radar_qualidade: '#E11D48',
 };
 
+/** Cor de destaque do módulo (barra superior no modo PC, etc.). */
+export function moduleAccentColor(tab: NavigationTabId): string {
+  return COLORFUL_TAB_ACCENTS[tab] ?? COLORFUL_TAB_ACCENTS.home;
+}
+
 export type AppAppearance = {
   /** Cor principal (#RRGGBB) — usada no modo único; no modo colorido é fallback se uma aba não tiver entrada */
   accentHex: string;
