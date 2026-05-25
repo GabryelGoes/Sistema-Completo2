@@ -808,6 +808,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Admin: sem patioPermissions = tudo permitido. Usuário do sistema: só o que for explicitamente true. */
   const can = (key: keyof NonNullable<PatioViewProps['patioPermissions']>) =>
     patioPermissions === undefined ? true : patioPermissions[key] === true;
+  const { isDesktop, isTablet, isSmartphone, viewportWidth } = useDeviceTypeContext();
+  /** Modal de veículo em layout PC (≥1024px e não smartphone). */
+  const isPatioPcModal = isDesktop && viewportWidth >= 1024;
+  const patioVehicleVm = useMemo(() => getPatioVehicleModalLayout(isPatioPcModal), [isPatioPcModal]);
+  const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isPatioPcModal), [isPatioPcModal]);
   const [lists, setLists] = useState<TrelloList[]>([]);
   const [cards, setCards] = useState<TrelloCard[]>([]);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
@@ -1092,11 +1097,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Visão panorâmica: cartões menores para caber mais na tela (Pátio / Laboratório independentes). */
   const boardPanoramicStorageKey = isModuleMode ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
   const [boardPanoramic, setBoardPanoramic] = useState(false);
-  const { isDesktop, isTablet, isSmartphone, viewportWidth } = useDeviceTypeContext();
-  /** Modal de veículo em layout PC: tela cheia, duas colunas, tipografia ampla (≥1024px e não smartphone). */
-  const isPatioPcModal = isDesktop && viewportWidth >= 1024;
-  const patioVehicleVm = useMemo(() => getPatioVehicleModalLayout(isPatioPcModal), [isPatioPcModal]);
-  const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isPatioPcModal), [isPatioPcModal]);
   /** Retrato: encolhe o quadro inteiro (como o zoom do modo “5 colunas”) sem depender do toggle panorâmico. */
   const [isPortraitOrientation, setIsPortraitOrientation] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(orientation: portrait)').matches : false
