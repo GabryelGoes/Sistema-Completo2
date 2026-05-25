@@ -78,13 +78,27 @@ export function BackNavigationProvider({ children }: { children: React.ReactNode
   );
 }
 
-export function useBrowserBackLayer(isOpen: boolean, onClose: () => void) {
+export type BrowserBackLayerOptions = {
+  /** Se retornar false, ignora popstate (ex.: câmera/galeria nativa aberta no mobile). */
+  canPop?: () => boolean;
+};
+
+export function useBrowserBackLayer(
+  isOpen: boolean,
+  onClose: () => void,
+  options?: BrowserBackLayerOptions
+) {
   const ctx = useContext(BackNavigationContext);
   const onCloseRef = useRef(onClose);
+  const canPopRef = useRef(options?.canPop);
   onCloseRef.current = onClose;
+  canPopRef.current = options?.canPop;
 
   useEffect(() => {
     if (!ctx || !isOpen) return;
-    return ctx.registerLayer(() => onCloseRef.current());
+    return ctx.registerLayer(() => {
+      if (canPopRef.current && !canPopRef.current()) return;
+      onCloseRef.current();
+    });
   }, [ctx, isOpen]);
 }

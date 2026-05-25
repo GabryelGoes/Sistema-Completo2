@@ -171,6 +171,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const createPhotoInputRef = useRef<HTMLInputElement>(null);
   const createCameraInputRef = useRef<HTMLInputElement>(null);
   const categoryFilterDropdownRef = useRef<HTMLDivElement>(null);
+  /** Evita fechar cadastro no popstate ao abrir câmera/galeria nativa (mobile). */
+  const suspendRegistrationBackRef = useRef(false);
+  /** Evita clique fantasma no overlay ao voltar do seletor de arquivo. */
+  const blockRegistrationBackdropUntilRef = useRef(0);
 
   const [categoryFilterMenuOpen, setCategoryFilterMenuOpen] = useState(false);
 
@@ -182,6 +186,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const registrationPhotoCount =
     registrationMode === 'create' ? pendingPhotos.length : registrationPhotos.length;
 
+  const armNativePhotoPicker = useCallback(() => {
+    suspendRegistrationBackRef.current = true;
+    blockRegistrationBackdropUntilRef.current = Date.now() + 1200;
+  }, []);
+
+  const releaseNativePhotoPicker = useCallback(() => {
+    suspendRegistrationBackRef.current = false;
+  }, []);
+
   const beginAddPhoto = useCallback(
     (source: 'gallery' | 'camera') => {
       if (!registrationMode) return;
@@ -190,16 +203,18 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         return;
       }
       setError(null);
+      armNativePhotoPicker();
       if (source === 'camera') {
         createCameraInputRef.current?.click();
       } else {
         createPhotoInputRef.current?.click();
       }
     },
-    [registrationMode, registrationPhotoCount]
+    [registrationMode, registrationPhotoCount, armNativePhotoPicker]
   );
 
   const handleNewPartImageSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    releaseNativePhotoPicker();
     const f = e.target.files?.[0] ?? null;
     e.target.value = '';
     if (!f || !f.type.startsWith('image/')) return;
@@ -311,6 +326,18 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       setLoadingRegistrationPurchases(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!registrationMode) return;
+    const onVis = () => {
+      if (document.visibilityState !== 'visible' || !suspendRegistrationBackRef.current) return;
+      window.setTimeout(() => {
+        suspendRegistrationBackRef.current = false;
+      }, 450);
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [registrationMode]);
 
   useEffect(() => {
     if (!registrationMode) return;
@@ -553,13 +580,22 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     registrationMode === 'create' ? pendingPhotos.map((p) => ({ id: p.id, previewUrl: p.previewUrl })) : registrationPhotos;
 
   /** Gesto voltar / history.back: fecha cadastro; se o editor de foto estiver aberto, cancela a foto antes. */
-  useBrowserBackLayer(!!registrationMode, () => {
-    if (photoEditorFile) {
-      handlePhotoEditorCancel();
-      return;
-    }
+  useBrowserBackLayer(
+    !!registrationMode,
+    () => {
+      if (photoEditorFile) {
+        handlePhotoEditorCancel();
+        return;
+      }
+      closeRegistration();
+    },
+    { canPop: () => !suspendRegistrationBackRef.current }
+  );
+
+  const handleRegistrationBackdropClick = useCallback(() => {
+    if (Date.now() < blockRegistrationBackdropUntilRef.current) return;
     closeRegistration();
-  });
+  }, [closeRegistration]);
 
   const openExistingPartPhotoInEditor = async (
     p: WorkshopPart,
@@ -1111,7 +1147,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             ? 'fixed inset-0 z-[115] flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden bg-white dark:bg-zinc-950'
             : 'fixed inset-0 z-[115] flex items-center justify-center bg-black/50 p-2 sm:p-4'
         }
-        onClick={isDesktopShell ? undefined : closeRegistration}
+        onClick={isDesktopShell ? undefined : handleRegistrationBackdropClick}
         role="presentation"
       >
         <input
