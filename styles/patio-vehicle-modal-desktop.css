@@ -43,8 +43,8 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop button.patio-vm-card:ho
 html[data-device='tablet'] .patio-vehicle-modal--desktop a.patio-vm-card:hover {
   border-color: rgba(0, 122, 255, 0.42);
   box-shadow:
-    0 16px 44px -14px rgba(63, 63, 70, 0.22),
-    0 6px 18px -8px rgba(0, 122, 255, 0.12);
+    0 8px 22px -12px rgba(63, 63, 70, 0.18),
+    0 2px 8px -4px rgba(0, 122, 255, 0.1);
 }
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vehicle-modal__icon-btn,
@@ -55,4 +55,53 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vehicle-modal__i
 html[data-device='desktop'] .patio-vehicle-modal--desktop button:not(:disabled):active,
 html[data-device='tablet'] .patio-vehicle-modal--desktop button:not(:disabled):active {
   transform: none;
+}
+
+/* Meta cards: sem gradientes decorativos no PC */
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-meta-card .pointer-events-none.absolute,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-meta-card .pointer-events-none.absolute {
+  display: none;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-left-rail,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-left-rail {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: min(72vh, calc(100dvh - 12rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-right-pane > div,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-right-pane > div {
+  min-height: min(320px, 52vh);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-right-pane .patio-vm-card,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-right-pane .patio-vm-card {
+  display: flex;
+  flex-direction: column;
+  min-height: min(320px, 52vh);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-right-pane .patio-vm-card > .relative.min-w-0,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-right-pane .patio-vm-card > .relative.min-w-0 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-right-pane .border-t.border-zinc-200\/60,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-right-pane .border-t.border-zinc-200\/60 {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-desktop-header,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-desktop-header {
+  backdrop-filter: saturate(180%) blur(12px);
 }

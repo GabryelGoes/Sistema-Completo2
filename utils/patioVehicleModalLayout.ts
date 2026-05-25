@@ -31,9 +31,15 @@ export type PatioVehicleModalLayout = {
   title: string;
   brandSubtitle: string;
   body: string;
+  splitSection: string;
+  leftRail: string;
+  rightPane: string;
+  workSection: string;
+  workGrid: string;
   mainCol: string;
   asideCol: string;
   insetCard: string;
+  metaCard: string;
   input: string;
   closeBtn: string;
   assignHintLabel: string;
@@ -74,14 +80,13 @@ const COMPACT_MOBILE: PatioVehicleModalCompact = {
   fieldRow: 'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:ml-auto sm:justify-end',
 };
 
-/** PC: levemente maior que mobile, sem exagero. */
+/** PC: cards compactos, estilo painel macOS. */
 const COMPACT_DESKTOP: PatioVehicleModalCompact = {
-  grid: 'gap-2.5 sm:gap-3',
-  row: 'relative flex items-center gap-2.5 px-3 py-2.5',
-  splitRow:
-    'relative flex flex-row flex-wrap items-center gap-2.5 px-3 py-2.5',
+  grid: 'flex flex-col gap-2',
+  row: 'relative flex items-center gap-2 px-2.5 py-2',
+  splitRow: 'relative flex flex-col gap-2 px-2.5 py-2',
   iconSquircle:
-    'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]',
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-zinc-200/90 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]',
   iconGlyph: 'h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]',
   titleText:
     'bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]',
@@ -102,7 +107,7 @@ const COMPACT_DESKTOP: PatioVehicleModalCompact = {
     'h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]',
   emptyTech:
     'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12',
-  fieldRow: 'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:ml-auto sm:justify-end',
+  fieldRow: 'flex min-w-0 w-full flex-wrap items-center gap-1.5',
 };
 
 export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayout {
@@ -120,9 +125,15 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
         'font-vehicle min-w-0 flex-1 truncate text-[2.79rem] md:text-[4.185rem] portrait:text-[2.74rem] portrait:md:text-[4.11rem] font-bold text-zinc-900 dark:text-white tracking-tight uppercase leading-none',
       brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400',
       body: 'grid grid-cols-1 gap-6 p-8 pt-3 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:gap-7 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(232px,288px)]',
+      splitSection: '',
+      leftRail: '',
+      rightPane: '',
+      workSection: '',
+      workGrid: '',
       mainCol: 'min-w-0 space-y-6',
       asideCol: 'min-w-0 space-y-8',
       insetCard: iosVehicleModalInsetCard,
+      metaCard: iosVehicleModalInsetCard,
       input: iosVehicleModalInput,
       closeBtn:
         'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15',
@@ -142,20 +153,26 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
       'patio-vehicle-modal__shell relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] shadow-none dark:bg-[#0a0a0a] dark:shadow-none',
     scroll: 'patio-vm-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto custom-scrollbar',
     header:
-      'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-4 pr-28 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:py-4 xl:pr-32',
-    headerInner: 'mx-auto flex w-full max-w-[1680px] flex-col gap-3',
-    headerMeta:
-      'patio-vm-header-meta mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4',
+      'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-3.5 pr-28 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:pr-32',
+    headerInner: 'mx-auto flex w-full max-w-[1680px] flex-col gap-2.5',
+    headerMeta: 'patio-vm-header-meta flex flex-col gap-2',
     title:
-      'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white xl:text-[2.35rem]',
-    brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',
-    body:
-      'patio-vm-desktop-body mx-auto grid w-full max-w-[1680px] grid-cols-1 gap-5 px-6 pb-6 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,300px)] lg:items-start lg:gap-6 xl:px-8',
-    mainCol: 'patio-vm-main-col min-w-0 space-y-5',
-    asideCol:
-      'patio-vm-aside-col min-w-0 space-y-5 border-t border-zinc-300/70 bg-[#F2F2F7]/80 pt-5 dark:border-white/[0.08] dark:bg-zinc-950/40 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0',
+      'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[1.65rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white xl:text-[1.85rem]',
+    brandSubtitle: 'text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400',
+    body: 'patio-vm-desktop-body mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-6 pb-6 pt-4 xl:px-8',
+    splitSection:
+      'patio-vm-split grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(248px,272px)_minmax(0,1fr)] lg:items-stretch lg:gap-5',
+    leftRail: 'patio-vm-left-rail flex min-h-0 flex-col gap-2',
+    rightPane: 'patio-vm-right-pane min-h-0 min-w-0',
+    workSection: 'patio-vm-work-section min-w-0 space-y-4',
+    workGrid:
+      'patio-vm-work-grid grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] xl:items-start',
+    mainCol: 'patio-vm-main-col min-w-0 space-y-4',
+    asideCol: 'patio-vm-aside-col min-w-0 space-y-4',
     insetCard:
-      'patio-vm-card rounded-[16px] border border-zinc-300/70 bg-white shadow-[0_8px_28px_-8px_rgba(63,63,70,0.15),0_3px_14px_-6px_rgba(82,82,91,0.10)] dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]',
+      'patio-vm-card rounded-[10px] border border-zinc-300/75 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05),0_4px_14px_-6px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:bg-zinc-900/50',
+    metaCard:
+      'patio-vm-meta-card patio-vm-card rounded-[10px] border border-zinc-300/75 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:border-white/[0.08] dark:bg-zinc-900/50',
     input:
       'w-full rounded-xl border border-zinc-300/85 bg-zinc-50 px-3.5 py-2.5 text-[15px] leading-relaxed text-zinc-950 placeholder:text-zinc-500 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 transition-shadow dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500',
     closeBtn:
