@@ -14,7 +14,7 @@ export type DesktopNavItem = {
 /** Navegação do modo PC (estilo OnMotor). */
 export const DESKTOP_NAV_ITEMS: DesktopNavItem[] = [
   { id: 'home', label: 'Resumo', shortLabel: 'Resumo', sidebar: true },
-  { id: 'reception', label: 'Recepção', shortLabel: 'Recepção', iconSrc: '/icons/recepcao-ios.png', topBar: true, sidebar: true },
+  { id: 'reception', label: 'Recepção', shortLabel: 'Recepção', iconSrc: '/icons/recepcao-ios.png', topBar: true, sidebar: false },
   { id: 'agenda', label: 'Agenda', shortLabel: 'Agenda', iconSrc: '/icons/agenda-ios.png', topBar: true, sidebar: true },
   { id: 'patio', label: 'Pátio', shortLabel: 'Pátio', iconSrc: '/icons/patio-ios.png', topBar: true, sidebar: true },
   { id: 'laboratorio', label: 'Laboratório', shortLabel: 'Lab.', iconSrc: '/icons/laboratorio-ios.png', topBar: true, sidebar: true },
