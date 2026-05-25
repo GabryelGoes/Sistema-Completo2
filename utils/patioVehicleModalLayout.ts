@@ -161,9 +161,9 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
     brandSubtitle: 'text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400',
     body: 'patio-vm-desktop-body mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-6 pb-6 pt-4 xl:px-8',
     splitSection:
-      'patio-vm-split grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(248px,272px)_minmax(0,1fr)] lg:items-stretch lg:gap-5',
-    leftRail: 'patio-vm-left-rail flex min-h-0 flex-col gap-2',
-    rightPane: 'patio-vm-right-pane min-h-0 min-w-0',
+      'patio-vm-split grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(252px,280px)_minmax(0,1fr)] lg:items-stretch lg:gap-4 lg:min-h-[min(520px,calc(100dvh-11rem))]',
+    leftRail: 'patio-vm-left-rail flex min-h-0 flex-col gap-2 lg:max-h-[min(520px,calc(100dvh-11rem))] lg:overflow-y-auto lg:overscroll-contain',
+    rightPane: 'patio-vm-right-pane flex min-h-0 min-w-0 flex-col lg:h-full lg:max-h-[min(520px,calc(100dvh-11rem))]',
     workSection: 'patio-vm-work-section min-w-0 space-y-4',
     workGrid:
       'patio-vm-work-grid grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] xl:items-start',

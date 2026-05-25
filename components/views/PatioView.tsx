@@ -837,8 +837,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const dadosFichaExpandedPrevRef = useRef(false);
 
   useEffect(() => {
-    if (selectedCard?.id) setIsDadosFichaExpanded(false);
-  }, [selectedCard?.id]);
+    if (!selectedCard?.id) return;
+    setIsDadosFichaExpanded(isPatioPcModal);
+  }, [selectedCard?.id, isPatioPcModal]);
 
   /** Hidrata o formulário só ao expandir a secção (não a cada sync da OS). */
   useEffect(() => {
@@ -4889,19 +4890,39 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           )}
                         </div>
 
-                        {/* Dados da ficha — cabeçalho com camadas, tipografia forte e chips de resumo */}
+                        {/* Dados da ficha */}
                         {serviceOrderDetail && (
-                        <div ref={customerDataSectionRef} className="mt-2 w-full">
-                      <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
-                        <div className="relative border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-zinc-950/25">
+                        <div ref={customerDataSectionRef} className={isPatioPcModal ? 'w-full' : 'mt-2 w-full'}>
+                      <div className={`${isPatioPcModal ? vmCard : vi} overflow-hidden ${isPatioPcModal ? '' : 'shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]'}`}>
+                        <div className={`relative border-b ${isPatioPcModal ? 'border-zinc-200/80 bg-zinc-50/95 dark:border-white/[0.08] dark:bg-zinc-900/40' : 'border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-zinc-950/25'}`}>
+                          {!isPatioPcModal ? (
                           <div
                             className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.14),transparent_52%)]"
                             aria-hidden
                           />
+                          ) : null}
+                          {!isPatioPcModal ? (
                           <div
                             className="pointer-events-none absolute -right-12 top-1/2 h-28 w-28 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/18 to-transparent opacity-70 blur-2xl dark:from-[#007AFF]/26"
                             aria-hidden
                           />
+                          ) : null}
+                          {isPatioPcModal ? (
+                            <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+                              <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400">
+                                Dados da ficha
+                              </p>
+                              {can('canEditFicha') ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsDadosFichaExpanded((v) => !v)}
+                                  className="text-[11px] font-semibold text-[#007AFF] hover:underline dark:text-[#7ab8ff]"
+                                >
+                                  {isDadosFichaExpanded ? 'Recolher' : 'Expandir'}
+                                </button>
+                              ) : null}
+                            </div>
+                          ) : (
                           <button
                             type="button"
                             onClick={() => setIsDadosFichaExpanded((v) => !v)}
@@ -4970,9 +4991,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               aria-hidden
                             />
                           </button>
+                          )}
                         </div>
                         {isDadosFichaExpanded && (
-                        <div className="flex flex-col gap-6 bg-zinc-50/90 p-5 dark:bg-white/[0.02] sm:p-6">
+                        <div className={`flex flex-col bg-zinc-50/90 dark:bg-white/[0.02] ${isPatioPcModal ? 'max-h-[min(52vh,520px)] gap-3 overflow-y-auto p-3 custom-scrollbar' : 'gap-6 p-5 sm:p-6'}`}>
                           {can('canEditFicha') ? (
                             <>
                               <div className="order-1">
@@ -5412,23 +5434,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
 
                   <div className={patioVehicleVm.body}>
-                      {isPatioPcModal ? (
-                        <div className={patioVehicleVm.splitSection}>
-                          <div className={patioVehicleVm.leftRail}>
-                            {renderMetaAndFichaBlock?.()}
-                          </div>
-                          <div className={patioVehicleVm.rightPane} ref={descriptionSectionRef}>
-                            {renderQueixaBlock?.()}
-                          </div>
-                        </div>
-                      ) : null}
-                      <div className={isPatioPcModal ? patioVehicleVm.workSection : 'contents'}>
-                      <div className={isPatioPcModal ? patioVehicleVm.workGrid : 'contents'}>
-                      <div className={patioVehicleVm.mainCol}>
-                        {(() => {
+                      {(() => {
                         renderQueixaBlock = () => (
-                          <div className={`${isPatioPcModal ? `${vi} patio-vm-card` : `${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`} min-w-0`}>
-                            <div className="relative min-w-0">
+                          <div
+                            className={
+                              isPatioPcModal
+                                ? `${vi} patio-vm-card patio-vm-queixa-panel flex h-full min-h-0 flex-col overflow-hidden`
+                                : `${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`
+                            }
+                          >
+                            <div className={`relative min-w-0 ${isPatioPcModal ? 'flex min-h-0 flex-1 flex-col' : ''}`}>
                             {!isPatioPcModal ? (
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -5467,12 +5482,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
 
                             {isEditingDesc ? (
-                              <div className="animate-in fade-in duration-200 flex flex-col gap-3 bg-zinc-50/90 px-3 py-3 pl-3 dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
+                              <div
+                                className={`animate-in fade-in duration-200 flex flex-col gap-3 bg-zinc-50/90 dark:bg-white/[0.02] ${isPatioPcModal ? 'min-h-0 flex-1 px-3 py-3' : 'px-3 py-3 pl-3 sm:px-4 sm:py-4 sm:pl-4'}`}
+                              >
                                 <textarea
                                   data-queixa-textarea
                                   value={descText}
                                   onChange={(e) => setDescText(e.target.value)}
-                                  className={`${vin} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
+                                  className={`${vin} relative z-[2] flex-1 resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd] ${isPatioPcModal ? 'min-h-[200px]' : 'min-h-[180px]'}`}
                                   placeholder="Digite a queixa do cliente..."
                                 />
                                 <div className="flex justify-end gap-1.5">
@@ -5496,7 +5513,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                               </div>
                             ) : (
-                              <div className="border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 pl-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
+                              <div
+                                className={`border-t border-zinc-200/60 bg-zinc-50/90 dark:border-white/[0.06] dark:bg-white/[0.02] ${isPatioPcModal ? 'min-h-0 flex-1 overflow-y-auto px-3 py-3 custom-scrollbar' : 'px-3 py-3 pl-3 sm:px-4 sm:py-4 sm:pl-4'}`}
+                              >
                                 <div className={uiReadBody}>
                                   <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                     {selectedCard.desc || 'Nenhuma descrição disponível para este veículo.'}
@@ -5507,10 +5526,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                         </div>
                         );
-                        return !isPatioPcModal ? renderQueixaBlock() : null;
-                        })()}
+                        return null;
+                      })()}
+                      {isPatioPcModal ? (
+                        <div className={patioVehicleVm.splitSection}>
+                          <div className={patioVehicleVm.leftRail}>
+                            {renderMetaAndFichaBlock?.()}
+                          </div>
+                          <div className={patioVehicleVm.rightPane} ref={descriptionSectionRef}>
+                            {renderQueixaBlock?.()}
+                          </div>
+                        </div>
+                      ) : null}
+                      <div className={isPatioPcModal ? patioVehicleVm.workSection : 'contents'}>
+                      <div className={isPatioPcModal ? patioVehicleVm.workGrid : 'contents'}>
+                      <div className={patioVehicleVm.mainCol}>
+                        {!isPatioPcModal ? renderQueixaBlock?.() : null}
 
-                        <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
+                        {!isPatioPcModal ? <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" /> : null}
 
                          {/* Orçamentos: cabeçalho iOS; lista com aro em gradiente nos itens */}
                          {can('canEditBudgets') && (
