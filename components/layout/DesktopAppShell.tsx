@@ -16,7 +16,6 @@ export type DesktopAppShellProps = {
   photoUrl?: string | null;
   onOpenSettings?: () => void;
   onLogout?: () => void;
-  /** Badge no item Orçamentos (sidebar). */
   orcamentosBadge?: number;
   children: React.ReactNode;
 };
@@ -56,7 +55,6 @@ export function DesktopAppShell({
 }: DesktopAppShellProps) {
   const nav = filterDesktopNav(DESKTOP_NAV_ITEMS, allowedTabs);
   const sidebarItems = nav.filter((i) => i.sidebar !== false);
-  const topBarItems = nav.filter((i) => i.topBar);
   const pageTitle = desktopNavLabel(currentTab, nav);
 
   return (
@@ -98,22 +96,10 @@ export function DesktopAppShell({
       </aside>
 
       <div className="desktop-shell-main">
-        <header className="desktop-shell-topbar" aria-label="Módulos">
-          {topBarItems.map((item) => {
-            const active = currentTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                className={`desktop-shell-topbar-tab${active ? ' desktop-shell-topbar-tab--active' : ''}`}
-                onClick={() => onTabChange(item.id)}
-              >
-                {item.shortLabel ?? item.label}
-              </button>
-            );
-          })}
+        <header className="desktop-shell-topbar" aria-label="Página atual">
+          <h1 className="desktop-shell-topbar-title">{pageTitle}</h1>
           <div className="desktop-shell-topbar-actions">
-            <span className="hidden max-w-[10rem] truncate pr-1 text-[11px] font-medium text-white/80 xl:inline">
+            <span className="hidden max-w-[10rem] truncate text-[11px] font-medium text-white/85 xl:inline">
               {displayName}
             </span>
             {onOpenSettings ? (
@@ -152,14 +138,7 @@ export function DesktopAppShell({
         </header>
 
         <div className="desktop-shell-content custom-scrollbar">
-          <div className="desktop-shell-content-inner">
-            {currentTab !== 'home' ? (
-              <div className="sticky top-0 z-[5] border-b border-zinc-300/80 bg-[#ececec]/95 px-6 py-2.5 backdrop-blur-sm">
-                <h1 className="text-[15px] font-bold tracking-tight text-zinc-800">{pageTitle}</h1>
-              </div>
-            ) : null}
-            {children}
-          </div>
+          <div className="desktop-shell-content-inner">{children}</div>
         </div>
       </div>
     </div>

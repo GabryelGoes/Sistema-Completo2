@@ -1,6 +1,7 @@
 import React from 'react';
 import type { TabId } from '../TabBar';
 import { OverlayPageNavBar } from '../ui/OverlayPageNavBar';
+import { DesktopShellProvider } from '../ui/DesktopShellContext';
 import { DesktopAppShell } from './DesktopAppShell';
 
 export type AuthenticatedAppFrameProps = {
@@ -38,18 +39,20 @@ export function AuthenticatedAppFrame({
         className="h-full min-h-0 flex flex-col overflow-hidden font-sans text-zinc-900 transition-colors duration-300"
         data-effects={effectsEnabled ? 'on' : 'off'}
       >
-        <DesktopAppShell
-          currentTab={currentTab}
-          onTabChange={onTabChange}
-          allowedTabs={allowedTabs}
-          displayName={displayName}
-          photoUrl={photoUrl}
-          onOpenSettings={onOpenSettings}
-          onLogout={onLogout}
-          orcamentosBadge={orcamentosBadge}
-        >
-          {children}
-        </DesktopAppShell>
+        <DesktopShellProvider>
+          <DesktopAppShell
+            currentTab={currentTab}
+            onTabChange={onTabChange}
+            allowedTabs={allowedTabs}
+            displayName={displayName}
+            photoUrl={photoUrl}
+            onOpenSettings={onOpenSettings}
+            onLogout={onLogout}
+            orcamentosBadge={orcamentosBadge}
+          >
+            {children}
+          </DesktopAppShell>
+        </DesktopShellProvider>
       </div>
     );
   }

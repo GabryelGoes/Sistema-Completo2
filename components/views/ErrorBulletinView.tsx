@@ -156,10 +156,10 @@ export const ErrorBulletinView: React.FC<{ authSession?: AuthSession | null }> =
         <div className="absolute right-0 top-32 h-80 w-80 rounded-full bg-orange-500/20 blur-[110px]" />
       </div>
 
-      <header className={`relative overflow-hidden ${shell} p-5 md:p-6`}>
+      <header className={`app-view-page-header relative overflow-hidden ${shell} p-5 md:p-6`}>
         <div className="absolute inset-0 bg-amber-500 pointer-events-none" />
         <div className="relative flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0 space-y-1 text-white">
+          <div className="app-view-page-chrome min-w-0 space-y-1 text-white">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100">
               Base técnica da oficina
             </p>

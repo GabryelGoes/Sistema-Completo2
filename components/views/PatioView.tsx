@@ -3286,7 +3286,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         {/* Cabeçalho — mesmo padrão Recepção/Agenda: sem painel vidro em volta; ícone = tile da Home (Pátio / Laboratório) */}
         <header className="relative z-50 mb-6 overflow-visible sm:mb-8">
           <div className="grid w-full grid-cols-1 items-center gap-y-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-3">
-            <div className="flex min-w-0 items-center gap-3 sm:gap-4 md:justify-self-start">
+            <div className="app-view-page-chrome flex min-w-0 items-center gap-3 sm:gap-4 md:justify-self-start">
               {isModuleMode ? (
                 <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
                   <img src="/icons/laboratorio-ios.png" alt="" className="h-full w-full object-cover" />

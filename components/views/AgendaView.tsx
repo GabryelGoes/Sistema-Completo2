@@ -504,7 +504,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   const renderHeader = () => {
     return (
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
-        <div className="flex items-center gap-3 sm:gap-4 min-w-0 ml-[8%]">
+        <div className="app-view-page-chrome flex items-center gap-3 sm:gap-4 min-w-0 ml-[8%]">
           <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
             <img src="/icons/agenda-ios.png" alt="" className="h-full w-full object-cover" />
           </IosAccentIconSquircle>

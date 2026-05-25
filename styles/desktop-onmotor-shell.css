@@ -95,39 +95,28 @@ html[data-desktop-shell='true'] .desktop-shell-topbar {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.5rem;
   min-height: 2.75rem;
-  padding: 0 0.75rem 0 0;
-  background: #0a0a0a;
-  color: #fafafa;
-  overflow-x: auto;
+  padding: 0 0.75rem 0 1rem;
+  background: linear-gradient(180deg, #1d6fd8 0%, #1558b8 100%);
+  color: #fff;
+  border-bottom: 1px solid #0f4a9a;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset;
 }
 
-html[data-desktop-shell='true'] .desktop-shell-topbar-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.85rem;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+html[data-desktop-shell='true'] .desktop-shell-topbar-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  transition: color 0.12s ease, background 0.12s ease;
-}
-
-html[data-desktop-shell='true'] .desktop-shell-topbar-tab:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-html[data-desktop-shell='true'] .desktop-shell-topbar-tab--active {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.12);
 }
 
 html[data-desktop-shell='true'] .desktop-shell-topbar-actions {
@@ -154,7 +143,27 @@ html[data-desktop-shell='true'] .desktop-shell-topbar-btn {
 }
 
 html[data-desktop-shell='true'] .desktop-shell-topbar-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Oculta cabeçalhos duplicados das páginas (título + ícone) */
+html[data-desktop-shell='true'] .app-view-page-chrome {
+  display: none !important;
+}
+
+html[data-desktop-shell='true'] .app-view-page-header .relative.flex.flex-col.gap-4.md\:flex-row {
+  justify-content: flex-end;
+}
+
+html[data-desktop-shell='true'] .budgets-hub-page-header {
+  border-bottom: none;
+  background: transparent;
+  padding-top: 0.25rem;
+  padding-bottom: 0;
+}
+
+html[data-desktop-shell='true'] .budgets-hub-page-header .mx-auto {
+  justify-content: flex-end;
 }
 
 html[data-desktop-shell='true'] .desktop-shell-content {

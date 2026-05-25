@@ -314,10 +314,10 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
         <div className="absolute right-0 top-24 h-80 w-80 rounded-full bg-violet-500/25 blur-[110px] dark:bg-violet-500/15" />
       </div>
 
-      <header className={`relative overflow-hidden ${shell} p-5 md:p-6`}>
+      <header className={`app-view-page-header relative overflow-hidden ${shell} p-5 md:p-6`}>
         <div className="absolute inset-0 bg-gradient-to-br from-sky-500/[0.07] via-transparent to-violet-500/[0.08] pointer-events-none" />
         <div className="relative flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0 space-y-1">
+          <div className="app-view-page-chrome min-w-0 space-y-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-600 dark:text-sky-400">
               Inteligência operacional
             </p>

@@ -896,14 +896,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
       </header>
-      ) : (
-        <div className={`${desktopOnmotorCard} mb-4`}>
-          <div className="border-b border-zinc-100 px-4 py-2.5">
-            <p className="text-[13px] font-bold text-zinc-800">Resumo</p>
-            <p className="text-[12px] text-zinc-500 mt-0.5">Bem-vindo, {headerDisplayName}</p>
-          </div>
-        </div>
-      )}
+      ) : null}
 
       <main
         className={
