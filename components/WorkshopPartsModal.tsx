@@ -13,7 +13,12 @@ import {
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
-import { StorageThumbImg } from './ui/StorageThumbImg';
+
+import {
+  WORKSHOP_PART_LEGACY_COVER_ID,
+  workshopPartPhotosToSlots,
+  workshopPartToPhotoSlots,
+} from '../utils/workshopPartPhotoSlots';
 import { ModalPortal } from './ui/ModalPortal';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
@@ -296,22 +301,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         getWorkshopPartPhotos(part.id).catch(() => []),
       ]);
       setRegistrationPurchases(purchases.map(purchaseToDraft));
-      setRegistrationPhotos(
-        photos.map((ph) => ({
-          id: ph.id,
-          previewUrl: ph.photo_url,
-          remoteUrl: ph.photo_url,
-        }))
-      );
+      setRegistrationPhotos(workshopPartPhotosToSlots(photos, part.photo_url));
     } catch {
       setRegistrationPurchases([]);
-      setRegistrationPhotos(
-        (part.photos ?? []).map((ph) => ({
-          id: ph.id,
-          previewUrl: ph.photo_url,
-          remoteUrl: ph.photo_url,
-        }))
-      );
+      setRegistrationPhotos(workshopPartToPhotoSlots(part));
     } finally {
       setLoadingRegistrationPurchases(false);
     }
@@ -451,12 +444,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         : '';
 
   const refreshRegistrationPhotosFromPart = (part: WorkshopPart) => {
-    const slots = (part.photos ?? []).map((ph) => ({
-      id: ph.id,
-      previewUrl: ph.photo_url,
-      remoteUrl: ph.photo_url,
-    }));
-    setRegistrationPhotos(slots);
+    setRegistrationPhotos(workshopPartToPhotoSlots(part));
     setRegistrationPart(part);
   };
 
@@ -492,10 +480,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       setUploadingPhotoId(ctx.partId);
       setError(null);
       try {
-        if (ctx.kind === 'remote-replace') {
-          await deleteWorkshopPartPhoto(ctx.partId, ctx.photoId);
-        }
-        const updated = await uploadWorkshopPartPhoto(ctx.partId, file, file.name);
+        const replaceId =
+          ctx.kind === 'remote-replace' && ctx.photoId !== WORKSHOP_PART_LEGACY_COVER_ID
+            ? ctx.photoId
+            : undefined;
+        const updated = await uploadWorkshopPartPhoto(ctx.partId, file, file.name, {
+          replacePhotoId: replaceId,
+        });
         setParts((prev) => prev.map((p) => (p.id === ctx.partId ? updated : p)));
         if (registrationPart?.id === ctx.partId) {
           refreshRegistrationPhotosFromPart(updated);
@@ -526,6 +517,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     setUploadingPhotoId(registrationPart.id);
     setError(null);
     try {
+      if (photoId === WORKSHOP_PART_LEGACY_COVER_ID) {
+        const updated = await updateWorkshopPart(registrationPart.id, { photo_url: null });
+        setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
+        setRegistrationPhotos([]);
+        setRegistrationPart(updated);
+        return;
+      }
       const updated = await deleteWorkshopPartPhoto(registrationPart.id, photoId);
       setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
       refreshRegistrationPhotosFromPart(updated);
@@ -1050,14 +1048,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         >
                           <div className="w-10 h-10 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 overflow-hidden shrink-0 pointer-events-none">
                             {p.photo_url ? (
-                              <StorageThumbImg
+                              <img
                                 src={p.photo_url}
                                 alt=""
                                 className="h-full w-full object-cover"
-                                thumbMaxWidth={64}
-                                thumbMaxHeight={64}
-                                thumbResize="cover"
-                                thumbQuality={32}
+                                loading="lazy"
+                                decoding="async"
                               />
                             ) : null}
                           </div>

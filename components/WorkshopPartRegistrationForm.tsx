@@ -13,7 +13,6 @@ import {
   X,
   ChevronDown,
 } from 'lucide-react';
-import { StorageThumbImg } from './ui/StorageThumbImg';
 import type { WorkshopPart, WorkshopPartFiscalExtra } from '../services/apiService';
 import { WORKSHOP_PART_PHOTOS_MAX } from '../services/apiService';
 
@@ -285,7 +284,9 @@ export function WorkshopPartRegistrationForm({
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <FieldLabel hint="Até 3 imagens por produto">Fotos do produto</FieldLabel>
+          <FieldLabel hint="A primeira foto é a capa na lista do estoque. Até 3 imagens.">
+            Fotos do produto
+          </FieldLabel>
           <span className="text-[12px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">
             {photos.length}/{maxPhotos}
           </span>
@@ -299,19 +300,20 @@ export function WorkshopPartRegistrationForm({
                 {slot ? (
                   <>
                     <div
-                      className={`relative h-full w-full overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-100 dark:border-white/10 dark:bg-white/[0.03] ${lightCardShadow}`}
+                      className={`relative h-full w-full overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-100 dark:border-white/10 dark:bg-white/[0.03] ${index === 0 ? 'ring-2 ring-emerald-500/45' : ''} ${lightCardShadow}`}
                     >
-                      {slot.remoteUrl ? (
-                        <StorageThumbImg
-                          src={slot.remoteUrl}
-                          alt=""
-                          className="h-full w-full object-cover"
-                          thumbMaxWidth={200}
-                          thumbMaxHeight={200}
-                        />
-                      ) : (
-                        <img src={slot.previewUrl} alt="" className="h-full w-full object-cover" />
-                      )}
+                      {index === 0 ? (
+                        <span className="absolute left-1 top-1 z-10 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
+                          Capa
+                        </span>
+                      ) : null}
+                      <img
+                        src={slot.remoteUrl ?? slot.previewUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
                       {photoBusy ? (
                         <span className="absolute inset-0 flex items-center justify-center bg-black/40">
                           <Loader2 className="h-6 w-6 animate-spin text-white" />

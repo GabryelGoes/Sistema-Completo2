@@ -4135,7 +4135,8 @@ export function createApiApp() {
       .select("id, part_id, photo_url, sort_order")
       .eq("workshop_id", WORKSHOP_ID)
       .in("part_id", partIds)
-      .order("sort_order", { ascending: true });
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
     if (error) {
       console.error("[API] Erro ao carregar fotos das peças:", error);
       return map;
@@ -4154,6 +4155,7 @@ export function createApiApp() {
     return map;
   }
 
+  /** `workshop_parts.photo_url` = primeira foto (menor sort_order). */
   async function syncWorkshopPartCoverPhoto(partId: string): Promise<string | null> {
     if (!supabaseAdmin || !WORKSHOP_ID) return null;
     const { data: photos, error } = await supabaseAdmin
@@ -4162,6 +4164,7 @@ export function createApiApp() {
       .eq("part_id", partId)
       .eq("workshop_id", WORKSHOP_ID)
       .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })
       .limit(1);
     if (error) {
       console.error("[API] Erro ao sincronizar capa da peça:", error);
@@ -4179,16 +4182,48 @@ export function createApiApp() {
     return cover;
   }
 
+  async function renumberWorkshopPartPhotoSortOrders(partId: string): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return;
+    const { data: photos, error } = await supabaseAdmin
+      .from("workshop_part_photos")
+      .select("id, sort_order")
+      .eq("part_id", partId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error("[API] Erro ao reordenar fotos da peça:", error);
+      return;
+    }
+    for (let i = 0; i < (photos ?? []).length; i++) {
+      const row = photos![i];
+      if (Number(row.sort_order) !== i) {
+        await supabaseAdmin
+          .from("workshop_part_photos")
+          .update({ sort_order: i })
+          .eq("id", row.id as string)
+          .eq("workshop_id", WORKSHOP_ID);
+      }
+    }
+  }
+
   async function respondWorkshopPart(res: any, partRow: Record<string, unknown>) {
     const id = partRow.id as string;
     const [catMap, photosMap] = await Promise.all([
       loadWorkshopPartCategoryMap([id]),
       loadWorkshopPartPhotosMap([id]),
     ]);
+    const photos = photosMap.get(id) ?? [];
+    const coverFromGallery =
+      photos[0]?.photo_url && String(photos[0].photo_url).trim()
+        ? String(photos[0].photo_url).trim()
+        : null;
+    const legacyCover = parseOptionalText(partRow.photo_url);
     return res.json({
       ...partRow,
+      photo_url: coverFromGallery ?? legacyCover,
       category_ids: catMap.get(id) ?? [],
-      photos: photosMap.get(id) ?? [],
+      photos,
     });
   }
 
@@ -4215,8 +4250,25 @@ export function createApiApp() {
       }
 
       const list = data ?? [];
-      const catMap = await loadWorkshopPartCategoryMap(list.map((p: { id: string }) => p.id));
-      return res.json(workshopPartsWithCategories(list as Record<string, unknown>[], catMap));
+      const partIds = list.map((p: { id: string }) => p.id);
+      const [catMap, photosMap] = await Promise.all([
+        loadWorkshopPartCategoryMap(partIds),
+        loadWorkshopPartPhotosMap(partIds),
+      ]);
+      const enrichedList = (list as Record<string, unknown>[]).map((row) => {
+        const id = row.id as string;
+        const gallery = photosMap.get(id) ?? [];
+        const coverFromGallery =
+          gallery[0]?.photo_url && String(gallery[0].photo_url).trim()
+            ? String(gallery[0].photo_url).trim()
+            : null;
+        const legacyCover = parseOptionalText(row.photo_url);
+        return {
+          ...row,
+          photo_url: coverFromGallery ?? legacyCover,
+        };
+      });
+      return res.json(workshopPartsWithCategories(enrichedList, catMap));
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop-parts:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -4335,7 +4387,7 @@ export function createApiApp() {
     }
   });
 
-  /** Adiciona foto à peça (máx. 3). Mantém `photo_url` da peça como capa (primeira foto). */
+  /** Adiciona ou substitui foto. `photo_url` da peça = capa (primeira foto, sort_order 0). */
   app.post("/api/workshop-parts/:id/photo", upload.single("file"), async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -4346,6 +4398,9 @@ export function createApiApp() {
       }
       const id = String(req.params.id || "");
       const file = req.file;
+      const replacePhotoId =
+        parseOptionalText((req.body as Record<string, unknown> | undefined)?.replace_photo_id) ||
+        parseOptionalText(req.query?.replace_photo_id);
       if (!id) return res.status(400).json({ error: "ID da peça é obrigatório." });
       if (!file) return res.status(400).json({ error: "Arquivo não enviado." });
       const mime = file.mimetype || "application/octet-stream";
@@ -4353,23 +4408,51 @@ export function createApiApp() {
         return res.status(400).json({ error: "Envie apenas imagem." });
       }
 
-      const { count, error: countErr } = await supabaseAdmin
-        .from("workshop_part_photos")
-        .select("id", { count: "exact", head: true })
-        .eq("part_id", id)
-        .eq("workshop_id", WORKSHOP_ID);
-      if (countErr) {
-        console.error("[API] Erro ao contar fotos da peça:", countErr);
-        return res.status(500).json({ error: countErr.message });
-      }
-      if ((count ?? 0) >= WORKSHOP_PART_PHOTOS_MAX) {
-        return res.status(400).json({ error: `Máximo de ${WORKSHOP_PART_PHOTOS_MAX} fotos por produto.` });
+      let sortOrder = 0;
+      if (replacePhotoId) {
+        const { data: oldRow, error: oldErr } = await supabaseAdmin
+          .from("workshop_part_photos")
+          .select("sort_order")
+          .eq("id", replacePhotoId)
+          .eq("part_id", id)
+          .eq("workshop_id", WORKSHOP_ID)
+          .maybeSingle();
+        if (oldErr) {
+          console.error("[API] Erro ao buscar foto para substituir:", oldErr);
+          return res.status(500).json({ error: oldErr.message });
+        }
+        if (!oldRow) return res.status(404).json({ error: "Foto não encontrada." });
+        sortOrder = Number(oldRow.sort_order ?? 0);
+        const { error: delErr } = await supabaseAdmin
+          .from("workshop_part_photos")
+          .delete()
+          .eq("id", replacePhotoId)
+          .eq("part_id", id)
+          .eq("workshop_id", WORKSHOP_ID);
+        if (delErr) {
+          console.error("[API] Erro ao remover foto antiga:", delErr);
+          return res.status(500).json({ error: delErr.message });
+        }
+      } else {
+        const { count, error: countErr } = await supabaseAdmin
+          .from("workshop_part_photos")
+          .select("id", { count: "exact", head: true })
+          .eq("part_id", id)
+          .eq("workshop_id", WORKSHOP_ID);
+        if (countErr) {
+          console.error("[API] Erro ao contar fotos da peça:", countErr);
+          return res.status(500).json({ error: countErr.message });
+        }
+        if ((count ?? 0) >= WORKSHOP_PART_PHOTOS_MAX) {
+          return res.status(400).json({ error: `Máximo de ${WORKSHOP_PART_PHOTOS_MAX} fotos por produto.` });
+        }
+        sortOrder = count ?? 0;
       }
 
       const bucket = VEHICLE_PHOTOS_BUCKET;
       const ext = (file.originalname?.split(".").pop() || "jpg").toLowerCase();
       const safeExt = /^[a-z0-9]+$/.test/ext ? ext : "jpg";
-      const pathInBucket = `workshops/${WORKSHOP_ID}/parts/${id}_${Date.now()}.${safeExt}`;
+      const pathInBucket = `${WORKSHOP_ID}/parts/${id}/${Date.now()}.${safeExt}`;
 
       const { error: uploadErr } = await supabaseAdmin.storage
         .from(bucket)
@@ -4382,7 +4465,6 @@ export function createApiApp() {
       const { data: { publicUrl } } = supabaseAdmin.storage.from(bucket).getPublicUrl(pathInBucket);
       const photoUrlWithCacheBust = `${publicUrl}${publicUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
 
-      const sortOrder = count ?? 0;
       const { error: insertErr } = await supabaseAdmin.from("workshop_part_photos").insert({
         workshop_id: WORKSHOP_ID,
         part_id: id,
@@ -4430,6 +4512,7 @@ export function createApiApp() {
         console.error("[API] Erro ao excluir foto da peça:", error);
         return res.status(500).json({ error: error.message });
       }
+      await renumberWorkshopPartPhotoSortOrders(id);
       await syncWorkshopPartCoverPhoto(id);
       const { data, error: loadErr } = await supabaseAdmin
         .from("workshop_parts")

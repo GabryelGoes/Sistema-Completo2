@@ -2091,6 +2091,7 @@ export type WorkshopPartWriteInput = {
   unit_cost?: number;
   fiscal_extra?: WorkshopPartFiscalExtra;
   primary_category_id?: string | null;
+  photo_url?: string | null;
 };
 
 export interface WorkshopPartCategory {
@@ -2260,15 +2261,22 @@ export async function deleteWorkshopPart(id: string): Promise<void> {
   }
 }
 
-/** Adiciona uma foto (até {@link WORKSHOP_PART_PHOTOS_MAX} por peça). */
+/** Adiciona ou substitui foto. A primeira (sort_order 0) vira capa (`photo_url`). */
 export async function uploadWorkshopPartPhoto(
   partId: string,
   file: Blob,
-  fileName?: string
+  fileName?: string,
+  options?: { replacePhotoId?: string }
 ): Promise<WorkshopPart> {
   const formData = new FormData();
   formData.append("file", file, fileName ?? "part.jpg");
-  const response = await fetch(`${API_BASE}/workshop-parts/${partId}/photo`, {
+  if (options?.replacePhotoId) {
+    formData.append("replace_photo_id", options.replacePhotoId);
+  }
+  const replaceQs = options?.replacePhotoId
+    ? `?replace_photo_id=${encodeURIComponent(options.replacePhotoId)}`
+    : "";
+  const response = await fetch(`${API_BASE}/workshop-parts/${partId}/photo${replaceQs}`, {
     method: "POST",
     body: formData,
   });
