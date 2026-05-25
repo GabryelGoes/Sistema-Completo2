@@ -4548,7 +4548,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <div className={patioVehicleVm.overlay}>
            <div className={`${patioVehicleVm.shell} animate-modal-wp-app ${modalRingClass}`}>
               
-              <div className={`absolute z-20 flex items-center gap-2 ${isPatioPcModal ? 'top-6 right-6 xl:top-7 xl:right-8' : 'top-4 right-4'}`}>
+              <div className={`absolute z-20 flex items-center gap-2 ${isPatioPcModal ? 'top-4 right-5 xl:right-6' : 'top-4 right-4'}`}>
                 {can('canDeleteCards') && (
                 <button
                   type="button"
@@ -4684,7 +4684,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <div
                               className={
                                 isPatioPcModal
-                                  ? 'inline-flex shrink-0 origin-right scale-[1.15] items-center justify-center'
+                                  ? 'inline-flex shrink-0 origin-right scale-[1.08] items-center justify-center'
                                   : 'inline-flex shrink-0 origin-right scale-[1.2] portrait:scale-[0.936] items-center justify-center'
                               }
                             >
@@ -5436,7 +5436,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
                                   <FileText className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                 </div>
-                                <p className={`bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 ${isPatioPcModal ? 'text-[18px] xl:text-[20px]' : 'text-[16px] sm:text-[17px]'}`}>
+                                <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[17px]">
                                   Queixa do cliente
                                 </p>
                               </div>
@@ -6284,7 +6284,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         ) : null}
                         <div ref={commentsSectionRef}>
                            <h3 className={isPatioPcModal ? patioVehicleVm.sectionTitle : `${uiSectionTitleRow} lg:mb-2`}>
-                             <MessageSquare className={isPatioPcModal ? 'h-4 w-4 shrink-0' : 'h-3.5 w-3.5 shrink-0'} />
+                             <MessageSquare className="h-3.5 w-3.5 shrink-0" />
                              Comentários
                           </h3>
 
