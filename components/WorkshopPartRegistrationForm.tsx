@@ -11,9 +11,10 @@ import {
   Save,
   Trash2,
   X,
+  ChevronDown,
 } from 'lucide-react';
 import { StorageThumbImg } from './ui/StorageThumbImg';
-import type { WorkshopPart, WorkshopPartCategory, WorkshopPartFiscalExtra } from '../services/apiService';
+import type { WorkshopPart, WorkshopPartFiscalExtra } from '../services/apiService';
 import {
   COMMON_NCM_SUGGESTIONS,
   PART_ORIGIN_OPTIONS,
@@ -29,9 +30,9 @@ import {
 } from '../utils/workshopPartFields';
 
 const labelCls =
-  'block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400';
+  'block text-[11px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400';
 const inputCls =
-  'w-full min-w-0 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2 text-[14px] text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35';
+  'w-full min-w-0 rounded-lg border border-zinc-200/90 dark:border-white/10 bg-zinc-100 dark:bg-white/5 px-3 py-2 text-[14px] text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/40';
 const textareaCls = `${inputCls} resize-y min-h-[88px]`;
 
 function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
@@ -93,16 +94,97 @@ function QtyWithUnit({
         onChange={(e) => onChange(e.target.value)}
         className={`${inputCls} flex-1 tabular-nums`}
       />
-      <span className="flex shrink-0 items-center rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.04] px-2.5 text-[12px] font-bold text-zinc-600 dark:text-zinc-300">
+      <span className="flex shrink-0 items-center rounded-lg border border-zinc-200/90 dark:border-white/10 bg-zinc-200/80 dark:bg-white/[0.04] px-2.5 text-[12px] font-bold text-zinc-600 dark:text-zinc-300">
         {unit}
       </span>
     </div>
   );
 }
 
+/** Lista com nome completo; valor fechado mostra só a sigla (select nativo não permite isso). */
+function UnitOfMeasureSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (code: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selected =
+    UNIT_OF_MEASURE_OPTIONS.find((o) => o.value === value) ?? UNIT_OF_MEASURE_OPTIONS[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        id="workshop-part-unit-of-measure"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls="workshop-part-unit-of-measure-list"
+        onClick={() => setOpen((v) => !v)}
+        className={`${inputCls} flex w-full items-center justify-between gap-2 text-left font-semibold tabular-nums`}
+      >
+        <span>{selected.value}</span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`}
+          aria-hidden
+        />
+      </button>
+      {open ? (
+        <ul
+          id="workshop-part-unit-of-measure-list"
+          role="listbox"
+          aria-labelledby="workshop-part-unit-of-measure"
+          className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(280px,40vh)] overflow-y-auto rounded-lg border border-zinc-200/90 bg-white py-1 shadow-lg dark:border-white/[0.12] dark:bg-zinc-900"
+        >
+          {UNIT_OF_MEASURE_OPTIONS.map((opt) => {
+            const isSelected = opt.value === value;
+            return (
+              <li key={opt.value} role="none">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full px-3 py-2.5 text-left text-[14px] transition-colors ${
+                    isSelected
+                      ? 'bg-emerald-500/12 font-semibold text-emerald-900 dark:bg-emerald-400/15 dark:text-emerald-50'
+                      : 'font-medium text-zinc-800 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.08]'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 export type WorkshopPartRegistrationFormProps = {
   mode: 'create' | 'edit';
-  categories: WorkshopPartCategory[];
   initialPart?: WorkshopPart | null;
   initialPurchases?: WorkshopPartPurchaseDraft[];
   photoPreviewUrl?: string | null;
@@ -117,7 +199,6 @@ export type WorkshopPartRegistrationFormProps = {
   photoBusy?: boolean;
   onSubmit: (payload: {
     values: WorkshopPartFormValues;
-    categoryIds: string[];
     purchases: WorkshopPartPurchaseDraft[];
   }) => void | Promise<void>;
   onCancel: () => void;
@@ -125,7 +206,6 @@ export type WorkshopPartRegistrationFormProps = {
 
 export function WorkshopPartRegistrationForm({
   mode,
-  categories,
   initialPart,
   initialPurchases,
   photoPreviewUrl,
@@ -176,8 +256,7 @@ export function WorkshopPartRegistrationForm({
   const unit = values.unit_of_measure || 'UN';
 
   const handleSave = () => {
-    const categoryIds = values.primary_category_id ? [values.primary_category_id] : [];
-    void onSubmit({ values: { ...values, fiscal_extra: fiscalDraft }, categoryIds, purchases });
+    void onSubmit({ values: { ...values, fiscal_extra: fiscalDraft }, purchases });
   };
 
   return (
@@ -193,7 +272,7 @@ export function WorkshopPartRegistrationForm({
           <button
             type="button"
             onClick={onPickPhoto}
-            className="relative flex aspect-square w-full max-w-[200px] items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-zinc-300 dark:border-white/15 bg-zinc-50 dark:bg-white/[0.03] hover:border-emerald-500/50 transition-colors"
+            className="relative flex aspect-square w-full max-w-[200px] items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-zinc-300/90 dark:border-white/15 bg-zinc-100 dark:bg-white/[0.03] hover:border-emerald-500/50 transition-colors"
           >
             {photoPreviewUrl ? (
               <img src={photoPreviewUrl} alt="" className="h-full w-full object-cover" />
@@ -219,7 +298,7 @@ export function WorkshopPartRegistrationForm({
               <button
                 type="button"
                 onClick={onPickGallery}
-                className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-white/10 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 dark:text-zinc-200"
+                className="inline-flex items-center gap-1 rounded-lg border border-zinc-200/90 bg-zinc-100 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 dark:border-white/10 dark:bg-transparent dark:text-zinc-200"
               >
                 <Images className="h-3.5 w-3.5" /> Galeria
               </button>
@@ -264,21 +343,6 @@ export function WorkshopPartRegistrationForm({
               onChange={(e) => patch({ original_code: e.target.value })}
               className={inputCls}
             />
-          </div>
-          <div className="space-y-1.5">
-            <FieldLabel hint="Família / categoria principal">Família</FieldLabel>
-            <select
-              value={values.primary_category_id}
-              onChange={(e) => patch({ primary_category_id: e.target.value })}
-              className={inputCls}
-            >
-              <option value="">Selecione uma família</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
           </div>
           <div className="space-y-1.5">
             <FieldLabel>Código numérico</FieldLabel>
@@ -344,17 +408,10 @@ export function WorkshopPartRegistrationForm({
         </div>
         <div className="space-y-1.5">
           <FieldLabel>Unidade de medida</FieldLabel>
-          <select
+          <UnitOfMeasureSelect
             value={values.unit_of_measure}
-            onChange={(e) => patch({ unit_of_measure: e.target.value })}
-            className={inputCls}
-          >
-            {UNIT_OF_MEASURE_OPTIONS.map((u) => (
-              <option key={u} value={u}>
-                {u}
-              </option>
-            ))}
-          </select>
+            onChange={(code) => patch({ unit_of_measure: code })}
+          />
         </div>
         <div className="space-y-1.5">
           <FieldLabel>Quantidade mínima</FieldLabel>
@@ -460,14 +517,14 @@ export function WorkshopPartRegistrationForm({
           setFiscalDraft(values.fiscal_extra ?? {});
           setFiscalOpen(true);
         }}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.03] px-4 py-3 text-[13px] font-semibold text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/[0.06]"
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200/90 bg-zinc-100 px-4 py-3 text-[13px] font-semibold text-zinc-800 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200 hover:bg-zinc-200/90 dark:hover:bg-white/[0.06]"
       >
         <Eye className="h-4 w-4" aria-hidden />
         Mais configurações fiscais
       </button>
 
-      <div className="rounded-xl border border-zinc-200/80 dark:border-white/[0.08] overflow-hidden">
-        <div className="flex items-center justify-between gap-3 border-b border-zinc-200/60 dark:border-white/[0.06] bg-zinc-50/80 dark:bg-white/[0.03] px-4 py-3">
+      <div className="overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-50/50 dark:border-white/[0.08] dark:bg-transparent">
+        <div className="flex items-center justify-between gap-3 border-b border-zinc-200/70 bg-zinc-100 px-4 py-3 dark:border-white/[0.06] dark:bg-white/[0.03]">
           <p className="text-[13px] font-bold text-zinc-800 dark:text-zinc-100">Lista de compras</p>
           <button
             type="button"
@@ -484,7 +541,10 @@ export function WorkshopPartRegistrationForm({
         ) : (
           <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
             {purchases.map((row, idx) => (
-              <li key={row.id ?? `new-${idx}`} className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
+              <li
+                key={row.id ?? `new-${idx}`}
+                className="grid gap-3 bg-white p-4 sm:grid-cols-2 lg:grid-cols-6 dark:bg-transparent"
+              >
                 <div className="space-y-1 lg:col-span-2">
                   <span className={labelCls}>Fornecedor</span>
                   <input
@@ -605,7 +665,7 @@ export function WorkshopPartRegistrationForm({
           role="presentation"
         >
           <div
-            className="w-full max-w-lg rounded-2xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 p-6 shadow-xl"
+            className="w-full max-w-lg rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-zinc-900"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"

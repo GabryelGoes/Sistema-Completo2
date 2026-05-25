@@ -14,7 +14,7 @@ import {
 import { iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { StorageThumbImg } from './ui/StorageThumbImg';
-import { useRegisterModalOpen } from './ui/ModalLayerContext';
+import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
   getWorkshopParts,
@@ -26,7 +26,6 @@ import {
   createWorkshopPartCategory,
   updateWorkshopPartCategory,
   deleteWorkshopPartCategory,
-  setWorkshopPartCategories,
   getWorkshopPartPurchases,
   createWorkshopPartPurchase,
   updateWorkshopPartPurchase,
@@ -306,11 +305,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
   const handleRegistrationSave = async ({
     values,
-    categoryIds,
     purchases: purchaseDrafts,
   }: {
     values: WorkshopPartFormValues;
-    categoryIds: string[];
     purchases: WorkshopPartPurchaseDraft[];
   }) => {
     if (!values.name.trim() || adding) return;
@@ -323,9 +320,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         let created = await createWorkshopPart(payload);
         if (newPhoto) {
           created = await uploadWorkshopPartPhoto(created.id, newPhoto, newPhoto.name);
-        }
-        if (categoryIds.length > 0) {
-          created = await setWorkshopPartCategories(created.id, categoryIds);
         }
         for (const draft of purchaseDrafts) {
           if (draft.supplier_name.trim() || parseNumber(draft.quantity) > 0) {
@@ -340,7 +334,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         if (newPhoto) {
           updated = await uploadWorkshopPartPhoto(registrationPart.id, newPhoto, newPhoto.name);
         }
-        updated = await setWorkshopPartCategories(registrationPart.id, categoryIds);
         await syncPurchasesForPart(registrationPart.id, purchaseDrafts);
         setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
       }
@@ -612,8 +605,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     }
   }, [filteredParts, editingId]);
 
-  useRegisterModalOpen(isOpen);
-
   if (!isOpen) return null;
 
   return (
@@ -628,6 +619,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       cropShape="square"
     />
 
+    <ModalPortal>
     <div className="fixed inset-0 z-[100] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden bg-white dark:bg-zinc-950 p-0">
       <div className="relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
         <button
@@ -649,7 +641,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             />
           </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 sm:px-8 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-auto touch-pan-y px-6 sm:px-8 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable]">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:max-w-xl">
               Gerencie preço e estoque. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Categorias</span> para
@@ -985,7 +977,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         role="presentation"
       >
         <div
-          className={`${iosModalShell} w-full max-w-[min(98vw,1280px)] max-h-[94vh] overflow-y-auto`}
+          className={`${iosModalShell} flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col !bg-white !backdrop-blur-none border-zinc-200/90 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.12)] dark:!bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]`}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -993,7 +985,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           <button type="button" onClick={closeRegistration} className={iosModalClose} aria-label="Fechar">
             <X className="w-5 h-5" />
           </button>
-          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
+          <div className="shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-14 dark:border-white/[0.06] dark:bg-transparent">
             <IosModalHeader
               icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title={registrationMode === 'create' ? 'Estoque — criação de registro' : 'Estoque — edição de registro'}
@@ -1001,7 +993,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               gradientClass="from-emerald-500 to-teal-700"
             />
           </div>
-          <div className="px-6 sm:px-8 py-6">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y bg-white px-6 py-6 sm:px-8 custom-scrollbar [scrollbar-gutter:stable] dark:bg-transparent">
             {loadingRegistrationPurchases ? (
               <div className="flex justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -1009,7 +1001,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             ) : (
               <WorkshopPartRegistrationForm
                 mode={registrationMode}
-                categories={categories}
                 initialPart={registrationMode === 'edit' ? registrationPart : null}
                 initialPurchases={registrationPurchases}
                 photoPreviewUrl={newPhotoPreviewUrl}
@@ -1175,6 +1166,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         </div>
       </div>
     )}
+    </ModalPortal>
     </>
   );
 };

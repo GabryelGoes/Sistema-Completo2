@@ -12,21 +12,22 @@ export const PART_ORIGIN_OPTIONS: { value: string; label: string }[] = [
   { value: '8', label: '8 — Nacional — conteúdo importação > 70%' },
 ];
 
-export const UNIT_OF_MEASURE_OPTIONS = [
-  'UN',
-  'PC',
-  'PAR',
-  'CX',
-  'KIT',
-  'JOGO',
-  'KG',
-  'G',
-  'L',
-  'ML',
-  'M',
-  'CM',
-  'MM',
-] as const;
+/** Sigla gravada no banco; `label` é o nome exibido na lista do seletor. */
+export const UNIT_OF_MEASURE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'UN', label: 'Unidade' },
+  { value: 'PC', label: 'Peça' },
+  { value: 'PAR', label: 'Par' },
+  { value: 'CX', label: 'Caixa' },
+  { value: 'KIT', label: 'Kit' },
+  { value: 'JOGO', label: 'Jogo' },
+  { value: 'KG', label: 'Quilograma' },
+  { value: 'G', label: 'Grama' },
+  { value: 'L', label: 'Litro' },
+  { value: 'ML', label: 'Mililitro' },
+  { value: 'M', label: 'Metro' },
+  { value: 'CM', label: 'Centímetro' },
+  { value: 'MM', label: 'Milímetro' },
+];
 
 /** NCM frequentes (oficina automotiva) — usuário pode digitar outro. */
 export const COMMON_NCM_SUGGESTIONS: { code: string; label: string }[] = [
@@ -161,7 +162,6 @@ export function formValuesToApiPayload(values: WorkshopPartFormValues): Record<s
   return {
     name: values.name.trim(),
     original_code: values.original_code.trim() || null,
-    primary_category_id: values.primary_category_id.trim() || null,
     numeric_code: values.numeric_code.trim() || null,
     location: values.location.trim() || null,
     application_similar: values.application_similar.trim() || null,
