@@ -2004,6 +2004,30 @@ export async function deleteWorkshopService(id: string): Promise<void> {
 
 // ---------- Estoque de peças (para orçamentos) ----------
 
+export type WorkshopPartFiscalExtra = {
+  cest?: string;
+  cfop?: string;
+  icms_cst?: string;
+  ipi_cst?: string;
+  pis_cst?: string;
+  cofins_cst?: string;
+  tax_notes?: string;
+};
+
+export type WorkshopPartPurchaseStatus = 'pending' | 'ordered' | 'received' | 'cancelled';
+
+export interface WorkshopPartPurchase {
+  id: string;
+  part_id: string;
+  supplier_name: string | null;
+  quantity: number;
+  unit_cost: number;
+  expected_date: string | null;
+  notes: string | null;
+  status: WorkshopPartPurchaseStatus;
+  created_at: string;
+}
+
 export interface WorkshopPart {
   id: string;
   name: string;
@@ -2012,9 +2036,52 @@ export interface WorkshopPart {
   photo_url?: string | null;
   sort_order: number;
   created_at: string;
+  original_code?: string | null;
+  numeric_code?: string | null;
+  location?: string | null;
+  application_similar?: string | null;
+  notes?: string | null;
+  ncm_code?: string | null;
+  unit_of_measure?: string;
+  min_stock_qty?: number;
+  max_stock_qty?: number | null;
+  fiscal_origin?: string;
+  premium_amount?: number;
+  commission_pct?: number;
+  default_profit_pct?: number;
+  km_limit?: number | null;
+  validity_months?: number | null;
+  unit_cost?: number;
+  fiscal_extra?: WorkshopPartFiscalExtra;
+  primary_category_id?: string | null;
   /** IDs das categorias do estoque vinculadas a este produto. */
   category_ids?: string[];
+  purchases?: WorkshopPartPurchase[];
 }
+
+export type WorkshopPartWriteInput = {
+  name: string;
+  unit_price?: number;
+  stock_qty?: number;
+  original_code?: string | null;
+  numeric_code?: string | null;
+  location?: string | null;
+  application_similar?: string | null;
+  notes?: string | null;
+  ncm_code?: string | null;
+  unit_of_measure?: string;
+  min_stock_qty?: number;
+  max_stock_qty?: number | null;
+  fiscal_origin?: string;
+  premium_amount?: number;
+  commission_pct?: number;
+  default_profit_pct?: number;
+  km_limit?: number | null;
+  validity_months?: number | null;
+  unit_cost?: number;
+  fiscal_extra?: WorkshopPartFiscalExtra;
+  primary_category_id?: string | null;
+};
 
 export interface WorkshopPartCategory {
   id: string;
@@ -2029,57 +2096,128 @@ export async function getWorkshopParts(): Promise<WorkshopPart[]> {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao listar peças (${response.status})`);
   }
-  const list = (await response.json()) as WorkshopPart[];
-  return list.map((p) => ({ ...p, category_ids: Array.isArray(p.category_ids) ? p.category_ids : [] }));
+  const list = (await response.json()) as Record<string, unknown>[];
+  return list.map((p) => normalizeWorkshopPartRow(p));
 }
 
-export async function createWorkshopPart(input: {
-  name: string;
-  unit_price?: number;
-  stock_qty?: number;
-}): Promise<WorkshopPart> {
+function normalizeWorkshopPartRow(row: Record<string, unknown>): WorkshopPart {
+  const fiscal = row.fiscal_extra;
+  return {
+    ...(row as WorkshopPart),
+    unit_price: Number(row.unit_price ?? 0),
+    stock_qty: Number(row.stock_qty ?? 0),
+    min_stock_qty: Number(row.min_stock_qty ?? 0),
+    max_stock_qty: row.max_stock_qty != null ? Number(row.max_stock_qty) : null,
+    premium_amount: Number(row.premium_amount ?? 0),
+    commission_pct: Number(row.commission_pct ?? 0),
+    default_profit_pct: Number(row.default_profit_pct ?? 0),
+    unit_cost: Number(row.unit_cost ?? 0),
+    km_limit: row.km_limit != null ? Number(row.km_limit) : null,
+    validity_months: row.validity_months != null ? Number(row.validity_months) : null,
+    fiscal_extra:
+      fiscal && typeof fiscal === 'object' && !Array.isArray(fiscal)
+        ? (fiscal as WorkshopPartFiscalExtra)
+        : {},
+    category_ids: Array.isArray(row.category_ids) ? (row.category_ids as string[]) : [],
+    purchases: Array.isArray(row.purchases) ? (row.purchases as WorkshopPartPurchase[]) : undefined,
+  };
+}
+
+export async function createWorkshopPart(input: WorkshopPartWriteInput): Promise<WorkshopPart> {
   const response = await fetch(`${API_BASE}/workshop-parts`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: input.name.trim(),
-      unit_price: input.unit_price ?? 0,
-      stock_qty: input.stock_qty ?? 0,
-    }),
+    body: JSON.stringify(input),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao criar peça (${response.status})`);
   }
   const row = await response.json();
-  return {
-    ...row,
-    category_ids: Array.isArray(row.category_ids) ? row.category_ids : [],
-  };
+  return normalizeWorkshopPartRow(row as Record<string, unknown>);
 }
 
 export async function updateWorkshopPart(
   id: string,
-  input: { name?: string; unit_price?: number; stock_qty?: number }
+  input: Partial<WorkshopPartWriteInput>
 ): Promise<WorkshopPart> {
-  const body: Record<string, unknown> = {};
-  if (input.name !== undefined) body.name = input.name.trim();
-  if (input.unit_price !== undefined) body.unit_price = input.unit_price;
-  if (input.stock_qty !== undefined) body.stock_qty = input.stock_qty;
   const response = await fetch(`${API_BASE}/workshop-parts/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(input),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao atualizar peça (${response.status})`);
   }
   const row = await response.json();
-  return {
-    ...row,
-    category_ids: Array.isArray(row.category_ids) ? row.category_ids : [],
-  };
+  return normalizeWorkshopPartRow(row as Record<string, unknown>);
+}
+
+export async function getWorkshopPartPurchases(partId: string): Promise<WorkshopPartPurchase[]> {
+  const response = await fetch(`${API_BASE}/workshop-parts/${partId}/purchases`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar compras (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function createWorkshopPartPurchase(
+  partId: string,
+  input: {
+    supplier_name?: string | null;
+    quantity?: number;
+    unit_cost?: number;
+    expected_date?: string | null;
+    notes?: string | null;
+    status?: WorkshopPartPurchaseStatus;
+  }
+): Promise<WorkshopPartPurchase> {
+  const response = await fetch(`${API_BASE}/workshop-parts/${partId}/purchases`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao adicionar compra (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function updateWorkshopPartPurchase(
+  partId: string,
+  purchaseId: string,
+  input: {
+    supplier_name?: string | null;
+    quantity?: number;
+    unit_cost?: number;
+    expected_date?: string | null;
+    notes?: string | null;
+    status?: WorkshopPartPurchaseStatus;
+  }
+): Promise<WorkshopPartPurchase> {
+  const response = await fetch(`${API_BASE}/workshop-parts/${partId}/purchases/${purchaseId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar compra (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteWorkshopPartPurchase(partId: string, purchaseId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/workshop-parts/${partId}/purchases/${purchaseId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir compra (${response.status})`);
+  }
 }
 
 export async function deleteWorkshopPart(id: string): Promise<void> {
@@ -2106,10 +2244,7 @@ export async function uploadWorkshopPartPhoto(
     throw new Error(err.error || `Falha ao enviar foto da peça (${response.status})`);
   }
   const row = await response.json();
-  return {
-    ...row,
-    category_ids: Array.isArray(row.category_ids) ? row.category_ids : [],
-  };
+  return normalizeWorkshopPartRow(row as Record<string, unknown>);
 }
 
 export async function getWorkshopPartCategories(): Promise<WorkshopPartCategory[]> {
@@ -2181,10 +2316,7 @@ export async function setWorkshopPartCategories(
     throw new Error(err.error || `Falha ao salvar categorias do produto (${response.status})`);
   }
   const row = await response.json();
-  return {
-    ...row,
-    category_ids: Array.isArray(row.category_ids) ? row.category_ids : [],
-  };
+  return normalizeWorkshopPartRow(row as Record<string, unknown>);
 }
 
 // ---------- Técnicos da oficina (atribuição nos cards) ----------

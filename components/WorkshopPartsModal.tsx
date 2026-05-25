@@ -7,10 +7,6 @@ import {
   Trash2,
   Check,
   Loader2,
-  Camera,
-  Hash,
-  SlidersHorizontal,
-  Images,
   Search,
   Tags,
   ChevronDown,
@@ -31,10 +27,23 @@ import {
   updateWorkshopPartCategory,
   deleteWorkshopPartCategory,
   setWorkshopPartCategories,
+  getWorkshopPartPurchases,
+  createWorkshopPartPurchase,
+  updateWorkshopPartPurchase,
+  deleteWorkshopPartPurchase,
   type WorkshopPart,
   type WorkshopPartCategory,
+  type WorkshopPartPurchase,
 } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
+import { WorkshopPartRegistrationForm } from './WorkshopPartRegistrationForm';
+import {
+  formValuesToApiPayload,
+  purchaseDraftToPayload,
+  purchaseToDraft,
+  type WorkshopPartFormValues,
+  type WorkshopPartPurchaseDraft,
+} from '../utils/workshopPartFields';
 
 interface WorkshopPartsModalProps {
   isOpen: boolean;
@@ -112,12 +121,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [error, setError] = useState<string | null>(null);
 
   const [newName, setNewName] = useState('');
-  const [newPrice, setNewPrice] = useState('');
-  const [newStock, setNewStock] = useState('');
   const [newPhoto, setNewPhoto] = useState<File | null>(null);
   const [newPhotoPreviewUrl, setNewPhotoPreviewUrl] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [registrationMode, setRegistrationMode] = useState<'create' | 'edit' | null>(null);
+  const [registrationPart, setRegistrationPart] = useState<WorkshopPart | null>(null);
+  const [registrationPurchases, setRegistrationPurchases] = useState<WorkshopPartPurchaseDraft[]>([]);
+  const [loadingRegistrationPurchases, setLoadingRegistrationPurchases] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -125,7 +135,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [editingStock, setEditingStock] = useState('');
   const [uploadingPhotoId, setUploadingPhotoId] = useState<string | null>(null);
   const [loadingExistingPhotoId, setLoadingExistingPhotoId] = useState<string | null>(null);
-  const [detailPart, setDetailPart] = useState<WorkshopPart | null>(null);
   const [partsSearchQuery, setPartsSearchQuery] = useState('');
   /** `all` | `uncategorized` | id da categoria */
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -135,16 +144,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [categoryCreating, setCategoryCreating] = useState(false);
   const [categoryEditingId, setCategoryEditingId] = useState<string | null>(null);
   const [categoryEditingName, setCategoryEditingName] = useState('');
-  const [newProductCategoryIds, setNewProductCategoryIds] = useState<string[]>([]);
-  const [partDetailCategoryIds, setPartDetailCategoryIds] = useState<string[]>([]);
-  const [savingDetailCategories, setSavingDetailCategories] = useState(false);
   /** 'new' = foto para peça ainda não cadastrada; string = id da peça existente */
   const [photoEditorTarget, setPhotoEditorTarget] = useState<'new' | string | null>(null);
   const [photoEditorFile, setPhotoEditorFile] = useState<File | null>(null);
   const createPhotoInputRef = useRef<HTMLInputElement>(null);
   const createCameraInputRef = useRef<HTMLInputElement>(null);
-  const editPhotoInputRef = useRef<HTMLInputElement>(null);
-  const editCameraInputRef = useRef<HTMLInputElement>(null);
   const categoryFilterDropdownRef = useRef<HTMLDivElement>(null);
 
   const [categoryFilterMenuOpen, setCategoryFilterMenuOpen] = useState(false);
@@ -158,7 +162,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     const f = e.target.files?.[0] ?? null;
     e.target.value = '';
     if (!f || !f.type.startsWith('image/')) return;
-    setPhotoEditorTarget('new');
+    setPhotoEditorTarget(
+      registrationMode === 'edit' && registrationPart ? registrationPart.id : 'new'
+    );
     setPhotoEditorFile(f);
   };
 
@@ -194,10 +200,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   }, [isOpen, fetchParts]);
 
   useEffect(() => {
-    if (!isOpen) setDetailPart(null);
-  }, [isOpen]);
-
-  useEffect(() => {
     if (!isOpen) {
       setPartsSearchQuery('');
       setCategoryFilter('all');
@@ -218,34 +220,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   }, [categories, categoryFilter]);
 
   useEffect(() => {
-    if (!detailPart) {
-      setPartDetailCategoryIds([]);
-      return;
-    }
-    setPartDetailCategoryIds([...(detailPart.category_ids ?? [])]);
-  }, [detailPart]);
-
-  useEffect(() => {
-    setDetailPart((prev) => {
-      if (!prev) return null;
-      const fresh = parts.find((x) => x.id === prev.id);
-      return fresh ?? null;
-    });
-  }, [parts]);
-
-  useEffect(() => {
-    if (!detailPart) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      setDetailPart(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [detailPart]);
-
-  useEffect(() => {
     if (!newPhoto) {
       setNewPhotoPreviewUrl(null);
       return;
@@ -257,56 +231,124 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
   const resetNewProductDraft = useCallback(() => {
     setNewName('');
-    setNewPrice('');
-    setNewStock('');
     setNewPhoto(null);
     setPhotoEditorFile(null);
     setPhotoEditorTarget(null);
-    setNewProductCategoryIds([]);
   }, []);
 
-  const closeAddProductModal = useCallback(() => {
-    setIsAddProductModalOpen(false);
+  const closeRegistration = useCallback(() => {
+    setRegistrationMode(null);
+    setRegistrationPart(null);
+    setRegistrationPurchases([]);
     resetNewProductDraft();
   }, [resetNewProductDraft]);
 
   useEffect(() => {
-    if (!isAddProductModalOpen) return;
+    if (!isOpen) closeRegistration();
+  }, [isOpen, closeRegistration]);
+
+  const openCreateRegistration = useCallback(() => {
+    setRegistrationMode('create');
+    setRegistrationPart(null);
+    setRegistrationPurchases([]);
+    resetNewProductDraft();
+    setError(null);
+  }, [resetNewProductDraft]);
+
+  const openEditRegistration = useCallback(async (part: WorkshopPart) => {
+    setRegistrationMode('edit');
+    setRegistrationPart(part);
+    setError(null);
+    setLoadingRegistrationPurchases(true);
+    try {
+      const list = await getWorkshopPartPurchases(part.id);
+      setRegistrationPurchases(list.map(purchaseToDraft));
+    } catch {
+      setRegistrationPurchases([]);
+    } finally {
+      setLoadingRegistrationPurchases(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!registrationMode) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (photoEditorFile) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      closeAddProductModal();
+      closeRegistration();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isAddProductModalOpen, closeAddProductModal, photoEditorFile]);
+  }, [registrationMode, closeRegistration, photoEditorFile]);
 
-  const handleAdd = async () => {
-    const name = newName.trim();
-    if (!name || adding) return;
-    const unit_price = parseNumber(newPrice);
-    const stock_qty = parseNumber(newStock);
-    if (unit_price < 0 || stock_qty < 0) {
-      setError('Preço e estoque devem ser valores positivos.');
-      return;
+  const syncPurchasesForPart = async (partId: string, drafts: WorkshopPartPurchaseDraft[]) => {
+    const existing = await getWorkshopPartPurchases(partId);
+    const existingIds = new Set(existing.map((p) => p.id));
+    const draftIds = new Set(drafts.filter((d) => d.id).map((d) => d.id!));
+
+    for (const row of existing) {
+      if (!draftIds.has(row.id)) {
+        await deleteWorkshopPartPurchase(partId, row.id);
+      }
     }
+
+    for (const draft of drafts) {
+      const payload = purchaseDraftToPayload(draft);
+      if (draft.id && existingIds.has(draft.id)) {
+        await updateWorkshopPartPurchase(partId, draft.id, payload);
+      } else if (!draft.id) {
+        await createWorkshopPartPurchase(partId, payload);
+      }
+    }
+  };
+
+  const handleRegistrationSave = async ({
+    values,
+    categoryIds,
+    purchases: purchaseDrafts,
+  }: {
+    values: WorkshopPartFormValues;
+    categoryIds: string[];
+    purchases: WorkshopPartPurchaseDraft[];
+  }) => {
+    if (!values.name.trim() || adding) return;
     setAdding(true);
     setError(null);
     try {
-      let created = await createWorkshopPart({ name, unit_price, stock_qty });
-      if (newPhoto) {
-        created = await uploadWorkshopPartPhoto(created.id, newPhoto, newPhoto.name);
+      const payload = formValuesToApiPayload(values);
+
+      if (registrationMode === 'create') {
+        let created = await createWorkshopPart(payload);
+        if (newPhoto) {
+          created = await uploadWorkshopPartPhoto(created.id, newPhoto, newPhoto.name);
+        }
+        if (categoryIds.length > 0) {
+          created = await setWorkshopPartCategories(created.id, categoryIds);
+        }
+        for (const draft of purchaseDrafts) {
+          if (draft.supplier_name.trim() || parseNumber(draft.quantity) > 0) {
+            await createWorkshopPartPurchase(created.id, purchaseDraftToPayload(draft));
+          }
+        }
+        setParts((prev) =>
+          [...prev, created].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+        );
+      } else if (registrationMode === 'edit' && registrationPart) {
+        let updated = await updateWorkshopPart(registrationPart.id, payload);
+        if (newPhoto) {
+          updated = await uploadWorkshopPartPhoto(registrationPart.id, newPhoto, newPhoto.name);
+        }
+        updated = await setWorkshopPartCategories(registrationPart.id, categoryIds);
+        await syncPurchasesForPart(registrationPart.id, purchaseDrafts);
+        setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
       }
-      if (newProductCategoryIds.length > 0) {
-        created = await setWorkshopPartCategories(created.id, newProductCategoryIds);
-      }
-      setParts((prev) => [...prev, created].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)));
-      setIsAddProductModalOpen(false);
-      resetNewProductDraft();
+
+      closeRegistration();
+      await fetchParts();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao adicionar peça.');
+      setError(e instanceof Error ? e.message : 'Erro ao salvar peça.');
     } finally {
       setAdding(false);
     }
@@ -357,7 +399,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     try {
       await deleteWorkshopPart(id);
       setParts((prev) => prev.filter((p) => p.id !== id));
-      setDetailPart((prev) => (prev?.id === id ? null : prev));
+      if (registrationPart?.id === id) closeRegistration();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao excluir peça.');
     }
@@ -385,6 +427,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       try {
         const updated = await uploadWorkshopPartPhoto(target, file, file.name);
         setParts((prev) => prev.map((p) => (p.id === target ? updated : p)));
+        setRegistrationPart((prev) => (prev?.id === target ? updated : prev));
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Erro ao enviar foto da peça.');
       } finally {
@@ -430,6 +473,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     return partsInCategoryScope.filter((p) => {
       const name = normalizePartSearch(p.name || '');
       const id = (p.id || '').toLowerCase();
+      const original = normalizePartSearch(p.original_code || '');
+      const numeric = normalizePartSearch(p.numeric_code || '');
+      const location = normalizePartSearch(p.location || '');
       const price = String(p.unit_price ?? '').replace(',', '.');
       const stock = String(p.stock_qty ?? '').replace(',', '.');
       const catNames = (p.category_ids ?? [])
@@ -438,6 +484,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         .join(' ');
       return (
         name.includes(q) ||
+        original.includes(q) ||
+        numeric.includes(q) ||
+        location.includes(q) ||
         id.includes(raw.toLowerCase().replace(/\s/g, '')) ||
         normalizePartSearch(price).includes(q) ||
         stock.replace(/\s/g, '').includes(raw.replace(/\s/g, '').replace(',', '.')) ||
@@ -456,33 +505,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     },
     [categories]
   );
-
-  const toggleNewProductCategory = (id: string) => {
-    setNewProductCategoryIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const toggleDetailCategory = (id: string) => {
-    setPartDetailCategoryIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const handleSaveDetailCategories = async () => {
-    if (!detailPart) return;
-    setSavingDetailCategories(true);
-    setError(null);
-    try {
-      const updated = await setWorkshopPartCategories(detailPart.id, partDetailCategoryIds);
-      setParts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-      setDetailPart(updated);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao salvar categorias.');
-    } finally {
-      setSavingDetailCategories(false);
-    }
-  };
 
   const handleCreateCategory = async () => {
     const n = newCategoryName.trim();
@@ -512,8 +534,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           category_ids: (p.category_ids ?? []).filter((cid) => cid !== id),
         }))
       );
-      setPartDetailCategoryIds((prev) => prev.filter((cid) => cid !== id));
-      setNewProductCategoryIds((prev) => prev.filter((cid) => cid !== id));
       if (categoryFilter === id) setCategoryFilter('all');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao excluir categoria.');
@@ -596,8 +616,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
   if (!isOpen) return null;
 
-  const detail = detailPart;
-
   return (
     <>
     <TechnicianPhotoEditorModal
@@ -650,7 +668,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               </button>
               <button
                 type="button"
-                onClick={() => setIsAddProductModalOpen(true)}
+                onClick={openCreateRegistration}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white shadow-md shadow-emerald-900/20 hover:bg-emerald-500 transition-colors"
               >
                 <Plus className="w-5 h-5" />
@@ -901,7 +919,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       <>
                         <button
                           type="button"
-                          onClick={() => setDetailPart(p)}
+                          onClick={() => void openEditRegistration(p)}
                           className="w-full min-w-0 flex flex-[1_1_100%] items-center gap-3 text-left rounded-xl -my-1 -ml-2 pl-2 pr-2 py-1.5 hover:bg-zinc-200/70 dark:hover:bg-white/[0.07] transition-colors cursor-pointer md:col-span-1 md:flex-[unset] md:w-auto"
                           title="Abrir produto — foto e ajustes"
                         >
@@ -933,9 +951,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         </span>
                         <button
                           type="button"
-                          onClick={() => startEdit(p)}
+                          onClick={() => void openEditRegistration(p)}
                           className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center justify-self-center text-zinc-500 hover:text-brand-yellow hover:bg-brand-yellow/10 transition-colors"
-                          aria-label="Editar"
+                          aria-label="Editar cadastro completo"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
@@ -960,410 +978,77 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       </div>
     </div>
 
-    {isAddProductModalOpen && (
+    {registrationMode ? (
       <div
-        className="fixed inset-0 z-[115] flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-[12px]"
-        onClick={closeAddProductModal}
+        className="fixed inset-0 z-[115] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-[12px]"
+        onClick={closeRegistration}
         role="presentation"
       >
         <div
-          className={`${iosModalShell} w-full max-w-lg md:max-w-3xl xl:max-w-4xl max-h-[92vh] overflow-y-auto`}
+          className={`${iosModalShell} w-full max-w-[min(98vw,1280px)] max-h-[94vh] overflow-y-auto`}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
-          aria-labelledby="workshop-add-product-title"
         >
-          <button type="button" onClick={closeAddProductModal} className={iosModalClose} aria-label="Fechar">
+          <button type="button" onClick={closeRegistration} className={iosModalClose} aria-label="Fechar">
             <X className="w-5 h-5" />
           </button>
-          <p id="workshop-add-product-title" className="sr-only">
-            Cadastrar novo produto no estoque
-          </p>
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
             <IosModalHeader
               icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
-              title="Novo produto"
-              subtitle="Preço, estoque e foto"
+              title={registrationMode === 'create' ? 'Estoque — criação de registro' : 'Estoque — edição de registro'}
+              subtitle="Cadastro completo da peça"
               gradientClass="from-emerald-500 to-teal-700"
             />
           </div>
-          <div className="px-6 sm:px-8 py-5 border-b border-zinc-200/50 dark:border-white/[0.06] bg-gradient-to-b from-emerald-500/[0.06] to-transparent dark:from-emerald-400/[0.08]">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700/90 dark:text-emerald-400/90 mb-2">
-              Nome do produto
-            </p>
-            {newName.trim() ? (
-              <p className="text-[1.5rem] sm:text-[1.875rem] font-bold tracking-tight text-zinc-900 dark:text-white leading-[1.2] break-words">
-                {newName.trim()}
-              </p>
-            ) : (
-              <p className="text-[1.125rem] sm:text-[1.25rem] text-zinc-400 dark:text-zinc-500 leading-snug">
-                Digite abaixo — o nome aparecerá aqui em destaque
-              </p>
-            )}
-          </div>
           <div className="px-6 sm:px-8 py-6">
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-10">
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                    Definir nome
-                  </label>
-                  <input
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Ex.: Sensor ABS"
-                    className="w-full min-w-0 px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/50"
-                  />
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                      Preço (R$)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={newPrice}
-                      onChange={(e) => setNewPrice(e.target.value)}
-                      placeholder="0,00"
-                      className="w-full min-w-0 px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/50"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                      Quantidade em estoque
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.001"
-                      value={newStock}
-                      onChange={(e) => setNewStock(e.target.value)}
-                      placeholder="0"
-                      className="w-full min-w-0 px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[15px] tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/50"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Pré-visualização</p>
-                <div className="mx-auto w-full max-w-[280px] md:max-w-none md:mx-0">
-                  <div className="aspect-square w-full rounded-[22px] border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-100 dark:bg-white/[0.05] overflow-hidden flex items-center justify-center">
-                    {newPhotoPreviewUrl ? (
-                      <img src={newPhotoPreviewUrl} alt="Prévia da foto do produto" className="h-full w-full object-cover" />
-                    ) : (
-                      <Package className="w-16 h-16 text-zinc-300 sm:w-20 sm:h-20" strokeWidth={1.25} />
-                    )}
-                  </div>
-                </div>
-                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 text-center md:text-left">
-                  A foto passa pelo editor (recorte quadrado) antes de ser usada.
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
-                  <button
-                    type="button"
-                    onClick={() => createPhotoInputRef.current?.click()}
-                    className="inline-flex items-center gap-2 rounded-xl bg-zinc-700 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-zinc-600 transition-colors"
-                  >
-                    <Images className="w-4 h-4" />
-                    Galeria
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => createCameraInputRef.current?.click()}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-emerald-500 transition-colors"
-                  >
-                    <Camera className="w-4 h-4" />
-                    Câmera
-                  </button>
-                  {newPhoto ? (
-                    <button
-                      type="button"
-                      onClick={() => setNewPhoto(null)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 dark:border-white/15 bg-transparent px-4 py-2.5 text-[14px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
-                    >
-                      Remover foto
-                    </button>
-                  ) : null}
-                </div>
-                <input
-                  ref={createPhotoInputRef}
-                  type="file"
-                  accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
-                  className="hidden"
-                  onChange={handleNewPartImageSelected}
-                />
-                <input
-                  ref={createCameraInputRef}
-                  type="file"
-                  accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
-                  className="hidden"
-                  onChange={handleNewPartImageSelected}
-                />
-              </div>
-            </div>
-            {categories.length > 0 ? (
-              <div className="mt-6 pt-6 border-t border-zinc-200/50 dark:border-white/[0.06] space-y-3">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Categorias (opcional)
-                </p>
-                <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-                  Marque em quais grupos este produto deve aparecer ao filtrar a lista.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((c) => (
-                    <label
-                      key={c.id}
-                      className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50/80 dark:bg-white/[0.04] px-3 py-2 text-[14px] text-zinc-800 dark:text-zinc-200 has-[:checked]:border-emerald-500/50 has-[:checked]:bg-emerald-500/10 dark:has-[:checked]:bg-emerald-500/15"
-                    >
-                      <input
-                        type="checkbox"
-                        className="rounded border-zinc-300 dark:border-white/20 text-emerald-600 focus:ring-emerald-500/40"
-                        checked={newProductCategoryIds.includes(c.id)}
-                        onChange={() => toggleNewProductCategory(c.id)}
-                      />
-                      {c.name}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            <div className="mt-8 flex flex-col-reverse gap-3 border-t border-zinc-200/50 dark:border-white/[0.06] pt-6 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={closeAddProductModal}
-                disabled={adding}
-                className="rounded-2xl px-5 py-3 text-[15px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleAdd()}
-                disabled={!newName.trim() || adding}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-yellow px-6 py-3 text-[15px] font-semibold text-black hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none transition-[filter]"
-              >
-                {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                Salvar produto
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {detail && (
-      <div
-        className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-[12px]"
-        onClick={() => setDetailPart(null)}
-      >
-        <div
-          className={`${iosModalShell} w-full max-w-[min(96vw,720px)] sm:max-w-[min(94vw,900px)] lg:max-w-[min(92vw,1100px)] max-h-[92vh] overflow-y-auto overscroll-contain [scrollbar-width:thin] [scrollbar-color:rgb(200_200_204/0.7)_transparent] dark:[scrollbar-color:rgba(255,255,255,0.22)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300/45 [&::-webkit-scrollbar-thumb]:hover:bg-zinc-400/55 dark:[&::-webkit-scrollbar-thumb]:bg-white/12 dark:[&::-webkit-scrollbar-thumb]:hover:bg-white/22`}
-          onClick={(e) => e.stopPropagation()}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="workshop-part-detail-title"
-        >
-          <button type="button" onClick={() => setDetailPart(null)} className={iosModalClose} aria-label="Fechar">
-            <X className="w-5 h-5" />
-          </button>
-          <p id="workshop-part-detail-title" className="sr-only">
-            Produto no estoque: {detail.name}
-          </p>
-          <div className="px-6 sm:px-8 pt-8 pb-5 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06] bg-gradient-to-b from-emerald-500/[0.07] to-transparent dark:from-emerald-400/[0.09]">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-              <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-                <img src="/icons/estoque-ios.png" alt="" className="h-full w-full object-cover" />
-              </IosAccentIconSquircle>
-              <div className="min-w-0 flex-1 pt-0.5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700/90 dark:text-emerald-400/90 mb-1.5">
-                  Produto no estoque
-                </p>
-                <h2 className="text-[1.65rem] sm:text-[2.125rem] font-bold tracking-tight text-zinc-900 dark:text-white leading-[1.12] break-words">
-                  {detail.name}
-                </h2>
-              </div>
-            </div>
-          </div>
-          <div className="px-6 sm:px-8 py-6 space-y-5">
-            <div className="flex justify-center sm:justify-start">
-              <div className="w-full max-w-[min(100%,190px)] sm:max-w-[min(100%,220px)] aspect-square rounded-[22px] border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-100 dark:bg-white/[0.05] overflow-hidden flex items-center justify-center">
-                {detail.photo_url ? (
-                  <StorageThumbImg
-                    src={detail.photo_url}
-                    alt={detail.name}
-                    className="h-full w-full object-cover"
-                    thumbMaxWidth={256}
-                    thumbMaxHeight={256}
-                    thumbResize="cover"
-                    thumbQuality={40}
-                    loading="eager"
-                    fetchPriority="high"
-                  />
-                ) : (
-                  <Package className="w-10 h-10 text-zinc-300" strokeWidth={1.25} />
-                )}
-              </div>
-            </div>
-            <dl className="grid gap-3 text-[15px]">
-              <div className="flex justify-between gap-4 border-b border-zinc-200/40 dark:border-white/[0.06] pb-3">
-                <dt className="text-zinc-500 dark:text-zinc-400">Preço unitário</dt>
-                <dd className="font-semibold text-zinc-900 dark:text-white tabular-nums">
-                  R$ {Number(detail.unit_price ?? 0).toFixed(2)}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-4 border-b border-zinc-200/40 dark:border-white/[0.06] pb-3">
-                <dt className="text-zinc-500 dark:text-zinc-400">Quantidade em estoque</dt>
-                <dd className="font-semibold text-zinc-900 dark:text-white tabular-nums">
-                  {Number(detail.stock_qty ?? 0).toFixed(3)}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-4 border-b border-zinc-200/40 dark:border-white/[0.06] pb-3">
-                <dt className="text-zinc-500 dark:text-zinc-400">Valor em estoque</dt>
-                <dd className="font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
-                  R$ {(Number(detail.unit_price ?? 0) * Number(detail.stock_qty ?? 0)).toFixed(2)}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-4 items-start">
-                <dt className="text-zinc-500 dark:text-zinc-400 shrink-0">Cadastrado em</dt>
-                <dd className="text-right text-zinc-800 dark:text-zinc-200 text-[14px]">
-                  {detail.created_at
-                    ? new Date(detail.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
-                    : '—'}
-                </dd>
-              </div>
-              <div className="flex items-start gap-2 pt-1 text-[13px] text-zinc-500 dark:text-zinc-500">
-                <Hash className="w-4 h-4 shrink-0 mt-0.5" aria-hidden />
-                <span className="font-mono break-all">{detail.id}</span>
-              </div>
-            </dl>
-            {categories.length > 0 ? (
-              <div className="rounded-2xl border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50/50 dark:bg-white/[0.03] p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Tags className="w-4 h-4 text-emerald-600" aria-hidden />
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
-                    Categorias deste produto
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((c) => (
-                    <label
-                      key={c.id}
-                      className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2 text-[14px] text-zinc-800 dark:text-zinc-200 has-[:checked]:border-emerald-500/50 has-[:checked]:bg-emerald-500/10 dark:has-[:checked]:bg-emerald-500/15"
-                    >
-                      <input
-                        type="checkbox"
-                        className="rounded border-zinc-300 dark:border-white/20 text-emerald-600 focus:ring-emerald-500/40"
-                        checked={partDetailCategoryIds.includes(c.id)}
-                        onChange={() => toggleDetailCategory(c.id)}
-                      />
-                      {c.name}
-                    </label>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void handleSaveDetailCategories()}
-                  disabled={savingDetailCategories}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors"
-                >
-                  {savingDetailCategories ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  Salvar categorias
-                </button>
+            {loadingRegistrationPurchases ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
               </div>
             ) : (
-              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-                Crie categorias em <span className="font-medium text-zinc-700 dark:text-zinc-300">Categorias</span> no estoque para
-                organizar este produto.
-              </p>
+              <WorkshopPartRegistrationForm
+                mode={registrationMode}
+                categories={categories}
+                initialPart={registrationMode === 'edit' ? registrationPart : null}
+                initialPurchases={registrationPurchases}
+                photoPreviewUrl={newPhotoPreviewUrl}
+                saving={adding}
+                error={error}
+                onValuesChange={(name) => setNewName(name)}
+                onPickPhoto={() => createPhotoInputRef.current?.click()}
+                onPickGallery={() => createPhotoInputRef.current?.click()}
+                onPickCamera={() => createCameraInputRef.current?.click()}
+                onAdjustPhoto={
+                  registrationMode === 'edit' && registrationPart?.photo_url
+                    ? () => void openExistingPartPhotoInEditor(registrationPart)
+                    : undefined
+                }
+                hasPhoto={Boolean(newPhoto || registrationPart?.photo_url)}
+                photoBusy={uploadingPhotoId !== null || loadingExistingPhotoId !== null}
+                onSubmit={handleRegistrationSave}
+                onCancel={closeRegistration}
+              />
             )}
-            <div className="flex flex-wrap gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const p = detail;
-                  setDetailPart(null);
-                  startEdit(p);
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-yellow px-4 py-3 text-[15px] font-semibold text-black hover:brightness-110 transition-colors"
-              >
-                <Pencil className="w-4 h-4" />
-                Editar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!editPhotoInputRef.current || !detail) return;
-                  editPhotoInputRef.current.dataset.partId = detail.id;
-                  editPhotoInputRef.current.click();
-                }}
-                disabled={uploadingPhotoId === detail.id || loadingExistingPhotoId === detail.id}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-200 dark:bg-white/10 px-4 py-3 text-[15px] font-semibold text-zinc-900 dark:text-white hover:bg-zinc-300 dark:hover:bg-white/15 transition-colors disabled:opacity-50"
-              >
-                {uploadingPhotoId === detail.id ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Images className="w-4 h-4" />
-                )}
-                Galeria
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!editCameraInputRef.current || !detail) return;
-                  editCameraInputRef.current.dataset.partId = detail.id;
-                  editCameraInputRef.current.click();
-                }}
-                disabled={uploadingPhotoId === detail.id || loadingExistingPhotoId === detail.id}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 px-4 py-3 text-[15px] font-semibold text-white transition-colors disabled:opacity-50"
-              >
-                <Camera className="w-4 h-4" />
-                Câmera
-              </button>
-              {detail.photo_url ? (
-                <button
-                  type="button"
-                  onClick={() => void openExistingPartPhotoInEditor(detail)}
-                  disabled={loadingExistingPhotoId === detail.id || uploadingPhotoId === detail.id}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-violet-300/80 dark:border-violet-500/40 bg-violet-50 dark:bg-violet-950/40 px-4 py-3 text-[15px] font-semibold text-violet-800 dark:text-violet-200 hover:bg-violet-100 dark:hover:bg-violet-950/60 transition-colors disabled:opacity-50"
-                >
-                  {loadingExistingPhotoId === detail.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <SlidersHorizontal className="w-4 h-4" />
-                  )}
-                  Ajustar foto
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => handleDelete(detail.id)}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-300 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-[15px] font-semibold text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-                Excluir
-              </button>
-            </div>
             <input
-              ref={editPhotoInputRef}
+              ref={createPhotoInputRef}
               type="file"
               accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
               className="hidden"
-              onChange={handleExistingPartImageSelected}
+              onChange={handleNewPartImageSelected}
             />
             <input
-              ref={editCameraInputRef}
+              ref={createCameraInputRef}
               type="file"
               accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
+              capture="environment"
               className="hidden"
-              onChange={handleExistingPartImageSelected}
+              onChange={handleNewPartImageSelected}
             />
           </div>
         </div>
       </div>
-    )}
+    ) : null}
 
     {isCategoriesModalOpen && (
       <div

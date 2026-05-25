@@ -4011,6 +4011,125 @@ export function createApiApp() {
     }));
   }
 
+  const WORKSHOP_PART_SELECT =
+    "id, name, unit_price, stock_qty, photo_url, sort_order, created_at, " +
+    "original_code, numeric_code, location, application_similar, notes, " +
+    "ncm_code, unit_of_measure, min_stock_qty, max_stock_qty, fiscal_origin, " +
+    "premium_amount, commission_pct, default_profit_pct, km_limit, validity_months, " +
+    "unit_cost, fiscal_extra, primary_category_id";
+
+  function parseOptionalText(v: unknown): string | null {
+    if (v === undefined || v === null) return null;
+    const s = String(v).trim();
+    return s || null;
+  }
+
+  function parseWorkshopPartBody(body: Record<string, unknown>, forCreate: boolean) {
+    const errors: string[] = [];
+    const patch: Record<string, unknown> = {};
+
+    if (forCreate || body.name !== undefined) {
+      const trimmed = typeof body.name === "string" ? body.name.trim() : "";
+      if (!trimmed) errors.push("Nome da peça é obrigatório.");
+      else patch.name = trimmed;
+    }
+
+    const numFields: { key: string; min?: number }[] = [
+      { key: "unit_price", min: 0 },
+      { key: "stock_qty", min: 0 },
+      { key: "min_stock_qty", min: 0 },
+      { key: "premium_amount", min: 0 },
+      { key: "commission_pct", min: 0 },
+      { key: "default_profit_pct", min: 0 },
+      { key: "unit_cost", min: 0 },
+    ];
+    for (const { key, min = 0 } of numFields) {
+      if (body[key] === undefined) continue;
+      const n = Number(body[key]);
+      if (!Number.isFinite(n) || n < min) errors.push(`${key} inválido.`);
+      else patch[key] = n;
+    }
+
+    if (body.max_stock_qty !== undefined) {
+      if (body.max_stock_qty === null || body.max_stock_qty === "") {
+        patch.max_stock_qty = null;
+      } else {
+        const n = Number(body.max_stock_qty);
+        if (!Number.isFinite(n) || n < 0) errors.push("max_stock_qty inválido.");
+        else patch.max_stock_qty = n;
+      }
+    }
+
+    if (body.km_limit !== undefined) {
+      if (body.km_limit === null || body.km_limit === "") patch.km_limit = null;
+      else {
+        const n = Number(body.km_limit);
+        if (!Number.isFinite(n) || n < 0) errors.push("km_limit inválido.");
+        else patch.km_limit = n;
+      }
+    }
+
+    if (body.validity_months !== undefined) {
+      if (body.validity_months === null || body.validity_months === "") patch.validity_months = null;
+      else {
+        const n = Math.round(Number(body.validity_months));
+        if (!Number.isFinite(n) || n < 0) errors.push("validity_months inválido.");
+        else patch.validity_months = n;
+      }
+    }
+
+    const textFields = [
+      "original_code",
+      "numeric_code",
+      "location",
+      "application_similar",
+      "notes",
+      "ncm_code",
+      "unit_of_measure",
+      "fiscal_origin",
+    ] as const;
+    for (const key of textFields) {
+      if (body[key] !== undefined) patch[key] = parseOptionalText(body[key]) ?? (key === "unit_of_measure" ? "UN" : key === "fiscal_origin" ? "0" : null);
+    }
+
+    if (body.primary_category_id !== undefined) {
+      patch.primary_category_id =
+        body.primary_category_id === null || body.primary_category_id === ""
+          ? null
+          : String(body.primary_category_id);
+    }
+
+    if (body.photo_url !== undefined) {
+      patch.photo_url = parseOptionalText(body.photo_url);
+    }
+
+    if (body.fiscal_extra !== undefined) {
+      const fe = body.fiscal_extra;
+      patch.fiscal_extra =
+        fe && typeof fe === "object" && !Array.isArray(fe) ? fe : {};
+    }
+
+    if (forCreate) {
+      if (patch.unit_price === undefined) patch.unit_price = 0;
+      if (patch.stock_qty === undefined) patch.stock_qty = 0;
+      if (patch.min_stock_qty === undefined) patch.min_stock_qty = 0;
+      if (patch.unit_cost === undefined) patch.unit_cost = 0;
+      if (patch.unit_of_measure === undefined) patch.unit_of_measure = "UN";
+      if (patch.fiscal_origin === undefined) patch.fiscal_origin = "0";
+      if (patch.fiscal_extra === undefined) patch.fiscal_extra = {};
+    }
+
+    return { patch, errors };
+  }
+
+  async function respondWorkshopPart(res: any, partRow: Record<string, unknown>) {
+    const catMap = await loadWorkshopPartCategoryMap([partRow.id as string]);
+    return res.json({
+      ...partRow,
+      category_ids: catMap.get(partRow.id as string) ?? [],
+    });
+  }
+
   // ----------------- ESTOQUE DE PEÇAS (para orçamentos) -----------------
   app.get("/api/workshop-parts", async (_req, res) => {
     try {
@@ -4023,7 +4142,7 @@ export function createApiApp() {
 
       const { data, error } = await supabaseAdmin
         .from("workshop_parts")
-        .select("id, name, unit_price, stock_qty, photo_url, sort_order, created_at")
+        .select(WORKSHOP_PART_SELECT)
         .eq("workshop_id", WORKSHOP_ID)
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true });
@@ -4051,32 +4170,13 @@ export function createApiApp() {
         });
       }
 
-      const { name, unit_price, stock_qty, photo_url } = req.body || {};
-      const trimmed = typeof name === "string" ? name.trim() : "";
-      const unitPrice = Number(unit_price ?? 0);
-      const stockQty = Number(stock_qty ?? 0);
-
-      if (!trimmed) {
-        return res.status(400).json({ error: "Nome da peça é obrigatório." });
-      }
-      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-        return res.status(400).json({ error: "Preço unitário inválido." });
-      }
-      if (!Number.isFinite(stockQty) || stockQty < 0) {
-        return res.status(400).json({ error: "Quantidade em estoque inválida." });
-      }
+      const { patch, errors } = parseWorkshopPartBody((req.body || {}) as Record<string, unknown>, true);
+      if (errors.length) return res.status(400).json({ error: errors[0] });
 
       const { data, error } = await supabaseAdmin
         .from("workshop_parts")
-        .insert({
-          workshop_id: WORKSHOP_ID,
-          name: trimmed,
-          unit_price: unitPrice,
-          stock_qty: stockQty,
-          photo_url: typeof photo_url === "string" && photo_url.trim() ? photo_url.trim() : null,
-          sort_order: 0,
-        })
-        .select("id, name, unit_price, stock_qty, photo_url, sort_order, created_at")
+        .insert({ workshop_id: WORKSHOP_ID, sort_order: 0, ...patch })
+        .select(WORKSHOP_PART_SELECT)
         .single();
 
       if (error) {
@@ -4087,8 +4187,7 @@ export function createApiApp() {
         return res.status(500).json({ error: error.message });
       }
 
-      const catMap = await loadWorkshopPartCategoryMap([data.id]);
-      return res.status(201).json({ ...data, category_ids: catMap.get(data.id) ?? [] });
+      return respondWorkshopPart(res.status(201), data as Record<string, unknown>);
     } catch (err: any) {
       console.error("[API] Erro em POST /api/workshop-parts:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -4105,30 +4204,10 @@ export function createApiApp() {
       }
 
       const { id } = req.params;
-      const { name, unit_price, stock_qty, photo_url } = req.body || {};
-      const patch: Record<string, any> = {};
-
-      if (name !== undefined) {
-        const trimmed = String(name).trim();
-        if (!trimmed) return res.status(400).json({ error: "Nome da peça é obrigatório." });
-        patch.name = trimmed;
-      }
-      if (unit_price !== undefined) {
-        const unitPrice = Number(unit_price);
-        if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-          return res.status(400).json({ error: "Preço unitário inválido." });
-        }
-        patch.unit_price = unitPrice;
-      }
-      if (stock_qty !== undefined) {
-        const stockQty = Number(stock_qty);
-        if (!Number.isFinite(stockQty) || stockQty < 0) {
-          return res.status(400).json({ error: "Quantidade em estoque inválida." });
-        }
-        patch.stock_qty = stockQty;
-      }
-      if (photo_url !== undefined) {
-        patch.photo_url = typeof photo_url === "string" && photo_url.trim() ? photo_url.trim() : null;
+      const { patch, errors } = parseWorkshopPartBody((req.body || {}) as Record<string, unknown>, false);
+      if (errors.length) return res.status(400).json({ error: errors[0] });
+      if (Object.keys(patch).length === 0) {
+        return res.status(400).json({ error: "Nenhum campo para atualizar." });
       }
 
       const { data, error } = await supabaseAdmin
@@ -4136,7 +4215,7 @@ export function createApiApp() {
         .update(patch)
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
-        .select("id, name, unit_price, stock_qty, photo_url, sort_order, created_at")
+        .select(WORKSHOP_PART_SELECT)
         .single();
 
       if (error) {
@@ -4148,8 +4227,7 @@ export function createApiApp() {
       }
 
       if (!data) return res.status(404).json({ error: "Peça não encontrada." });
-      const catMap = await loadWorkshopPartCategoryMap([data.id]);
-      return res.json({ ...data, category_ids: catMap.get(data.id) ?? [] });
+      return respondWorkshopPart(res, data as Record<string, unknown>);
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/workshop-parts/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -4220,16 +4298,138 @@ export function createApiApp() {
         .update({ photo_url: photoUrlWithCacheBust })
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
-        .select("id, name, unit_price, stock_qty, photo_url, sort_order, created_at")
+        .select(WORKSHOP_PART_SELECT)
         .single();
       if (error) {
         console.error("[API] Erro ao atualizar foto da peça:", error);
         return res.status(500).json({ error: error.message });
       }
-      const catMap = await loadWorkshopPartCategoryMap([data.id]);
-      return res.json({ ...data, category_ids: catMap.get(data.id) ?? [] });
+      return respondWorkshopPart(res, data as Record<string, unknown>);
     } catch (err: any) {
       console.error("[API] Erro em POST /api/workshop-parts/:id/photo:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // ----------------- LISTA DE COMPRAS (por peça) -----------------
+  app.get("/api/workshop-parts/:partId/purchases", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const { partId } = req.params;
+      const { data, error } = await supabaseAdmin
+        .from("workshop_part_purchases")
+        .select("id, part_id, supplier_name, quantity, unit_cost, expected_date, notes, status, created_at")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("part_id", partId)
+        .order("created_at", { ascending: false });
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json(data ?? []);
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/workshop-parts/:partId/purchases", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const { partId } = req.params;
+      const body = req.body || {};
+      const quantity = Number(body.quantity ?? 1);
+      const unitCost = Number(body.unit_cost ?? 0);
+      const status = String(body.status ?? "pending");
+      const allowed = ["pending", "ordered", "received", "cancelled"];
+      if (!Number.isFinite(quantity) || quantity < 0) {
+        return res.status(400).json({ error: "Quantidade inválida." });
+      }
+      if (!Number.isFinite(unitCost) || unitCost < 0) {
+        return res.status(400).json({ error: "Custo unitário inválido." });
+      }
+      if (!allowed.includes(status)) {
+        return res.status(400).json({ error: "Status inválido." });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("workshop_part_purchases")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          part_id: partId,
+          supplier_name: parseOptionalText(body.supplier_name),
+          quantity,
+          unit_cost: unitCost,
+          expected_date: parseOptionalText(body.expected_date),
+          notes: parseOptionalText(body.notes),
+          status,
+        })
+        .select("id, part_id, supplier_name, quantity, unit_cost, expected_date, notes, status, created_at")
+        .single();
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(201).json(data);
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.put("/api/workshop-parts/:partId/purchases/:purchaseId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const { partId, purchaseId } = req.params;
+      const body = req.body || {};
+      const patch: Record<string, unknown> = {};
+      if (body.supplier_name !== undefined) patch.supplier_name = parseOptionalText(body.supplier_name);
+      if (body.notes !== undefined) patch.notes = parseOptionalText(body.notes);
+      if (body.expected_date !== undefined) patch.expected_date = parseOptionalText(body.expected_date);
+      if (body.quantity !== undefined) {
+        const q = Number(body.quantity);
+        if (!Number.isFinite(q) || q < 0) return res.status(400).json({ error: "Quantidade inválida." });
+        patch.quantity = q;
+      }
+      if (body.unit_cost !== undefined) {
+        const c = Number(body.unit_cost);
+        if (!Number.isFinite(c) || c < 0) return res.status(400).json({ error: "Custo inválido." });
+        patch.unit_cost = c;
+      }
+      if (body.status !== undefined) {
+        const status = String(body.status);
+        const allowed = ["pending", "ordered", "received", "cancelled"];
+        if (!allowed.includes(status)) return res.status(400).json({ error: "Status inválido." });
+        patch.status = status;
+      }
+      const { data, error } = await supabaseAdmin
+        .from("workshop_part_purchases")
+        .update(patch)
+        .eq("id", purchaseId)
+        .eq("part_id", partId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("id, part_id, supplier_name, quantity, unit_cost, expected_date, notes, status, created_at")
+        .single();
+      if (error) return res.status(500).json({ error: error.message });
+      if (!data) return res.status(404).json({ error: "Compra não encontrada." });
+      return res.json(data);
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.delete("/api/workshop-parts/:partId/purchases/:purchaseId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const { partId, purchaseId } = req.params;
+      const { error } = await supabaseAdmin
+        .from("workshop_part_purchases")
+        .delete()
+        .eq("id", purchaseId)
+        .eq("part_id", partId)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(204).send();
+    } catch (err: any) {
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
@@ -4428,15 +4628,14 @@ export function createApiApp() {
       }
       const { data: fullPart, error: fullErr } = await supabaseAdmin
         .from("workshop_parts")
-        .select("id, name, unit_price, stock_qty, photo_url, sort_order, created_at")
+        .select(WORKSHOP_PART_SELECT)
         .eq("id", partId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
       if (fullErr || !fullPart) {
         return res.status(500).json({ error: fullErr?.message ?? "Peça não encontrada após atualizar." });
       }
-      const catMap = await loadWorkshopPartCategoryMap([partId]);
-      return res.json({ ...fullPart, category_ids: catMap.get(partId) ?? [] });
+      return respondWorkshopPart(res, fullPart as Record<string, unknown>);
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/workshop-parts/:partId/categories:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });

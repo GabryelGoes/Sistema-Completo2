@@ -157,9 +157,6 @@ export function DesktopAppShell({
               </button>
             );
           })}
-          {sidebarActions.length > 0 && sidebarItems.length > 0 ? (
-            <div className="mx-3 my-2 h-px bg-zinc-200/90 dark:bg-white/[0.08]" role="presentation" />
-          ) : null}
           {sidebarActions.map((item) => (
             <button
               key={item.id}
