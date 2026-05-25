@@ -674,7 +674,6 @@ export default function App() {
               isAppTabActive={userTab === 'patio'}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
-              onOpenVehicleAccompaniment={openVehicleAccompaniment}
             />
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
@@ -936,7 +935,6 @@ export default function App() {
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'patio'}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
-            onOpenVehicleAccompaniment={openVehicleAccompaniment}
           />
         </KeepAliveTabPanel>
 
