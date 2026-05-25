@@ -45,13 +45,13 @@ function NavIcon({ item }: { item: DesktopNavItem }) {
   }
   if (item.id === 'home') {
     return (
-      <span className="desktop-shell-nav-icon flex items-center justify-center bg-zinc-100 text-[10px] font-bold text-zinc-600">
+      <span className="desktop-shell-nav-icon flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold text-zinc-600 dark:text-zinc-300">
         IN
       </span>
     );
   }
   return (
-    <span className="desktop-shell-nav-icon flex items-center justify-center bg-zinc-100 text-[10px] font-bold text-zinc-500">
+    <span className="desktop-shell-nav-icon flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
       •
     </span>
   );

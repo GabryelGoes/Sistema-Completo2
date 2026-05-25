@@ -350,3 +350,82 @@ html[data-desktop-shell='true'] .desktop-shell-support {
 html[data-desktop-shell='true'] .desktop-shell-support:hover {
   background: #dcfce7;
 }
+
+/* ——— Modo escuro (html.dark) ——— */
+html.dark[data-desktop-shell='true'] body,
+html.dark[data-desktop-shell='true'] #root {
+  background: #09090b;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-root {
+  background: #09090b;
+  color: #fafafa;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-sidebar {
+  background: #18181b;
+  border-right-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.35);
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-sidebar-head {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: #0a0a0a;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-nav-item {
+  color: #a1a1aa;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-nav-item:hover {
+  background: #27272a;
+  color: #fafafa;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-nav-item--active {
+  background: #27272a;
+  color: #fff;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-content {
+  background: #09090b;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-home-hub-card,
+html.dark[data-desktop-shell='true'] .desktop-onmotor-card {
+  background-color: rgb(24 24 27 / 0.92);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark[data-desktop-shell='true'] .desktop-home-hub-card {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-content [class*='rounded-[22px]'].border,
+html.dark[data-desktop-shell='true'] .desktop-shell-content .ios-page-glass-desktop-override {
+  background: #18181b !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  border-top-color: rgb(var(--desktop-shell-accent-rgb) / 1) !important;
+  box-shadow: 0 4px 16px -6px rgba(0, 0, 0, 0.45) !important;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-support {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(22, 163, 74, 0.12);
+  color: #86efac;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-support:hover {
+  background: rgba(22, 163, 74, 0.2);
+}
+
+/* Topbar: módulos com fundo claro (Resumo, Pátio, Orçamentos) */
+html.dark[data-desktop-shell='true'] .desktop-shell-topbar[data-accent-tone='dark'] {
+  color: #18181b;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-topbar[data-accent-tone='dark'] .desktop-shell-topbar-title,
+html.dark[data-desktop-shell='true'] .desktop-shell-topbar[data-accent-tone='dark'] .desktop-shell-topbar-actions > span,
+html.dark[data-desktop-shell='true'] .desktop-shell-topbar[data-accent-tone='dark'] .desktop-shell-topbar-btn {
+  color: #18181b;
+}

@@ -41,7 +41,7 @@ export function AuthenticatedAppFrame({
   if (isDesktopShell) {
     return (
       <div
-        className="h-full min-h-0 flex flex-col overflow-hidden font-sans text-zinc-900 transition-colors duration-300"
+        className="h-full min-h-0 flex flex-col overflow-hidden font-sans text-zinc-900 dark:text-zinc-100 transition-colors duration-300"
         data-effects={effectsEnabled ? 'on' : 'off'}
       >
         <DesktopShellProvider>
