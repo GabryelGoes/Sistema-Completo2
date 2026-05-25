@@ -13,6 +13,7 @@ import {
   X,
   ChevronDown,
 } from 'lucide-react';
+import { PartPhotoImg } from './ui/PartPhotoImg';
 import type { WorkshopPart, WorkshopPartFiscalExtra } from '../services/apiService';
 import { WORKSHOP_PART_PHOTOS_MAX } from '../services/apiService';
 
@@ -300,19 +301,17 @@ export function WorkshopPartRegistrationForm({
                 {slot ? (
                   <>
                     <div
-                      className={`relative h-full w-full overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-100 dark:border-white/10 dark:bg-white/[0.03] ${index === 0 ? 'ring-2 ring-emerald-500/45' : ''} ${lightCardShadow}`}
+                      className={`relative isolate h-full w-full overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-100 dark:border-white/10 dark:bg-white/[0.03] ${index === 0 ? 'ring-2 ring-emerald-500/45' : ''} ${lightCardShadow}`}
                     >
                       {index === 0 ? (
                         <span className="absolute left-1 top-1 z-10 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
                           Capa
                         </span>
                       ) : null}
-                      <img
+                      <PartPhotoImg
                         src={slot.remoteUrl ?? slot.previewUrl}
                         alt=""
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                        decoding="async"
+                        className="h-full w-full object-cover [transform:translateZ(0)]"
                       />
                       {photoBusy ? (
                         <span className="absolute inset-0 flex items-center justify-center bg-black/40">

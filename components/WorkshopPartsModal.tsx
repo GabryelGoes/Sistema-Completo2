@@ -20,6 +20,8 @@ import {
   workshopPartToPhotoSlots,
 } from '../utils/workshopPartPhotoSlots';
 import { ModalPortal } from './ui/ModalPortal';
+import { PartPhotoImg } from './ui/PartPhotoImg';
+import { RegistrationPortal } from './ui/RegistrationPortal';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { IosModalHeader } from './ui/IosModalHeader';
@@ -736,6 +738,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
   const isDesktopShell = useDesktopShellLayout();
 
+  /** Lista sem backdrop-blur: blur quebra carregamento de imagens no Safari (mobile/tablet). */
+  const workshopPartsListCard =
+    'overflow-visible rounded-[22px] border border-zinc-200/80 dark:border-white/[0.07] bg-white dark:bg-zinc-900 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+
   if (!isOpen) return null;
 
   return (
@@ -806,7 +812,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             </div>
           )}
 
-          <div className={`overflow-visible ${iosModalInsetCard}`}>
+          <div className={workshopPartsListCard}>
             {!loading && parts.length > 0 && (
               <div className="border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/40 dark:bg-white/[0.02] px-3 py-3 sm:px-4 space-y-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3">
@@ -1046,14 +1052,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           className="w-full min-w-0 flex flex-[1_1_100%] items-center gap-3 text-left rounded-xl -my-1 -ml-2 pl-2 pr-2 py-1.5 hover:bg-zinc-200/70 dark:hover:bg-white/[0.07] transition-colors cursor-pointer md:col-span-1 md:flex-[unset] md:w-auto"
                           title="Abrir produto — foto e ajustes"
                         >
-                          <div className="w-10 h-10 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 overflow-hidden shrink-0 pointer-events-none">
+                          <div className="isolate w-10 h-10 shrink-0 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 pointer-events-none dark:border-white/10 dark:bg-white/5">
                             {p.photo_url ? (
-                              <img
+                              <PartPhotoImg
                                 src={p.photo_url}
                                 alt=""
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                                decoding="async"
+                                className="h-full w-full object-cover [transform:translateZ(0)]"
                               />
                             ) : null}
                           </div>
@@ -1100,20 +1104,40 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     </div>
 
     {registrationMode ? (
+      <RegistrationPortal>
       <div
         className={
           isDesktopShell
             ? 'fixed inset-0 z-[115] flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden bg-white dark:bg-zinc-950'
-            : 'fixed inset-0 z-[115] flex items-center justify-center bg-black/50 p-2 backdrop-blur-[12px] sm:p-4'
+            : 'fixed inset-0 z-[115] flex items-center justify-center bg-black/50 p-2 sm:p-4'
         }
         onClick={isDesktopShell ? undefined : closeRegistration}
         role="presentation"
       >
+        <input
+          ref={createPhotoInputRef}
+          type="file"
+          accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
+          className="sr-only fixed left-0 top-0 h-px w-px opacity-0"
+          tabIndex={-1}
+          aria-hidden
+          onChange={handleNewPartImageSelected}
+        />
+        <input
+          ref={createCameraInputRef}
+          type="file"
+          accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
+          capture="environment"
+          className="sr-only fixed left-0 top-0 h-px w-px opacity-0"
+          tabIndex={-1}
+          aria-hidden
+          onChange={handleNewPartImageSelected}
+        />
         <div
           className={
             isDesktopShell
               ? 'relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950'
-              : `${iosModalShell} flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col !bg-white !backdrop-blur-none border-zinc-200/90 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.12)] dark:!bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]`
+              : 'relative flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_8px_40px_-12px_rgba(0,0,0,0.12)] dark:border-white/[0.08] dark:bg-zinc-950 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] sm:rounded-[2.25rem]'
           }
           onClick={(e) => e.stopPropagation()}
           role="dialog"
@@ -1169,24 +1193,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 onCancel={closeRegistration}
               />
             )}
-            <input
-              ref={createPhotoInputRef}
-              type="file"
-              accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
-              className="hidden"
-              onChange={handleNewPartImageSelected}
-            />
-            <input
-              ref={createCameraInputRef}
-              type="file"
-              accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
-              capture="environment"
-              className="hidden"
-              onChange={handleNewPartImageSelected}
-            />
           </div>
         </div>
       </div>
+      </RegistrationPortal>
     ) : null}
 
     {isCategoriesModalOpen && (
