@@ -111,6 +111,10 @@ import { parseReferenceLinksFromApi } from '../../utils/vehicleReferenceLinks';
 import { capitalizeFirst, firstTwoNames } from '../../utils/personNameFormat';
 import { getPatioBoardModelTitleClass } from '../../utils/patioBoardModelTitle';
 import {
+  getPatioHistoryModalLayout,
+  getPatioVehicleModalLayout,
+} from '../../utils/patioVehicleModalLayout';
+import {
   patioBoardGlassCardShadow,
   vehicleCardTitleShadow,
   BOARD_PANORAMIC_ZOOM,
@@ -210,43 +214,6 @@ const budgetModalPaperFooter =
 /** Nome do cliente no cabeçalho do modal de veículo — caixa com fundo cinza. */
 const vehicleModalCustomerNameBox =
   'rounded-[14px] border border-zinc-300/80 bg-zinc-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:border-zinc-600/50 dark:bg-zinc-800/85 dark:shadow-none';
-
-/** Cards Cliente / Km / Técnico / Data — mantém a mesma proporção no portrait e landscape. */
-const vehicleModalCompactCardGrid =
-  'gap-2 sm:gap-2.5';
-const vehicleModalCompactCardRow =
-  'relative flex items-center gap-2 px-2.5 py-2 sm:gap-2.5 sm:px-3 sm:py-2.5';
-const vehicleModalCompactCardSplitRow =
-  'relative flex flex-col gap-[clamp(0.35rem,1.8vw,0.7rem)] px-2.5 py-2 sm:flex-row sm:items-center sm:gap-[clamp(0.5rem,1.2vw,1rem)] sm:px-3 sm:py-2.5';
-const vehicleModalCompactCardIconSquircle =
-  'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]';
-const vehicleModalCompactCardIconGlyph =
-  'h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]';
-const vehicleModalCompactCardTitleText =
-  'bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]';
-const vehicleModalCompactCardBodyText =
-  'mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white portrait:text-[9.4px]';
-const vehicleModalCompactCardAssignHint =
-  'mt-0.5 text-[12px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff]';
-const vehicleModalCompactCardChevron =
-  'relative z-[1] h-3.5 w-3.5 shrink-0';
-const vehicleModalCompactCardNumericInput =
-  'min-w-0 flex-1 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500 sm:max-w-[180px] sm:flex-none';
-const vehicleModalCompactCardDateInput =
-  'min-w-0 flex-1 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white sm:max-w-[180px] sm:flex-none';
-const vehicleModalCompactCardSaveBtn =
-  'inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-md transition-all disabled:opacity-50';
-const vehicleModalCompactCardSaveIcon = 'h-3.5 w-3.5';
-const vehicleModalCompactCardSalvo =
-  'text-[11px] font-semibold text-green-600 dark:text-green-400';
-const vehicleModalCompactCardMechanicWrap =
-  'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow-md portrait:scale-[0.78] portrait:origin-center';
-const vehicleModalCompactCardMechanicWrench =
-  'h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:scale-[0.78]';
-const vehicleModalCompactCardEmptyTech =
-  'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12';
-const vehicleModalCompactCardFieldRow =
-  'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:ml-auto sm:justify-end';
 
 /** Sombra nos glifos do nome do veículo (só tema escuro — no claro fica sem text-shadow). */
 const vehicleModalTitleShadow =
@@ -1125,6 +1092,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const boardPanoramicStorageKey = isModuleMode ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
   const [boardPanoramic, setBoardPanoramic] = useState(false);
   const { isDesktop, isTablet, isSmartphone } = useDeviceTypeContext();
+  const patioVehicleVm = useMemo(() => getPatioVehicleModalLayout(isDesktop), [isDesktop]);
+  const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isDesktop), [isDesktop]);
   /** Retrato: encolhe o quadro inteiro (como o zoom do modo “5 colunas”) sem depender do toggle panorâmico. */
   const [isPortraitOrientation, setIsPortraitOrientation] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(orientation: portrait)').matches : false
@@ -4070,14 +4039,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* --- MODAL DE HISTÓRICO (BUSCA) — portal em body para ficar acima da TabBar --- */}
       {isHistoryOpen && (
         <ModalPortal>
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-[12px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
+          <div className={patioHistoryVm.overlay}>
             <div
-              className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden ${archivedHistoryModalShell} animate-modal-wp-app`}
+              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} animate-modal-wp-app`}
             >
               <button
                 type="button"
                 onClick={() => setIsHistoryOpen(false)}
-                className={iosModalClose}
+                className={patioHistoryVm.closeBtn}
                 aria-label="Fechar"
               >
                 <X className="h-5 w-5" />
@@ -4172,11 +4141,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* --- DETALHES DO CARD ARQUIVADO — portal em body para ficar acima da TabBar --- */}
       {selectedHistoryCard && (
          <ModalPortal>
-         <div className="fixed inset-0 z-[100] flex items-center justify-center overscroll-none touch-pan-y bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
+         <div className={patioHistoryVm.overlay}>
             <div
-              className={`relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden ${archivedHistoryModalShell} animate-in zoom-in-95 duration-200`}
+              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${isDesktop ? 'animate-modal-wp-app' : 'animate-in zoom-in-95 duration-200'}`}
             >
-               <div className="shrink-0 border-b border-zinc-200/60 px-4 py-3 dark:border-white/[0.07] sm:px-6">
+               <div className={`shrink-0 border-b border-zinc-200/60 dark:border-white/[0.07] ${isDesktop ? 'px-10 py-4 xl:px-14' : 'px-4 py-3 sm:px-6'}`}>
                   <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
                     type="button"
@@ -4201,7 +4170,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       setHistoryServiceOrderDetail(null);
                       setHistorySavedBudgets([]);
                     }}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15"
+                    className={patioVehicleVm.closeBtn}
                     aria-label="Fechar"
                   >
                     <X className="h-5 w-5" />
@@ -4210,13 +4179,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                </div>
 
                <div className="min-h-0 flex-1 overflow-y-auto overscroll-none custom-scrollbar">
-                  <div className="px-6 py-6 pb-4 md:px-10 md:py-8">
+                  <div className={isDesktop ? 'px-10 py-8 pb-4 xl:px-14 xl:py-10 max-w-[1680px] mx-auto w-full' : 'px-6 py-6 pb-4 md:px-10 md:py-8'}>
                      <div className="mb-6 flex flex-col gap-3">
                         <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-zinc-200/80 bg-zinc-100/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-300">
                           Arquivado
                         </span>
                         <h1
-                          className={`text-[1.74375rem] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-[2.79rem] portrait:text-[2.19375rem] portrait:md:text-[3.51rem] ${vehicleModalTitleShadow}`}
+                          className={`${isDesktop ? patioVehicleVm.title : 'text-[1.74375rem] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-[2.79rem] portrait:text-[2.19375rem] portrait:md:text-[3.51rem]'} ${vehicleModalTitleShadow}`}
                         >
                           {historyCardTitleParts?.vehicle}
                         </h1>
@@ -4569,19 +4538,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 serviceOrderDetail?.issue_description ?? null
               ) ?? selectedCard.vehicleCategory ?? null
             : null;
-        const vi = iosVehicleModalInsetCard;
-        const vin = iosVehicleModalInput;
+        const vi = patioVehicleVm.insetCard;
+        const vin = patioVehicleVm.input;
+        const c = patioVehicleVm.compact;
         return (
         <ModalPortal>
-        <div className="fixed inset-0 z-[100] flex items-center justify-center overscroll-none touch-pan-y bg-black/35 dark:bg-black/45 backdrop-blur-[20px] animate-in fade-in duration-200 p-1.5 pt-[max(0.45rem,env(safe-area-inset-top))] pb-[max(0.45rem,env(safe-area-inset-bottom))] sm:p-3">
-           <div className={`relative flex h-[min(97vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-0.35rem))] w-full max-w-[99vw] xl:max-w-[98vw] 2xl:max-w-[97vw] min-h-0 flex-col ${iosVehicleModalShell} animate-modal-wp-app ${modalRingClass}`}>
+        <div className={patioVehicleVm.overlay}>
+           <div className={`${patioVehicleVm.shell} animate-modal-wp-app ${modalRingClass}`}>
               
-              <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+              <div className={`absolute z-20 flex items-center gap-2 ${isDesktop ? 'top-5 right-5' : 'top-4 right-4'}`}>
                 {can('canDeleteCards') && (
                 <button
                   type="button"
                   onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setDeleteVehiclePasswordReadonly(true); setIsDeleteVehicleOpen(true); }}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-red-500/15 hover:text-red-600 dark:bg-white/10 dark:hover:bg-red-500/20"
+                  className={`${patioVehicleVm.closeBtn} hover:bg-red-500/15 hover:text-red-600 dark:hover:bg-red-500/20`}
                   title={isModuleMode ? 'Excluir produto do laboratório' : 'Excluir veículo do sistema'}
                 >
                   <Trash2 className="h-5 w-5" />
@@ -4590,7 +4560,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedCard(null)}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15"
+                  className={patioVehicleVm.closeBtn}
                   aria-label="Fechar"
                 >
                   <X className="h-5 w-5" />
@@ -4598,7 +4568,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
 
               {can('canDeleteCards') && isDeleteVehicleOpen && (
-                <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[1.5rem] bg-black/50 p-4 backdrop-blur-sm sm:rounded-[1.625rem]">
+                <div className={`absolute inset-0 z-30 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm ${isDesktop ? 'rounded-none' : 'rounded-[1.5rem] sm:rounded-[1.625rem]'}`}>
                   <div className={`${vi} w-full max-w-sm p-6 shadow-xl`}>
                     <h3 className="mb-2 flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
                       <Trash2 className="h-5 w-5 text-red-500" />
@@ -4659,8 +4629,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
 
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-none custom-scrollbar">
-                  <div className="border-b border-zinc-200/50 p-8 pb-8 dark:border-white/[0.06] md:px-12 md:pb-10">
-                     <div className="mb-6 flex flex-col gap-3">
+                  <div className={patioVehicleVm.headerPad}>
+                     <div className={patioVehicleVm.headerInner}>
                         <div className="flex flex-wrap items-center gap-2">
                           {(serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null && (
                             <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-600/60">
@@ -4697,19 +4667,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </div>
                         {!isModuleMode &&
                         (serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand)?.trim() ? (
-                          <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
+                          <p className={patioVehicleVm.brandSubtitle}>
                             {(serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand || '').trim()}
                           </p>
                         ) : null}
                         <div className="mt-0.5 flex min-w-0 items-end gap-3">
                           <h1
-                            className={`font-vehicle min-w-0 flex-1 truncate text-[2.79rem] md:text-[4.185rem] portrait:text-[2.74rem] portrait:md:text-[4.11rem] font-bold text-zinc-900 dark:text-white tracking-tight uppercase leading-none ${vehicleModalTitleShadow}`}
+                            className={`${patioVehicleVm.title} ${vehicleModalTitleShadow}`}
                             title={selectedCardTitleParts?.vehicle}
                           >
                             {selectedCardTitleParts?.vehicle}
                           </h1>
                           {!isModuleMode && (
-                            <div className="inline-flex shrink-0 origin-right scale-[1.2] portrait:scale-[0.936] items-center justify-center">
+                            <div
+                              className={
+                                isDesktop
+                                  ? 'inline-flex shrink-0 origin-right scale-[1.12] items-center justify-center'
+                                  : 'inline-flex shrink-0 origin-right scale-[1.2] portrait:scale-[0.936] items-center justify-center'
+                              }
+                            >
                               <MercosulPlateMockup
                                 plate={selectedCardTitleParts?.plateOrModule || '---'}
                                 blurPlates={blurPlates}
@@ -4730,7 +4706,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <button
                             type="button"
                             onClick={() => onOpenVehicleAccompaniment(selectedCard.id)}
-                            className={`${vi} group mt-1 flex w-full items-center justify-between gap-3 p-4 text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 hover:border-[#007AFF]/35 active:scale-[0.99] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}
+                            className={`${vi} patio-vm-card group mt-1 flex w-full cursor-pointer items-center justify-between gap-3 p-4 text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 hover:border-[#007AFF]/35 ${isDesktop ? '' : 'active:scale-[0.99]'} dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}
                           >
                             <div className="flex min-w-0 flex-1 items-center gap-3">
                               <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
@@ -4753,13 +4729,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </button>
                         ) : null}
                         {/* Cliente + Km — mesmo grid e cartões que Técnico / Data de entrega */}
-                        <div className={`mt-3 grid grid-cols-1 sm:grid-cols-2 ${vehicleModalCompactCardGrid}`}>
+                        <div className={`mt-3 grid grid-cols-1 sm:grid-cols-2 ${c.grid}`}>
                           <button
                             type="button"
                             onClick={handleJumpToCustomerNameEdit}
                             disabled={!can('canEditFicha')}
                             title={can('canEditFicha') ? 'Editar nome do cliente em Dados da ficha' : 'Dados do cliente'}
-                            className={`${vi} group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 active:scale-[0.99] hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${!isModuleMode && can('canEditMileage') ? '' : 'sm:col-span-2'}`}
+                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isDesktop ? 'cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${!isModuleMode && can('canEditMileage') ? '' : 'sm:col-span-2'}`}
                           >
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -4769,16 +4745,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
                               aria-hidden
                             />
-                            <div className={vehicleModalCompactCardRow}>
-                              <div className={vehicleModalCompactCardIconSquircle}>
-                                <User className={vehicleModalCompactCardIconGlyph} strokeWidth={2.25} aria-hidden />
+                            <div className={c.row}>
+                              <div className={c.iconSquircle}>
+                                <User className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className={vehicleModalCompactCardTitleText}>Cliente</p>
-                                <p className={vehicleModalCompactCardBodyText}>{selectedCardTitleParts?.customer || '—'}</p>
+                                <p className={c.titleText}>Cliente</p>
+                                <p className={c.bodyText}>{selectedCardTitleParts?.customer || '—'}</p>
                               </div>
                               {can('canEditFicha') && (
-                                <ChevronRight strokeWidth={2.25} className={`${vehicleModalCompactCardChevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
+                                <ChevronRight strokeWidth={2.25} className={`${c.chevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
                               )}
                             </div>
                           </button>
@@ -4792,39 +4768,39 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
                                 aria-hidden
                               />
-                              <div className={vehicleModalCompactCardSplitRow}>
+                              <div className={c.splitRow}>
                                 <div className="flex shrink-0 items-center gap-2">
-                                  <div className={vehicleModalCompactCardIconSquircle}>
-                                    <Gauge className={vehicleModalCompactCardIconGlyph} strokeWidth={2.25} aria-hidden />
+                                  <div className={c.iconSquircle}>
+                                    <Gauge className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
                                   </div>
                                   <div className="min-w-0 sm:pb-0">
-                                    <p className={vehicleModalCompactCardTitleText}>Km</p>
+                                    <p className={c.titleText}>Km</p>
                                   </div>
                                 </div>
-                                <div className={`${vehicleModalCompactCardFieldRow} flex-nowrap`}>
+                                <div className={`${c.fieldRow} flex-nowrap`}>
                                   <input
                                     type="text"
                                     inputMode="numeric"
                                     value={mileageEditValue}
                                     onChange={(e) => setMileageEditValue(e.target.value)}
                                     placeholder="Ex: 45000"
-                                    className={`${vehicleModalCompactCardNumericInput} sm:max-w-none portrait:w-[51%] portrait:flex-none`}
+                                    className={`${c.numericInput} sm:max-w-none${isDesktop ? '' : ' portrait:w-[51%] portrait:flex-none'}`}
                                   />
                                   <button
                                     type="button"
                                     onClick={handleSaveMileage}
                                     disabled={savingMileage || mileageEditValue.trim() === lastSavedMileage}
-                                    className={`${vehicleModalCompactCardSaveBtn} ${
+                                    className={`${c.saveBtn} ${
                                       mileageEditValue.trim() !== lastSavedMileage
                                         ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
                                         : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
                                     }`}
                                   >
-                                    {savingMileage ? <RefreshCw className={`${vehicleModalCompactCardSaveIcon} animate-spin`} /> : <Save className={vehicleModalCompactCardSaveIcon} />}
+                                    {savingMileage ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
                                     Salvar
                                   </button>
                                   {mileageSavedMessage && (
-                                    <span className={`${vehicleModalCompactCardSalvo} animate-in fade-in`}>Salvo!</span>
+                                    <span className={`${c.salvo} animate-in fade-in`}>Salvo!</span>
                                   )}
                                 </div>
                               </div>
@@ -5348,12 +5324,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </div>
                   )}
                         {/* Técnico + Data de entrega — compactos (mesmo idioma visual, menos altura) */}
-                        <div className={`mt-2 grid grid-cols-1 sm:grid-cols-2 ${vehicleModalCompactCardGrid}`}>
+                        <div className={`mt-2 grid grid-cols-1 sm:grid-cols-2 ${c.grid}`}>
                           {can('canAssignTechnician') && (
                           <button
                             type="button"
                             onClick={() => setCardForMemberAssignment(selectedCard)}
-                            className={`${vi} group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 active:scale-[0.99] hover:border-[#007AFF]/28 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]`}
+                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isDesktop ? 'cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]`}
                           >
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -5363,30 +5339,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
                               aria-hidden
                             />
-                            <div className={vehicleModalCompactCardRow}>
+                            <div className={c.row}>
                               {selectedCard.members && selectedCard.members.length > 0 ? (
                                 <>
-                                  <div className={`${vehicleModalCompactCardMechanicWrap} ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
-                                    <Wrench className={vehicleModalCompactCardMechanicWrench} strokeWidth={2.35} aria-hidden />
+                                  <div className={`${c.mechanicWrap} ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
+                                    <Wrench className={c.mechanicWrench} strokeWidth={2.35} aria-hidden />
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className={vehicleModalCompactCardTitleText}>Técnico responsável</p>
-                                    <p className={vehicleModalCompactCardBodyText}>
+                                    <p className={c.titleText}>Técnico responsável</p>
+                                    <p className={c.bodyText}>
                                       {capitalizeFirst(selectedCard.members[0].fullName)}
                                     </p>
                                   </div>
-                                  <ChevronRight strokeWidth={2.25} className={`${vehicleModalCompactCardChevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
+                                  <ChevronRight strokeWidth={2.25} className={`${c.chevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
                                 </>
                               ) : (
                                 <>
-                                  <div className={vehicleModalCompactCardEmptyTech}>
-                                    <Wrench className={vehicleModalCompactCardIconGlyph} strokeWidth={2.35} aria-hidden />
+                                  <div className={c.emptyTech}>
+                                    <Wrench className={c.iconGlyph} strokeWidth={2.35} aria-hidden />
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className={vehicleModalCompactCardTitleText}>Técnico responsável</p>
-                                    <p className={vehicleModalCompactCardAssignHint}>Toque para atribuir</p>
+                                    <p className={c.titleText}>Técnico responsável</p>
+                                    <p className={c.assignHint}>{patioVehicleVm.assignHintLabel}</p>
                                   </div>
-                                  <ChevronRight strokeWidth={2.25} className={`${vehicleModalCompactCardChevron} text-zinc-400 transition-colors group-hover:text-[#007AFF]/70 dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
+                                  <ChevronRight strokeWidth={2.25} className={`${c.chevron} text-zinc-400 transition-colors group-hover:text-[#007AFF]/70 dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
                                 </>
                               )}
                             </div>
@@ -5402,37 +5378,37 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
                               aria-hidden
                             />
-                            <div className={vehicleModalCompactCardSplitRow}>
+                            <div className={c.splitRow}>
                               <div className="flex min-w-0 flex-1 items-center gap-2">
-                                <div className={vehicleModalCompactCardIconSquircle}>
-                                  <Calendar className={vehicleModalCompactCardIconGlyph} strokeWidth={2.25} aria-hidden />
+                                <div className={c.iconSquircle}>
+                                  <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
                                 </div>
                                 <div className="min-w-0 flex-1 sm:pb-0">
-                                  <p className={vehicleModalCompactCardTitleText}>Data de entrega</p>
+                                  <p className={c.titleText}>Data de entrega</p>
                                 </div>
                               </div>
-                              <div className={vehicleModalCompactCardFieldRow}>
+                              <div className={c.fieldRow}>
                                 <input
                                   type="date"
                                   value={deliveryDateEditValue}
                                   onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                  className={vehicleModalCompactCardDateInput}
+                                  className={c.dateInput}
                                 />
                                 <button
                                   type="button"
                                   onClick={handleSaveDeliveryDate}
                                   disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
-                                  className={`${vehicleModalCompactCardSaveBtn} ${
+                                  className={`${c.saveBtn} ${
                                     deliveryDateEditValue !== lastSavedDeliveryDate
                                       ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
                                       : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
                                   }`}
                                 >
-                                  {savingDeliveryDate ? <RefreshCw className={`${vehicleModalCompactCardSaveIcon} animate-spin`} /> : <Save className={vehicleModalCompactCardSaveIcon} />}
+                                  {savingDeliveryDate ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
                                   Salvar
                                 </button>
                                 {deliveryDateSavedMessage && (
-                                  <span className={vehicleModalCompactCardSalvo}>Salvo!</span>
+                                  <span className={c.salvo}>Salvo!</span>
                                 )}
                               </div>
                             </div>
@@ -5442,7 +5418,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-6 p-8 pt-3 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:gap-7 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(232px,288px)]">
+                  <div className={patioVehicleVm.mainGrid}>
                       
                       <div className="min-w-0 space-y-6">
                         <div ref={descriptionSectionRef}>
@@ -5462,7 +5438,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
                                   <FileText className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                 </div>
-                                <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[17px]">
+                                <p className={`bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 ${isDesktop ? 'text-[17px] xl:text-[18px]' : 'text-[16px] sm:text-[17px]'}`}>
                                   Queixa do cliente
                                 </p>
                               </div>
@@ -5599,7 +5575,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                       <div className="flex items-center justify-between gap-2 border-t border-zinc-200/80 pt-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:border-white/[0.08] dark:text-zinc-400">
                                         <span>{dateStr}</span>
-                                        <span className="text-[#007AFF] dark:text-[#93c5fd]">Toque para abrir</span>
+                                        <span className="text-[#007AFF] dark:text-[#93c5fd]">{patioVehicleVm.openHintLabel}</span>
                                       </div>
                                     </button>
                                     </div>
