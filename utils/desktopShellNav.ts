@@ -5,23 +5,21 @@ export type DesktopNavItem = {
   label: string;
   shortLabel?: string;
   iconSrc?: string;
-  /** Item só na barra superior (atalho rápido). */
-  topBar?: boolean;
-  /** Item só na sidebar. */
+  /** Ocultar da sidebar (ex.: módulo só via Home). Padrão: visível. */
   sidebar?: boolean;
 };
 
-/** Navegação do modo PC (estilo OnMotor). */
+/** Navegação do modo PC (estilo OnMotor) — todos os módulos principais na sidebar. */
 export const DESKTOP_NAV_ITEMS: DesktopNavItem[] = [
-  { id: 'home', label: 'Resumo', shortLabel: 'Resumo', sidebar: true },
-  { id: 'reception', label: 'Recepção', shortLabel: 'Recepção', iconSrc: '/icons/recepcao-ios.png', topBar: true, sidebar: false },
-  { id: 'agenda', label: 'Agenda', shortLabel: 'Agenda', iconSrc: '/icons/agenda-ios.png', topBar: true, sidebar: true },
-  { id: 'patio', label: 'Pátio', shortLabel: 'Pátio', iconSrc: '/icons/patio-ios.png', topBar: true, sidebar: true },
-  { id: 'laboratorio', label: 'Laboratório', shortLabel: 'Lab.', iconSrc: '/icons/laboratorio-ios.png', topBar: true, sidebar: true },
-  { id: 'orcamentos', label: 'Orçamentos', shortLabel: 'Orçamentos', iconSrc: '/icons/orcamentos-ios.png', topBar: true, sidebar: true },
-  { id: 'relatorios', label: 'Relatórios', shortLabel: 'Relatórios', iconSrc: '/icons/relatorios-ios.svg', sidebar: true },
-  { id: 'boletim_erros', label: 'Boletim de erros', shortLabel: 'Boletim', iconSrc: '/icons/boletim-erros-ios.png', sidebar: true },
-  { id: 'radar_qualidade', label: 'Radar de qualidade', shortLabel: 'Radar', iconSrc: '/icons/radar-qualidade-ios.png', sidebar: true },
+  { id: 'home', label: 'Resumo', shortLabel: 'Resumo' },
+  { id: 'reception', label: 'Recepção', shortLabel: 'Recepção', iconSrc: '/icons/recepcao-ios.png' },
+  { id: 'agenda', label: 'Agenda', shortLabel: 'Agenda', iconSrc: '/icons/agenda-ios.png' },
+  { id: 'patio', label: 'Pátio', shortLabel: 'Pátio', iconSrc: '/icons/patio-ios.png' },
+  { id: 'laboratorio', label: 'Laboratório', shortLabel: 'Lab.', iconSrc: '/icons/laboratorio-ios.png' },
+  { id: 'orcamentos', label: 'Orçamentos', shortLabel: 'Orçamentos', iconSrc: '/icons/orcamentos-ios.png' },
+  { id: 'relatorios', label: 'Relatórios', shortLabel: 'Relatórios', iconSrc: '/icons/relatorios-ios.svg' },
+  { id: 'boletim_erros', label: 'Boletim de erros', shortLabel: 'Boletim', iconSrc: '/icons/boletim-erros-ios.png' },
+  { id: 'radar_qualidade', label: 'Radar de qualidade', shortLabel: 'Radar', iconSrc: '/icons/radar-qualidade-ios.png' },
 ];
 
 export function filterDesktopNav(items: DesktopNavItem[], allowedTabs: TabId[] | undefined): DesktopNavItem[] {

@@ -300,6 +300,13 @@ html[data-desktop-shell='true'] .desktop-shell-content .desktop-onmotor-card {
   margin-bottom: 0;
 }
 
+/* Resumo (Home): cartões sem faixa azul no topo */
+html[data-desktop-shell='true'] .desktop-home-hub-card {
+  border-top-width: 1px;
+  border-top-color: rgb(228 228 231 / 0.9);
+  border-radius: 1rem;
+}
+
 /* Painéis das abas: rolagem só na área de conteúdo do shell */
 html[data-desktop-shell='true'] .desktop-shell-content [class*='overflow-y-auto'].flex-1 {
   overflow: visible !important;

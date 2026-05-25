@@ -26,7 +26,7 @@ import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../ser
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
-import { desktopOnmotorCard } from '../ui/desktopCardStyles';
+import { desktopHomeHubCard } from '../ui/desktopCardStyles';
 
 export type HomeAppId =
   | 'reception'
@@ -210,7 +210,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenVehicleAccompaniment,
   desktopShell = false,
 }) => {
-  const hubCardClass = desktopShell ? desktopOnmotorCard : iosCard;
+  const hubCardClass = desktopShell ? desktopHomeHubCard : iosCard;
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
   const [isChangePasswordsOpen, setIsChangePasswordsOpen] = useState(false);
   const [isTechnicianProfileOpen, setIsTechnicianProfileOpen] = useState(false);
