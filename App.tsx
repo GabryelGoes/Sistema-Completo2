@@ -81,6 +81,9 @@ export default function App() {
     setCommentPopUpNotification(n);
   };
 
+  // Theme State
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
   const notificationCenterProps = useMemo((): Omit<NotificationCenterProps, 'placement'> | undefined => {
     if (!authSession) return undefined;
     return {
@@ -90,9 +93,6 @@ export default function App() {
       technicianSlug: authSession.role === 'user' ? authSession.userId : undefined,
     };
   }, [authSession, theme]);
-
-  // Theme State
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   // Efeitos do app (animações, 3D nos cards, etc.) — chave liga/desliga
   const [effectsEnabled, setEffectsEnabled] = useState(true);
