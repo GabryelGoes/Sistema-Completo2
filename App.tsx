@@ -72,6 +72,7 @@ export default function App() {
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const homeSettingsHubOpenerRef = useRef<(() => void) | null>(null);
+  const homeSettingsHubCloserRef = useRef<(() => void) | null>(null);
 
   const openVehicleAccompaniment = useCallback((serviceOrderId?: string | null) => {
     setVehicleAccompanimentPresetId(serviceOrderId ?? null);
@@ -82,6 +83,14 @@ export default function App() {
     setVehicleAccompanimentOpen(false);
     setVehicleAccompanimentPresetId(null);
   }, []);
+
+  /** Fecha modais/hubs abertos pelos atalhos da sidebar (modo PC). */
+  const dismissDesktopShellOverlays = useCallback(() => {
+    closeVehicleAccompaniment();
+    setIsPartsModalOpen(false);
+    setIsSettingsOpen(false);
+    homeSettingsHubCloserRef.current?.();
+  }, [closeVehicleAccompaniment]);
 
   const desktopSidebarAccess = useMemo(
     () =>
@@ -95,19 +104,30 @@ export default function App() {
   const handleDesktopSidebarAction = useCallback(
     (action: DesktopSidebarActionId) => {
       if (action === 'centro_atendimento') {
+        dismissDesktopShellOverlays();
         openVehicleAccompaniment(null);
         return;
       }
       if (action === 'estoque_pecas') {
+        dismissDesktopShellOverlays();
         setIsPartsModalOpen(true);
         return;
       }
       if (action === 'configuracoes') {
+        dismissDesktopShellOverlays();
         homeSettingsHubOpenerRef.current?.();
         if (!homeSettingsHubOpenerRef.current) setIsSettingsOpen(true);
       }
     },
-    [openVehicleAccompaniment]
+    [dismissDesktopShellOverlays, openVehicleAccompaniment]
+  );
+
+  const handleDesktopTabChange = useCallback(
+    (tab: TabId, setTab: React.Dispatch<React.SetStateAction<TabId>>) => {
+      dismissDesktopShellOverlays();
+      setTab(tab);
+    },
+    [dismissDesktopShellOverlays]
   );
 
   const handleNewCommentNotification = (n: Notification) => {
@@ -556,7 +576,7 @@ export default function App() {
       <AuthenticatedAppFrame
         isDesktopShell={isDesktopShell}
         currentTab={userTab}
-        onTabChange={setUserTab}
+        onTabChange={(tab) => handleDesktopTabChange(tab, setUserTab)}
         onBackFromOverlay={handleOverlayCloseOrBack}
         allowedTabs={userAllowedTabs}
         desktopSidebarAccess={desktopSidebarAccess}
@@ -579,6 +599,7 @@ export default function App() {
             <HomeView
               desktopShell={isDesktopShell}
               settingsHubOpenerRef={homeSettingsHubOpenerRef}
+              settingsHubCloserRef={homeSettingsHubCloserRef}
               onOpenPartsStock={() => setIsPartsModalOpen(true)}
               isTechnician={authSession.isTechnician ?? false}
               technicianName={authSession.displayName ?? 'Usuário'}
@@ -825,7 +846,7 @@ export default function App() {
     <AuthenticatedAppFrame
       isDesktopShell={isDesktopShell}
       currentTab={currentTab}
-      onTabChange={setCurrentTab}
+      onTabChange={(tab) => handleDesktopTabChange(tab, setCurrentTab)}
       onBackFromOverlay={handleOverlayCloseOrBack}
       allowedTabs={adminAllowedTabs}
       desktopSidebarAccess={desktopSidebarAccess}
@@ -854,6 +875,7 @@ export default function App() {
           <HomeView
             desktopShell={isDesktopShell}
             settingsHubOpenerRef={homeSettingsHubOpenerRef}
+            settingsHubCloserRef={homeSettingsHubCloserRef}
             onOpenPartsStock={() => setIsPartsModalOpen(true)}
             onOpenApp={handleHomeOpenApp}
             onLogout={handleLogout}

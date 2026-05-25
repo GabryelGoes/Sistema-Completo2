@@ -78,6 +78,8 @@ interface HomeViewProps {
   desktopShell?: boolean;
   /** Registra abertura do hub de configurações (sidebar PC). */
   settingsHubOpenerRef?: React.MutableRefObject<(() => void) | null>;
+  /** Fecha o hub de configurações (ex.: ao trocar de módulo na sidebar PC). */
+  settingsHubCloserRef?: React.MutableRefObject<(() => void) | null>;
   /** Abre estoque de peças (modal global no App quando definido). */
   onOpenPartsStock?: () => void;
 }
@@ -215,6 +217,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenVehicleAccompaniment,
   desktopShell = false,
   settingsHubOpenerRef,
+  settingsHubCloserRef,
   onOpenPartsStock,
 }) => {
   const hubCardClass = desktopShell ? desktopHomeHubCard : iosCard;
@@ -236,6 +239,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
       settingsHubOpenerRef.current = null;
     };
   }, [settingsHubOpenerRef]);
+
+  useEffect(() => {
+    if (!settingsHubCloserRef) return;
+    settingsHubCloserRef.current = () => setIsHomeSettingsHubOpen(false);
+    return () => {
+      settingsHubCloserRef.current = null;
+    };
+  }, [settingsHubCloserRef]);
   const [isHeaderProfileMenuOpen, setIsHeaderProfileMenuOpen] = useState(false);
   const headerProfileTriggerRef = useRef<HTMLButtonElement>(null);
   const headerProfileMenuRef = useRef<HTMLDivElement>(null);
