@@ -2028,12 +2028,22 @@ export interface WorkshopPartPurchase {
   created_at: string;
 }
 
+export interface WorkshopPartPhoto {
+  id: string;
+  part_id: string;
+  photo_url: string;
+  sort_order: number;
+}
+
+export const WORKSHOP_PART_PHOTOS_MAX = 3;
+
 export interface WorkshopPart {
   id: string;
   name: string;
   unit_price: number;
   stock_qty: number;
   photo_url?: string | null;
+  photos?: WorkshopPartPhoto[];
   sort_order: number;
   created_at: string;
   original_code?: string | null;
@@ -2119,8 +2129,30 @@ function normalizeWorkshopPartRow(row: Record<string, unknown>): WorkshopPart {
         ? (fiscal as WorkshopPartFiscalExtra)
         : {},
     category_ids: Array.isArray(row.category_ids) ? (row.category_ids as string[]) : [],
+    photos: Array.isArray(row.photos) ? (row.photos as WorkshopPartPhoto[]) : undefined,
     purchases: Array.isArray(row.purchases) ? (row.purchases as WorkshopPartPurchase[]) : undefined,
   };
+}
+
+export async function getWorkshopPartPhotos(partId: string): Promise<WorkshopPartPhoto[]> {
+  const response = await fetch(`${API_BASE}/workshop-parts/${partId}/photos`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar fotos (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteWorkshopPartPhoto(partId: string, photoId: string): Promise<WorkshopPart> {
+  const response = await fetch(`${API_BASE}/workshop-parts/${partId}/photos/${photoId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir foto (${response.status})`);
+  }
+  const row = await response.json();
+  return normalizeWorkshopPartRow(row as Record<string, unknown>);
 }
 
 export async function createWorkshopPart(input: WorkshopPartWriteInput): Promise<WorkshopPart> {
@@ -2228,6 +2260,7 @@ export async function deleteWorkshopPart(id: string): Promise<void> {
   }
 }
 
+/** Adiciona uma foto (até {@link WORKSHOP_PART_PHOTOS_MAX} por peça). */
 export async function uploadWorkshopPartPhoto(
   partId: string,
   file: Blob,

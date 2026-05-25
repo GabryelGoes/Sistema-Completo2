@@ -15,6 +15,13 @@ import {
 } from 'lucide-react';
 import { StorageThumbImg } from './ui/StorageThumbImg';
 import type { WorkshopPart, WorkshopPartFiscalExtra } from '../services/apiService';
+import { WORKSHOP_PART_PHOTOS_MAX } from '../services/apiService';
+
+export type PartPhotoSlot = {
+  id: string;
+  previewUrl: string;
+  remoteUrl?: string;
+};
 import {
   COMMON_NCM_SUGGESTIONS,
   PART_ORIGIN_OPTIONS,
@@ -31,8 +38,13 @@ import {
 
 const labelCls =
   'block text-[11px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400';
+/** Sombras suaves só no modo claro (campos elevados sobre fundo branco). */
+const lightFieldShadow =
+  'shadow-[0_2px_10px_-3px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.05)] dark:shadow-none';
+const lightCardShadow =
+  'shadow-[0_4px_20px_-6px_rgba(0,0,0,0.1),0_2px_8px_-2px_rgba(0,0,0,0.06)] dark:shadow-none';
 const inputCls =
-  'w-full min-w-0 rounded-lg border border-zinc-200/90 dark:border-white/10 bg-zinc-100 dark:bg-white/5 px-3 py-2 text-[14px] text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/40';
+  `w-full min-w-0 rounded-lg border border-zinc-200/90 dark:border-white/10 bg-zinc-100 dark:bg-white/5 px-3 py-2 text-[14px] text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/40 ${lightFieldShadow}`;
 const textareaCls = `${inputCls} resize-y min-h-[88px]`;
 
 function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
@@ -94,7 +106,9 @@ function QtyWithUnit({
         onChange={(e) => onChange(e.target.value)}
         className={`${inputCls} flex-1 tabular-nums`}
       />
-      <span className="flex shrink-0 items-center rounded-lg border border-zinc-200/90 dark:border-white/10 bg-zinc-200/80 dark:bg-white/[0.04] px-2.5 text-[12px] font-bold text-zinc-600 dark:text-zinc-300">
+      <span
+        className={`flex shrink-0 items-center rounded-lg border border-zinc-200/90 dark:border-white/10 bg-zinc-200/80 dark:bg-white/[0.04] px-2.5 text-[12px] font-bold text-zinc-600 dark:text-zinc-300 ${lightFieldShadow}`}
+      >
         {unit}
       </span>
     </div>
@@ -152,7 +166,7 @@ function UnitOfMeasureSelect({
           id="workshop-part-unit-of-measure-list"
           role="listbox"
           aria-labelledby="workshop-part-unit-of-measure"
-          className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(280px,40vh)] overflow-y-auto rounded-lg border border-zinc-200/90 bg-white py-1 shadow-lg dark:border-white/[0.12] dark:bg-zinc-900"
+          className={`absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(280px,40vh)] overflow-y-auto rounded-lg border border-zinc-200/90 bg-white py-1 shadow-lg shadow-zinc-900/10 dark:border-white/[0.12] dark:bg-zinc-900 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)]`}
         >
           {UNIT_OF_MEASURE_OPTIONS.map((opt) => {
             const isSelected = opt.value === value;
@@ -187,15 +201,15 @@ export type WorkshopPartRegistrationFormProps = {
   mode: 'create' | 'edit';
   initialPart?: WorkshopPart | null;
   initialPurchases?: WorkshopPartPurchaseDraft[];
-  photoPreviewUrl?: string | null;
+  photos?: PartPhotoSlot[];
+  maxPhotos?: number;
   saving?: boolean;
   error?: string | null;
   onValuesChange?: (name: string) => void;
-  onPickPhoto?: () => void;
-  onPickGallery?: () => void;
-  onPickCamera?: () => void;
-  onAdjustPhoto?: () => void;
-  hasPhoto?: boolean;
+  onAddPhoto?: () => void;
+  onAddPhotoCamera?: () => void;
+  onRemovePhoto?: (photoId: string) => void;
+  onEditPhoto?: (photoId: string) => void;
   photoBusy?: boolean;
   onSubmit: (payload: {
     values: WorkshopPartFormValues;
@@ -208,15 +222,15 @@ export function WorkshopPartRegistrationForm({
   mode,
   initialPart,
   initialPurchases,
-  photoPreviewUrl,
+  photos = [],
+  maxPhotos = WORKSHOP_PART_PHOTOS_MAX,
   saving = false,
   error,
   onValuesChange,
-  onPickPhoto,
-  onPickGallery,
-  onPickCamera,
-  onAdjustPhoto,
-  hasPhoto,
+  onAddPhoto,
+  onAddPhotoCamera,
+  onRemovePhoto,
+  onEditPhoto,
   photoBusy,
   onSubmit,
   onCancel,
@@ -262,69 +276,113 @@ export function WorkshopPartRegistrationForm({
   return (
     <div className="space-y-6">
       {error ? (
-        <p className="rounded-xl border border-red-300/80 bg-red-50 px-4 py-3 text-[14px] text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+        <p
+          className={`rounded-xl border border-red-300/80 bg-red-50 px-4 py-3 text-[14px] text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200 ${lightCardShadow}`}
+        >
           {error}
         </p>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[200px_1fr]">
-        <div className="flex flex-col items-center gap-3">
-          <button
-            type="button"
-            onClick={onPickPhoto}
-            className="relative flex aspect-square w-full max-w-[200px] items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-zinc-300/90 dark:border-white/15 bg-zinc-100 dark:bg-white/[0.03] hover:border-emerald-500/50 transition-colors"
-          >
-            {photoPreviewUrl ? (
-              <img src={photoPreviewUrl} alt="" className="h-full w-full object-cover" />
-            ) : hasPhoto && initialPart?.photo_url ? (
-              <StorageThumbImg
-                src={initialPart.photo_url}
-                alt=""
-                className="h-full w-full object-cover"
-                thumbMaxWidth={200}
-                thumbMaxHeight={200}
-              />
-            ) : (
-              <Package className="h-12 w-12 text-emerald-600/70" strokeWidth={1.25} aria-hidden />
-            )}
-            {photoBusy ? (
-              <span className="absolute inset-0 flex items-center justify-center bg-black/40">
-                <Loader2 className="h-8 w-8 animate-spin text-white" />
-              </span>
-            ) : null}
-          </button>
-          <div className="flex flex-wrap justify-center gap-2">
-            {onPickGallery ? (
-              <button
-                type="button"
-                onClick={onPickGallery}
-                className="inline-flex items-center gap-1 rounded-lg border border-zinc-200/90 bg-zinc-100 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 dark:border-white/10 dark:bg-transparent dark:text-zinc-200"
-              >
-                <Images className="h-3.5 w-3.5" /> Galeria
-              </button>
-            ) : null}
-            {onPickCamera ? (
-              <button
-                type="button"
-                onClick={onPickCamera}
-                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white"
-              >
-                <Camera className="h-3.5 w-3.5" /> Câmera
-              </button>
-            ) : null}
-            {onAdjustPhoto && (hasPhoto || initialPart?.photo_url) ? (
-              <button
-                type="button"
-                onClick={onAdjustPhoto}
-                className="inline-flex items-center gap-1 rounded-lg border border-violet-300/80 px-2.5 py-1.5 text-[12px] font-semibold text-violet-800 dark:text-violet-200"
-              >
-                Ajustar
-              </button>
-            ) : null}
-          </div>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <FieldLabel hint="Até 3 imagens por produto">Fotos do produto</FieldLabel>
+          <span className="text-[12px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">
+            {photos.length}/{maxPhotos}
+          </span>
         </div>
+        <div className="grid grid-cols-3 gap-3 max-w-[min(100%,420px)]">
+          {Array.from({ length: maxPhotos }, (_, index) => {
+            const slot = photos[index] ?? null;
+            const isAddSlot = !slot && photos.length === index && photos.length < maxPhotos;
+            return (
+              <div key={slot?.id ?? `empty-${index}`} className="relative aspect-square">
+                {slot ? (
+                  <>
+                    <div
+                      className={`relative h-full w-full overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-100 dark:border-white/10 dark:bg-white/[0.03] ${lightCardShadow}`}
+                    >
+                      {slot.remoteUrl ? (
+                        <StorageThumbImg
+                          src={slot.remoteUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          thumbMaxWidth={200}
+                          thumbMaxHeight={200}
+                        />
+                      ) : (
+                        <img src={slot.previewUrl} alt="" className="h-full w-full object-cover" />
+                      )}
+                      {photoBusy ? (
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/40">
+                          <Loader2 className="h-6 w-6 animate-spin text-white" />
+                        </span>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onRemovePhoto?.(slot.id)}
+                      disabled={photoBusy}
+                      className="absolute -right-1.5 -top-1.5 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-red-600 shadow-md hover:bg-red-50 disabled:opacity-50 dark:border-white/15 dark:bg-zinc-900"
+                      aria-label="Remover foto"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                    {onEditPhoto ? (
+                      <button
+                        type="button"
+                        onClick={() => onEditPhoto(slot.id)}
+                        disabled={photoBusy}
+                        className="absolute bottom-1 left-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-white hover:bg-black/70 disabled:opacity-50"
+                      >
+                        Ajustar
+                      </button>
+                    ) : null}
+                  </>
+                ) : isAddSlot ? (
+                  <button
+                    type="button"
+                    onClick={onAddPhoto}
+                    disabled={photoBusy || !onAddPhoto}
+                    className={`flex h-full w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-zinc-300/90 bg-zinc-100 text-zinc-500 transition-colors hover:border-emerald-500/50 hover:text-emerald-700 disabled:opacity-50 dark:border-white/15 dark:bg-white/[0.03] dark:hover:text-emerald-400 ${lightFieldShadow}`}
+                  >
+                    <Plus className="h-6 w-6" aria-hidden />
+                    <span className="text-[10px] font-bold uppercase tracking-wide">Adicionar</span>
+                  </button>
+                ) : (
+                  <div
+                    className={`flex h-full w-full items-center justify-center rounded-xl border border-dashed border-zinc-200/60 bg-zinc-50/80 dark:border-white/10 dark:bg-white/[0.02] ${lightFieldShadow}`}
+                    aria-hidden
+                  >
+                    <Package className="h-8 w-8 text-zinc-300 dark:text-zinc-600" strokeWidth={1.25} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {onAddPhoto ? (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onAddPhoto}
+              disabled={photoBusy || photos.length >= maxPhotos}
+              className={`inline-flex items-center gap-1 rounded-lg border border-zinc-200/90 bg-zinc-100 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 disabled:opacity-50 dark:border-white/10 dark:bg-transparent dark:text-zinc-200 ${lightFieldShadow}`}
+            >
+              <Images className="h-3.5 w-3.5" /> Galeria
+            </button>
+            <button
+              type="button"
+              onClick={onAddPhotoCamera ?? onAddPhoto}
+              disabled={photoBusy || photos.length >= maxPhotos}
+              className={`inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50 shadow-[0_3px_12px_-2px_rgba(5,150,105,0.45)] dark:shadow-none`}
+            >
+              <Camera className="h-3.5 w-3.5" /> Câmera
+            </button>
+          </div>
+        ) : null}
+      </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
             <FieldLabel>Nome da peça</FieldLabel>
             <input
@@ -364,7 +422,6 @@ export function WorkshopPartRegistrationForm({
             />
           </div>
         </div>
-      </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="space-y-1.5">
@@ -517,14 +574,18 @@ export function WorkshopPartRegistrationForm({
           setFiscalDraft(values.fiscal_extra ?? {});
           setFiscalOpen(true);
         }}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200/90 bg-zinc-100 px-4 py-3 text-[13px] font-semibold text-zinc-800 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200 hover:bg-zinc-200/90 dark:hover:bg-white/[0.06]"
+        className={`flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200/90 bg-zinc-100 px-4 py-3 text-[13px] font-semibold text-zinc-800 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200 hover:bg-zinc-200/90 dark:hover:bg-white/[0.06] ${lightCardShadow}`}
       >
         <Eye className="h-4 w-4" aria-hidden />
         Mais configurações fiscais
       </button>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-50/50 dark:border-white/[0.08] dark:bg-transparent">
-        <div className="flex items-center justify-between gap-3 border-b border-zinc-200/70 bg-zinc-100 px-4 py-3 dark:border-white/[0.06] dark:bg-white/[0.03]">
+      <div
+        className={`overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-50/50 dark:border-white/[0.08] dark:bg-transparent ${lightCardShadow}`}
+      >
+        <div
+          className={`flex items-center justify-between gap-3 border-b border-zinc-200/70 bg-zinc-100 px-4 py-3 dark:border-white/[0.06] dark:bg-white/[0.03] ${lightFieldShadow}`}
+        >
           <p className="text-[13px] font-bold text-zinc-800 dark:text-zinc-100">Lista de compras</p>
           <button
             type="button"
@@ -543,7 +604,7 @@ export function WorkshopPartRegistrationForm({
             {purchases.map((row, idx) => (
               <li
                 key={row.id ?? `new-${idx}`}
-                className="grid gap-3 bg-white p-4 sm:grid-cols-2 lg:grid-cols-6 dark:bg-transparent"
+                className={`grid gap-3 bg-white p-4 sm:grid-cols-2 lg:grid-cols-6 dark:bg-transparent ${lightFieldShadow}`}
               >
                 <div className="space-y-1 lg:col-span-2">
                   <span className={labelCls}>Fornecedor</span>
@@ -651,7 +712,7 @@ export function WorkshopPartRegistrationForm({
           type="button"
           onClick={handleSave}
           disabled={!values.name.trim() || saving}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-8 py-3 text-[15px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-8 py-3 text-[15px] font-semibold text-white shadow-[0_4px_16px_-2px_rgba(5,150,105,0.45)] hover:bg-emerald-500 disabled:opacity-50 dark:shadow-none"
         >
           {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
           Salvar

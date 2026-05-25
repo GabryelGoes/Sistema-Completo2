@@ -24,6 +24,9 @@ import {
   updateWorkshopPart,
   deleteWorkshopPart,
   uploadWorkshopPartPhoto,
+  getWorkshopPartPhotos,
+  deleteWorkshopPartPhoto,
+  WORKSHOP_PART_PHOTOS_MAX,
   getWorkshopPartCategories,
   createWorkshopPartCategory,
   updateWorkshopPartCategory,
@@ -37,7 +40,10 @@ import {
   type WorkshopPartPurchase,
 } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
-import { WorkshopPartRegistrationForm } from './WorkshopPartRegistrationForm';
+import {
+  WorkshopPartRegistrationForm,
+  type PartPhotoSlot,
+} from './WorkshopPartRegistrationForm';
 import {
   formValuesToApiPayload,
   purchaseDraftToPayload,
@@ -50,6 +56,14 @@ interface WorkshopPartsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+type PendingPartPhoto = { id: string; file: File; previewUrl: string };
+
+type PhotoEditorContext =
+  | { kind: 'pending-add' }
+  | { kind: 'pending-replace'; photoId: string }
+  | { kind: 'remote-add'; partId: string }
+  | { kind: 'remote-replace'; partId: string; photoId: string; url: string };
 
 /** Carrega imagem pública (ex.: Storage) para o editor; tenta fetch CORS e, se falhar, Image + canvas. */
 async function fetchImageUrlAsFileForEditor(imageUrl: string): Promise<File> {
@@ -122,8 +136,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [error, setError] = useState<string | null>(null);
 
   const [newName, setNewName] = useState('');
-  const [newPhoto, setNewPhoto] = useState<File | null>(null);
-  const [newPhotoPreviewUrl, setNewPhotoPreviewUrl] = useState<string | null>(null);
+  const [pendingPhotos, setPendingPhotos] = useState<PendingPartPhoto[]>([]);
+  const [registrationPhotos, setRegistrationPhotos] = useState<PartPhotoSlot[]>([]);
   const [adding, setAdding] = useState(false);
   const [registrationMode, setRegistrationMode] = useState<'create' | 'edit' | null>(null);
   const [registrationPart, setRegistrationPart] = useState<WorkshopPart | null>(null);
@@ -145,8 +159,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [categoryCreating, setCategoryCreating] = useState(false);
   const [categoryEditingId, setCategoryEditingId] = useState<string | null>(null);
   const [categoryEditingName, setCategoryEditingName] = useState('');
-  /** 'new' = foto para peça ainda não cadastrada; string = id da peça existente */
-  const [photoEditorTarget, setPhotoEditorTarget] = useState<'new' | string | null>(null);
+  const [photoEditorContext, setPhotoEditorContext] = useState<PhotoEditorContext | null>(null);
   const [photoEditorFile, setPhotoEditorFile] = useState<File | null>(null);
   const createPhotoInputRef = useRef<HTMLInputElement>(null);
   const createCameraInputRef = useRef<HTMLInputElement>(null);
@@ -159,22 +172,40 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     return Number.isFinite(n) ? n : 0;
   };
 
+  const registrationPhotoCount =
+    registrationMode === 'create' ? pendingPhotos.length : registrationPhotos.length;
+
+  const beginAddPhoto = useCallback(
+    (source: 'gallery' | 'camera') => {
+      if (!registrationMode) return;
+      if (registrationPhotoCount >= WORKSHOP_PART_PHOTOS_MAX) {
+        setError(`Máximo de ${WORKSHOP_PART_PHOTOS_MAX} fotos por produto.`);
+        return;
+      }
+      setError(null);
+      if (source === 'camera') {
+        createCameraInputRef.current?.click();
+      } else {
+        createPhotoInputRef.current?.click();
+      }
+    },
+    [registrationMode, registrationPhotoCount]
+  );
+
   const handleNewPartImageSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
     e.target.value = '';
     if (!f || !f.type.startsWith('image/')) return;
-    setPhotoEditorTarget(
-      registrationMode === 'edit' && registrationPart ? registrationPart.id : 'new'
-    );
-    setPhotoEditorFile(f);
-  };
-
-  const handleExistingPartImageSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null;
-    const partId = e.currentTarget.dataset.partId;
-    e.target.value = '';
-    if (!f || !f.type.startsWith('image/') || !partId) return;
-    setPhotoEditorTarget(partId);
+    if (!registrationMode) return;
+    if (registrationPhotoCount >= WORKSHOP_PART_PHOTOS_MAX) {
+      setError(`Máximo de ${WORKSHOP_PART_PHOTOS_MAX} fotos por produto.`);
+      return;
+    }
+    if (registrationMode === 'create') {
+      setPhotoEditorContext({ kind: 'pending-add' });
+    } else if (registrationPart) {
+      setPhotoEditorContext({ kind: 'remote-add', partId: registrationPart.id });
+    }
     setPhotoEditorFile(f);
   };
 
@@ -220,21 +251,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     setCategoryFilterMenuOpen(false);
   }, [categories, categoryFilter]);
 
-  useEffect(() => {
-    if (!newPhoto) {
-      setNewPhotoPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(newPhoto);
-    setNewPhotoPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [newPhoto]);
-
   const resetNewProductDraft = useCallback(() => {
     setNewName('');
-    setNewPhoto(null);
+    setPendingPhotos((prev) => {
+      prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+      return [];
+    });
+    setRegistrationPhotos([]);
     setPhotoEditorFile(null);
-    setPhotoEditorTarget(null);
+    setPhotoEditorContext(null);
   }, []);
 
   const closeRegistration = useCallback(() => {
@@ -259,13 +284,34 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const openEditRegistration = useCallback(async (part: WorkshopPart) => {
     setRegistrationMode('edit');
     setRegistrationPart(part);
+    setPendingPhotos((prev) => {
+      prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+      return [];
+    });
     setError(null);
     setLoadingRegistrationPurchases(true);
     try {
-      const list = await getWorkshopPartPurchases(part.id);
-      setRegistrationPurchases(list.map(purchaseToDraft));
+      const [purchases, photos] = await Promise.all([
+        getWorkshopPartPurchases(part.id),
+        getWorkshopPartPhotos(part.id).catch(() => []),
+      ]);
+      setRegistrationPurchases(purchases.map(purchaseToDraft));
+      setRegistrationPhotos(
+        photos.map((ph) => ({
+          id: ph.id,
+          previewUrl: ph.photo_url,
+          remoteUrl: ph.photo_url,
+        }))
+      );
     } catch {
       setRegistrationPurchases([]);
+      setRegistrationPhotos(
+        (part.photos ?? []).map((ph) => ({
+          id: ph.id,
+          previewUrl: ph.photo_url,
+          remoteUrl: ph.photo_url,
+        }))
+      );
     } finally {
       setLoadingRegistrationPurchases(false);
     }
@@ -320,8 +366,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
       if (registrationMode === 'create') {
         let created = await createWorkshopPart(payload);
-        if (newPhoto) {
-          created = await uploadWorkshopPartPhoto(created.id, newPhoto, newPhoto.name);
+        for (const photo of pendingPhotos) {
+          created = await uploadWorkshopPartPhoto(created.id, photo.file, photo.file.name);
         }
         for (const draft of purchaseDrafts) {
           if (draft.supplier_name.trim() || parseNumber(draft.quantity) > 0) {
@@ -332,10 +378,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           [...prev, created].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
         );
       } else if (registrationMode === 'edit' && registrationPart) {
-        let updated = await updateWorkshopPart(registrationPart.id, payload);
-        if (newPhoto) {
-          updated = await uploadWorkshopPartPhoto(registrationPart.id, newPhoto, newPhoto.name);
-        }
+        const updated = await updateWorkshopPart(registrationPart.id, payload);
         await syncPurchasesForPart(registrationPart.id, purchaseDrafts);
         setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
       }
@@ -401,28 +444,62 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   };
 
   const photoEditorDisplayName =
-    photoEditorTarget === 'new'
+    photoEditorContext?.kind === 'pending-add' || photoEditorContext?.kind === 'pending-replace'
       ? newName.trim() || 'Nova peça'
-      : photoEditorTarget
-        ? parts.find((x) => x.id === photoEditorTarget)?.name ?? 'Peça'
+      : photoEditorContext && 'partId' in photoEditorContext
+        ? registrationPart?.name ?? parts.find((x) => x.id === photoEditorContext.partId)?.name ?? 'Peça'
         : '';
 
+  const refreshRegistrationPhotosFromPart = (part: WorkshopPart) => {
+    const slots = (part.photos ?? []).map((ph) => ({
+      id: ph.id,
+      previewUrl: ph.photo_url,
+      remoteUrl: ph.photo_url,
+    }));
+    setRegistrationPhotos(slots);
+    setRegistrationPart(part);
+  };
+
   const handlePhotoEditorSave = async (blob: Blob) => {
-    const target = photoEditorTarget;
+    const ctx = photoEditorContext;
     setPhotoEditorFile(null);
-    setPhotoEditorTarget(null);
+    setPhotoEditorContext(null);
     const file = new File([blob], 'foto.jpg', { type: 'image/jpeg' });
-    if (target === 'new') {
-      setNewPhoto(file);
+
+    if (!ctx) return;
+
+    if (ctx.kind === 'pending-add') {
+      const id = crypto.randomUUID();
+      setPendingPhotos((prev) => [
+        ...prev,
+        { id, file, previewUrl: URL.createObjectURL(file) },
+      ]);
       return;
     }
-    if (target) {
-      setUploadingPhotoId(target);
+
+    if (ctx.kind === 'pending-replace') {
+      setPendingPhotos((prev) =>
+        prev.map((p) => {
+          if (p.id !== ctx.photoId) return p;
+          URL.revokeObjectURL(p.previewUrl);
+          return { ...p, file, previewUrl: URL.createObjectURL(file) };
+        })
+      );
+      return;
+    }
+
+    if (ctx.kind === 'remote-add' || ctx.kind === 'remote-replace') {
+      setUploadingPhotoId(ctx.partId);
       setError(null);
       try {
-        const updated = await uploadWorkshopPartPhoto(target, file, file.name);
-        setParts((prev) => prev.map((p) => (p.id === target ? updated : p)));
-        setRegistrationPart((prev) => (prev?.id === target ? updated : prev));
+        if (ctx.kind === 'remote-replace') {
+          await deleteWorkshopPartPhoto(ctx.partId, ctx.photoId);
+        }
+        const updated = await uploadWorkshopPartPhoto(ctx.partId, file, file.name);
+        setParts((prev) => prev.map((p) => (p.id === ctx.partId ? updated : p)));
+        if (registrationPart?.id === ctx.partId) {
+          refreshRegistrationPhotosFromPart(updated);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Erro ao enviar foto da peça.');
       } finally {
@@ -433,8 +510,47 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
   const handlePhotoEditorCancel = () => {
     setPhotoEditorFile(null);
-    setPhotoEditorTarget(null);
+    setPhotoEditorContext(null);
   };
+
+  const handleRemoveRegistrationPhoto = async (photoId: string) => {
+    if (registrationMode === 'create') {
+      setPendingPhotos((prev) => {
+        const row = prev.find((p) => p.id === photoId);
+        if (row) URL.revokeObjectURL(row.previewUrl);
+        return prev.filter((p) => p.id !== photoId);
+      });
+      return;
+    }
+    if (!registrationPart) return;
+    setUploadingPhotoId(registrationPart.id);
+    setError(null);
+    try {
+      const updated = await deleteWorkshopPartPhoto(registrationPart.id, photoId);
+      setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
+      refreshRegistrationPhotosFromPart(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao remover foto.');
+    } finally {
+      setUploadingPhotoId(null);
+    }
+  };
+
+  const handleEditRegistrationPhoto = (photoId: string) => {
+    if (registrationMode === 'create') {
+      const row = pendingPhotos.find((p) => p.id === photoId);
+      if (!row) return;
+      setPhotoEditorContext({ kind: 'pending-replace', photoId });
+      setPhotoEditorFile(row.file);
+      return;
+    }
+    const slot = registrationPhotos.find((p) => p.id === photoId);
+    if (!slot?.remoteUrl || !registrationPart) return;
+    void openExistingPartPhotoInEditor(registrationPart, photoId, slot.remoteUrl);
+  };
+
+  const registrationPhotoSlots: PartPhotoSlot[] =
+    registrationMode === 'create' ? pendingPhotos.map((p) => ({ id: p.id, previewUrl: p.previewUrl })) : registrationPhotos;
 
   /** Gesto voltar / history.back: fecha cadastro; se o editor de foto estiver aberto, cancela a foto antes. */
   useBrowserBackLayer(!!registrationMode, () => {
@@ -445,14 +561,18 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     closeRegistration();
   });
 
-  const openExistingPartPhotoInEditor = async (p: WorkshopPart) => {
-    const url = p.photo_url?.trim();
+  const openExistingPartPhotoInEditor = async (
+    p: WorkshopPart,
+    photoId: string,
+    imageUrl?: string
+  ) => {
+    const url = (imageUrl ?? p.photo_url)?.trim();
     if (!url) return;
     setLoadingExistingPhotoId(p.id);
     setError(null);
     try {
       const file = await fetchImageUrlAsFileForEditor(url);
-      setPhotoEditorTarget(p.id);
+      setPhotoEditorContext({ kind: 'remote-replace', partId: p.id, photoId, url });
       setPhotoEditorFile(file);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Não foi possível abrir a foto para edição.');
@@ -1039,19 +1159,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 mode={registrationMode}
                 initialPart={registrationMode === 'edit' ? registrationPart : null}
                 initialPurchases={registrationPurchases}
-                photoPreviewUrl={newPhotoPreviewUrl}
+                photos={registrationPhotoSlots}
+                maxPhotos={WORKSHOP_PART_PHOTOS_MAX}
                 saving={adding}
                 error={error}
                 onValuesChange={(name) => setNewName(name)}
-                onPickPhoto={() => createPhotoInputRef.current?.click()}
-                onPickGallery={() => createPhotoInputRef.current?.click()}
-                onPickCamera={() => createCameraInputRef.current?.click()}
-                onAdjustPhoto={
-                  registrationMode === 'edit' && registrationPart?.photo_url
-                    ? () => void openExistingPartPhotoInEditor(registrationPart)
-                    : undefined
-                }
-                hasPhoto={Boolean(newPhoto || registrationPart?.photo_url)}
+                onAddPhoto={() => beginAddPhoto('gallery')}
+                onAddPhotoCamera={() => beginAddPhoto('camera')}
+                onRemovePhoto={(id) => void handleRemoveRegistrationPhoto(id)}
+                onEditPhoto={handleEditRegistrationPhoto}
                 photoBusy={uploadingPhotoId !== null || loadingExistingPhotoId !== null}
                 onSubmit={handleRegistrationSave}
                 onCancel={closeRegistration}
