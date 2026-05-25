@@ -22,7 +22,13 @@ export type DesktopSidebarActionItem = {
 /** Navegação do modo PC (estilo OnMotor) — módulos com aba dedicada. */
 export const DESKTOP_NAV_ITEMS: DesktopNavItem[] = [
   { id: 'home', label: 'Resumo', shortLabel: 'Resumo' },
-  { id: 'reception', label: 'Recepção', shortLabel: 'Recepção', iconSrc: '/icons/recepcao-ios.png' },
+  {
+    id: 'reception',
+    label: 'Recepção',
+    shortLabel: 'Recepção',
+    iconSrc: '/icons/recepcao-ios.png',
+    sidebar: false,
+  },
   { id: 'agenda', label: 'Agenda', shortLabel: 'Agenda', iconSrc: '/icons/agenda-ios.png' },
   { id: 'patio', label: 'Pátio', shortLabel: 'Pátio', iconSrc: '/icons/patio-ios.png' },
   { id: 'laboratorio', label: 'Laboratório', shortLabel: 'Lab.', iconSrc: '/icons/laboratorio-ios.png' },
