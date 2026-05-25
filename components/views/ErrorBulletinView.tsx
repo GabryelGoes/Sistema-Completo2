@@ -362,6 +362,11 @@ export const ErrorBulletinView: React.FC<{ authSession?: AuthSession | null }> =
                   {b.symptoms ? (
                     <p className="mt-2 line-clamp-2 text-[13px] text-zinc-600 dark:text-zinc-400">{b.symptoms}</p>
                   ) : null}
+                  {b.possibleCauses ? (
+                    <p className="mt-1 line-clamp-2 text-[13px] text-amber-800/90 dark:text-amber-200/90">
+                      <strong>Possíveis causas:</strong> {b.possibleCauses}
+                    </p>
+                  ) : null}
                   {b.solution ? (
                     <p className="mt-1 line-clamp-2 text-[13px] text-emerald-700 dark:text-emerald-400">
                       <strong>Solução:</strong> {b.solution}

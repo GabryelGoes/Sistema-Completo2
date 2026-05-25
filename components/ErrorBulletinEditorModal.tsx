@@ -83,6 +83,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
   const [engineInfo, setEngineInfo] = useState('');
   const [dtcCodes, setDtcCodes] = useState('');
   const [symptoms, setSymptoms] = useState('');
+  const [possibleCauses, setPossibleCauses] = useState('');
   const [solution, setSolution] = useState('');
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<ErrorBulletinStatus>('published');
@@ -120,6 +121,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     setEngineInfo(d.engineInfo);
     setDtcCodes(d.dtcCodes);
     setSymptoms(d.symptoms);
+    setPossibleCauses(d.possibleCauses);
     setSolution(d.solution);
     setNotes(d.notes);
     setStatus(d.status);
@@ -136,6 +138,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     setEngineInfo('');
     setDtcCodes('');
     setSymptoms('');
+    setPossibleCauses('');
     setSolution('');
     setNotes('');
     setStatus('published');
@@ -229,6 +232,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     engineInfo: engineInfo.trim(),
     dtcCodes: parseDtcLines(dtcCodes).join('\n'),
     symptoms: symptoms.trim(),
+    possibleCauses: possibleCauses.trim(),
     solution: solution.trim(),
     notes: notes.trim(),
     status,
@@ -517,6 +521,15 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                   <div className="sm:col-span-2">
                     <label className={labelClass}>Sintomas / defeito</label>
                     <textarea className={`${inputClass} min-h-[100px]`} value={symptoms} onChange={(e) => setSymptoms(e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={labelClass}>Possíveis causas</label>
+                    <textarea
+                      className={`${inputClass} min-h-[100px]`}
+                      value={possibleCauses}
+                      onChange={(e) => setPossibleCauses(e.target.value)}
+                      placeholder="Ex.: sensor de roda com falha, chicote rompido, módulo com umidade…"
+                    />
                   </div>
                   <div className="sm:col-span-2">
                     <label className={labelClass}>Solução aplicada</label>

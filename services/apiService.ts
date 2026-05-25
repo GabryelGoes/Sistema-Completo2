@@ -324,6 +324,7 @@ export type ErrorBulletin = {
   engineInfo: string;
   dtcCodes: string;
   symptoms: string;
+  possibleCauses: string;
   solution: string;
   notes: string;
   status: ErrorBulletinStatus;
@@ -374,6 +375,7 @@ export async function createErrorBulletin(payload: {
   engineInfo?: string;
   dtcCodes?: string;
   symptoms?: string;
+  possibleCauses?: string;
   solution?: string;
   notes?: string;
   status?: ErrorBulletinStatus;
@@ -406,6 +408,7 @@ export async function updateErrorBulletin(
     engineInfo: string;
     dtcCodes: string;
     symptoms: string;
+    possibleCauses: string;
     solution: string;
     notes: string;
     status: ErrorBulletinStatus;
