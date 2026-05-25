@@ -4,6 +4,7 @@ import { OverlayPageNavBar } from '../ui/OverlayPageNavBar';
 import { DesktopShellProvider } from '../ui/DesktopShellContext';
 import { DesktopAppShell } from './DesktopAppShell';
 import type { NotificationCenterProps } from '../NotificationCenter';
+import type { DesktopSidebarAccess, DesktopSidebarActionId } from '../../utils/desktopShellNav';
 
 export type AuthenticatedAppFrameProps = {
   isDesktopShell: boolean;
@@ -11,6 +12,8 @@ export type AuthenticatedAppFrameProps = {
   onTabChange: (tab: TabId) => void;
   onBackFromOverlay: () => void;
   allowedTabs?: TabId[];
+  desktopSidebarAccess?: DesktopSidebarAccess;
+  onDesktopSidebarAction?: (action: DesktopSidebarActionId) => void;
   displayName: string;
   photoUrl?: string | null;
   onOpenSettings?: () => void;
@@ -28,6 +31,8 @@ export function AuthenticatedAppFrame({
   onTabChange,
   onBackFromOverlay,
   allowedTabs,
+  desktopSidebarAccess,
+  onDesktopSidebarAction,
   displayName,
   photoUrl,
   onOpenSettings,
@@ -49,6 +54,8 @@ export function AuthenticatedAppFrame({
             currentTab={currentTab}
             onTabChange={onTabChange}
             allowedTabs={allowedTabs}
+            sidebarAccess={desktopSidebarAccess}
+            onSidebarAction={onDesktopSidebarAction}
             displayName={displayName}
             photoUrl={photoUrl}
             onOpenSettings={onOpenSettings}

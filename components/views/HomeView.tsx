@@ -75,6 +75,10 @@ interface HomeViewProps {
   patioBudgetsHubBadge?: number;
   /** Layout OnMotor (sidebar + cards com borda amarela) — sem cabeçalho duplicado. */
   desktopShell?: boolean;
+  /** Registra abertura do hub de configurações (sidebar PC). */
+  settingsHubOpenerRef?: React.MutableRefObject<(() => void) | null>;
+  /** Abre estoque de peças (modal global no App quando definido). */
+  onOpenPartsStock?: () => void;
 }
 
 /** Alinhado ao modal TV do pátio: vidro, sombra suave, cantos iOS. */
@@ -209,6 +213,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   patioBudgetsHubBadge = 0,
   onOpenVehicleAccompaniment,
   desktopShell = false,
+  settingsHubOpenerRef,
+  onOpenPartsStock,
 }) => {
   const hubCardClass = desktopShell ? desktopHomeHubCard : iosCard;
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
@@ -222,6 +228,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
   const [isSystemNotificationsOpen, setIsSystemNotificationsOpen] = useState(false);
   const [isHomeSettingsHubOpen, setIsHomeSettingsHubOpen] = useState(false);
+  useEffect(() => {
+    if (!settingsHubOpenerRef) return;
+    settingsHubOpenerRef.current = () => setIsHomeSettingsHubOpen(true);
+    return () => {
+      settingsHubOpenerRef.current = null;
+    };
+  }, [settingsHubOpenerRef]);
   const [isHeaderProfileMenuOpen, setIsHeaderProfileMenuOpen] = useState(false);
   const headerProfileTriggerRef = useRef<HTMLButtonElement>(null);
   const headerProfileMenuRef = useRef<HTMLDivElement>(null);
@@ -501,7 +514,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         id: 'parts_stock',
         label: 'Estoque de peças',
         icon: <img src="/icons/estoque-ios.png" alt="Estoque de peças" className="h-full w-full object-cover" />,
-        onOpen: () => setIsPartsModalOpen(true),
+        onOpen: () => (onOpenPartsStock ? onOpenPartsStock() : setIsPartsModalOpen(true)),
       });
     }
     if (showFullAdminHub || !!perms.access_relatorios) {
@@ -535,7 +548,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       });
     }
     return [...baseTiles, ...extraTiles, settingsTile];
-  }, [onOpenApp, onOpenVehicleAccompaniment, operationalForView, perms, showFullAdminHub]);
+  }, [onOpenApp, onOpenVehicleAccompaniment, onOpenPartsStock, operationalForView, perms, showFullAdminHub]);
   const operationalById = useMemo(
     () =>
       Object.fromEntries(quickTilesForView.map((tile) => [tile.id, tile])) as Record<
@@ -1305,7 +1318,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />
           <SystemNotificationsModal isOpen={isSystemNotificationsOpen} onClose={() => setIsSystemNotificationsOpen(false)} />
           <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
-          <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
+          {!onOpenPartsStock ? (
+            <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
+          ) : null}
           <PatioChecklistsModal isOpen={isPatioChecklistsOpen} onClose={() => setIsPatioChecklistsOpen(false)} />
           <ChangePasswordsModal isOpen={isChangePasswordsOpen} onClose={() => setIsChangePasswordsOpen(false)} />
         </>

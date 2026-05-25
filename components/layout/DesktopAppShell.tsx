@@ -8,7 +8,11 @@ import {
   DESKTOP_NAV_ITEMS,
   desktopNavLabel,
   filterDesktopNav,
+  filterDesktopSidebarActions,
   type DesktopNavItem,
+  type DesktopSidebarAccess,
+  type DesktopSidebarActionId,
+  type DesktopSidebarActionItem,
 } from '../../utils/desktopShellNav';
 
 const SIDEBAR_COLLAPSED_KEY = 'rda_desktop_sidebar_collapsed_v1';
@@ -25,6 +29,8 @@ export type DesktopAppShellProps = {
   currentTab: TabId;
   onTabChange: (tab: TabId) => void;
   allowedTabs?: TabId[];
+  sidebarAccess?: DesktopSidebarAccess;
+  onSidebarAction?: (action: DesktopSidebarActionId) => void;
   displayName: string;
   photoUrl?: string | null;
   onOpenSettings?: () => void;
@@ -35,13 +41,17 @@ export type DesktopAppShellProps = {
   children: React.ReactNode;
 };
 
+function NavIconImg({ iconSrc }: { iconSrc: string }) {
+  return (
+    <span className="desktop-shell-nav-icon" aria-hidden>
+      <img src={iconSrc} alt="" className="h-full w-full object-cover" />
+    </span>
+  );
+}
+
 function NavIcon({ item }: { item: DesktopNavItem }) {
   if (item.iconSrc) {
-    return (
-      <span className="desktop-shell-nav-icon" aria-hidden>
-        <img src={item.iconSrc} alt="" className="h-full w-full object-cover" />
-      </span>
-    );
+    return <NavIconImg iconSrc={item.iconSrc} />;
   }
   if (item.id === 'home') {
     return (
@@ -57,10 +67,16 @@ function NavIcon({ item }: { item: DesktopNavItem }) {
   );
 }
 
+function ActionNavIcon({ item }: { item: DesktopSidebarActionItem }) {
+  return <NavIconImg iconSrc={item.iconSrc} />;
+}
+
 export function DesktopAppShell({
   currentTab,
   onTabChange,
   allowedTabs,
+  sidebarAccess,
+  onSidebarAction,
   displayName,
   photoUrl,
   onOpenSettings,
@@ -86,6 +102,7 @@ export function DesktopAppShell({
 
   const nav = filterDesktopNav(DESKTOP_NAV_ITEMS, allowedTabs);
   const sidebarItems = nav.filter((i) => i.sidebar !== false);
+  const sidebarActions = sidebarAccess ? filterDesktopSidebarActions(sidebarAccess) : [];
   const pageTitle = desktopNavLabel(currentTab, nav);
   const topbarAccent = moduleAccentColor(currentTab);
   const topbarStyle = { '--desktop-topbar-accent': topbarAccent } as React.CSSProperties;
@@ -140,6 +157,21 @@ export function DesktopAppShell({
               </button>
             );
           })}
+          {sidebarActions.length > 0 && sidebarItems.length > 0 ? (
+            <div className="mx-3 my-2 h-px bg-zinc-200/90 dark:bg-white/[0.08]" role="presentation" />
+          ) : null}
+          {sidebarActions.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="desktop-shell-nav-item desktop-shell-nav-item--action"
+              onClick={() => onSidebarAction?.(item.id)}
+              title={sidebarCollapsed ? item.label : undefined}
+            >
+              <ActionNavIcon item={item} />
+              <span className="desktop-shell-nav-label min-w-0 truncate">{item.label}</span>
+            </button>
+          ))}
         </nav>
 
         <a

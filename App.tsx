@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { ChangePasswordsModal } from './components/ChangePasswordsModal';
@@ -38,8 +38,13 @@ import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame
 import { useDesktopShell } from './hooks/useDesktopShell';
 import { PublicVehicleAccompanimentPage } from './components/public/PublicVehicleAccompanimentPage';
 import { VehicleAccompanimentModal } from './components/VehicleAccompanimentModal';
+import { WorkshopPartsModal } from './components/WorkshopPartsModal';
 import { AdminProfileModal } from './components/AdminProfileModal';
 import { UserProfileModal } from './components/UserProfileModal';
+import {
+  resolveDesktopSidebarAccess,
+  type DesktopSidebarActionId,
+} from './utils/desktopShellNav';
 
 type ShellProfileModal = 'user' | 'admin' | null;
 
@@ -65,6 +70,8 @@ export default function App() {
   const [vehicleAccompanimentOpen, setVehicleAccompanimentOpen] = useState(false);
   const [vehicleAccompanimentPresetId, setVehicleAccompanimentPresetId] = useState<string | null>(null);
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
+  const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
+  const homeSettingsHubOpenerRef = useRef<(() => void) | null>(null);
 
   const openVehicleAccompaniment = useCallback((serviceOrderId?: string | null) => {
     setVehicleAccompanimentPresetId(serviceOrderId ?? null);
@@ -75,6 +82,33 @@ export default function App() {
     setVehicleAccompanimentOpen(false);
     setVehicleAccompanimentPresetId(null);
   }, []);
+
+  const desktopSidebarAccess = useMemo(
+    () =>
+      resolveDesktopSidebarAccess(
+        authSession?.role === 'admin' ? 'admin' : authSession?.role === 'user' ? 'user' : undefined,
+        authSession?.role === 'user' ? authSession.permissions : undefined
+      ),
+    [authSession]
+  );
+
+  const handleDesktopSidebarAction = useCallback(
+    (action: DesktopSidebarActionId) => {
+      if (action === 'centro_atendimento') {
+        openVehicleAccompaniment(null);
+        return;
+      }
+      if (action === 'estoque_pecas') {
+        setIsPartsModalOpen(true);
+        return;
+      }
+      if (action === 'configuracoes') {
+        homeSettingsHubOpenerRef.current?.();
+        if (!homeSettingsHubOpenerRef.current) setIsSettingsOpen(true);
+      }
+    },
+    [openVehicleAccompaniment]
+  );
 
   const handleNewCommentNotification = (n: Notification) => {
     playNotificationSound();
@@ -525,6 +559,8 @@ export default function App() {
         onTabChange={setUserTab}
         onBackFromOverlay={handleOverlayCloseOrBack}
         allowedTabs={userAllowedTabs}
+        desktopSidebarAccess={desktopSidebarAccess}
+        onDesktopSidebarAction={handleDesktopSidebarAction}
         displayName={userDisplayName}
         photoUrl={authSession.photoUrl ?? null}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -542,6 +578,8 @@ export default function App() {
           >
             <HomeView
               desktopShell={isDesktopShell}
+              settingsHubOpenerRef={homeSettingsHubOpenerRef}
+              onOpenPartsStock={() => setIsPartsModalOpen(true)}
               isTechnician={authSession.isTechnician ?? false}
               technicianName={authSession.displayName ?? 'Usuário'}
               allowedTabs={userAllowedTabs}
@@ -743,6 +781,7 @@ export default function App() {
           onClose={closeVehicleAccompaniment}
           initialServiceOrderId={vehicleAccompanimentPresetId}
         />
+        <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
         {authSession.role === 'user' ? (
           <UserProfileModal
             isOpen={shellProfileModal === 'user'}
@@ -789,9 +828,17 @@ export default function App() {
       onTabChange={setCurrentTab}
       onBackFromOverlay={handleOverlayCloseOrBack}
       allowedTabs={adminAllowedTabs}
+      desktopSidebarAccess={desktopSidebarAccess}
+      onDesktopSidebarAction={handleDesktopSidebarAction}
       displayName={adminDisplayNameResolved}
       photoUrl={adminPhotoResolved}
-      onOpenSettings={authSession?.role === 'admin' || hasFullAccess ? () => setIsSettingsOpen(true) : undefined}
+      onOpenSettings={
+        authSession?.role === 'admin' ||
+        hasFullAccess ||
+        authSession?.permissions?.access_settings
+          ? () => setIsSettingsOpen(true)
+          : undefined
+      }
       onOpenProfileEditor={openShellProfileEditor}
       onLogout={handleLogout}
       orcamentosBadge={patioBudgetsHub.badgeCount}
@@ -806,6 +853,8 @@ export default function App() {
         >
           <HomeView
             desktopShell={isDesktopShell}
+            settingsHubOpenerRef={homeSettingsHubOpenerRef}
+            onOpenPartsStock={() => setIsPartsModalOpen(true)}
             onOpenApp={handleHomeOpenApp}
             onLogout={handleLogout}
             isTechnician={false}
@@ -985,6 +1034,7 @@ export default function App() {
         onClose={closeVehicleAccompaniment}
         initialServiceOrderId={vehicleAccompanimentPresetId}
       />
+      <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
       {authSession?.role === 'admin' ? (
         <AdminProfileModal
           isOpen={shellProfileModal === 'admin'}
