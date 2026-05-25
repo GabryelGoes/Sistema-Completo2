@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import './lightModeContrast.css';
 import './styles/patio-vehicle-modal-desktop.css';
+import './styles/desktop-onmotor-shell.css';
 import App from './App';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { DeviceTypeProvider } from './components/ui/DeviceTypeContext';

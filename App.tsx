@@ -34,6 +34,8 @@ import { ModalLayerProvider } from './components/ui/ModalLayerContext';
 import { OverlayPageNavBar } from './components/ui/OverlayPageNavBar';
 import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
 import { DesktopEscapeCloseBridge } from './components/ui/DesktopEscapeCloseBridge';
+import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame';
+import { useDesktopShell } from './hooks/useDesktopShell';
 import { PublicVehicleAccompanimentPage } from './components/public/PublicVehicleAccompanimentPage';
 import { VehicleAccompanimentModal } from './components/VehicleAccompanimentModal';
 
@@ -85,6 +87,7 @@ export default function App() {
 
   // Device Orientation
   const orientation = useOrientation();
+  const isDesktopShell = useDesktopShell();
 
   // Appointments State
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -474,16 +477,23 @@ export default function App() {
       canAddComments: perms.patio_add_comments,
       canArchiveCard: perms.patio_archive_card,
     };
+    const userDisplayName = authSession.displayName ?? authSession.username ?? 'Usuário';
     return (
       <ModalLayerProvider>
       <BackNavigationProvider>
-      <div
-        className="h-full min-h-0 flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
-        data-effects={effectsEnabled ? 'on' : 'off'}
+      <AuthenticatedAppFrame
+        isDesktopShell={isDesktopShell}
+        currentTab={userTab}
+        onTabChange={setUserTab}
+        onBackFromOverlay={handleOverlayCloseOrBack}
+        allowedTabs={userAllowedTabs}
+        displayName={userDisplayName}
+        photoUrl={authSession.photoUrl ?? null}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onLogout={handleLogout}
+        orcamentosBadge={patioBudgetsHub.badgeCount}
+        effectsEnabled={effectsEnabled}
       >
-        <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
-        <OverlayPageNavBar visible={userTab !== 'home'} onBack={handleOverlayCloseOrBack} />
-        <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
           <KeepAliveTabPanel
             tabId="home"
             activeTab={userTab}
@@ -491,6 +501,7 @@ export default function App() {
             className="flex-1 min-h-0 overflow-y-auto p-0"
           >
             <HomeView
+              desktopShell={isDesktopShell}
               isTechnician={authSession.isTechnician ?? false}
               technicianName={authSession.displayName ?? 'Usuário'}
               allowedTabs={userAllowedTabs}
@@ -646,7 +657,6 @@ export default function App() {
               patioPermissions={patioPerms}
             />
           </KeepAliveTabPanel>
-        </main>
         <div className="sr-only" aria-hidden="true">
           <NotificationCenter
             theme={theme}
@@ -692,23 +702,45 @@ export default function App() {
           initialServiceOrderId={vehicleAccompanimentPresetId}
         />
         <DesktopEscapeCloseBridge activeAppTab={userTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
-      </div>
+      </AuthenticatedAppFrame>
       </BackNavigationProvider>
       </ModalLayerProvider>
     );
   }
 
+  const adminDisplayNameResolved =
+    authSession?.role === 'admin'
+      ? adminDisplayName
+      : authSession?.role === 'user'
+        ? (authSession.displayName ?? authSession.username ?? 'Usuário')
+        : 'Rei do ABS';
+  const adminPhotoResolved =
+    authSession?.role === 'admin'
+      ? adminPhotoUrl
+      : authSession?.role === 'user'
+        ? authSession.photoUrl ?? null
+        : null;
+  const adminAllowedTabs =
+    authSession?.role === 'user' && authSession.permissions
+      ? permissionsToTabs(authSession.permissions)
+      : undefined;
+
   return (
     <ModalLayerProvider>
     <BackNavigationProvider>
-    <div
-      className="h-full min-h-0 flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
-      data-effects={effectsEnabled ? 'on' : 'off'}
+    <AuthenticatedAppFrame
+      isDesktopShell={isDesktopShell}
+      currentTab={currentTab}
+      onTabChange={setCurrentTab}
+      onBackFromOverlay={handleOverlayCloseOrBack}
+      allowedTabs={adminAllowedTabs}
+      displayName={adminDisplayNameResolved}
+      photoUrl={adminPhotoResolved}
+      onOpenSettings={authSession?.role === 'admin' || hasFullAccess ? () => setIsSettingsOpen(true) : undefined}
+      onLogout={handleLogout}
+      orcamentosBadge={patioBudgetsHub.badgeCount}
+      effectsEnabled={effectsEnabled}
     >
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
-      <OverlayPageNavBar visible={currentTab !== 'home'} onBack={handleOverlayCloseOrBack} />
-
-      <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">
         <KeepAliveTabPanel
           tabId="home"
           activeTab={currentTab}
@@ -716,6 +748,7 @@ export default function App() {
           className="flex-1 min-h-0 overflow-y-auto p-0"
         >
           <HomeView
+            desktopShell={isDesktopShell}
             onOpenApp={handleHomeOpenApp}
             onLogout={handleLogout}
             isTechnician={false}
@@ -868,7 +901,6 @@ export default function App() {
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         </KeepAliveTabPanel>
-      </main>
 
       {/* Global Modals */}
       <SettingsModal
@@ -917,7 +949,7 @@ export default function App() {
         />
       )}
       <DesktopEscapeCloseBridge activeAppTab={currentTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
-    </div>
+    </AuthenticatedAppFrame>
     </BackNavigationProvider>
     </ModalLayerProvider>
   );

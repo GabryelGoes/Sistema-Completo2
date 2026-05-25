@@ -26,6 +26,7 @@ import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../ser
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
+import { desktopOnmotorCard } from '../ui/desktopCardStyles';
 
 export type HomeAppId =
   | 'reception'
@@ -72,6 +73,8 @@ interface HomeViewProps {
   globalOverlayModalOpen?: boolean;
   /** Badge vermelho no ícone Orçamentos (hub do pátio). */
   patioBudgetsHubBadge?: number;
+  /** Layout OnMotor (sidebar + cards com borda amarela) — sem cabeçalho duplicado. */
+  desktopShell?: boolean;
 }
 
 /** Alinhado ao modal TV do pátio: vidro, sombra suave, cantos iOS. */
@@ -205,7 +208,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   globalOverlayModalOpen = false,
   patioBudgetsHubBadge = 0,
   onOpenVehicleAccompaniment,
+  desktopShell = false,
 }) => {
+  const hubCardClass = desktopShell ? desktopOnmotorCard : iosCard;
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
   const [isChangePasswordsOpen, setIsChangePasswordsOpen] = useState(false);
   const [isTechnicianProfileOpen, setIsTechnicianProfileOpen] = useState(false);
@@ -752,13 +757,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
           : 'grid-cols-2 lg:grid-cols-4';
 
   return (
-    <div className="min-h-full flex flex-col safe-area-pb relative overflow-x-hidden">
-      {/* Fundo um pouco mais acinzentado para contraste com os cartões */}
+    <div
+      className={
+        desktopShell
+          ? 'min-h-full flex flex-col px-6 py-5 max-w-6xl mx-auto w-full'
+          : 'min-h-full flex flex-col safe-area-pb relative overflow-x-hidden'
+      }
+    >
+      {!desktopShell ? (
+        <>
       <div className="fixed inset-0 -z-10 bg-gradient-to-b from-zinc-200/90 via-zinc-100 to-zinc-200/85 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950" />
       <div className="fixed inset-0 -z-10 pointer-events-none opacity-35 dark:opacity-25 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(251,191,36,0.18),transparent),radial-gradient(ellipse_60%_40%_at_100%_0%,rgba(56,189,248,0.1),transparent),radial-gradient(ellipse_50%_35%_at_0%_100%,rgba(167,139,250,0.08),transparent)]" />
       <div className="fixed inset-0 -z-10 pointer-events-none backdrop-blur-[2px]" />
+        </>
+      ) : null}
 
-      {/* Cabeçalho em vidro — alinhado ao topo (safe area apenas onde necessário) */}
+      {!desktopShell ? (
       <header className="relative z-10 pt-[max(0.5rem,env(safe-area-inset-top))] pb-4 px-4 sm:px-6 border-b border-zinc-200/70 dark:border-white/[0.08] bg-white/70 dark:bg-zinc-950/60 backdrop-blur-2xl shadow-[0_1px_0_0_rgba(255,255,255,0.55)_inset] dark:shadow-none">
         <div className="max-w-xl lg:max-w-5xl mx-auto flex items-center justify-between gap-3 min-w-0">
           <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
@@ -882,10 +896,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
       </header>
+      ) : (
+        <div className={`${desktopOnmotorCard} mb-4`}>
+          <div className="border-b border-zinc-100 px-4 py-2.5">
+            <p className="text-[13px] font-bold text-zinc-800">Resumo</p>
+            <p className="text-[12px] text-zinc-500 mt-0.5">Bem-vindo, {headerDisplayName}</p>
+          </div>
+        </div>
+      )}
 
-      <main className="relative z-10 flex-1 px-4 sm:px-6 pb-28 max-w-xl lg:max-w-5xl mx-auto w-full">
-        <section className="pt-5 pb-6 lg:pt-6">
-              <p className={iosSectionTitle}>Operação</p>
+      <main
+        className={
+          desktopShell
+            ? 'relative z-10 flex-1 w-full'
+            : 'relative z-10 flex-1 px-4 sm:px-6 pb-28 max-w-xl lg:max-w-5xl mx-auto w-full'
+        }
+      >
+        <section className={desktopShell ? 'pb-6' : 'pt-5 pb-6 lg:pt-6'}>
+              <p className={desktopShell ? 'text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 mb-2' : iosSectionTitle}>
+                Operação
+              </p>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <p className={`${iosSectionHint} mb-0`}>
                   {isQuickEditMode ? 'Arraste para reorganizar. Toque em 2x para cartão largo.' : 'Acesso rápido aos módulos do dia a dia'}
@@ -925,7 +955,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         event.preventDefault();
                         setIsQuickEditMode(true);
                       }}
-                      className={`group relative flex w-full flex-col items-center gap-3 p-4 sm:p-5 text-center select-none ${iosCard} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)] transition-all duration-300 active:scale-[0.99] ${
+                      className={`group relative flex w-full flex-col items-center gap-3 p-3 sm:p-4 text-center select-none ${hubCardClass} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 ${desktopShell ? 'hover:shadow-md' : 'hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)]'} transition-all duration-300 active:scale-[0.99] ${
                         isWide ? 'col-span-2' : ''
                       } ${isQuickEditMode ? 'animate-[pulse_2.8s_ease-in-out_infinite]' : ''} ${
                         isDragging ? 'scale-[1.02] border-[#007AFF]/35 shadow-[0_18px_48px_-18px_rgba(0,122,255,0.38)]' : ''
@@ -986,7 +1016,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   }}
                 >
                   <div
-                    className={`group relative flex h-full w-full flex-col items-center gap-3 p-4 sm:p-5 text-center ${iosCard} border-[#007AFF]/45 shadow-[0_22px_60px_-18px_rgba(0,122,255,0.45)] scale-[1.03]`}
+                    className={`group relative flex h-full w-full flex-col items-center gap-3 p-3 sm:p-4 text-center ${hubCardClass} border-[#007AFF]/45 ${desktopShell ? 'shadow-md' : 'shadow-[0_22px_60px_-18px_rgba(0,122,255,0.45)]'} scale-[1.03]`}
                   >
                     <IosAccentIconSquircle variant="tile" className="scale-105" strokeWidth={2.2}>
                       {operationalById[quickDragVisual.id].icon}
