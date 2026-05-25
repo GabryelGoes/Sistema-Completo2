@@ -13,6 +13,7 @@ export type AuthenticatedAppFrameProps = {
   displayName: string;
   photoUrl?: string | null;
   onOpenSettings?: () => void;
+  onOpenProfileEditor?: () => void;
   onLogout?: () => void;
   orcamentosBadge?: number;
   effectsEnabled: boolean;
@@ -28,6 +29,7 @@ export function AuthenticatedAppFrame({
   displayName,
   photoUrl,
   onOpenSettings,
+  onOpenProfileEditor,
   onLogout,
   orcamentosBadge,
   effectsEnabled,
@@ -47,6 +49,7 @@ export function AuthenticatedAppFrame({
             displayName={displayName}
             photoUrl={photoUrl}
             onOpenSettings={onOpenSettings}
+            onOpenProfileEditor={onOpenProfileEditor}
             onLogout={onLogout}
             orcamentosBadge={orcamentosBadge}
           >

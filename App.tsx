@@ -38,6 +38,10 @@ import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame
 import { useDesktopShell } from './hooks/useDesktopShell';
 import { PublicVehicleAccompanimentPage } from './components/public/PublicVehicleAccompanimentPage';
 import { VehicleAccompanimentModal } from './components/VehicleAccompanimentModal';
+import { AdminProfileModal } from './components/AdminProfileModal';
+import { UserProfileModal } from './components/UserProfileModal';
+
+type ShellProfileModal = 'user' | 'admin' | null;
 
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
@@ -60,6 +64,7 @@ export default function App() {
   const [hubBudgetViewer, setHubBudgetViewer] = useState<{ serviceOrderId: string; budgetId: string } | null>(null);
   const [vehicleAccompanimentOpen, setVehicleAccompanimentOpen] = useState(false);
   const [vehicleAccompanimentPresetId, setVehicleAccompanimentPresetId] = useState<string | null>(null);
+  const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
 
   const openVehicleAccompaniment = useCallback((serviceOrderId?: string | null) => {
     setVehicleAccompanimentPresetId(serviceOrderId ?? null);
@@ -311,6 +316,29 @@ export default function App() {
     setSystemUsersRefreshTrigger((t) => t + 1);
   };
 
+  const openShellProfileEditor = useCallback(() => {
+    if (!authSession) return;
+    if (authSession.role === 'admin') setShellProfileModal('admin');
+    else if (authSession.role === 'user') setShellProfileModal('user');
+  }, [authSession]);
+
+  const handleShellUserProfileUpdated = useCallback(
+    (data: { displayName?: string; photoUrl?: string | null; accentColor?: string | null }) => {
+      if (authSession?.role !== 'user') return;
+      const next = {
+        ...authSession,
+        ...(data.displayName !== undefined && { displayName: data.displayName }),
+        ...(data.photoUrl !== undefined && { photoUrl: data.photoUrl }),
+        ...(data.accentColor !== undefined && { accentColor: data.accentColor }),
+      };
+      setAuthSession(next);
+      try {
+        setStoredAuth(next);
+      } catch (_) {}
+    },
+    [authSession]
+  );
+
   // Função chamada pelo Pátio / histórico da Recepção para preencher o cadastro com dados de uma OS
   const handleUseCustomerData = (data: Customer) => {
     setAgendaIntakeSourceAppointmentId(null);
@@ -490,6 +518,7 @@ export default function App() {
         displayName={userDisplayName}
         photoUrl={authSession.photoUrl ?? null}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenProfileEditor={openShellProfileEditor}
         onLogout={handleLogout}
         orcamentosBadge={patioBudgetsHub.badgeCount}
         effectsEnabled={effectsEnabled}
@@ -584,13 +613,14 @@ export default function App() {
             tabId="reception"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="flex-1 min-h-0 w-full overflow-hidden p-0"
+            className="flex-1 min-h-0 w-full flex flex-col overflow-y-auto p-0"
           >
             <ReceptionView
               initialData={prefillData}
               onDataLoaded={() => setPrefillData(null)}
               forcedMode={receptionForcedMode}
               blurPlates={cinematographicMode}
+              hidePageChrome={isDesktopShell}
               onUseCustomerData={handleUseCustomerData}
               onIntakeSuccess={handleReceptionIntakeSuccess}
               onReceptionModeChangeForBack={syncReturnTabFromReceptionMode}
@@ -701,6 +731,19 @@ export default function App() {
           onClose={closeVehicleAccompaniment}
           initialServiceOrderId={vehicleAccompanimentPresetId}
         />
+        {authSession.role === 'user' ? (
+          <UserProfileModal
+            isOpen={shellProfileModal === 'user'}
+            username={authSession.username ?? ''}
+            initialDisplayName={authSession.displayName ?? ''}
+            initialPhotoUrl={authSession.photoUrl ?? null}
+            initialAccentColor={authSession.accentColor ?? null}
+            profileToken={authSession.profileToken}
+            isTechnician={authSession.isTechnician ?? false}
+            onClose={() => setShellProfileModal(null)}
+            onProfileUpdated={handleShellUserProfileUpdated}
+          />
+        ) : null}
         <DesktopEscapeCloseBridge activeAppTab={userTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
       </AuthenticatedAppFrame>
       </BackNavigationProvider>
@@ -737,6 +780,7 @@ export default function App() {
       displayName={adminDisplayNameResolved}
       photoUrl={adminPhotoResolved}
       onOpenSettings={authSession?.role === 'admin' || hasFullAccess ? () => setIsSettingsOpen(true) : undefined}
+      onOpenProfileEditor={openShellProfileEditor}
       onLogout={handleLogout}
       orcamentosBadge={patioBudgetsHub.badgeCount}
       effectsEnabled={effectsEnabled}
@@ -823,13 +867,14 @@ export default function App() {
           tabId="reception"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex-1 min-h-0 w-full overflow-hidden p-0"
+          className="flex-1 min-h-0 w-full flex flex-col overflow-y-auto p-0"
         >
           <ReceptionView
             initialData={prefillData}
             onDataLoaded={() => setPrefillData(null)}
             forcedMode={receptionForcedMode}
             blurPlates={cinematographicMode}
+            hidePageChrome={isDesktopShell}
             onUseCustomerData={handleUseCustomerData}
             onIntakeSuccess={handleReceptionIntakeSuccess}
             onReceptionModeChangeForBack={syncReturnTabFromReceptionMode}
@@ -928,6 +973,26 @@ export default function App() {
         onClose={closeVehicleAccompaniment}
         initialServiceOrderId={vehicleAccompanimentPresetId}
       />
+      {authSession?.role === 'admin' ? (
+        <AdminProfileModal
+          isOpen={shellProfileModal === 'admin'}
+          onClose={() => setShellProfileModal(null)}
+          onSaved={handleAdminProfileSaved}
+        />
+      ) : null}
+      {authSession?.role === 'user' ? (
+        <UserProfileModal
+          isOpen={shellProfileModal === 'user'}
+          username={authSession.username ?? ''}
+          initialDisplayName={authSession.displayName ?? ''}
+          initialPhotoUrl={authSession.photoUrl ?? null}
+          initialAccentColor={authSession.accentColor ?? null}
+          profileToken={authSession.profileToken}
+          isTechnician={authSession.isTechnician ?? false}
+          onClose={() => setShellProfileModal(null)}
+          onProfileUpdated={handleShellUserProfileUpdated}
+        />
+      ) : null}
 
       {/* Central de notificações: admin vê notificações do admin; técnicos veem as deles (target_slug = userId). Só ativa modo técnico quando userId existe para o pop-up de comentários aparecer. */}
       <div className="sr-only" aria-hidden="true">

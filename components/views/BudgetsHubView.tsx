@@ -12,15 +12,13 @@ import {
   BUDGETS_HUB_VIEW_MODES,
   buildStageKanbanColumns,
   buildVehicleGroups,
+  buildVehicleGroupsForView,
   computeBudgetsHubStats,
-  filterBudgetsForView,
-  filterVehicleGroupsForView,
   readStoredBudgetsHubView,
   storeBudgetsHubView,
   type BudgetsHubViewMode,
 } from '../../utils/budgetsHubViews';
 import {
-  BudgetHubFlatBudgetList,
   BudgetHubStageBoard,
   BudgetHubVehicleGroup,
   BudgetsHubEmptyState,
@@ -33,6 +31,8 @@ const BUDGETS_CHANGED = 'rda-patio-budgets-changed';
 function normalizeAggregateItem(raw: PatioVehicleBudgetAggregateItem): PatioVehicleBudgetAggregateItem {
   return {
     ...raw,
+    orderType: raw.orderType === 'module' ? 'module' : 'vehicle',
+    moduleIdentification: raw.moduleIdentification ?? null,
     hasApprovedItems: raw.hasApprovedItems ?? false,
     hasExplicitApprovalDecisions: raw.hasExplicitApprovalDecisions ?? false,
     approvedItemsCount: raw.approvedItemsCount ?? 0,
@@ -191,12 +191,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
 
   const stats = useMemo(() => computeBudgetsHubStats(items), [items]);
   const allGroups = useMemo(() => buildVehicleGroups(items), [items]);
-
-  const filteredItems = useMemo(() => filterBudgetsForView(items, viewMode), [items, viewMode]);
-  const filteredGroups = useMemo(
-    () => filterVehicleGroupsForView(allGroups, viewMode),
-    [allGroups, viewMode]
-  );
+  const groupsForView = useMemo(() => buildVehicleGroupsForView(items, viewMode), [items, viewMode]);
 
   const kanbanColumns = useMemo(() => buildStageKanbanColumns(allGroups), [allGroups]);
 
@@ -257,7 +252,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
       return (
         <BudgetsHubEmptyState
           message="Nenhum orçamento no pátio"
-          hint="Os orçamentos dos veículos em etapas ativas aparecerão aqui automaticamente."
+              hint="Os orçamentos de veículos (Pátio) e módulos (Laboratório) em etapas ativas aparecerão aqui automaticamente."
         />
       );
     }
@@ -277,38 +272,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
       );
     }
 
-    const flatModes: BudgetsHubViewMode[] = ['recent', 'activity', 'approved', 'awaiting_approval'];
-    if (flatModes.includes(viewMode)) {
-      if (filteredItems.length === 0) {
-        return (
-          <BudgetsHubEmptyState
-            message="Nada nesta visualização"
-            hint={activeViewMeta?.description ?? 'Tente outro modo de organização acima.'}
-          />
-        );
-      }
-      return (
-        <BudgetHubFlatBudgetList
-          items={filteredItems}
-          pulseByBudgetId={pulseByBudgetId}
-          onOpenBudget={openBudgetFromHub}
-          desktopShell={desktopShell}
-        />
-      );
-    }
-
-    if (viewMode === 'in_service') {
-      if (filteredGroups.length === 0) {
-        return (
-          <BudgetsHubEmptyState
-            message="Nenhum veículo em serviço"
-            hint="Veículos na etapa Em serviço aparecem aqui com seus orçamentos."
-          />
-        );
-      }
-    }
-
-    const groupsToShow = viewMode === 'vehicles' ? allGroups : filteredGroups;
+    const groupsToShow = viewMode === 'by_stage' ? [] : groupsForView;
     if (groupsToShow.length === 0) {
       return (
         <BudgetsHubEmptyState
@@ -357,7 +321,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
               <h1 className="text-[1.35rem] font-semibold tracking-tight text-zinc-900 dark:text-white">Orçamentos</h1>
               <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-zinc-600 dark:text-zinc-400">
                 <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                <span className="truncate">Centro inteligente de orçamentos do pátio</span>
+                <span className="truncate">Orçamentos do Pátio e do Laboratório</span>
               </p>
             </div>
           </div>

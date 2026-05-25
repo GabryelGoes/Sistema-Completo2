@@ -1813,7 +1813,7 @@ export async function getServiceOrderBudgets(
   return (data ?? []).map(mapApiBudgetToSaved);
 }
 
-/** Item do hub “Orçamentos” (veículos no Pátio, OS não arquivadas). */
+/** Item do hub “Orçamentos” (Pátio + Laboratório, OS não arquivadas). */
 export interface PatioVehicleBudgetAggregateItem {
   budgetId: string;
   serviceOrderId: string;
@@ -1829,6 +1829,9 @@ export interface PatioVehicleBudgetAggregateItem {
   vehicleBrand: string | null;
   osNumber: number | null;
   orderStatus: string;
+  /** `vehicle` = Pátio · `module` = Laboratório */
+  orderType: 'vehicle' | 'module';
+  moduleIdentification: string | null;
   customerName: string | null;
   hasApprovedItems: boolean;
   hasExplicitApprovalDecisions: boolean;

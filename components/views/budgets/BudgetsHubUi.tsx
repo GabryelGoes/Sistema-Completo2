@@ -18,7 +18,50 @@ import { getStageConfig, getStageStyle } from '../../../constants/serviceOrderSt
 import { iosLabel, iosPageGlass, iosPageGlassOrcamentosVehicleCard } from '../../ui/iosModalStyles';
 import { desktopOnmotorCard } from '../../ui/desktopCardStyles';
 import type { BudgetsHubViewMode, StageKanbanColumn, VehicleBudgetGroup } from '../../../utils/budgetsHubViews';
-import { BUDGETS_HUB_VIEW_MODES } from '../../../utils/budgetsHubViews';
+import { BUDGETS_HUB_VIEW_MODES, budgetOrderFlow } from '../../../utils/budgetsHubViews';
+
+/** Etiqueta Pátio ou Laboratório no orçamento / veículo. */
+export function BudgetOrderOriginBadge({
+  orderType,
+  compact,
+}: {
+  orderType: 'vehicle' | 'module';
+  compact?: boolean;
+}) {
+  const isLab = orderType === 'module';
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full border font-bold uppercase tracking-[0.06em] ${
+        compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'
+      } ${
+        isLab
+          ? 'border-violet-400/55 bg-violet-500/12 text-violet-800 dark:border-violet-400/40 dark:bg-violet-500/18 dark:text-violet-200'
+          : 'border-[#007AFF]/40 bg-[#007AFF]/10 text-[#0058c7] dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/12 dark:text-[#8cc8ff]'
+      }`}
+      title={isLab ? 'Orçamento do Laboratório' : 'Orçamento do Pátio'}
+    >
+      <img
+        src={isLab ? '/icons/laboratorio-ios.png' : '/icons/patio-ios.png'}
+        alt=""
+        className={`rounded-[4px] object-cover ${compact ? 'h-3 w-3' : 'h-3.5 w-3.5'}`}
+      />
+      {isLab ? 'Laboratório' : 'Pátio'}
+    </span>
+  );
+}
+
+export function budgetOrderTitle(
+  row: Pick<PatioVehicleBudgetAggregateItem, 'orderType' | 'plate' | 'moduleIdentification' | 'vehicleModel' | 'vehicleBrand'>,
+  plateDisplay?: (plate: string | null) => React.ReactNode
+): React.ReactNode {
+  if (row.orderType === 'module') {
+    const id = (row.moduleIdentification ?? row.vehicleModel ?? '').trim();
+    return id || 'Módulo';
+  }
+  const p = (row.plate ?? '').trim();
+  if (plateDisplay) return plateDisplay(row.plate);
+  return p ? p.toUpperCase() : '—';
+}
 
 const VIEW_ICONS: Record<BudgetsHubViewMode, React.ReactNode> = {
   vehicles: <LayoutList className="h-3.5 w-3.5" strokeWidth={2.2} />,
@@ -90,7 +133,16 @@ export function BudgetsHubStatsStrip({
   stats,
   desktopShell,
 }: {
-  stats: { totalBudgets: number; totalVehicles: number; recentCount: number; approvedCount: number; inServiceCount: number; awaitingCount: number };
+  stats: {
+    totalBudgets: number;
+    totalVehicles: number;
+    patioBudgets: number;
+    laboratoryBudgets: number;
+    recentCount: number;
+    approvedCount: number;
+    inServiceCount: number;
+    awaitingCount: number;
+  };
   desktopShell?: boolean;
 }) {
   const chip = (label: string, value: number, accent?: string) => (
@@ -112,7 +164,9 @@ export function BudgetsHubStatsStrip({
   return (
     <div className="mb-4 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
       {chip('Orçamentos', stats.totalBudgets)}
-      {chip('Veículos', stats.totalVehicles)}
+      {chip('OS ativas', stats.totalVehicles)}
+      {chip('Pátio', stats.patioBudgets, 'text-[#0058c7] dark:text-[#8cc8ff]')}
+      {chip('Laboratório', stats.laboratoryBudgets, 'text-violet-700 dark:text-violet-300')}
       {chip('Novos', stats.recentCount, 'text-emerald-600 dark:text-emerald-400')}
       {chip('Aprovados', stats.approvedCount, 'text-sky-700 dark:text-sky-300')}
       {chip('Em serviço', stats.inServiceCount, 'text-blue-700 dark:text-blue-300')}
@@ -140,6 +194,7 @@ export function BudgetHubBudgetRow({ row, budgetNum, pulse, onOpen, compact }: B
         }`}
       >
         <div className="flex flex-wrap items-center gap-2">
+          <BudgetOrderOriginBadge orderType={row.orderType} />
           <span className={`${iosLabel} mb-0 text-[10px]`}>Orçamento {budgetNum}</span>
           {pulse === 'created' ? (
             <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
@@ -196,7 +251,9 @@ export function BudgetHubVehicleGroup({
   desktopShell,
 }: VehicleGroupProps) {
   const { head, items, orderId } = group;
-  const stage = getStageConfig(head.orderStatus);
+  const flow = budgetOrderFlow(head.orderType);
+  const stage = getStageConfig(head.orderStatus, flow);
+  const isLab = head.orderType === 'module';
   const open = defaultOpen ?? expanded;
   const cardShell = desktopShell ? desktopOnmotorCard : iosPageGlassOrcamentosVehicleCard;
   const chrono = items.map((x) => ({ id: x.budgetId, createdAt: x.createdAt }));
@@ -220,26 +277,36 @@ export function BudgetHubVehicleGroup({
         }`}
       >
         <div
-          className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
-            vehicleNeedsAttention ? '!bg-red-100/88 dark:!bg-red-500/12' : 'bg-zinc-100 dark:bg-white/[0.08]'
+          className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl ring-1 ${
+            vehicleNeedsAttention
+              ? '!bg-red-100/88 ring-red-300/50 dark:!bg-red-500/12'
+              : isLab
+                ? 'bg-violet-500/10 ring-violet-400/35'
+                : 'bg-[#007AFF]/10 ring-[#007AFF]/25'
           }`}
         >
-          <FileText
-            className={vehicleNeedsAttention ? 'h-5 w-5 text-red-700 dark:text-red-300' : 'h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]'}
-            strokeWidth={2}
+          <img
+            src={isLab ? '/icons/laboratorio-ios.png' : '/icons/patio-ios.png'}
+            alt=""
+            className="h-full w-full object-cover"
           />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[14px] font-bold tracking-wide text-zinc-900 dark:text-white">
-              {plateDisplay(head.plate)}
+            <BudgetOrderOriginBadge orderType={head.orderType} />
+            <span
+              className={`font-bold tracking-wide text-zinc-900 dark:text-white ${
+                isLab ? 'text-[14px]' : 'font-mono text-[14px]'
+              }`}
+            >
+              {budgetOrderTitle(head, plateDisplay)}
             </span>
             {head.osNumber != null ? (
               <span className="rounded-full bg-zinc-200/90 px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:bg-white/[0.1] dark:text-zinc-300">
                 OS #{head.osNumber}
               </span>
             ) : null}
-            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getStageStyle(head.orderStatus)}`}>
+            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getStageStyle(head.orderStatus, flow)}`}>
               {stage?.name ?? head.orderStatus}
             </span>
           </div>
@@ -298,7 +365,8 @@ export function BudgetHubFlatBudgetList({
       <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
         {items.map((row) => {
           const chrono = chronoByOrder.get(row.serviceOrderId) ?? [];
-          const stage = getStageConfig(row.orderStatus);
+          const flow = budgetOrderFlow(row.orderType);
+          const stage = getStageConfig(row.orderStatus, flow);
           return (
             <li key={row.budgetId}>
               <button
@@ -307,13 +375,18 @@ export function BudgetHubFlatBudgetList({
                 className="flex w-full flex-col gap-2 px-4 py-4 text-left transition-colors hover:bg-zinc-50/90 sm:px-5 dark:hover:bg-white/[0.04]"
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-[13px] font-bold text-zinc-900 dark:text-white">
-                    {(row.plate ?? '—').toUpperCase()}
+                  <BudgetOrderOriginBadge orderType={row.orderType} compact />
+                  <span
+                    className={`font-bold text-zinc-900 dark:text-white ${
+                      row.orderType === 'module' ? 'text-[13px]' : 'font-mono text-[13px]'
+                    }`}
+                  >
+                    {budgetOrderTitle(row)}
                   </span>
                   {row.osNumber != null ? (
                     <span className="text-[11px] font-semibold text-zinc-500">OS #{row.osNumber}</span>
                   ) : null}
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getStageStyle(row.orderStatus)}`}>
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getStageStyle(row.orderStatus, flow)}`}>
                     {stage?.name ?? row.orderStatus}
                   </span>
                   <span className={`${iosLabel} mb-0 text-[10px]`}>

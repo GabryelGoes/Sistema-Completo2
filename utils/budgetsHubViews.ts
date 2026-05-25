@@ -1,9 +1,18 @@
 import {
   SERVICE_ORDER_STAGES,
   getStageConfig,
+  type ServiceOrderFlowKind,
   type ServiceOrderStatus,
 } from '../constants/serviceOrderStages';
 import type { PatioVehicleBudgetAggregateItem } from '../services/apiService';
+
+export function budgetOrderFlow(orderType: string | undefined): ServiceOrderFlowKind {
+  return orderType === 'module' ? 'module' : 'vehicle';
+}
+
+export function isLaboratoryBudget(item: Pick<PatioVehicleBudgetAggregateItem, 'orderType'>): boolean {
+  return item.orderType === 'module';
+}
 
 export type BudgetsHubViewMode =
   | 'vehicles'
@@ -42,7 +51,7 @@ export const BUDGETS_HUB_VIEW_MODES: {
   },
   {
     id: 'approved',
-    label: 'Com itens aprovados',
+    label: 'Aprovados',
     shortLabel: 'Aprovados',
     description: 'Orçamentos em que o cliente já aprovou pelo menos um serviço ou peça',
   },
@@ -128,72 +137,101 @@ export function isBudgetRecentlyCreated(item: PatioVehicleBudgetAggregateItem, n
   return Number.isFinite(t) && now - t <= RECENT_CREATED_MS;
 }
 
-export function filterBudgetsForView(
-  items: PatioVehicleBudgetAggregateItem[],
+/** Um orçamento entra na visualização filtrada (exceto vehicles / activity / by_stage). */
+export function budgetMatchesViewFilter(
+  item: PatioVehicleBudgetAggregateItem,
   mode: BudgetsHubViewMode
-): PatioVehicleBudgetAggregateItem[] {
+): boolean {
   switch (mode) {
     case 'recent':
-      return [...items]
-        .filter((i) => isBudgetRecentlyCreated(i))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      return isBudgetRecentlyCreated(item);
     case 'approved':
-      return [...items]
-        .filter((i) => i.hasApprovedItems)
-        .sort((a, b) => budgetActivityMs(b) - budgetActivityMs(a));
-    case 'activity':
-      return [...items].sort((a, b) => budgetActivityMs(b) - budgetActivityMs(a));
+      return item.hasApprovedItems;
     case 'awaiting_approval':
-      return [...items].filter(
-        (i) =>
-          i.orderStatus === 'AGUARDANDO_APROVACAO' ||
-          (i.hasExplicitApprovalDecisions && i.pendingItemsCount > 0 && !i.hasApprovedItems)
+      return (
+        item.orderStatus === 'AGUARDANDO_APROVACAO' ||
+        (item.hasExplicitApprovalDecisions && item.pendingItemsCount > 0 && !item.hasApprovedItems)
       );
     case 'in_service':
-      return [...items].filter((i) => i.orderStatus === 'EM_SERVICO');
-    case 'vehicles':
-    case 'by_stage':
+      return item.orderStatus === 'EM_SERVICO';
     default:
-      return items;
+      return true;
   }
 }
 
-export function filterVehicleGroupsForView(
-  groups: VehicleBudgetGroup[],
+function sortBudgetItemsForView(
+  list: PatioVehicleBudgetAggregateItem[],
+  mode: BudgetsHubViewMode
+): PatioVehicleBudgetAggregateItem[] {
+  const copy = [...list];
+  if (mode === 'recent') {
+    copy.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } else {
+    copy.sort((a, b) => budgetActivityMs(b) - budgetActivityMs(a));
+  }
+  return copy;
+}
+
+function sortGroupsForView(groups: VehicleBudgetGroup[], mode: BudgetsHubViewMode): VehicleBudgetGroup[] {
+  const copy = [...groups];
+  if (mode === 'recent') {
+    copy.sort((a, b) => {
+      const maxA = Math.max(...a.items.map((i) => new Date(i.createdAt).getTime()));
+      const maxB = Math.max(...b.items.map((i) => new Date(i.createdAt).getTime()));
+      return maxB - maxA;
+    });
+  } else {
+    copy.sort((a, b) => b.latestActivityMs - a.latestActivityMs);
+  }
+  return copy;
+}
+
+/**
+ * Mesmo layout “por veículo”: cards agrupados por OS, com orçamentos filtrados dentro de cada card.
+ */
+export function buildVehicleGroupsForView(
+  items: PatioVehicleBudgetAggregateItem[],
   mode: BudgetsHubViewMode
 ): VehicleBudgetGroup[] {
-  switch (mode) {
-    case 'in_service':
-      return groups.filter((g) => g.head.orderStatus === 'EM_SERVICO');
-    case 'awaiting_approval':
-      return groups.filter(
-        (g) =>
-          g.head.orderStatus === 'AGUARDANDO_APROVACAO' ||
-          g.items.some(
-            (i) => i.hasExplicitApprovalDecisions && i.pendingItemsCount > 0 && !i.hasApprovedItems
-          )
-      );
-    case 'approved':
-      return groups.filter((g) => g.items.some((i) => i.hasApprovedItems));
-    case 'recent':
-      return groups
-        .filter((g) => g.items.some((i) => isBudgetRecentlyCreated(i)))
-        .sort((a, b) => {
-          const maxA = Math.max(...a.items.map((i) => new Date(i.createdAt).getTime()));
-          const maxB = Math.max(...b.items.map((i) => new Date(i.createdAt).getTime()));
-          return maxB - maxA;
-        });
-    case 'by_stage':
-    case 'vehicles':
-    case 'activity':
-    default:
-      return groups;
+  if (mode === 'vehicles' || mode === 'by_stage') {
+    return buildVehicleGroups(items);
   }
+
+  if (mode === 'activity') {
+    return buildVehicleGroups(items);
+  }
+
+  if (mode === 'in_service') {
+    return buildVehicleGroups(items.filter((i) => i.orderStatus === 'EM_SERVICO'));
+  }
+
+  const grouped = groupBudgetsByOrderId(items);
+  const groups: VehicleBudgetGroup[] = [];
+
+  for (const [orderId, list] of grouped) {
+    const matching = sortBudgetItemsForView(
+      list.filter((i) => budgetMatchesViewFilter(i, mode)),
+      mode
+    );
+    if (matching.length === 0) continue;
+    const head = matching[0];
+    if (!head) continue;
+    groups.push({
+      orderId,
+      items: matching,
+      head,
+      latestActivityMs: Math.max(...matching.map((r) => budgetActivityMs(r))),
+    });
+  }
+
+  return sortGroupsForView(groups, mode);
 }
 
 export type BudgetsHubStats = {
   totalBudgets: number;
   totalVehicles: number;
+  patioBudgets: number;
+  laboratoryBudgets: number;
   recentCount: number;
   approvedCount: number;
   inServiceCount: number;
@@ -205,6 +243,8 @@ export function computeBudgetsHubStats(items: PatioVehicleBudgetAggregateItem[])
   return {
     totalBudgets: items.length,
     totalVehicles: groups.length,
+    patioBudgets: items.filter((i) => i.orderType !== 'module').length,
+    laboratoryBudgets: items.filter((i) => i.orderType === 'module').length,
     recentCount: items.filter((i) => isBudgetRecentlyCreated(i)).length,
     approvedCount: items.filter((i) => i.hasApprovedItems).length,
     inServiceCount: items.filter((i) => i.orderStatus === 'EM_SERVICO').length,

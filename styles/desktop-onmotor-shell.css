@@ -5,6 +5,9 @@
 
 html[data-desktop-shell='true'] {
   font-size: 14px;
+  /* Faixa dos cards e indicador da sidebar — azul (não usa o amarelo global da oficina). */
+  --desktop-shell-accent: #2563eb;
+  --desktop-shell-accent-rgb: 37 99 235;
 }
 
 html[data-desktop-shell='true'] body,
@@ -113,7 +116,7 @@ html[data-desktop-shell='true'] .desktop-shell-nav-item:hover {
 html[data-desktop-shell='true'] .desktop-shell-nav-item--active {
   background: #f0f0f0;
   color: #09090b;
-  box-shadow: inset 3px 0 0 rgb(var(--app-accent-rgb) / 1);
+  box-shadow: inset 3px 0 0 rgb(var(--desktop-shell-accent-rgb) / 1);
 }
 
 html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-item {
@@ -123,7 +126,7 @@ html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell
 }
 
 html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-item--active {
-  box-shadow: inset 0 3px 0 rgb(var(--app-accent-rgb) / 1);
+  box-shadow: inset 0 3px 0 rgb(var(--desktop-shell-accent-rgb) / 1);
 }
 
 html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-label,
@@ -276,12 +279,21 @@ html[data-desktop-shell='true'] .desktop-shell-content {
 }
 
 html[data-desktop-shell='true'] .desktop-shell-content-inner {
+  display: flex;
+  flex-direction: column;
   min-height: 100%;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-content-inner > [role='tabpanel']:not([hidden]) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Cards OnMotor dentro das views */
 html[data-desktop-shell='true'] .desktop-onmotor-card {
-  border-top-color: rgb(var(--app-accent-rgb) / 1);
+  border-top-color: rgb(var(--desktop-shell-accent-rgb) / 1);
 }
 
 html[data-desktop-shell='true'] .desktop-shell-content .desktop-onmotor-card {
@@ -304,7 +316,7 @@ html[data-desktop-shell='true'] .desktop-shell-content [class*='rounded-[22px]']
 html[data-desktop-shell='true'] .desktop-shell-content .ios-page-glass-desktop-override {
   border-radius: 0.375rem !important;
   border-top-width: 3px !important;
-  border-top-color: rgb(var(--app-accent-rgb) / 1) !important;
+  border-top-color: rgb(var(--desktop-shell-accent-rgb) / 1) !important;
   background: #fff !important;
   backdrop-filter: none !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px -4px rgba(0, 0, 0, 0.08) !important;

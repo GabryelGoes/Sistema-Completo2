@@ -9,6 +9,7 @@ import {
 } from '../ui/iosModalStyles';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { IosModalHeader } from '../ui/IosModalHeader';
+import { useDesktopShellLayout } from '../ui/DesktopShellContext';
 import { Customer, ProcessingStatus } from '../../types';
 import { Input, TextArea } from '../ui/Input';
 import { ProcessingOverlay } from '../ProcessingOverlay';
@@ -170,6 +171,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   isReceptionTabActive = true,
   hidePageChrome = false,
 }) => {
+  const desktopShell = useDesktopShellLayout();
+  const useShellPageScroll = hidePageChrome || desktopShell;
+
   const [receptionMode, setReceptionMode] = useState<ServiceOrderType>(() => {
     try {
       const v = localStorage.getItem(RECEPTION_MODE_KEY);
@@ -1001,8 +1005,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   return (
     <div
       className={`${
-        hidePageChrome ? 'min-h-0' : 'h-full min-h-0'
-      } w-full overflow-y-auto overscroll-none touch-pan-y bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90`}
+        useShellPageScroll
+          ? 'w-full min-h-0 flex-1'
+          : 'h-full min-h-0 w-full overflow-y-auto overscroll-none touch-pan-y'
+      } bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90`}
     >
     <div
       className={`w-full max-w-none mx-auto animate-in fade-in duration-500 ${

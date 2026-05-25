@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { Bell, ChevronLeft, ChevronRight, Headphones, LogOut, Settings, User } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, Headphones, LogOut, Settings } from 'lucide-react';
+import { DesktopShellAccountMenu } from './DesktopShellAccountMenu';
 import type { TabId } from '../TabBar';
 import { moduleAccentColor, moduleTopbarTextTone } from '../../utils/appAppearance';
 import {
@@ -26,6 +27,7 @@ export type DesktopAppShellProps = {
   displayName: string;
   photoUrl?: string | null;
   onOpenSettings?: () => void;
+  onOpenProfileEditor?: () => void;
   onLogout?: () => void;
   orcamentosBadge?: number;
   children: React.ReactNode;
@@ -60,6 +62,7 @@ export function DesktopAppShell({
   displayName,
   photoUrl,
   onOpenSettings,
+  onOpenProfileEditor,
   onLogout,
   orcamentosBadge = 0,
   children,
@@ -174,24 +177,12 @@ export function DesktopAppShell({
             <button type="button" className="desktop-shell-topbar-btn" aria-label="Notificações" title="Notificações">
               <Bell className="h-4 w-4" strokeWidth={2} />
             </button>
-            <button type="button" className="desktop-shell-topbar-btn" aria-label="Conta" title={displayName}>
-              {photoUrl ? (
-                <img src={photoUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
-              ) : (
-                <User className="h-4 w-4" strokeWidth={2} />
-              )}
-            </button>
-            {onLogout ? (
-              <button
-                type="button"
-                className="desktop-shell-topbar-btn"
-                onClick={onLogout}
-                aria-label="Sair"
-                title="Sair"
-              >
-                <LogOut className="h-4 w-4" strokeWidth={2} />
-              </button>
-            ) : null}
+            <DesktopShellAccountMenu
+              displayName={displayName}
+              photoUrl={photoUrl}
+              onOpenProfileEditor={onOpenProfileEditor}
+              onLogout={onLogout}
+            />
           </div>
         </header>
 

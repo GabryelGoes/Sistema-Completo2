@@ -2035,7 +2035,7 @@ export function createApiApp() {
     }
   });
 
-  /** Orçamentos de veículos em OS ativas no Pátio (exclui arquivadas) — hub na home + badge. */
+  /** Orçamentos de OS ativas no Pátio e Laboratório (exclui arquivadas) — hub + badge. */
   app.get("/api/patio-vehicle-budgets-aggregate", async (_req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -2047,9 +2047,9 @@ export function createApiApp() {
 
       const { data: orders, error: e1 } = await supabaseAdmin
         .from("service_orders")
-        .select("id, status, plate, vehicle_model, vehicle_brand, os_number, customer_id")
+        .select("id, status, plate, vehicle_model, vehicle_brand, os_number, customer_id, order_type, module_identification")
         .eq("workshop_id", WORKSHOP_ID)
-        .eq("order_type", "vehicle")
+        .in("order_type", ["vehicle", "module"])
         .neq("status", CANCELLED_STATUS);
 
       if (e1) {
@@ -2099,8 +2099,11 @@ export function createApiApp() {
               os_number?: number | null;
               status?: string;
               customer_id?: string | null;
+              order_type?: string | null;
+              module_identification?: string | null;
             }
           | undefined;
+        const orderType = o?.order_type === "module" ? "module" : "vehicle";
         const contentSignature = crypto
           .createHash("sha256")
           .update(
@@ -2153,6 +2156,11 @@ export function createApiApp() {
           vehicleBrand: o?.vehicle_brand != null ? String(o.vehicle_brand) : null,
           osNumber: o?.os_number != null && Number.isFinite(Number(o.os_number)) ? Number(o.os_number) : null,
           orderStatus: o?.status != null ? String(o.status) : "",
+          orderType,
+          moduleIdentification:
+            orderType === "module" && o?.module_identification != null
+              ? String(o.module_identification)
+              : null,
           customerName: cid && customerNameMap[cid] ? customerNameMap[cid] : null,
           hasApprovedItems,
           hasExplicitApprovalDecisions,
