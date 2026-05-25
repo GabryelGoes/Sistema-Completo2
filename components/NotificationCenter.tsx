@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Bell,
@@ -124,7 +124,9 @@ function showNativeDeviceNotification(n: Notification, forTechnician?: boolean):
   return true;
 }
 
-interface NotificationCenterProps {
+export type NotificationCenterPlacement = 'floating' | 'desktopTopbar';
+
+export interface NotificationCenterProps {
   /** Callback quando há novo comentário (para pop-up + som) */
   onNewCommentNotification?: (notification: Notification) => void;
   /** Callback ao clicar numa notificação (ex.: ir ao veículo/comentários no Pátio) */
@@ -135,6 +137,8 @@ interface NotificationCenterProps {
   technicianSlug?: string;
   /** Tema do sistema para cores (preto, amarelo, branco) */
   theme?: 'light' | 'dark';
+  /** `desktopTopbar`: botão do shell PC + painel dropdown; `floating`: sino circular (padrão). */
+  placement?: NotificationCenterPlacement;
 }
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({
@@ -143,8 +147,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   forTechnician,
   technicianSlug,
   theme = 'dark',
+  placement = 'floating',
 }) => {
-  const isDark = theme === 'dark';
+  const isDesktopTopbar = placement === 'desktopTopbar';
+  const isDark = isDesktopTopbar ? false : theme === 'dark';
   const [open, setOpen] = useState(false);
   useRegisterModalOpen(open);
   useBrowserBackLayer(open, () => setOpen(false));
@@ -157,7 +163,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const [markingAll, setMarkingAll] = useState(false);
   const [clearing, setClearing] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const lastFetchRef = useRef<string | null>(null);
   const lastCreatedAtRef = useRef<string | null>(null);
   const prevUnreadIdsRef = useRef<Set<string>>(new Set());
@@ -286,6 +294,40 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     return () => clearTimeout(t);
   }, []);
 
+  const updateDropdownPosition = useCallback(() => {
+    const btn = triggerRef.current;
+    if (!btn || typeof window === 'undefined') return;
+    const rect = btn.getBoundingClientRect();
+    const panelWidth = 380;
+    const maxHeight = Math.min(window.innerHeight * 0.7, 520);
+    let left = rect.right - panelWidth;
+    left = Math.max(12, Math.min(left, window.innerWidth - panelWidth - 12));
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 8,
+      left,
+      width: panelWidth,
+      maxHeight,
+      zIndex: 99999,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open || !isDesktopTopbar) return;
+    updateDropdownPosition();
+  }, [open, isDesktopTopbar, updateDropdownPosition]);
+
+  useEffect(() => {
+    if (!open || !isDesktopTopbar) return;
+    const onResize = () => updateDropdownPosition();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('scroll', onResize, true);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onResize, true);
+    };
+  }, [open, isDesktopTopbar, updateDropdownPosition]);
+
   useEffect(() => {
     if (!open || !canUseDOM) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -295,13 +337,16 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       setOpen(false);
     };
     document.addEventListener('keydown', onKeyDown);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [open, canUseDOM]);
+    if (!isDesktopTopbar) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.removeEventListener('keydown', onKeyDown);
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open, canUseDOM, isDesktopTopbar]);
 
   const handleMarkRead = async (id: string) => {
     try {
@@ -369,46 +414,17 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const emptyClass = isDark ? 'text-zinc-300' : 'text-zinc-500';
   const loadingClass = isDark ? 'text-zinc-400' : 'text-zinc-400';
 
-  return (
-    <div className="relative" ref={rootRef}>
-      <button
-        type="button"
-        onClick={() => {
-          requestNotificationPermission();
-          setOpen((o) => !o);
-        }}
-        className={`relative w-11 h-11 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all shadow-[0_8px_24px_rgba(0,0,0,0.10)] active:scale-[0.98] ${bellClass}`}
-        aria-label="Central de notificações"
-      >
-        <Bell className="w-5 h-5" strokeWidth={2} />
-        {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center px-1 shadow-sm">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-      </button>
+  const panelShellClass = isDesktopTopbar
+    ? 'rounded-2xl border border-zinc-200/90 bg-white shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col'
+    : `w-[min(420px,calc(100vw-24px))] rounded-[28px] backdrop-blur-2xl overflow-hidden flex flex-col max-h-[78vh] border ${panelClass}`;
 
-      {open &&
-        portalTarget &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[999999] flex items-start justify-center pt-20 bg-black/35 backdrop-blur-[2px]"
-            role="presentation"
-            onClick={() => setOpen(false)}
-          >
-            <div
-              ref={modalRef}
-              className={`w-[min(420px,calc(100vw-24px))] rounded-[28px] backdrop-blur-2xl overflow-hidden flex flex-col max-h-[78vh] border ${panelClass}`}
-              onClick={(e) => e.stopPropagation()}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Central de notificações"
-            >
+  const panelContent = (
+            <>
               <div className={`flex items-center justify-between px-5 py-4 border-b shrink-0 ${headerBorderClass}`}>
                 <div className="min-w-0">
                   <h3 className={`text-[17px] font-semibold tracking-tight ${titleClass}`}>Notificações</h3>
                   <p className={`mt-0.5 text-[12px] ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                    Toque para abrir e marcar como lida.
+                    {isDesktopTopbar ? 'Clique para abrir e marcar como lida.' : 'Toque para abrir e marcar como lida.'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -536,10 +552,90 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   </ul>
                 )}
               </div>
-            </div>
-          </div>,
-          portalTarget
+            </>
+  );
+
+  const toggleOpen = () => {
+    requestNotificationPermission();
+    setOpen((o) => !o);
+  };
+
+  return (
+    <div className="relative" ref={rootRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={toggleOpen}
+        className={
+          isDesktopTopbar
+            ? 'desktop-shell-topbar-btn relative'
+            : `relative w-11 h-11 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all shadow-[0_8px_24px_rgba(0,0,0,0.10)] active:scale-[0.98] ${bellClass}`
+        }
+        aria-label="Central de notificações"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        title="Notificações"
+      >
+        <Bell className={isDesktopTopbar ? 'h-4 w-4' : 'w-5 h-5'} strokeWidth={2} />
+        {unreadCount > 0 && (
+          <span
+            className={
+              isDesktopTopbar
+                ? 'absolute -right-0.5 -top-0.5 flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-rose-500 px-0.5 text-[9px] font-bold text-white shadow-sm'
+                : 'absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white shadow-sm'
+            }
+          >
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
         )}
+      </button>
+
+      {open && portalTarget && isDesktopTopbar
+        ? createPortal(
+            <>
+              <div
+                className="fixed inset-0 z-[99998]"
+                role="presentation"
+                aria-hidden
+                onClick={() => setOpen(false)}
+              />
+              <div
+                ref={modalRef}
+                style={dropdownStyle}
+                className={panelShellClass}
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Central de notificações"
+              >
+                {panelContent}
+              </div>
+            </>,
+            portalTarget
+          )
+        : null}
+
+      {open && portalTarget && !isDesktopTopbar
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[999999] flex items-start justify-center bg-black/35 pt-20 backdrop-blur-[2px]"
+              role="presentation"
+              onClick={() => setOpen(false)}
+            >
+              <div
+                ref={modalRef}
+                className={panelShellClass}
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Central de notificações"
+              >
+                {panelContent}
+              </div>
+            </div>,
+            portalTarget
+          )
+        : null}
     </div>
   );
 }

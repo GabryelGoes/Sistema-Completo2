@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { ChangePasswordsModal } from './components/ChangePasswordsModal';
 import { type TabId } from './components/TabBar';
-import { NotificationCenter } from './components/NotificationCenter';
+import { NotificationCenter, type NotificationCenterProps } from './components/NotificationCenter';
 import { CommentPopUp } from './components/CommentPopUp';
 import { playNotificationSound } from './utils/notificationSound';
 import { ReceptionView } from './components/views/ReceptionView';
@@ -80,6 +80,16 @@ export default function App() {
     playNotificationSound();
     setCommentPopUpNotification(n);
   };
+
+  const notificationCenterProps = useMemo((): Omit<NotificationCenterProps, 'placement'> | undefined => {
+    if (!authSession) return undefined;
+    return {
+      theme,
+      onNewCommentNotification: handleNewCommentNotification,
+      forTechnician: authSession.role === 'user' && !!authSession.userId,
+      technicianSlug: authSession.role === 'user' ? authSession.userId : undefined,
+    };
+  }, [authSession, theme]);
 
   // Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -522,6 +532,7 @@ export default function App() {
         onLogout={handleLogout}
         orcamentosBadge={patioBudgetsHub.badgeCount}
         effectsEnabled={effectsEnabled}
+        notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
       >
           <KeepAliveTabPanel
             tabId="home"
@@ -687,14 +698,16 @@ export default function App() {
               patioPermissions={patioPerms}
             />
           </KeepAliveTabPanel>
-        <div className="sr-only" aria-hidden="true">
-          <NotificationCenter
-            theme={theme}
-            onNewCommentNotification={handleNewCommentNotification}
-            forTechnician={!!authSession.userId}
-            technicianSlug={authSession.userId}
-          />
-        </div>
+        {!isDesktopShell ? (
+          <div className="sr-only" aria-hidden="true">
+            <NotificationCenter
+              theme={theme}
+              onNewCommentNotification={handleNewCommentNotification}
+              forTechnician={!!authSession.userId}
+              technicianSlug={authSession.userId}
+            />
+          </div>
+        ) : null}
         {commentPopUpNotification && (
           <CommentPopUp
             theme={theme}
@@ -784,6 +797,7 @@ export default function App() {
       onLogout={handleLogout}
       orcamentosBadge={patioBudgetsHub.badgeCount}
       effectsEnabled={effectsEnabled}
+      notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
     >
         <KeepAliveTabPanel
           tabId="home"
@@ -994,15 +1008,17 @@ export default function App() {
         />
       ) : null}
 
-      {/* Central de notificações: admin vê notificações do admin; técnicos veem as deles (target_slug = userId). Só ativa modo técnico quando userId existe para o pop-up de comentários aparecer. */}
-      <div className="sr-only" aria-hidden="true">
-        <NotificationCenter
-          theme={theme}
-          onNewCommentNotification={handleNewCommentNotification}
-          forTechnician={authSession?.role === 'user' && !!authSession?.userId}
-          technicianSlug={authSession?.role === 'user' ? authSession.userId : undefined}
-        />
-      </div>
+      {/* Central de notificações (mobile/tablet): no PC o sino fica na barra superior do shell. */}
+      {!isDesktopShell ? (
+        <div className="sr-only" aria-hidden="true">
+          <NotificationCenter
+            theme={theme}
+            onNewCommentNotification={handleNewCommentNotification}
+            forTechnician={authSession?.role === 'user' && !!authSession?.userId}
+            technicianSlug={authSession?.role === 'user' ? authSession.userId : undefined}
+          />
+        </div>
+      ) : null}
       {commentPopUpNotification && (
         <CommentPopUp
           theme={theme}

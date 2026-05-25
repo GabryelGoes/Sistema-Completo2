@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { Bell, ChevronLeft, ChevronRight, Headphones, LogOut, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Headphones, Settings } from 'lucide-react';
+import { NotificationCenter, type NotificationCenterProps } from '../NotificationCenter';
 import { DesktopShellAccountMenu } from './DesktopShellAccountMenu';
 import type { TabId } from '../TabBar';
 import { moduleAccentColor, moduleTopbarTextTone } from '../../utils/appAppearance';
@@ -30,6 +31,7 @@ export type DesktopAppShellProps = {
   onOpenProfileEditor?: () => void;
   onLogout?: () => void;
   orcamentosBadge?: number;
+  notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
   children: React.ReactNode;
 };
 
@@ -65,6 +67,7 @@ export function DesktopAppShell({
   onOpenProfileEditor,
   onLogout,
   orcamentosBadge = 0,
+  notificationCenter,
   children,
 }: DesktopAppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
@@ -174,9 +177,9 @@ export function DesktopAppShell({
                 <Settings className="h-4 w-4" strokeWidth={2} />
               </button>
             ) : null}
-            <button type="button" className="desktop-shell-topbar-btn" aria-label="Notificações" title="Notificações">
-              <Bell className="h-4 w-4" strokeWidth={2} />
-            </button>
+            {notificationCenter ? (
+              <NotificationCenter placement="desktopTopbar" {...notificationCenter} />
+            ) : null}
             <DesktopShellAccountMenu
               displayName={displayName}
               photoUrl={photoUrl}

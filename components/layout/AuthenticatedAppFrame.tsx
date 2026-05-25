@@ -3,6 +3,7 @@ import type { TabId } from '../TabBar';
 import { OverlayPageNavBar } from '../ui/OverlayPageNavBar';
 import { DesktopShellProvider } from '../ui/DesktopShellContext';
 import { DesktopAppShell } from './DesktopAppShell';
+import type { NotificationCenterProps } from '../NotificationCenter';
 
 export type AuthenticatedAppFrameProps = {
   isDesktopShell: boolean;
@@ -17,6 +18,7 @@ export type AuthenticatedAppFrameProps = {
   onLogout?: () => void;
   orcamentosBadge?: number;
   effectsEnabled: boolean;
+  notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
   children: React.ReactNode;
 };
 
@@ -33,6 +35,7 @@ export function AuthenticatedAppFrame({
   onLogout,
   orcamentosBadge,
   effectsEnabled,
+  notificationCenter,
   children,
 }: AuthenticatedAppFrameProps) {
   if (isDesktopShell) {
@@ -52,6 +55,7 @@ export function AuthenticatedAppFrame({
             onOpenProfileEditor={onOpenProfileEditor}
             onLogout={onLogout}
             orcamentosBadge={orcamentosBadge}
+            notificationCenter={notificationCenter}
           >
             {children}
           </DesktopAppShell>
