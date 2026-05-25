@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, RotateCw, Loader2, Check } from 'lucide-react';
+import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 
 const PREVIEW_SIZE = 240;
@@ -19,7 +21,7 @@ interface TechnicianPhotoEditorModalProps {
   technicianName: string;
   onSave: (blob: Blob) => void;
   onCancel: () => void;
-  /** z-index da sobreposição (ex.: z-[125] quando o editor abre sobre outro modal). */
+  /** z-index da sobreposição (portal no body; use z-[140]+ sobre cadastros em portal). */
   overlayZIndexClass?: string;
   /** `circle` = perfis; `square` = produtos/peças no estoque. */
   cropShape?: 'circle' | 'square';
@@ -31,7 +33,7 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
   technicianName,
   onSave,
   onCancel,
-  overlayZIndexClass = 'z-[100]',
+  overlayZIndexClass = 'z-[140]',
   cropShape = 'circle',
 }) => {
   const isSquare = cropShape === 'square';
@@ -261,12 +263,16 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
   };
 
   useRegisterModalOpen(isOpen);
+  useBrowserBackLayer(isOpen, onCancel);
 
   if (!isOpen) return null;
 
-  return (
+  const overlay = (
     <div
       className={`fixed inset-0 ${overlayZIndexClass} flex items-center justify-center bg-black/90 backdrop-blur-sm p-3 sm:p-4 safe-area-inset`}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Ajustar foto — ${technicianName}`}
     >
       <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-zinc-200/60 dark:border-white/10 w-full max-w-md max-h-[90vh] shadow-2xl overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-zinc-200/60 dark:border-white/10 shrink-0">
@@ -412,5 +418,8 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(overlay, document.body);
 };
 

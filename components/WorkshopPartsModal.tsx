@@ -788,7 +788,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       technicianName={photoEditorDisplayName}
       onSave={handlePhotoEditorSave}
       onCancel={handlePhotoEditorCancel}
-      overlayZIndexClass="z-[125]"
+      overlayZIndexClass="z-[140]"
       cropShape="square"
     />
 
