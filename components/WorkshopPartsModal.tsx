@@ -15,6 +15,8 @@ import { iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalSt
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { StorageThumbImg } from './ui/StorageThumbImg';
 import { ModalPortal } from './ui/ModalPortal';
+import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
   getWorkshopParts,
@@ -434,6 +436,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     setPhotoEditorTarget(null);
   };
 
+  /** Gesto voltar / history.back: fecha cadastro; se o editor de foto estiver aberto, cancela a foto antes. */
+  useBrowserBackLayer(!!registrationMode, () => {
+    if (photoEditorFile) {
+      handlePhotoEditorCancel();
+      return;
+    }
+    closeRegistration();
+  });
+
   const openExistingPartPhotoInEditor = async (p: WorkshopPart) => {
     const url = p.photo_url?.trim();
     if (!url) return;
@@ -604,6 +615,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       setEditingStock('');
     }
   }, [filteredParts, editingId]);
+
+  const isDesktopShell = useDesktopShellLayout();
 
   if (!isOpen) return null;
 
@@ -972,20 +985,43 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
     {registrationMode ? (
       <div
-        className="fixed inset-0 z-[115] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-[12px]"
-        onClick={closeRegistration}
+        className={
+          isDesktopShell
+            ? 'fixed inset-0 z-[115] flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden bg-white dark:bg-zinc-950'
+            : 'fixed inset-0 z-[115] flex items-center justify-center bg-black/50 p-2 backdrop-blur-[12px] sm:p-4'
+        }
+        onClick={isDesktopShell ? undefined : closeRegistration}
         role="presentation"
       >
         <div
-          className={`${iosModalShell} flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col !bg-white !backdrop-blur-none border-zinc-200/90 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.12)] dark:!bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]`}
+          className={
+            isDesktopShell
+              ? 'relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950'
+              : `${iosModalShell} flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col !bg-white !backdrop-blur-none border-zinc-200/90 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.12)] dark:!bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]`
+          }
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
         >
-          <button type="button" onClick={closeRegistration} className={iosModalClose} aria-label="Fechar">
+          <button
+            type="button"
+            onClick={closeRegistration}
+            className={
+              isDesktopShell
+                ? `${iosModalClose} top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))]`
+                : iosModalClose
+            }
+            aria-label="Fechar"
+          >
             <X className="w-5 h-5" />
           </button>
-          <div className="shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-14 dark:border-white/[0.06] dark:bg-transparent">
+          <div
+            className={
+              isDesktopShell
+                ? 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pr-14 dark:border-white/[0.06] dark:bg-transparent sm:px-8'
+                : 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-14 dark:border-white/[0.06] dark:bg-transparent'
+            }
+          >
             <IosModalHeader
               icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title={registrationMode === 'create' ? 'Estoque — criação de registro' : 'Estoque — edição de registro'}
