@@ -1093,7 +1093,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [boardPanoramic, setBoardPanoramic] = useState(false);
   const { isDesktop, isTablet, isSmartphone, viewportWidth } = useDeviceTypeContext();
   /** Modal de veículo em layout PC: tela cheia, duas colunas, tipografia ampla (≥1024px e não smartphone). */
-  const isPatioPcModal = !isSmartphone && viewportWidth >= 1024;
+  const isPatioPcModal = isDesktop && viewportWidth >= 1024;
   const patioVehicleVm = useMemo(() => getPatioVehicleModalLayout(isPatioPcModal), [isPatioPcModal]);
   const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isPatioPcModal), [isPatioPcModal]);
   /** Retrato: encolhe o quadro inteiro (como o zoom do modo “5 colunas”) sem depender do toggle panorâmico. */

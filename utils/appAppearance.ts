@@ -15,23 +15,31 @@ export type NavigationTabId =
   | 'radar_qualidade';
 
 /**
- * Cores fixas por tela no modo colorido (recepção azul, agenda verde, início amarelo, pátio teal, laboratório violeta).
+ * Cores fixas por módulo (barra superior modo PC, navegação colorida, etc.).
  */
 export const COLORFUL_TAB_ACCENTS: Record<NavigationTabId, string> = {
-  reception: '#2563EB',
-  agenda: '#059669',
   home: '#F5D00B',
-  patio: '#10B981',
+  reception: '#2563EB',
+  agenda: '#DC2626',
+  patio: '#F5D00B',
   laboratorio: '#7C3AED',
-  orcamentos: '#EA580C',
+  orcamentos: '#D4D4D4',
   relatorios: '#0284C7',
   boletim_erros: '#D97706',
   radar_qualidade: '#E11D48',
 };
 
+/** Módulos com fundo claro na barra superior → texto e ícones escuros. */
+const TOPBAR_DARK_TEXT_TABS = new Set<NavigationTabId>(['home', 'patio', 'orcamentos']);
+
 /** Cor de destaque do módulo (barra superior no modo PC, etc.). */
 export function moduleAccentColor(tab: NavigationTabId): string {
   return COLORFUL_TAB_ACCENTS[tab] ?? COLORFUL_TAB_ACCENTS.home;
+}
+
+/** Contraste do texto na barra superior chapada do modo PC. */
+export function moduleTopbarTextTone(tab: NavigationTabId): 'light' | 'dark' {
+  return TOPBAR_DARK_TEXT_TABS.has(tab) ? 'dark' : 'light';
 }
 
 export type AppAppearance = {

@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Bell, ChevronLeft, ChevronRight, Headphones, LogOut, Settings, User } from 'lucide-react';
 import type { TabId } from '../TabBar';
-import { moduleAccentColor } from '../../utils/appAppearance';
+import { moduleAccentColor, moduleTopbarTextTone } from '../../utils/appAppearance';
 import {
   DESKTOP_NAV_ITEMS,
   desktopNavLabel,
@@ -152,7 +152,7 @@ export function DesktopAppShell({
         <header
           className="desktop-shell-topbar"
           style={topbarStyle}
-          data-accent-tone={currentTab === 'home' ? 'dark' : 'light'}
+          data-accent-tone={moduleTopbarTextTone(currentTab)}
           aria-label="Página atual"
         >
           <h1 className="desktop-shell-topbar-title">{pageTitle}</h1>

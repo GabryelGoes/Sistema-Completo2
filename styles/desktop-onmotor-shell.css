@@ -177,20 +177,14 @@ html[data-desktop-shell='true'] .desktop-shell-topbar {
   min-height: 2.75rem;
   padding: 0 0.75rem 0 1rem;
   --desktop-topbar-accent: #f5d00b;
-  background: linear-gradient(
-    180deg,
-    var(--desktop-topbar-accent) 0%,
-    color-mix(in srgb, var(--desktop-topbar-accent) 72%, black) 100%
-  );
+  background-color: var(--desktop-topbar-accent);
   color: #fff;
-  border-bottom: 1px solid color-mix(in srgb, var(--desktop-topbar-accent) 58%, black);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset;
-  transition:
-    background 0.22s ease,
-    border-color 0.22s ease;
+  border-bottom: none;
+  box-shadow: none;
+  transition: background-color 0.2s ease;
 }
 
-/* Resumo (amarelo): texto escuro para contraste */
+/* Fundos claros (Resumo, Pátio, Orçamentos): texto escuro */
 html[data-desktop-shell='true'] .desktop-shell-topbar[data-accent-tone='dark'] {
   color: #18181b;
 }

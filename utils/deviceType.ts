@@ -71,3 +71,8 @@ export function deviceTypeFlags(type: DeviceType) {
     label: DEVICE_TYPE_LABELS[type],
   };
 }
+
+/** Layout/modos exclusivos de PC (shell OnMotor, modal de veículo em tela cheia, etc.). */
+export function isDesktopPcLayout(type: DeviceType, viewportWidth: number, minWidth = DESKTOP_MIN_WIDTH): boolean {
+  return type === 'desktop' && viewportWidth >= minWidth;
+}
