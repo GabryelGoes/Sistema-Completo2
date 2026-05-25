@@ -1830,6 +1830,11 @@ export interface PatioVehicleBudgetAggregateItem {
   osNumber: number | null;
   orderStatus: string;
   customerName: string | null;
+  hasApprovedItems: boolean;
+  hasExplicitApprovalDecisions: boolean;
+  approvedItemsCount: number;
+  rejectedItemsCount: number;
+  pendingItemsCount: number;
 }
 
 export async function getPatioVehicleBudgetsAggregate(): Promise<PatioVehicleBudgetAggregateItem[]> {

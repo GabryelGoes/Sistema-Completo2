@@ -2117,6 +2117,23 @@ export function createApiApp() {
         const cid = o?.customer_id ?? null;
         const servicesArr = Array.isArray(b.services) ? b.services : [];
         const partsArr = Array.isArray(b.parts) ? b.parts : [];
+        let approvedItemsCount = 0;
+        let rejectedItemsCount = 0;
+        let pendingItemsCount = 0;
+        let hasExplicitApprovalDecisions = false;
+        for (const row of [...servicesArr, ...partsArr]) {
+          const r = row as { approved?: boolean };
+          if (r.approved === true) {
+            approvedItemsCount += 1;
+            hasExplicitApprovalDecisions = true;
+          } else if (r.approved === false) {
+            rejectedItemsCount += 1;
+            hasExplicitApprovalDecisions = true;
+          } else if (row != null && typeof row === "object") {
+            pendingItemsCount += 1;
+          }
+        }
+        const hasApprovedItems = approvedItemsCount > 0;
         const diag = typeof b.diagnosis === "string" ? b.diagnosis : "";
         const createdAt = String(b.created_at ?? "");
         const updatedAtRaw = b.updated_at != null && String(b.updated_at).trim() !== "" ? String(b.updated_at) : "";
@@ -2137,6 +2154,11 @@ export function createApiApp() {
           osNumber: o?.os_number != null && Number.isFinite(Number(o.os_number)) ? Number(o.os_number) : null,
           orderStatus: o?.status != null ? String(o.status) : "",
           customerName: cid && customerNameMap[cid] ? customerNameMap[cid] : null,
+          hasApprovedItems,
+          hasExplicitApprovalDecisions,
+          approvedItemsCount,
+          rejectedItemsCount,
+          pendingItemsCount,
         };
       });
 

@@ -1,0 +1,422 @@
+import React from 'react';
+import {
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Columns3,
+  FileText,
+  Hourglass,
+  LayoutList,
+  Sparkles,
+  Wrench,
+} from 'lucide-react';
+import {
+  budgetChronologicalNumber,
+  type PatioVehicleBudgetAggregateItem,
+} from '../../../services/apiService';
+import { getStageConfig, getStageStyle } from '../../../constants/serviceOrderStages';
+import { iosLabel, iosPageGlass, iosPageGlassOrcamentosVehicleCard } from '../../ui/iosModalStyles';
+import { desktopOnmotorCard } from '../../ui/desktopCardStyles';
+import type { BudgetsHubViewMode, StageKanbanColumn, VehicleBudgetGroup } from '../../../utils/budgetsHubViews';
+import { BUDGETS_HUB_VIEW_MODES } from '../../../utils/budgetsHubViews';
+
+const VIEW_ICONS: Record<BudgetsHubViewMode, React.ReactNode> = {
+  vehicles: <LayoutList className="h-3.5 w-3.5" strokeWidth={2.2} />,
+  recent: <Sparkles className="h-3.5 w-3.5" strokeWidth={2.2} />,
+  activity: <Clock className="h-3.5 w-3.5" strokeWidth={2.2} />,
+  approved: <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2.2} />,
+  awaiting_approval: <Hourglass className="h-3.5 w-3.5" strokeWidth={2.2} />,
+  in_service: <Wrench className="h-3.5 w-3.5" strokeWidth={2.2} />,
+  by_stage: <Columns3 className="h-3.5 w-3.5" strokeWidth={2.2} />,
+};
+
+export function formatBudgetWhen(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '—';
+  }
+}
+
+export function BudgetsHubViewSwitcher({
+  mode,
+  onModeChange,
+  desktopShell,
+}: {
+  mode: BudgetsHubViewMode;
+  onModeChange: (m: BudgetsHubViewMode) => void;
+  desktopShell?: boolean;
+}) {
+  const activeMeta = BUDGETS_HUB_VIEW_MODES.find((m) => m.id === mode);
+  return (
+    <div className={desktopShell ? 'mb-4' : 'mb-3'}>
+      <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
+        {BUDGETS_HUB_VIEW_MODES.map((m) => {
+          const active = mode === m.id;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => onModeChange(m.id)}
+              title={m.description}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.06em] transition-all ${
+                active
+                  ? 'border-zinc-800 bg-zinc-900 text-white shadow-md dark:border-zinc-200 dark:bg-white dark:text-zinc-900'
+                  : 'border-zinc-200/90 bg-white/90 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-800'
+              }`}
+            >
+              {VIEW_ICONS[m.id]}
+              <span className="hidden sm:inline">{m.label}</span>
+              <span className="sm:hidden">{m.shortLabel}</span>
+            </button>
+          );
+        })}
+      </div>
+      {activeMeta ? (
+        <p className="mt-2 text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-400">{activeMeta.description}</p>
+      ) : null}
+    </div>
+  );
+}
+
+export function BudgetsHubStatsStrip({
+  stats,
+  desktopShell,
+}: {
+  stats: { totalBudgets: number; totalVehicles: number; recentCount: number; approvedCount: number; inServiceCount: number; awaitingCount: number };
+  desktopShell?: boolean;
+}) {
+  const chip = (label: string, value: number, accent?: string) => (
+    <div
+      className={`flex min-w-[5.5rem] flex-col rounded-xl border px-3 py-2 ${
+        desktopShell
+          ? 'border-zinc-200/90 bg-white'
+          : 'border-zinc-200/80 bg-white/80 dark:border-white/[0.08] dark:bg-zinc-950/50'
+      }`}
+    >
+      <span className={`text-[18px] font-bold tabular-nums leading-none ${accent ?? 'text-zinc-900 dark:text-white'}`}>
+        {value}
+      </span>
+      <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400">
+        {label}
+      </span>
+    </div>
+  );
+  return (
+    <div className="mb-4 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
+      {chip('Orçamentos', stats.totalBudgets)}
+      {chip('Veículos', stats.totalVehicles)}
+      {chip('Novos', stats.recentCount, 'text-emerald-600 dark:text-emerald-400')}
+      {chip('Aprovados', stats.approvedCount, 'text-sky-700 dark:text-sky-300')}
+      {chip('Em serviço', stats.inServiceCount, 'text-blue-700 dark:text-blue-300')}
+      {chip('Pendentes', stats.awaitingCount, 'text-amber-700 dark:text-amber-300')}
+    </div>
+  );
+}
+
+type BudgetRowProps = {
+  row: PatioVehicleBudgetAggregateItem;
+  budgetNum: number;
+  pulse?: 'created' | 'edited';
+  onOpen: () => void;
+  compact?: boolean;
+};
+
+export function BudgetHubBudgetRow({ row, budgetNum, pulse, onOpen, compact }: BudgetRowProps) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onOpen}
+        className={`flex w-full flex-col gap-2 text-left transition-colors hover:bg-zinc-50/90 dark:hover:bg-white/[0.04] ${
+          compact ? 'px-3 py-3' : 'px-4 py-4 sm:px-5'
+        }`}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`${iosLabel} mb-0 text-[10px]`}>Orçamento {budgetNum}</span>
+          {pulse === 'created' ? (
+            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+              Novo
+            </span>
+          ) : null}
+          {pulse === 'edited' ? (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">
+              Editado
+            </span>
+          ) : null}
+          {row.hasApprovedItems ? (
+            <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-800 dark:bg-sky-500/20 dark:text-sky-200">
+              {row.approvedItemsCount} aprovado{row.approvedItemsCount === 1 ? '' : 's'}
+            </span>
+          ) : null}
+          <span className="ml-auto text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+            {formatBudgetWhen(row.updatedAt)}
+          </span>
+        </div>
+        <p className={`line-clamp-2 leading-snug text-zinc-900 dark:text-zinc-100 ${compact ? 'text-[13px]' : 'text-[15px]'}`}>
+          {row.diagnosisPreview.trim() || row.cardName?.trim() || 'Sem descrição de diagnóstico'}
+        </p>
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-500">
+          {row.servicesCount} serviço{row.servicesCount === 1 ? '' : 's'} · {row.partsCount} peça
+          {row.partsCount === 1 ? '' : 's'}
+        </p>
+      </button>
+    </li>
+  );
+}
+
+type VehicleGroupProps = {
+  group: VehicleBudgetGroup;
+  expanded: boolean;
+  onToggle: () => void;
+  plateDisplay: (plate: string | null) => React.ReactNode;
+  vehicleNeedsAttention: boolean;
+  pulseByBudgetId: Record<string, 'created' | 'edited'>;
+  onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
+  defaultOpen?: boolean;
+  desktopShell?: boolean;
+};
+
+export function BudgetHubVehicleGroup({
+  group,
+  expanded,
+  onToggle,
+  plateDisplay,
+  vehicleNeedsAttention,
+  pulseByBudgetId,
+  onOpenBudget,
+  defaultOpen,
+  desktopShell,
+}: VehicleGroupProps) {
+  const { head, items, orderId } = group;
+  const stage = getStageConfig(head.orderStatus);
+  const open = defaultOpen ?? expanded;
+  const cardShell = desktopShell ? desktopOnmotorCard : iosPageGlassOrcamentosVehicleCard;
+  const chrono = items.map((x) => ({ id: x.budgetId, createdAt: x.createdAt }));
+
+  return (
+    <section
+      className={`${cardShell} overflow-hidden transition-[box-shadow,background-color,border-color] duration-300 ${
+        vehicleNeedsAttention
+          ? '!border-2 !border-red-400/65 !bg-red-50/88 !shadow-[0_12px_36px_-10px_rgba(239,68,68,0.16)] dark:!border-red-400/50 dark:!bg-red-950/[0.34]'
+          : ''
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className={`flex w-full items-start gap-3 border-b px-4 py-4 text-left transition-colors sm:px-5 ${
+          vehicleNeedsAttention
+            ? 'border-red-200/75 hover:!bg-red-50/92 dark:border-red-500/22'
+            : 'border-zinc-200/70 hover:bg-zinc-50/80 dark:border-white/[0.06] dark:hover:bg-white/[0.04]'
+        }`}
+      >
+        <div
+          className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+            vehicleNeedsAttention ? '!bg-red-100/88 dark:!bg-red-500/12' : 'bg-zinc-100 dark:bg-white/[0.08]'
+          }`}
+        >
+          <FileText
+            className={vehicleNeedsAttention ? 'h-5 w-5 text-red-700 dark:text-red-300' : 'h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]'}
+            strokeWidth={2}
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[14px] font-bold tracking-wide text-zinc-900 dark:text-white">
+              {plateDisplay(head.plate)}
+            </span>
+            {head.osNumber != null ? (
+              <span className="rounded-full bg-zinc-200/90 px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:bg-white/[0.1] dark:text-zinc-300">
+                OS #{head.osNumber}
+              </span>
+            ) : null}
+            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getStageStyle(head.orderStatus)}`}>
+              {stage?.name ?? head.orderStatus}
+            </span>
+          </div>
+          <p className="mt-1 truncate text-[15px] font-semibold text-zinc-900 dark:text-white">
+            {[head.vehicleBrand, head.vehicleModel].filter(Boolean).join(' ') || 'Veículo'}
+          </p>
+          {head.customerName ? (
+            <p className="mt-0.5 truncate text-[13px] text-zinc-600 dark:text-zinc-400">{head.customerName}</p>
+          ) : null}
+          <p className="mt-2 text-[12px] font-medium text-zinc-500">
+            {items.length} orçamento{items.length === 1 ? '' : 's'}
+          </p>
+        </div>
+        <ChevronRight className={`mt-1 h-5 w-5 shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open ? (
+        <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
+          {items.map((row) => (
+            <BudgetHubBudgetRow
+              key={row.budgetId}
+              row={row}
+              budgetNum={budgetChronologicalNumber(chrono, row.budgetId)}
+              pulse={pulseByBudgetId[String(row.budgetId).trim()]}
+              onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
+            />
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+export function BudgetHubFlatBudgetList({
+  items,
+  pulseByBudgetId,
+  onOpenBudget,
+  desktopShell,
+}: {
+  items: PatioVehicleBudgetAggregateItem[];
+  pulseByBudgetId: Record<string, 'created' | 'edited'>;
+  onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
+  desktopShell?: boolean;
+}) {
+  const chronoByOrder = new Map<string, { id: string; createdAt: string }[]>();
+  for (const row of items) {
+    const oid = row.serviceOrderId;
+    const list = chronoByOrder.get(oid) ?? [];
+    list.push({ id: row.budgetId, createdAt: row.createdAt });
+    chronoByOrder.set(oid, list);
+  }
+
+  const shell = desktopShell ? desktopOnmotorCard : iosPageGlass;
+
+  return (
+    <div className={`${shell} overflow-hidden`}>
+      <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
+        {items.map((row) => {
+          const chrono = chronoByOrder.get(row.serviceOrderId) ?? [];
+          const stage = getStageConfig(row.orderStatus);
+          return (
+            <li key={row.budgetId}>
+              <button
+                type="button"
+                onClick={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
+                className="flex w-full flex-col gap-2 px-4 py-4 text-left transition-colors hover:bg-zinc-50/90 sm:px-5 dark:hover:bg-white/[0.04]"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-[13px] font-bold text-zinc-900 dark:text-white">
+                    {(row.plate ?? '—').toUpperCase()}
+                  </span>
+                  {row.osNumber != null ? (
+                    <span className="text-[11px] font-semibold text-zinc-500">OS #{row.osNumber}</span>
+                  ) : null}
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getStageStyle(row.orderStatus)}`}>
+                    {stage?.name ?? row.orderStatus}
+                  </span>
+                  <span className={`${iosLabel} mb-0 text-[10px]`}>
+                    Orç. {budgetChronologicalNumber(chrono, row.budgetId)}
+                  </span>
+                  {pulseByBudgetId[String(row.budgetId).trim()] === 'created' ? (
+                    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                      Novo
+                    </span>
+                  ) : null}
+                  {pulseByBudgetId[String(row.budgetId).trim()] === 'edited' ? (
+                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                      Editado
+                    </span>
+                  ) : null}
+                </div>
+                <p className="line-clamp-2 text-[15px] leading-snug text-zinc-900 dark:text-zinc-100">
+                  {row.diagnosisPreview.trim() || row.cardName?.trim() || 'Sem descrição'}
+                </p>
+                <p className="text-[12px] text-zinc-500">
+                  {row.servicesCount} serv. · {row.partsCount} peças
+                  {row.hasApprovedItems ? ` · ${row.approvedItemsCount} aprovado(s)` : ''}
+                </p>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+export function BudgetHubStageBoard({
+  columns,
+  plateDisplay,
+  pendingBudgetHighlightIds,
+  pulseByBudgetId,
+  onOpenBudget,
+  expanded,
+  onToggleExpand,
+  desktopShell,
+}: {
+  columns: StageKanbanColumn[];
+  plateDisplay: (plate: string | null) => React.ReactNode;
+  pendingBudgetHighlightIds: Set<string>;
+  pulseByBudgetId: Record<string, 'created' | 'edited'>;
+  onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
+  expanded: Set<string>;
+  onToggleExpand: (orderId: string) => void;
+  desktopShell?: boolean;
+}) {
+  const colMin = desktopShell ? 'min-w-[17rem] w-[17rem]' : 'min-w-[14.5rem] w-[14.5rem]';
+
+  return (
+    <div className="-mx-1 flex gap-3 overflow-x-auto pb-2 px-1 [scrollbar-width:thin] lg:mx-0">
+      {columns.map((col) => (
+        <div
+          key={col.status}
+          className={`${colMin} flex shrink-0 flex-col rounded-xl border border-zinc-200/90 bg-zinc-100/90 dark:border-white/[0.08] dark:bg-zinc-900/40`}
+        >
+          <div className={`sticky top-0 z-[1] rounded-t-xl border-b border-zinc-200/80 px-3 py-2.5 ${col.style}`}>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em]">{col.name}</p>
+            <p className="mt-0.5 text-[10px] font-semibold opacity-90">
+              {col.groups.length} veíc. · {col.budgetCount} orç.
+            </p>
+          </div>
+          <div className="flex max-h-[min(70vh,720px)] flex-col gap-2 overflow-y-auto p-2 [scrollbar-width:thin]">
+            {col.groups.length === 0 ? (
+              <p className="px-2 py-6 text-center text-[12px] text-zinc-500 dark:text-zinc-400">Nenhum veículo nesta etapa</p>
+            ) : (
+              col.groups.map((group) => {
+                const vehicleNeedsAttention = group.items.some((row) =>
+                  pendingBudgetHighlightIds.has(String(row.budgetId).trim())
+                );
+                return (
+                  <BudgetHubVehicleGroup
+                    key={group.orderId}
+                    group={group}
+                    expanded={expanded.has(group.orderId)}
+                    onToggle={() => onToggleExpand(group.orderId)}
+                    plateDisplay={plateDisplay}
+                    vehicleNeedsAttention={vehicleNeedsAttention}
+                    pulseByBudgetId={pulseByBudgetId}
+                    onOpenBudget={onOpenBudget}
+                    defaultOpen
+                    desktopShell={desktopShell}
+                  />
+                );
+              })
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function BudgetsHubEmptyState({ message, hint }: { message: string; hint?: string }) {
+  return (
+    <div className={`${iosPageGlass} p-8 text-center`}>
+      <FileText className="mx-auto mb-3 h-10 w-10 text-zinc-400 dark:text-zinc-500" strokeWidth={1.5} />
+      <p className="text-[16px] font-semibold text-zinc-900 dark:text-white">{message}</p>
+      {hint ? <p className="mt-2 text-[14px] leading-relaxed text-zinc-600 dark:text-zinc-400">{hint}</p> : null}
+    </div>
+  );
+}
