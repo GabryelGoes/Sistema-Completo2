@@ -12,9 +12,10 @@ import {
   Trash2,
   X,
   ChevronDown,
+  Tags,
 } from 'lucide-react';
 import { PartPhotoImg } from './ui/PartPhotoImg';
-import type { WorkshopPart, WorkshopPartFiscalExtra } from '../services/apiService';
+import type { WorkshopPart, WorkshopPartCategory, WorkshopPartFiscalExtra } from '../services/apiService';
 import { WORKSHOP_PART_PHOTOS_MAX } from '../services/apiService';
 
 export type PartPhotoSlot = {
@@ -197,10 +198,163 @@ function UnitOfMeasureSelect({
   );
 }
 
+/** Seleção múltipla de categorias do estoque. */
+function PartCategoriesSelect({
+  categories,
+  selectedIds,
+  onChange,
+  onManageCategories,
+  disabled,
+}: {
+  categories: WorkshopPartCategory[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  onManageCategories?: () => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const toggle = (id: string) => {
+    onChange(
+      selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]
+    );
+  };
+
+  const selectedNames = selectedIds
+    .map((id) => categories.find((c) => c.id === id)?.name)
+    .filter((n): n is string => !!n);
+
+  const triggerLabel =
+    selectedNames.length === 0
+      ? 'Selecionar categorias…'
+      : selectedNames.length <= 2
+        ? selectedNames.join(', ')
+        : `${selectedNames.length} categorias selecionadas`;
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="space-y-2">
+      <div ref={rootRef} className="relative flex gap-2">
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          disabled={disabled}
+          onClick={() => setOpen((v) => !v)}
+          className={`${inputCls} flex min-h-[42px] flex-1 items-center justify-between gap-2 text-left text-[14px] font-medium disabled:opacity-50`}
+        >
+          <span className="min-w-0 truncate">{triggerLabel}</span>
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`}
+            aria-hidden
+          />
+        </button>
+        {onManageCategories ? (
+          <button
+            type="button"
+            onClick={onManageCategories}
+            disabled={disabled}
+            title="Gerenciar categorias"
+            className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg border border-zinc-200/90 bg-zinc-100 text-zinc-700 hover:bg-zinc-200/90 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-200 ${lightFieldShadow}`}
+          >
+            <Tags className="h-4 w-4" aria-hidden />
+          </button>
+        ) : null}
+        {open ? (
+          <ul
+            role="listbox"
+            aria-multiselectable="true"
+            className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(240px,36vh)] overflow-y-auto rounded-lg border border-zinc-200/90 bg-white py-1 shadow-lg shadow-zinc-900/10 dark:border-white/[0.12] dark:bg-zinc-900 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)]"
+          >
+            {categories.length === 0 ? (
+              <li className="px-3 py-3 text-[13px] text-zinc-500 dark:text-zinc-400">
+                Nenhuma categoria cadastrada. Use o botão ao lado para criar.
+              </li>
+            ) : (
+              categories.map((cat) => {
+                const isSelected = selectedIds.includes(cat.id);
+                return (
+                  <li key={cat.id} role="none">
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => toggle(cat.id)}
+                      className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[14px] transition-colors ${
+                        isSelected
+                          ? 'bg-emerald-500/12 font-semibold text-emerald-900 dark:bg-emerald-400/15 dark:text-emerald-50'
+                          : 'font-medium text-zinc-800 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.08]'
+                      }`}
+                    >
+                      <span
+                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                          isSelected
+                            ? 'border-emerald-600 bg-emerald-600 text-white'
+                            : 'border-zinc-300 bg-white dark:border-white/20 dark:bg-transparent'
+                        }`}
+                      >
+                        {isSelected ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+                      </span>
+                      <span className="min-w-0 truncate">{cat.name}</span>
+                    </button>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        ) : null}
+      </div>
+      {selectedNames.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedIds.map((id) => {
+            const name = categories.find((c) => c.id === id)?.name;
+            if (!name) return null;
+            return (
+              <span
+                key={id}
+                className="inline-flex max-w-full items-center gap-1 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[12px] font-semibold text-emerald-900 dark:text-emerald-100"
+              >
+                <span className="truncate">{name}</span>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => toggle(id)}
+                  className="shrink-0 rounded p-0.5 text-emerald-800 hover:bg-emerald-500/20 disabled:opacity-50 dark:text-emerald-200"
+                  aria-label={`Remover categoria ${name}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export type WorkshopPartRegistrationFormProps = {
   mode: 'create' | 'edit';
   initialPart?: WorkshopPart | null;
   initialPurchases?: WorkshopPartPurchaseDraft[];
+  categories?: WorkshopPartCategory[];
+  onManageCategories?: () => void;
   photos?: PartPhotoSlot[];
   maxPhotos?: number;
   saving?: boolean;
@@ -222,6 +376,8 @@ export function WorkshopPartRegistrationForm({
   mode,
   initialPart,
   initialPurchases,
+  categories = [],
+  onManageCategories,
   photos = [],
   maxPhotos = WORKSHOP_PART_PHOTOS_MAX,
   saving = false,
@@ -420,6 +576,18 @@ export function WorkshopPartRegistrationForm({
               onChange={(e) => patch({ location: e.target.value })}
               placeholder="Prateleira, corredor…"
               className={inputCls}
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+            <FieldLabel hint="Pode escolher mais de uma; a primeira é a família principal">
+              Categorias
+            </FieldLabel>
+            <PartCategoriesSelect
+              categories={categories}
+              selectedIds={values.category_ids}
+              onChange={(ids) => patch({ category_ids: ids })}
+              onManageCategories={onManageCategories}
+              disabled={saving}
             />
           </div>
         </div>

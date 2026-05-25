@@ -38,6 +38,7 @@ import {
   createWorkshopPartCategory,
   updateWorkshopPartCategory,
   deleteWorkshopPartCategory,
+  setWorkshopPartCategories,
   getWorkshopPartPurchases,
   createWorkshopPartPurchase,
   updateWorkshopPartPurchase,
@@ -385,9 +386,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     setError(null);
     try {
       const payload = formValuesToApiPayload(values);
+      const categoryIds = values.category_ids ?? [];
 
       if (registrationMode === 'create') {
         let created = await createWorkshopPart(payload);
+        created = await setWorkshopPartCategories(created.id, categoryIds);
         for (const photo of pendingPhotos) {
           created = await uploadWorkshopPartPhoto(created.id, photo.file, photo.file.name);
         }
@@ -400,7 +403,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           [...prev, created].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
         );
       } else if (registrationMode === 'edit' && registrationPart) {
-        const updated = await updateWorkshopPart(registrationPart.id, payload);
+        let updated = await updateWorkshopPart(registrationPart.id, payload);
+        updated = await setWorkshopPartCategories(registrationPart.id, categoryIds);
         await syncPurchasesForPart(registrationPart.id, purchaseDrafts);
         setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
       }
@@ -1215,6 +1219,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 mode={registrationMode}
                 initialPart={registrationMode === 'edit' ? registrationPart : null}
                 initialPurchases={registrationPurchases}
+                categories={categories}
+                onManageCategories={() => setIsCategoriesModalOpen(true)}
                 photos={registrationPhotoSlots}
                 maxPhotos={WORKSHOP_PART_PHOTOS_MAX}
                 saving={adding}
