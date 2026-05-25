@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
+import { useDeviceTypeContext } from './ui/DeviceTypeContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -26,8 +27,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onEffectsChange,
   cinematographicMode = false,
   onCinematographicModeChange,
+  orientation,
 }) => {
   useRegisterModalOpen(isOpen);
+  const { label: deviceLabel, deviceType, viewportWidth, isTouch } = useDeviceTypeContext();
+  const orientationLabel =
+    orientation === 'landscape' ? 'Paisagem' : orientation === 'portrait' ? 'Retrato' : '—';
   if (!isOpen) return null;
 
   return (
@@ -47,6 +52,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8 space-y-6">
+            <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+              <label className="block text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
+                Dispositivo detectado
+              </label>
+              <p className="text-[15px] font-semibold text-zinc-900 dark:text-white">{deviceLabel}</p>
+              <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+                Tipo: {deviceType} · {viewportWidth}px de largura
+                {orientation ? ` · ${orientationLabel}` : ''}
+                {isTouch ? ' · Touch' : ' · Mouse'}
+              </p>
+            </div>
+
             <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
               <label className="block text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
                 Tema do sistema

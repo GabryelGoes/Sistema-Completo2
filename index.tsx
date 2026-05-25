@@ -4,6 +4,7 @@ import './index.css';
 import './lightModeContrast.css';
 import App from './App';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
+import { DeviceTypeProvider } from './components/ui/DeviceTypeContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -14,7 +15,9 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <AppErrorBoundary>
-      <App />
+      <DeviceTypeProvider>
+        <App />
+      </DeviceTypeProvider>
     </AppErrorBoundary>
   </React.StrictMode>
 );

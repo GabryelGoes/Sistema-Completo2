@@ -77,6 +77,7 @@ import {
   type ModuleKind,
   type ModuleVehicleKind,
 } from '../../utils/moduleMetadata';
+import { useDeviceTypeContext } from '../ui/DeviceTypeContext';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
@@ -1123,11 +1124,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Visão panorâmica: cartões menores para caber mais na tela (Pátio / Laboratório independentes). */
   const boardPanoramicStorageKey = isModuleMode ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
   const [boardPanoramic, setBoardPanoramic] = useState(false);
-  const [isDesktopLandscape, setIsDesktopLandscape] = useState(false);
+  const { isDesktop, isTablet, isSmartphone } = useDeviceTypeContext();
   /** Retrato: encolhe o quadro inteiro (como o zoom do modo “5 colunas”) sem depender do toggle panorâmico. */
   const [isPortraitOrientation, setIsPortraitOrientation] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(orientation: portrait)').matches : false
   );
+  /** Zoom dos cards no quadro: PC ou tablet em paisagem (não smartphone). */
+  const isDesktopLandscape =
+    !isSmartphone && !isPortraitOrientation && (isDesktop || isTablet);
   /** Menu ⋯ do cabeçalho: zoom da grade, busca/atualizar, histórico (portal em body para ficar acima dos cards). */
   const [isPatioHeaderToolsOpen, setIsPatioHeaderToolsOpen] = useState(false);
   const patioHeaderToolsTriggerRef = useRef<HTMLButtonElement>(null);
@@ -1182,18 +1186,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [trelloDragOverListId, setTrelloDragOverListId] = useState<string | null>(null);
   const patioTrelloSkipClickRef = useRef(false);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(min-width: 1024px) and (orientation: landscape)');
-    const apply = () => setIsDesktopLandscape(mq.matches);
-    apply();
-    if (typeof mq.addEventListener === 'function') {
-      mq.addEventListener('change', apply);
-      return () => mq.removeEventListener('change', apply);
-    }
-    mq.addListener(apply);
-    return () => mq.removeListener(apply);
-  }, []);
   useLayoutEffect(() => {
     if (!isPatioHeaderToolsOpen) return;
     updatePatioToolsPopoverPosition();

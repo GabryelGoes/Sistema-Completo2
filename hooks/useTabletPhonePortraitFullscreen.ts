@@ -1,26 +1,13 @@
-import { useEffect, useState } from "react";
+import { useOrientation } from '../components/views/useOrientation';
+import { useDeviceTypeOptional } from '../components/ui/DeviceTypeContext';
 
-/** Celular/tablet em retrato — mesmo critério do `max-lg` do Tailwind (1023px). */
-const MEDIA_QUERY = "(max-width: 1023px) and (orientation: portrait)";
-
+/**
+ * Layout em tela cheia no retrato — smartphone ou tablet em pé (não PC).
+ * @deprecated Prefira `useDeviceTypeContext()` com `isSmartphone` / `isTablet` + orientação.
+ */
 export function useTabletPhonePortraitFullscreen(): boolean {
-  const [active, setActive] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.matchMedia(MEDIA_QUERY).matches;
-    } catch {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia(MEDIA_QUERY);
-    const sync = () => setActive(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-
-  return active;
+  const { isDesktop } = useDeviceTypeOptional();
+  const orientation = useOrientation();
+  if (isDesktop) return false;
+  return orientation === 'portrait';
 }
