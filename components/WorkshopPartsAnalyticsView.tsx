@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -55,24 +55,81 @@ const TOOLTIP_STYLE = {
 
 const PIE_COLORS = ['#10b981', '#f59e0b', '#ef4444', '#6366f1', '#14b8a6', '#8b5cf6'];
 
+type HelpPlacement = 'below' | 'left' | 'right';
+
+function ChartHelpButton({ text, placement = 'below' }: { text: string; placement?: HelpPlacement }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const popoverPos =
+    placement === 'left'
+      ? 'right-full top-0 z-50 mr-2'
+      : placement === 'right'
+        ? 'left-full top-0 z-50 ml-2'
+        : 'left-0 top-full z-50 mt-1.5';
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-label="Como funciona este gráfico"
+        className="flex h-5 w-5 items-center justify-center rounded-full border border-zinc-300/90 bg-zinc-100 text-[11px] font-bold leading-none text-zinc-600 transition-colors hover:bg-zinc-200 dark:border-white/15 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15"
+      >
+        ?
+      </button>
+      {open ? (
+        <div
+          role="tooltip"
+          className={`absolute w-[min(calc(100vw-2rem),268px)] rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[12px] leading-snug text-zinc-700 shadow-lg ring-1 ring-zinc-900/5 dark:border-white/12 dark:bg-zinc-900 dark:text-zinc-200 dark:ring-white/10 ${popoverPos}`}
+        >
+          {text}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function KpiCard({
   label,
   value,
   sub,
   icon,
   accent,
+  helpText,
 }: {
   label: string;
   value: string;
   sub?: string;
   icon: React.ReactNode;
   accent: string;
+  helpText?: string;
 }) {
   return (
     <div className={`${shell} p-4 sm:p-5`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{label}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{label}</p>
+            {helpText ? <ChartHelpButton text={helpText} placement="below" /> : null}
+          </div>
           <p className="mt-1 text-[22px] font-bold tabular-nums text-zinc-900 dark:text-white sm:text-2xl">{value}</p>
           {sub ? <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">{sub}</p> : null}
         </div>
@@ -89,18 +146,25 @@ function KpiCard({
 function ChartCard({
   title,
   subtitle,
+  helpText,
+  helpPlacement = 'below',
   children,
   className = '',
 }: {
   title: string;
   subtitle?: string;
+  helpText?: string;
+  helpPlacement?: HelpPlacement;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
-    <div className={`${shell} p-4 sm:p-5 ${className}`}>
-      <div className="mb-4">
-        <h3 className="text-[15px] font-bold text-zinc-900 dark:text-white">{title}</h3>
+    <div className={`${shell} overflow-visible p-4 sm:p-5 ${className}`}>
+      <div className="relative mb-4">
+        <div className="flex items-start gap-2">
+          <h3 className="min-w-0 flex-1 text-[15px] font-bold text-zinc-900 dark:text-white">{title}</h3>
+          {helpText ? <ChartHelpButton text={helpText} placement={helpPlacement} /> : null}
+        </div>
         {subtitle ? <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">{subtitle}</p> : null}
       </div>
       {children}
@@ -230,6 +294,7 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
                 sub={`${data.summary.partsSoldQty.toLocaleString('pt-BR')} un. aprovadas`}
                 icon={<TrendingUp className="h-5 w-5" />}
                 accent="from-emerald-500 to-teal-600"
+                helpText="Soma das peças aprovadas em orçamentos no período. Cada linha: quantidade × preço de venda do catálogo."
               />
               <KpiCard
                 label="Despesas"
@@ -237,6 +302,7 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
                 sub={`CMV ${formatCompactBRL(data.summary.cogsTotal)} + compras ${formatCompactBRL(data.summary.purchasesExpenseTotal)}`}
                 icon={<TrendingDown className="h-5 w-5" />}
                 accent="from-rose-500 to-orange-600"
+                helpText="CMV das peças vendidas (custo × qtd aprovada) mais o custo das compras planejadas cadastradas no período."
               />
               <KpiCard
                 label="Margem"
@@ -244,6 +310,7 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
                 sub={`${data.summary.marginPct.toFixed(1)}% sobre faturamento`}
                 icon={<Wallet className="h-5 w-5" />}
                 accent="from-violet-500 to-indigo-600"
+                helpText="Faturamento menos despesas do período. O % é quanto sobra em relação ao faturamento."
               />
               <KpiCard
                 label="Valor em estoque"
@@ -251,6 +318,7 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
                 sub={`${data.summary.productsCount} produtos · custo ${formatCompactBRL(data.summary.stockValueAtCost)}`}
                 icon={<Package className="h-5 w-5" />}
                 accent="from-cyan-500 to-blue-600"
+                helpText="Valor atual de tudo em estoque (qtd × preço de venda). Não muda com o filtro de período — é o estoque de hoje."
               />
             </div>
 
@@ -258,6 +326,7 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
               title="Faturamento x despesas"
               subtitle="Por dia no período — faturamento de peças aprovadas em orçamentos"
               className="col-span-full"
+              helpText="Cada dia: verde = peças aprovadas em orçamentos; vermelho = custo das vendas + compras cadastradas naquele dia."
             >
               <div className="h-[280px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -308,7 +377,11 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
             </ChartCard>
 
             <div className="grid gap-5 lg:grid-cols-2">
-              <ChartCard title="Mais vendidos (valor)" subtitle="Peças aprovadas no período — preço do catálogo">
+              <ChartCard
+                title="Mais vendidos (valor)"
+                subtitle="Peças aprovadas no período — preço do catálogo"
+                helpText="Top 12 produtos aprovados no período, do maior para o menor valor (qtd × preço do catálogo)."
+              >
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
@@ -344,7 +417,12 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
                 </div>
               </ChartCard>
 
-              <ChartCard title="Mais vendidos (unidades)" subtitle="Quantidade aprovada no período">
+              <ChartCard
+                title="Mais vendidos (unidades)"
+                subtitle="Quantidade aprovada no período"
+                helpText="Top 12 produtos aprovados no período, do que mais saiu em quantidade para o que menos saiu."
+                helpPlacement="left"
+              >
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
@@ -370,7 +448,11 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
             </div>
 
             <div className="grid gap-5 lg:grid-cols-3">
-              <ChartCard title="Estoque por categoria" subtitle="Valor de venda (preço × qtd)">
+              <ChartCard
+                title="Estoque por categoria"
+                subtitle="Valor de venda (preço × qtd)"
+                helpText="Quanto vale o estoque hoje em cada categoria (preço × quantidade). Situação atual, não usa o período do filtro."
+              >
                 <div className="h-[240px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={categoryChart} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
@@ -392,7 +474,11 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
                 </div>
               </ChartCard>
 
-              <ChartCard title="Saúde do estoque" subtitle="Situação atual dos produtos">
+              <ChartCard
+                title="Saúde do estoque"
+                subtitle="Situação atual dos produtos"
+                helpText="Quantos produtos estão normais, abaixo do mínimo cadastrado ou sem estoque. Baseado na quantidade atual."
+              >
                 <div className="h-[240px]">
                   {healthPie.length === 0 ? (
                     <p className="py-12 text-center text-[14px] text-zinc-500">Sem produtos cadastrados.</p>
@@ -421,7 +507,12 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
                 </div>
               </ChartCard>
 
-              <ChartCard title="Compras planejadas" subtitle="Custos registrados no período">
+              <ChartCard
+                title="Compras planejadas"
+                subtitle="Custos registrados no período"
+                helpPlacement="left"
+                helpText="Custo das compras da lista de cada produto (qtd × custo), por status: pendente, pedido ou recebido. Usa a data em que a compra foi cadastrada."
+              >
                 <div className="h-[240px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.purchasesPipeline.filter((p) => p.status !== 'cancelled')} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
@@ -439,8 +530,12 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
             {data.lowStock.length > 0 ? (
               <div className={`${shell} p-4 sm:p-5`}>
                 <div className="mb-3 flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                  <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
                   <h3 className="text-[15px] font-bold text-zinc-900 dark:text-white">Reposição urgente</h3>
+                  <ChartHelpButton
+                    text="Produtos com estoque na quantidade mínima ou abaixo, agora. Use para priorizar reposição."
+                    placement="below"
+                  />
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
                     {data.lowStock.length}
                   </span>
@@ -466,10 +561,6 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
               </div>
             ) : null}
 
-            <p className="text-center text-[11px] text-zinc-400 dark:text-zinc-500 px-4">
-              Faturamento e ranking usam peças <strong>aprovadas</strong> em orçamentos no período, com preço e custo do
-              catálogo atual. Despesas incluem CMV dessas peças e compras registradas no período.
-            </p>
           </div>
         ) : null}
       </div>
