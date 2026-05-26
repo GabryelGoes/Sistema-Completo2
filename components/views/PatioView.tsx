@@ -4833,20 +4833,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               aria-hidden
                             />
                             <div className={c.splitRow}>
-                              <div className="flex min-w-0 flex-1 items-center gap-2">
+                              <div className="flex shrink-0 items-center gap-2">
                                 <div className={c.iconSquircle}>
                                   <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
                                 </div>
-                                <div className="min-w-0 flex-1 sm:pb-0">
+                                <div className="min-w-0 sm:pb-0">
                                   <p className={c.titleText}>Data de entrega</p>
                                 </div>
                               </div>
-                              <div className={c.fieldRow}>
+                              <div className={`${c.fieldRow} flex-nowrap`}>
                                 <input
                                   type="date"
                                   value={deliveryDateEditValue}
                                   onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                  className={c.dateInput}
+                                  className={`${c.dateInput}${isPatioPcModal ? ' sm:max-w-none' : ''}`}
                                 />
                                 <button
                                   type="button"
