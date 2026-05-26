@@ -1118,10 +1118,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       Antigo
                     </button>
                   </div>
-                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 sm:text-right">
-                    O nº <span className="font-semibold text-zinc-600 dark:text-zinc-300">#N</span> segue a ordem de
-                    cadastro: o produto mais antigo é sempre o #1.
-                  </p>
                 </div>
 
                 <div className="flex flex-col gap-2.5 pt-0.5">
