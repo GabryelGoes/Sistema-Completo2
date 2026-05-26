@@ -756,6 +756,10 @@ export function WorkshopPartRegistrationForm({
             <Plus className="h-3.5 w-3.5" /> Adicionar compra
           </button>
         </div>
+        <p className="px-4 pb-2 text-[12px] text-zinc-500 dark:text-zinc-400">
+          Com status <span className="font-semibold text-emerald-700 dark:text-emerald-400">Recebido</span>, a
+          quantidade da compra é somada ao estoque do produto ao salvar.
+        </p>
         {purchases.length === 0 ? (
           <p className="px-4 py-6 text-center text-[13px] text-zinc-500 dark:text-zinc-400">
             Nenhuma compra planejada. Use &quot;Adicionar compra&quot; para registrar pedidos ao fornecedor.

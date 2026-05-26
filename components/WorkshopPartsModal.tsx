@@ -65,6 +65,7 @@ import { WorkshopPartDetailView } from './WorkshopPartDetailView';
 import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
 import {
   formValuesToApiPayload,
+  purchaseDraftShouldSync,
   purchaseDraftToPayload,
   purchaseToDraft,
   type WorkshopPartFormValues,
@@ -482,7 +483,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           created = await uploadWorkshopPartPhoto(created.id, photo.file, photo.file.name);
         }
         for (const draft of purchaseDrafts) {
-          if (draft.supplier_name.trim() || parseNumber(draft.quantity) > 0) {
+          if (purchaseDraftShouldSync(draft)) {
             await createWorkshopPartPurchase(created.id, purchaseDraftToPayload(draft));
           }
         }
@@ -490,10 +491,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           [...prev, created].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
         );
       } else if (registrationMode === 'edit' && registrationPart) {
-        let updated = await updateWorkshopPart(registrationPart.id, payload);
-        updated = await setWorkshopPartCategories(registrationPart.id, categoryIds);
+        await updateWorkshopPart(registrationPart.id, payload);
+        await setWorkshopPartCategories(registrationPart.id, categoryIds);
         await syncPurchasesForPart(registrationPart.id, purchaseDrafts);
-        setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
       }
 
       closeRegistration();

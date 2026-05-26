@@ -4683,6 +4683,30 @@ export function createApiApp() {
     }
   });
 
+  /** Quantidade que entra no estoque conforme status da compra. */
+  function purchaseReceivedStockQty(status: string, quantity: number): number {
+    return status === "received" && Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
+  }
+
+  async function adjustWorkshopPartStockQty(partId: string, delta: number): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID || !Number.isFinite(delta) || delta === 0) return;
+    const { data: part, error: fetchErr } = await supabaseAdmin
+      .from("workshop_parts")
+      .select("stock_qty")
+      .eq("id", partId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .maybeSingle();
+    if (fetchErr) throw new Error(fetchErr.message);
+    if (!part) throw new Error("Peça não encontrada.");
+    const next = Math.max(0, Number(part.stock_qty ?? 0) + delta);
+    const { error } = await supabaseAdmin
+      .from("workshop_parts")
+      .update({ stock_qty: Number(next.toFixed(3)) })
+      .eq("id", partId)
+      .eq("workshop_id", WORKSHOP_ID);
+    if (error) throw new Error(error.message);
+  }
+
   // ----------------- LISTA DE COMPRAS (por peça) -----------------
   app.get("/api/workshop-parts/:partId/purchases", async (req, res) => {
     try {
@@ -4738,6 +4762,10 @@ export function createApiApp() {
         .select("id, part_id, supplier_name, quantity, unit_cost, expected_date, notes, status, created_at")
         .single();
       if (error) return res.status(500).json({ error: error.message });
+      const receivedQty = purchaseReceivedStockQty(status, quantity);
+      if (receivedQty > 0) {
+        await adjustWorkshopPartStockQty(partId, receivedQty);
+      }
       return res.status(201).json(data);
     } catch (err: any) {
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -4751,6 +4779,17 @@ export function createApiApp() {
       }
       const { partId, purchaseId } = req.params;
       const body = req.body || {};
+
+      const { data: existing, error: fetchExistingErr } = await supabaseAdmin
+        .from("workshop_part_purchases")
+        .select("quantity, status")
+        .eq("id", purchaseId)
+        .eq("part_id", partId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (fetchExistingErr) return res.status(500).json({ error: fetchExistingErr.message });
+      if (!existing) return res.status(404).json({ error: "Compra não encontrada." });
+
       const patch: Record<string, unknown> = {};
       if (body.supplier_name !== undefined) patch.supplier_name = parseOptionalText(body.supplier_name);
       if (body.notes !== undefined) patch.notes = parseOptionalText(body.notes);
@@ -4781,6 +4820,17 @@ export function createApiApp() {
         .single();
       if (error) return res.status(500).json({ error: error.message });
       if (!data) return res.status(404).json({ error: "Compra não encontrada." });
+
+      const oldStatus = String(existing.status ?? "pending");
+      const oldQty = Number(existing.quantity ?? 0);
+      const newStatus = String(data.status ?? oldStatus);
+      const newQty = Number(data.quantity ?? oldQty);
+      const stockDelta =
+        purchaseReceivedStockQty(newStatus, newQty) - purchaseReceivedStockQty(oldStatus, oldQty);
+      if (stockDelta !== 0) {
+        await adjustWorkshopPartStockQty(partId, stockDelta);
+      }
+
       return res.json(data);
     } catch (err: any) {
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -4793,6 +4843,17 @@ export function createApiApp() {
         return res.status(500).json({ error: "Supabase não configurado." });
       }
       const { partId, purchaseId } = req.params;
+
+      const { data: existing, error: fetchExistingErr } = await supabaseAdmin
+        .from("workshop_part_purchases")
+        .select("quantity, status")
+        .eq("id", purchaseId)
+        .eq("part_id", partId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (fetchExistingErr) return res.status(500).json({ error: fetchExistingErr.message });
+      if (!existing) return res.status(404).json({ error: "Compra não encontrada." });
+
       const { error } = await supabaseAdmin
         .from("workshop_part_purchases")
         .delete()
@@ -4800,6 +4861,15 @@ export function createApiApp() {
         .eq("part_id", partId)
         .eq("workshop_id", WORKSHOP_ID);
       if (error) return res.status(500).json({ error: error.message });
+
+      const receivedQty = purchaseReceivedStockQty(
+        String(existing.status ?? "pending"),
+        Number(existing.quantity ?? 0)
+      );
+      if (receivedQty > 0) {
+        await adjustWorkshopPartStockQty(partId, -receivedQty);
+      }
+
       return res.status(204).send();
     } catch (err: any) {
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });

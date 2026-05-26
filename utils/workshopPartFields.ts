@@ -185,6 +185,19 @@ export function formValuesToApiPayload(values: WorkshopPartFormValues): Record<s
   };
 }
 
+/** Linha de compra com dados para sincronizar no servidor. */
+export function purchaseDraftShouldSync(d: WorkshopPartPurchaseDraft): boolean {
+  return (
+    !!d.id ||
+    d.supplier_name.trim() !== '' ||
+    parseDecimalInput(d.quantity, 0) > 0 ||
+    parseDecimalInput(d.unit_cost, 0) > 0 ||
+    d.expected_date.trim() !== '' ||
+    d.notes.trim() !== '' ||
+    d.status !== 'pending'
+  );
+}
+
 export function purchaseDraftToPayload(d: WorkshopPartPurchaseDraft): {
   supplier_name: string | null;
   quantity: number;
