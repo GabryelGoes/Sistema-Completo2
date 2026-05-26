@@ -4,6 +4,8 @@ export type PatioVehicleModalCompact = {
   grid: string;
   row: string;
   splitRow: string;
+  deliveryDateStack: string;
+  deliveryDateControlRow: string;
   iconSquircle: string;
   iconGlyph: string;
   titleText: string;
@@ -75,6 +77,8 @@ const COMPACT_MOBILE: PatioVehicleModalCompact = {
   emptyTech:
     'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12',
   fieldRow: 'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:ml-auto sm:justify-end',
+  deliveryDateStack: '',
+  deliveryDateControlRow: '',
   dateFieldWrap: '',
   dateFieldLabel: '',
   dateFieldRow: '',
@@ -85,7 +89,11 @@ const COMPACT_DESKTOP: PatioVehicleModalCompact = {
   grid: 'gap-2.5 sm:gap-3',
   row: 'relative flex items-center gap-2.5 px-3 py-2.5',
   splitRow:
-    'relative flex flex-row flex-wrap items-center gap-2.5 px-3 py-2.5',
+    'relative flex w-full min-w-0 flex-row flex-nowrap items-end gap-2 px-3 py-2.5',
+  deliveryDateStack:
+    'relative flex w-full min-w-0 flex-col gap-2 px-3 py-2.5',
+  deliveryDateControlRow:
+    'flex w-full min-w-0 flex-nowrap items-center gap-1.5',
   iconSquircle:
     'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]',
   iconGlyph: 'h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]',
@@ -98,10 +106,10 @@ const COMPACT_DESKTOP: PatioVehicleModalCompact = {
     'min-w-0 flex-1 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[14px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500 sm:max-w-[200px]',
   dateInput:
     'min-w-0 w-full flex-1 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[14px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white',
-  dateFieldWrap: 'flex min-w-0 flex-1 flex-col gap-1',
+  dateFieldWrap: 'min-w-0 flex-1',
   dateFieldLabel:
     'text-[11px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400',
-  dateFieldRow: 'flex min-w-0 flex-1 flex-nowrap items-end gap-1.5',
+  dateFieldRow: 'flex min-w-0 flex-1 flex-nowrap items-center gap-1.5',
   saveBtn:
     'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white shadow-md transition-all hover:brightness-105 disabled:opacity-50',
   saveIcon: 'h-3.5 w-3.5',
@@ -152,10 +160,11 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
       'patio-vehicle-modal__shell relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] shadow-none dark:bg-[#0a0a0a] dark:shadow-none',
     scroll: 'patio-vm-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto custom-scrollbar',
     header:
-      'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-4 pr-28 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:py-4 xl:pr-32',
-    headerInner: 'mx-auto flex w-full max-w-[1680px] flex-col gap-3',
+      'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-4 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:py-4',
+    headerInner:
+      'mx-auto flex w-full max-w-[1680px] flex-col gap-3 pr-24 xl:pr-28',
     headerMeta:
-      'patio-vm-header-meta mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4',
+      'patio-vm-header-meta mt-2 grid w-full min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4',
     title:
       'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white xl:text-[2.35rem]',
     brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',

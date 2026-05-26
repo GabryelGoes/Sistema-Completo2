@@ -56,3 +56,22 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop button:not(:disabled):
 html[data-device='tablet'] .patio-vehicle-modal--desktop button:not(:disabled):active {
   transform: none;
 }
+
+/* Última coluna da faixa meta: mais larga; card de data ocupa 100% da célula */
+html[data-device='desktop'] .patio-vm-header-meta,
+html[data-device='tablet'] .patio-vm-header-meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.35fr);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-delivery-date-card,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-delivery-date-card {
+  min-width: 0;
+  width: 100%;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-delivery-date-card input[type='date'],
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-delivery-date-card input[type='date'] {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+}
