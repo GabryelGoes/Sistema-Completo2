@@ -1346,6 +1346,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
                 {filteredParts.map((p) => {
                   const catLine = categoryLineForPart(p);
+                  const originalCode = (p.original_code ?? '').trim() || null;
                   const partNum = partNumberById.get(p.id);
                   const stockStatus = getWorkshopPartStockStatus(p);
                   const rowAlertCls =
@@ -1436,6 +1437,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                               </span>
                               <WorkshopPartStockBadge status={stockStatus} className="md:hidden" />
                             </span>
+                            {originalCode ? (
+                              <span
+                                className="text-[12px] font-medium text-zinc-600 dark:text-zinc-400 truncate"
+                                title={`Código original: ${originalCode}`}
+                              >
+                                {originalCode}
+                              </span>
+                            ) : null}
                             {catLine ? (
                               <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{catLine}</span>
                             ) : null}
