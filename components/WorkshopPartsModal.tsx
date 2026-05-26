@@ -943,13 +943,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         <button
           type="button"
           onClick={onClose}
-          className={`${iosModalClose} top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))]`}
+          className={`${iosModalClose} ${isDesktopShell ? 'top-3 right-4' : 'top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))]'}`}
           aria-label="Fechar"
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
+          {!isDesktopShell ? (
           <div className="px-6 sm:px-8 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pb-4 pr-14 shrink-0">
             <IosModalHeader
               icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
@@ -958,6 +959,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               gradientClass="from-emerald-500 to-teal-700"
             />
           </div>
+          ) : (
+          <div className="shrink-0 pt-3" aria-hidden />
+          )}
 
         {isAnalyticsOpen ? (
           <WorkshopPartsAnalyticsView onBack={() => setIsAnalyticsOpen(false)} />

@@ -14,6 +14,7 @@ import {
   type DesktopSidebarActionId,
   type DesktopSidebarActionItem,
 } from '../../utils/desktopShellNav';
+import type { DesktopShellOverlayTopbar } from '../../utils/desktopShellOverlayModules';
 
 const SIDEBAR_COLLAPSED_KEY = 'rda_desktop_sidebar_collapsed_v1';
 
@@ -38,6 +39,7 @@ export type DesktopAppShellProps = {
   onLogout?: () => void;
   orcamentosBadge?: number;
   notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
+  shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
   children: React.ReactNode;
 };
 
@@ -84,6 +86,7 @@ export function DesktopAppShell({
   onLogout,
   orcamentosBadge = 0,
   notificationCenter,
+  shellOverlayTopbar = null,
   children,
 }: DesktopAppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
@@ -116,8 +119,9 @@ export function DesktopAppShell({
   const nav = filterDesktopNav(DESKTOP_NAV_ITEMS, allowedTabs);
   const sidebarItems = nav.filter((i) => i.sidebar !== false);
   const sidebarActions = sidebarAccess ? filterDesktopSidebarActions(sidebarAccess) : [];
-  const pageTitle = desktopNavLabel(currentTab, nav);
-  const topbarAccent = moduleAccentColor(currentTab);
+  const pageTitle = shellOverlayTopbar?.title ?? desktopNavLabel(currentTab, nav);
+  const topbarAccent = shellOverlayTopbar?.accent ?? moduleAccentColor(currentTab);
+  const topbarTone = shellOverlayTopbar?.tone ?? moduleTopbarTextTone(currentTab);
   const topbarStyle = { '--desktop-topbar-accent': topbarAccent } as React.CSSProperties;
 
   return (
@@ -200,7 +204,7 @@ export function DesktopAppShell({
         <header
           className="desktop-shell-topbar"
           style={topbarStyle}
-          data-accent-tone={moduleTopbarTextTone(currentTab)}
+          data-accent-tone={topbarTone}
           aria-label="Página atual"
         >
           <h1 className="desktop-shell-topbar-title">{pageTitle}</h1>

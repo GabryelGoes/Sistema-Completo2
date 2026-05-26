@@ -45,6 +45,7 @@ import {
   resolveDesktopSidebarAccess,
   type DesktopSidebarActionId,
 } from './utils/desktopShellNav';
+import { resolveDesktopShellOverlayTopbar } from './utils/desktopShellOverlayModules';
 
 type ShellProfileModal = 'user' | 'admin' | null;
 
@@ -71,6 +72,7 @@ export default function App() {
   const [vehicleAccompanimentPresetId, setVehicleAccompanimentPresetId] = useState<string | null>(null);
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
+  const [settingsHubOpen, setSettingsHubOpen] = useState(false);
   const homeSettingsHubOpenerRef = useRef<(() => void) | null>(null);
   const homeSettingsHubCloserRef = useRef<(() => void) | null>(null);
 
@@ -157,6 +159,22 @@ export default function App() {
   // Device Orientation
   const orientation = useOrientation();
   const isDesktopShell = useDesktopShell();
+
+  const shellOverlayTopbar = useMemo(() => {
+    if (!isDesktopShell) return null;
+    return resolveDesktopShellOverlayTopbar(
+      vehicleAccompanimentOpen,
+      isPartsModalOpen,
+      isSettingsOpen,
+      settingsHubOpen
+    );
+  }, [
+    isDesktopShell,
+    vehicleAccompanimentOpen,
+    isPartsModalOpen,
+    isSettingsOpen,
+    settingsHubOpen,
+  ]);
 
   // Appointments State
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -589,6 +607,7 @@ export default function App() {
         orcamentosBadge={patioBudgetsHub.badgeCount}
         effectsEnabled={effectsEnabled}
         notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
+        shellOverlayTopbar={shellOverlayTopbar}
       >
           <KeepAliveTabPanel
             tabId="home"
@@ -598,6 +617,7 @@ export default function App() {
           >
             <HomeView
               desktopShell={isDesktopShell}
+              onSettingsHubOpenChange={setSettingsHubOpen}
               settingsHubOpenerRef={homeSettingsHubOpenerRef}
               settingsHubCloserRef={homeSettingsHubCloserRef}
               onOpenPartsStock={() => setIsPartsModalOpen(true)}
@@ -865,6 +885,7 @@ export default function App() {
       orcamentosBadge={patioBudgetsHub.badgeCount}
       effectsEnabled={effectsEnabled}
       notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
+      shellOverlayTopbar={shellOverlayTopbar}
     >
         <KeepAliveTabPanel
           tabId="home"
@@ -874,6 +895,7 @@ export default function App() {
         >
           <HomeView
             desktopShell={isDesktopShell}
+            onSettingsHubOpenChange={setSettingsHubOpen}
             settingsHubOpenerRef={homeSettingsHubOpenerRef}
             settingsHubCloserRef={homeSettingsHubCloserRef}
             onOpenPartsStock={() => setIsPartsModalOpen(true)}

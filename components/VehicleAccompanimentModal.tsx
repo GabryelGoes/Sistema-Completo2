@@ -300,6 +300,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
         <div
           className={`relative flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden rounded-none border-0 bg-gradient-to-b from-zinc-50/95 via-light-page to-zinc-100/90 dark:from-zinc-950 dark:via-[#0a0c12] dark:to-black${isDesktopShell ? '' : ' h-[100dvh]'}`}
         >
+          {!isDesktopShell ? (
           <header className="relative flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/60 bg-gradient-to-r from-white/80 via-[#f0f4ff]/90 to-[#fff9e6]/80 px-4 py-[max(0.75rem,env(safe-area-inset-top))] pb-3 backdrop-blur-xl dark:border-white/[0.07] dark:from-zinc-900/80 dark:via-[#0d1528]/85 dark:to-zinc-950/80">
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#007AFF]/35 to-transparent dark:via-[#64B5FF]/30" />
             <div>
@@ -319,6 +320,16 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
               <X className="h-5 w-5" />
             </button>
           </header>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute right-4 top-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/80 bg-white/90 text-zinc-700 shadow-sm transition-all hover:bg-white dark:border-white/[0.1] dark:bg-zinc-800/90 dark:text-zinc-100"
+              aria-label="Fechar central de atendimento"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
 
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-5 space-y-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable]">
             {error ? (

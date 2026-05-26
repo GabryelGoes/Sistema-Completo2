@@ -7,6 +7,7 @@ import {
   User,
   ExternalLink,
   Sparkles,
+  X,
 } from 'lucide-react';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
@@ -80,6 +81,8 @@ interface HomeViewProps {
   settingsHubOpenerRef?: React.MutableRefObject<(() => void) | null>;
   /** Fecha o hub de configurações (ex.: ao trocar de módulo na sidebar PC). */
   settingsHubCloserRef?: React.MutableRefObject<(() => void) | null>;
+  /** Notifica App quando o hub de configurações abre/fecha (barra superior no PC). */
+  onSettingsHubOpenChange?: (open: boolean) => void;
   /** Abre estoque de peças (modal global no App quando definido). */
   onOpenPartsStock?: () => void;
 }
@@ -218,6 +221,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   desktopShell = false,
   settingsHubOpenerRef,
   settingsHubCloserRef,
+  onSettingsHubOpenChange,
   onOpenPartsStock,
 }) => {
   const hubCardClass = desktopShell ? desktopHomeHubCard : iosCard;
@@ -247,6 +251,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
       settingsHubCloserRef.current = null;
     };
   }, [settingsHubCloserRef]);
+
+  useEffect(() => {
+    onSettingsHubOpenChange?.(isHomeSettingsHubOpen);
+  }, [isHomeSettingsHubOpen, onSettingsHubOpenChange]);
+
   const [isHeaderProfileMenuOpen, setIsHeaderProfileMenuOpen] = useState(false);
   const headerProfileTriggerRef = useRef<HTMLButtonElement>(null);
   const headerProfileMenuRef = useRef<HTMLDivElement>(null);
@@ -1050,11 +1059,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {isHomeSettingsHubOpen ? (
           <div
-            className={`${desktopShellViewportOverlayClass(desktopShell)} flex flex-col overflow-hidden bg-light-page dark:bg-black`}
+            className={`${desktopShellViewportOverlayClass(desktopShell)} relative flex flex-col overflow-hidden bg-light-page dark:bg-black`}
             role="dialog"
             aria-modal="true"
             aria-label="Configurações"
           >
+            {!desktopShell ? (
             <header className="shrink-0 border-b border-zinc-200/80 bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-[0_1px_0_0_rgba(255,255,255,0.55)_inset] dark:border-white/[0.08] dark:bg-zinc-950 dark:shadow-none">
               <div className="relative w-full">
                 <button
@@ -1078,8 +1088,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
               </div>
             </header>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (childModalStackActive) return;
+                  setIsHomeSettingsHubOpen(false);
+                }}
+                className="absolute right-4 top-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/90 text-zinc-700 shadow-sm transition-all hover:bg-white dark:border-white/[0.12] dark:bg-zinc-900/90 dark:text-zinc-200"
+                aria-label="Fechar configurações"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
 
-            <div className="min-h-0 w-full flex-1 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 [scrollbar-gutter:stable]">
+            <div className={`min-h-0 w-full flex-1 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable] ${desktopShell ? 'pt-3' : 'pt-5'}`}>
               <div className="mx-auto w-full max-w-xl space-y-6 px-4 sm:px-6 lg:max-w-5xl">
                   <section>
                     <p className={iosSectionTitle}>Conta</p>

@@ -78,6 +78,8 @@ import {
   type ModuleVehicleKind,
 } from '../../utils/moduleMetadata';
 import { useDeviceTypeContext } from '../ui/DeviceTypeContext';
+import { useDesktopShellLayout } from '../ui/DesktopShellContext';
+import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverlay';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
@@ -1089,10 +1091,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const boardPanoramicStorageKey = isModuleMode ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
   const [boardPanoramic, setBoardPanoramic] = useState(false);
   const { isDesktop, isTablet, isSmartphone, viewportWidth } = useDeviceTypeContext();
-  /** Modal de veículo em layout PC: tela cheia, duas colunas, tipografia ampla (≥1024px e não smartphone). */
-  const isPatioPcModal = isDesktop && viewportWidth >= 1024;
+  const desktopShell = useDesktopShellLayout();
+  /** Modal de veículo em layout PC: duas colunas (shell OnMotor ou viewport ≥1024px). */
+  const isPatioPcModal = desktopShell || (isDesktop && viewportWidth >= 1024);
   const patioVehicleVm = useMemo(() => getPatioVehicleModalLayout(isPatioPcModal), [isPatioPcModal]);
   const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isPatioPcModal), [isPatioPcModal]);
+  const patioVehicleModalOverlayClass = useMemo(() => {
+    if (desktopShell) {
+      return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop flex min-h-0 flex-col overflow-hidden bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
+    }
+    return patioVehicleVm.overlay;
+  }, [desktopShell, patioVehicleVm.overlay]);
+  const patioHistoryModalOverlayClass = useMemo(() => {
+    if (desktopShell) {
+      return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop flex min-h-0 flex-col overflow-hidden overscroll-none bg-[#E8E8ED] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
+    }
+    return patioHistoryVm.overlay;
+  }, [desktopShell, patioHistoryVm.overlay]);
   /** Retrato: encolhe o quadro inteiro (como o zoom do modo “5 colunas”) sem depender do toggle panorâmico. */
   const [isPortraitOrientation, setIsPortraitOrientation] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(orientation: portrait)').matches : false
@@ -4046,7 +4061,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* --- MODAL DE HISTÓRICO (BUSCA) — portal em body para ficar acima da TabBar --- */}
       {isHistoryOpen && (
         <ModalPortal>
-          <div className={patioHistoryVm.overlay}>
+          <div className={patioHistoryModalOverlayClass}>
             <div
               className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} animate-modal-wp-app`}
             >
@@ -4148,7 +4163,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* --- DETALHES DO CARD ARQUIVADO — portal em body para ficar acima da TabBar --- */}
       {selectedHistoryCard && (
          <ModalPortal>
-         <div className={patioHistoryVm.overlay}>
+         <div className={patioHistoryModalOverlayClass}>
             <div
               className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${isPatioPcModal ? 'animate-modal-wp-app' : 'animate-in zoom-in-95 duration-200'}`}
             >
@@ -4550,7 +4565,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const c = patioVehicleVm.compact;
         return (
         <ModalPortal>
-        <div className={patioVehicleVm.overlay}>
+        <div className={patioVehicleModalOverlayClass}>
            <div className={`${patioVehicleVm.shell} animate-modal-wp-app ${modalRingClass}`}>
               
               <div className={`absolute z-20 flex items-center gap-2 ${isPatioPcModal ? 'top-4 right-5 xl:right-6' : 'top-4 right-4'}`}>

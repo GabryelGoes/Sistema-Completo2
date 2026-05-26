@@ -57,6 +57,20 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop button:not(:disabled):a
   transform: none;
 }
 
+/* Dentro do shell PC: modal ocupa só a área de conteúdo (sidebar + topbar visíveis) */
+html[data-desktop-shell='true'] .desktop-shell-viewport-overlay.patio-vehicle-modal--desktop {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-viewport-overlay.patio-vehicle-modal--desktop .patio-vehicle-modal__shell {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  flex: 1;
+}
+
 /* Faixa meta: Cliente | Km | Data de entrega | Técnico — mesma linha e altura */
 html[data-device='desktop'] .patio-vm-header-meta--pc,
 html[data-device='tablet'] .patio-vm-header-meta--pc {
