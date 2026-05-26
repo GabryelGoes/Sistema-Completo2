@@ -646,6 +646,9 @@ export function WorkshopPartRegistrationForm({
             onChange={(v) => patch({ min_stock_qty: v })}
             unit={unit}
           />
+          <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+            Quando o estoque ficar neste valor ou abaixo, o produto aparecerá com alerta &quot;Acabando&quot; na lista.
+          </p>
         </div>
         <div className="space-y-1.5 sm:col-span-2">
           <FieldLabel>Origem da peça</FieldLabel>

@@ -10,6 +10,8 @@ import {
   Search,
   Tags,
   ChevronDown,
+  AlertTriangle,
+  PackageX,
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
@@ -64,6 +66,14 @@ import {
   type WorkshopPartFormValues,
   type WorkshopPartPurchaseDraft,
 } from '../utils/workshopPartFields';
+import {
+  buildPartNumberMap,
+  countPartsByCategory,
+  countStockAlerts,
+  getWorkshopPartStockStatus,
+  sortWorkshopPartsForDisplay,
+} from '../utils/workshopPartStock';
+import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
 
 interface WorkshopPartsModalProps {
   isOpen: boolean;
@@ -171,6 +181,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [partsSearchQuery, setPartsSearchQuery] = useState('');
   /** `all` | `uncategorized` | id da categoria */
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  type StockAlertFilter = 'all' | 'zero' | 'low' | 'alerts';
+  const [stockAlertFilter, setStockAlertFilter] = useState<StockAlertFilter>('all');
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -689,20 +701,35 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     }
   };
 
+  const sortedParts = useMemo(() => sortWorkshopPartsForDisplay(parts), [parts]);
+  const partNumberById = useMemo(() => buildPartNumberMap(sortedParts), [sortedParts]);
+  const categoryCounts = useMemo(() => countPartsByCategory(parts), [parts]);
+  const stockAlertsGlobal = useMemo(() => countStockAlerts(parts), [parts]);
+
   const partsInCategoryScope = useMemo(() => {
-    if (categoryFilter === 'all') return parts;
+    if (categoryFilter === 'all') return sortedParts;
     if (categoryFilter === 'uncategorized') {
-      return parts.filter((p) => !(p.category_ids && p.category_ids.length > 0));
+      return sortedParts.filter((p) => !(p.category_ids && p.category_ids.length > 0));
     }
-    return parts.filter((p) => p.category_ids?.includes(categoryFilter));
-  }, [parts, categoryFilter]);
+    return sortedParts.filter((p) => p.category_ids?.includes(categoryFilter));
+  }, [sortedParts, categoryFilter]);
+
+  const partsAfterStockFilter = useMemo(() => {
+    if (stockAlertFilter === 'all') return partsInCategoryScope;
+    return partsInCategoryScope.filter((p) => {
+      const status = getWorkshopPartStockStatus(p);
+      if (stockAlertFilter === 'zero') return status === 'zero';
+      if (stockAlertFilter === 'low') return status === 'low';
+      return status === 'zero' || status === 'low';
+    });
+  }, [partsInCategoryScope, stockAlertFilter]);
 
   const filteredParts = useMemo(() => {
     const raw = partsSearchQuery.trim();
-    if (!raw) return partsInCategoryScope;
+    if (!raw) return partsAfterStockFilter;
     const q = normalizePartSearch(raw);
-    if (!q) return partsInCategoryScope;
-    return partsInCategoryScope.filter((p) => {
+    if (!q) return partsAfterStockFilter;
+    return partsAfterStockFilter.filter((p) => {
       const name = normalizePartSearch(p.name || '');
       const id = (p.id || '').toLowerCase();
       const original = normalizePartSearch(p.original_code || '');
@@ -725,7 +752,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         normalizePartSearch(catNames).includes(q)
       );
     });
-  }, [partsInCategoryScope, partsSearchQuery, categories]);
+  }, [partsAfterStockFilter, partsSearchQuery, categories]);
 
   const categoryLineForPart = useCallback(
     (p: WorkshopPart) => {
@@ -829,10 +856,24 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   }, [categoryFilterMenuOpen]);
 
   const categoryFilterLabel = useMemo(() => {
-    if (categoryFilter === 'all') return 'Todos os produtos';
-    if (categoryFilter === 'uncategorized') return 'Sem categoria';
-    return categories.find((c) => c.id === categoryFilter)?.name ?? 'Categoria';
-  }, [categoryFilter, categories]);
+    const fmt = (label: string, count: number) => `${label} (${count})`;
+    if (categoryFilter === 'all') return fmt('Todos os produtos', categoryCounts.total);
+    if (categoryFilter === 'uncategorized') return fmt('Sem categoria', categoryCounts.uncategorized);
+    const name = categories.find((c) => c.id === categoryFilter)?.name ?? 'Categoria';
+    return fmt(name, categoryCounts.counts.get(categoryFilter) ?? 0);
+  }, [categoryFilter, categories, categoryCounts]);
+
+  const categoryFilterOptions = useMemo(() => {
+    const fmt = (label: string, count: number) => ({ label, countLabel: `${label} (${count})` });
+    return [
+      { value: 'all' as const, ...fmt('Todos os produtos', categoryCounts.total) },
+      { value: 'uncategorized' as const, ...fmt('Sem categoria', categoryCounts.uncategorized) },
+      ...categories.map((c) => ({
+        value: c.id,
+        ...fmt(c.name, categoryCounts.counts.get(c.id) ?? 0),
+      })),
+    ];
+  }, [categories, categoryCounts]);
 
   useEffect(() => {
     if (!editingId) return;
@@ -954,13 +995,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         aria-label="Opções de filtro por categoria"
                         className="absolute left-0 right-0 top-full z-[60] mt-1.5 max-h-[min(280px,45vh)] overflow-y-auto rounded-xl border border-zinc-200/90 dark:border-white/[0.14] bg-white dark:bg-zinc-900 py-1.5 shadow-xl shadow-zinc-900/12 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)] ring-1 ring-zinc-900/5 dark:ring-white/10"
                       >
-                        {(
-                          [
-                            { value: 'all' as const, label: 'Todos os produtos' },
-                            { value: 'uncategorized' as const, label: 'Sem categoria' },
-                            ...categories.map((c) => ({ value: c.id as string, label: c.name })),
-                          ] as { value: string; label: string }[]
-                        ).map((opt) => {
+                        {categoryFilterOptions.map((opt) => {
                           const selected = categoryFilter === opt.value;
                           return (
                             <li key={opt.value} role="none">
@@ -978,7 +1013,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                                     : 'font-medium text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-white/[0.08]'
                                 }`}
                               >
-                                <span className="min-w-0 truncate">{opt.label}</span>
+                                <span className="min-w-0 truncate">{opt.countLabel}</span>
                                 {selected ? (
                                   <Check
                                     className="h-4 w-4 shrink-0 text-emerald-600"
@@ -1022,9 +1057,141 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                     ) : null}
                   </div>
                 </div>
+
+                <div className="flex flex-col gap-2.5 pt-0.5">
+                  <p className="text-[14px] font-semibold text-zinc-800 dark:text-zinc-200">
+                    <span className="tabular-nums">{categoryCounts.total}</span>{' '}
+                    {categoryCounts.total === 1 ? 'produto no estoque' : 'produtos no estoque'}
+                    {categoryFilter !== 'all' || stockAlertFilter !== 'all' || partsSearchQuery.trim() ? (
+                      <span className="font-medium text-zinc-500 dark:text-zinc-400">
+                        {' '}
+                        · exibindo <span className="tabular-nums text-zinc-700 dark:text-zinc-300">{filteredParts.length}</span>
+                      </span>
+                    ) : null}
+                  </p>
+
+                  {(stockAlertsGlobal.zero > 0 || stockAlertsGlobal.low > 0) && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        Alertas:
+                      </span>
+                      {stockAlertsGlobal.zero > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setStockAlertFilter((f) => (f === 'zero' ? 'all' : 'zero'))
+                          }
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors ${
+                            stockAlertFilter === 'zero'
+                              ? 'bg-red-600 text-white'
+                              : 'bg-red-100 text-red-900 ring-1 ring-red-300/60 hover:bg-red-200/90 dark:bg-red-950/50 dark:text-red-200 dark:ring-red-500/30'
+                          }`}
+                        >
+                          <PackageX className="h-3.5 w-3.5" aria-hidden />
+                          <span className="tabular-nums">{stockAlertsGlobal.zero}</span> sem estoque
+                        </button>
+                      ) : null}
+                      {stockAlertsGlobal.low > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setStockAlertFilter((f) => (f === 'low' ? 'all' : 'low'))
+                          }
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors ${
+                            stockAlertFilter === 'low'
+                              ? 'bg-amber-600 text-white'
+                              : 'bg-amber-100 text-amber-900 ring-1 ring-amber-300/60 hover:bg-amber-200/90 dark:bg-amber-950/50 dark:text-amber-200 dark:ring-amber-500/30'
+                          }`}
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                          <span className="tabular-nums">{stockAlertsGlobal.low}</span> acabando
+                        </button>
+                      ) : null}
+                      {(stockAlertsGlobal.zero > 0 && stockAlertsGlobal.low > 0) ||
+                      stockAlertFilter === 'alerts' ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setStockAlertFilter((f) => (f === 'alerts' ? 'all' : 'alerts'))
+                          }
+                          className={`rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors ${
+                            stockAlertFilter === 'alerts'
+                              ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900'
+                              : 'text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                          }`}
+                        >
+                          {stockAlertFilter === 'alerts' ? 'Limpar filtro de alertas' : 'Ver todos os alertas'}
+                        </button>
+                      ) : null}
+                    </div>
+                  )}
+
+                  {categories.length > 0 ? (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        Por categoria
+                      </span>
+                      <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-0.5 px-0.5 scrollbar-thin">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCategoryFilter('all');
+                            setCategoryFilterMenuOpen(false);
+                          }}
+                          className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold transition-colors ${
+                            categoryFilter === 'all'
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
+                          }`}
+                        >
+                          Todos <span className="tabular-nums">({categoryCounts.total})</span>
+                        </button>
+                        {categoryCounts.uncategorized > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCategoryFilter('uncategorized');
+                              setCategoryFilterMenuOpen(false);
+                            }}
+                            className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold transition-colors ${
+                              categoryFilter === 'uncategorized'
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
+                            }`}
+                          >
+                            Sem categoria{' '}
+                            <span className="tabular-nums">({categoryCounts.uncategorized})</span>
+                          </button>
+                        ) : null}
+                        {categories.map((c) => {
+                          const n = categoryCounts.counts.get(c.id) ?? 0;
+                          if (n === 0) return null;
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setCategoryFilter(c.id);
+                                setCategoryFilterMenuOpen(false);
+                              }}
+                              className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold transition-colors ${
+                                categoryFilter === c.id
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
+                              }`}
+                            >
+                              {c.name} <span className="tabular-nums">({n})</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             )}
-            <div className="hidden md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto] md:gap-3 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
+            <div className="hidden md:grid md:grid-cols-[3rem_4fr_1fr_1fr_auto_auto] md:gap-3 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
+              <span className="text-center tabular-nums">#</span>
               <span className="min-w-0">Nome da peça</span>
               <span className="text-right tabular-nums">Preço</span>
               <span className="text-right tabular-nums">Quantidade</span>
@@ -1085,6 +1252,19 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                   Ver todos os produtos
                 </button>
               </div>
+            ) : partsAfterStockFilter.length === 0 && stockAlertFilter !== 'all' ? (
+              <div className="py-10 px-4 text-center">
+                <p className="text-[15px] text-zinc-500 dark:text-zinc-400">
+                  Nenhum produto com este alerta nesta seleção.
+                </p>
+                <button
+                  type="button"
+                  className="mt-3 text-[14px] font-semibold text-emerald-600 dark:text-emerald-400 underline hover:brightness-110"
+                  onClick={() => setStockAlertFilter('all')}
+                >
+                  Mostrar todos os produtos
+                </button>
+              </div>
             ) : filteredParts.length === 0 ? (
               <div className="py-10 px-4 text-center">
                 <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhum resultado para a pesquisa nesta seleção.</p>
@@ -1104,10 +1284,18 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
                 {filteredParts.map((p) => {
                   const catLine = categoryLineForPart(p);
+                  const partNum = partNumberById.get(p.id);
+                  const stockStatus = getWorkshopPartStockStatus(p);
+                  const rowAlertCls =
+                    stockStatus === 'zero'
+                      ? 'bg-red-50/80 dark:bg-red-950/20'
+                      : stockStatus === 'low'
+                        ? 'bg-amber-50/70 dark:bg-amber-950/15'
+                        : 'bg-transparent';
                   return (
                   <div
                     key={p.id}
-                    className="min-h-[52px] flex flex-wrap items-center gap-3 px-4 py-3 bg-transparent hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto] md:flex-nowrap md:gap-3 md:items-center"
+                    className={`min-h-[52px] flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors md:grid md:grid-cols-[3rem_4fr_1fr_1fr_auto_auto] md:flex-nowrap md:gap-3 md:items-center ${rowAlertCls}`}
                   >
                     {editingId === p.id ? (
                       <>
@@ -1156,6 +1344,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       </>
                     ) : (
                       <>
+                        <span className="hidden items-center justify-center text-[13px] font-bold tabular-nums text-zinc-500 dark:text-zinc-400 md:flex">
+                          {partNum != null ? `#${partNum}` : '—'}
+                        </span>
                         <button
                           type="button"
                           onClick={() => void openProductView(p)}
@@ -1172,7 +1363,17 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                             ) : null}
                           </div>
                           <span className="min-w-0 flex flex-col gap-0.5 text-left">
-                            <span className="text-[16px] font-medium text-zinc-900 dark:text-white truncate">{p.name}</span>
+                            <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                              {partNum != null ? (
+                                <span className="shrink-0 text-[13px] font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                  #{partNum}
+                                </span>
+                              ) : null}
+                              <span className="min-w-0 text-[16px] font-medium text-zinc-900 dark:text-white truncate">
+                                {p.name}
+                              </span>
+                              <WorkshopPartStockBadge status={stockStatus} className="md:hidden" />
+                            </span>
                             {catLine ? (
                               <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{catLine}</span>
                             ) : null}
@@ -1181,8 +1382,17 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         <span className="min-w-0 flex-1 text-[14px] text-zinc-700 dark:text-zinc-300 text-right tabular-nums md:flex-[unset] md:min-w-0 md:justify-self-end">
                           R$ {Number(p.unit_price ?? 0).toFixed(2)}
                         </span>
-                        <span className="min-w-0 flex-1 text-[14px] text-zinc-700 dark:text-zinc-300 text-right tabular-nums md:flex-[unset] md:min-w-0 md:justify-self-end">
-                          {Number(p.stock_qty ?? 0).toFixed(3)}
+                        <span
+                          className={`min-w-0 flex flex-1 flex-col items-end gap-0.5 text-[14px] tabular-nums md:flex-[unset] md:min-w-0 md:justify-self-end ${
+                            stockStatus === 'zero'
+                              ? 'font-semibold text-red-700 dark:text-red-300'
+                              : stockStatus === 'low'
+                                ? 'font-semibold text-amber-800 dark:text-amber-300'
+                                : 'text-zinc-700 dark:text-zinc-300'
+                          }`}
+                        >
+                          <span>{Number(p.stock_qty ?? 0).toFixed(3)}</span>
+                          <WorkshopPartStockBadge status={stockStatus} className="hidden md:inline-flex" />
                         </span>
                         <button
                           type="button"
@@ -1354,13 +1564,18 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <IosModalHeader
                 icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
                 title="Estoque — visualização"
-                subtitle={viewPart.name}
+                subtitle={
+                  partNumberById.get(viewPart.id) != null
+                    ? `#${partNumberById.get(viewPart.id)} · ${viewPart.name}`
+                    : viewPart.name
+                }
                 gradientClass="from-emerald-500 to-teal-700"
               />
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y bg-white px-6 py-6 sm:px-8 custom-scrollbar [scrollbar-gutter:stable] dark:bg-transparent">
               <WorkshopPartDetailView
                 part={parts.find((p) => p.id === viewPart.id) ?? viewPart}
+                catalogNumber={partNumberById.get(viewPart.id)}
                 photos={viewPhotos}
                 purchases={viewPurchases}
                 categories={categories}

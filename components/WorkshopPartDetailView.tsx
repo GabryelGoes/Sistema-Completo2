@@ -9,6 +9,8 @@ import {
   PART_ORIGIN_OPTIONS,
   UNIT_OF_MEASURE_OPTIONS,
 } from '../utils/workshopPartFields';
+import { getWorkshopPartStockStatus } from '../utils/workshopPartStock';
+import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
 import type { PartPhotoSlot } from './WorkshopPartRegistrationForm';
 
 const labelCls =
@@ -57,6 +59,8 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 
 export type WorkshopPartDetailViewProps = {
   part: WorkshopPart;
+  /** Número sequencial no catálogo (#1, #2, …). */
+  catalogNumber?: number;
   photos: PartPhotoSlot[];
   purchases: WorkshopPartPurchase[];
   categories: WorkshopPartCategory[];
@@ -67,6 +71,7 @@ export type WorkshopPartDetailViewProps = {
 
 export function WorkshopPartDetailView({
   part,
+  catalogNumber,
   photos,
   purchases,
   categories,
@@ -75,6 +80,7 @@ export function WorkshopPartDetailView({
   onDelete,
 }: WorkshopPartDetailViewProps) {
   const unit = part.unit_of_measure ?? 'UN';
+  const stockStatus = getWorkshopPartStockStatus(part);
   const categoryNames = (part.category_ids ?? [])
     .map((id) => categories.find((c) => c.id === id)?.name)
     .filter((n): n is string => !!n);
@@ -175,6 +181,9 @@ export function WorkshopPartDetailView({
           <div className={cardCls}>
             <h3 className="mb-3 text-[13px] font-bold text-zinc-800 dark:text-zinc-200">Identificação</h3>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {catalogNumber != null ? (
+                <DetailRow label="Nº no estoque" value={`#${catalogNumber}`} />
+              ) : null}
               <DetailRow label="Nome" value={displayText(part.name)} />
               <DetailRow label="Código original" value={displayText(part.original_code)} />
               <DetailRow label="Código numérico" value={displayText(part.numeric_code)} />
@@ -224,11 +233,42 @@ export function WorkshopPartDetailView({
           ) : null}
 
           <div className={cardCls}>
-            <h3 className="mb-3 text-[13px] font-bold text-zinc-800 dark:text-zinc-200">Estoque e preços</h3>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <h3 className="text-[13px] font-bold text-zinc-800 dark:text-zinc-200">Estoque e preços</h3>
+              <WorkshopPartStockBadge status={stockStatus} />
+            </div>
+            {stockStatus !== 'ok' ? (
+              <p
+                className={`mb-3 rounded-lg px-3 py-2 text-[13px] font-medium ${
+                  stockStatus === 'zero'
+                    ? 'bg-red-100 text-red-900 dark:bg-red-950/40 dark:text-red-200'
+                    : 'bg-amber-100 text-amber-950 dark:bg-amber-950/40 dark:text-amber-200'
+                }`}
+              >
+                {stockStatus === 'zero'
+                  ? 'Este produto está sem estoque. Reposição necessária.'
+                  : `Estoque na ou abaixo do mínimo (${fmtQty(part.min_stock_qty ?? 0, unit)}). Considere repor.`}
+              </p>
+            ) : null}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <DetailRow label="Preço venda" value={fmtMoney(part.unit_price)} />
               <DetailRow label="Custo unitário" value={fmtMoney(part.unit_cost)} />
-              <DetailRow label="Quantidade em estoque" value={fmtQty(part.stock_qty, unit)} />
+              <DetailRow
+                label="Quantidade em estoque"
+                value={
+                  <span
+                    className={
+                      stockStatus === 'zero'
+                        ? 'font-semibold text-red-700 dark:text-red-300'
+                        : stockStatus === 'low'
+                          ? 'font-semibold text-amber-800 dark:text-amber-300'
+                          : undefined
+                    }
+                  >
+                    {fmtQty(part.stock_qty, unit)}
+                  </span>
+                }
+              />
               <DetailRow label="Quantidade mínima" value={fmtQty(part.min_stock_qty ?? 0, unit)} />
               <DetailRow
                 label="Quantidade máxima"
