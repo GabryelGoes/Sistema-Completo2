@@ -3653,8 +3653,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
           const canAssignMember = can('canAssignTechnician'); 
           
-          // Condição para botão de ENTREGUE: Apenas em 'finalizado'
-          const showDeliverButton = listNameLower.includes('finalizado');
+          // Condição para botão ENTREGAR: finalizado (pátio) ou pronto pra retirada (laboratório)
+          const showDeliverButton =
+            card.idList === 'FINALIZADO' ||
+            card.idList === 'PRONTO_PRA_RETIRADA' ||
+            listNameLower.includes('finalizado') ||
+            listNameLower.includes('pronto pra retirada');
 
           // Condição para botão de ENTREGUE em 'não aprovado'
           const showNotApprovedDeliverButton = listNameLower.includes('não aprovado');
@@ -3876,8 +3880,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       onClick={(e) => {
                         e.stopPropagation();
                         const msg = showDeliverButton
-                          ? 'Confirmar entrega deste veículo finalizado? Ele será arquivado e irá para o histórico.'
-                          : 'Confirmar entrega deste veículo não aprovado? Ele será arquivado e irá para o histórico.';
+                          ? isModuleMode
+                            ? 'Confirmar entrega deste produto? Ele será arquivado e irá para o histórico.'
+                            : 'Confirmar entrega deste veículo finalizado? Ele será arquivado e irá para o histórico.'
+                          : isModuleMode
+                            ? 'Confirmar entrega deste produto não aprovado? Ele será arquivado e irá para o histórico.'
+                            : 'Confirmar entrega deste veículo não aprovado? Ele será arquivado e irá para o histórico.';
                         if (archivingId === card.id) return;
                         if (window.confirm(msg)) {
                           handleDeliverVehicle(card.id);
@@ -4832,27 +4840,54 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
                               aria-hidden
                             />
-                            <div className={c.splitRow}>
-                              <div className="flex shrink-0 items-center gap-2">
-                                <div className={c.iconSquircle}>
+                            <div
+                              className={
+                                isPatioPcModal
+                                  ? `${c.splitRow} !flex-nowrap !items-end`
+                                  : c.splitRow
+                              }
+                            >
+                              {isPatioPcModal ? (
+                                <div className={`${c.iconSquircle} mb-0.5`}>
                                   <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
                                 </div>
-                                <div className="min-w-0 sm:pb-0">
-                                  <p className={c.titleText}>Data de entrega</p>
+                              ) : (
+                                <div className="flex shrink-0 items-center gap-2">
+                                  <div className={c.iconSquircle}>
+                                    <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
+                                  </div>
+                                  <div className="min-w-0 sm:pb-0">
+                                    <p className={c.titleText}>Data de entrega</p>
+                                  </div>
                                 </div>
-                              </div>
-                              <div className={`${c.fieldRow} flex-nowrap`}>
-                                <input
-                                  type="date"
-                                  value={deliveryDateEditValue}
-                                  onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                  className={`${c.dateInput}${isPatioPcModal ? ' sm:max-w-none' : ''}`}
-                                />
+                              )}
+                              <div
+                                className={
+                                  isPatioPcModal
+                                    ? c.dateFieldRow
+                                    : `${c.fieldRow} flex-nowrap`
+                                }
+                              >
+                                <div className={isPatioPcModal ? c.dateFieldWrap : 'min-w-0 flex-1'}>
+                                  {isPatioPcModal ? (
+                                    <label htmlFor="patio-delivery-date-input" className={c.dateFieldLabel}>
+                                      Data de entrega
+                                    </label>
+                                  ) : null}
+                                  <input
+                                    id={isPatioPcModal ? 'patio-delivery-date-input' : undefined}
+                                    type="date"
+                                    value={deliveryDateEditValue}
+                                    onChange={(e) => setDeliveryDateEditValue(e.target.value)}
+                                    aria-label={isPatioPcModal ? undefined : 'Data de entrega'}
+                                    className={c.dateInput}
+                                  />
+                                </div>
                                 <button
                                   type="button"
                                   onClick={handleSaveDeliveryDate}
                                   disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
-                                  className={`${c.saveBtn} ${
+                                  className={`${c.saveBtn} shrink-0 ${
                                     deliveryDateEditValue !== lastSavedDeliveryDate
                                       ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
                                       : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
@@ -4862,7 +4897,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   Salvar
                                 </button>
                                 {deliveryDateSavedMessage && (
-                                  <span className={c.salvo}>Salvo!</span>
+                                  <span className={`${c.salvo} shrink-0`}>Salvo!</span>
                                 )}
                               </div>
                             </div>

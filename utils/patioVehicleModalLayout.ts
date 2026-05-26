@@ -12,6 +12,9 @@ export type PatioVehicleModalCompact = {
   chevron: string;
   numericInput: string;
   dateInput: string;
+  dateFieldWrap: string;
+  dateFieldLabel: string;
+  dateFieldRow: string;
   saveBtn: string;
   saveIcon: string;
   salvo: string;
@@ -72,6 +75,9 @@ const COMPACT_MOBILE: PatioVehicleModalCompact = {
   emptyTech:
     'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12',
   fieldRow: 'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:ml-auto sm:justify-end',
+  dateFieldWrap: '',
+  dateFieldLabel: '',
+  dateFieldRow: '',
 };
 
 /** PC: levemente maior que mobile, sem exagero. */
@@ -91,7 +97,11 @@ const COMPACT_DESKTOP: PatioVehicleModalCompact = {
   numericInput:
     'min-w-0 flex-1 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[14px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500 sm:max-w-[200px]',
   dateInput:
-    'min-w-0 flex-1 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[14px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white sm:max-w-none sm:min-w-[13rem] lg:min-w-[14.5rem] max-w-[min(100%,20rem)]',
+    'min-w-0 w-full flex-1 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[14px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white',
+  dateFieldWrap: 'flex min-w-0 flex-1 flex-col gap-1',
+  dateFieldLabel:
+    'text-[11px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400',
+  dateFieldRow: 'flex min-w-0 flex-1 flex-nowrap items-end gap-1.5',
   saveBtn:
     'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white shadow-md transition-all hover:brightness-105 disabled:opacity-50',
   saveIcon: 'h-3.5 w-3.5',
