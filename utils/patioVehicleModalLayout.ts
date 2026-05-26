@@ -178,7 +178,7 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
     headerInner: 'mx-auto flex w-full min-w-0 max-w-[1680px] flex-col gap-3',
     headerTitlePad: 'min-w-0 pr-20 xl:pr-24',
     headerMeta:
-      'patio-vm-header-meta patio-vm-header-meta--pc mt-2 grid w-full min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3',
+      'patio-vm-header-meta patio-vm-header-meta--pc mt-2 grid w-full min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4',
     title:
       'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white xl:text-[2.35rem]',
     brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',

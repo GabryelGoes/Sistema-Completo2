@@ -4711,14 +4711,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </p>
                         ) : null}
                         </div>
-                        {/* Cliente + Km + Técnico (+ data no mobile/tablet) */}
+                        {/* Cliente | Km | Data de entrega | Técnico */}
                         <div className={`${patioVehicleVm.headerMeta} ${c.grid}`}>
                           <button
                             type="button"
                             onClick={handleJumpToCustomerNameEdit}
                             disabled={!can('canEditFicha')}
                             title={can('canEditFicha') ? 'Editar nome do cliente em Dados da ficha' : 'Dados do cliente'}
-                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isPatioPcModal ? 'cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${!isModuleMode && can('canEditMileage') ? '' : 'sm:col-span-2'}`}
+                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isPatioPcModal ? 'cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${!isPatioPcModal && !isModuleMode && can('canEditMileage') ? '' : !isPatioPcModal ? 'sm:col-span-2' : ''}`}
                           >
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -4789,6 +4789,93 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                             </div>
                           )}
+                          {can('canEditDeliveryDate') && (
+                          <div
+                            className={`${vi} patio-vm-delivery-date-card relative min-w-0 w-full overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}
+                          >
+                            <div
+                              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
+                              aria-hidden
+                            />
+                            <div
+                              className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
+                              aria-hidden
+                            />
+                            {isPatioPcModal ? (
+                              <div className={c.deliveryDateStack}>
+                                <div className="flex items-center gap-2">
+                                  <div className={c.iconSquircle}>
+                                    <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
+                                  </div>
+                                  <label htmlFor="patio-delivery-date-input" className={c.titleText}>
+                                    Data de entrega
+                                  </label>
+                                </div>
+                                <div className={c.deliveryDateControlRow}>
+                                  <input
+                                    id="patio-delivery-date-input"
+                                    type="date"
+                                    value={deliveryDateEditValue}
+                                    onChange={(e) => setDeliveryDateEditValue(e.target.value)}
+                                    className={c.dateInput}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={handleSaveDeliveryDate}
+                                    disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
+                                    className={`${c.saveBtn} shrink-0 ${
+                                      deliveryDateEditValue !== lastSavedDeliveryDate
+                                        ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
+                                        : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
+                                    }`}
+                                  >
+                                    {savingDeliveryDate ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
+                                    Salvar
+                                  </button>
+                                  {deliveryDateSavedMessage ? (
+                                    <span className={`${c.salvo} shrink-0`}>Salvo!</span>
+                                  ) : null}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className={c.splitRow}>
+                                <div className="flex shrink-0 items-center gap-2">
+                                  <div className={c.iconSquircle}>
+                                    <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
+                                  </div>
+                                  <div className="min-w-0 sm:pb-0">
+                                    <p className={c.titleText}>Data de entrega</p>
+                                  </div>
+                                </div>
+                                <div className={`${c.fieldRow} flex-nowrap`}>
+                                  <input
+                                    type="date"
+                                    value={deliveryDateEditValue}
+                                    onChange={(e) => setDeliveryDateEditValue(e.target.value)}
+                                    aria-label="Data de entrega"
+                                    className={c.dateInput}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={handleSaveDeliveryDate}
+                                    disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
+                                    className={`${c.saveBtn} shrink-0 ${
+                                      deliveryDateEditValue !== lastSavedDeliveryDate
+                                        ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
+                                        : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
+                                    }`}
+                                  >
+                                    {savingDeliveryDate ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
+                                    Salvar
+                                  </button>
+                                  {deliveryDateSavedMessage ? (
+                                    <span className={`${c.salvo} shrink-0`}>Salvo!</span>
+                                  ) : null}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          )}
                           {can('canAssignTechnician') && (
                           <button
                             type="button"
@@ -4832,100 +4919,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           </button>
                           )}
-                          {can('canEditDeliveryDate') && !isPatioPcModal ? (
-                          <div
-                            className={`${vi} relative min-w-0 w-full overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}
-                          >
-                            <div
-                              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
-                              aria-hidden
-                            />
-                            <div
-                              className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
-                              aria-hidden
-                            />
-                            <div className={c.splitRow}>
-                              <div className="flex shrink-0 items-center gap-2">
-                                <div className={c.iconSquircle}>
-                                  <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
-                                </div>
-                                <div className="min-w-0 sm:pb-0">
-                                  <p className={c.titleText}>Data de entrega</p>
-                                </div>
-                              </div>
-                              <div className={`${c.fieldRow} flex-nowrap`}>
-                                <input
-                                  type="date"
-                                  value={deliveryDateEditValue}
-                                  onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                  aria-label="Data de entrega"
-                                  className={c.dateInput}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={handleSaveDeliveryDate}
-                                  disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
-                                  className={`${c.saveBtn} shrink-0 ${
-                                    deliveryDateEditValue !== lastSavedDeliveryDate
-                                      ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
-                                      : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
-                                  }`}
-                                >
-                                  {savingDeliveryDate ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
-                                  Salvar
-                                </button>
-                                {deliveryDateSavedMessage ? (
-                                  <span className={`${c.salvo} shrink-0`}>Salvo!</span>
-                                ) : null}
-                              </div>
-                            </div>
-                          </div>
-                          ) : null}
                         </div>
-
-                        {can('canEditDeliveryDate') && isPatioPcModal ? (
-                          <div className="patio-vm-delivery-date-row mt-2.5 w-full min-w-0">
-                            <div
-                              className={`${vi} patio-vm-delivery-date-card relative w-full min-w-0 overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}
-                            >
-                              <div
-                                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
-                                aria-hidden
-                              />
-                              <div className={c.deliveryDateBar}>
-                                <div className={c.iconSquircle}>
-                                  <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
-                                </div>
-                                <label htmlFor="patio-delivery-date-input" className={c.deliveryDateBarLabel}>
-                                  Data de entrega
-                                </label>
-                                <input
-                                  id="patio-delivery-date-input"
-                                  type="date"
-                                  value={deliveryDateEditValue}
-                                  onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                  className={c.dateInputBar}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={handleSaveDeliveryDate}
-                                  disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
-                                  className={`${c.saveBtn} shrink-0 ${
-                                    deliveryDateEditValue !== lastSavedDeliveryDate
-                                      ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
-                                      : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
-                                  }`}
-                                >
-                                  {savingDeliveryDate ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
-                                  Salvar
-                                </button>
-                                {deliveryDateSavedMessage ? (
-                                  <span className={`${c.salvo} shrink-0`}>Salvo!</span>
-                                ) : null}
-                              </div>
-                            </div>
-                          </div>
-                        ) : null}
 
                         {/* Dados da ficha — cabeçalho com camadas, tipografia forte e chips de resumo */}
                         {serviceOrderDetail && (
