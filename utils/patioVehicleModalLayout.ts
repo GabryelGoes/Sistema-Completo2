@@ -91,49 +91,43 @@ const COMPACT_MOBILE: PatioVehicleModalCompact = {
   dateFieldRow: '',
 };
 
-/** PC: levemente maior que mobile, sem exagero. */
+/** PC: faixa meta simétrica — mesma altura, inputs compactos. */
 const COMPACT_DESKTOP: PatioVehicleModalCompact = {
-  grid: 'gap-2.5 sm:gap-3',
-  row: 'relative flex items-center gap-2.5 px-3 py-2.5',
+  grid: 'gap-2',
+  row: 'patio-vm-meta-inner relative flex min-h-[3.25rem] items-center gap-2 px-2.5 py-2',
   splitRow:
-    'relative flex w-full min-w-0 flex-row flex-nowrap items-end gap-2 px-3 py-2.5',
-  deliveryDateStack:
-    'relative flex w-full min-w-0 flex-col gap-2 px-3 py-2.5',
-  deliveryDateControlRow:
-    'flex w-full min-w-0 flex-nowrap items-center gap-1.5',
-  deliveryDateBar:
-    'relative flex w-full min-w-0 flex-nowrap items-center gap-2.5 px-3 py-2.5',
-  deliveryDateBarLabel:
-    'shrink-0 whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400',
-  dateInputBar:
-    'patio-vm-date-input-bar min-h-[2.375rem] min-w-0 flex-1 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[14px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white',
+    'patio-vm-meta-inner relative flex min-h-[3.25rem] w-full min-w-0 flex-row flex-nowrap items-center gap-1.5 px-2.5 py-2',
+  deliveryDateStack: '',
+  deliveryDateControlRow: '',
+  deliveryDateBar: '',
+  deliveryDateBarLabel: '',
+  dateInputBar: '',
   iconSquircle:
-    'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]',
-  iconGlyph: 'h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]',
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]',
+  iconGlyph: 'h-3.5 w-3.5 text-[#007AFF] dark:text-[#7ab8ff]',
   titleText:
-    'bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[12px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[13px]',
-  bodyText: 'mt-0.5 truncate text-[13px] font-semibold leading-tight text-zinc-900 dark:text-white',
-  assignHint: 'mt-0.5 text-[13px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff]',
-  chevron: 'relative z-[1] h-4 w-4 shrink-0',
+    'truncate bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[11px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400',
+  bodyText: 'mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white',
+  assignHint: 'mt-0.5 truncate text-[12px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff]',
+  chevron: 'relative z-[1] h-3.5 w-3.5 shrink-0',
   numericInput:
-    'min-w-0 flex-1 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[14px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500 sm:max-w-[200px]',
+    'patio-vm-meta-input patio-vm-meta-input--km h-8 w-[4.75rem] min-w-0 shrink-0 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2 py-1 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500',
   dateInput:
-    'min-w-0 w-full flex-1 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[14px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white',
-  dateFieldWrap: 'min-w-0 flex-1',
-  dateFieldLabel:
-    'text-[11px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400',
-  dateFieldRow: 'flex min-w-0 flex-1 flex-nowrap items-center gap-1.5',
+    'patio-vm-meta-input patio-vm-meta-input--date h-8 w-[8.25rem] min-w-0 shrink-0 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2 py-1 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white',
+  dateFieldWrap: '',
+  dateFieldLabel: '',
+  dateFieldRow: '',
   saveBtn:
-    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white shadow-md transition-all hover:brightness-105 disabled:opacity-50',
+    'inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white shadow-md transition-all hover:brightness-105 disabled:opacity-50',
   saveIcon: 'h-3.5 w-3.5',
-  salvo: 'text-[11px] font-semibold text-green-600 dark:text-green-400',
+  salvo: 'sr-only',
   mechanicWrap:
-    'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-md',
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow-md',
   mechanicWrench:
-    'h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]',
+    'h-3.5 w-3.5 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]',
   emptyTech:
-    'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12',
-  fieldRow: 'flex min-w-0 flex-1 flex-nowrap items-center gap-1.5',
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12',
+  fieldRow: 'ml-auto flex shrink-0 items-center gap-1',
 };
 
 export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayout {
@@ -178,7 +172,7 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
     headerInner: 'mx-auto flex w-full min-w-0 max-w-[1680px] flex-col gap-3',
     headerTitlePad: 'min-w-0 pr-20 xl:pr-24',
     headerMeta:
-      'patio-vm-header-meta patio-vm-header-meta--pc mt-2 grid w-full min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4',
+      'patio-vm-header-meta patio-vm-header-meta--pc mt-2 grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4',
     title:
       'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white xl:text-[2.35rem]',
     brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',

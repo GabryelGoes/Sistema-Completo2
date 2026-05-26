@@ -4718,7 +4718,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             onClick={handleJumpToCustomerNameEdit}
                             disabled={!can('canEditFicha')}
                             title={can('canEditFicha') ? 'Editar nome do cliente em Dados da ficha' : 'Dados do cliente'}
-                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isPatioPcModal ? 'cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${!isPatioPcModal && !isModuleMode && can('canEditMileage') ? '' : !isPatioPcModal ? 'sm:col-span-2' : ''}`}
+                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isPatioPcModal ? 'patio-vm-meta-card cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${!isPatioPcModal && !isModuleMode && can('canEditMileage') ? '' : !isPatioPcModal ? 'sm:col-span-2' : ''}`}
                           >
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -4742,7 +4742,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           </button>
                           {!isModuleMode && can('canEditMileage') && (
-                            <div className={`${vi} relative overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
+                            <div className={`${vi} ${isPatioPcModal ? 'patio-vm-meta-card' : ''} relative overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
                               <div
                                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
                                 aria-hidden
@@ -4752,13 +4752,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 aria-hidden
                               />
                               <div className={c.splitRow}>
-                                <div className="flex shrink-0 items-center gap-2">
+                                <div className="flex min-w-0 shrink items-center gap-1.5">
                                   <div className={c.iconSquircle}>
                                     <Gauge className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
                                   </div>
-                                  <div className="min-w-0 sm:pb-0">
-                                    <p className={c.titleText}>Km</p>
-                                  </div>
+                                  <p className={c.titleText}>Km</p>
                                 </div>
                                 <div className={`${c.fieldRow} flex-nowrap`}>
                                   <input
@@ -4766,13 +4764,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     inputMode="numeric"
                                     value={mileageEditValue}
                                     onChange={(e) => setMileageEditValue(e.target.value)}
-                                    placeholder="Ex: 45000"
-                                    className={`${c.numericInput} sm:max-w-none${isPatioPcModal ? '' : ' portrait:w-[51%] portrait:flex-none'}`}
+                                    placeholder={isPatioPcModal ? '45000' : 'Ex: 45000'}
+                                    className={`${c.numericInput}${isPatioPcModal ? '' : ' sm:max-w-none portrait:w-[51%] portrait:flex-none'}`}
                                   />
                                   <button
                                     type="button"
                                     onClick={handleSaveMileage}
                                     disabled={savingMileage || mileageEditValue.trim() === lastSavedMileage}
+                                    aria-label="Salvar quilometragem"
+                                    title="Salvar quilometragem"
                                     className={`${c.saveBtn} ${
                                       mileageEditValue.trim() !== lastSavedMileage
                                         ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
@@ -4780,18 +4780,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     }`}
                                   >
                                     {savingMileage ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
-                                    Salvar
+                                    {!isPatioPcModal ? ' Salvar' : null}
                                   </button>
-                                  {mileageSavedMessage && (
+                                  {mileageSavedMessage && !isPatioPcModal ? (
                                     <span className={`${c.salvo} animate-in fade-in`}>Salvo!</span>
-                                  )}
+                                  ) : null}
                                 </div>
                               </div>
                             </div>
                           )}
                           {can('canEditDeliveryDate') && (
                           <div
-                            className={`${vi} patio-vm-delivery-date-card relative min-w-0 w-full overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}
+                            className={`${vi} ${isPatioPcModal ? 'patio-vm-meta-card' : ''} relative min-w-0 w-full overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}
                           >
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -4801,86 +4801,51 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
                               aria-hidden
                             />
-                            {isPatioPcModal ? (
-                              <div className={c.deliveryDateStack}>
-                                <div className="flex items-center gap-2">
-                                  <div className={c.iconSquircle}>
-                                    <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
-                                  </div>
-                                  <label htmlFor="patio-delivery-date-input" className={c.titleText}>
-                                    Data de entrega
-                                  </label>
+                            <div className={c.splitRow}>
+                              <div className={`flex min-w-0 shrink items-center gap-1.5${isPatioPcModal ? ' max-w-[5.25rem]' : ''}`}>
+                                <div className={c.iconSquircle}>
+                                  <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
                                 </div>
-                                <div className={c.deliveryDateControlRow}>
-                                  <input
-                                    id="patio-delivery-date-input"
-                                    type="date"
-                                    value={deliveryDateEditValue}
-                                    onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                    className={c.dateInput}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={handleSaveDeliveryDate}
-                                    disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
-                                    className={`${c.saveBtn} shrink-0 ${
-                                      deliveryDateEditValue !== lastSavedDeliveryDate
-                                        ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
-                                        : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
-                                    }`}
-                                  >
-                                    {savingDeliveryDate ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
-                                    Salvar
-                                  </button>
-                                  {deliveryDateSavedMessage ? (
-                                    <span className={`${c.salvo} shrink-0`}>Salvo!</span>
-                                  ) : null}
-                                </div>
+                                <p className={c.titleText}>
+                                  {isPatioPcModal ? 'Entrega' : 'Data de entrega'}
+                                </p>
                               </div>
-                            ) : (
-                              <div className={c.splitRow}>
-                                <div className="flex shrink-0 items-center gap-2">
-                                  <div className={c.iconSquircle}>
-                                    <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
-                                  </div>
-                                  <div className="min-w-0 sm:pb-0">
-                                    <p className={c.titleText}>Data de entrega</p>
-                                  </div>
-                                </div>
-                                <div className={`${c.fieldRow} flex-nowrap`}>
-                                  <input
-                                    type="date"
-                                    value={deliveryDateEditValue}
-                                    onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                    aria-label="Data de entrega"
-                                    className={c.dateInput}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={handleSaveDeliveryDate}
-                                    disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
-                                    className={`${c.saveBtn} shrink-0 ${
-                                      deliveryDateEditValue !== lastSavedDeliveryDate
-                                        ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
-                                        : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
-                                    }`}
-                                  >
-                                    {savingDeliveryDate ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
-                                    Salvar
-                                  </button>
-                                  {deliveryDateSavedMessage ? (
-                                    <span className={`${c.salvo} shrink-0`}>Salvo!</span>
-                                  ) : null}
-                                </div>
+                              <div className={`${c.fieldRow} flex-nowrap`}>
+                                <input
+                                  id={isPatioPcModal ? 'patio-delivery-date-input' : undefined}
+                                  type="date"
+                                  value={deliveryDateEditValue}
+                                  onChange={(e) => setDeliveryDateEditValue(e.target.value)}
+                                  aria-label="Data de entrega"
+                                  className={c.dateInput}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleSaveDeliveryDate}
+                                  disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
+                                  aria-label="Salvar data de entrega"
+                                  title="Salvar data de entrega"
+                                  className={`${c.saveBtn} ${
+                                    deliveryDateEditValue !== lastSavedDeliveryDate
+                                      ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
+                                      : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
+                                  }`}
+                                >
+                                  {savingDeliveryDate ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
+                                  {!isPatioPcModal ? ' Salvar' : null}
+                                </button>
+                                {deliveryDateSavedMessage && !isPatioPcModal ? (
+                                  <span className={`${c.salvo} shrink-0`}>Salvo!</span>
+                                ) : null}
                               </div>
-                            )}
+                            </div>
                           </div>
                           )}
                           {can('canAssignTechnician') && (
                           <button
                             type="button"
                             onClick={() => setCardForMemberAssignment(selectedCard)}
-                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isPatioPcModal ? 'cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]`}
+                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isPatioPcModal ? 'patio-vm-meta-card cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]`}
                           >
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -4897,7 +4862,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <Wrench className={c.mechanicWrench} strokeWidth={2.35} aria-hidden />
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className={c.titleText}>Técnico responsável</p>
+                                    <p className={c.titleText}>{isPatioPcModal ? 'Técnico' : 'Técnico responsável'}</p>
                                     <p className={c.bodyText}>
                                       {capitalizeFirst(selectedCard.members[0].fullName)}
                                     </p>
@@ -4910,7 +4875,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <Wrench className={c.iconGlyph} strokeWidth={2.35} aria-hidden />
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className={c.titleText}>Técnico responsável</p>
+                                    <p className={c.titleText}>{isPatioPcModal ? 'Técnico' : 'Técnico responsável'}</p>
                                     <p className={c.assignHint}>{patioVehicleVm.assignHintLabel}</p>
                                   </div>
                                   <ChevronRight strokeWidth={2.25} className={`${c.chevron} text-zinc-400 transition-colors group-hover:text-[#007AFF]/70 dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]`} aria-hidden />

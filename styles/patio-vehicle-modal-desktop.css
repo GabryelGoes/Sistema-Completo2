@@ -57,28 +57,50 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop button:not(:disabled):a
   transform: none;
 }
 
-/* Faixa meta: Cliente | Km | Data de entrega | Técnico (mesma linha) */
+/* Faixa meta: Cliente | Km | Data de entrega | Técnico — mesma linha e altura */
 html[data-device='desktop'] .patio-vm-header-meta--pc,
 html[data-device='tablet'] .patio-vm-header-meta--pc {
+  align-items: stretch;
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-delivery-date-card,
-html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-delivery-date-card {
+html[data-device='desktop'] .patio-vm-header-meta--pc > .patio-vm-meta-card,
+html[data-device='tablet'] .patio-vm-header-meta--pc > .patio-vm-meta-card {
+  display: flex;
   min-width: 0;
+  min-height: 3.25rem;
+}
+
+html[data-device='desktop'] .patio-vm-header-meta--pc .patio-vm-meta-inner,
+html[data-device='tablet'] .patio-vm-header-meta--pc .patio-vm-meta-inner {
   width: 100%;
 }
 
-html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-delivery-date-card input[type='date'],
-html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-delivery-date-card input[type='date'] {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  max-width: none;
+html[data-device='desktop'] .patio-vm-header-meta--pc .patio-vm-meta-input,
+html[data-device='tablet'] .patio-vm-header-meta--pc .patio-vm-meta-input {
   box-sizing: border-box;
+  flex: none;
 }
 
-html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-delivery-date-card input[type='date']::-webkit-datetime-edit,
-html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-delivery-date-card input[type='date']::-webkit-datetime-edit {
+html[data-device='desktop'] .patio-vm-header-meta--pc .patio-vm-meta-input--km,
+html[data-device='tablet'] .patio-vm-header-meta--pc .patio-vm-meta-input--km {
+  width: 4.75rem;
+  max-width: 4.75rem;
+}
+
+html[data-device='desktop'] .patio-vm-header-meta--pc .patio-vm-meta-input--date,
+html[data-device='tablet'] .patio-vm-header-meta--pc .patio-vm-meta-input--date {
+  width: 8.25rem;
+  max-width: 8.25rem;
+}
+
+html[data-device='desktop'] .patio-vm-header-meta--pc .patio-vm-meta-input--date::-webkit-calendar-picker-indicator,
+html[data-device='tablet'] .patio-vm-header-meta--pc .patio-vm-meta-input--date::-webkit-calendar-picker-indicator {
+  margin-left: 0;
+  padding: 0;
+}
+
+html[data-device='desktop'] .patio-vm-header-meta--pc .patio-vm-meta-input--date::-webkit-datetime-edit,
+html[data-device='tablet'] .patio-vm-header-meta--pc .patio-vm-meta-input--date::-webkit-datetime-edit {
   min-width: 0;
 }

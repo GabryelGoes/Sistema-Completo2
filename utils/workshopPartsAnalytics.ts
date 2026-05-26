@@ -239,8 +239,11 @@ export function buildWorkshopPartsAnalytics(input: {
       dayRevenue += revenue;
       dayCogs += cost;
 
-      const key = part?.id ?? `__free__:${normalizeAnalyticsPartName(line.description || 'Outros')}`;
-      const name = part?.name ?? String(line.description || 'Peça sem cadastro').trim() || 'Peça sem cadastro';
+      const key =
+        part?.id ??
+        `__free__:${normalizeAnalyticsPartName(line.description || 'Outros')}`;
+      const descFallback = String(line.description || 'Peça sem cadastro').trim();
+      const name = part?.name ?? (descFallback || 'Peça sem cadastro');
       const prev = agg.get(key) ?? { part: part ?? null, name, qty: 0, revenue: 0, cost: 0 };
       prev.qty += qty;
       prev.revenue += revenue;
