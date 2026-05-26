@@ -12,6 +12,8 @@ import {
   ChevronDown,
   AlertTriangle,
   PackageX,
+  Clock,
+  ArrowDownAZ,
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
@@ -71,7 +73,10 @@ import {
   countPartsByCategory,
   countStockAlerts,
   getWorkshopPartStockStatus,
-  sortWorkshopPartsForDisplay,
+  readWorkshopPartSortMode,
+  sortWorkshopParts,
+  WORKSHOP_PARTS_SORT_STORAGE_KEY,
+  type WorkshopPartSortMode,
 } from '../utils/workshopPartStock';
 import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
 
@@ -183,6 +188,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   type StockAlertFilter = 'all' | 'zero' | 'low' | 'alerts';
   const [stockAlertFilter, setStockAlertFilter] = useState<StockAlertFilter>('all');
+  const [sortMode, setSortMode] = useState<WorkshopPartSortMode>(readWorkshopPartSortMode);
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -701,7 +707,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     }
   };
 
-  const sortedParts = useMemo(() => sortWorkshopPartsForDisplay(parts), [parts]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(WORKSHOP_PARTS_SORT_STORAGE_KEY, sortMode);
+    } catch {
+      /* ignore */
+    }
+  }, [sortMode]);
+
+  const sortedParts = useMemo(() => sortWorkshopParts(parts, sortMode), [parts, sortMode]);
   const partNumberById = useMemo(() => buildPartNumberMap(sortedParts), [sortedParts]);
   const categoryCounts = useMemo(() => countPartsByCategory(parts), [parts]);
   const stockAlertsGlobal = useMemo(() => countStockAlerts(parts), [parts]);
@@ -1055,6 +1069,47 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         <X className="h-4 w-4" />
                       </button>
                     ) : null}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+                  <span
+                    id="workshop-parts-sort-label"
+                    className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"
+                  >
+                    Ordenar por
+                  </span>
+                  <div
+                    role="group"
+                    aria-labelledby="workshop-parts-sort-label"
+                    className="inline-flex w-full sm:w-auto rounded-xl border border-zinc-200/90 dark:border-white/[0.12] bg-white/95 dark:bg-zinc-950/90 p-1 shadow-sm"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSortMode('recent')}
+                      aria-pressed={sortMode === 'recent'}
+                      className={`inline-flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
+                        sortMode === 'recent'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
+                      }`}
+                    >
+                      <Clock className="h-4 w-4 shrink-0" aria-hidden />
+                      Recentes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSortMode('alphabetical')}
+                      aria-pressed={sortMode === 'alphabetical'}
+                      className={`inline-flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
+                        sortMode === 'alphabetical'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
+                      }`}
+                    >
+                      <ArrowDownAZ className="h-4 w-4 shrink-0" aria-hidden />
+                      Alfabética
+                    </button>
                   </div>
                 </div>
 

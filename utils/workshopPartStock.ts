@@ -2,13 +2,36 @@ import type { WorkshopPart } from '../services/apiService';
 
 export type WorkshopPartStockStatus = 'zero' | 'low' | 'ok';
 
-/** Ordem estável para numeração (#1, #2, …) e exibição. */
-export function sortWorkshopPartsForDisplay(parts: WorkshopPart[]): WorkshopPart[] {
+export type WorkshopPartSortMode = 'recent' | 'alphabetical';
+
+export const WORKSHOP_PARTS_SORT_STORAGE_KEY = 'workshop-parts-sort-mode';
+
+export function readWorkshopPartSortMode(): WorkshopPartSortMode {
+  try {
+    const stored = localStorage.getItem(WORKSHOP_PARTS_SORT_STORAGE_KEY);
+    if (stored === 'recent' || stored === 'alphabetical') return stored;
+  } catch {
+    /* ignore */
+  }
+  return 'alphabetical';
+}
+
+/** Ordem de exibição e numeração (#1, #2, …). */
+export function sortWorkshopParts(parts: WorkshopPart[], mode: WorkshopPartSortMode): WorkshopPart[] {
   return [...parts].sort((a, b) => {
-    const so = (a.sort_order ?? 0) - (b.sort_order ?? 0);
-    if (so !== 0) return so;
+    if (mode === 'recent') {
+      const tb = new Date(b.created_at).getTime();
+      const ta = new Date(a.created_at).getTime();
+      if (tb !== ta) return tb - ta;
+      return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+    }
     return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
   });
+}
+
+/** @deprecated Use {@link sortWorkshopParts} com modo explícito. */
+export function sortWorkshopPartsForDisplay(parts: WorkshopPart[]): WorkshopPart[] {
+  return sortWorkshopParts(parts, 'alphabetical');
 }
 
 export function buildPartNumberMap(sortedParts: WorkshopPart[]): Map<string, number> {
