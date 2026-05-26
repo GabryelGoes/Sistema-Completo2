@@ -55,9 +55,7 @@ const TOOLTIP_STYLE = {
 
 const PIE_COLORS = ['#10b981', '#f59e0b', '#ef4444', '#6366f1', '#14b8a6', '#8b5cf6'];
 
-type HelpPlacement = 'below' | 'left' | 'right';
-
-function ChartHelpButton({ text, placement = 'below' }: { text: string; placement?: HelpPlacement }) {
+function ChartHelpButton({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -77,13 +75,6 @@ function ChartHelpButton({ text, placement = 'below' }: { text: string; placemen
     };
   }, [open]);
 
-  const popoverPos =
-    placement === 'left'
-      ? 'right-full top-0 z-50 mr-2'
-      : placement === 'right'
-        ? 'left-full top-0 z-50 ml-2'
-        : 'left-0 top-full z-50 mt-1.5';
-
   return (
     <div ref={ref} className="relative shrink-0">
       <button
@@ -91,14 +82,14 @@ function ChartHelpButton({ text, placement = 'below' }: { text: string; placemen
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label="Como funciona este gráfico"
-        className="flex h-5 w-5 items-center justify-center rounded-full border border-zinc-300/90 bg-zinc-100 text-[11px] font-bold leading-none text-zinc-600 transition-colors hover:bg-zinc-200 dark:border-white/15 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15"
+        className="flex h-5 w-5 items-center justify-center rounded-full border border-blue-400/80 bg-blue-500 text-[11px] font-bold leading-none text-white shadow-sm transition-colors hover:bg-blue-600 dark:border-blue-400/50 dark:bg-blue-600 dark:hover:bg-blue-500"
       >
         ?
       </button>
       {open ? (
         <div
           role="tooltip"
-          className={`absolute w-[min(calc(100vw-2rem),268px)] rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[12px] leading-snug text-zinc-700 shadow-lg ring-1 ring-zinc-900/5 dark:border-white/12 dark:bg-zinc-900 dark:text-zinc-200 dark:ring-white/10 ${popoverPos}`}
+          className="absolute right-full top-0 z-50 mr-2 w-[min(calc(100vw-2rem),268px)] rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[12px] leading-snug text-zinc-700 shadow-lg ring-1 ring-zinc-900/5 dark:border-white/12 dark:bg-zinc-900 dark:text-zinc-200 dark:ring-white/10"
         >
           {text}
         </div>
@@ -128,7 +119,7 @@ function KpiCard({
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{label}</p>
-            {helpText ? <ChartHelpButton text={helpText} placement="below" /> : null}
+            {helpText ? <ChartHelpButton text={helpText} /> : null}
           </div>
           <p className="mt-1 text-[22px] font-bold tabular-nums text-zinc-900 dark:text-white sm:text-2xl">{value}</p>
           {sub ? <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">{sub}</p> : null}
@@ -147,14 +138,12 @@ function ChartCard({
   title,
   subtitle,
   helpText,
-  helpPlacement = 'below',
   children,
   className = '',
 }: {
   title: string;
   subtitle?: string;
   helpText?: string;
-  helpPlacement?: HelpPlacement;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -163,7 +152,7 @@ function ChartCard({
       <div className="relative mb-4">
         <div className="flex items-start gap-2">
           <h3 className="min-w-0 flex-1 text-[15px] font-bold text-zinc-900 dark:text-white">{title}</h3>
-          {helpText ? <ChartHelpButton text={helpText} placement={helpPlacement} /> : null}
+          {helpText ? <ChartHelpButton text={helpText} /> : null}
         </div>
         {subtitle ? <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">{subtitle}</p> : null}
       </div>
@@ -421,7 +410,6 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
                 title="Mais vendidos (unidades)"
                 subtitle="Quantidade aprovada no período"
                 helpText="Top 12 produtos aprovados no período, do que mais saiu em quantidade para o que menos saiu."
-                helpPlacement="left"
               >
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -510,7 +498,6 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
               <ChartCard
                 title="Compras planejadas"
                 subtitle="Custos registrados no período"
-                helpPlacement="left"
                 helpText="Custo das compras da lista de cada produto (qtd × custo), por status: pendente, pedido ou recebido. Usa a data em que a compra foi cadastrada."
               >
                 <div className="h-[240px]">
@@ -532,10 +519,7 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
                 <div className="mb-3 flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
                   <h3 className="text-[15px] font-bold text-zinc-900 dark:text-white">Reposição urgente</h3>
-                  <ChartHelpButton
-                    text="Produtos com estoque na quantidade mínima ou abaixo, agora. Use para priorizar reposição."
-                    placement="below"
-                  />
+                  <ChartHelpButton text="Produtos com estoque na quantidade mínima ou abaixo, agora. Use para priorizar reposição." />
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
                     {data.lowStock.length}
                   </span>
