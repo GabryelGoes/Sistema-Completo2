@@ -6,6 +6,9 @@ export type PatioVehicleModalCompact = {
   splitRow: string;
   deliveryDateStack: string;
   deliveryDateControlRow: string;
+  deliveryDateBar: string;
+  deliveryDateBarLabel: string;
+  dateInputBar: string;
   iconSquircle: string;
   iconGlyph: string;
   titleText: string;
@@ -33,6 +36,7 @@ export type PatioVehicleModalLayout = {
   header: string;
   headerInner: string;
   headerMeta: string;
+  headerTitlePad: string;
   title: string;
   brandSubtitle: string;
   body: string;
@@ -79,6 +83,9 @@ const COMPACT_MOBILE: PatioVehicleModalCompact = {
   fieldRow: 'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:ml-auto sm:justify-end',
   deliveryDateStack: '',
   deliveryDateControlRow: '',
+  deliveryDateBar: '',
+  deliveryDateBarLabel: '',
+  dateInputBar: '',
   dateFieldWrap: '',
   dateFieldLabel: '',
   dateFieldRow: '',
@@ -94,6 +101,12 @@ const COMPACT_DESKTOP: PatioVehicleModalCompact = {
     'relative flex w-full min-w-0 flex-col gap-2 px-3 py-2.5',
   deliveryDateControlRow:
     'flex w-full min-w-0 flex-nowrap items-center gap-1.5',
+  deliveryDateBar:
+    'relative flex w-full min-w-0 flex-nowrap items-center gap-2.5 px-3 py-2.5',
+  deliveryDateBarLabel:
+    'shrink-0 whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400',
+  dateInputBar:
+    'patio-vm-date-input-bar min-h-[2.375rem] min-w-0 flex-1 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2.5 py-1.5 text-[14px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white',
   iconSquircle:
     'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]',
   iconGlyph: 'h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]',
@@ -120,7 +133,7 @@ const COMPACT_DESKTOP: PatioVehicleModalCompact = {
     'h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]',
   emptyTech:
     'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12',
-  fieldRow: 'flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:ml-auto sm:justify-end',
+  fieldRow: 'flex min-w-0 flex-1 flex-nowrap items-center gap-1.5',
 };
 
 export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayout {
@@ -133,6 +146,7 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
       scroll: 'min-h-0 flex-1 overflow-y-auto overscroll-none custom-scrollbar',
       header: 'border-b border-zinc-200/50 p-8 pb-8 dark:border-white/[0.06] md:px-12 md:pb-10',
       headerInner: 'mb-6 flex flex-col gap-3',
+      headerTitlePad: '',
       headerMeta: 'flex flex-col gap-2',
       title:
         'font-vehicle min-w-0 flex-1 truncate text-[2.79rem] md:text-[4.185rem] portrait:text-[2.74rem] portrait:md:text-[4.11rem] font-bold text-zinc-900 dark:text-white tracking-tight uppercase leading-none',
@@ -161,10 +175,10 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
     scroll: 'patio-vm-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto custom-scrollbar',
     header:
       'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-4 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:py-4',
-    headerInner:
-      'mx-auto flex w-full max-w-[1680px] flex-col gap-3 pr-24 xl:pr-28',
+    headerInner: 'mx-auto flex w-full min-w-0 max-w-[1680px] flex-col gap-3',
+    headerTitlePad: 'min-w-0 pr-20 xl:pr-24',
     headerMeta:
-      'patio-vm-header-meta mt-2 grid w-full min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4',
+      'patio-vm-header-meta patio-vm-header-meta--pc mt-2 grid w-full min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3',
     title:
       'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white xl:text-[2.35rem]',
     brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',

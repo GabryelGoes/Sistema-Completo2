@@ -57,10 +57,16 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop button:not(:disabled):a
   transform: none;
 }
 
-/* Última coluna da faixa meta: mais larga; card de data ocupa 100% da célula */
-html[data-device='desktop'] .patio-vm-header-meta,
-html[data-device='tablet'] .patio-vm-header-meta {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.35fr);
+/* Faixa meta: 3 colunas (cliente / km / técnico); data de entrega em linha própria abaixo */
+html[data-device='desktop'] .patio-vm-header-meta--pc,
+html[data-device='tablet'] .patio-vm-header-meta--pc {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+html[data-device='desktop'] .patio-vm-delivery-date-row,
+html[data-device='tablet'] .patio-vm-delivery-date-row {
+  width: 100%;
+  min-width: 0;
 }
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-delivery-date-card,
@@ -69,9 +75,16 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-delivery-date
   width: 100%;
 }
 
-html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-delivery-date-card input[type='date'],
-html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-delivery-date-card input[type='date'] {
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-date-input-bar,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-date-input-bar {
+  display: block;
   width: 100%;
   min-width: 0;
-  flex: 1 1 auto;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-date-input-bar::-webkit-datetime-edit,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-date-input-bar::-webkit-datetime-edit {
+  min-width: 0;
 }
