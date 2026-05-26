@@ -14,6 +14,7 @@ import {
   PackageX,
   Clock,
   History,
+  BarChart3,
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
@@ -61,6 +62,7 @@ import {
   type PartPhotoSlot,
 } from './WorkshopPartRegistrationForm';
 import { WorkshopPartDetailView } from './WorkshopPartDetailView';
+import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
 import {
   formValuesToApiPayload,
   purchaseDraftToPayload,
@@ -190,6 +192,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   type StockAlertFilter = 'all' | 'zero' | 'low' | 'alerts';
   const [stockAlertFilter, setStockAlertFilter] = useState<StockAlertFilter>('all');
   const [sortMode, setSortMode] = useState<WorkshopPartSortMode>(readWorkshopPartSortMode);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -912,6 +915,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const workshopPartsListCard =
     'overflow-visible rounded-[22px] border border-zinc-200/80 dark:border-white/[0.07] bg-white dark:bg-zinc-900 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
 
+  useBrowserBackLayer(isAnalyticsOpen, () => setIsAnalyticsOpen(false));
+
+  useEffect(() => {
+    if (!isOpen) setIsAnalyticsOpen(false);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -950,6 +959,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             />
           </div>
 
+        {isAnalyticsOpen ? (
+          <WorkshopPartsAnalyticsView onBack={() => setIsAnalyticsOpen(false)} />
+        ) : (
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-auto touch-pan-y px-6 sm:px-8 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable]">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:max-w-xl">
@@ -959,6 +971,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               ícone de lápis para editar.
             </p>
             <div className="flex flex-wrap gap-2 justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsAnalyticsOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[15px] font-semibold text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 transition-colors"
+              >
+                <BarChart3 className="w-5 h-5" />
+                Gráficos
+              </button>
               <button
                 type="button"
                 onClick={() => setIsCategoriesModalOpen(true)}
@@ -1490,6 +1510,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             )}
           </div>
         </div>
+        )}
         </div>
       </div>
     </div>

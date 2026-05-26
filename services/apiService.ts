@@ -2101,6 +2101,19 @@ export interface WorkshopPartCategory {
   created_at: string;
 }
 
+export type { WorkshopPartsAnalyticsResponse } from '../utils/workshopPartsAnalytics';
+
+export async function getWorkshopPartsAnalytics(
+  preset: '7d' | '30d' | '90d' | 'month' | 'year' = '30d'
+): Promise<import('../utils/workshopPartsAnalytics').WorkshopPartsAnalyticsResponse> {
+  const response = await fetch(`${API_BASE}/workshop-parts/analytics?preset=${encodeURIComponent(preset)}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar gráficos do estoque (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function getWorkshopParts(): Promise<WorkshopPart[]> {
   const response = await fetch(`${API_BASE}/workshop-parts`);
   if (!response.ok) {

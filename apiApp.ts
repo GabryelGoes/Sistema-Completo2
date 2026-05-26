@@ -19,6 +19,7 @@ import {
 import { normalizeTvChimeConfig } from "./utils/tvChimeSchedule.js";
 import { parseModuleKind, parseModuleVehicleKind } from "./utils/moduleMetadata.js";
 import { SYSTEM_NOTIFICATION_IDS } from "./constants/systemNotificationTypes.js";
+import { buildWorkshopPartsAnalytics } from "./utils/workshopPartsAnalytics.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -4228,6 +4229,158 @@ export function createApiApp() {
   }
 
   // ----------------- ESTOQUE DE PEÇAS (para orçamentos) -----------------
+  app.get("/api/workshop-parts/analytics", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error: "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const presetRaw = String(req.query.preset || "30d");
+      const validPresets = new Set(["7d", "30d", "90d", "month", "year"]);
+      const preset = validPresets.has(presetRaw) ? presetRaw : "30d";
+
+      const now = new Date();
+      const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      let from: Date;
+      let periodLabel: string;
+
+      if (req.query.from && req.query.to) {
+        from = new Date(String(req.query.from));
+        const toParam = new Date(String(req.query.to));
+        if (!Number.isFinite(from.getTime()) || !Number.isFinite(toParam.getTime())) {
+          return res.status(400).json({ error: "Período inválido." });
+        }
+        to.setTime(toParam.getTime());
+        to.setHours(23, 59, 59, 999);
+        from.setHours(0, 0, 0, 0);
+        periodLabel = "Período personalizado";
+      } else if (preset === "7d") {
+        from = new Date(to);
+        from.setDate(from.getDate() - 6);
+        periodLabel = "Últimos 7 dias";
+      } else if (preset === "90d") {
+        from = new Date(to);
+        from.setDate(from.getDate() - 89);
+        periodLabel = "Últimos 90 dias";
+      } else if (preset === "year") {
+        from = new Date(now.getFullYear(), 0, 1);
+        periodLabel = `Ano ${now.getFullYear()}`;
+      } else if (preset === "month") {
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        periodLabel = "Este mês";
+      } else {
+        from = new Date(to);
+        from.setDate(from.getDate() - 29);
+        periodLabel = "Últimos 30 dias";
+      }
+      from.setHours(0, 0, 0, 0);
+
+      const fromIso = from.toISOString();
+      const toIso = to.toISOString();
+
+      const [partsRes, categoriesRes, budgetsCreatedRes, budgetsUpdatedRes] = await Promise.all([
+        supabaseAdmin
+          .from("workshop_parts")
+          .select(
+            "id, name, original_code, created_at, stock_qty, unit_price, unit_cost, min_stock_qty, unit_of_measure"
+          )
+          .eq("workshop_id", WORKSHOP_ID),
+        supabaseAdmin
+          .from("workshop_part_categories")
+          .select("id, name")
+          .eq("workshop_id", WORKSHOP_ID),
+        supabaseAdmin
+          .from("budgets")
+          .select("id, created_at, updated_at, parts")
+          .eq("workshop_id", WORKSHOP_ID)
+          .gte("created_at", fromIso)
+          .lte("created_at", toIso),
+        supabaseAdmin
+          .from("budgets")
+          .select("id, created_at, updated_at, parts")
+          .eq("workshop_id", WORKSHOP_ID)
+          .gte("updated_at", fromIso)
+          .lte("updated_at", toIso),
+      ]);
+
+      if (partsRes.error) {
+        return res.status(500).json({ error: partsRes.error.message });
+      }
+
+      const partsList = partsRes.data ?? [];
+      const partIds = partsList.map((p: { id: string }) => p.id);
+      const catMap = await loadWorkshopPartCategoryMap(partIds);
+
+      const purchasesRes =
+        partIds.length > 0
+          ? await supabaseAdmin
+              .from("workshop_part_purchases")
+              .select("id, part_id, quantity, unit_cost, status, created_at")
+              .in("part_id", partIds)
+              .gte("created_at", fromIso)
+              .lte("created_at", toIso)
+          : { data: [], error: null };
+
+      const budgetById = new Map<string, Record<string, unknown>>();
+      for (const row of budgetsCreatedRes.data ?? []) {
+        budgetById.set(row.id as string, row as Record<string, unknown>);
+      }
+      for (const row of budgetsUpdatedRes.data ?? []) {
+        budgetById.set(row.id as string, row as Record<string, unknown>);
+      }
+
+      if (purchasesRes.error) {
+        return res.status(500).json({ error: purchasesRes.error.message });
+      }
+
+      const purchasesFiltered = purchasesRes.data ?? [];
+
+      const analytics = buildWorkshopPartsAnalytics({
+        parts: partsList.map((p: Record<string, unknown>) => ({
+          id: p.id as string,
+          name: String(p.name ?? ""),
+          original_code: p.original_code as string | null,
+          created_at: String(p.created_at ?? ""),
+          stock_qty: Number(p.stock_qty ?? 0),
+          unit_price: Number(p.unit_price ?? 0),
+          unit_cost: Number(p.unit_cost ?? 0),
+          min_stock_qty: Number(p.min_stock_qty ?? 0),
+          unit_of_measure: String(p.unit_of_measure ?? "UN"),
+          category_ids: catMap.get(p.id as string) ?? [],
+        })),
+        categories: (categoriesRes.data ?? []).map((c: { id: string; name: string }) => ({
+          id: c.id,
+          name: c.name,
+        })),
+        categoryMembers: catMap,
+        budgets: [...budgetById.values()].map((b) => ({
+          id: b.id as string,
+          created_at: String(b.created_at ?? ""),
+          updated_at: b.updated_at ? String(b.updated_at) : null,
+          parts: b.parts,
+        })),
+        purchases: purchasesFiltered.map((p: Record<string, unknown>) => ({
+          id: p.id as string,
+          part_id: p.part_id as string,
+          quantity: Number(p.quantity ?? 0),
+          unit_cost: Number(p.unit_cost ?? 0),
+          status: String(p.status ?? "pending"),
+          created_at: String(p.created_at ?? ""),
+        })),
+        from,
+        to,
+        periodLabel,
+      });
+
+      return res.json(analytics);
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/workshop-parts/analytics:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   app.get("/api/workshop-parts", async (_req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
