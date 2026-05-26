@@ -13,7 +13,7 @@ import {
   AlertTriangle,
   PackageX,
   Clock,
-  ArrowDownAZ,
+  History,
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
@@ -74,7 +74,8 @@ import {
   countStockAlerts,
   getWorkshopPartStockStatus,
   readWorkshopPartSortMode,
-  sortWorkshopParts,
+  sortWorkshopPartsForCatalogNumber,
+  sortWorkshopPartsForDisplay,
   WORKSHOP_PARTS_SORT_STORAGE_KEY,
   type WorkshopPartSortMode,
 } from '../utils/workshopPartStock';
@@ -715,8 +716,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     }
   }, [sortMode]);
 
-  const sortedParts = useMemo(() => sortWorkshopParts(parts, sortMode), [parts, sortMode]);
-  const partNumberById = useMemo(() => buildPartNumberMap(sortedParts), [sortedParts]);
+  const partNumberById = useMemo(
+    () => buildPartNumberMap(sortWorkshopPartsForCatalogNumber(parts)),
+    [parts]
+  );
+  const sortedParts = useMemo(
+    () => sortWorkshopPartsForDisplay(parts, sortMode),
+    [parts, sortMode]
+  );
   const categoryCounts = useMemo(() => countPartsByCategory(parts), [parts]);
   const stockAlertsGlobal = useMemo(() => countStockAlerts(parts), [parts]);
 
@@ -1099,18 +1106,22 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                     </button>
                     <button
                       type="button"
-                      onClick={() => setSortMode('alphabetical')}
-                      aria-pressed={sortMode === 'alphabetical'}
+                      onClick={() => setSortMode('oldest')}
+                      aria-pressed={sortMode === 'oldest'}
                       className={`inline-flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
-                        sortMode === 'alphabetical'
+                        sortMode === 'oldest'
                           ? 'bg-emerald-600 text-white shadow-sm'
                           : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
                       }`}
                     >
-                      <ArrowDownAZ className="h-4 w-4 shrink-0" aria-hidden />
-                      Alfabética
+                      <History className="h-4 w-4 shrink-0" aria-hidden />
+                      Antigos primeiro
                     </button>
                   </div>
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 sm:text-right">
+                    O nº <span className="font-semibold text-zinc-600 dark:text-zinc-300">#N</span> segue a ordem de
+                    cadastro: o produto mais antigo é sempre o #1.
+                  </p>
                 </div>
 
                 <div className="flex flex-col gap-2.5 pt-0.5">

@@ -2,42 +2,50 @@ import type { WorkshopPart } from '../services/apiService';
 
 export type WorkshopPartStockStatus = 'zero' | 'low' | 'ok';
 
-export type WorkshopPartSortMode = 'recent' | 'alphabetical';
+/** Ordem de exibição na lista (não altera o nº do catálogo). */
+export type WorkshopPartSortMode = 'recent' | 'oldest';
 
 export const WORKSHOP_PARTS_SORT_STORAGE_KEY = 'workshop-parts-sort-mode';
 
 export function readWorkshopPartSortMode(): WorkshopPartSortMode {
   try {
     const stored = localStorage.getItem(WORKSHOP_PARTS_SORT_STORAGE_KEY);
-    if (stored === 'recent' || stored === 'alphabetical') return stored;
+    if (stored === 'recent' || stored === 'oldest') return stored;
+    if (stored === 'alphabetical') return 'recent';
   } catch {
     /* ignore */
   }
-  return 'alphabetical';
+  return 'recent';
 }
 
-/** Ordem de exibição e numeração (#1, #2, …). */
-export function sortWorkshopParts(parts: WorkshopPart[], mode: WorkshopPartSortMode): WorkshopPart[] {
-  return [...parts].sort((a, b) => {
-    if (mode === 'recent') {
-      const tb = new Date(b.created_at).getTime();
-      const ta = new Date(a.created_at).getTime();
-      if (tb !== ta) return tb - ta;
-      return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
-    }
-    return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
-  });
+function compareByCreatedAtAsc(a: WorkshopPart, b: WorkshopPart): number {
+  const ta = new Date(a.created_at).getTime();
+  const tb = new Date(b.created_at).getTime();
+  if (ta !== tb) return ta - tb;
+  return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
 }
 
-/** @deprecated Use {@link sortWorkshopParts} com modo explícito. */
-export function sortWorkshopPartsForDisplay(parts: WorkshopPart[]): WorkshopPart[] {
-  return sortWorkshopParts(parts, 'alphabetical');
+/** Ordem fixa do catálogo: cadastro mais antigo = #1, mais novo = #N. */
+export function sortWorkshopPartsForCatalogNumber(parts: WorkshopPart[]): WorkshopPart[] {
+  return [...parts].sort(compareByCreatedAtAsc);
 }
 
-export function buildPartNumberMap(sortedParts: WorkshopPart[]): Map<string, number> {
+/** Numeração (#1, #2, …) sempre pela data de cadastro (antigo → novo). */
+export function buildPartNumberMap(catalogOrderParts: WorkshopPart[]): Map<string, number> {
   const map = new Map<string, number>();
-  sortedParts.forEach((p, i) => map.set(p.id, i + 1));
+  catalogOrderParts.forEach((p, i) => map.set(p.id, i + 1));
   return map;
+}
+
+/** Ordem da lista na tela: recentes (padrão) ou antigos primeiro. */
+export function sortWorkshopPartsForDisplay(
+  parts: WorkshopPart[],
+  mode: WorkshopPartSortMode
+): WorkshopPart[] {
+  return [...parts].sort((a, b) => {
+    const cmp = compareByCreatedAtAsc(a, b);
+    return mode === 'recent' ? -cmp : cmp;
+  });
 }
 
 export function getWorkshopPartStockStatus(part: WorkshopPart): WorkshopPartStockStatus {
