@@ -15,6 +15,7 @@ import {
   Tags,
 } from 'lucide-react';
 import { PartPhotoImg } from './ui/PartPhotoImg';
+import { CurrencyMaskInput } from './ui/CurrencyMaskInput';
 import type { WorkshopPart, WorkshopPartCategory, WorkshopPartFiscalExtra } from '../services/apiService';
 import { WORKSHOP_PART_PHOTOS_MAX } from '../services/apiService';
 
@@ -57,33 +58,6 @@ function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: stri
           <HelpCircle className="h-3.5 w-3.5" aria-hidden />
         </span>
       ) : null}
-    </div>
-  );
-}
-
-function MoneyInput({
-  value,
-  onChange,
-  placeholder = '0,00',
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <div className="relative">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-zinc-500">
-        R$
-      </span>
-      <input
-        type="number"
-        min="0"
-        step="0.01"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`${inputCls} pl-9 tabular-nums`}
-      />
     </div>
   );
 }
@@ -666,11 +640,21 @@ export function WorkshopPartRegistrationForm({
         </div>
         <div className="space-y-1.5">
           <FieldLabel>Preço venda</FieldLabel>
-          <MoneyInput value={values.unit_price} onChange={(v) => patch({ unit_price: v })} />
+          <CurrencyMaskInput
+            value={values.unit_price}
+            onChange={(v) => patch({ unit_price: v })}
+            inputClassName={inputCls}
+            aria-label="Preço de venda"
+          />
         </div>
         <div className="space-y-1.5">
           <FieldLabel>Prêmio</FieldLabel>
-          <MoneyInput value={values.premium_amount} onChange={(v) => patch({ premium_amount: v })} />
+          <CurrencyMaskInput
+            value={values.premium_amount}
+            onChange={(v) => patch({ premium_amount: v })}
+            inputClassName={inputCls}
+            aria-label="Prêmio"
+          />
         </div>
         <div className="space-y-1.5">
           <FieldLabel>Comissão</FieldLabel>
@@ -728,7 +712,12 @@ export function WorkshopPartRegistrationForm({
         </div>
         <div className="space-y-1.5">
           <FieldLabel>Custo unitário</FieldLabel>
-          <MoneyInput value={values.unit_cost} onChange={(v) => patch({ unit_cost: v })} />
+          <CurrencyMaskInput
+            value={values.unit_cost}
+            onChange={(v) => patch({ unit_cost: v })}
+            inputClassName={inputCls}
+            aria-label="Custo unitário"
+          />
         </div>
         <div className="space-y-1.5">
           <FieldLabel>Quantidade em estoque</FieldLabel>
@@ -808,17 +797,16 @@ export function WorkshopPartRegistrationForm({
                 </div>
                 <div className="space-y-1">
                   <span className={labelCls}>Custo un.</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
+                  <CurrencyMaskInput
+                    showPrefix={false}
                     value={row.unit_cost}
-                    onChange={(e) =>
+                    onChange={(v) =>
                       setPurchases((list) =>
-                        list.map((r, i) => (i === idx ? { ...r, unit_cost: e.target.value } : r))
+                        list.map((r, i) => (i === idx ? { ...r, unit_cost: v } : r))
                       )
                     }
-                    className={`${inputCls} tabular-nums`}
+                    inputClassName={inputCls}
+                    aria-label="Custo unitário da compra"
                   />
                 </div>
                 <div className="space-y-1">
