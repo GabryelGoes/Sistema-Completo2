@@ -1115,7 +1115,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       }`}
                     >
                       <History className="h-4 w-4 shrink-0" aria-hidden />
-                      Antigos primeiro
+                      Antigo
                     </button>
                   </div>
                   <p className="text-[12px] text-zinc-500 dark:text-zinc-400 sm:text-right">
