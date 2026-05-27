@@ -850,6 +850,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [newLabBudgetRef, setNewLabBudgetRef] = useState<string>("");
   const [newLabManualLabel, setNewLabManualLabel] = useState("");
   const [labOrdersLookup, setLabOrdersLookup] = useState<Record<string, ServiceOrderDetail>>({});
+  const [labLinkedStatusByOrderId, setLabLinkedStatusByOrderId] = useState<Record<string, string>>({});
   /** Seção "Dados da ficha" no modal: começa minimizada. */
   const [isDadosFichaExpanded, setIsDadosFichaExpanded] = useState(false);
   /** Evita repor `editFichaForm` a cada `serviceOrderDetail` vindo do Realtime (apaga digitação). */
@@ -1877,15 +1878,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   useEffect(() => {
     if (!serviceOrderDetail) {
-      setLabServiceLinksDraft([]);
+      setLabServiceLinksDraft(selectedCard?.labServiceLinks ?? []);
       return;
     }
-    setLabServiceLinksDraft(
-      Array.isArray(serviceOrderDetail.lab_service_links)
-        ? (serviceOrderDetail.lab_service_links as LabServiceLink[])
-        : []
-    );
-  }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at]);
+    const fromDetail = Array.isArray(serviceOrderDetail.lab_service_links)
+      ? (serviceOrderDetail.lab_service_links as LabServiceLink[])
+      : [];
+    // Fallback defensivo: evita sumir no modal caso venha payload parcial durante refresh.
+    if (fromDetail.length === 0 && (selectedCard?.labServiceLinks?.length ?? 0) > 0) {
+      setLabServiceLinksDraft(selectedCard?.labServiceLinks ?? []);
+      return;
+    }
+    setLabServiceLinksDraft(fromDetail);
+  }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at, selectedCard?.labServiceLinks]);
 
   useEffect(() => {
     if (!selectedCardRef.current) setIsVehicleCategoryModalOpen(false);
@@ -2634,6 +2639,49 @@ export const PatioView: React.FC<PatioViewProps> = ({
       cancelled = true;
     };
   }, [selectedCard?.id, isModuleMode, labServiceLinksDraft]);
+
+  useEffect(() => {
+    if (isModuleMode) {
+      setLabLinkedStatusByOrderId({});
+      return;
+    }
+    const ids = [
+      ...new Set(
+        cards.flatMap((c) =>
+          (Array.isArray(c.labServiceLinks) ? c.labServiceLinks : [])
+            .map((l) => l.laboratoryOrderId)
+            .filter(Boolean)
+        )
+      ),
+    ];
+    if (ids.length === 0) {
+      setLabLinkedStatusByOrderId({});
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      const rows = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const d = await getServiceOrderById(id);
+            return [id, d.status] as const;
+          } catch {
+            return [id, ""] as const;
+          }
+        })
+      );
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      rows.forEach(([id, st]) => {
+        if (st) map[id] = st;
+      });
+      setLabLinkedStatusByOrderId(map);
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [cards, isModuleMode]);
 
   const handleSaveLabServiceLinks = useCallback(
     async (nextLinks: LabServiceLink[]) => {
@@ -3850,6 +3898,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
           const showNotApprovedDeliverButton = listNameLower.includes('não aprovado');
 
           const isGarantia = card.garantiaTag === true;
+          const hasLabReady = !isModuleMode
+            ? (Array.isArray(card.labServiceLinks) ? card.labServiceLinks : []).some(
+                (l) => labLinkedStatusByOrderId[l.laboratoryOrderId] === "PRONTO_PRA_RETIRADA"
+              )
+            : false;
           const isFloating = effectsEnabled && cardFloat?.id === card.id && interactingCardId !== card.id;
 
           return (
@@ -3903,7 +3956,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       ? 'gap-[calc(0.625rem*1.6146)] rounded-[1.85rem] px-3 py-[calc(0.75rem*1.6146)] sm:rounded-[2.1rem] sm:px-3.5 sm:py-[calc(0.875rem*1.6146)]'
                       : 'gap-3 rounded-[2rem] p-4 sm:rounded-[2.25rem] sm:p-5'
                   }
-                  ${isGarantia ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40' : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'}
+                  ${
+                    isGarantia
+                      ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40'
+                      : hasLabReady
+                        ? 'ring-2 ring-inset ring-violet-500 ring-offset-0 border-violet-400/55 dark:ring-violet-400 dark:border-violet-400/55'
+                        : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'
+                  }
                 `}
                 style={{
                   transform: isFloating
