@@ -102,6 +102,8 @@ export interface VehicleReferenceLink {
 export interface LabServiceLink {
   id: string;
   serviceLabel: string;
+  /** Observações adicionais ao encaminhar do pátio para o laboratório. */
+  serviceDetails?: string | null;
   source: "budget" | "manual";
   sourceBudgetId?: string | null;
   sourceBudgetItemIndex?: number | null;

@@ -849,6 +849,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [newLabServiceMode, setNewLabServiceMode] = useState<"budget" | "manual">("budget");
   const [newLabBudgetRef, setNewLabBudgetRef] = useState<string>("");
   const [newLabManualLabel, setNewLabManualLabel] = useState("");
+  const [newLabServiceDetails, setNewLabServiceDetails] = useState("");
   const [labOrdersLookup, setLabOrdersLookup] = useState<Record<string, ServiceOrderDetail>>({});
   const [labLinkedStatusByOrderId, setLabLinkedStatusByOrderId] = useState<Record<string, string>>({});
   const [labLinkedStatusRefreshTick, setLabLinkedStatusRefreshTick] = useState(0);
@@ -2734,6 +2735,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
       return;
     }
 
+    const serviceDetails = newLabServiceDetails.trim();
+    const patioOsRef = serviceOrderDetail.os_number ?? "—";
+    let issueDescription = `Serviço enviado do pátio (OS #${patioOsRef}): ${serviceLabel}`;
+    if (serviceDetails) {
+      issueDescription += `\n\nDetalhes do serviço:\n${serviceDetails}`;
+    }
+
     setCreatingLabService(true);
     try {
       const created = await createServiceOrder({
@@ -2744,13 +2752,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
         moduleKind: "outro",
         moduleVehicleKind: "carro",
         moduleProductOther: serviceLabel,
-        issueDescription: `Serviço enviado do pátio (OS #${serviceOrderDetail.os_number ?? "—"}): ${serviceLabel}`,
+        issueDescription,
       });
       const next: LabServiceLink[] = [
         ...labServiceLinksDraft,
         {
           id: crypto.randomUUID(),
           serviceLabel,
+          serviceDetails: serviceDetails || null,
           source: newLabServiceMode,
           sourceBudgetId: selectedBudgetService?.budgetId ?? null,
           sourceBudgetItemIndex: selectedBudgetService?.serviceIndex ?? null,
@@ -2761,6 +2770,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       await handleSaveLabServiceLinks(next);
       setNewLabManualLabel("");
       setNewLabBudgetRef("");
+      setNewLabServiceDetails("");
     } catch (err: any) {
       alert(err?.message ?? "Não foi possível criar o serviço no laboratório.");
     } finally {
@@ -3916,6 +3926,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
           const hasLabReady = linkedLabServices.some(
             (l) => labLinkedStatusByOrderId[l.laboratoryOrderId] === "PRONTO_PRA_RETIRADA"
           );
+          const showLabOuterRing = isGarantia && hasLabUndelivered;
+          const cardRadiusClass = boardPanoramic
+            ? 'rounded-[1.85rem] sm:rounded-[2.1rem]'
+            : 'rounded-[2rem] sm:rounded-[2.25rem]';
+          const labOuterRingClass = hasLabReady
+            ? 'ring-4 ring-green-500 dark:ring-green-400'
+            : 'ring-4 ring-violet-500 dark:ring-violet-400';
+          const cardRingClass = isGarantia
+            ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40'
+            : hasLabUndelivered
+              ? hasLabReady
+                ? 'ring-4 ring-inset ring-green-500 ring-offset-0 border-green-500/65 dark:ring-green-400 dark:border-green-400/65'
+                : 'ring-4 ring-inset ring-violet-500 ring-offset-0 border-violet-400/60 dark:ring-violet-400 dark:border-violet-400/60'
+              : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]';
           const isFloating = effectsEnabled && cardFloat?.id === card.id && interactingCardId !== card.id;
 
           return (
@@ -3949,6 +3973,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
               onMouseLeave={handleCardMouseLeave}
             >
               <div
+                className={`w-full ${showLabOuterRing ? `${cardRadiusClass} p-1 ${labOuterRingClass}` : ''}`}
+              >
+              <div
                 onClick={() => {
                   if (patioTrelloSkipClickRef.current) {
                     patioTrelloSkipClickRef.current = false;
@@ -3966,18 +3993,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ${trelloDrag ? 'cursor-grab select-none active:cursor-grabbing' : 'cursor-pointer'}
                   ${
                     boardPanoramic
-                      ? 'gap-[calc(0.625rem*1.6146)] rounded-[1.85rem] px-3 py-[calc(0.75rem*1.6146)] sm:rounded-[2.1rem] sm:px-3.5 sm:py-[calc(0.875rem*1.6146)]'
-                      : 'gap-3 rounded-[2rem] p-4 sm:rounded-[2.25rem] sm:p-5'
+                      ? `gap-[calc(0.625rem*1.6146)] ${cardRadiusClass} px-3 py-[calc(0.75rem*1.6146)] sm:px-3.5 sm:py-[calc(0.875rem*1.6146)]`
+                      : `gap-3 ${cardRadiusClass} p-4 sm:p-5`
                   }
-                  ${
-                    isGarantia
-                      ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40'
-                      : hasLabUndelivered
-                        ? hasLabReady
-                          ? 'ring-4 ring-inset ring-green-500 ring-offset-0 border-green-500/65 dark:ring-green-400 dark:border-green-400/65'
-                          : 'ring-4 ring-inset ring-violet-500 ring-offset-0 border-violet-400/60 dark:ring-violet-400 dark:border-violet-400/60'
-                        : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'
-                  }
+                  ${cardRingClass}
                 `}
                 style={{
                   transform: isFloating
@@ -5921,6 +5940,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     </button>
                                   </div>
 
+                                  <div>
+                                    <label
+                                      htmlFor="new-lab-service-details"
+                                      className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"
+                                    >
+                                      Detalhes do serviço <span className="font-normal normal-case tracking-normal text-zinc-400 dark:text-zinc-500">(opcional)</span>
+                                    </label>
+                                    <textarea
+                                      id="new-lab-service-details"
+                                      value={newLabServiceDetails}
+                                      onChange={(e) => setNewLabServiceDetails(e.target.value)}
+                                      placeholder="Ex.: sintomas, peça avariada, prazo combinado com o cliente..."
+                                      rows={3}
+                                      maxLength={2000}
+                                      disabled={creatingLabService || labServiceLinksSaving}
+                                      className={`${vin} min-h-[88px] resize-y text-[13px] leading-relaxed disabled:opacity-55`}
+                                    />
+                                  </div>
+
                                   <div className="space-y-2">
                                     {labServiceLinksDraft.length === 0 ? (
                                       <p className="rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-4 text-[13px] text-zinc-600 dark:border-white/[0.12] dark:bg-white/[0.04] dark:text-zinc-400">
@@ -5942,6 +5980,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           >
                                             <div className="min-w-0">
                                               <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">{link.serviceLabel}</p>
+                                              {link.serviceDetails?.trim() ? (
+                                                <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-300">
+                                                  {link.serviceDetails.trim()}
+                                                </p>
+                                              ) : null}
                                               <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
                                                 {link.source === "budget" ? "Origem: orçamento" : "Origem: manual"} · OS lab {link.laboratoryOrderId.slice(0, 8)}
                                               </p>

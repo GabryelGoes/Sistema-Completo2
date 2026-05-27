@@ -5560,6 +5560,7 @@ export function createApiApp() {
         const normalized: {
           id: string;
           serviceLabel: string;
+          serviceDetails: string | null;
           source: "budget" | "manual";
           sourceBudgetId: string | null;
           sourceBudgetItemIndex: number | null;
@@ -5570,6 +5571,9 @@ export function createApiApp() {
           if (!item || typeof item !== "object") continue;
           const o = item as Record<string, unknown>;
           const serviceLabel = typeof o.serviceLabel === "string" ? o.serviceLabel.trim().slice(0, 180) : "";
+          const serviceDetailsRaw =
+            typeof o.serviceDetails === "string" ? o.serviceDetails.trim().slice(0, 2000) : "";
+          const serviceDetails = serviceDetailsRaw || null;
           const sourceRaw = typeof o.source === "string" ? o.source.trim().toLowerCase() : "";
           const source = sourceRaw === "budget" ? "budget" : "manual";
           const laboratoryOrderId =
@@ -5593,6 +5597,7 @@ export function createApiApp() {
           normalized.push({
             id,
             serviceLabel,
+            serviceDetails,
             source,
             sourceBudgetId,
             sourceBudgetItemIndex,
