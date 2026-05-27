@@ -3137,6 +3137,10 @@ export type VehicleAccompanimentPhoto = {
   id: string;
   path: string;
   markers: VehicleAccompanimentMarker[];
+  /** Serviço vinculado à foto (antes/depois). */
+  service_id?: string;
+  service_name?: string;
+  phase?: "before" | "after";
 };
 
 export type WorkshopVehicleAccompanimentRow = {

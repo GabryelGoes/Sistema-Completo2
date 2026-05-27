@@ -6042,6 +6042,76 @@ export function createApiApp() {
     return svcHit || partHit;
   }
 
+  function parseBudgetPublicSettings(raw: unknown): Record<string, { visible: boolean; allow_client_approval: boolean }> {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out: Record<string, { visible: boolean; allow_client_approval: boolean }> = {};
+    Object.entries(raw as Record<string, unknown>).forEach(([budgetId, value]) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return;
+      const v = value as Record<string, unknown>;
+      out[budgetId] = {
+        visible: v.visible !== false,
+        allow_client_approval: v.allow_client_approval === true,
+      };
+    });
+    return out;
+  }
+
+  function parseClientBudgetChoices(raw: unknown): Record<
+    string,
+    {
+      submitted_at: string;
+      diagnosis_note: string;
+      services: { index: number; approved: boolean }[];
+      parts: { index: number; approved: boolean }[];
+    }
+  > {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out: Record<
+      string,
+      {
+        submitted_at: string;
+        diagnosis_note: string;
+        services: { index: number; approved: boolean }[];
+        parts: { index: number; approved: boolean }[];
+      }
+    > = {};
+    Object.entries(raw as Record<string, unknown>).forEach(([budgetId, value]) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return;
+      const v = value as Record<string, unknown>;
+      const servicesRaw = Array.isArray(v.services) ? v.services : [];
+      const partsRaw = Array.isArray(v.parts) ? v.parts : [];
+      const services = servicesRaw
+        .map((it: unknown) => {
+          if (!it || typeof it !== "object") return null;
+          const row = it as Record<string, unknown>;
+          const index = Number(row.index);
+          if (!Number.isInteger(index) || index < 0) return null;
+          return { index, approved: row.approved === true };
+        })
+        .filter(Boolean) as { index: number; approved: boolean }[];
+      const parts = partsRaw
+        .map((it: unknown) => {
+          if (!it || typeof it !== "object") return null;
+          const row = it as Record<string, unknown>;
+          const index = Number(row.index);
+          if (!Number.isInteger(index) || index < 0) return null;
+          return { index, approved: row.approved === true };
+        })
+        .filter(Boolean) as { index: number; approved: boolean }[];
+      out[budgetId] = {
+        submitted_at:
+          typeof v.submitted_at === "string" && v.submitted_at.trim()
+            ? v.submitted_at
+            : new Date().toISOString(),
+        diagnosis_note:
+          typeof v.diagnosis_note === "string" ? v.diagnosis_note.trim().slice(0, 4000) : "",
+        services,
+        parts,
+      };
+    });
+    return out;
+  }
+
   function accompanimentOrderFinalized(status: string): boolean {
     return (
       status === "FINALIZADO" ||
@@ -6153,6 +6223,7 @@ export function createApiApp() {
       const { serviceOrderId } = req.params;
       const obs = typeof req.body?.intake_observations === "string" ? req.body.intake_observations : "";
       const photosRaw = req.body?.intake_photos;
+      const budgetSettings = parseBudgetPublicSettings(req.body?.budget_public_settings);
       if (!Array.isArray(photosRaw)) {
         return res.status(400).json({ error: "intake_photos deve ser um array." });
       }
@@ -6162,6 +6233,11 @@ export function createApiApp() {
         const id = typeof o.id === "string" && o.id.trim() ? o.id.trim() : `ph_${i}`;
         const path = typeof o.path === "string" && o.path.trim() ? o.path.trim() : "";
         if (!path) return null;
+        const serviceId = typeof o.service_id === "string" && o.service_id.trim() ? o.service_id.trim().slice(0, 120) : "";
+        const serviceName =
+          typeof o.service_name === "string" && o.service_name.trim() ? o.service_name.trim().slice(0, 240) : "";
+        const phaseRaw = typeof o.phase === "string" ? o.phase.trim().toLowerCase() : "";
+        const phase = phaseRaw === "before" || phaseRaw === "after" ? phaseRaw : null;
         const markersRaw = Array.isArray(o.markers) ? o.markers : [];
         const markers = markersRaw
           .map((m: unknown, j: number) => {
@@ -6175,7 +6251,14 @@ export function createApiApp() {
             return { id: mid, xPct, yPct, note };
           })
           .filter(Boolean);
-        return { id, path, markers };
+        return {
+          id,
+          path,
+          markers,
+          ...(serviceId ? { service_id: serviceId } : {}),
+          ...(serviceName ? { service_name: serviceName } : {}),
+          ...(phase ? { phase } : {}),
+        };
       }).filter(Boolean);
 
       const { data: row } = await supabaseAdmin
@@ -6187,18 +6270,33 @@ export function createApiApp() {
       if (!row) {
         return res.status(404).json({ error: "Crie primeiro a central (bootstrap) para esta OS." });
       }
-      const { error } = await supabaseAdmin
+      let updateErr: any = null;
+      const firstUpdate = await supabaseAdmin
         .from("workshop_vehicle_accompaniment")
         .update({
           intake_observations: obs,
           intake_photos: photos,
+          budget_public_settings: budgetSettings,
           updated_at: new Date().toISOString(),
         })
         .eq("service_order_id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID);
-      if (error) {
-        console.error("[API] PUT vehicle-accompaniment:", error);
-        return res.status(500).json({ error: error.message });
+      updateErr = firstUpdate.error;
+      if (updateErr && /budget_public_settings/i.test(String(updateErr.message || ""))) {
+        const fallback = await supabaseAdmin
+          .from("workshop_vehicle_accompaniment")
+          .update({
+            intake_observations: obs,
+            intake_photos: photos,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("service_order_id", serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID);
+        updateErr = fallback.error;
+      }
+      if (updateErr) {
+        console.error("[API] PUT vehicle-accompaniment:", updateErr);
+        return res.status(500).json({ error: updateErr.message });
       }
       const { data: out } = await supabaseAdmin
         .from("workshop_vehicle_accompaniment")
@@ -6252,8 +6350,16 @@ export function createApiApp() {
         .select("id, diagnosis, services, parts, observations, created_at, updated_at")
         .eq("service_order_id", acc.service_order_id)
         .eq("workshop_id", acc.workshop_id);
+      const budgetSettings = parseBudgetPublicSettings((acc as { budget_public_settings?: unknown }).budget_public_settings);
+      const clientChoices = parseClientBudgetChoices((acc as { client_budget_choices?: unknown }).client_budget_choices);
       const budgets = (budgetsRaw ?? [])
-        .filter((b) => accompanimentBudgetHasApproved(b as { services?: unknown; parts?: unknown }))
+        .filter((b) => {
+          const cfg = budgetSettings[String(b.id)] ?? {
+            visible: accompanimentBudgetHasApproved(b as { services?: unknown; parts?: unknown }),
+            allow_client_approval: false,
+          };
+          return cfg.visible === true;
+        })
         .map((b) => ({
           id: b.id,
           diagnosis: b.diagnosis,
@@ -6262,6 +6368,8 @@ export function createApiApp() {
           observations: b.observations,
           created_at: b.created_at,
           updated_at: b.updated_at,
+          allow_client_approval: (budgetSettings[String(b.id)]?.allow_client_approval ?? false) === true,
+          client_choice: clientChoices[String(b.id)] ?? null,
         }));
       const photos = Array.isArray(acc.intake_photos)
         ? acc.intake_photos.map((p: { path?: string; markers?: unknown; id?: string }) => ({
@@ -6305,7 +6413,7 @@ export function createApiApp() {
     }
   });
 
-  /** Cliente submete avaliação (uma vez). */
+  /** Cliente submete avaliação e/ou escolhas de orçamento (aprova/reprova). */
   app.patch("/api/public/vehicle-accompaniment/:token", async (req, res) => {
     try {
       if (!supabaseAdmin) {
@@ -6317,39 +6425,73 @@ export function createApiApp() {
       }
       const { data: acc } = await supabaseAdmin
         .from("workshop_vehicle_accompaniment")
-        .select("id, client_rating_at")
+        .select("id, client_rating_at, client_budget_choices")
         .eq("share_token", token)
         .maybeSingle();
       if (!acc) {
         return res.status(404).json({ error: "Link inválido." });
       }
-      if (acc.client_rating_at) {
-        return res.status(409).json({ error: "Avaliação já foi enviada." });
-      }
-      const a = Number(req.body?.client_rating_attendance);
-      const s = Number(req.body?.client_rating_service);
-      const r = Number(req.body?.client_rating_recommend);
-      const comment =
-        typeof req.body?.client_rating_comment === "string" ? req.body.client_rating_comment.trim().slice(0, 2000) : "";
-      if (![1, 2, 3, 4, 5].includes(a) || ![1, 2, 3, 4, 5].includes(s) || ![1, 2, 3, 4, 5].includes(r)) {
-        return res.status(400).json({ error: "Informe as três avaliações de 1 a 5 estrelas." });
+      const wantsRating =
+        req.body?.client_rating_attendance != null ||
+        req.body?.client_rating_service != null ||
+        req.body?.client_rating_recommend != null;
+      const wantsBudgetChoices = req.body?.budget_choices && typeof req.body.budget_choices === "object";
+      if (!wantsRating && !wantsBudgetChoices) {
+        return res.status(400).json({ error: "Envie avaliação e/ou escolhas do orçamento." });
       }
       const now = new Date().toISOString();
-      const { error } = await supabaseAdmin
+      const updatePayload: Record<string, unknown> = {
+        updated_at: now,
+      };
+
+      if (wantsRating) {
+        if (acc.client_rating_at) {
+          return res.status(409).json({ error: "Avaliação já foi enviada." });
+        }
+        const a = Number(req.body?.client_rating_attendance);
+        const s = Number(req.body?.client_rating_service);
+        const r = Number(req.body?.client_rating_recommend);
+        const comment =
+          typeof req.body?.client_rating_comment === "string"
+            ? req.body.client_rating_comment.trim().slice(0, 2000)
+            : "";
+        if (![1, 2, 3, 4, 5].includes(a) || ![1, 2, 3, 4, 5].includes(s) || ![1, 2, 3, 4, 5].includes(r)) {
+          return res.status(400).json({ error: "Informe as três avaliações de 1 a 5 estrelas." });
+        }
+        updatePayload.client_rating_attendance = a;
+        updatePayload.client_rating_service = s;
+        updatePayload.client_rating_recommend = r;
+        updatePayload.client_rating_comment = comment || null;
+        updatePayload.client_rating_at = now;
+      }
+
+      if (wantsBudgetChoices) {
+        const currentChoices = parseClientBudgetChoices(acc.client_budget_choices);
+        const incoming = parseClientBudgetChoices(req.body?.budget_choices);
+        updatePayload.client_budget_choices = {
+          ...currentChoices,
+          ...incoming,
+        };
+      }
+
+      let updateErr: any = null;
+      const firstUpdate = await supabaseAdmin
         .from("workshop_vehicle_accompaniment")
-        .update({
-          client_rating_attendance: a,
-          client_rating_service: s,
-          client_rating_recommend: r,
-          client_rating_comment: comment || null,
-          client_rating_at: now,
-          updated_at: now,
-        })
-        .eq("id", acc.id)
-        .is("client_rating_at", null);
-      if (error) {
-        console.error("[API] PATCH public vehicle-accompaniment:", error);
-        return res.status(500).json({ error: error.message });
+        .update(updatePayload)
+        .eq("id", acc.id);
+      updateErr = firstUpdate.error;
+      if (updateErr && /client_budget_choices/i.test(String(updateErr.message || ""))) {
+        const fallbackPayload = { ...updatePayload };
+        delete fallbackPayload.client_budget_choices;
+        const fallback = await supabaseAdmin
+          .from("workshop_vehicle_accompaniment")
+          .update(fallbackPayload)
+          .eq("id", acc.id);
+        updateErr = fallback.error;
+      }
+      if (updateErr) {
+        console.error("[API] PATCH public vehicle-accompaniment:", updateErr);
+        return res.status(500).json({ error: updateErr.message });
       }
       return res.json({ ok: true });
     } catch (err: any) {

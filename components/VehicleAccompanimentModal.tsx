@@ -97,6 +97,11 @@ function budgetHasApproved(b: SavedBudgetFromApi): boolean {
   return sv.some((s) => s && s.approved === true) || pt.some((p) => p && p.approved === true);
 }
 
+type ServicePhotoEntry = {
+  id: string;
+  name: string;
+};
+
 function companionPublicUrl(shareToken: string): string {
   if (typeof window === 'undefined') return '';
   const path = `/acompanhamento/${encodeURIComponent(shareToken)}`;
@@ -145,6 +150,10 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
   const [listSearch, setListSearch] = useState('');
   const [vehicleDetailOpen, setVehicleDetailOpen] = useState(false);
   const [orderContextLoading, setOrderContextLoading] = useState(false);
+  const [serviceEntries, setServiceEntries] = useState<ServicePhotoEntry[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [selectedPhase, setSelectedPhase] = useState<'before' | 'after'>('before');
+  const [newServiceName, setNewServiceName] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const wasOpenRef = useRef(false);
 
@@ -179,6 +188,10 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
     setBudgets([]);
     setPlacaLookup(null);
     setPlacaExtra('');
+    setServiceEntries([]);
+    setSelectedServiceId('');
+    setSelectedPhase('before');
+    setNewServiceName('');
     setError(null);
   }, []);
 
@@ -215,6 +228,19 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
     [orders, selectedId]
   );
 
+  const servicePhotos = useMemo(() => {
+    const groups = serviceEntries.map((entry) => {
+      const linked = photos.filter((p) => p.service_id === entry.id || (p.service_name ?? '').trim() === entry.name);
+      return {
+        ...entry,
+        before: linked.filter((p) => p.phase !== 'after'),
+        after: linked.filter((p) => p.phase === 'after'),
+      };
+    });
+    const unassigned = photos.filter((p) => !p.service_id && !(p.service_name ?? '').trim());
+    return { groups, unassigned };
+  }, [photos, serviceEntries]);
+
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
     setError(null);
@@ -249,6 +275,9 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
         rawPhotos.map((p, i) => ({
           id: typeof p.id === 'string' && p.id ? p.id : `ph_${i}`,
           path: typeof p.path === 'string' ? p.path : '',
+          service_id: typeof p.service_id === 'string' ? p.service_id : undefined,
+          service_name: typeof p.service_name === 'string' ? p.service_name : undefined,
+          phase: p.phase === 'after' ? 'after' : p.phase === 'before' ? 'before' : undefined,
           markers: Array.isArray(p.markers)
             ? p.markers
                 .map((m: { id?: string; xPct?: number; yPct?: number; note?: string }, j: number) => ({
@@ -263,11 +292,44 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
       );
       setObservations(typeof row.intake_observations === 'string' ? row.intake_observations : '');
       const b = await getServiceOrderBudgets(serviceOrderId);
-      setBudgets(b.filter(budgetHasApproved));
+      const approvedBudgets = b.filter(budgetHasApproved);
+      setBudgets(approvedBudgets);
+
+      const serviceFromBudgets: ServicePhotoEntry[] = [];
+      approvedBudgets.forEach((budget) => {
+        const sv = Array.isArray(budget.services) ? budget.services : [];
+        sv.forEach((item, idx) => {
+          const description = (item?.description ?? '').trim();
+          if (!description) return;
+          serviceFromBudgets.push({
+            id: `budget-${budget.id}-${idx}`,
+            name: description,
+          });
+        });
+      });
+      const serviceFromPhotos: ServicePhotoEntry[] = rawPhotos
+        .map((p, idx) => {
+          const sid = typeof p.service_id === 'string' && p.service_id.trim() ? p.service_id.trim() : `legacy-${idx}`;
+          const sname =
+            typeof p.service_name === 'string' && p.service_name.trim() ? p.service_name.trim() : '';
+          if (!sname) return null;
+          return { id: sid, name: sname };
+        })
+        .filter((v): v is ServicePhotoEntry => !!v);
+      const merged = [...serviceFromBudgets, ...serviceFromPhotos].reduce<ServicePhotoEntry[]>((accList, item) => {
+        const key = item.name.trim().toLowerCase();
+        if (!key) return accList;
+        if (!accList.some((x) => x.name.trim().toLowerCase() === key)) accList.push(item);
+        return accList;
+      }, []);
+      setServiceEntries(merged);
+      if (merged.length > 0) setSelectedServiceId((prev) => prev || merged[0].id);
     } catch (e) {
       setAcc(null);
       setPhotos([]);
       setBudgets([]);
+      setServiceEntries([]);
+      setSelectedServiceId('');
       setError(e instanceof Error ? e.message : 'Erro ao carregar OS.');
     } finally {
       setOrderContextLoading(false);
@@ -285,17 +347,75 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file || !selectedId) return;
+    const service = serviceEntries.find((s) => s.id === selectedServiceId);
+    if (!service) {
+      setError('Selecione um serviço para vincular a foto de antes/depois.');
+      return;
+    }
     setUploading(true);
     setError(null);
     try {
       const up = await uploadServiceOrderPhoto(selectedId, file, file.name);
       const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `ph_${Date.now()}`;
-      setPhotos((prev) => [...prev, { id, path: up.path, markers: [] }]);
+      setPhotos((prev) => [
+        ...prev,
+        {
+          id,
+          path: up.path,
+          markers: [],
+          service_id: service.id,
+          service_name: service.name,
+          phase: selectedPhase,
+        },
+      ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha no envio da foto.');
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleCreateService = () => {
+    const name = newServiceName.trim();
+    if (!name) return;
+    const exists = serviceEntries.some((s) => s.name.trim().toLowerCase() === name.toLowerCase());
+    if (exists) {
+      setError('Este serviço já existe na lista.');
+      return;
+    }
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `svc_${Date.now()}`;
+    const next = { id, name };
+    setServiceEntries((prev) => [...prev, next]);
+    setSelectedServiceId(id);
+    setNewServiceName('');
+    setError(null);
+  };
+
+  const handleImportApprovedServices = () => {
+    const imported: ServicePhotoEntry[] = [];
+    budgets.forEach((budget) => {
+      const services = Array.isArray(budget.services) ? budget.services : [];
+      services.forEach((svc, idx) => {
+        const desc = (svc?.description ?? '').trim();
+        if (!desc) return;
+        imported.push({ id: `budget-${budget.id}-${idx}`, name: desc });
+      });
+    });
+    if (imported.length === 0) {
+      setError('Nenhum serviço aprovado disponível para importar.');
+      return;
+    }
+    setServiceEntries((prev) => {
+      const next = [...prev];
+      imported.forEach((item) => {
+        if (!next.some((s) => s.name.trim().toLowerCase() === item.name.trim().toLowerCase())) {
+          next.push(item);
+        }
+      });
+      if (!selectedServiceId && next.length > 0) setSelectedServiceId(next[0].id);
+      return next;
+    });
+    setError(null);
   };
 
   const removePhoto = (id: string) => {
@@ -710,11 +830,11 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                 <section className={`relative pl-5 pr-4 py-4 ${vacCard} space-y-3`}>
                   <span className={vacCardAccent} aria-hidden />
                   <div className="relative flex items-center justify-between gap-2">
-                    <h2 className={vacSectionTitle}>Fotos da entrada</h2>
+                    <h2 className={vacSectionTitle}>Fotos por serviço (antes e depois)</h2>
                     <button
                       type="button"
                       onClick={() => fileRef.current?.click()}
-                      disabled={uploading}
+                      disabled={uploading || !selectedServiceId}
                       className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-br from-[#007AFF] to-sky-600 px-3 py-1.5 text-[13px] font-semibold text-white shadow-[0_4px_16px_-4px_rgba(0,122,255,0.55)] transition hover:brightness-110 active:scale-[0.97] disabled:opacity-50"
                     >
                       {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
@@ -723,16 +843,158 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                     <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePickFile} />
                   </div>
                   <p className="text-[12px] text-zinc-600 dark:text-zinc-400">
-                    Toque na imagem para colocar um marcador. Toque no pin para remover.
+                    Selecione o serviço e a fase (antes/depois). Toque na imagem para colocar marcador e no pin para remover.
                   </p>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <select
+                      value={selectedServiceId}
+                      onChange={(e) => setSelectedServiceId(e.target.value)}
+                      className="rounded-xl border border-zinc-200/90 bg-white px-3 py-2 text-[13px] text-zinc-900 dark:border-white/[0.12] dark:bg-zinc-950 dark:text-white"
+                    >
+                      <option value="">Selecione o serviço...</option>
+                      {serviceEntries.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="inline-flex rounded-xl border border-zinc-200/90 bg-white p-1 dark:border-white/[0.12] dark:bg-zinc-950">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPhase('before')}
+                        className={`flex-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold ${
+                          selectedPhase === 'before'
+                            ? 'bg-blue-600 text-white'
+                            : 'text-zinc-700 dark:text-zinc-300'
+                        }`}
+                      >
+                        Antes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPhase('after')}
+                        className={`flex-1 rounded-lg px-3 py-1.5 text-[12px] font-semibold ${
+                          selectedPhase === 'after'
+                            ? 'bg-emerald-600 text-white'
+                            : 'text-zinc-700 dark:text-zinc-300'
+                        }`}
+                      >
+                        Depois
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleImportApprovedServices}
+                      className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[12px] font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300"
+                    >
+                      Importar serviços do orçamento aprovado
+                    </button>
+                    <div className="flex min-w-[16rem] flex-1 gap-2">
+                      <input
+                        value={newServiceName}
+                        onChange={(e) => setNewServiceName(e.target.value)}
+                        placeholder="Criar serviço manual..."
+                        className="flex-1 rounded-xl border border-zinc-200/90 bg-white px-3 py-1.5 text-[12px] text-zinc-900 dark:border-white/[0.12] dark:bg-zinc-950 dark:text-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateService}
+                        className="rounded-xl bg-zinc-900 px-3 py-1.5 text-[12px] font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
+                      >
+                        Criar
+                      </button>
+                    </div>
+                  </div>
+
                   {photos.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-zinc-300/80 bg-zinc-50/80 py-10 text-center text-sm text-zinc-500 dark:border-white/[0.12] dark:bg-zinc-900/40 dark:text-zinc-400">
                       Nenhuma foto ainda — use <span className="font-semibold text-sky-600 dark:text-sky-400">Adicionar</span>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {photos.map((ph) => (
-                        <div key={ph.id} className="space-y-2">
+                      {servicePhotos.groups.map((group) => (
+                        <div key={group.id} className="rounded-xl border border-zinc-200/80 bg-zinc-50/70 p-2.5 dark:border-white/[0.08] dark:bg-zinc-950/40 space-y-3">
+                          <p className="text-[12px] font-bold text-zinc-700 dark:text-zinc-200">{group.name}</p>
+                          {(['before', 'after'] as const).map((phaseKey) => {
+                            const phasePhotos = phaseKey === 'before' ? group.before : group.after;
+                            return (
+                              <div key={`${group.id}-${phaseKey}`} className="space-y-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                                  {phaseKey === 'before' ? 'Antes' : 'Depois'}
+                                </p>
+                                {phasePhotos.length === 0 ? (
+                                  <p className="text-[12px] text-zinc-400">Sem fotos nesta fase.</p>
+                                ) : (
+                                  phasePhotos.map((ph) => (
+                                    <div key={ph.id} className="space-y-2">
+                                      <div
+                                        role="presentation"
+                                        className="relative w-full cursor-crosshair overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-900/5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-black/[0.04] dark:border-white/[0.1] dark:bg-zinc-950 dark:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)] dark:ring-white/[0.05]"
+                                        onClick={(e) => onPhotoTap(ph.id, e)}
+                                      >
+                                        <img
+                                          src={getVehiclePhotoPublicUrl(ph.path) ?? ''}
+                                          alt=""
+                                          className="w-full h-auto max-h-[320px] object-contain pointer-events-none bg-black/5"
+                                          onError={(ev) => {
+                                            const el = ev.currentTarget;
+                                            if (el.src.startsWith('blob:')) return;
+                                            el.style.opacity = '0.3';
+                                          }}
+                                        />
+                                        {ph.markers.map((m) => (
+                                          <button
+                                            key={m.id}
+                                            type="button"
+                                            data-marker-pin
+                                            className="absolute z-10 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-[#007AFF] to-sky-600 text-[10px] font-bold text-white shadow-[0_4px_14px_-2px_rgba(0,122,255,0.7)] dark:border-zinc-900"
+                                            style={{ left: `${m.xPct}%`, top: `${m.yPct}%` }}
+                                            title={m.note || 'Marcador — clique para remover'}
+                                            onClick={(ev) => {
+                                              ev.stopPropagation();
+                                              removeMarker(ph.id, m.id);
+                                            }}
+                                          >
+                                            !
+                                          </button>
+                                        ))}
+                                      </div>
+                                      {ph.markers.some((m) => m.note) ? (
+                                        <ul className="text-[12px] text-zinc-600 dark:text-zinc-400 pl-1 space-y-0.5">
+                                          {ph.markers
+                                            .filter((m) => m.note?.trim())
+                                            .map((m) => (
+                                              <li key={m.id}>• {m.note}</li>
+                                            ))}
+                                        </ul>
+                                      ) : null}
+                                      <button
+                                        type="button"
+                                        onClick={() => removePhoto(ph.id)}
+                                        className="inline-flex items-center gap-1 text-[13px] text-red-600 dark:text-red-400"
+                                      >
+                                        <Trash2 className="h-4 w-4" /> Remover foto
+                                      </button>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+
+                      {servicePhotos.unassigned.length > 0 ? (
+                        <div className="rounded-xl border border-amber-300/70 bg-amber-50/70 p-2.5 dark:border-amber-500/30 dark:bg-amber-500/10">
+                          <p className="mb-2 text-[12px] font-semibold text-amber-800 dark:text-amber-300">
+                            Fotos antigas sem serviço vinculado
+                          </p>
+                          {servicePhotos.unassigned.map((ph) => (
+                            <div key={ph.id} className="space-y-2">
                           <div
                             role="presentation"
                             className="relative w-full cursor-crosshair overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-900/5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-black/[0.04] dark:border-white/[0.1] dark:bg-zinc-950 dark:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)] dark:ring-white/[0.05]"
@@ -781,8 +1043,10 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                           >
                             <Trash2 className="h-4 w-4" /> Remover foto
                           </button>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      ) : null}
                     </div>
                   )}
                 </section>
