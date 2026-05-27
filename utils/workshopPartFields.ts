@@ -43,6 +43,7 @@ export const COMMON_NCM_SUGGESTIONS: { code: string; label: string }[] = [
 
 export type WorkshopPartFormValues = {
   name: string;
+  brand: string;
   original_code: string;
   /** IDs das categorias do estoque vinculadas ao produto. */
   category_ids: string[];
@@ -79,6 +80,7 @@ export type WorkshopPartPurchaseDraft = {
 export function emptyPartFormValues(): WorkshopPartFormValues {
   return {
     name: '',
+    brand: '',
     original_code: '',
     category_ids: [],
     numeric_code: '',
@@ -105,6 +107,7 @@ export function emptyPartFormValues(): WorkshopPartFormValues {
 export function partToFormValues(part: WorkshopPart): WorkshopPartFormValues {
   return {
     name: part.name ?? '',
+    brand: part.brand ?? '',
     original_code: part.original_code ?? '',
     category_ids: [...(part.category_ids ?? (part.primary_category_id ? [part.primary_category_id] : []))],
     numeric_code: part.numeric_code ?? '',
@@ -162,6 +165,7 @@ export function formValuesToApiPayload(values: WorkshopPartFormValues): Record<s
   const monthsRaw = values.validity_months.trim();
   return {
     name: values.name.trim(),
+    brand: values.brand.trim() || null,
     original_code: values.original_code.trim() || null,
     numeric_code: values.numeric_code.trim() || null,
     location: values.location.trim() || null,

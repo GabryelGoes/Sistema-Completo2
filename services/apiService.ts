@@ -2040,6 +2040,7 @@ export const WORKSHOP_PART_PHOTOS_MAX = 3;
 export interface WorkshopPart {
   id: string;
   name: string;
+  brand?: string | null;
   unit_price: number;
   stock_qty: number;
   photo_url?: string | null;
@@ -2071,6 +2072,7 @@ export interface WorkshopPart {
 
 export type WorkshopPartWriteInput = {
   name: string;
+  brand?: string | null;
   unit_price?: number;
   stock_qty?: number;
   original_code?: string | null;

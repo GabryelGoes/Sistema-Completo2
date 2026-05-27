@@ -4013,7 +4013,7 @@ export function createApiApp() {
   }
 
   const WORKSHOP_PART_SELECT =
-    "id, name, unit_price, stock_qty, photo_url, sort_order, created_at, " +
+    "id, name, brand, unit_price, stock_qty, photo_url, sort_order, created_at, " +
     "original_code, numeric_code, location, application_similar, notes, " +
     "ncm_code, unit_of_measure, min_stock_qty, max_stock_qty, fiscal_origin, " +
     "premium_amount, commission_pct, default_profit_pct, km_limit, validity_months, " +
@@ -4080,6 +4080,7 @@ export function createApiApp() {
     }
 
     const textFields = [
+      "brand",
       "original_code",
       "numeric_code",
       "location",

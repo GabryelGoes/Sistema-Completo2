@@ -525,6 +525,16 @@ export function WorkshopPartRegistrationForm({
             />
           </div>
           <div className="space-y-1.5">
+            <FieldLabel>Marca</FieldLabel>
+            <input
+              type="text"
+              value={values.brand}
+              onChange={(e) => patch({ brand: e.target.value })}
+              placeholder="Ex.: Bosch, TRW, Cofap"
+              className={inputCls}
+            />
+          </div>
+          <div className="space-y-1.5">
             <FieldLabel>Código original</FieldLabel>
             <input
               type="text"

@@ -755,6 +755,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     if (!q) return partsAfterStockFilter;
     return partsAfterStockFilter.filter((p) => {
       const name = normalizePartSearch(p.name || '');
+      const brand = normalizePartSearch(p.brand || '');
       const id = (p.id || '').toLowerCase();
       const original = normalizePartSearch(p.original_code || '');
       const numeric = normalizePartSearch(p.numeric_code || '');
@@ -767,6 +768,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         .join(' ');
       return (
         name.includes(q) ||
+        brand.includes(q) ||
         original.includes(q) ||
         numeric.includes(q) ||
         location.includes(q) ||
@@ -1456,10 +1458,16 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                                   #{partNum}
                                 </span>
                               ) : null}
-                              <span className="min-w-0 text-[16px] font-medium text-zinc-900 dark:text-white truncate">
-                                {p.name}
-                              </span>
                               <WorkshopPartStockBadge status={stockStatus} className="md:hidden" />
+                            </span>
+                            <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 truncate">
+                              {p.brand?.trim() || '—'}
+                            </span>
+                            <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
+                              {p.name}
+                            </span>
+                            <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
+                              {p.location?.trim() || '—'}
                             </span>
                             {originalCode ? (
                               <span
@@ -1662,8 +1670,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 title="Estoque — visualização"
                 subtitle={
                   partNumberById.get(viewPart.id) != null
-                    ? `#${partNumberById.get(viewPart.id)} · ${viewPart.name}`
-                    : viewPart.name
+                    ? `#${partNumberById.get(viewPart.id)} · ${viewPart.brand?.trim() || '—'} / ${viewPart.name} / ${viewPart.location?.trim() || '—'}`
+                    : `${viewPart.brand?.trim() || '—'} / ${viewPart.name} / ${viewPart.location?.trim() || '—'}`
                 }
                 gradientClass="from-emerald-500 to-teal-700"
               />
