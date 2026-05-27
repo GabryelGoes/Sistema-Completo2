@@ -185,7 +185,14 @@ export function WorkshopPartDetailView({
                 <DetailRow label="Nº no estoque" value={`#${catalogNumber}`} />
               ) : null}
               <DetailRow label="Marca" value={displayText(part.brand)} />
-              <DetailRow label="Produto" value={displayText(part.name)} />
+              <DetailRow
+                label="Produto"
+                value={
+                  <span className="text-[18px] font-extrabold leading-tight text-zinc-900 dark:text-white">
+                    {displayText(part.name)}
+                  </span>
+                }
+              />
               <DetailRow label="Localização" value={displayText(part.location)} />
               <DetailRow label="Código original" value={displayText(part.original_code)} />
               <DetailRow label="Código numérico" value={displayText(part.numeric_code)} />
