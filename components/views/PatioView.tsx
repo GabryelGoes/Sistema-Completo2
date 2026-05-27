@@ -256,6 +256,11 @@ interface PatioViewProps {
   orderType?: ServiceOrderType;
   /** Se false, pausa refreshes periódicos (lista/lembretes) — KeepAlive mantém o componente montado fora da aba. */
   isAppTabActive?: boolean;
+  /**
+   * Modo PC: oculta portais (modal veículo/módulo) sem limpar estado — ex.: outro módulo na sidebar
+   * ou overlay global (Central, Estoque, Configurações).
+   */
+  suppressVehiclePortals?: boolean;
   /** Permissões do pátio para usuários limitados. Se não passado (admin), tudo permitido. */
   patioPermissions?: {
     canDeleteCards?: boolean;
@@ -803,6 +808,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   orderType = 'vehicle',
   patioPermissions,
   isAppTabActive = true,
+  suppressVehiclePortals = false,
 }) => {
   /** Admin: sem patioPermissions = tudo permitido. Usuário do sistema: só o que for explicitamente true. */
   const can = (key: keyof NonNullable<PatioViewProps['patioPermissions']>) =>
@@ -929,6 +935,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   selectedCardRef.current = selectedCard;
   const isAppTabActiveRef = useRef(isAppTabActive);
   isAppTabActiveRef.current = isAppTabActive;
+  /** Portais em body só quando a aba está ativa e nenhum overlay da sidebar cobre o conteúdo. */
+  const patioPortalsVisible = isAppTabActive && !suppressVehiclePortals;
 
   /** Último `{ actions, attachments }` por OS — reaproveita fotos/comentários ao reabrir modal ou histórico. */
   const vehicleCardDetailsCacheRef = useRef<Map<string, { actions: TrelloAction[]; attachments: TrelloAttachment[] }>>(
@@ -1216,21 +1224,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, []);
 
   const patioPrimaryOverlayOpen = !!(selectedCard || selectedHistoryCard);
+  const patioPrimaryOverlayShown = patioPrimaryOverlayOpen && patioPortalsVisible;
   /** Sincroniza com o painel de chat: sombra extra só em modo claro sobre este modal. */
   useEffect(() => {
     const source = isModuleMode ? ('laboratorio' as const) : ('patio' as const);
     window.dispatchEvent(
-      new CustomEvent('patio-vehicle-sheet-open', { detail: { open: patioPrimaryOverlayOpen, source } })
+      new CustomEvent('patio-vehicle-sheet-open', { detail: { open: patioPrimaryOverlayShown, source } })
     );
     return () => {
       window.dispatchEvent(new CustomEvent('patio-vehicle-sheet-open', { detail: { open: false, source } }));
     };
-  }, [patioPrimaryOverlayOpen, isModuleMode]);
-  useBrowserBackLayer(patioPrimaryOverlayOpen, closePatioPrimaryOverlays);
+  }, [patioPrimaryOverlayShown, isModuleMode]);
+  useBrowserBackLayer(patioPrimaryOverlayShown, closePatioPrimaryOverlays);
   /** Pilha acima do modal do veículo: gesto voltar fecha só o orçamento e mantém a ficha aberta. */
-  useBrowserBackLayer(isBudgetOpen, closeBudgetModal);
-  useBrowserBackLayer(isPatioHeaderToolsOpen, () => setIsPatioHeaderToolsOpen(false));
-  useBrowserBackLayer(isRemindersOpen, () => setIsRemindersOpen(false));
+  useBrowserBackLayer(isBudgetOpen && patioPortalsVisible, closeBudgetModal);
+  useBrowserBackLayer(isPatioHeaderToolsOpen && patioPortalsVisible, () => setIsPatioHeaderToolsOpen(false));
+  useBrowserBackLayer(isRemindersOpen && patioPortalsVisible, () => setIsRemindersOpen(false));
 
   const fetchReminders = useCallback(async () => {
     setRemindersLoading(true);
@@ -4059,7 +4068,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       </div>
 
       {/* --- MODAL DE HISTÓRICO (BUSCA) — portal em body para ficar acima da TabBar --- */}
-      {isHistoryOpen && (
+      {isHistoryOpen && patioPortalsVisible && (
         <ModalPortal>
           <div className={patioHistoryModalOverlayClass}>
             <div
@@ -4161,7 +4170,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* --- DETALHES DO CARD ARQUIVADO — portal em body para ficar acima da TabBar --- */}
-      {selectedHistoryCard && (
+      {selectedHistoryCard && patioPortalsVisible && (
          <ModalPortal>
          <div className={patioHistoryModalOverlayClass}>
             <div
@@ -4547,7 +4556,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* MODAL DETALHE DO VEÍCULO */}
-      {selectedCard && (() => {
+      {selectedCard && patioPortalsVisible && (() => {
         const modalListName = lists.find(l => l.id === selectedCard.idList)?.name ?? '';
         const modalStatusConfig = getStatusConfig(modalListName, selectedCard.idList);
         const modalRingClass = selectedCard.garantiaTag
@@ -6473,7 +6482,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       })()}
 
       {/* --- MODAL DE LEMBRETES (PÁTIO / LABORATÓRIO) — portal em body + z acima da TabBar (igual orçamento) --- */}
-      {isRemindersOpen && (
+      {isRemindersOpen && patioPortalsVisible && (
         <ModalPortal>
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
           <div
@@ -6693,7 +6702,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* Modal: buscar placa no Pátio (veículos ativos + consulta PlacaFipe) */}
-      {isPatioPlateSearchModalOpen && !isModuleMode && (
+      {isPatioPlateSearchModalOpen && !isModuleMode && patioPortalsVisible && (
         <ModalPortal>
           <div
             role="presentation"
@@ -6844,7 +6853,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* MODAL EDITAR NOME DO VEÍCULO / PLACA — tipografia do nome nos inputs inalterada pelo usuário */}
-      {isVehicleEditOpen && selectedCard && (
+      {isVehicleEditOpen && selectedCard && patioPortalsVisible && (
         <ModalPortal>
         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
           <div className={`relative flex max-h-[90vh] w-full max-w-md flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
@@ -6924,7 +6933,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* LIGHTBOX MODAL (IMAGE PREVIEW) WITH ZOOM E NAVEGAÇÃO */}
-      {previewImages && (
+      {previewImages && patioPortalsVisible && (
         <Lightbox
           images={previewImages.urls}
           initialIndex={previewImages.currentIndex}
@@ -6933,12 +6942,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* PDF VIEWER MODAL */}
-      {previewPdf && (
+      {previewPdf && patioPortalsVisible && (
         <PdfViewerModal src={previewPdf} onClose={() => setPreviewPdf(null)} />
       )}
 
       {/* MODAL VISUALIZAR ORÇAMENTO — papel envelhecido no modal inteiro, textos em preto (portal: acima da TabBar) */}
-      {viewingBudget && (selectedCard || selectedHistoryCard) && (
+      {viewingBudget && (selectedCard || selectedHistoryCard) && patioPortalsVisible && (
         <ModalPortal>
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] animate-modal-backdrop">
           <div
@@ -7144,7 +7153,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       ) : null}
 
       {/* Modal: Aprovar orçamento — mesmo idioma dos outros modais iOS */}
-      {budgetApprovalTarget && selectedCard && (
+      {budgetApprovalTarget && selectedCard && patioPortalsVisible && (
         <ModalPortal>
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6 animate-in fade-in duration-200">
           <div className={`relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-full max-w-lg min-h-0 flex-col overflow-hidden rounded-[2rem] animate-in zoom-in-95 duration-200 shadow-[0_10px_36px_-12px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_44px_-14px_rgba(0,0,0,0.55)] ${iosModalShell}`}>
@@ -7260,7 +7269,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* MODAL CRIAR/EDITAR ORÇAMENTO — tela cheia, sempre visual de tema claro */}
-      {isBudgetOpen && selectedCard && (
+      {isBudgetOpen && selectedCard && patioPortalsVisible && (
         <ModalPortal>
         <div
           className={`budget-modal-light-chrome fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden animate-in fade-in duration-200 ${budgetModalPaperShell}`}
@@ -7614,7 +7623,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* MODAL DE SELEÇÃO DE ETAPA (MOVE) — portal em body para ficar acima da TabBar */}
-      {cardInTransition && (
+      {cardInTransition && patioPortalsVisible && (
         <ModalPortal>
         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}>
           <div
@@ -7721,6 +7730,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {isVehicleCategoryModalOpen &&
         selectedCard &&
         !isModuleMode &&
+        patioPortalsVisible &&
         (() => {
           const currentCat =
             resolveVehicleCategoryLabel(
@@ -7831,7 +7841,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         })()}
 
       {/* MODAL DE SELEÇÃO DE MECÂNICO — portal em body para ficar acima da TabBar */}
-      {cardForMemberAssignment && (
+      {cardForMemberAssignment && patioPortalsVisible && (
         <ModalPortal>
         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
           <div
@@ -7933,7 +7943,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* MODAL DE CHECKLIST (templates criados pelo admin) — portal em body */}
-      {activeChecklistCard && activeChecklistTemplate && (
+      {activeChecklistCard && activeChecklistTemplate && patioPortalsVisible && (
          <ModalPortal>
          <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
            <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-lg flex-col ${iosVehicleModalShell} animate-in zoom-in-95 duration-200`}>
@@ -8043,7 +8053,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* CAMERA MODAL — portal em body */}
-      {isCameraOpen && (
+      {isCameraOpen && patioPortalsVisible && (
         <ModalPortal>
         <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-modal-backdrop">
             <div className="relative flex-1 bg-black">
@@ -8076,7 +8086,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* PHOTO PREVIEW MODAL — portal em body */}
-      {photoPreview && (
+      {photoPreview && patioPortalsVisible && (
         <ModalPortal>
         <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-modal-backdrop">
             <div className="relative flex-1 bg-black flex items-center justify-center">

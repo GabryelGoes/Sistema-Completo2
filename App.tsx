@@ -751,6 +751,7 @@ export default function App() {
               commentAuthorName={authSession.displayName ?? 'Usuário'}
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'patio'}
+              suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
@@ -769,6 +770,7 @@ export default function App() {
               commentAuthorName={authSession.displayName ?? 'Usuário'}
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'laboratorio'}
+              suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
               openServiceOrderId={null}
               openServiceOrderSection={null}
               onOpenServiceOrderHandled={() => {}}
@@ -1027,6 +1029,7 @@ export default function App() {
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'patio'}
+            suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         </KeepAliveTabPanel>
@@ -1045,6 +1048,7 @@ export default function App() {
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'laboratorio'}
+            suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
             openServiceOrderId={null}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={() => {}}
