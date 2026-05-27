@@ -3960,7 +3960,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     isGarantia
                       ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40'
                       : hasLabReady
-                        ? 'ring-2 ring-inset ring-violet-500 ring-offset-0 border-violet-400/55 dark:ring-violet-400 dark:border-violet-400/55'
+                        ? 'ring-4 ring-inset ring-violet-500 ring-offset-0 border-violet-400/60 dark:ring-violet-400 dark:border-violet-400/60'
                         : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'
                   }
                 `}
