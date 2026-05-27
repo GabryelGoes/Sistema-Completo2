@@ -851,6 +851,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [newLabManualLabel, setNewLabManualLabel] = useState("");
   const [labOrdersLookup, setLabOrdersLookup] = useState<Record<string, ServiceOrderDetail>>({});
   const [labLinkedStatusByOrderId, setLabLinkedStatusByOrderId] = useState<Record<string, string>>({});
+  const [labLinkedStatusRefreshTick, setLabLinkedStatusRefreshTick] = useState(0);
   /** Seção "Dados da ficha" no modal: começa minimizada. */
   const [isDadosFichaExpanded, setIsDadosFichaExpanded] = useState(false);
   /** Evita repor `editFichaForm` a cada `serviceOrderDetail` vindo do Realtime (apaga digitação). */
@@ -2681,7 +2682,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [cards, isModuleMode]);
+  }, [cards, isModuleMode, labLinkedStatusRefreshTick]);
+
+  useEffect(() => {
+    if (isModuleMode) return;
+    const id = window.setInterval(() => {
+      setLabLinkedStatusRefreshTick((v) => v + 1);
+    }, 8000);
+    return () => window.clearInterval(id);
+  }, [isModuleMode]);
 
   const handleSaveLabServiceLinks = useCallback(
     async (nextLinks: LabServiceLink[]) => {
