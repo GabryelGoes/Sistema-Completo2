@@ -7,7 +7,7 @@ import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
 import { NotificationCenter } from '../NotificationCenter';
-import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer, type VehicleReferenceLink } from '../../types';
+import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer, type LabServiceLink, type VehicleReferenceLink } from '../../types';
 import {
   getServiceOrders,
   getServiceOrderById,
@@ -20,11 +20,13 @@ import {
   updateServiceOrderVehicle,
   updateServiceOrderVehicleCategory,
   updateServiceOrderReferenceLinks,
+  updateServiceOrderLabServiceLinks,
   getServiceOrderPhotos,
   uploadServiceOrderPhoto,
   renameServiceOrderPhoto,
   deleteServiceOrderPhoto,
   getServiceOrderBudgets,
+  createServiceOrder,
   createServiceOrderBudget,
   updateServiceOrderBudget,
   deleteServiceOrderBudget,
@@ -275,6 +277,8 @@ interface PatioViewProps {
     canAddComments?: boolean;
     canArchiveCard?: boolean;
   };
+  /** Pátio: abrir uma OS específica no Laboratório (troca de aba + modal). */
+  onOpenLaboratoryOrder?: (serviceOrderId: string) => void;
 }
 
 function boardListsFromStages(stages: ReturnType<typeof getServiceOrderStages>): BoardList[] {
@@ -373,6 +377,7 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     vehicle_year: detail.vehicle_year ?? null,
     vehicle_engine_info: detail.vehicle_engine_info ?? null,
     reference_links: parseReferenceLinksFromApi(detail.reference_links),
+    lab_service_links: Array.isArray(detail.lab_service_links) ? (detail.lab_service_links as LabServiceLink[]) : [],
     diagnostic_authorization_signed_at: detail.diagnostic_authorization_signed_at ?? null,
     diagnostic_authorization_signature_path: detail.diagnostic_authorization_signature_path ?? null,
     created_at: detail.created_at,
@@ -415,6 +420,7 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     vehicleYear: o.vehicle_year ?? null,
     vehicleEngineInfo: o.vehicle_engine_info ?? null,
     referenceLinks: parseReferenceLinksFromApi(o.reference_links),
+    labServiceLinks: Array.isArray(o.lab_service_links) ? (o.lab_service_links as LabServiceLink[]) : [],
   };
 }
 
@@ -809,6 +815,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   patioPermissions,
   isAppTabActive = true,
   suppressVehiclePortals = false,
+  onOpenLaboratoryOrder,
 }) => {
   /** Admin: sem patioPermissions = tudo permitido. Usuário do sistema: só o que for explicitamente true. */
   const can = (key: keyof NonNullable<PatioViewProps['patioPermissions']>) =>
@@ -836,6 +843,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [editFichaSaving, setEditFichaSaving] = useState(false);
   const [referenceLinksDraft, setReferenceLinksDraft] = useState<VehicleReferenceLink[]>([]);
   const [referenceLinksSaving, setReferenceLinksSaving] = useState(false);
+  const [labServiceLinksDraft, setLabServiceLinksDraft] = useState<LabServiceLink[]>([]);
+  const [labServiceLinksSaving, setLabServiceLinksSaving] = useState(false);
+  const [creatingLabService, setCreatingLabService] = useState(false);
+  const [newLabServiceMode, setNewLabServiceMode] = useState<"budget" | "manual">("budget");
+  const [newLabBudgetRef, setNewLabBudgetRef] = useState<string>("");
+  const [newLabManualLabel, setNewLabManualLabel] = useState("");
+  const [labOrdersLookup, setLabOrdersLookup] = useState<Record<string, ServiceOrderDetail>>({});
   /** Seção "Dados da ficha" no modal: começa minimizada. */
   const [isDadosFichaExpanded, setIsDadosFichaExpanded] = useState(false);
   /** Evita repor `editFichaForm` a cada `serviceOrderDetail` vindo do Realtime (apaga digitação). */
@@ -1862,6 +1876,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at]);
 
   useEffect(() => {
+    if (!serviceOrderDetail) {
+      setLabServiceLinksDraft([]);
+      return;
+    }
+    setLabServiceLinksDraft(
+      Array.isArray(serviceOrderDetail.lab_service_links)
+        ? (serviceOrderDetail.lab_service_links as LabServiceLink[])
+        : []
+    );
+  }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at]);
+
+  useEffect(() => {
     if (!selectedCardRef.current) setIsVehicleCategoryModalOpen(false);
   }, [selectedCard?.id]);
 
@@ -2552,6 +2578,142 @@ export const PatioView: React.FC<PatioViewProps> = ({
     } finally {
       setReferenceLinksSaving(false);
     }
+  };
+
+  const budgetServiceOptions = useMemo(() => {
+    if (!selectedCard) return [] as { key: string; label: string; budgetId: string; serviceIndex: number }[];
+    return savedBudgets
+      .filter((b) => b.serviceOrderId === selectedCard.id)
+      .flatMap((budget) =>
+        (Array.isArray(budget.services) ? budget.services : [])
+          .map((svc, idx) => {
+            const description = String(svc?.description ?? "").trim();
+            if (!description) return null;
+            return {
+              key: `${budget.id}:${idx}`,
+              label: description,
+              budgetId: budget.id,
+              serviceIndex: idx,
+            };
+          })
+          .filter((row): row is { key: string; label: string; budgetId: string; serviceIndex: number } => !!row)
+      );
+  }, [savedBudgets, selectedCard]);
+
+  useEffect(() => {
+    if (!selectedCard || isModuleMode || labServiceLinksDraft.length === 0) {
+      setLabOrdersLookup({});
+      return;
+    }
+    let cancelled = false;
+    const ids = [...new Set(labServiceLinksDraft.map((l) => l.laboratoryOrderId).filter(Boolean))];
+    if (ids.length === 0) {
+      setLabOrdersLookup({});
+      return;
+    }
+    const run = async () => {
+      const entries = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const detail = await getServiceOrderById(id);
+            return [id, detail] as const;
+          } catch {
+            return [id, null] as const;
+          }
+        })
+      );
+      if (cancelled) return;
+      const map: Record<string, ServiceOrderDetail> = {};
+      entries.forEach(([id, detail]) => {
+        if (detail) map[id] = detail;
+      });
+      setLabOrdersLookup(map);
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCard?.id, isModuleMode, labServiceLinksDraft]);
+
+  const handleSaveLabServiceLinks = useCallback(
+    async (nextLinks: LabServiceLink[]) => {
+      if (!selectedCard) return;
+      setLabServiceLinksSaving(true);
+      try {
+        await updateServiceOrderLabServiceLinks(selectedCard.id, nextLinks, actorOptions);
+        const updated = await getServiceOrderById(selectedCard.id);
+        setServiceOrderDetail(updated);
+        const normalizedLinks = Array.isArray(updated.lab_service_links)
+          ? (updated.lab_service_links as LabServiceLink[])
+          : [];
+        setLabServiceLinksDraft(normalizedLinks);
+        const updatedCard = {
+          ...selectedCard,
+          labServiceLinks: normalizedLinks,
+          dateLastActivity: updated.updated_at,
+        };
+        setSelectedCard(updatedCard);
+        setCards((prev) => prev.map((c) => (c.id === selectedCard.id ? updatedCard : c)));
+      } catch (err: any) {
+        alert(err?.message ?? "Erro ao salvar vínculo com laboratório.");
+      } finally {
+        setLabServiceLinksSaving(false);
+      }
+    },
+    [actorOptions, selectedCard]
+  );
+
+  const handleCreateLabServiceFromVehicle = async () => {
+    if (!selectedCard || !serviceOrderDetail?.customers?.id) return;
+    if (serviceOrderDetail.customers.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID) return;
+
+    const selectedBudgetService = budgetServiceOptions.find((x) => x.key === newLabBudgetRef);
+    const serviceLabel =
+      newLabServiceMode === "budget"
+        ? selectedBudgetService?.label?.trim() ?? ""
+        : newLabManualLabel.trim();
+    if (!serviceLabel) {
+      alert("Informe o serviço a enviar para o laboratório.");
+      return;
+    }
+
+    setCreatingLabService(true);
+    try {
+      const created = await createServiceOrder({
+        customerId: serviceOrderDetail.customers.id,
+        orderType: "module",
+        vehicleModel: (serviceOrderDetail.vehicle_model || "").trim() || "Serviço de laboratório",
+        moduleIdentification: serviceLabel,
+        moduleKind: "outro",
+        moduleVehicleKind: "carro",
+        moduleProductOther: serviceLabel,
+        issueDescription: `Serviço enviado do pátio (OS #${serviceOrderDetail.os_number ?? "—"}): ${serviceLabel}`,
+      });
+      const next: LabServiceLink[] = [
+        ...labServiceLinksDraft,
+        {
+          id: crypto.randomUUID(),
+          serviceLabel,
+          source: newLabServiceMode,
+          sourceBudgetId: selectedBudgetService?.budgetId ?? null,
+          sourceBudgetItemIndex: selectedBudgetService?.serviceIndex ?? null,
+          laboratoryOrderId: created.id,
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      await handleSaveLabServiceLinks(next);
+      setNewLabManualLabel("");
+      setNewLabBudgetRef("");
+    } catch (err: any) {
+      alert(err?.message ?? "Não foi possível criar o serviço no laboratório.");
+    } finally {
+      setCreatingLabService(false);
+    }
+  };
+
+  const handleRemoveLabServiceLink = async (linkId: string) => {
+    const next = labServiceLinksDraft.filter((l) => l.id !== linkId);
+    await handleSaveLabServiceLinks(next);
   };
 
   // --- Budget Functions ---
@@ -5629,6 +5791,117 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                          </div>
                          )}
+
+                        {!isModuleMode && can('canEditBudgets') && (
+                          <div className="mt-3">
+                            <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
+                              <div className="relative min-w-0">
+                                <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                    <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                  </div>
+                                  <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[17px]">
+                                    Serviços no laboratório
+                                  </p>
+                                </div>
+
+                                <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+                                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
+                                    <select
+                                      value={newLabServiceMode}
+                                      onChange={(e) => setNewLabServiceMode(e.target.value === "manual" ? "manual" : "budget")}
+                                      className={`${vin} !h-11 !py-0 text-[13px]`}
+                                    >
+                                      <option value="budget">Do orçamento</option>
+                                      <option value="manual">Manual</option>
+                                    </select>
+                                    {newLabServiceMode === "budget" ? (
+                                      <select
+                                        value={newLabBudgetRef}
+                                        onChange={(e) => setNewLabBudgetRef(e.target.value)}
+                                        className={`${vin} !h-11 !py-0 text-[13px]`}
+                                      >
+                                        <option value="">Selecione o serviço do orçamento</option>
+                                        {budgetServiceOptions.map((opt) => (
+                                          <option key={opt.key} value={opt.key}>
+                                            {opt.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    ) : (
+                                      <input
+                                        value={newLabManualLabel}
+                                        onChange={(e) => setNewLabManualLabel(e.target.value)}
+                                        placeholder="Ex.: reparo de módulo ABS"
+                                        className={`${vin} !h-11 !py-0 text-[13px]`}
+                                      />
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleCreateLabServiceFromVehicle()}
+                                      disabled={creatingLabService || labServiceLinksSaving}
+                                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#007AFF] px-3 py-2 text-[13px] font-semibold text-white disabled:opacity-55"
+                                    >
+                                      {creatingLabService ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                      Enviar
+                                    </button>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    {labServiceLinksDraft.length === 0 ? (
+                                      <p className="rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-4 text-[13px] text-zinc-600 dark:border-white/[0.12] dark:bg-white/[0.04] dark:text-zinc-400">
+                                        Nenhum serviço enviado ao laboratório.
+                                      </p>
+                                    ) : (
+                                      labServiceLinksDraft.map((link) => {
+                                        const linkedOrder = labOrdersLookup[link.laboratoryOrderId];
+                                        const statusLabel = linkedOrder
+                                          ? getStageConfig(linkedOrder.status, "module")?.name ?? linkedOrder.status
+                                          : "Não localizado";
+                                        const statusStyle = linkedOrder
+                                          ? getStageStyle(linkedOrder.status, "module")
+                                          : "bg-zinc-500 text-white border-zinc-600";
+                                        return (
+                                          <div
+                                            key={link.id}
+                                            className="flex flex-col gap-2 rounded-xl border border-zinc-200/70 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60 sm:flex-row sm:items-center sm:justify-between"
+                                          >
+                                            <div className="min-w-0">
+                                              <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">{link.serviceLabel}</p>
+                                              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                                {link.source === "budget" ? "Origem: orçamento" : "Origem: manual"} · OS lab {link.laboratoryOrderId.slice(0, 8)}
+                                              </p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${statusStyle}`}>
+                                                {statusLabel}
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() => onOpenLaboratoryOrder?.(link.laboratoryOrderId)}
+                                                className="inline-flex items-center gap-1 rounded-lg border border-[#007AFF]/25 bg-[#007AFF]/10 px-2.5 py-1.5 text-[12px] font-semibold text-[#007AFF]"
+                                              >
+                                                Abrir <ArrowRight className="h-3.5 w-3.5" />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => void handleRemoveLabServiceLink(link.id)}
+                                                disabled={labServiceLinksSaving}
+                                                className="inline-flex items-center gap-1 rounded-lg border border-red-300/70 bg-red-50 px-2.5 py-1.5 text-[12px] font-semibold text-red-700 dark:border-red-500/35 dark:bg-red-500/10 dark:text-red-300 disabled:opacity-60"
+                                              >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        );
+                                      })
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
 

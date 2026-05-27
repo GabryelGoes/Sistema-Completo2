@@ -68,6 +68,7 @@ export default function App() {
   const [commentPopUpNotification, setCommentPopUpNotification] = useState<Notification | null>(null);
   /** Visualizar orçamento a partir do hub (permanece na aba Orçamentos). */
   const [hubBudgetViewer, setHubBudgetViewer] = useState<{ serviceOrderId: string; budgetId: string } | null>(null);
+  const [laboratorioPendingOrderId, setLaboratorioPendingOrderId] = useState<string | null>(null);
   const [vehicleAccompanimentOpen, setVehicleAccompanimentOpen] = useState(false);
   const [vehicleAccompanimentPresetId, setVehicleAccompanimentPresetId] = useState<string | null>(null);
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
@@ -231,6 +232,23 @@ export default function App() {
 
   const handleOpenBudgetFromHub = useCallback((serviceOrderId: string, budgetId: string) => {
     setHubBudgetViewer({ serviceOrderId, budgetId });
+  }, []);
+
+  const handleOpenLaboratoryOrderFromPatio = useCallback(
+    (serviceOrderId: string) => {
+      setLaboratorioPendingOrderId(serviceOrderId);
+      if (isLimitedSystemUser) {
+        if (userAllowedTabs.includes('laboratorio')) setUserTab('laboratorio');
+        else setUserTab('home');
+      } else {
+        setCurrentTab('laboratorio');
+      }
+    },
+    [isLimitedSystemUser, userAllowedTabs]
+  );
+
+  const handleLaboratoryOrderHandled = useCallback(() => {
+    setLaboratorioPendingOrderId(null);
   }, []);
 
   const navigateToHomeApp = useCallback(() => {
@@ -755,6 +773,7 @@ export default function App() {
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'patio'}
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
+              onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
@@ -774,9 +793,9 @@ export default function App() {
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'laboratorio'}
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
-              openServiceOrderId={null}
+              openServiceOrderId={laboratorioPendingOrderId}
               openServiceOrderSection={null}
-              onOpenServiceOrderHandled={() => {}}
+              onOpenServiceOrderHandled={handleLaboratoryOrderHandled}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
@@ -1034,6 +1053,7 @@ export default function App() {
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'patio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
+            onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         </KeepAliveTabPanel>
@@ -1053,9 +1073,9 @@ export default function App() {
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'laboratorio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
-            openServiceOrderId={null}
+            openServiceOrderId={laboratorioPendingOrderId}
             openServiceOrderSection={null}
-            onOpenServiceOrderHandled={() => {}}
+            onOpenServiceOrderHandled={handleLaboratoryOrderHandled}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         </KeepAliveTabPanel>

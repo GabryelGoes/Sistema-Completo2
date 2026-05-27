@@ -98,6 +98,17 @@ export interface VehicleReferenceLink {
   url: string;
 }
 
+/** Vínculo de serviço do pátio com uma OS do laboratório. */
+export interface LabServiceLink {
+  id: string;
+  serviceLabel: string;
+  source: "budget" | "manual";
+  sourceBudgetId?: string | null;
+  sourceBudgetItemIndex?: number | null;
+  laboratoryOrderId: string;
+  createdAt: string;
+}
+
 export interface BoardCard {
   id: string;
   name: string;
@@ -126,6 +137,8 @@ export interface BoardCard {
   vehicleEngineInfo?: string | null;
   /** Links úteis salvos no modal do veículo/módulo. */
   referenceLinks?: VehicleReferenceLink[];
+  /** Serviços do pátio enviados para OS do laboratório (vínculos). */
+  labServiceLinks?: LabServiceLink[];
 }
 
 /** Aliases usados pelo Pátio / quadro. */

@@ -1927,7 +1927,7 @@ export function createApiApp() {
 
   // ----------------- ORDENS DE SERVIÇO -----------------
   const SERVICE_ORDERS_LIST_SELECT =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   const SERVICE_ORDERS_PAGE_SIZE = 1000;
 
   /** PostgREST limita ~1000 linhas por request — pagina até trazer todas as OS da oficina. */
@@ -5391,6 +5391,7 @@ export function createApiApp() {
         orderType: bodyOrderType,
         vehicleCategory: bodyVehicleCategoryPut,
         referenceLinks: bodyReferenceLinks,
+        labServiceLinks: bodyLabServiceLinks,
         vehicleColor: bodyVehicleColorPut,
         vehicleYear: bodyVehicleYearPut,
         vehicleEngineInfo: bodyVehicleEngineInfoPut,
@@ -5551,6 +5552,55 @@ export function createApiApp() {
           normalized.push({ id, label, url: href });
         }
         updatePayload.reference_links = normalized;
+      }
+      if (bodyLabServiceLinks !== undefined) {
+        if (!Array.isArray(bodyLabServiceLinks)) {
+          return res.status(400).json({ error: "labServiceLinks deve ser um array." });
+        }
+        const normalized: {
+          id: string;
+          serviceLabel: string;
+          source: "budget" | "manual";
+          sourceBudgetId: string | null;
+          sourceBudgetItemIndex: number | null;
+          laboratoryOrderId: string;
+          createdAt: string;
+        }[] = [];
+        for (const item of bodyLabServiceLinks.slice(0, 80)) {
+          if (!item || typeof item !== "object") continue;
+          const o = item as Record<string, unknown>;
+          const serviceLabel = typeof o.serviceLabel === "string" ? o.serviceLabel.trim().slice(0, 180) : "";
+          const sourceRaw = typeof o.source === "string" ? o.source.trim().toLowerCase() : "";
+          const source = sourceRaw === "budget" ? "budget" : "manual";
+          const laboratoryOrderId =
+            typeof o.laboratoryOrderId === "string" ? o.laboratoryOrderId.trim().slice(0, 80) : "";
+          if (!serviceLabel || !laboratoryOrderId) continue;
+          const sourceBudgetId =
+            typeof o.sourceBudgetId === "string" && o.sourceBudgetId.trim()
+              ? o.sourceBudgetId.trim().slice(0, 80)
+              : null;
+          const sourceBudgetItemIndex = Number.isFinite(Number(o.sourceBudgetItemIndex))
+            ? Number(o.sourceBudgetItemIndex)
+            : null;
+          const id =
+            typeof o.id === "string" && o.id.trim()
+              ? o.id.trim().slice(0, 80)
+              : crypto.randomUUID();
+          const createdAt =
+            typeof o.createdAt === "string" && o.createdAt.trim()
+              ? o.createdAt.trim()
+              : new Date().toISOString();
+          normalized.push({
+            id,
+            serviceLabel,
+            source,
+            sourceBudgetId,
+            sourceBudgetItemIndex,
+            laboratoryOrderId,
+            createdAt,
+          });
+        }
+        updatePayload.lab_service_links = normalized;
       }
 
       if (diagnosticAuthorizationSignaturePath !== undefined) {

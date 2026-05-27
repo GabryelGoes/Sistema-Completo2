@@ -1,4 +1,4 @@
-import { Customer, type VehicleReferenceLink } from "../types";
+import { Customer, type LabServiceLink, type VehicleReferenceLink } from "../types";
 import type { Appointment } from "../types";
 import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
 import { API_BASE } from "./apiConfig";
@@ -85,6 +85,8 @@ export interface ServiceOrderListItem {
   vehicle_engine_info?: string | null;
   /** Links anexados ao modal (JSON no banco). */
   reference_links?: VehicleReferenceLink[] | null;
+  /** Vínculos de serviços do pátio enviados ao laboratório. */
+  lab_service_links?: LabServiceLink[] | null;
   diagnostic_authorization_signed_at?: string | null;
   diagnostic_authorization_signature_path?: string | null;
   created_at: string;
@@ -119,6 +121,8 @@ export interface ServiceOrderDetail {
   vehicle_year?: string | null;
   vehicle_engine_info?: string | null;
   reference_links?: VehicleReferenceLink[] | null;
+  /** Vínculos de serviços do pátio enviados ao laboratório. */
+  lab_service_links?: LabServiceLink[] | null;
   diagnostic_authorization_signed_at?: string | null;
   diagnostic_authorization_signature_path?: string | null;
   created_at: string;
@@ -1309,6 +1313,25 @@ export async function updateServiceOrderReferenceLinks(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao salvar links (${response.status})`);
+  }
+  return response.json();
+}
+
+/** Atualiza os vínculos de serviços enviados ao laboratório (substitui a lista inteira). */
+export async function updateServiceOrderLabServiceLinks(
+  id: string,
+  links: LabServiceLink[],
+  options?: ServiceOrderUpdateActor
+): Promise<ApiServiceOrder> {
+  const body = mergeActorIntoBody({ labServiceLinks: links }, options);
+  const response = await fetch(`${API_BASE}/service-orders/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao salvar serviços do laboratório (${response.status})`);
   }
   return response.json();
 }
