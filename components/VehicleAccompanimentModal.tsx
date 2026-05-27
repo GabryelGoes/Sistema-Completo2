@@ -1,5 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X, Loader2, Camera, Copy, MessageCircle, Trash2, MapPin, Search, Save } from 'lucide-react';
+import {
+  X,
+  Loader2,
+  Camera,
+  Copy,
+  MessageCircle,
+  Trash2,
+  MapPin,
+  Search,
+  Save,
+  RefreshCw,
+  Archive,
+  CarFront,
+} from 'lucide-react';
 import { ModalPortal } from './ui/ModalPortal';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { desktopShellViewportOverlayClass } from '../utils/desktopShellOverlay';
@@ -17,6 +30,51 @@ import {
 } from '../services/apiService';
 import { getVehiclePhotoPublicUrl } from '../utils/vehicleStoragePublicUrl';
 import { getStageConfig, getStageStyle, isServiceOrderActivePatioFlow } from '../constants/serviceOrderStages';
+
+const VAC_MODULE_ICON = '/icons/recepcao-ios.png';
+
+const shell =
+  'rounded-[22px] border border-zinc-200/80 dark:border-white/[0.08] bg-white/75 dark:bg-zinc-900/45 backdrop-blur-2xl ' +
+  'shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.45)]';
+
+/** OS em fluxo ativo no pátio (não cancelada). */
+function isOrderActivePatio(o: ServiceOrderListItem): boolean {
+  return o.status !== 'CANCELLED' && isServiceOrderActivePatioFlow(o.status);
+}
+
+function vehicleDisplayName(o: ServiceOrderListItem): string {
+  const brand = (o.vehicle_brand ?? '').trim();
+  const model = (o.vehicle_model ?? '').trim();
+  const joined = [brand, model].filter(Boolean).join(' ').trim();
+  return joined || model || 'Veículo sem nome';
+}
+
+function normalizePlate(s: string): string {
+  return s.replace(/[\s-]/g, '').toLowerCase();
+}
+
+function orderMatchesQuery(o: ServiceOrderListItem, raw: string): boolean {
+  const q = raw.trim().toLowerCase();
+  if (!q) return true;
+  const customer = (o.customer_name ?? o.customers?.name ?? '').toLowerCase();
+  const vehicle = vehicleDisplayName(o).toLowerCase();
+  const plateNorm = normalizePlate(o.plate ?? '');
+  const qPlate = normalizePlate(q);
+  if (customer.includes(q) || vehicle.includes(q)) return true;
+  if (plateNorm && qPlate && plateNorm.includes(qPlate)) return true;
+  return false;
+}
+
+/** Mais recentes primeiro (entrada na oficina / última atualização). */
+const sortMostRecentFirst = (a: ServiceOrderListItem, b: ServiceOrderListItem) => {
+  const ta = new Date(a.created_at).getTime();
+  const tb = new Date(b.created_at).getTime();
+  if (tb !== ta) return tb - ta;
+  const na = a.os_number ?? 0;
+  const nb = b.os_number ?? 0;
+  if (nb !== na) return nb - na;
+  return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+};
 
 /** Cartão com vidro, sombra em camadas e leve tinta (Central do atendimento). */
 const vacCard =
@@ -63,13 +121,6 @@ interface VehicleAccompanimentModalProps {
   initialServiceOrderId?: string | null;
 }
 
-const sortOrdersForUi = (a: ServiceOrderListItem, b: ServiceOrderListItem) => {
-  const na = a.os_number ?? 0;
-  const nb = b.os_number ?? 0;
-  if (na !== nb) return nb - na;
-  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-};
-
 export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps> = ({
   isOpen,
   onClose,
@@ -88,6 +139,8 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
   const [placaExtra, setPlacaExtra] = useState('');
   const [placaLookup, setPlacaLookup] = useState<PlacaFipeLookupResult | null>(null);
   const [placaLoading, setPlacaLoading] = useState(false);
+  const [orderScope, setOrderScope] = useState<'patio' | 'arquivados'>('patio');
+  const [listSearch, setListSearch] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const wasOpenRef = useRef(false);
 
@@ -97,17 +150,38 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
       return;
     }
     if (!wasOpenRef.current) {
-      setSelectedId(initialServiceOrderId ?? "");
+      setSelectedId(initialServiceOrderId ?? '');
+      setListSearch('');
+      setOrderScope('patio');
       wasOpenRef.current = true;
     }
   }, [isOpen, initialServiceOrderId]);
 
-  const { patioOrders, otherOrders } = useMemo(() => {
-    const nonCancelled = orders.filter((o) => o.status !== "CANCELLED");
-    const patio = nonCancelled.filter((o) => isServiceOrderActivePatioFlow(o.status)).sort(sortOrdersForUi);
-    const other = nonCancelled.filter((o) => !isServiceOrderActivePatioFlow(o.status)).sort(sortOrdersForUi);
-    return { patioOrders: patio, otherOrders: other };
-  }, [orders]);
+  const vehicleOrders = useMemo(
+    () => orders.filter((o) => (o.order_type ?? 'vehicle') === 'vehicle'),
+    [orders]
+  );
+
+  const scopeStats = useMemo(() => {
+    const patio = vehicleOrders.filter(isOrderActivePatio);
+    const arquivados = vehicleOrders.filter((o) => !isOrderActivePatio(o));
+    return { patio: patio.length, arquivados: arquivados.length, total: vehicleOrders.length };
+  }, [vehicleOrders]);
+
+  const filteredOrdersForList = useMemo(() => {
+    const scoped =
+      orderScope === 'patio'
+        ? vehicleOrders.filter(isOrderActivePatio)
+        : vehicleOrders.filter((o) => !isOrderActivePatio(o));
+    const searched = scoped.filter((o) => orderMatchesQuery(o, listSearch));
+    return [...searched].sort(sortMostRecentFirst);
+  }, [vehicleOrders, orderScope, listSearch]);
+
+  useEffect(() => {
+    if (!initialServiceOrderId || vehicleOrders.length === 0) return;
+    const o = vehicleOrders.find((x) => x.id === initialServiceOrderId);
+    if (o && !isOrderActivePatio(o)) setOrderScope('arquivados');
+  }, [initialServiceOrderId, vehicleOrders]);
 
   const selectedOrder = useMemo(
     () => orders.find((o) => o.id === selectedId) ?? null,
@@ -289,38 +363,16 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
         aria-modal="true"
         aria-labelledby="vac-title"
       >
-        {/* Atmosfera — orbes suaves (marca + azul iOS + violeta) */}
+        {/* Fundo no estilo Radar / Boletim */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-32 left-[12%] h-[min(420px,55vw)] w-[min(420px,55vw)] rounded-full bg-[#007AFF]/30 blur-[100px] dark:bg-[#007AFF]/22" />
-          <div className="absolute top-1/3 -right-24 h-80 w-80 rounded-full bg-brand-yellow/35 blur-[95px] dark:bg-brand-yellow/18" />
-          <div className="absolute bottom-0 left-0 h-72 w-72 translate-y-1/4 rounded-full bg-violet-500/25 blur-[88px] dark:bg-violet-500/14" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(255,255,255,0.14),transparent_55%)] dark:bg-[radial-gradient(ellipse_70%_45%_at_50%_0%,rgba(0,122,255,0.12),transparent_50%)]" />
+          <div className="absolute -left-16 top-0 h-72 w-72 rounded-full bg-blue-400/30 blur-[100px] dark:bg-blue-500/20" />
+          <div className="absolute right-0 top-32 h-80 w-80 rounded-full bg-sky-400/25 blur-[110px] dark:opacity-80" />
         </div>
 
         <div
           className={`relative flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden rounded-none border-0 bg-gradient-to-b from-zinc-50/95 via-light-page to-zinc-100/90 dark:from-zinc-950 dark:via-[#0a0c12] dark:to-black${isDesktopShell ? '' : ' h-[100dvh]'}`}
         >
-          {!isDesktopShell ? (
-          <header className="relative flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/60 bg-gradient-to-r from-white/80 via-[#f0f4ff]/90 to-[#fff9e6]/80 px-4 py-[max(0.75rem,env(safe-area-inset-top))] pb-3 backdrop-blur-xl dark:border-white/[0.07] dark:from-zinc-900/80 dark:via-[#0d1528]/85 dark:to-zinc-950/80">
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#007AFF]/35 to-transparent dark:via-[#64B5FF]/30" />
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#007AFF] dark:text-[#7ab8ff]">
-                Oficina
-              </p>
-              <h1 id="vac-title" className="text-[18px] font-bold tracking-tight text-zinc-950 dark:text-white">
-                Central do atendimento
-              </h1>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200/80 bg-white/90 text-zinc-700 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.12)] transition-all hover:bg-white hover:shadow-md active:scale-95 dark:border-white/[0.1] dark:bg-zinc-800/90 dark:text-zinc-100 dark:hover:bg-zinc-800"
-              aria-label="Fechar"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </header>
-          ) : (
+          {isDesktopShell ? (
             <button
               type="button"
               onClick={onClose}
@@ -329,54 +381,201 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
             >
               <X className="h-5 w-5" />
             </button>
-          )}
+          ) : null}
 
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-5 space-y-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable]">
-            {error ? (
-              <p className="rounded-xl border border-red-500/30 bg-gradient-to-br from-red-500/12 to-red-600/5 px-3 py-2.5 text-[13px] text-red-700 shadow-[0_4px_20px_-8px_rgba(220,38,38,0.25)] dark:text-red-300">
-                {error}
-              </p>
-            ) : null}
+          <div
+            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable] ${isDesktopShell ? 'pt-14' : 'pt-[max(0.5rem,env(safe-area-inset-top))]'}`}
+          >
+            <div className="relative mx-auto flex max-w-4xl flex-col gap-4 px-4 py-4 md:px-6">
+              {error ? (
+                <p className="rounded-xl border border-red-500/30 bg-gradient-to-br from-red-500/12 to-red-600/5 px-3 py-2.5 text-[13px] text-red-700 shadow-[0_4px_20px_-8px_rgba(220,38,38,0.25)] dark:text-red-300">
+                  {error}
+                </p>
+              ) : null}
 
-            <section className={`relative pl-5 pr-4 py-4 ${vacCard}`}>
-              <span className={vacCardAccent} aria-hidden />
-              <label className={`${vacSectionTitle} relative block mb-3`}>
-                Ordem de serviço (veículo)
-              </label>
-              {ordersLoading ? (
-                <div className="flex items-center gap-2 text-zinc-500 text-sm py-2">
-                  <Loader2 className="h-4 w-4 animate-spin" /> A carregar…
+              <header className={`app-view-page-header relative overflow-hidden ${shell} p-5 md:p-6`}>
+                <div className="pointer-events-none absolute inset-0 bg-[#2563eb]" />
+                <div className="relative flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="app-view-page-chrome min-w-0 space-y-1 text-white">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-100">Oficina</p>
+                    <h1
+                      id="vac-title"
+                      className="flex items-center gap-2 text-xl font-bold tracking-tight md:text-[1.75rem]"
+                    >
+                      <img src={VAC_MODULE_ICON} alt="" className="h-9 w-9 shrink-0 rounded-xl object-cover" />
+                      Central do atendimento
+                    </h1>
+                    <p className="max-w-xl text-[14px] leading-relaxed text-blue-50">
+                      Busque por placa, nome do cliente ou nome do veículo. Escolha se a lista vem do pátio (em
+                      andamento) ou dos arquivados (finalizadas, canceladas, etc.). Ordem: mais recentes primeiro.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void loadOrders()}
+                      disabled={ordersLoading}
+                      className="inline-flex items-center gap-2 rounded-2xl bg-white/20 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-white/30 disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${ordersLoading ? 'animate-spin' : ''}`} />
+                      Atualizar
+                    </button>
+                    {!isDesktopShell ? (
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-4 py-2 text-[13px] font-semibold text-white shadow-lg transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-900"
+                      >
+                        <X className="h-4 w-4" />
+                        Fechar
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-              ) : (
-                <select
-                  value={selectedId}
-                  onChange={(e) => setSelectedId(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200/90 bg-white/95 px-3 py-3.5 text-[15px] text-zinc-900 shadow-inner shadow-zinc-900/5 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/90 dark:text-white dark:focus:ring-[#64B5FF]/30"
-                >
-                  <option value="">Selecione uma OS…</option>
-                  {patioOrders.length > 0 ? (
-                    <optgroup label="Veículos no pátio (em andamento)">
-                      {patioOrders.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          OS #{o.os_number ?? '—'} · {(o.plate || 'sem placa').toUpperCase()} ·{' '}
-                          {(o.customer_name || o.customers?.name || 'Cliente').slice(0, 40)}
-                        </option>
-                      ))}
-                    </optgroup>
+              </header>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  { label: 'No pátio', value: scopeStats.patio, card: 'border-blue-600 bg-blue-600' },
+                  { label: 'Arquivados', value: scopeStats.arquivados, card: 'border-zinc-600 bg-zinc-500' },
+                  { label: 'Total veículos', value: scopeStats.total, card: 'border-sky-600 bg-sky-500' },
+                  {
+                    label: orderScope === 'patio' ? 'Lista (pátio)' : 'Lista (arquivados)',
+                    value: filteredOrdersForList.length,
+                    card: 'border-violet-600 bg-violet-500',
+                  },
+                ].map((k) => (
+                  <div key={k.label} className={`rounded-2xl border p-4 text-white shadow-md ${k.card}`}>
+                    <p className="text-[12px] font-semibold text-white/90">{k.label}</p>
+                    <p className="mt-1 text-2xl font-bold tabular-nums sm:text-3xl">
+                      {ordersLoading ? '—' : k.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className={`${shell} p-4`}>
+                <p className="mb-3 text-[12px] font-semibold text-zinc-600 dark:text-zinc-400">Origem da lista</p>
+                <div className="mb-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setOrderScope('patio')}
+                    className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-[13px] font-semibold transition ${
+                      orderScope === 'patio'
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'border border-zinc-200/90 bg-white text-zinc-800 hover:border-blue-300 dark:border-white/[0.1] dark:bg-zinc-950 dark:text-zinc-100'
+                    }`}
+                  >
+                    <CarFront className="h-4 w-4 shrink-0" />
+                    No pátio
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrderScope('arquivados')}
+                    className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-[13px] font-semibold transition ${
+                      orderScope === 'arquivados'
+                        ? 'bg-zinc-800 text-white shadow-md dark:bg-zinc-700'
+                        : 'border border-zinc-200/90 bg-white text-zinc-800 hover:border-zinc-400 dark:border-white/[0.1] dark:bg-zinc-950 dark:text-zinc-100'
+                    }`}
+                  >
+                    <Archive className="h-4 w-4 shrink-0" />
+                    Arquivados
+                  </button>
+                  {listSearch.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => setListSearch('')}
+                      className="ml-auto text-[12px] font-semibold text-blue-600 dark:text-blue-400"
+                    >
+                      Limpar busca
+                    </button>
                   ) : null}
-                  {otherOrders.length > 0 ? (
-                    <optgroup label={patioOrders.length > 0 ? 'Demais OS' : 'Ordens de serviço'}>
-                      {otherOrders.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          OS #{o.os_number ?? '—'} · {(o.plate || 'sem placa').toUpperCase()} ·{' '}
-                          {(o.customer_name || o.customers?.name || 'Cliente').slice(0, 40)}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ) : null}
-                </select>
-              )}
-            </section>
+                </div>
+
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    type="search"
+                    value={listSearch}
+                    onChange={(e) => setListSearch(e.target.value)}
+                    placeholder="Placa, cliente ou nome do veículo…"
+                    className="w-full rounded-2xl border border-zinc-200/90 bg-white py-2.5 pl-10 pr-4 text-[14px] outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-white/[0.1] dark:bg-zinc-950 dark:text-white"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <p className="mb-3 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Ordenação: data de criação (mais recente no topo).
+                  {selectedOrder
+                    ? ` OS #${selectedOrder.os_number ?? '—'} selecionada.`
+                    : ' Toque num veículo na lista para ver detalhes, fotos e partilha.'}
+                </p>
+
+                {ordersLoading ? (
+                  <div className="flex flex-col items-center gap-3 py-12 text-zinc-500">
+                    <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+                    <p className="text-[14px]">A carregar ordens de serviço…</p>
+                  </div>
+                ) : filteredOrdersForList.length === 0 ? (
+                  <div className="flex flex-col items-center gap-3 py-12 text-center">
+                    <CarFront className="h-12 w-12 text-blue-500 opacity-80" />
+                    <p className="text-[15px] font-medium text-zinc-700 dark:text-zinc-300">
+                      {listSearch.trim()
+                        ? 'Nenhum veículo corresponde à busca nesta origem.'
+                        : orderScope === 'patio'
+                          ? 'Não há veículos no pátio neste momento.'
+                          : 'Não há veículos arquivados para mostrar.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex max-h-[min(52vh,28rem)] flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
+                    {filteredOrdersForList.map((o) => {
+                      const customer = o.customer_name || o.customers?.name || 'Cliente';
+                      const plate = (o.plate || '—').toUpperCase();
+                      const vehicle = vehicleDisplayName(o);
+                      const stageName =
+                        getStageConfig(o.status)?.name ?? o.status.replace(/_/g, ' ');
+                      return (
+                        <button
+                          key={o.id}
+                          type="button"
+                          onClick={() => setSelectedId(o.id)}
+                          className={`w-full rounded-2xl border p-4 text-left transition hover:border-blue-400/60 hover:shadow-md dark:hover:border-blue-500/40 ${
+                            selected
+                              ? 'border-blue-500 bg-blue-50/80 ring-2 ring-blue-500/40 dark:border-blue-500/50 dark:bg-blue-950/30'
+                              : 'border-zinc-200/80 bg-white dark:border-white/[0.08] dark:bg-zinc-950/50'
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-lg bg-zinc-900 px-2 py-0.5 font-mono text-[11px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
+                              {plate}
+                            </span>
+                            <span
+                              className={`rounded-lg border-2 border-black/10 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide ${getStageStyle(o.status)}`}
+                            >
+                              {stageName}
+                            </span>
+                            <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                              OS #{o.os_number ?? '—'}
+                            </span>
+                          </div>
+                          <h3 className="mt-2 text-[15px] font-bold text-zinc-900 dark:text-white">{vehicle}</h3>
+                          <p className="mt-0.5 text-[13px] text-zinc-600 dark:text-zinc-400">{customer}</p>
+                          <p className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+                            Entrada: {new Date(o.created_at).toLocaleString('pt-BR', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
             {selectedOrder ? (
               <>
@@ -598,6 +797,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                 </div>
               </>
             ) : null}
+            </div>
           </div>
         </div>
       </div>
