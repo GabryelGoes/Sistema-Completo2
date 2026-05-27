@@ -106,6 +106,7 @@ import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { usePatioBoardLiveSync } from '../../hooks/usePatioBoardLiveSync';
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from '../../utils/budgetPrintWithDetail';
+import { printLabModuleFicha } from '../../utils/labModuleFichaPrint';
 import { PATIO_CARD_TITLE_SEP, parsePatioCardTitle } from '../../utils/patioCardTitle';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
@@ -2930,6 +2931,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
     });
   };
 
+  const handlePrintLabModuleFicha = useCallback(() => {
+    if (!isModuleMode || !serviceOrderDetail || !selectedCard) return;
+    const photoUrls = (cardDetails?.attachments ?? [])
+      .map((a) => a.url)
+      .filter((u): u is string => !!u?.trim() && !isPdfAttachmentUrl(u));
+    printLabModuleFicha({
+      detail: serviceOrderDetail,
+      complaint: stripLegacyVehicleCategoryFromComplaint(
+        serviceOrderDetail.issue_description ?? selectedCard.desc ?? ''
+      ),
+      statusLabel: lists.find((l) => l.id === selectedCard.idList)?.name,
+      photoUrls,
+      technicianName: selectedCard.members?.[0]?.fullName ?? null,
+      deliveryDate: serviceOrderDetail.delivery_date ?? selectedCard.deliveryDate ?? null,
+      referenceLinks: parseReferenceLinksFromApi(serviceOrderDetail.reference_links),
+    });
+  }, [isModuleMode, serviceOrderDetail, selectedCard, cardDetails, lists]);
+
   const addServiceRow = () => {
     setBudgetServices([...budgetServices, { id: Date.now().toString(), description: '', laborHours: null }]);
   };
@@ -4834,6 +4853,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
            <div className={`${patioVehicleVm.shell} animate-modal-wp-app ${modalRingClass}`}>
               
               <div className={`absolute z-20 flex items-center gap-2 ${isPatioPcModal ? 'top-4 right-5 xl:right-6' : 'top-4 right-4'}`}>
+                {isModuleMode && serviceOrderDetail && !loadingDetails ? (
+                  <button
+                    type="button"
+                    onClick={handlePrintLabModuleFicha}
+                    className={`${patioVehicleVm.closeBtn} !border-violet-500/40 !bg-violet-600 !text-white shadow-md shadow-violet-500/25 hover:!bg-violet-500 dark:!bg-violet-600 dark:hover:!bg-violet-500`}
+                    title="Imprimir ficha do produto"
+                    aria-label="Imprimir ficha do produto"
+                  >
+                    <Printer className="h-5 w-5" />
+                  </button>
+                ) : null}
                 {can('canDeleteCards') && (
                 <button
                   type="button"
@@ -5707,19 +5737,31 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   Queixa do cliente
                                 </p>
                               </div>
-                              {can('canEditQueixa') && !isEditingDesc && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setIsEditingDesc(true);
-                                    setDescText(selectedCard.desc || '');
-                                  }}
-                                  className="relative z-[1] inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
-                                >
-                                  <Pencil className="h-3 w-3" aria-hidden strokeWidth={2.5} />
-                                  Editar
-                                </button>
-                              )}
+                              <div className="relative z-[1] flex shrink-0 items-center gap-1.5">
+                                {isModuleMode && serviceOrderDetail && !loadingDetails ? (
+                                  <button
+                                    type="button"
+                                    onClick={handlePrintLabModuleFicha}
+                                    className="inline-flex items-center gap-1 rounded-xl border border-violet-500/35 bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm shadow-violet-500/20 transition-colors hover:bg-violet-500"
+                                  >
+                                    <Printer className="h-3 w-3" aria-hidden strokeWidth={2.5} />
+                                    Imprimir ficha
+                                  </button>
+                                ) : null}
+                                {can('canEditQueixa') && !isEditingDesc ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setIsEditingDesc(true);
+                                      setDescText(selectedCard.desc || '');
+                                    }}
+                                    className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
+                                  >
+                                    <Pencil className="h-3 w-3" aria-hidden strokeWidth={2.5} />
+                                    Editar
+                                  </button>
+                                ) : null}
+                              </div>
                             </div>
 
                             {isEditingDesc ? (
