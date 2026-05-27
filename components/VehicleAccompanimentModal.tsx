@@ -535,6 +535,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                       const vehicle = vehicleDisplayName(o);
                       const stageName =
                         getStageConfig(o.status)?.name ?? o.status.replace(/_/g, ' ');
+                      const selected = o.id === selectedId;
                       return (
                         <button
                           key={o.id}
