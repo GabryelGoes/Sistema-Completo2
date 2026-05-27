@@ -794,51 +794,21 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                     <div className="mx-auto grid w-full max-w-[1680px] grid-cols-1 gap-4 xl:grid-cols-2">
                     <section className={`relative pl-5 pr-4 py-4 ${vacCard} space-y-3`}>
                       <span className={vacCardAccent} aria-hidden />
-                      <h2 className={`${vacSectionTitle} relative`}>Dados da OS e consulta placa (Mercosul)</h2>
-                  <div className="text-[14px] space-y-1 text-zinc-800 dark:text-zinc-200">
-                    <p>
-                      <span className="text-zinc-500">Placa na OS: </span>
-                      <span className="font-mono font-semibold">{(selectedOrder.plate || '—').toUpperCase()}</span>
-                    </p>
-                    <p>
-                      <span className="text-zinc-500">Cliente: </span>
-                      {selectedOrder.customer_name || selectedOrder.customers?.name || '—'}
-                    </p>
-                    <p>
-                      {[selectedOrder.vehicle_brand, selectedOrder.vehicle_model].filter(Boolean).join(' ') || '—'}
-                    </p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                    <input
-                      value={placaExtra}
-                      onChange={(e) => setPlacaExtra(e.target.value.toUpperCase())}
-                      placeholder="Outra placa (opcional)"
-                      maxLength={7}
-                      className="flex-1 rounded-xl border border-zinc-200/90 bg-white/95 px-3 py-2.5 font-mono text-[15px] shadow-inner shadow-zinc-900/5 focus:border-[#007AFF]/45 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20 dark:border-white/[0.12] dark:bg-zinc-950/90"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void handleConsultPlaca()}
-                      disabled={placaLoading}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-950 px-4 py-2.5 text-[14px] font-semibold text-white shadow-[0_8px_24px_-6px_rgba(0,0,0,0.35)] transition-transform hover:brightness-110 active:scale-[0.98] disabled:opacity-50 dark:from-white dark:to-zinc-200 dark:text-zinc-900 dark:shadow-[0_8px_28px_-8px_rgba(255,255,255,0.15)]"
-                    >
-                      {placaLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                      Consultar
-                    </button>
-                  </div>
-                  {placaLookup ? (
-                    <div className="rounded-xl border border-sky-200/80 bg-gradient-to-br from-sky-50/95 to-blue-50/80 p-4 text-[13px] space-y-1 shadow-[0_8px_28px_-12px_rgba(14,165,233,0.25)] dark:border-sky-500/25 dark:from-sky-950/50 dark:to-blue-950/30 dark:shadow-[0_12px_36px_-12px_rgba(56,189,248,0.12)]">
-                      <p className="font-mono font-semibold">{placaLookup.plate}</p>
-                      <p>
-                        {[placaLookup.vehicleBrand, placaLookup.vehicleModel].filter(Boolean).join(' ') || '—'}
-                      </p>
-                      <p className="text-zinc-600 dark:text-zinc-400">
-                        {placaLookup.vehicleYear || '—'} · {placaLookup.vehicleColor || '—'}
-                      </p>
-                      <p className="text-[11px] text-zinc-500 pt-1">Referência FIPE — não altera a OS automaticamente.</p>
-                    </div>
-                  ) : null}
-                </section>
+                      <h2 className={`${vacSectionTitle} relative`}>Dados do veículo</h2>
+                      <div className="text-[14px] space-y-1 text-zinc-800 dark:text-zinc-200">
+                        <p>
+                          <span className="text-zinc-500">Placa: </span>
+                          <span className="font-mono font-semibold">{(selectedOrder.plate || '—').toUpperCase()}</span>
+                        </p>
+                        <p>
+                          <span className="text-zinc-500">Cliente: </span>
+                          {selectedOrder.customer_name || selectedOrder.customers?.name || '—'}
+                        </p>
+                        <p>
+                          {[selectedOrder.vehicle_brand, selectedOrder.vehicle_model].filter(Boolean).join(' ') || '—'}
+                        </p>
+                      </div>
+                    </section>
 
                 <section className={`relative pl-5 pr-4 py-4 ${vacCard} space-y-3`}>
                   <span className={vacCardAccent} aria-hidden />
