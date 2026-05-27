@@ -4193,7 +4193,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
 
               </div>
-            </div>
+              </div>
+              </div>
             </div>
           );
         };
