@@ -27,8 +27,21 @@ import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../ser
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverlay';
+import { ModalPortal } from '../ui/ModalPortal';
 import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
 import { desktopHomeHubCard } from '../ui/desktopCardStyles';
+
+/** No PC o hub precisa ir ao body; dentro da aba Início oculta (`hidden`) não aparece. */
+function SettingsHubShell({
+  desktopShell,
+  children,
+}: {
+  desktopShell: boolean;
+  children: React.ReactNode;
+}) {
+  if (desktopShell) return <ModalPortal>{children}</ModalPortal>;
+  return <>{children}</>;
+}
 
 export type HomeAppId =
   | 'reception'
@@ -1058,6 +1071,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </main>
 
       {isHomeSettingsHubOpen ? (
+        <SettingsHubShell desktopShell={desktopShell}>
           <div
             className={`${desktopShellViewportOverlayClass(desktopShell)} relative flex flex-col overflow-hidden bg-light-page dark:bg-black`}
             role="dialog"
@@ -1345,7 +1359,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   )}
               </div>
             </div>
-      </div>
+          </div>
+        </SettingsHubShell>
       ) : null}
 
       {!isTechnician && (
