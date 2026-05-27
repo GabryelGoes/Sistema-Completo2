@@ -12,10 +12,12 @@ import {
   RefreshCw,
   Archive,
   CarFront,
+  ArrowLeft,
 } from 'lucide-react';
 import { ModalPortal } from './ui/ModalPortal';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { desktopShellViewportOverlayClass } from '../utils/desktopShellOverlay';
+import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import type { PlacaFipeLookupResult, ServiceOrderListItem, VehicleAccompanimentPhoto } from '../services/apiService';
 import {
   bootstrapVehicleAccompaniment,
@@ -141,21 +143,46 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
   const [placaLoading, setPlacaLoading] = useState(false);
   const [orderScope, setOrderScope] = useState<'patio' | 'arquivados'>('patio');
   const [listSearch, setListSearch] = useState('');
+  const [vehicleDetailOpen, setVehicleDetailOpen] = useState(false);
+  const [orderContextLoading, setOrderContextLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const wasOpenRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) {
       wasOpenRef.current = false;
+      setVehicleDetailOpen(false);
+      setSelectedId('');
       return;
     }
     if (!wasOpenRef.current) {
-      setSelectedId(initialServiceOrderId ?? '');
+      const preset = initialServiceOrderId ?? '';
+      setSelectedId(preset);
+      setVehicleDetailOpen(!!preset);
       setListSearch('');
       setOrderScope('patio');
       wasOpenRef.current = true;
     }
   }, [isOpen, initialServiceOrderId]);
+
+  const openVehicleDetail = useCallback((orderId: string) => {
+    setSelectedId(orderId);
+    setVehicleDetailOpen(true);
+  }, []);
+
+  const closeVehicleDetail = useCallback(() => {
+    setVehicleDetailOpen(false);
+    setSelectedId('');
+    setAcc(null);
+    setPhotos([]);
+    setObservations('');
+    setBudgets([]);
+    setPlacaLookup(null);
+    setPlacaExtra('');
+    setError(null);
+  }, []);
+
+  useBrowserBackLayer(vehicleDetailOpen && isOpen, closeVehicleDetail);
 
   const vehicleOrders = useMemo(
     () => orders.filter((o) => (o.order_type ?? 'vehicle') === 'vehicle'),
@@ -210,6 +237,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
     setError(null);
     setPlacaLookup(null);
     setPlacaExtra('');
+    setOrderContextLoading(true);
     try {
       let row = await getVehicleAccompanimentByOrder(serviceOrderId);
       if (!row) {
@@ -241,19 +269,17 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
       setPhotos([]);
       setBudgets([]);
       setError(e instanceof Error ? e.message : 'Erro ao carregar OS.');
+    } finally {
+      setOrderContextLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (!isOpen || !selectedId) {
-      setAcc(null);
-      setPhotos([]);
-      setObservations('');
-      setBudgets([]);
+    if (!isOpen || !selectedId || !vehicleDetailOpen) {
       return;
     }
     void loadOrderContext(selectedId);
-  }, [isOpen, selectedId, loadOrderContext]);
+  }, [isOpen, selectedId, vehicleDetailOpen, loadOrderContext]);
 
   const handlePickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -505,10 +531,8 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                 </div>
 
                 <p className="mb-3 text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Ordenação: data de criação (mais recente no topo).
-                  {selectedOrder
-                    ? ` OS #${selectedOrder.os_number ?? '—'} selecionada.`
-                    : ' Toque num veículo na lista para ver detalhes, fotos e partilha.'}
+                  Ordenação: data de criação (mais recente no topo). Toque num veículo para abrir a ficha em tela
+                  cheia.
                 </p>
 
                 {ordersLoading ? (
@@ -535,17 +559,12 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                       const vehicle = vehicleDisplayName(o);
                       const stageName =
                         getStageConfig(o.status)?.name ?? o.status.replace(/_/g, ' ');
-                      const selected = o.id === selectedId;
                       return (
                         <button
                           key={o.id}
                           type="button"
-                          onClick={() => setSelectedId(o.id)}
-                          className={`w-full rounded-2xl border p-4 text-left transition hover:border-blue-400/60 hover:shadow-md dark:hover:border-blue-500/40 ${
-                            selected
-                              ? 'border-blue-500 bg-blue-50/80 ring-2 ring-blue-500/40 dark:border-blue-500/50 dark:bg-blue-950/30'
-                              : 'border-zinc-200/80 bg-white dark:border-white/[0.08] dark:bg-zinc-950/50'
-                          }`}
+                          onClick={() => openVehicleDetail(o.id)}
+                          className="w-full rounded-2xl border border-zinc-200/80 bg-white p-4 text-left transition hover:border-blue-400/60 hover:shadow-md dark:border-white/[0.08] dark:bg-zinc-950/50 dark:hover:border-blue-500/40"
                         >
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="rounded-lg bg-zinc-900 px-2 py-0.5 font-mono text-[11px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
@@ -577,12 +596,62 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                   </div>
                 )}
               </div>
+            </div>
+          </div>
 
-            {selectedOrder ? (
-              <>
-                <section className={`relative pl-5 pr-4 py-4 ${vacCard} space-y-3`}>
-                  <span className={vacCardAccent} aria-hidden />
-                  <h2 className={`${vacSectionTitle} relative`}>Dados da OS e consulta placa (Mercosul)</h2>
+          {vehicleDetailOpen && selectedOrder ? (
+            <div
+              className="absolute inset-0 z-[50] flex min-h-0 flex-col overflow-hidden bg-gradient-to-b from-zinc-50/98 via-light-page to-zinc-100/95 dark:from-zinc-950 dark:via-[#0a0c12] dark:to-black"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Veículo ${(selectedOrder.plate || '').toUpperCase() || selectedOrder.os_number}`}
+            >
+              <header className="relative flex shrink-0 items-center gap-3 border-b border-zinc-200/70 bg-white/95 px-4 py-3 backdrop-blur-xl dark:border-white/[0.08] dark:bg-zinc-950/95">
+                <button
+                  type="button"
+                  onClick={closeVehicleDetail}
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-50 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100"
+                  aria-label="Voltar à lista"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
+                    OS #{selectedOrder.os_number ?? '—'} · {(selectedOrder.plate || 'sem placa').toUpperCase()}
+                  </p>
+                  <h2 className="truncate text-[17px] font-bold text-zinc-900 dark:text-white">
+                    {vehicleDisplayName(selectedOrder)}
+                  </h2>
+                  <p className="truncate text-[13px] text-zinc-600 dark:text-zinc-400">
+                    {selectedOrder.customer_name || selectedOrder.customers?.name || 'Cliente'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeVehicleDetail}
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white text-zinc-700 shadow-sm dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100"
+                  aria-label="Fechar ficha do veículo"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </header>
+
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable]">
+                {orderContextLoading ? (
+                  <div className="flex flex-col items-center gap-3 py-20 text-zinc-500">
+                    <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+                    <p className="text-[14px]">A carregar ficha do veículo…</p>
+                  </div>
+                ) : (
+                  <>
+                    {error ? (
+                      <p className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-[13px] text-red-700 dark:text-red-300">
+                        {error}
+                      </p>
+                    ) : null}
+                    <section className={`relative pl-5 pr-4 py-4 ${vacCard} space-y-3`}>
+                      <span className={vacCardAccent} aria-hidden />
+                      <h2 className={`${vacSectionTitle} relative`}>Dados da OS e consulta placa (Mercosul)</h2>
                   <div className="text-[14px] space-y-1 text-zinc-800 dark:text-zinc-200">
                     <p>
                       <span className="text-zinc-500">Placa na OS: </span>
@@ -796,10 +865,11 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                     Guardar
                   </button>
                 </div>
-              </>
-            ) : null}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </ModalPortal>
