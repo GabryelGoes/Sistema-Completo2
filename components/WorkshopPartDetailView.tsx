@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Loader2, Pencil, Trash2, ZoomIn } from 'lucide-react';
+import { Loader2, Pencil, Printer, Trash2, ZoomIn } from 'lucide-react';
+import type { WorkshopPartLabContext } from '../services/apiService';
+import { printWorkshopPartSheet } from '../utils/workshopPartPrintSheet';
 import { Lightbox } from './Lightbox';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
@@ -64,6 +66,8 @@ export type WorkshopPartDetailViewProps = {
   photos: PartPhotoSlot[];
   purchases: WorkshopPartPurchase[];
   categories: WorkshopPartCategory[];
+  /** OS do laboratório vinculada (queixa e nº da OS para ficha). */
+  labContext?: WorkshopPartLabContext | null;
   loading?: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -75,6 +79,7 @@ export function WorkshopPartDetailView({
   photos,
   purchases,
   categories,
+  labContext,
   loading,
   onEdit,
   onDelete,
@@ -102,6 +107,20 @@ export function WorkshopPartDetailView({
 
   useBrowserBackLayer(!!previewImages, () => setPreviewImages(null));
 
+  const handlePrint = () => {
+    printWorkshopPartSheet({
+      part,
+      catalogNumber,
+      categories,
+      purchases,
+      photoUrls,
+      labContext: labContext ?? null,
+    });
+  };
+
+  const osNum = labContext?.os_number;
+  const complaint = (labContext?.issue_description ?? '').trim();
+
   return (
     <div className="space-y-5">
       {loading ? (
@@ -110,6 +129,53 @@ export function WorkshopPartDetailView({
         </div>
       ) : (
         <>
+          {(osNum != null || complaint || labContext?.customer_name) ? (
+            <div className="overflow-hidden rounded-2xl border-2 border-teal-500/40 bg-gradient-to-br from-teal-50 to-cyan-50/80 shadow-[0_4px_24px_-8px_rgba(13,148,136,0.35)] dark:border-teal-500/30 dark:from-teal-950/50 dark:to-cyan-950/30">
+              <div className="grid sm:grid-cols-[minmax(120px,180px)_1fr]">
+                <div className="flex flex-col justify-center bg-teal-600 px-5 py-4 text-white dark:bg-teal-700">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-teal-100">
+                    Ordem de serviço
+                  </p>
+                  <p className="mt-1 text-[28px] font-black leading-none tabular-nums">
+                    {osNum != null ? `OS #${osNum}` : '—'}
+                  </p>
+                </div>
+                <div className="border-t border-teal-200/80 px-5 py-4 sm:border-l sm:border-t-0 dark:border-teal-800/60">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-teal-800 dark:text-teal-300">
+                    Queixa do cliente
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-[15px] font-semibold leading-snug text-teal-950 dark:text-teal-50">
+                    {complaint || 'Nenhuma queixa registrada na OS vinculada.'}
+                  </p>
+                </div>
+              </div>
+              {(labContext?.customer_name ||
+                labContext?.vehicle_model ||
+                labContext?.module_identification) ? (
+                <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-teal-200/70 bg-white/50 px-5 py-2.5 text-[12px] text-teal-900/90 dark:border-teal-800/50 dark:bg-black/10 dark:text-teal-100/90">
+                  {labContext.customer_name ? (
+                    <span>
+                      <span className="font-bold">Cliente:</span> {labContext.customer_name}
+                    </span>
+                  ) : null}
+                  {labContext.vehicle_model ? (
+                    <span>
+                      <span className="font-bold">Veículo:</span>{' '}
+                      {[labContext.vehicle_brand, labContext.vehicle_model]
+                        .filter(Boolean)
+                        .join(' ')}
+                    </span>
+                  ) : null}
+                  {labContext.module_identification ? (
+                    <span>
+                      <span className="font-bold">Módulo:</span> {labContext.module_identification}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="space-y-2">
             <p className={labelCls}>Fotos</p>
             {photos.length > 0 ? (
@@ -353,23 +419,34 @@ export function WorkshopPartDetailView({
         </>
       )}
 
-      <div className="flex flex-col-reverse gap-3 border-t border-zinc-200/50 pt-5 dark:border-white/[0.06] sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-t border-zinc-200/50 pt-5 dark:border-white/[0.06]">
         <button
           type="button"
-          onClick={onDelete}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-[15px] font-semibold text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
+          onClick={handlePrint}
+          disabled={loading}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-5 py-3 text-[15px] font-semibold text-teal-900 hover:bg-teal-100 disabled:opacity-50 dark:border-teal-800/60 dark:bg-teal-950/40 dark:text-teal-100 dark:hover:bg-teal-950/60"
         >
-          <Trash2 className="h-5 w-5" />
-          Excluir
+          <Printer className="h-5 w-5" />
+          Imprimir ficha
         </button>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-8 py-3 text-[15px] font-semibold text-white hover:bg-emerald-500"
-        >
-          <Pencil className="h-5 w-5" />
-          Editar produto
-        </button>
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            type="button"
+            onClick={onDelete}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-[15px] font-semibold text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
+          >
+            <Trash2 className="h-5 w-5" />
+            Excluir
+          </button>
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-8 py-3 text-[15px] font-semibold text-white hover:bg-emerald-500"
+          >
+            <Pencil className="h-5 w-5" />
+            Editar produto
+          </button>
+        </div>
       </div>
 
       {previewImages ? (

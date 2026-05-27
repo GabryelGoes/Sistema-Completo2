@@ -2234,6 +2234,36 @@ export async function getWorkshopPartPurchases(partId: string): Promise<Workshop
   return response.json();
 }
 
+/** Contexto da OS do laboratório vinculada ao produto (para ficha impressa). */
+export type WorkshopPartLabContext = {
+  service_order_id?: string;
+  os_number?: number | null;
+  issue_description?: string | null;
+  customer_name?: string | null;
+  vehicle_model?: string | null;
+  vehicle_brand?: string | null;
+  module_identification?: string | null;
+  module_kind?: string | null;
+  module_vehicle_kind?: string | null;
+  module_product_other?: string | null;
+  plate?: string | null;
+  mileage_km?: string | null;
+  vehicle_year?: string | null;
+  vehicle_engine_info?: string | null;
+  status?: string | null;
+};
+
+export async function getWorkshopPartLabContext(
+  partId: string
+): Promise<{ context: WorkshopPartLabContext | null }> {
+  const response = await fetch(`${API_BASE}/workshop-parts/${partId}/lab-context`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao buscar OS do laboratório (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function createWorkshopPartPurchase(
   partId: string,
   input: {

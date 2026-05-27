@@ -5085,6 +5085,152 @@ export function createApiApp() {
     }
   });
 
+  /** OS do laboratório vinculada ao produto (identificação do módulo ou peça em orçamento). */
+  app.get("/api/workshop-parts/:id/lab-context", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const partId = String(req.params.id || "").trim();
+      if (!partId) {
+        return res.status(400).json({ error: "ID do produto é obrigatório." });
+      }
+
+      const { data: part, error: partErr } = await supabaseAdmin
+        .from("workshop_parts")
+        .select("id, name, numeric_code, original_code")
+        .eq("id", partId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+
+      if (partErr) {
+        console.error("[API] lab-context (part):", partErr);
+        return res.status(500).json({ error: partErr.message });
+      }
+      if (!part) {
+        return res.status(404).json({ error: "Produto não encontrado." });
+      }
+
+      const matchKeys = new Set<string>();
+      for (const raw of [part.name, part.numeric_code, part.original_code]) {
+        const k = String(raw ?? "").trim().toLowerCase();
+        if (k) matchKeys.add(k);
+      }
+
+      const { data: moduleOrders, error: ordersErr } = await supabaseAdmin
+        .from("service_orders")
+        .select(
+          "id, os_number, issue_description, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, vehicle_year, vehicle_engine_info, status, updated_at, created_at, customers(name)"
+        )
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("order_type", "module")
+        .order("updated_at", { ascending: false })
+        .limit(400);
+
+      if (ordersErr) {
+        console.error("[API] lab-context (orders):", ordersErr);
+        return res.status(500).json({ error: ordersErr.message });
+      }
+
+      const orders = (moduleOrders ?? []) as Record<string, unknown>[];
+      let best: Record<string, unknown> | null = null;
+      let bestTs = 0;
+
+      const consider = (row: Record<string, unknown>) => {
+        const ts = Math.max(
+          new Date(String(row.updated_at ?? 0)).getTime(),
+          new Date(String(row.created_at ?? 0)).getTime()
+        );
+        if (!best || ts > bestTs) {
+          best = row;
+          bestTs = ts;
+        }
+      };
+
+      for (const o of orders) {
+        const modId = String(o.module_identification ?? "").trim().toLowerCase();
+        const modOther = String(o.module_product_other ?? "").trim().toLowerCase();
+        if ((modId && matchKeys.has(modId)) || (modOther && matchKeys.has(modOther))) {
+          consider(o);
+        }
+      }
+
+      const moduleIds = orders.map((o) => String(o.id ?? "")).filter(Boolean);
+      if (moduleIds.length > 0) {
+        const chunkSize = 150;
+        for (let i = 0; i < moduleIds.length; i += chunkSize) {
+          const chunk = moduleIds.slice(i, i + chunkSize);
+          const { data: budgets, error: budgetsErr } = await supabaseAdmin
+            .from("budgets")
+            .select("service_order_id, parts, updated_at, created_at")
+            .eq("workshop_id", WORKSHOP_ID)
+            .in("service_order_id", chunk);
+
+          if (budgetsErr) {
+            console.error("[API] lab-context (budgets):", budgetsErr);
+            continue;
+          }
+
+          const linkedOrderIds = new Set<string>();
+          for (const b of budgets ?? []) {
+            const parts = b.parts;
+            if (!Array.isArray(parts)) continue;
+            const hit = parts.some(
+              (p: unknown) =>
+                p &&
+                typeof p === "object" &&
+                String((p as { workshopPartId?: string }).workshopPartId ?? "") === partId
+            );
+            if (hit && b.service_order_id) {
+              linkedOrderIds.add(String(b.service_order_id));
+            }
+          }
+
+          for (const o of orders) {
+            if (linkedOrderIds.has(String(o.id ?? ""))) {
+              consider(o);
+            }
+          }
+        }
+      }
+
+      if (!best) {
+        return res.json({ context: null });
+      }
+
+      const customer =
+        best.customers && typeof best.customers === "object" && "name" in best.customers
+          ? String((best.customers as { name?: string }).name ?? "")
+          : null;
+
+      return res.json({
+        context: {
+          service_order_id: best.id,
+          os_number: best.os_number ?? null,
+          issue_description: best.issue_description ?? null,
+          customer_name: customer,
+          vehicle_model: best.vehicle_model ?? null,
+          vehicle_brand: best.vehicle_brand ?? null,
+          module_identification: best.module_identification ?? null,
+          module_kind: best.module_kind ?? null,
+          module_vehicle_kind: best.module_vehicle_kind ?? null,
+          module_product_other: best.module_product_other ?? null,
+          plate: best.plate ?? null,
+          mileage_km: best.mileage_km ?? null,
+          vehicle_year: best.vehicle_year ?? null,
+          vehicle_engine_info: best.vehicle_engine_info ?? null,
+          status: best.status ?? null,
+        },
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/workshop-parts/:id/lab-context:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   // ----------------- TÉCNICOS DA OFICINA (atribuição nos cards) -----------------
   const capitalizeTechnicianName = (s: string) =>
     (s || "").trim().split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");

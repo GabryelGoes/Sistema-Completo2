@@ -15,6 +15,7 @@ import {
   Clock,
   History,
   BarChart3,
+  Printer,
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
@@ -49,13 +50,16 @@ import {
   deleteWorkshopPartCategory,
   setWorkshopPartCategories,
   getWorkshopPartPurchases,
+  getWorkshopPartLabContext,
   createWorkshopPartPurchase,
   updateWorkshopPartPurchase,
   deleteWorkshopPartPurchase,
   type WorkshopPart,
   type WorkshopPartCategory,
   type WorkshopPartPurchase,
+  type WorkshopPartLabContext,
 } from '../services/apiService';
+import { printWorkshopPartSheet } from '../utils/workshopPartPrintSheet';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 import {
   WorkshopPartRegistrationForm,
@@ -179,6 +183,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [viewPart, setViewPart] = useState<WorkshopPart | null>(null);
   const [viewPhotos, setViewPhotos] = useState<PartPhotoSlot[]>([]);
   const [viewPurchases, setViewPurchases] = useState<WorkshopPartPurchase[]>([]);
+  const [viewLabContext, setViewLabContext] = useState<WorkshopPartLabContext | null>(null);
   const [loadingViewPart, setLoadingViewPart] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -329,6 +334,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     setViewPart(null);
     setViewPhotos([]);
     setViewPurchases([]);
+    setViewLabContext(null);
     setLoadingViewPart(false);
   }, []);
 
@@ -354,15 +360,18 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     setLoadingViewPart(true);
     setError(null);
     try {
-      const [purchases, photos] = await Promise.all([
+      const [purchases, photos, labRes] = await Promise.all([
         getWorkshopPartPurchases(latest.id),
         getWorkshopPartPhotos(latest.id).catch(() => []),
+        getWorkshopPartLabContext(latest.id).catch(() => ({ context: null })),
       ]);
       setViewPurchases(purchases);
       setViewPhotos(workshopPartPhotosToSlots(photos, latest.photo_url));
+      setViewLabContext(labRes.context ?? null);
     } catch {
       setViewPurchases([]);
       setViewPhotos(workshopPartToPhotoSlots(latest));
+      setViewLabContext(null);
     } finally {
       setLoadingViewPart(false);
     }
@@ -1661,8 +1670,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             <div
               className={
                 isDesktopShell
-                  ? 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pr-14 dark:border-white/[0.06] dark:bg-transparent sm:px-8'
-                  : 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-14 dark:border-white/[0.06] dark:bg-transparent'
+                  ? 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pr-28 dark:border-white/[0.06] dark:bg-transparent sm:px-8'
+                  : 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-28 dark:border-white/[0.06] dark:bg-transparent'
               }
             >
               <IosModalHeader
@@ -1676,6 +1685,33 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 gradientClass="from-emerald-500 to-teal-700"
               />
             </div>
+            <button
+              type="button"
+              disabled={loadingViewPart}
+              onClick={() => {
+                const part = parts.find((p) => p.id === viewPart.id) ?? viewPart;
+                const photoUrls = viewPhotos
+                  .map((slot) => (slot.remoteUrl ?? slot.previewUrl)?.trim())
+                  .filter((url): url is string => !!url);
+                printWorkshopPartSheet({
+                  part,
+                  catalogNumber: partNumberById.get(viewPart.id),
+                  categories,
+                  purchases: viewPurchases,
+                  photoUrls,
+                  labContext: viewLabContext,
+                });
+              }}
+              className={
+                isDesktopShell
+                  ? `${iosModalClose} top-[max(1rem,env(safe-area-inset-top))] right-[max(4.25rem,env(safe-area-inset-right)+3.25rem)] !bg-teal-600 !text-white hover:!bg-teal-500`
+                  : `${iosModalClose} right-14 !bg-teal-600 !text-white hover:!bg-teal-500`
+              }
+              aria-label="Imprimir ficha"
+              title="Imprimir ficha"
+            >
+              <Printer className="w-5 h-5" />
+            </button>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y bg-white px-6 py-6 sm:px-8 custom-scrollbar [scrollbar-gutter:stable] dark:bg-transparent">
               <WorkshopPartDetailView
                 part={parts.find((p) => p.id === viewPart.id) ?? viewPart}
@@ -1683,6 +1719,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 photos={viewPhotos}
                 purchases={viewPurchases}
                 categories={categories}
+                labContext={viewLabContext}
                 loading={loadingViewPart}
                 onEdit={handleEditFromView}
                 onDelete={() => void handleDelete(viewPart.id)}
