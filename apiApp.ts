@@ -6034,6 +6034,29 @@ export function createApiApp() {
     return `${base}/storage/v1/object/public/${bucket}/${enc}`;
   }
 
+  /** Garante token de partilha (registos antigos ou migração incompleta). */
+  async function ensureAccompanimentShareToken<T extends { id?: string; share_token?: string | null }>(
+    row: T | null
+  ): Promise<T | null> {
+    if (!row || !supabaseAdmin) return row;
+    const existing = typeof row.share_token === "string" ? row.share_token.trim() : "";
+    if (existing) return row;
+    const id = typeof row.id === "string" ? row.id : "";
+    if (!id) return row;
+    const shareToken = crypto.randomUUID();
+    const { data, error } = await supabaseAdmin
+      .from("workshop_vehicle_accompaniment")
+      .update({ share_token: shareToken, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error || !data) {
+      console.error("[API] ensure share_token vehicle-accompaniment:", error);
+      return row;
+    }
+    return data as T;
+  }
+
   function accompanimentBudgetHasApproved(b: { services?: unknown; parts?: unknown }): boolean {
     const sv = Array.isArray(b.services) ? b.services : [];
     const pt = Array.isArray(b.parts) ? b.parts : [];
@@ -6153,7 +6176,8 @@ export function createApiApp() {
         console.error("[API] GET vehicle-accompaniment:", error);
         return res.status(500).json({ error: error.message });
       }
-      return res.json(row ?? null);
+      const withToken = row ? await ensureAccompanimentShareToken(row) : null;
+      return res.json(withToken ?? null);
     } catch (err: any) {
       console.error("[API] GET /api/vehicle-accompaniment/by-order/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
@@ -6189,7 +6213,8 @@ export function createApiApp() {
         .eq("workshop_id", WORKSHOP_ID)
         .maybeSingle();
       if (existing) {
-        return res.json(existing);
+        const withToken = await ensureAccompanimentShareToken(existing);
+        return res.json(withToken ?? existing);
       }
       const shareToken = crypto.randomUUID();
       const { data: inserted, error } = await supabaseAdmin
@@ -6304,7 +6329,8 @@ export function createApiApp() {
         .eq("service_order_id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
-      return res.json(out);
+      const withToken = out ? await ensureAccompanimentShareToken(out) : null;
+      return res.json(withToken ?? out);
     } catch (err: any) {
       console.error("[API] PUT /api/vehicle-accompaniment/by-order/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });

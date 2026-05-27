@@ -5,8 +5,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
-      /** Necessário para o APK (Capacitor): assets com caminhos relativos. */
-      base: './',
+      /** Raiz absoluta: obrigatório para rotas SPA (/acompanhamento/:token) na Vercel. */
+      base: '/',
       server: {
         port: 3000,
         host: '0.0.0.0',
@@ -14,6 +14,10 @@ export default defineConfig(({ mode }) => {
           port: 24679,
           clientPort: 24679,
         },
+      },
+      // SPA: rota pública de acompanhamento (mesmo comportamento que vercel.json em produção)
+      historyApiFallback: {
+        rewrites: [{ from: /^\/acompanhamento\/[^/]+$/, to: '/index.html' }],
       },
       plugins: [react()],
       define: {

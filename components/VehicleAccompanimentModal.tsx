@@ -31,6 +31,7 @@ import {
   type WorkshopVehicleAccompanimentRow,
 } from '../services/apiService';
 import { getVehiclePhotoPublicUrl } from '../utils/vehicleStoragePublicUrl';
+import { companionPublicUrl } from '../utils/publicAppUrl';
 import { getStageConfig, getStageStyle, isServiceOrderActivePatioFlow } from '../constants/serviceOrderStages';
 
 const VAC_MODULE_ICON = '/icons/recepcao-ios.png';
@@ -101,16 +102,6 @@ type ServicePhotoEntry = {
   id: string;
   name: string;
 };
-
-function companionPublicUrl(shareToken: string): string {
-  if (typeof window === 'undefined') return '';
-  const path = `/acompanhamento/${encodeURIComponent(shareToken)}`;
-  try {
-    return new URL(path, window.location.origin).href;
-  } catch {
-    return `${window.location.origin}${path}`;
-  }
-}
 
 function waShareUrl(phoneRaw: string | null | undefined, message: string): string {
   const digits = (phoneRaw ?? '').replace(/\D/g, '');
@@ -269,7 +260,10 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
       if (!row) {
         row = await bootstrapVehicleAccompaniment(serviceOrderId);
       }
-      setAcc(row);
+      setAcc({
+        ...row,
+        share_token: row.share_token,
+      });
       const rawPhotos = Array.isArray(row.intake_photos) ? row.intake_photos : [];
       setPhotos(
         rawPhotos.map((p, i) => ({
@@ -456,8 +450,20 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
       const out = await putVehicleAccompaniment(selectedId, {
         intake_observations: observations,
         intake_photos: photos.filter((p) => p.path),
+        budget_public_settings: Object.fromEntries(
+          Object.entries(budgetSettings).map(([budgetId, cfg]) => [
+            budgetId,
+            {
+              visible: cfg.visible === true,
+              allow_client_approval: cfg.allowClientApproval === true,
+            },
+          ])
+        ),
       });
-      setAcc(out);
+      setAcc({
+        ...out,
+        share_token: out.share_token ?? acc?.share_token,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao guardar.');
     } finally {
@@ -484,10 +490,31 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
     }
   };
 
-  const copyLink = () => {
-    if (!acc?.share_token) return;
-    const url = companionPublicUrl(acc.share_token);
-    void navigator.clipboard.writeText(url).catch(() => {});
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const shareToken = acc?.share_token?.trim() ?? '';
+
+  const copyLink = async () => {
+    if (!shareToken) {
+      setError('Guarde as alterações para gerar o link de acompanhamento.');
+      return;
+    }
+    const url = companionPublicUrl(shareToken);
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2500);
+    } catch {
+      setError('Não foi possível copiar. Copie manualmente: ' + url);
+    }
+  };
+
+  const openShareLink = () => {
+    if (!shareToken) {
+      setError('Guarde as alterações para gerar o link de acompanhamento.');
+      return;
+    }
+    window.open(companionPublicUrl(shareToken), '_blank', 'noopener,noreferrer');
   };
 
   const openWhatsApp = () => {
@@ -1086,33 +1113,64 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                   )}
                 </section>
 
-                {acc?.share_token ? (
-                  <section className="relative overflow-hidden rounded-[16px] border border-zinc-200/80 bg-gradient-to-br from-violet-50/90 via-white/85 to-sky-50/80 p-4 shadow-[0_12px_40px_-14px_rgba(109,40,217,0.15)] dark:border-violet-500/20 dark:from-violet-950/40 dark:via-zinc-900/70 dark:to-sky-950/30 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.5)]">
-                    <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-violet-400/20 blur-3xl dark:bg-violet-500/10" aria-hidden />
-                    <h2 className={`relative mb-2 ${vacSectionTitle}`}>Partilhar com o cliente</h2>
-                    <p className="relative mb-3 break-all rounded-xl border border-white/60 bg-white/60 px-2.5 py-2 text-[11px] leading-relaxed text-zinc-600 backdrop-blur-sm dark:border-white/[0.08] dark:bg-zinc-950/40 dark:text-zinc-300">
-                      {companionPublicUrl(acc.share_token)}
+                <section className="relative overflow-hidden rounded-[16px] border border-zinc-200/80 bg-gradient-to-br from-violet-50/90 via-white/85 to-sky-50/80 p-4 shadow-[0_12px_40px_-14px_rgba(109,40,217,0.15)] dark:border-violet-500/20 dark:from-violet-950/40 dark:via-zinc-900/70 dark:to-sky-950/30 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.5)]">
+                  <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-violet-400/20 blur-3xl dark:bg-violet-500/10" aria-hidden />
+                  <h2 className={`relative mb-2 ${vacSectionTitle}`}>Partilhar com o cliente</h2>
+                  <p className="relative mb-3 text-[12px] text-zinc-600 dark:text-zinc-400">
+                    Link público para o cliente acompanhar o veículo (fotos, orçamentos e avaliação).
+                  </p>
+                  {shareToken ? (
+                    <>
+                      <label className="sr-only" htmlFor="companion-share-url">
+                        Link de acompanhamento
+                      </label>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                        <input
+                          id="companion-share-url"
+                          readOnly
+                          value={companionPublicUrl(shareToken)}
+                          className="min-w-0 flex-1 rounded-xl border border-zinc-200/80 bg-white/95 px-3 py-2 text-[12px] font-mono text-zinc-800 dark:border-white/[0.12] dark:bg-zinc-950 dark:text-zinc-100"
+                        />
+                        <button
+                          type="button"
+                          onClick={copyLink}
+                          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-2.5 text-[13px] font-semibold text-zinc-900 dark:border-white/[0.12] dark:bg-zinc-800 dark:text-white"
+                        >
+                          <Copy className="h-4 w-4" />
+                          {linkCopied ? 'Copiado' : 'Copiar'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={openShareLink}
+                          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#2563eb] px-3 py-2.5 text-[13px] font-semibold text-white"
+                        >
+                          Abrir
+                        </button>
+                        <button
+                          type="button"
+                          onClick={openWhatsApp}
+                          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-600 bg-emerald-600 px-3 py-2.5 text-[13px] font-semibold text-white"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          WhatsApp
+                        </button>
+                      </div>
+                      {linkCopied ? (
+                        <p className="text-[12px] font-medium text-emerald-700 dark:text-emerald-400">Link copiado.</p>
+                      ) : null}
+                    </>
+                  ) : orderContextLoading ? (
+                    <p className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-400">
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+                      A gerar o link de acompanhamento…
                     </p>
-                    <div className="relative flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={copyLink}
-                        className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/80 bg-white/95 px-4 py-2.5 text-[14px] font-semibold text-zinc-900 shadow-md transition hover:bg-white active:scale-[0.98] dark:border-white/[0.12] dark:bg-zinc-800/90 dark:text-white dark:shadow-lg"
-                      >
-                        <Copy className="h-4 w-4" />
-                        Copiar link
-                      </button>
-                      <button
-                        type="button"
-                        onClick={openWhatsApp}
-                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#25D366] to-emerald-600 px-4 py-2.5 text-[14px] font-semibold text-white shadow-[0_6px_22px_-6px_rgba(37,211,102,0.65)] transition hover:brightness-110 active:scale-[0.98]"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                        WhatsApp
-                      </button>
-                    </div>
-                  </section>
-                ) : null}
+                  ) : (
+                    <p className="rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-[13px] text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/20 dark:text-amber-200">
+                      Não foi possível gerar o link. Verifique a ligação e abra o veículo novamente; se persistir,
+                      guarde a ficha uma vez.
+                    </p>
+                  )}
+                </section>
 
                 <div className="sticky bottom-0 z-20 -mx-4 border-t border-zinc-200/60 bg-gradient-to-t from-zinc-100/95 via-zinc-100/80 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-lg dark:border-white/[0.07] dark:from-zinc-950/95 dark:via-zinc-950/75 md:-mx-6 md:px-6">
                   <div className="mx-auto flex w-full max-w-[1680px] gap-2">

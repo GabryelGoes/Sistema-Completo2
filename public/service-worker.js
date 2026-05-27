@@ -4,7 +4,7 @@
  * - HTML: rede primeiro; cache só como fallback offline.
  * - Nome do cache versionado para limpar caches antigos após deploy.
  */
-const CACHE_VERSION = 'rei-do-abs-v4';
+const CACHE_VERSION = 'rei-do-abs-v5';
 const CACHE_NAME = `static-${CACHE_VERSION}`;
 
 /** Só pré-cache de assets que não mudam o shell do app; evita travar index.html antigo. */

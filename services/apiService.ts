@@ -3185,7 +3185,11 @@ export async function bootstrapVehicleAccompaniment(serviceOrderId: string): Pro
 
 export async function putVehicleAccompaniment(
   serviceOrderId: string,
-  payload: { intake_observations: string; intake_photos: VehicleAccompanimentPhoto[] }
+  payload: {
+    intake_observations: string;
+    intake_photos: VehicleAccompanimentPhoto[];
+    budget_public_settings?: Record<string, { visible: boolean; allow_client_approval: boolean }>;
+  }
 ): Promise<WorkshopVehicleAccompanimentRow> {
   const response = await fetch(`${API_BASE}/vehicle-accompaniment/by-order/${encodeURIComponent(serviceOrderId)}`, {
     method: "PUT",
