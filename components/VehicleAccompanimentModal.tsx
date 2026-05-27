@@ -721,12 +721,13 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
 
           {vehicleDetailOpen && selectedOrder ? (
             <div
-              className="absolute inset-0 z-[50] flex min-h-0 flex-col overflow-hidden bg-gradient-to-b from-zinc-50/98 via-light-page to-zinc-100/95 dark:from-zinc-950 dark:via-[#0a0c12] dark:to-black"
+              className="absolute inset-0 z-[50] flex min-h-0 flex-col overflow-hidden bg-[#F2F2F7] dark:bg-[#0a0a0a]"
               role="dialog"
               aria-modal="true"
               aria-label={`Veículo ${(selectedOrder.plate || '').toUpperCase() || selectedOrder.os_number}`}
             >
-              <header className="relative flex shrink-0 items-center gap-3 border-b border-zinc-200/70 bg-white/95 px-4 py-3 backdrop-blur-xl dark:border-white/[0.08] dark:bg-zinc-950/95">
+              <header className="relative shrink-0 border-b border-zinc-300/80 bg-white/95 px-4 py-3 dark:border-white/[0.08] dark:bg-zinc-900/95 md:px-6">
+                <div className="mx-auto flex w-full max-w-[1680px] items-center gap-3">
                 <button
                   type="button"
                   onClick={closeVehicleDetail}
@@ -736,10 +737,10 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                   <ArrowLeft className="h-5 w-5" />
                 </button>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
+                  <p className="truncate text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-500 dark:text-zinc-400">
                     OS #{selectedOrder.os_number ?? '—'} · {(selectedOrder.plate || 'sem placa').toUpperCase()}
                   </p>
-                  <h2 className="truncate text-[17px] font-bold text-zinc-900 dark:text-white">
+                  <h2 className="font-vehicle truncate text-[1.8rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white">
                     {vehicleDisplayName(selectedOrder)}
                   </h2>
                   <p className="truncate text-[13px] text-zinc-600 dark:text-zinc-400">
@@ -754,9 +755,10 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                 >
                   <X className="h-5 w-5" />
                 </button>
+                </div>
               </header>
 
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable]">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable] md:px-6">
                 {orderContextLoading ? (
                   <div className="flex flex-col items-center gap-3 py-20 text-zinc-500">
                     <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
@@ -769,6 +771,27 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                         {error}
                       </p>
                     ) : null}
+                    <div className="mx-auto mb-4 grid w-full max-w-[1680px] grid-cols-2 gap-3 lg:grid-cols-4">
+                      <div className="rounded-2xl border border-blue-600 bg-blue-600 p-3 text-white">
+                        <p className="text-[11px] font-semibold text-white/90">OS</p>
+                        <p className="mt-1 text-[1.15rem] font-bold">#{selectedOrder.os_number ?? '—'}</p>
+                      </div>
+                      <div className="rounded-2xl border border-zinc-600 bg-zinc-500 p-3 text-white">
+                        <p className="text-[11px] font-semibold text-white/90">Placa</p>
+                        <p className="mt-1 font-mono text-[1.05rem] font-bold">{(selectedOrder.plate || '—').toUpperCase()}</p>
+                      </div>
+                      <div className="rounded-2xl border border-sky-600 bg-sky-500 p-3 text-white">
+                        <p className="text-[11px] font-semibold text-white/90">Status</p>
+                        <p className="mt-1 text-[0.95rem] font-bold">{getStageConfig(selectedOrder.status)?.name ?? selectedOrder.status.replace(/_/g, ' ')}</p>
+                      </div>
+                      <div className="rounded-2xl border border-violet-600 bg-violet-500 p-3 text-white">
+                        <p className="text-[11px] font-semibold text-white/90">Atualização</p>
+                        <p className="mt-1 text-[0.95rem] font-bold">
+                          {new Date(selectedOrder.updated_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mx-auto grid w-full max-w-[1680px] grid-cols-1 gap-4 xl:grid-cols-2">
                     <section className={`relative pl-5 pr-4 py-4 ${vacCard} space-y-3`}>
                       <span className={vacCardAccent} aria-hidden />
                       <h2 className={`${vacSectionTitle} relative`}>Dados da OS e consulta placa (Mercosul)</h2>
@@ -826,6 +849,9 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                     {getStageConfig(selectedOrder.status)?.name ?? selectedOrder.status.replace(/_/g, ' ')}
                   </span>
                 </section>
+                </div>
+
+                <div className="mx-auto w-full max-w-[1680px] space-y-4">
 
                 <section className={`relative pl-5 pr-4 py-4 ${vacCard} space-y-3`}>
                   <span className={vacCardAccent} aria-hidden />
@@ -1118,16 +1144,19 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                   </section>
                 ) : null}
 
-                <div className="sticky bottom-0 z-20 -mx-4 flex gap-2 border-t border-zinc-200/60 bg-gradient-to-t from-zinc-100/95 via-zinc-100/80 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-lg dark:border-white/[0.07] dark:from-zinc-950/95 dark:via-zinc-950/75">
-                  <button
-                    type="button"
-                    onClick={() => void handleSave()}
-                    disabled={saving}
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-brand-yellow via-amber-300 to-amber-400 py-3.5 font-semibold text-zinc-950 shadow-[0_6px_24px_-4px_rgba(234,179,8,0.55),inset_0_1px_0_rgba(255,255,255,0.5)] transition hover:brightness-105 active:scale-[0.99] disabled:opacity-50 dark:shadow-[0_8px_28px_-6px_rgba(234,179,8,0.35)]"
-                  >
-                    {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-                    Guardar
-                  </button>
+                <div className="sticky bottom-0 z-20 -mx-4 border-t border-zinc-200/60 bg-gradient-to-t from-zinc-100/95 via-zinc-100/80 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-lg dark:border-white/[0.07] dark:from-zinc-950/95 dark:via-zinc-950/75 md:-mx-6 md:px-6">
+                  <div className="mx-auto flex w-full max-w-[1680px] gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleSave()}
+                      disabled={saving}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-brand-yellow via-amber-300 to-amber-400 py-3.5 font-semibold text-zinc-950 shadow-[0_6px_24px_-4px_rgba(234,179,8,0.55),inset_0_1px_0_rgba(255,255,255,0.5)] transition hover:brightness-105 active:scale-[0.99] disabled:opacity-50 dark:shadow-[0_8px_28px_-6px_rgba(234,179,8,0.35)]"
+                    >
+                      {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                      Guardar alterações da ficha
+                    </button>
+                  </div>
+                </div>
                 </div>
                   </>
                 )}
