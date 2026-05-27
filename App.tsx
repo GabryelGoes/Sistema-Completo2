@@ -91,7 +91,7 @@ export default function App() {
     closeVehicleAccompaniment();
     setIsPartsModalOpen(false);
     setIsSettingsOpen(false);
-    homeSettingsHubCloserRef.current?.();
+    setSettingsHubOpen(false);
   }, [closeVehicleAccompaniment]);
 
   const desktopSidebarAccess = useMemo(
@@ -116,9 +116,11 @@ export default function App() {
         return;
       }
       if (action === 'configuracoes') {
-        dismissDesktopShellOverlays();
-        homeSettingsHubOpenerRef.current?.();
-        if (!homeSettingsHubOpenerRef.current) setIsSettingsOpen(true);
+        closeVehicleAccompaniment();
+        setIsPartsModalOpen(false);
+        setIsSettingsOpen(false);
+        setSettingsHubOpen(true);
+        return;
       }
     },
     [dismissDesktopShellOverlays, openVehicleAccompaniment]
@@ -438,7 +440,7 @@ export default function App() {
 
   const handleHomeOpenApp = (app: HomeAppId) => {
     if (app === 'settings') {
-      setIsSettingsOpen(true);
+      setSettingsHubOpen(true);
       return;
     }
     if (app === 'reception') {
@@ -601,7 +603,7 @@ export default function App() {
         onDesktopSidebarAction={handleDesktopSidebarAction}
         displayName={userDisplayName}
         photoUrl={authSession.photoUrl ?? null}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSettings={() => setSettingsHubOpen(true)}
         onOpenProfileEditor={openShellProfileEditor}
         onLogout={handleLogout}
         orcamentosBadge={patioBudgetsHub.badgeCount}
@@ -617,6 +619,7 @@ export default function App() {
           >
             <HomeView
               desktopShell={isDesktopShell}
+              settingsHubOpen={settingsHubOpen}
               onSettingsHubOpenChange={setSettingsHubOpen}
               settingsHubOpenerRef={homeSettingsHubOpenerRef}
               settingsHubCloserRef={homeSettingsHubCloserRef}
@@ -653,9 +656,9 @@ export default function App() {
                 } catch (_) {}
               }}
               systemUserPermissions={authSession.permissions}
-              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenSettings={() => setSettingsHubOpen(true)}
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
-              globalOverlayModalOpen={isSettingsOpen || isUserChangePasswordsOpen}
+              globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen}
               patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
               onOpenVehicleAccompaniment={openVehicleAccompaniment}
             />
@@ -879,7 +882,7 @@ export default function App() {
         authSession?.role === 'admin' ||
         hasFullAccess ||
         authSession?.permissions?.access_settings
-          ? () => setIsSettingsOpen(true)
+          ? () => setSettingsHubOpen(true)
           : undefined
       }
       onOpenProfileEditor={openShellProfileEditor}
@@ -897,6 +900,7 @@ export default function App() {
         >
           <HomeView
             desktopShell={isDesktopShell}
+            settingsHubOpen={settingsHubOpen}
             onSettingsHubOpenChange={setSettingsHubOpen}
             settingsHubOpenerRef={homeSettingsHubOpenerRef}
             settingsHubCloserRef={homeSettingsHubCloserRef}
@@ -922,7 +926,7 @@ export default function App() {
             adminPhotoUrl={authSession?.role === 'admin' ? adminPhotoUrl : undefined}
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
-            globalOverlayModalOpen={isSettingsOpen || isUserChangePasswordsOpen}
+            globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen}
             patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
             onOpenVehicleAccompaniment={openVehicleAccompaniment}
           />

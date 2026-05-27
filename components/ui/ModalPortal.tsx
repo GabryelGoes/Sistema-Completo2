@@ -15,7 +15,14 @@ const escapeAsBack = () => {
  * Ao montar, registra na camada global para ocultar a barra inferior de navegação.
  * Gesto “voltar” do sistema: via {@link useBrowserBackLayer} (pilha central no app).
  */
-export function ModalPortal({ children }: { children: ReactNode }) {
+export function ModalPortal({
+  children,
+  manageBackLayer = true,
+}: {
+  children: ReactNode;
+  /** false quando o pai já registra useBrowserBackLayer (evita pilha duplicada). */
+  manageBackLayer?: boolean;
+}) {
   const ctx = useContext(ModalLayerContext);
   const onBack = useCallback(() => {
     escapeAsBack();
@@ -27,7 +34,7 @@ export function ModalPortal({ children }: { children: ReactNode }) {
     return () => ctx.unregister();
   }, [ctx]);
 
-  useBrowserBackLayer(true, onBack);
+  useBrowserBackLayer(manageBackLayer, onBack);
 
   if (typeof document === 'undefined') return null;
   return createPortal(children, document.body);

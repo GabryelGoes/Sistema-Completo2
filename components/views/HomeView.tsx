@@ -31,16 +31,9 @@ import { ModalPortal } from '../ui/ModalPortal';
 import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
 import { desktopHomeHubCard } from '../ui/desktopCardStyles';
 
-/** No PC o hub precisa ir ao body; dentro da aba Início oculta (`hidden`) não aparece. */
-function SettingsHubShell({
-  desktopShell,
-  children,
-}: {
-  desktopShell: boolean;
-  children: React.ReactNode;
-}) {
-  if (desktopShell) return <ModalPortal>{children}</ModalPortal>;
-  return <>{children}</>;
+/** Portal no body: evita TabBar (z-40) cobrir o hub dentro do `main` (z-10). */
+function SettingsHubShell({ children }: { children: React.ReactNode }) {
+  return <ModalPortal manageBackLayer={false}>{children}</ModalPortal>;
 }
 
 export type HomeAppId =
@@ -94,7 +87,9 @@ interface HomeViewProps {
   settingsHubOpenerRef?: React.MutableRefObject<(() => void) | null>;
   /** Fecha o hub de configurações (ex.: ao trocar de módulo na sidebar PC). */
   settingsHubCloserRef?: React.MutableRefObject<(() => void) | null>;
-  /** Notifica App quando o hub de configurações abre/fecha (barra superior no PC). */
+  /** Estado do hub (controlado pelo App). */
+  settingsHubOpen?: boolean;
+  /** Atualiza abertura do hub (controlado pelo App). */
   onSettingsHubOpenChange?: (open: boolean) => void;
   /** Abre estoque de peças (modal global no App quando definido). */
   onOpenPartsStock?: () => void;
@@ -234,6 +229,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   desktopShell = false,
   settingsHubOpenerRef,
   settingsHubCloserRef,
+  settingsHubOpen: settingsHubOpenProp = false,
   onSettingsHubOpenChange,
   onOpenPartsStock,
 }) => {
@@ -248,26 +244,29 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
   const [isSystemNotificationsOpen, setIsSystemNotificationsOpen] = useState(false);
-  const [isHomeSettingsHubOpen, setIsHomeSettingsHubOpen] = useState(false);
+  const setSettingsHubOpen = useCallback(
+    (open: boolean) => {
+      onSettingsHubOpenChange?.(open);
+    },
+    [onSettingsHubOpenChange]
+  );
+  const isHomeSettingsHubOpen = settingsHubOpenProp;
+
   useEffect(() => {
     if (!settingsHubOpenerRef) return;
-    settingsHubOpenerRef.current = () => setIsHomeSettingsHubOpen(true);
+    settingsHubOpenerRef.current = () => setSettingsHubOpen(true);
     return () => {
       settingsHubOpenerRef.current = null;
     };
-  }, [settingsHubOpenerRef]);
+  }, [settingsHubOpenerRef, setSettingsHubOpen]);
 
   useEffect(() => {
     if (!settingsHubCloserRef) return;
-    settingsHubCloserRef.current = () => setIsHomeSettingsHubOpen(false);
+    settingsHubCloserRef.current = () => setSettingsHubOpen(false);
     return () => {
       settingsHubCloserRef.current = null;
     };
-  }, [settingsHubCloserRef]);
-
-  useEffect(() => {
-    onSettingsHubOpenChange?.(isHomeSettingsHubOpen);
-  }, [isHomeSettingsHubOpen, onSettingsHubOpenChange]);
+  }, [settingsHubCloserRef, setSettingsHubOpen]);
 
   const [isHeaderProfileMenuOpen, setIsHeaderProfileMenuOpen] = useState(false);
   const headerProfileTriggerRef = useRef<HTMLButtonElement>(null);
@@ -386,7 +385,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         setIsAdminProfileOpen(true);
         return;
       }
-      setIsHomeSettingsHubOpen(true);
+      setSettingsHubOpen(true);
     });
   }, [isSystemUser, isTechnician, technicianId, openAfterInputCycle]);
 
@@ -480,7 +479,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   );
 
   // Pilha LIFO: hub primeiro (base), depois modais na ordem em que tendem a abrir por cima
-  useBrowserBackLayer(isHomeSettingsHubOpen, () => setIsHomeSettingsHubOpen(false));
+  useBrowserBackLayer(isHomeSettingsHubOpen, () => setSettingsHubOpen(false));
   useBrowserBackLayer(isAdminProfileOpen, () => setIsAdminProfileOpen(false));
   useBrowserBackLayer(isChangePasswordsOpen, () => setIsChangePasswordsOpen(false));
   useBrowserBackLayer(isPartsModalOpen, () => setIsPartsModalOpen(false));
@@ -519,7 +518,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       icon: (
         <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-full w-full object-cover" />
       ),
-      onOpen: () => setIsHomeSettingsHubOpen(true),
+      onOpen: () => setSettingsHubOpen(true),
     };
     const extraTiles: {
       id: QuickTileId;
@@ -710,7 +709,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       if (childModalStackActive) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      setIsHomeSettingsHubOpen(false);
+      setSettingsHubOpen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1071,9 +1070,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </main>
 
       {isHomeSettingsHubOpen ? (
-        <SettingsHubShell desktopShell={desktopShell}>
+        <SettingsHubShell>
           <div
-            className={`${desktopShellViewportOverlayClass(desktopShell)} relative flex flex-col overflow-hidden bg-light-page dark:bg-black`}
+            className={`${desktopShell ? desktopShellViewportOverlayClass(true) : 'fixed inset-0 z-[110]'} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black`}
             role="dialog"
             aria-modal="true"
             aria-label="Configurações"
@@ -1085,7 +1084,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   type="button"
                   onClick={() => {
                     if (childModalStackActive) return;
-                    setIsHomeSettingsHubOpen(false);
+                    setSettingsHubOpen(false);
                   }}
                   className="absolute left-0 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
                   aria-label="Voltar"
@@ -1107,7 +1106,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 type="button"
                 onClick={() => {
                   if (childModalStackActive) return;
-                  setIsHomeSettingsHubOpen(false);
+                  setSettingsHubOpen(false);
                 }}
                 className="absolute right-4 top-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/90 text-zinc-700 shadow-sm transition-all hover:bg-white dark:border-white/[0.12] dark:bg-zinc-900/90 dark:text-zinc-200"
                 aria-label="Fechar configurações"
@@ -1164,7 +1163,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       {onLogout && (
                         <SettingsRow
                           onClick={() => {
-                            setIsHomeSettingsHubOpen(false);
+                            setSettingsHubOpen(false);
                             onLogout();
                           }}
                           title="Sair"
@@ -1262,7 +1261,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           {(showFullAdminHub || (!!perms.access_settings && isSystemUser)) && (
                             <SettingsRow
                               onClick={() => {
-                                setIsHomeSettingsHubOpen(false);
+                                setSettingsHubOpen(false);
                                 onOpenApp('settings');
                               }}
                               title="Tema do sistema"
