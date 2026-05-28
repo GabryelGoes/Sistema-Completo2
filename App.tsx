@@ -45,7 +45,10 @@ import {
   resolveDesktopSidebarAccess,
   type DesktopSidebarActionId,
 } from './utils/desktopShellNav';
-import { resolveDesktopShellOverlayTopbar } from './utils/desktopShellOverlayModules';
+import {
+  resolveActiveDesktopSidebarAction,
+  resolveDesktopShellOverlayTopbar,
+} from './utils/desktopShellOverlayModules';
 
 type ShellProfileModal = 'user' | 'admin' | null;
 
@@ -166,6 +169,22 @@ export default function App() {
   const shellOverlayTopbar = useMemo(() => {
     if (!isDesktopShell) return null;
     return resolveDesktopShellOverlayTopbar(
+      vehicleAccompanimentOpen,
+      isPartsModalOpen,
+      isSettingsOpen,
+      settingsHubOpen
+    );
+  }, [
+    isDesktopShell,
+    vehicleAccompanimentOpen,
+    isPartsModalOpen,
+    isSettingsOpen,
+    settingsHubOpen,
+  ]);
+
+  const activeDesktopSidebarAction = useMemo(() => {
+    if (!isDesktopShell) return null;
+    return resolveActiveDesktopSidebarAction(
       vehicleAccompanimentOpen,
       isPartsModalOpen,
       isSettingsOpen,
@@ -628,6 +647,7 @@ export default function App() {
         effectsEnabled={effectsEnabled}
         notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
         shellOverlayTopbar={shellOverlayTopbar}
+        activeSidebarAction={activeDesktopSidebarAction}
       >
           <KeepAliveTabPanel
             tabId="home"
@@ -910,6 +930,7 @@ export default function App() {
       effectsEnabled={effectsEnabled}
       notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
       shellOverlayTopbar={shellOverlayTopbar}
+      activeSidebarAction={activeDesktopSidebarAction}
     >
         <KeepAliveTabPanel
           tabId="home"

@@ -30,14 +30,30 @@ export const DESKTOP_SHELL_MODULE_TOPBARS: Record<
   },
 };
 
+export function resolveActiveDesktopSidebarAction(
+  vehicleAccompanimentOpen: boolean,
+  partsModalOpen: boolean,
+  settingsModalOpen: boolean,
+  settingsHubOpen: boolean
+): DesktopShellSidebarModuleId | null {
+  if (vehicleAccompanimentOpen) return 'centro_atendimento';
+  if (partsModalOpen) return 'estoque_pecas';
+  if (settingsModalOpen || settingsHubOpen) return 'configuracoes';
+  return null;
+}
+
 export function resolveDesktopShellOverlayTopbar(
   vehicleAccompanimentOpen: boolean,
   partsModalOpen: boolean,
   settingsModalOpen: boolean,
   settingsHubOpen: boolean
 ): DesktopShellOverlayTopbar | null {
-  if (vehicleAccompanimentOpen) return DESKTOP_SHELL_MODULE_TOPBARS.centro_atendimento;
-  if (partsModalOpen) return DESKTOP_SHELL_MODULE_TOPBARS.estoque_pecas;
-  if (settingsModalOpen || settingsHubOpen) return DESKTOP_SHELL_MODULE_TOPBARS.configuracoes;
-  return null;
+  const action = resolveActiveDesktopSidebarAction(
+    vehicleAccompanimentOpen,
+    partsModalOpen,
+    settingsModalOpen,
+    settingsHubOpen
+  );
+  if (!action) return null;
+  return DESKTOP_SHELL_MODULE_TOPBARS[action];
 }

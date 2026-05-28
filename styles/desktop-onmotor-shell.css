@@ -109,6 +109,7 @@ html[data-desktop-shell='true'] .desktop-shell-sidebar-nav {
 }
 
 html[data-desktop-shell='true'] .desktop-shell-nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.65rem;
@@ -119,7 +120,10 @@ html[data-desktop-shell='true'] .desktop-shell-nav-item {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #52525b;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease;
   cursor: pointer;
   border: none;
   background: transparent;
@@ -131,10 +135,42 @@ html[data-desktop-shell='true'] .desktop-shell-nav-item:hover {
   color: #18181b;
 }
 
+/* Indicador do módulo ativo: trilho lateral + fundo suave */
 html[data-desktop-shell='true'] .desktop-shell-nav-item--active {
-  background: #f0f0f0;
   color: #09090b;
-  box-shadow: inset 3px 0 0 rgb(var(--desktop-shell-accent-rgb) / 1);
+  background: linear-gradient(
+    90deg,
+    rgb(var(--desktop-shell-accent-rgb) / 0.14) 0%,
+    rgb(var(--desktop-shell-accent-rgb) / 0.04) 55%,
+    transparent 100%
+  );
+  box-shadow: inset 0 0 0 1px rgb(var(--desktop-shell-accent-rgb) / 0.1);
+}
+
+html[data-desktop-shell='true'] .desktop-shell-nav-item--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 62%;
+  min-height: 1.35rem;
+  border-radius: 0 6px 6px 0;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--desktop-shell-accent-rgb) / 1) 0%,
+    rgb(var(--desktop-shell-accent-rgb) / 0.72) 100%
+  );
+  box-shadow:
+    0 0 0 1px rgb(var(--desktop-shell-accent-rgb) / 0.2),
+    0 2px 10px rgb(var(--desktop-shell-accent-rgb) / 0.35);
+}
+
+html[data-desktop-shell='true'] .desktop-shell-nav-item--active .desktop-shell-nav-icon {
+  box-shadow:
+    0 0 0 2px rgb(var(--desktop-shell-accent-rgb) / 0.22),
+    0 2px 8px rgb(var(--desktop-shell-accent-rgb) / 0.2);
 }
 
 html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-item {
@@ -143,8 +179,24 @@ html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell
   padding: 0.55rem 0.4rem;
 }
 
+/* Sidebar recolhida: indicador no topo do ícone */
 html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-item--active {
-  box-shadow: inset 0 3px 0 rgb(var(--desktop-shell-accent-rgb) / 1);
+  background: linear-gradient(
+    180deg,
+    rgb(var(--desktop-shell-accent-rgb) / 0.16) 0%,
+    rgb(var(--desktop-shell-accent-rgb) / 0.04) 70%,
+    transparent 100%
+  );
+}
+
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-item--active::before {
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 56%;
+  height: 3px;
+  min-height: 0;
+  border-radius: 0 0 6px 6px;
 }
 
 html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-label,
@@ -401,8 +453,23 @@ html.dark[data-desktop-shell='true'] .desktop-shell-nav-item:hover {
 }
 
 html.dark[data-desktop-shell='true'] .desktop-shell-nav-item--active {
-  background: #27272a;
-  color: #fff;
+  color: #fafafa;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--desktop-shell-accent-rgb) / 0.22) 0%,
+    rgb(var(--desktop-shell-accent-rgb) / 0.08) 55%,
+    transparent 100%
+  );
+  box-shadow: inset 0 0 0 1px rgb(var(--desktop-shell-accent-rgb) / 0.18);
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-item--active {
+  background: linear-gradient(
+    180deg,
+    rgb(var(--desktop-shell-accent-rgb) / 0.24) 0%,
+    rgb(var(--desktop-shell-accent-rgb) / 0.06) 70%,
+    transparent 100%
+  );
 }
 
 html.dark[data-desktop-shell='true'] .desktop-shell-content {

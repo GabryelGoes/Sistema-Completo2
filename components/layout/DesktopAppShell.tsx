@@ -40,6 +40,8 @@ export type DesktopAppShellProps = {
   orcamentosBadge?: number;
   notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
+  /** Atalho da sidebar aberto (Central, Estoque, Configurações). */
+  activeSidebarAction?: DesktopSidebarActionId | null;
   children: React.ReactNode;
 };
 
@@ -87,6 +89,7 @@ export function DesktopAppShell({
   orcamentosBadge = 0,
   notificationCenter,
   shellOverlayTopbar = null,
+  activeSidebarAction = null,
   children,
 }: DesktopAppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
@@ -154,7 +157,7 @@ export function DesktopAppShell({
 
         <nav className="desktop-shell-sidebar-nav">
           {sidebarItems.map((item) => {
-            const active = currentTab === item.id;
+            const active = !activeSidebarAction && currentTab === item.id;
             return (
               <button
                 key={item.id}
@@ -174,18 +177,22 @@ export function DesktopAppShell({
               </button>
             );
           })}
-          {sidebarActions.map((item) => (
+          {sidebarActions.map((item) => {
+            const active = activeSidebarAction === item.id;
+            return (
             <button
               key={item.id}
               type="button"
-              className="desktop-shell-nav-item desktop-shell-nav-item--action"
+              className={`desktop-shell-nav-item desktop-shell-nav-item--action${active ? ' desktop-shell-nav-item--active' : ''}`}
               onClick={() => onSidebarAction?.(item.id)}
+              aria-current={active ? 'page' : undefined}
               title={sidebarCollapsed ? item.label : undefined}
             >
               <ActionNavIcon item={item} />
               <span className="desktop-shell-nav-label min-w-0 truncate">{item.label}</span>
             </button>
-          ))}
+            );
+          })}
         </nav>
 
         <a

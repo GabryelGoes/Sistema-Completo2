@@ -5,6 +5,7 @@ import { DesktopShellProvider } from '../ui/DesktopShellContext';
 import { DesktopAppShell } from './DesktopAppShell';
 import type { NotificationCenterProps } from '../NotificationCenter';
 import type { DesktopSidebarAccess, DesktopSidebarActionId } from '../../utils/desktopShellNav';
+import type { DesktopShellSidebarModuleId } from '../../utils/desktopShellOverlayModules';
 import type { DesktopShellOverlayTopbar } from '../../utils/desktopShellOverlayModules';
 
 export type AuthenticatedAppFrameProps = {
@@ -25,6 +26,7 @@ export type AuthenticatedAppFrameProps = {
   notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
   /** Título/cor da barra superior quando um módulo da sidebar está aberto (PC). */
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
+  activeSidebarAction?: DesktopShellSidebarModuleId | null;
   children: React.ReactNode;
 };
 
@@ -45,6 +47,7 @@ export function AuthenticatedAppFrame({
   effectsEnabled,
   notificationCenter,
   shellOverlayTopbar = null,
+  activeSidebarAction = null,
   children,
 }: AuthenticatedAppFrameProps) {
   if (isDesktopShell) {
@@ -68,6 +71,7 @@ export function AuthenticatedAppFrame({
             orcamentosBadge={orcamentosBadge}
             notificationCenter={notificationCenter}
             shellOverlayTopbar={shellOverlayTopbar}
+            activeSidebarAction={activeSidebarAction}
           >
             {children}
           </DesktopAppShell>
