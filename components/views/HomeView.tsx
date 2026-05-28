@@ -1101,19 +1101,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
               </div>
             </header>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  if (childModalStackActive) return;
-                  setSettingsHubOpen(false);
-                }}
-                className="absolute right-4 top-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/75 bg-white/90 text-zinc-700 shadow-sm transition-all hover:bg-white dark:border-white/[0.12] dark:bg-zinc-900/90 dark:text-zinc-200"
-                aria-label="Fechar configurações"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            )}
+            ) : null}
 
             <div className={`min-h-0 w-full flex-1 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable] ${desktopShell ? 'pt-3' : 'pt-5'}`}>
               <div className="mx-auto w-full max-w-xl space-y-6 px-4 sm:px-6 lg:max-w-5xl">

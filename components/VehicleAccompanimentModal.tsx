@@ -545,19 +545,8 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
         <div
           className={`relative flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden rounded-none border-0 bg-gradient-to-b from-zinc-50/95 via-light-page to-zinc-100/90 dark:from-zinc-950 dark:via-[#0a0c12] dark:to-black${isDesktopShell ? '' : ' h-[100dvh]'}`}
         >
-          {isDesktopShell ? (
-            <button
-              type="button"
-              onClick={onClose}
-              className="absolute right-4 top-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/80 bg-white/90 text-zinc-700 shadow-sm transition-all hover:bg-white dark:border-white/[0.1] dark:bg-zinc-800/90 dark:text-zinc-100"
-              aria-label="Fechar central de atendimento"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          ) : null}
-
           <div
-            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable] ${isDesktopShell ? 'pt-14' : 'pt-[max(0.5rem,env(safe-area-inset-top))]'}`}
+            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable] ${isDesktopShell ? 'pt-3' : 'pt-[max(0.5rem,env(safe-area-inset-top))]'}`}
           >
             <div className="relative mx-auto flex max-w-4xl flex-col gap-4 px-4 py-4 md:px-6">
               {error ? (

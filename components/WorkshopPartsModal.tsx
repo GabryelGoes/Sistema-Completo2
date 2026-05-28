@@ -951,14 +951,16 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       className={`${desktopShellViewportOverlayClass(isDesktopShell)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
     >
       <div className="relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
-        <button
-          type="button"
-          onClick={onClose}
-          className={`${iosModalClose} ${isDesktopShell ? 'top-3 right-4' : 'top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))]'}`}
-          aria-label="Fechar"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {!isDesktopShell ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className={`${iosModalClose} top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))]`}
+            aria-label="Fechar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        ) : null}
 
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           {!isDesktopShell ? (
