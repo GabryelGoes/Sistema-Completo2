@@ -42,6 +42,7 @@ import {
   technicianScore,
   type TechnicianQualityRow,
 } from '../../utils/qualityRadarReports';
+import { useDesktopShellLayout } from '../ui/DesktopShellContext';
 
 type TabId = 'ocorrencias' | 'relatorio';
 
@@ -67,7 +68,13 @@ function periodBounds(preset: PeriodPreset): { from: string; to: string } {
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
+const headerActionBtnCls =
+  'inline-flex items-center gap-2 rounded-2xl bg-white/20 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-white/30 disabled:opacity-50';
+const headerCreateBtnCls =
+  'inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-4 py-2 text-[13px] font-semibold text-white shadow-lg transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-900';
+
 export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = ({ authSession }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const [activeTab, setActiveTab] = useState<TabId>('ocorrencias');
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>('month');
   const [items, setItems] = useState<QualityIncident[] | null>(null);
@@ -179,28 +186,26 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
             </h1>
             <p className="max-w-xl text-[14px] leading-relaxed text-rose-50">{QUALITY_RADAR_MODULE_SUBTITLE}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void load()}
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-2xl bg-white/20 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-white/30 disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </button>
-            <button
-              type="button"
-              onClick={openCreate}
-              className="inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-4 py-2 text-[13px] font-semibold text-white shadow-lg transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-900"
-            >
-              <Plus className="h-4 w-4" />
-              Nova ocorrência
-            </button>
-          </div>
+          {!isDesktopShell ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void load()}
+                disabled={loading}
+                className={headerActionBtnCls}
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </button>
+              <button type="button" onClick={openCreate} className={headerCreateBtnCls}>
+                <Plus className="h-4 w-4" />
+                Nova ocorrência
+              </button>
+            </div>
+          ) : null}
         </div>
 
-        <div className="relative mt-5 flex flex-wrap gap-2 border-t border-white/25 pt-4">
+        <div className="relative mt-5 flex flex-wrap items-center gap-2 border-t border-white/25 pt-4">
           {(
             [
               { id: 'ocorrencias' as const, label: 'Ocorrências', icon: ClipboardList },
@@ -219,7 +224,24 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
               {label}
             </button>
           ))}
-          <div className="ml-auto flex flex-wrap gap-2">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {isDesktopShell ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void load()}
+                  disabled={loading}
+                  className={headerActionBtnCls}
+                >
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  Atualizar
+                </button>
+                <button type="button" onClick={openCreate} className={headerCreateBtnCls}>
+                  <Plus className="h-4 w-4" />
+                  Nova ocorrência
+                </button>
+              </>
+            ) : null}
             {(
               [
                 { id: 'month' as const, label: 'Este mês' },
