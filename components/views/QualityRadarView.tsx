@@ -168,6 +168,68 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
     setSearch('');
   };
 
+  const tabDefs = [
+    { id: 'ocorrencias' as const, label: 'Ocorrências', desktopLabel: 'Ocorrências', icon: ClipboardList },
+    {
+      id: 'relatorio' as const,
+      label: 'Relatório por mecânico',
+      desktopLabel: 'Relatório',
+      icon: BarChart3,
+    },
+  ] as const;
+
+  const periodDefs = [
+    { id: 'month' as const, label: 'Este mês' },
+    { id: 'quarter' as const, label: '90 dias' },
+    { id: 'year' as const, label: 'Este ano' },
+  ] as const;
+
+  const tabBtnCls = (active: boolean) => {
+    if (isDesktopShell) {
+      return `inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-[12px] font-semibold transition ${
+        active
+          ? 'bg-rose-600 text-white shadow-sm shadow-rose-500/25'
+          : 'border border-zinc-200/90 bg-white text-zinc-700 hover:border-rose-300/60 hover:bg-rose-50 dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800'
+      }`;
+    }
+    return `inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-[13px] font-semibold transition ${
+      active ? 'bg-white text-rose-700' : 'bg-white/20 text-white hover:bg-white/30'
+    }`;
+  };
+
+  const headerActions = (
+    <>
+      <button type="button" onClick={() => void load()} disabled={loading} className={headerActionBtnCls}>
+        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+        Atualizar
+      </button>
+      <button type="button" onClick={openCreate} className={headerCreateBtnCls}>
+        <Plus className="h-4 w-4" />
+        Nova ocorrência
+      </button>
+    </>
+  );
+
+  const tabButtons = tabDefs.map(({ id, label, desktopLabel, icon: Icon }) => (
+    <button key={id} type="button" onClick={() => setActiveTab(id)} className={tabBtnCls(activeTab === id)}>
+      <Icon className="h-4 w-4" />
+      {isDesktopShell ? desktopLabel : label}
+    </button>
+  ));
+
+  const periodButtons = periodDefs.map((p) => (
+    <button
+      key={p.id}
+      type="button"
+      onClick={() => setPeriodPreset(p.id)}
+      className={`rounded-xl px-3 py-1.5 text-[12px] font-semibold ${
+        periodPreset === p.id ? 'bg-white text-rose-700' : 'bg-white/15 text-white'
+      }`}
+    >
+      {p.label}
+    </button>
+  ));
+
   return (
     <div className="relative flex min-h-full flex-col gap-4 px-4 pb-28 pt-[max(0.5rem,env(safe-area-inset-top))] md:px-8 md:pb-10 md:pt-8">
       <div className="pointer-events-none absolute inset-0 -z-10 opacity-30 dark:opacity-20" aria-hidden>
@@ -175,95 +237,45 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
         <div className="absolute right-0 top-32 h-80 w-80 rounded-full bg-orange-500/20 blur-[110px]" />
       </div>
 
-      <header className={`app-view-page-header relative overflow-hidden ${shell} p-5 md:p-6`}>
+      <header
+        className={`app-view-page-header quality-radar-page-header relative overflow-hidden ${shell} ${
+          isDesktopShell ? 'p-3 md:p-3' : 'p-5 md:p-6'
+        }`}
+      >
         <div className="absolute inset-0 bg-rose-600 pointer-events-none" />
-        <div className="relative flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="app-view-page-chrome min-w-0 space-y-1 text-white">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-100">Gestão da equipe</p>
-            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight md:text-[1.75rem]">
-              <img src={QUALITY_RADAR_ICON} alt="" className="h-9 w-9 rounded-xl object-cover" />
-              {QUALITY_RADAR_MODULE_TITLE}
-            </h1>
-            <p className="max-w-xl text-[14px] leading-relaxed text-rose-50">{QUALITY_RADAR_MODULE_SUBTITLE}</p>
+        {isDesktopShell ? (
+          <div className="relative flex flex-wrap items-center justify-end gap-2">
+            {headerActions}
+            {periodButtons}
           </div>
-          {!isDesktopShell ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void load()}
-                disabled={loading}
-                className={headerActionBtnCls}
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Atualizar
-              </button>
-              <button type="button" onClick={openCreate} className={headerCreateBtnCls}>
-                <Plus className="h-4 w-4" />
-                Nova ocorrência
-              </button>
+        ) : (
+          <>
+            <div className="relative flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="app-view-page-chrome min-w-0 space-y-1 text-white">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-100">
+                  Gestão da equipe
+                </p>
+                <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight md:text-[1.75rem]">
+                  <img src={QUALITY_RADAR_ICON} alt="" className="h-9 w-9 rounded-xl object-cover" />
+                  {QUALITY_RADAR_MODULE_TITLE}
+                </h1>
+                <p className="max-w-xl text-[14px] leading-relaxed text-rose-50">{QUALITY_RADAR_MODULE_SUBTITLE}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">{headerActions}</div>
             </div>
-          ) : null}
-        </div>
 
-        <div className="relative mt-5 flex flex-wrap items-center gap-2 border-t border-white/25 pt-4">
-          {(
-            [
-              { id: 'ocorrencias' as const, label: 'Ocorrências', icon: ClipboardList },
-              { id: 'relatorio' as const, label: 'Relatório por mecânico', icon: BarChart3 },
-            ] as const
-          ).map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActiveTab(id)}
-              className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-[13px] font-semibold transition ${
-                activeTab === id ? 'bg-white text-rose-700' : 'bg-white/20 text-white hover:bg-white/30'
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </button>
-          ))}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            {isDesktopShell ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => void load()}
-                  disabled={loading}
-                  className={headerActionBtnCls}
-                >
-                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                  Atualizar
-                </button>
-                <button type="button" onClick={openCreate} className={headerCreateBtnCls}>
-                  <Plus className="h-4 w-4" />
-                  Nova ocorrência
-                </button>
-              </>
-            ) : null}
-            {(
-              [
-                { id: 'month' as const, label: 'Este mês' },
-                { id: 'quarter' as const, label: '90 dias' },
-                { id: 'year' as const, label: 'Este ano' },
-              ] as const
-            ).map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setPeriodPreset(p.id)}
-                className={`rounded-xl px-3 py-1.5 text-[12px] font-semibold ${
-                  periodPreset === p.id ? 'bg-white text-rose-700' : 'bg-white/15 text-white'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <p className="relative mt-2 text-[12px] text-rose-100/90">{formatReportPeriodLabel(from, to)}</p>
+            <div className="relative mt-5 flex flex-wrap items-center gap-2 border-t border-white/25 pt-4">
+              {tabButtons}
+              <div className="ml-auto flex flex-wrap items-center gap-2">{periodButtons}</div>
+            </div>
+            <p className="relative mt-2 text-[12px] text-rose-100/90">{formatReportPeriodLabel(from, to)}</p>
+          </>
+        )}
       </header>
+
+      {isDesktopShell ? (
+        <div className="flex flex-wrap items-center gap-2 -mt-1">{tabButtons}</div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[

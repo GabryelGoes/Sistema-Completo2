@@ -329,6 +329,15 @@ html[data-desktop-shell='true'] .app-view-page-header .relative.flex.flex-col.ga
   justify-content: flex-end;
 }
 
+/* Radar de Qualidade: faixa compacta como Boletim de Erros (só botões na barra colorida) */
+html[data-desktop-shell='true'] .quality-radar-page-header {
+  padding: 0.65rem 0.85rem;
+}
+
+html[data-desktop-shell='true'] .quality-radar-page-header .relative.flex.flex-wrap.items-center.justify-end {
+  gap: 0.35rem;
+}
+
 html[data-desktop-shell='true'] .budgets-hub-page-header {
   border-bottom: none;
   background: transparent;
