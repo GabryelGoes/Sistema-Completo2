@@ -1105,109 +1105,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             <div className={`min-h-0 w-full flex-1 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable] ${desktopShell ? 'pt-3' : 'pt-5'}`}>
               <div className="mx-auto w-full max-w-xl space-y-6 px-4 sm:px-6 lg:max-w-5xl">
-                  <section>
-                    <p className={iosSectionTitle}>Conta</p>
-                    <p className={iosSectionHint}>Perfil e sessão</p>
-                    <div className={`${iosCard} space-y-0.5 p-2`}>
-                      {isSystemUser && (
-                        <SettingsRow
-                          onClick={() => setIsUserProfileOpen(true)}
-                          title="Configurações de perfil"
-                          subtitle="Nome, foto e cor"
-                          icon={
-                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                              <img
-                                src="/icons/perfil-ios.png"
-                                alt="Configurações de perfil"
-                                className="h-full w-full object-cover"
-                              />
-                            </IosAccentIconSquircle>
-                          }
-                        />
-                      )}
-                      {(!isTechnician || technicianId) && !isSystemUser && (
-                        <SettingsRow
-                          onClick={() => {
-                            if (isTechnician) setIsTechnicianProfileOpen(true);
-                            else setIsAdminProfileOpen(true);
-                          }}
-                          title={isTechnician ? 'Meu perfil' : 'Perfil do administrador'}
-                          subtitle={isTechnician ? 'Nome e foto' : 'Nome e foto da gerência'}
-                          icon={
-                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                              {isTechnician ? (
-                                <User />
-                              ) : (
-                                <img
-                                  src="/icons/admin-perfil-ios.png"
-                                  alt="Perfil do administrador"
-                                  className="h-full w-full object-cover"
-                                />
-                              )}
-                            </IosAccentIconSquircle>
-                          }
-                        />
-                      )}
-                      {onLogout && (
-                        <SettingsRow
-                          onClick={() => {
-                            setSettingsHubOpen(false);
-                            onLogout();
-                          }}
-                          title="Sair"
-                          subtitle="Encerrar sessão neste dispositivo"
-                          danger
-                          icon={
-                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                              <LogOut className="text-red-500 dark:text-red-400" />
-                            </IosAccentIconSquircle>
-                          }
-                        />
-                      )}
-                    </div>
-                  </section>
-
-                  {showToolsSection && (
-                    <section>
-                      <p className={iosSectionTitle}>Ferramentas</p>
-                      <p className={iosSectionHint}>Opções liberadas para você</p>
-                      <div className={`${iosCard} space-y-0.5 p-2`}>
-                        {perms.access_settings && onOpenSettings && (
-                          <SettingsRow
-                            onClick={() => onOpenSettings()}
-                            title="Preferências da oficina"
-                            subtitle="Tema e experiência do app"
-                            icon={
-                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                <img
-                                  src="/icons/configuracoes-ios.png"
-                                  alt="Preferências"
-                                  className="h-full w-full object-cover"
-                                />
-                              </IosAccentIconSquircle>
-                            }
-                          />
-                        )}
-                        {perms.access_change_passwords && onOpenChangePasswords && (
-                          <SettingsRow
-                            onClick={() => onOpenChangePasswords()}
-                            title="Alterar senhas"
-                            subtitle="Segurança de acessos"
-                            icon={
-                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                <img
-                                  src="/icons/senhas-ios.png"
-                                  alt="Alterar senhas"
-                                  className="h-full w-full object-cover"
-                                />
-                              </IosAccentIconSquircle>
-                            }
-                          />
-                        )}
-                      </div>
-                    </section>
-                  )}
-
                   {showAdminSection && (
                     <section>
                       <p className={iosSectionTitle}>Administração</p>
@@ -1341,6 +1238,109 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             />
                           )}
                         </div>
+                      </div>
+                    </section>
+                  )}
+
+                  <section>
+                    <p className={iosSectionTitle}>Conta</p>
+                    <p className={iosSectionHint}>Perfil e sessão</p>
+                    <div className={`${iosCard} space-y-0.5 p-2`}>
+                      {isSystemUser && (
+                        <SettingsRow
+                          onClick={() => setIsUserProfileOpen(true)}
+                          title="Configurações de perfil"
+                          subtitle="Nome, foto e cor"
+                          icon={
+                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                              <img
+                                src="/icons/perfil-ios.png"
+                                alt="Configurações de perfil"
+                                className="h-full w-full object-cover"
+                              />
+                            </IosAccentIconSquircle>
+                          }
+                        />
+                      )}
+                      {(!isTechnician || technicianId) && !isSystemUser && (
+                        <SettingsRow
+                          onClick={() => {
+                            if (isTechnician) setIsTechnicianProfileOpen(true);
+                            else setIsAdminProfileOpen(true);
+                          }}
+                          title={isTechnician ? 'Meu perfil' : 'Perfil do administrador'}
+                          subtitle={isTechnician ? 'Nome e foto' : 'Nome e foto da gerência'}
+                          icon={
+                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                              {isTechnician ? (
+                                <User />
+                              ) : (
+                                <img
+                                  src="/icons/admin-perfil-ios.png"
+                                  alt="Perfil do administrador"
+                                  className="h-full w-full object-cover"
+                                />
+                              )}
+                            </IosAccentIconSquircle>
+                          }
+                        />
+                      )}
+                      {onLogout && (
+                        <SettingsRow
+                          onClick={() => {
+                            setSettingsHubOpen(false);
+                            onLogout();
+                          }}
+                          title="Sair"
+                          subtitle="Encerrar sessão neste dispositivo"
+                          danger
+                          icon={
+                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                              <LogOut className="text-red-500 dark:text-red-400" />
+                            </IosAccentIconSquircle>
+                          }
+                        />
+                      )}
+                    </div>
+                  </section>
+
+                  {showToolsSection && (
+                    <section>
+                      <p className={iosSectionTitle}>Ferramentas</p>
+                      <p className={iosSectionHint}>Opções liberadas para você</p>
+                      <div className={`${iosCard} space-y-0.5 p-2`}>
+                        {perms.access_settings && onOpenSettings && (
+                          <SettingsRow
+                            onClick={() => onOpenSettings()}
+                            title="Preferências da oficina"
+                            subtitle="Tema e experiência do app"
+                            icon={
+                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                <img
+                                  src="/icons/configuracoes-ios.png"
+                                  alt="Preferências"
+                                  className="h-full w-full object-cover"
+                                />
+                              </IosAccentIconSquircle>
+                            }
+                          />
+                        )}
+                        {perms.access_change_passwords && onOpenChangePasswords && (
+                          <SettingsRow
+                            onClick={() => onOpenChangePasswords()}
+                            title="Alterar senhas"
+                            subtitle="Segurança de acessos"
+                            icon={
+                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                <img
+                                  src="/icons/senhas-ios.png"
+                                  alt="Alterar senhas"
+                                  className="h-full w-full object-cover"
+                                />
+                              </IosAccentIconSquircle>
+                            }
+                          />
+                        )}
                       </div>
                     </section>
                   )}
