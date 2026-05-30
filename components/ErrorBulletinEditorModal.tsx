@@ -54,8 +54,28 @@ type Props = {
   authorName?: string;
   authorUserId?: string | null;
   onClose: () => void;
-  onSaved: () => void;
+  /** `savedId` informado após criar um boletim novo. */
+  onSaved: (savedId?: string) => void;
 };
+
+type PendingFile = {
+  localId: string;
+  file: File;
+  previewUrl: string | null;
+  name: string;
+};
+
+type PendingLink = {
+  localId: string;
+  name: string;
+  url: string;
+};
+
+function newLocalId(): string {
+  return typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 function parseDtcLines(raw: string): string[] {
   return raw
@@ -78,6 +98,8 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<ErrorBulletinAttachment[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [pendingLinks, setPendingLinks] = useState<PendingLink[]>([]);
 
   const [title, setTitle] = useState('');
   const [vehicleBrand, setVehicleBrand] = useState('');
@@ -110,6 +132,28 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     return { imageAttachments: images, pdfAttachments: pdfs, otherAttachments: others };
   }, [attachments]);
 
+  const pendingImageFiles = useMemo(
+    () => pendingFiles.filter((p) => p.file.type.startsWith('image/')),
+    [pendingFiles]
+  );
+  const pendingPdfFiles = useMemo(
+    () => pendingFiles.filter((p) => p.file.type === 'application/pdf' || /\.pdf$/i.test(p.name)),
+    [pendingFiles]
+  );
+  const pendingOtherFiles = useMemo(
+    () =>
+      pendingFiles.filter(
+        (p) => !p.file.type.startsWith('image/') && p.file.type !== 'application/pdf' && !/\.pdf$/i.test(p.name)
+      ),
+    [pendingFiles]
+  );
+
+  const revokePendingPreviews = useCallback((files: PendingFile[]) => {
+    for (const item of files) {
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    }
+  }, []);
+
   const [vehiclePickMode, setVehiclePickMode] = useState<VehiclePickMode>('manual');
   const [patioOrders, setPatioOrders] = useState<ServiceOrderListItem[]>([]);
   const [archivedOrders, setArchivedOrders] = useState<ServiceOrderListItem[]>([]);
@@ -135,7 +179,11 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     setAttachments(d.attachments ?? []);
   };
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
+    setPendingFiles((prev) => {
+      revokePendingPreviews(prev);
+      return [];
+    });
     setTitle('');
     setVehicleBrand('');
     setVehicleModel('');
@@ -151,6 +199,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     setStatus('published');
     setTagsRaw('');
     setAttachments([]);
+    setPendingLinks([]);
     setLinkName('');
     setLinkUrl('');
     setVehiclePickMode('manual');
@@ -159,7 +208,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     setVehicleSearch('');
     setSelectedOrderId(null);
     setError(null);
-  };
+  }, [revokePendingPreviews]);
 
   const applyOrderToForm = useCallback((o: ServiceOrderListItem) => {
     setVehicleBrand((o.vehicle_brand ?? '').trim());
@@ -169,6 +218,15 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     setEngineInfo((o.vehicle_engine_info ?? '').trim());
     setSelectedOrderId(o.id);
   }, []);
+
+  useEffect(() => {
+    if (open) return;
+    setPendingFiles((prev) => {
+      revokePendingPreviews(prev);
+      return [];
+    });
+    setPendingLinks([]);
+  }, [open, revokePendingPreviews]);
 
   useEffect(() => {
     if (!open) return;
@@ -254,16 +312,34 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     setSaving(true);
     setError(null);
     try {
+      let savedId = bulletinId ?? undefined;
       if (isEdit && bulletinId) {
         await updateErrorBulletin(bulletinId, buildPayload());
       } else {
-        await createErrorBulletin({
+        const created = await createErrorBulletin({
           ...buildPayload(),
           createdByName: authorName,
           createdByUserId: authorUserId,
         });
+        savedId = created.id;
+        for (const pending of pendingFiles) {
+          const att = await uploadErrorBulletinAttachment(savedId, pending.file);
+          setAttachments((prev) => [...prev, att]);
+        }
+        for (const pending of pendingLinks) {
+          const att = await addErrorBulletinLink(savedId, {
+            name: pending.name,
+            url: pending.url,
+          });
+          setAttachments((prev) => [...prev, att]);
+        }
+        setPendingFiles((prev) => {
+          revokePendingPreviews(prev);
+          return [];
+        });
+        setPendingLinks([]);
       }
-      onSaved();
+      onSaved(savedId);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Não foi possível salvar.');
@@ -289,14 +365,27 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
 
   const handleUploadFiles = useCallback(
     async (files: FileList | null) => {
-      if (!files?.length || !bulletinId) return;
+      if (!files?.length) return;
       setSaving(true);
       setError(null);
       try {
         for (const file of Array.from(files)) {
           const toSend = file.type.startsWith('image/') ? await compressImageForUpload(file) : file;
-          const att = await uploadErrorBulletinAttachment(bulletinId, toSend);
-          setAttachments((prev) => [...prev, att]);
+          if (bulletinId) {
+            const att = await uploadErrorBulletinAttachment(bulletinId, toSend);
+            setAttachments((prev) => [...prev, att]);
+          } else {
+            const previewUrl = toSend.type.startsWith('image/') ? URL.createObjectURL(toSend) : null;
+            setPendingFiles((prev) => [
+              ...prev,
+              {
+                localId: newLocalId(),
+                file: toSend,
+                previewUrl,
+                name: toSend.name,
+              },
+            ]);
+          }
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Falha no upload.');
@@ -308,21 +397,37 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
   );
 
   const handleAddLink = async () => {
-    if (!bulletinId || !linkUrl.trim()) return;
-    setSaving(true);
-    try {
-      const att = await addErrorBulletinLink(bulletinId, {
-        name: linkName.trim() || 'Link',
-        url: linkUrl.trim(),
-      });
-      setAttachments((prev) => [...prev, att]);
-      setLinkName('');
-      setLinkUrl('');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao adicionar link.');
-    } finally {
-      setSaving(false);
+    if (!linkUrl.trim()) return;
+    const payload = { name: linkName.trim() || 'Link', url: linkUrl.trim() };
+    if (bulletinId) {
+      setSaving(true);
+      try {
+        const att = await addErrorBulletinLink(bulletinId, payload);
+        setAttachments((prev) => [...prev, att]);
+        setLinkName('');
+        setLinkUrl('');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Falha ao adicionar link.');
+      } finally {
+        setSaving(false);
+      }
+      return;
     }
+    setPendingLinks((prev) => [...prev, { localId: newLocalId(), ...payload }]);
+    setLinkName('');
+    setLinkUrl('');
+  };
+
+  const handleRemovePendingFile = (localId: string) => {
+    setPendingFiles((prev) => {
+      const target = prev.find((p) => p.localId === localId);
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((p) => p.localId !== localId);
+    });
+  };
+
+  const handleRemovePendingLink = (localId: string) => {
+    setPendingLinks((prev) => prev.filter((p) => p.localId !== localId));
   };
 
   const handleRemoveAttachment = async (att: ErrorBulletinAttachment) => {
@@ -572,11 +677,15 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                   </div>
                 </div>
 
-                {isEdit ? (
-                  <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50/80 p-4 dark:border-white/[0.08] dark:bg-zinc-950/40">
+                <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50/80 p-4 dark:border-white/[0.08] dark:bg-zinc-950/40">
                     <p className="mb-3 text-[13px] font-semibold text-zinc-800 dark:text-zinc-200">
                       Anexos (fotos, documentos, links)
                     </p>
+                    {!isEdit ? (
+                      <p className="mb-3 text-[12px] text-zinc-500 dark:text-zinc-400">
+                        Você pode adicionar arquivos agora; eles serão enviados ao salvar o boletim.
+                      </p>
+                    ) : null}
                     <div className="mb-3 flex flex-wrap gap-2">
                       <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-zinc-800 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-zinc-700">
                         <ImageIcon className="h-4 w-4" />
@@ -612,7 +721,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                         <Link2 className="h-4 w-4" /> Link
                       </button>
                     </div>
-                    {imageAttachments.length > 0 ? (
+                    {(imageAttachments.length > 0 || pendingImageFiles.length > 0) ? (
                       <div className="mb-4">
                         <div className="mb-2 flex items-center gap-2">
                           <ImageIcon className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
@@ -667,12 +776,41 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                                 </span>
                               </div>
                             ))}
+                            {pendingImageFiles.map((att) => (
+                              <div key={att.localId} className="flex min-w-0 flex-col gap-1">
+                                <div className="relative rounded-[14px] bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 p-[2px] shadow-[0_6px_16px_-8px_rgba(245,158,11,0.35)]">
+                                  <div className="relative aspect-square overflow-hidden rounded-[12px] bg-zinc-100 dark:bg-zinc-900">
+                                    {att.previewUrl ? (
+                                      <img src={att.previewUrl} alt={att.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                      <div className="flex h-full items-center justify-center text-zinc-400">
+                                        <ImageIcon className="h-8 w-8" />
+                                      </div>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemovePendingFile(att.localId)}
+                                      className="absolute right-1.5 top-1.5 rounded-lg bg-black/50 p-1.5 text-white transition hover:bg-red-600"
+                                      aria-label="Remover foto"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                                <span
+                                  className="line-clamp-2 text-[10px] font-medium leading-tight text-zinc-600 dark:text-zinc-400 sm:text-[11px]"
+                                  title={att.name}
+                                >
+                                  {att.name}
+                                </span>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
                     ) : null}
 
-                    {pdfAttachments.length > 0 ? (
+                    {(pdfAttachments.length > 0 || pendingPdfFiles.length > 0) ? (
                       <div className="mb-4">
                         <div className="mb-2 flex items-center gap-2">
                           <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
@@ -707,11 +845,33 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                               </button>
                             </div>
                           ))}
+                          {pendingPdfFiles.map((att) => (
+                            <div
+                              key={att.localId}
+                              className="relative flex min-w-[140px] max-w-[200px] flex-col rounded-xl border border-dashed border-amber-300/80 bg-amber-50/50 dark:border-amber-500/30 dark:bg-amber-950/20"
+                            >
+                              <div className="flex flex-col items-center gap-2 p-4 text-center">
+                                <FileText className="h-8 w-8 text-red-500" />
+                                <span className="line-clamp-2 break-all text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                                  {att.name}
+                                </span>
+                                <span className="text-[10px] font-bold text-amber-700">Aguardando salvar</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemovePendingFile(att.localId)}
+                                className="absolute right-1 top-1 rounded-lg bg-black/40 p-1 text-white hover:bg-red-600"
+                                aria-label="Remover PDF"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     ) : null}
 
-                    {otherAttachments.length > 0 ? (
+                    {(otherAttachments.length > 0 || pendingOtherFiles.length > 0 || pendingLinks.length > 0) ? (
                       <ul className="space-y-2">
                         {otherAttachments.map((att) => (
                           <li
@@ -752,18 +912,57 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                             </button>
                           </li>
                         ))}
+                        {pendingOtherFiles.map((att) => (
+                          <li
+                            key={att.localId}
+                            className="flex items-center justify-between gap-2 rounded-xl border border-dashed border-zinc-300/80 bg-white px-3 py-2 dark:border-white/[0.08] dark:bg-zinc-900"
+                          >
+                            <div className="flex min-w-0 items-center gap-2">
+                              <FileText className="h-4 w-4 shrink-0 text-zinc-500" />
+                              <span className="min-w-0 truncate text-[13px] font-medium text-zinc-700 dark:text-zinc-200">
+                                {att.name}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePendingFile(att.localId)}
+                              className="shrink-0 rounded-lg p-1.5 text-red-500 hover:bg-red-500/10"
+                              aria-label="Remover anexo"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </li>
+                        ))}
+                        {pendingLinks.map((att) => (
+                          <li
+                            key={att.localId}
+                            className="flex items-center justify-between gap-2 rounded-xl border border-dashed border-sky-300/80 bg-white px-3 py-2 dark:border-sky-500/30 dark:bg-zinc-900"
+                          >
+                            <div className="flex min-w-0 items-center gap-2">
+                              <Link2 className="h-4 w-4 shrink-0 text-sky-600" />
+                              <span className="min-w-0 truncate text-[13px] font-medium text-sky-700 dark:text-sky-300">
+                                {att.name}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePendingLink(att.localId)}
+                              className="shrink-0 rounded-lg p-1.5 text-red-500 hover:bg-red-500/10"
+                              aria-label="Remover link"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </li>
+                        ))}
                       </ul>
                     ) : null}
 
-                    {attachments.length === 0 ? (
+                    {attachments.length === 0 &&
+                    pendingFiles.length === 0 &&
+                    pendingLinks.length === 0 ? (
                       <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Nenhum anexo ainda.</p>
                     ) : null}
                   </div>
-                ) : (
-                  <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-[13px] text-amber-900 dark:text-amber-200">
-                    Após salvar, você poderá adicionar fotos, documentos e links neste registro.
-                  </p>
-                )}
               </>
             )}
           </div>

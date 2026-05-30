@@ -9,6 +9,7 @@ import {
   Settings2,
 } from 'lucide-react';
 import { ErrorBulletinEditorModal } from '../ErrorBulletinEditorModal';
+import { ErrorBulletinViewerModal } from '../ErrorBulletinViewerModal';
 import {
   getErrorBulletins,
   type ErrorBulletin,
@@ -88,6 +89,8 @@ export const ErrorBulletinView: React.FC<{ authSession?: AuthSession | null }> =
   const [search, setSearch] = useState('');
   const [editorId, setEditorId] = useState<string | null | undefined>(undefined);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [viewerId, setViewerId] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const authorName =
     authSession?.displayName ?? authSession?.username ?? (authSession?.role === 'admin' ? 'Administrador' : '');
@@ -140,11 +143,19 @@ export const ErrorBulletinView: React.FC<{ authSession?: AuthSession | null }> =
   };
 
   const openCreate = () => {
+    setViewerOpen(false);
     setEditorId(null);
     setEditorOpen(true);
   };
 
+  const openView = (id: string) => {
+    setEditorOpen(false);
+    setViewerId(id);
+    setViewerOpen(true);
+  };
+
   const openEdit = (id: string) => {
+    setViewerOpen(false);
     setEditorId(id);
     setEditorOpen(true);
   };
@@ -328,7 +339,7 @@ export const ErrorBulletinView: React.FC<{ authSession?: AuthSession | null }> =
                 <button
                   key={b.id}
                   type="button"
-                  onClick={() => openEdit(b.id)}
+                  onClick={() => openView(b.id)}
                   className={`group w-full rounded-2xl border border-zinc-200/80 bg-white p-4 text-left transition hover:border-amber-400/60 hover:shadow-md dark:border-white/[0.08] dark:bg-zinc-950/50 dark:hover:border-amber-500/40 ${
                     settings.viewMode === 'list' ? 'flex flex-wrap items-start gap-3' : ''
                   }`}
@@ -384,6 +395,17 @@ export const ErrorBulletinView: React.FC<{ authSession?: AuthSession | null }> =
         )}
       </div>
 
+      <ErrorBulletinViewerModal
+        open={viewerOpen}
+        bulletinId={viewerId}
+        onClose={() => {
+          setViewerOpen(false);
+          setViewerId(null);
+        }}
+        onEdit={(id) => openEdit(id)}
+        onDeleted={() => void load()}
+      />
+
       <ErrorBulletinEditorModal
         open={editorOpen}
         bulletinId={editorId ?? null}
@@ -393,7 +415,14 @@ export const ErrorBulletinView: React.FC<{ authSession?: AuthSession | null }> =
           setEditorOpen(false);
           setEditorId(undefined);
         }}
-        onSaved={() => void load()}
+        onSaved={(savedId) => {
+          void load();
+          const id = savedId ?? (typeof editorId === 'string' ? editorId : null);
+          if (id) {
+            setViewerId(id);
+            setViewerOpen(true);
+          }
+        }}
       />
     </div>
   );
