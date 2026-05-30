@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Plus, Pencil, Trash2, Check, Loader2, Clock3, Tag, Search, FileText, FileDown } from 'lucide-react';
-import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosModalInsetCard, resolveIosModalOverlayClass } from './ui/iosModalStyles';
+import { ModalPortal } from './ui/ModalPortal';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
   getWorkshopServices,
@@ -45,6 +47,7 @@ function formatLaborLabel(laborHours: number | null | undefined): string {
 }
 
 export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ isOpen, onClose }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const DEFAULT_CATEGORIES = useMemo(() => ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'], []);
   const CATEGORIES_STORAGE_KEY = 'workshop_service_categories';
   const baseCategory = DEFAULT_CATEGORIES[0];
@@ -380,7 +383,8 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
   if (!isOpen) return null;
 
   return (
-    <div className={iosModalOverlay}>
+    <ModalPortal>
+    <div className={resolveIosModalOverlayClass(isDesktopShell)}>
       <div className={`${iosModalShell} w-full max-w-[95vw] h-[94vh] max-h-[94vh]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
@@ -783,5 +787,6 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

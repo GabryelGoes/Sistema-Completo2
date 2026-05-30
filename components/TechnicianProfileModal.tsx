@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Camera, Loader2, Check } from 'lucide-react';
-import { iosModalOverlay, iosModalShell, iosModalClose, iosInput } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosInput, resolveIosModalOverlayClass } from './ui/iosModalStyles';
+import { ModalPortal } from './ui/ModalPortal';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopTechnicians, updateWorkshopTechnician, uploadWorkshopTechnicianPhoto } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
@@ -28,6 +30,7 @@ export const TechnicianProfileModal: React.FC<TechnicianProfileModalProps> = ({
   onClose,
   onSaved,
 }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const [name, setName] = useState(initialName);
   const [photoUrl, setPhotoUrl] = useState<string | null>(initialPhotoUrl);
   const [saving, setSaving] = useState(false);
@@ -100,7 +103,8 @@ export const TechnicianProfileModal: React.FC<TechnicianProfileModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className={iosModalOverlay}>
+    <ModalPortal>
+    <div className={resolveIosModalOverlayClass(isDesktopShell)}>
       <div className={`${iosModalShell} max-w-md max-h-[94vh]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
@@ -176,5 +180,6 @@ export const TechnicianProfileModal: React.FC<TechnicianProfileModalProps> = ({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

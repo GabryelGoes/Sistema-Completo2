@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Pencil, Trash2, Check, Loader2 } from 'lucide-react';
-import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosModalInsetCard, resolveIosModalOverlayClass } from './ui/iosModalStyles';
+import { ModalPortal } from './ui/ModalPortal';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
   getChecklistTemplates,
@@ -28,6 +30,7 @@ function itemsToText(items: { text: string }[]): string {
 }
 
 export const PatioChecklistsModal: React.FC<PatioChecklistsModalProps> = ({ isOpen, onClose }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,7 +122,8 @@ export const PatioChecklistsModal: React.FC<PatioChecklistsModalProps> = ({ isOp
   if (!isOpen) return null;
 
   return (
-    <div className={iosModalOverlay}>
+    <ModalPortal>
+    <div className={resolveIosModalOverlayClass(isDesktopShell)}>
       <div className={`${iosModalShell} w-full max-w-3xl h-[92vh] max-h-[92vh]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
@@ -257,5 +261,6 @@ export const PatioChecklistsModal: React.FC<PatioChecklistsModalProps> = ({ isOp
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

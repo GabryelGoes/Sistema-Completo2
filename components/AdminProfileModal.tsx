@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Camera, Loader2, Check, Lock } from 'lucide-react';
-import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard, iosInput } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosModalInsetCard, iosInput, resolveIosModalOverlayClass } from './ui/iosModalStyles';
+import { ModalPortal } from './ui/ModalPortal';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopSettings, updateWorkshopSettings, uploadWorkshopAdminPhoto } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
@@ -14,6 +16,7 @@ interface AdminProfileModalProps {
 }
 
 export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, onClose, onSaved }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const [displayName, setDisplayName] = useState('Rei do ABS');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -108,7 +111,8 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
   if (!isOpen) return null;
 
   return (
-    <div className={iosModalOverlay}>
+    <ModalPortal>
+    <div className={resolveIosModalOverlayClass(isDesktopShell)}>
       <div className={`${iosModalShell} max-w-md max-h-[94vh]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
@@ -244,5 +248,6 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

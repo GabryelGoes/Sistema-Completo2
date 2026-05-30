@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, KeyRound, Loader2, Check, Trash2, Eye, EyeOff } from 'lucide-react';
-import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard, iosInput } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosModalInsetCard, iosInput, resolveIosModalOverlayClass } from './ui/iosModalStyles';
+import { ModalPortal } from './ui/ModalPortal';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
@@ -11,6 +13,7 @@ interface ChangePasswordsModalProps {
 }
 
 export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOpen, onClose }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const [patioPin, setPatioPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(false);
@@ -80,7 +83,8 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
   if (!isOpen) return null;
 
   return (
-    <div className={iosModalOverlay}>
+    <ModalPortal>
+    <div className={resolveIosModalOverlayClass(isDesktopShell)}>
       <div className={`${iosModalShell} max-w-md max-h-[90vh]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
@@ -198,5 +202,6 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

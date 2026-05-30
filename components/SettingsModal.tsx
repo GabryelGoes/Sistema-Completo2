@@ -1,11 +1,11 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosModalInsetCard, resolveIosModalOverlayClass } from './ui/iosModalStyles';
+import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { useDeviceTypeContext } from './ui/DeviceTypeContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
-import { desktopShellViewportOverlayClass } from '../utils/desktopShellOverlay';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -39,13 +39,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div
-      className={
-        isDesktopShell
-          ? `${desktopShellViewportOverlayClass(true)} flex items-center justify-center p-3 sm:p-6 bg-black/45 backdrop-blur-[20px]`
-          : iosModalOverlay
-      }
-    >
+    <ModalPortal>
+    <div className={resolveIosModalOverlayClass(isDesktopShell)}>
       <div className={`${iosModalShell} max-h-[94vh] max-w-xl`}>
         {!isDesktopShell ? (
           <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
@@ -169,5 +164,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

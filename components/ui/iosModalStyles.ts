@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { desktopShellViewportOverlayClass } from "../../utils/desktopShellOverlay";
 import { uiModalSectionLabel } from "./appTypography";
 
 /** Fundo em gradiente para squircle quando a cor não é `brand-yellow` (ex.: modo colorido na home). */
@@ -13,6 +14,22 @@ export function iosSquircleBackgroundFromHex(hex: string): CSSProperties {
 
 export const iosModalOverlay =
   'fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/45 backdrop-blur-[20px]';
+
+/** Hub de configurações no PC usa z-[100]; modais filhos precisam ficar acima. */
+export const SETTINGS_CHILD_MODAL_Z = 'z-[110]';
+
+const iosModalOverlayAppearance =
+  'flex items-center justify-center p-3 sm:p-6 bg-black/45 backdrop-blur-[20px]';
+
+/** Overlay de modal iOS; no PC ancora na viewport do shell e acima do hub de configurações. */
+export function resolveIosModalOverlayClass(
+  isDesktopShell: boolean,
+  zClass = SETTINGS_CHILD_MODAL_Z,
+): string {
+  return isDesktopShell
+    ? `${desktopShellViewportOverlayClass(true, zClass)} ${iosModalOverlayAppearance}`
+    : iosModalOverlay;
+}
 
 /** Painel principal do modal (bordas ~2rem). Acrescente max-w-*, h-* conforme necessário. */
 export const iosModalShell =

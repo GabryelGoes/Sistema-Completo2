@@ -15,14 +15,16 @@ import {
   UsersRound,
 } from 'lucide-react';
 import {
-  iosModalOverlay,
   iosModalShell,
   iosModalClose,
   iosInput,
   iosModalInsetCard,
   iosAccentPrimaryButton,
+  resolveIosModalOverlayClass,
 } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
+import { ModalPortal } from './ui/ModalPortal';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { SYSTEM_NOTIFICATIONS_ICON } from '../constants/systemNotificationsIcon';
 import { QUALITY_RADAR_ICON } from '../constants/qualityRadar';
@@ -261,6 +263,7 @@ interface SystemUsersModalProps {
 }
 
 export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onClose, refreshTrigger }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const [adminPassword, setAdminPassword] = useState('');
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -432,7 +435,8 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
   if (!isOpen) return null;
 
   return (
-    <div className={iosModalOverlay}>
+    <ModalPortal>
+    <div className={resolveIosModalOverlayClass(isDesktopShell)}>
       <div className={`${iosModalShell} max-w-3xl w-full max-h-[min(92vh,860px)]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
@@ -813,5 +817,6 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

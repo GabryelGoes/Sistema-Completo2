@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Camera, Loader2, Check, User, Lock } from 'lucide-react';
-import { iosModalOverlay, iosModalShell, iosModalClose, iosModalInsetCard, iosInput } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosModalInsetCard, iosInput, resolveIosModalOverlayClass } from './ui/iosModalStyles';
+import { ModalPortal } from './ui/ModalPortal';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import {
   updateMyProfile,
@@ -44,6 +46,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onClose,
   onProfileUpdated,
 }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [photoUrl, setPhotoUrl] = useState<string | null>(initialPhotoUrl);
   const [accentColor, setAccentColor] = useState<string | null>(initialAccentColor);
@@ -183,7 +186,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className={iosModalOverlay}>
+    <ModalPortal>
+    <div className={resolveIosModalOverlayClass(isDesktopShell)}>
       <div className={`${iosModalShell} max-w-md max-h-[90vh]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
@@ -343,5 +347,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

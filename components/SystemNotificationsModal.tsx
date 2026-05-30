@@ -10,12 +10,14 @@ import { SYSTEM_NOTIFICATION_TYPE_OPTIONS } from "../constants/systemNotificatio
 import {
   iosModalClose,
   iosModalInsetCard,
-  iosModalOverlay,
   iosModalShell,
   iosInput,
   iosLabel,
   iosPrimaryButton,
+  resolveIosModalOverlayClass,
 } from "./ui/iosModalStyles";
+import { ModalPortal } from "./ui/ModalPortal";
+import { useDesktopShellLayout } from "./ui/DesktopShellContext";
 import { IosModalHeader } from "./ui/IosModalHeader";
 import { useRegisterModalOpen } from "./ui/ModalLayerContext";
 
@@ -97,6 +99,7 @@ interface SystemNotificationsModalProps {
 }
 
 export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> = ({ isOpen, onClose }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
@@ -168,7 +171,8 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
   if (!isOpen) return null;
 
   return (
-    <div className={iosModalOverlay}>
+    <ModalPortal>
+    <div className={resolveIosModalOverlayClass(isDesktopShell)}>
       <div className={`${iosModalShell} w-full max-w-lg sm:max-w-2xl lg:max-w-4xl max-h-[92vh] overflow-y-auto`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
@@ -258,5 +262,6 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

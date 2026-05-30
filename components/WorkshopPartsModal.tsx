@@ -17,7 +17,7 @@ import {
   BarChart3,
   Printer,
 } from 'lucide-react';
-import { iosModalShell, iosModalClose, iosModalInsetCard } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosModalInsetCard, SETTINGS_CHILD_MODAL_Z } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 
 import {
@@ -948,7 +948,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
     <ModalPortal>
     <div
-      className={`${desktopShellViewportOverlayClass(isDesktopShell)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
+      className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
     >
       <div className="relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
         {!isDesktopShell ? (
