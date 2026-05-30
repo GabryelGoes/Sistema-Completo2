@@ -25,11 +25,12 @@ import {
   Loader2,
 } from 'lucide-react';
 import {
-  iosModalShell,
+  agendaModalInsetCard,
+  agendaModalInput,
+  agendaModalShell,
   iosModalClose,
   iosLabel,
   iosPageGlass,
-  iosInput,
   iosModalInsetCard,
   resolveIosModalOverlayClass,
 } from '../ui/iosModalStyles';
@@ -1054,7 +1055,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
           onClick={() => setDetailAppointment(null)}
         >
           <div
-            className={`${iosModalShell} w-full max-w-lg md:max-w-3xl xl:max-w-4xl max-h-[92vh] overflow-y-auto`}
+            className={`${agendaModalShell} w-full max-w-lg md:max-w-3xl xl:max-w-4xl max-h-[92vh] overflow-y-auto`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="agenda-detail-title"
@@ -1109,7 +1110,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                       </span>
                     </div>
 
-                    <div className={`${iosModalInsetCard} p-4 sm:p-5 space-y-4`}>
+                    <div className={`${agendaModalInsetCard} p-4 sm:p-5 space-y-4`}>
                       <div>
                         <p className={iosLabel}>Serviço</p>
                         <p id="agenda-detail-title" className="text-[17px] font-semibold text-zinc-900 dark:text-white">
@@ -1201,7 +1202,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       {/* Modal Novo Agendamento */}
       {isModalOpen && (
         <div className={`${modalOverlayClass} animate-modal-backdrop`}>
-            <div className={`${iosModalShell} w-full max-w-md md:max-w-3xl xl:max-w-4xl max-h-[90vh] animate-modal-sheet`}>
+            <div className={`${agendaModalShell} w-full max-w-md md:max-w-3xl xl:max-w-4xl max-h-[90vh] animate-modal-sheet`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -1244,7 +1245,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                 type="text" 
                                 placeholder="Ex.: Revisão geral"
                                 autoComplete="off"
-                                className={iosInput}
+                                className={agendaModalInput}
                                 value={newAppointment.title}
                                 onChange={e => setNewAppointment({...newAppointment, title: e.target.value})}
                             />
@@ -1255,7 +1256,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                 <label className={iosLabel}>Data</label>
                                 <input 
                                     type="date" 
-                                    className={iosInput}
+                                    className={agendaModalInput}
                                     value={(() => {
                                       const d = newAppointment.date;
                                       if (!d) return format(selectedDate, 'yyyy-MM-dd');
@@ -1269,7 +1270,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                 <label className={iosLabel}>Horário</label>
                                 <input 
                                     type="time" 
-                                    className={iosInput}
+                                    className={agendaModalInput}
                                     value={newAppointment.time}
                                     onChange={e => setNewAppointment({...newAppointment, time: e.target.value})}
                                 />
@@ -1277,7 +1278,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                         </div>
 
                         {!isEditing ? (
-                          <div className="flex rounded-2xl border border-zinc-200/80 bg-zinc-100/50 p-1 dark:border-white/[0.08] dark:bg-zinc-900/40">
+                          <div className="flex rounded-2xl border border-zinc-200/80 bg-zinc-100 p-1 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:shadow-none">
                             <button
                               type="button"
                               onClick={() => setAgendaPickerMode('registered')}
@@ -1324,7 +1325,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                     <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                                     <input
                                       type="search"
-                                      className={`${iosInput} pl-10`}
+                                      className={`${agendaModalInput} pl-10`}
                                       placeholder="Nome, telefone ou e-mail"
                                       value={customerSearch}
                                       onChange={(e) => setCustomerSearch(e.target.value)}
@@ -1334,7 +1335,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                 </div>
                                 <div>
                                   <label className={iosLabel}>Cliente</label>
-                                  <div className={`${iosModalInsetCard} max-h-52 overflow-y-auto p-1.5`}>
+                                  <div className={`${agendaModalInsetCard} max-h-52 overflow-y-auto p-1.5`}>
                                     {filteredPickerCustomers.length === 0 ? (
                                       <p className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
                                         Nenhum resultado.
@@ -1437,7 +1438,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                             type="tel"
                                             placeholder="(00) 00000-0000"
                                             autoComplete="off"
-                                            className={`${iosInput} pl-10`}
+                                            className={`${agendaModalInput} pl-10`}
                                             value={newAppointment.phone || ''}
                                             onChange={(e) =>
                                               setNewAppointment({ ...newAppointment, phone: e.target.value })
@@ -1453,7 +1454,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                             type="email"
                                             placeholder="email@exemplo.com"
                                             autoComplete="off"
-                                            className={`${iosInput} pl-10`}
+                                            className={`${agendaModalInput} pl-10`}
                                             value={newAppointment.email || ''}
                                             onChange={(e) =>
                                               setNewAppointment({ ...newAppointment, email: e.target.value })
@@ -1472,7 +1473,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                               type="text"
                                               placeholder="Ex.: Civic LXR"
                                               autoComplete="off"
-                                              className={`${iosInput} pl-10`}
+                                              className={`${agendaModalInput} pl-10`}
                                               value={newAppointment.vehicleModel}
                                               onChange={(e) =>
                                                 setNewAppointment({
@@ -1491,7 +1492,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                               type="text"
                                               placeholder="ABC1D23"
                                               autoComplete="off"
-                                              className={`${iosInput} pl-10 uppercase`}
+                                              className={`${agendaModalInput} pl-10 uppercase`}
                                               value={(newAppointment.plate || '').toUpperCase()}
                                               onChange={(e) =>
                                                 setNewAppointment({
@@ -1519,7 +1520,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                   type="text"
                                   placeholder="Nome do cliente"
                                   autoComplete="off"
-                                  className={`${iosInput} pl-10`}
+                                  className={`${agendaModalInput} pl-10`}
                                   value={newAppointment.customerName}
                                   onChange={(e) =>
                                     setNewAppointment({ ...newAppointment, customerName: e.target.value })
@@ -1537,7 +1538,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                     type="tel"
                                     placeholder="(00) 00000-0000"
                                     autoComplete="off"
-                                    className={`${iosInput} pl-10`}
+                                    className={`${agendaModalInput} pl-10`}
                                     value={newAppointment.phone || ''}
                                     onChange={(e) =>
                                       setNewAppointment({ ...newAppointment, phone: e.target.value })
@@ -1553,7 +1554,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                     type="email"
                                     placeholder="email@exemplo.com"
                                     autoComplete="off"
-                                    className={`${iosInput} pl-10`}
+                                    className={`${agendaModalInput} pl-10`}
                                     value={newAppointment.email || ''}
                                     onChange={(e) =>
                                       setNewAppointment({ ...newAppointment, email: e.target.value })
@@ -1572,7 +1573,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                     type="text"
                                     placeholder="Modelo"
                                     autoComplete="off"
-                                    className={`${iosInput} pl-10`}
+                                    className={`${agendaModalInput} pl-10`}
                                     value={newAppointment.vehicleModel}
                                     onChange={(e) =>
                                       setNewAppointment({ ...newAppointment, vehicleModel: e.target.value })
@@ -1585,7 +1586,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                     type="text"
                                     placeholder="Placa"
                                     autoComplete="off"
-                                    className={`${iosInput} pl-10 uppercase`}
+                                    className={`${agendaModalInput} pl-10 uppercase`}
                                     value={newAppointment.plate ? newAppointment.plate.toUpperCase() : ''}
                                     onChange={(e) =>
                                       setNewAppointment({
@@ -1604,7 +1605,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                             <label className={iosLabel}>Observações</label>
                             <textarea 
                                 placeholder="Detalhes adicionais..."
-                                className={`${iosInput} min-h-[88px] resize-y py-3`}
+                                className={`${agendaModalInput} min-h-[88px] resize-y py-3`}
                                 value={newAppointment.notes}
                                 onChange={e => setNewAppointment({...newAppointment, notes: e.target.value})}
                             />

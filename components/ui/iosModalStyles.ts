@@ -71,6 +71,23 @@ export const iosVehicleModalCommentBubble =
 export const iosVehicleModalInput =
   'w-full rounded-xl border border-zinc-300/85 bg-zinc-50 px-4 py-3 text-[15px] text-zinc-950 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500';
 
+/** Modais da Agenda — modo claro: fundo branco sólido; grupos e campos em cinza claro com sombra. */
+export const agendaModalShell =
+  'relative w-full flex flex-col min-h-0 overflow-hidden rounded-[2rem] sm:rounded-[2.25rem] ' +
+  'border border-zinc-200/90 bg-white shadow-[0_8px_40px_-12px_rgba(0,0,0,0.14),0_4px_20px_-8px_rgba(63,63,70,0.1)] backdrop-blur-none ' +
+  'dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+
+export const agendaModalInsetCard =
+  'rounded-[22px] border border-zinc-200/80 bg-zinc-100/95 ' +
+  'shadow-[0_2px_10px_-2px_rgba(0,0,0,0.08),0_4px_16px_-4px_rgba(63,63,70,0.12)] ' +
+  'dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+
+export const agendaModalInput =
+  'w-full rounded-2xl border border-zinc-200/90 bg-zinc-100 px-4 py-3 text-[15px] text-zinc-950 ' +
+  'shadow-[0_1px_3px_rgba(0,0,0,0.06),0_2px_8px_-2px_rgba(63,63,70,0.1)] ' +
+  'placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow ' +
+  'dark:border-white/[0.08] dark:bg-zinc-950/50 dark:shadow-none dark:text-white dark:placeholder:text-zinc-500';
+
 export const iosModalClose =
   'absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-black/10 dark:hover:bg-white/15 transition-colors';
 
