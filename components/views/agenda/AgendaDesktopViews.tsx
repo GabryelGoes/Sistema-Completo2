@@ -8,6 +8,7 @@ import {
   isSameMonth,
   isToday,
   startOfMonth,
+  startOfDay,
   startOfWeek,
   subMonths,
 } from 'date-fns';
