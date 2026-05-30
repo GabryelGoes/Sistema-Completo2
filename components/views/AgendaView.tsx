@@ -48,6 +48,7 @@ import {
   type ServiceOrderListItem,
 } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
+import { ModalPortal } from '../ui/ModalPortal';
 import { useDesktopShellLayout } from '../ui/DesktopShellContext';
 import {
   formatAgendaPeriodLabel,
@@ -170,8 +171,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
 
   const filteredPickerCustomers = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
+    if (!q) return [];
     const list = [...pickerCustomers].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
-    if (!q) return list;
     const digits = q.replace(/\D/g, '');
     return list.filter((c) => {
       if (c.name.toLowerCase().includes(q)) return true;
@@ -180,6 +181,9 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       return false;
     });
   }, [pickerCustomers, customerSearch]);
+
+  const showCustomerSearchResults =
+    !registeredCustomerId && customerSearch.trim().length > 0;
 
   useEffect(() => {
     if (!isModalOpen) return;
@@ -1051,6 +1055,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
 
       {/* Modal detalhe do agendamento (calendário ou lista do dia) */}
       {detailAppointment && (
+        <ModalPortal>
         <div
           className={modalOverlayClass}
           onClick={() => setDetailAppointment(null)}
@@ -1198,13 +1203,15 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Modal Novo Agendamento */}
       {isModalOpen && (
-        <div className={`${modalOverlayClass} animate-modal-backdrop`}>
+        <ModalPortal>
+        <div className={`${modalOverlayClass} agenda-form-modal-overlay animate-modal-backdrop`}>
             <div
-              className={`${agendaModalShell} flex w-full max-w-md flex-col overflow-hidden md:max-w-3xl xl:max-w-4xl max-h-[min(94dvh,920px)] h-[min(94dvh,920px)] sm:h-[90vh] sm:max-h-[90vh] animate-modal-sheet`}
+              className={`agenda-form-modal-shell ${agendaModalShell} flex w-full max-w-md flex-col overflow-hidden md:max-w-3xl xl:max-w-4xl animate-modal-sheet`}
               role="dialog"
               aria-modal="true"
               aria-label={isEditing ? 'Editar agendamento' : 'Novo agendamento'}
@@ -1244,8 +1251,12 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                   />
                 </div>
 
-                <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y [scrollbar-gutter:stable]">
-                    <form onSubmit={handleAddAppointment} className="space-y-4 p-6 pb-8 sm:px-8">
+                <form
+                  onSubmit={handleAddAppointment}
+                  className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                >
+                <div className="agenda-modal-body-scroll custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+                    <div className="space-y-4 p-6 pb-6 sm:px-8">
                         <div>
                             <label className={iosLabel}>Título do serviço</label>
                             <input 
@@ -1341,35 +1352,42 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                           autoComplete="off"
                                         />
                                       </div>
+                                      {!showCustomerSearchResults ? (
+                                        <p className="text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                                          Digite nome, telefone ou e-mail para exibir os clientes cadastrados.
+                                        </p>
+                                      ) : null}
                                     </div>
-                                    <div>
-                                      <label className={iosLabel}>Cliente</label>
-                                      <div
-                                        className={`${agendaModalInsetCard} max-h-44 overflow-y-auto overscroll-contain p-1.5 touch-pan-y`}
-                                      >
-                                        {filteredPickerCustomers.length === 0 ? (
-                                          <p className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                                            Nenhum resultado.
-                                          </p>
-                                        ) : (
-                                          filteredPickerCustomers.map((c) => (
-                                            <button
-                                              key={c.id}
-                                              type="button"
-                                              onClick={() => applyRegisteredCustomer(c)}
-                                              className="flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left text-[14px] text-zinc-900 transition-colors hover:bg-zinc-200/80 dark:text-white dark:hover:bg-white/[0.06]"
-                                            >
-                                              <span>{c.name}</span>
-                                              {c.phone ? (
-                                                <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                                                  {c.phone}
-                                                </span>
-                                              ) : null}
-                                            </button>
-                                          ))
-                                        )}
+                                    {showCustomerSearchResults ? (
+                                      <div>
+                                        <label className={iosLabel}>Cliente</label>
+                                        <div
+                                          className={`${agendaModalInsetCard} max-h-44 overflow-y-auto overscroll-contain p-1.5 touch-pan-y`}
+                                        >
+                                          {filteredPickerCustomers.length === 0 ? (
+                                            <p className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                                              Nenhum resultado.
+                                            </p>
+                                          ) : (
+                                            filteredPickerCustomers.map((c) => (
+                                              <button
+                                                key={c.id}
+                                                type="button"
+                                                onClick={() => applyRegisteredCustomer(c)}
+                                                className="flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left text-[14px] text-zinc-900 transition-colors hover:bg-zinc-200/80 dark:text-white dark:hover:bg-white/[0.06]"
+                                              >
+                                                <span>{c.name}</span>
+                                                {c.phone ? (
+                                                  <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                                                    {c.phone}
+                                                  </span>
+                                                ) : null}
+                                              </button>
+                                            ))
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
+                                    ) : null}
                                   </>
                                 ) : null}
                                 {registeredCustomerId && selectedPickerCustomer ? (
@@ -1620,8 +1638,10 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                 onChange={e => setNewAppointment({...newAppointment, notes: e.target.value})}
                             />
                         </div>
+                    </div>
+                </div>
 
-                        <div className="pt-2 flex justify-end gap-3 border-t border-zinc-200/50 dark:border-white/[0.06] mt-2">
+                <div className="flex shrink-0 justify-end gap-3 border-t border-zinc-200/50 bg-white px-6 py-4 dark:border-white/[0.06] dark:bg-zinc-900/95 sm:px-8">
                             <button
                                 type="button"
                                 onClick={() => {
@@ -1651,12 +1671,12 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                             >
                                 {isEditing ? 'Salvar alterações' : 'Agendar'}
                             </button>
-                        </div>
-                    </form>
                 </div>
+                </form>
                 </div>
             </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

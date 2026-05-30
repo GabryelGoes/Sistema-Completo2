@@ -239,3 +239,33 @@ body {
     display: none !important;
   }
 }
+
+/* Agenda — modal Novo agendamento: rolagem confiável no corpo (PC e mobile) */
+.agenda-form-modal-overlay {
+  overflow: hidden !important;
+  padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right))
+    max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+}
+
+.agenda-form-modal-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: min(90dvh, 880px);
+  height: min(90dvh, 880px);
+}
+
+.agenda-modal-body-scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+html[data-desktop-shell='true'] .agenda-form-modal-shell .agenda-modal-body-scroll {
+  overflow-y: auto !important;
+  max-height: none !important;
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+}
