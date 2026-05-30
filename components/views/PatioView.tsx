@@ -22,6 +22,7 @@ import {
   updateServiceOrderReferenceLinks,
   updateServiceOrderLabServiceLinks,
   updateServiceOrderBenchSlot,
+  updateServiceOrderExternalRepair,
   getServiceOrderPhotos,
   uploadServiceOrderPhoto,
   renameServiceOrderPhoto,
@@ -128,6 +129,7 @@ import {
   DESKTOP_LANDSCAPE_CARD_ZOOM,
 } from '../../utils/patioBoardGlassCard';
 import LabBenchPanel from '../lab/LabBenchPanel';
+import type { ExternalRepair } from '../../constants/labBench';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
 import { ReceptionArchivedHistoryHubCard, boardCardToArchivedHistoryHubOrder } from '../reception/ReceptionArchivedHistoryHubCard';
 import { archivedHistoryModalShell } from '../reception/archivedHistoryModalShell';
@@ -858,6 +860,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [editFichaSaving, setEditFichaSaving] = useState(false);
   const [referenceLinksDraft, setReferenceLinksDraft] = useState<VehicleReferenceLink[]>([]);
   const [referenceLinksSaving, setReferenceLinksSaving] = useState(false);
+  /** Conserto externo (laboratório): rascunho do formulário no modal. */
+  const emptyExternalRepairDraft = { vendor: '', sentAt: '', expectedAt: '', returnedAt: '', cost: '', notes: '' };
+  const [externalRepairDraft, setExternalRepairDraft] = useState<{ vendor: string; sentAt: string; expectedAt: string; returnedAt: string; cost: string; notes: string }>(emptyExternalRepairDraft);
+  const [externalRepairSaving, setExternalRepairSaving] = useState(false);
   const [labServiceLinksDraft, setLabServiceLinksDraft] = useState<LabServiceLink[]>([]);
   const [labServiceLinksSaving, setLabServiceLinksSaving] = useState(false);
   const [creatingLabService, setCreatingLabService] = useState(false);
@@ -1917,6 +1923,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at]);
 
   useEffect(() => {
+    const er = (serviceOrderDetail as (ServiceOrderDetail & { external_repair?: ExternalRepair | null }) | null)?.external_repair;
+    if (!serviceOrderDetail || !er) {
+      setExternalRepairDraft(emptyExternalRepairDraft);
+      return;
+    }
+    setExternalRepairDraft({
+      vendor: er.vendor ?? '',
+      sentAt: er.sentAt ?? '',
+      expectedAt: er.expectedAt ?? '',
+      returnedAt: er.returnedAt ?? '',
+      cost: er.cost ?? '',
+      notes: er.notes ?? '',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at]);
+
+  useEffect(() => {
     if (!serviceOrderDetail) {
       setLabServiceLinksDraft(selectedCard?.labServiceLinks ?? []);
       return;
@@ -2622,6 +2645,36 @@ export const PatioView: React.FC<PatioViewProps> = ({
       alert(err?.message ?? 'Erro ao salvar links.');
     } finally {
       setReferenceLinksSaving(false);
+    }
+  };
+
+  const handleSaveExternalRepair = async () => {
+    if (!selectedCard || !serviceOrderDetail) return;
+    if (loadingDetails || serviceOrderDetail.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID) return;
+    const d = externalRepairDraft;
+    const hasAny = [d.vendor, d.sentAt, d.expectedAt, d.returnedAt, d.cost, d.notes].some((v) => v.trim() !== '');
+    const payload: ExternalRepair | null = hasAny
+      ? {
+          vendor: d.vendor.trim() || null,
+          sentAt: d.sentAt.trim() || null,
+          expectedAt: d.expectedAt.trim() || null,
+          returnedAt: d.returnedAt.trim() || null,
+          cost: d.cost.trim() || null,
+          notes: d.notes.trim() || null,
+        }
+      : null;
+    setExternalRepairSaving(true);
+    try {
+      await updateServiceOrderExternalRepair(selectedCard.id, payload);
+      const updated = await getServiceOrderById(selectedCard.id);
+      setServiceOrderDetail(updated);
+      const updatedCard = { ...selectedCard, externalRepair: payload, dateLastActivity: updated.updated_at };
+      setSelectedCard(updatedCard);
+      setCards((prev) => prev.map((c) => (c.id === selectedCard.id ? updatedCard : c)));
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao salvar conserto externo.');
+    } finally {
+      setExternalRepairSaving(false);
     }
   };
 
@@ -6192,6 +6245,136 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                             </div>
                             </div>
+
+                            {isModuleMode && serviceOrderDetail && (
+                              <div className="order-0 px-3 py-2 sm:px-4 sm:py-2.5">
+                                <div
+                                  className={`${vi} overflow-hidden p-2.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-3`}
+                                >
+                                  <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5">
+                                    <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-500 dark:text-indigo-300">
+                                      <Wrench className="h-3.5 w-3.5" />
+                                      Conserto externo (terceiros)
+                                    </h3>
+                                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                                      Etapas "Envio/Chegada conserto"
+                                    </span>
+                                  </div>
+                                  {can('canEditFicha') ? (
+                                    <div className="space-y-2.5">
+                                      <div>
+                                        <label className={`${iosLabel} !mb-1`}>Fornecedor / empresa</label>
+                                        <input
+                                          value={externalRepairDraft.vendor}
+                                          onChange={(e) => setExternalRepairDraft((p) => ({ ...p, vendor: e.target.value }))}
+                                          placeholder="Ex.: Eletrônica do João"
+                                          className={vin}
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                                        <div>
+                                          <label className={`${iosLabel} !mb-1`}>Enviado em</label>
+                                          <input
+                                            type="date"
+                                            value={externalRepairDraft.sentAt}
+                                            onChange={(e) => setExternalRepairDraft((p) => ({ ...p, sentAt: e.target.value }))}
+                                            className={vin}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className={`${iosLabel} !mb-1`}>Previsão de retorno</label>
+                                          <input
+                                            type="date"
+                                            value={externalRepairDraft.expectedAt}
+                                            onChange={(e) => setExternalRepairDraft((p) => ({ ...p, expectedAt: e.target.value }))}
+                                            className={vin}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className={`${iosLabel} !mb-1`}>Retornou em</label>
+                                          <input
+                                            type="date"
+                                            value={externalRepairDraft.returnedAt}
+                                            onChange={(e) => setExternalRepairDraft((p) => ({ ...p, returnedAt: e.target.value }))}
+                                            className={vin}
+                                          />
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label className={`${iosLabel} !mb-1`}>Custo</label>
+                                        <input
+                                          value={externalRepairDraft.cost}
+                                          onChange={(e) => setExternalRepairDraft((p) => ({ ...p, cost: e.target.value }))}
+                                          placeholder="Ex.: R$ 250,00"
+                                          inputMode="text"
+                                          className={vin}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className={`${iosLabel} !mb-1`}>Observações</label>
+                                        <textarea
+                                          value={externalRepairDraft.notes}
+                                          onChange={(e) => setExternalRepairDraft((p) => ({ ...p, notes: e.target.value }))}
+                                          placeholder="Nº de pedido, contato, defeito relatado…"
+                                          rows={2}
+                                          className={`${vin} resize-y`}
+                                        />
+                                      </div>
+                                      <div className="flex justify-end border-t border-zinc-200/60 pt-2.5 dark:border-white/[0.06]">
+                                        <button
+                                          type="button"
+                                          onClick={handleSaveExternalRepair}
+                                          disabled={
+                                            externalRepairSaving ||
+                                            loadingDetails ||
+                                            serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
+                                          }
+                                          className={`${iosPrimaryButton} inline-flex items-center gap-2 px-6 py-2.5`}
+                                        >
+                                          {externalRepairSaving ? (
+                                            <RefreshCw className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <Save className="h-4 w-4" />
+                                          )}
+                                          Salvar conserto externo
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-1 text-[14px] text-zinc-700 dark:text-zinc-300">
+                                      {externalRepairDraft.vendor.trim() ? (
+                                        <p><span className="font-semibold">Fornecedor:</span> {externalRepairDraft.vendor}</p>
+                                      ) : null}
+                                      {externalRepairDraft.sentAt.trim() ? (
+                                        <p><span className="font-semibold">Enviado:</span> {externalRepairDraft.sentAt}</p>
+                                      ) : null}
+                                      {externalRepairDraft.expectedAt.trim() ? (
+                                        <p><span className="font-semibold">Previsão:</span> {externalRepairDraft.expectedAt}</p>
+                                      ) : null}
+                                      {externalRepairDraft.returnedAt.trim() ? (
+                                        <p><span className="font-semibold">Retornou:</span> {externalRepairDraft.returnedAt}</p>
+                                      ) : null}
+                                      {externalRepairDraft.cost.trim() ? (
+                                        <p><span className="font-semibold">Custo:</span> {externalRepairDraft.cost}</p>
+                                      ) : null}
+                                      {externalRepairDraft.notes.trim() ? (
+                                        <p><span className="font-semibold">Obs.:</span> {externalRepairDraft.notes}</p>
+                                      ) : null}
+                                      {![
+                                        externalRepairDraft.vendor,
+                                        externalRepairDraft.sentAt,
+                                        externalRepairDraft.expectedAt,
+                                        externalRepairDraft.returnedAt,
+                                        externalRepairDraft.cost,
+                                        externalRepairDraft.notes,
+                                      ].some((v) => v.trim()) ? (
+                                        <p className="text-zinc-500 dark:text-zinc-400">Nenhum conserto externo registrado.</p>
+                                      ) : null}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
 
                             {serviceOrderDetail && (referenceLinksDraft.length > 0 || can('canEditFicha')) && (
                               <div className="order-1 px-3 py-2 sm:px-4 sm:py-2.5">
