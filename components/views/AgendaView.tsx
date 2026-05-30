@@ -216,6 +216,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   const applyRegisteredCustomer = useCallback(
     (customer: ApiCustomer) => {
       setRegisteredCustomerId(customer.id);
+      setCustomerSearch('');
       const vehs = vehiclesByCustomer.get(customer.id) ?? [];
       if (vehs.length > 0) {
         const v = vehs[0];
@@ -1202,7 +1203,12 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       {/* Modal Novo Agendamento */}
       {isModalOpen && (
         <div className={`${modalOverlayClass} animate-modal-backdrop`}>
-            <div className={`${agendaModalShell} w-full max-w-md md:max-w-3xl xl:max-w-4xl max-h-[90vh] animate-modal-sheet`}>
+            <div
+              className={`${agendaModalShell} flex w-full max-w-md flex-col overflow-hidden md:max-w-3xl xl:max-w-4xl max-h-[min(94dvh,920px)] h-[min(94dvh,920px)] sm:h-[90vh] sm:max-h-[90vh] animate-modal-sheet`}
+              role="dialog"
+              aria-modal="true"
+              aria-label={isEditing ? 'Editar agendamento' : 'Novo agendamento'}
+            >
                 <button
                   type="button"
                   onClick={() => {
@@ -1228,7 +1234,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                   <X className="w-5 h-5" />
                 </button>
 
-                <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 border-b border-zinc-200/50 dark:border-white/[0.06]">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="shrink-0 border-b border-zinc-200/50 px-6 pb-4 pt-8 pr-14 dark:border-white/[0.06] sm:px-8">
                   <IosModalHeader
                     icon={<img src="/icons/agenda-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
                     title={isEditing ? 'Editar agendamento' : 'Novo agendamento'}
@@ -1237,8 +1244,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                   />
                 </div>
 
-                <div className="overflow-y-auto custom-scrollbar flex-1 min-h-0">
-                    <form onSubmit={handleAddAppointment} className="p-6 sm:px-8 space-y-4 pb-8">
+                <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y [scrollbar-gutter:stable]">
+                    <form onSubmit={handleAddAppointment} className="space-y-4 p-6 pb-8 sm:px-8">
                         <div>
                             <label className={iosLabel}>Título do serviço</label>
                             <input 
@@ -1319,50 +1326,52 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                               </p>
                             ) : (
                               <>
-                                <div>
-                                  <label className={iosLabel}>Buscar cliente</label>
-                                  <div className="relative">
-                                    <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                                    <input
-                                      type="search"
-                                      className={`${agendaModalInput} pl-10`}
-                                      placeholder="Nome, telefone ou e-mail"
-                                      value={customerSearch}
-                                      onChange={(e) => setCustomerSearch(e.target.value)}
-                                      autoComplete="off"
-                                    />
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className={iosLabel}>Cliente</label>
-                                  <div className={`${agendaModalInsetCard} max-h-52 overflow-y-auto p-1.5`}>
-                                    {filteredPickerCustomers.length === 0 ? (
-                                      <p className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                                        Nenhum resultado.
-                                      </p>
-                                    ) : (
-                                      filteredPickerCustomers.map((c) => (
-                                        <button
-                                          key={c.id}
-                                          type="button"
-                                          onClick={() => applyRegisteredCustomer(c)}
-                                          className={`flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left text-[14px] transition-colors ${
-                                            registeredCustomerId === c.id
-                                              ? 'bg-red-500/12 font-semibold text-red-800 dark:text-red-200'
-                                              : 'text-zinc-900 hover:bg-zinc-100/80 dark:text-white dark:hover:bg-white/[0.06]'
-                                          }`}
-                                        >
-                                          <span>{c.name}</span>
-                                          {c.phone ? (
-                                            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                                              {c.phone}
-                                            </span>
-                                          ) : null}
-                                        </button>
-                                      ))
-                                    )}
-                                  </div>
-                                </div>
+                                {!registeredCustomerId ? (
+                                  <>
+                                    <div>
+                                      <label className={iosLabel}>Buscar cliente</label>
+                                      <div className="relative">
+                                        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                        <input
+                                          type="search"
+                                          className={`${agendaModalInput} pl-10`}
+                                          placeholder="Nome, telefone ou e-mail"
+                                          value={customerSearch}
+                                          onChange={(e) => setCustomerSearch(e.target.value)}
+                                          autoComplete="off"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className={iosLabel}>Cliente</label>
+                                      <div
+                                        className={`${agendaModalInsetCard} max-h-44 overflow-y-auto overscroll-contain p-1.5 touch-pan-y`}
+                                      >
+                                        {filteredPickerCustomers.length === 0 ? (
+                                          <p className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                                            Nenhum resultado.
+                                          </p>
+                                        ) : (
+                                          filteredPickerCustomers.map((c) => (
+                                            <button
+                                              key={c.id}
+                                              type="button"
+                                              onClick={() => applyRegisteredCustomer(c)}
+                                              className="flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left text-[14px] text-zinc-900 transition-colors hover:bg-zinc-200/80 dark:text-white dark:hover:bg-white/[0.06]"
+                                            >
+                                              <span>{c.name}</span>
+                                              {c.phone ? (
+                                                <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                                                  {c.phone}
+                                                </span>
+                                              ) : null}
+                                            </button>
+                                          ))
+                                        )}
+                                      </div>
+                                    </div>
+                                  </>
+                                ) : null}
                                 {registeredCustomerId && selectedPickerCustomer ? (
                                   <div className="space-y-4">
                                     <div className="flex flex-wrap items-end justify-between gap-2">
@@ -1378,6 +1387,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                         onClick={() => {
                                           setRegisteredCustomerId('');
                                           setRegisteredVehicleKey('');
+                                          setCustomerSearch('');
                                           setNewAppointment((prev) => ({
                                             ...prev,
                                             customerName: '',
@@ -1643,6 +1653,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                             </button>
                         </div>
                     </form>
+                </div>
                 </div>
             </div>
         </div>
