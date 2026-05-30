@@ -1,6 +1,7 @@
 import { Customer, type LabServiceLink, type VehicleReferenceLink } from "../types";
 import type { Appointment } from "../types";
 import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
+import type { ExternalRepair } from "../constants/labBench";
 import { API_BASE } from "./apiConfig";
 import { compressImageForUpload } from "../utils/imageUpload";
 import type { BudgetPartFields } from "../utils/budgetPartStock";
@@ -47,6 +48,9 @@ interface ApiServiceOrder {
   vehicle_color?: string | null;
   vehicle_year?: string | null;
   vehicle_engine_info?: string | null;
+  bench_slot?: number | null;
+  bench_slot_at?: string | null;
+  external_repair?: ExternalRepair | null;
   diagnostic_authorization_signed_at?: string | null;
   diagnostic_authorization_signature_path?: string | null;
   created_at: string;
@@ -87,6 +91,11 @@ export interface ServiceOrderListItem {
   reference_links?: VehicleReferenceLink[] | null;
   /** Vínculos de serviços do pátio enviados ao laboratório. */
   lab_service_links?: LabServiceLink[] | null;
+  /** Bancada do laboratório: compartimento físico (1..24) ou null (fora da bancada). */
+  bench_slot?: number | null;
+  bench_slot_at?: string | null;
+  /** Dados do conserto em terceiros. */
+  external_repair?: ExternalRepair | null;
   diagnostic_authorization_signed_at?: string | null;
   diagnostic_authorization_signature_path?: string | null;
   created_at: string;
@@ -123,6 +132,11 @@ export interface ServiceOrderDetail {
   reference_links?: VehicleReferenceLink[] | null;
   /** Vínculos de serviços do pátio enviados ao laboratório. */
   lab_service_links?: LabServiceLink[] | null;
+  /** Bancada do laboratório: compartimento físico (1..24) ou null (fora da bancada). */
+  bench_slot?: number | null;
+  bench_slot_at?: string | null;
+  /** Dados do conserto em terceiros. */
+  external_repair?: ExternalRepair | null;
   diagnostic_authorization_signed_at?: string | null;
   diagnostic_authorization_signature_path?: string | null;
   created_at: string;
@@ -1056,6 +1070,41 @@ export async function updateServiceOrderStatus(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao atualizar status (${response.status})`);
+  }
+  return response.json();
+}
+
+/** Define (1..24) ou limpa (null) o compartimento da bancada do laboratório. */
+export async function updateServiceOrderBenchSlot(
+  id: string,
+  slot: number | null
+): Promise<ApiServiceOrder> {
+  const response = await fetch(`${API_BASE}/service-orders/${id}/bench-slot`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ slot }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar compartimento (${response.status})`);
+  }
+  return response.json();
+}
+
+/** Grava (ou limpa, passando null) os dados do conserto externo de uma OS de módulo. */
+export async function updateServiceOrderExternalRepair(
+  id: string,
+  data: ExternalRepair | null
+): Promise<ApiServiceOrder> {
+  const body = data === null ? { externalRepair: null } : { ...data };
+  const response = await fetch(`${API_BASE}/service-orders/${id}/external-repair`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao salvar conserto externo (${response.status})`);
   }
   return response.json();
 }

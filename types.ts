@@ -1,3 +1,5 @@
+import type { ExternalRepair } from "./constants/labBench";
+
 export interface Customer {
   name: string;
   phone: string;
@@ -141,6 +143,11 @@ export interface BoardCard {
   referenceLinks?: VehicleReferenceLink[];
   /** Serviços do pátio enviados para OS do laboratório (vínculos). */
   labServiceLinks?: LabServiceLink[];
+  /** Bancada do laboratório: compartimento físico (1..24) ou null (fora da bancada). */
+  benchSlot?: number | null;
+  benchSlotAt?: string | null;
+  /** Dados do conserto em terceiros (laboratório). */
+  externalRepair?: ExternalRepair | null;
 }
 
 /** Aliases usados pelo Pátio / quadro. */

@@ -16,6 +16,13 @@ import {
   SERVICE_ORDER_STAGES,
   CANCELLED_STATUS,
 } from "./constants/serviceOrderStages.js";
+import {
+  labGroupForStatus,
+  statusUsesBench,
+  firstFreeSlotForStatus,
+  normalizeBenchSlot,
+  type ExternalRepair,
+} from "./constants/labBench.js";
 import { normalizeTvChimeConfig } from "./utils/tvChimeSchedule.js";
 import { parseModuleKind, parseModuleVehicleKind } from "./utils/moduleMetadata.js";
 import { SYSTEM_NOTIFICATION_IDS } from "./constants/systemNotificationTypes.js";
@@ -87,6 +94,47 @@ export function createApiApp() {
       .update({ updated_at: new Date().toISOString() })
       .eq("id", serviceOrderId);
     if (error) console.warn("[API] touchServiceOrderUpdatedAt:", error.message);
+  }
+
+  /** Compartimentos (1..24) ocupados por OS de módulo ativas, exceto a OS informada. */
+  async function occupiedBenchSlots(excludeId?: string | null): Promise<Set<number>> {
+    const occupied = new Set<number>();
+    if (!supabaseAdmin || !WORKSHOP_ID) return occupied;
+    const { data, error } = await supabaseAdmin
+      .from("service_orders")
+      .select("id, bench_slot, status")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("order_type", "module")
+      .not("bench_slot", "is", null)
+      .neq("status", CANCELLED_STATUS);
+    if (error) {
+      console.warn("[API] occupiedBenchSlots:", error.message);
+      return occupied;
+    }
+    for (const row of data ?? []) {
+      const r = row as { id: string; bench_slot: number | null };
+      if (excludeId && r.id === excludeId) continue;
+      if (typeof r.bench_slot === "number") occupied.add(r.bench_slot);
+    }
+    return occupied;
+  }
+
+  /**
+   * Sugere o compartimento da bancada para um status.
+   * Mantém o slot atual se ele já pertencer ao grupo do novo status; senão pega o
+   * primeiro livre do grupo. Retorna `null` quando o status fica fora da bancada
+   * (ex.: EM_SERVICO) ou quando o grupo está cheio.
+   */
+  async function pickBenchSlotForStatus(
+    status: string,
+    currentSlot: number | null,
+    excludeId?: string | null
+  ): Promise<number | null> {
+    const group = labGroupForStatus(status);
+    if (!group) return null;
+    if (currentSlot != null && group.slots.includes(currentSlot)) return currentSlot;
+    const occupied = await occupiedBenchSlots(excludeId);
+    return firstFreeSlotForStatus(status, occupied);
   }
 
   function reqOrderId(req: express.Request): string {
@@ -1927,7 +1975,7 @@ export function createApiApp() {
 
   // ----------------- ORDENS DE SERVIÇO -----------------
   const SERVICE_ORDERS_LIST_SELECT =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, bench_slot, bench_slot_at, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   const SERVICE_ORDERS_PAGE_SIZE = 1000;
 
   /** PostgREST limita ~1000 linhas por request — pagina até trazer todas as OS da oficina. */
@@ -2367,6 +2415,14 @@ export function createApiApp() {
       const vehicleBrandIns =
         orderType === "vehicle" ? trimOrNull(bodyVehicleBrand) : null;
 
+      // Laboratório: ao entrar, o produto recebe automaticamente o primeiro
+      // compartimento livre do grupo "Aguardando avaliação" (1..4).
+      let benchSlotIns: number | null = null;
+      if (orderType === "module" && statusUsesBench(FIRST_STAGE)) {
+        const occupied = await occupiedBenchSlots();
+        benchSlotIns = firstFreeSlotForStatus(FIRST_STAGE, occupied);
+      }
+
       const { data, error } = await supabaseAdmin
         .from("service_orders")
         .insert({
@@ -2392,6 +2448,8 @@ export function createApiApp() {
           vehicle_color: vehicleColorIns,
           vehicle_year: vehicleYearIns,
           vehicle_engine_info: vehicleEngineInfoIns,
+          bench_slot: benchSlotIns,
+          bench_slot_at: benchSlotIns != null ? new Date().toISOString() : null,
         })
         .select("*")
         .single();
@@ -5780,10 +5838,39 @@ export function createApiApp() {
 
       const { data: previous } = await supabaseAdmin
         .from("service_orders")
-        .select("status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, customers(name)")
+        .select("status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, order_type, bench_slot, customers(name)")
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
+
+      // Bancada do laboratório: quando o status muda em uma OS de módulo, realoca o
+      // compartimento automaticamente (1..24) para o grupo do novo status, ou libera
+      // o compartimento quando o produto sai da bancada (ex.: EM_SERVICO / finalizado).
+      const effectiveOrderType =
+        (updatePayload.order_type as string | undefined) ??
+        (previous as { order_type?: string } | null)?.order_type ??
+        null;
+      if (
+        updatePayload.status !== undefined &&
+        effectiveOrderType === "module" &&
+        previous &&
+        (previous as { status?: string }).status !== updatePayload.status
+      ) {
+        const currentSlot =
+          typeof (previous as { bench_slot?: number | null }).bench_slot === "number"
+            ? ((previous as { bench_slot?: number | null }).bench_slot as number)
+            : null;
+        const nextStatus = String(updatePayload.status);
+        if (statusUsesBench(nextStatus)) {
+          const newSlot = await pickBenchSlotForStatus(nextStatus, currentSlot, id);
+          updatePayload.bench_slot = newSlot;
+          updatePayload.bench_slot_at = newSlot != null ? new Date().toISOString() : null;
+        } else {
+          // Fora da bancada (com o técnico, finalizado, etc.)
+          updatePayload.bench_slot = null;
+          updatePayload.bench_slot_at = null;
+        }
+      }
 
       updatePayload.updated_at = new Date().toISOString();
 
@@ -5894,6 +5981,134 @@ export function createApiApp() {
       return res.json(data);
     } catch (err: any) {
       console.error("[API] Erro inesperado em PUT /api/service-orders/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Bancada do laboratório: definir/limpar manualmente o compartimento (1..24) de uma OS de módulo.
+  app.put("/api/service-orders/:id/bench-slot", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const id = reqOrderId(req);
+      if (!id) return res.status(400).json({ error: "ID da OS inválido." });
+
+      const rawSlot = req.body?.slot ?? req.body?.benchSlot;
+      const clearing = rawSlot === null || rawSlot === "" || rawSlot === undefined;
+      const slot = clearing ? null : normalizeBenchSlot(rawSlot);
+      if (!clearing && slot == null) {
+        return res.status(400).json({ error: "Compartimento inválido (use 1 a 24)." });
+      }
+
+      const { data: order } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type, status, bench_slot")
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (!order) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if ((order as { order_type?: string }).order_type !== "module") {
+        return res.status(400).json({ error: "A bancada é exclusiva do laboratório." });
+      }
+
+      if (slot != null) {
+        // Compartimento já ocupado por outra OS ativa?
+        const { data: clash } = await supabaseAdmin
+          .from("service_orders")
+          .select("id")
+          .eq("workshop_id", WORKSHOP_ID)
+          .eq("order_type", "module")
+          .eq("bench_slot", slot)
+          .neq("status", CANCELLED_STATUS)
+          .neq("id", id)
+          .maybeSingle();
+        if (clash) {
+          return res.status(409).json({ error: `Compartimento ${slot} já está ocupado.` });
+        }
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("service_orders")
+        .update({
+          bench_slot: slot,
+          bench_slot_at: slot != null ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("*")
+        .single();
+      if (error) {
+        console.error("[API] PUT bench-slot:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em PUT /api/service-orders/:id/bench-slot:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Conserto externo (terceiros): grava os dados do conserto em outro lugar na OS de módulo.
+  app.put("/api/service-orders/:id/external-repair", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const id = reqOrderId(req);
+      if (!id) return res.status(400).json({ error: "ID da OS inválido." });
+
+      const { data: order } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type")
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (!order) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if ((order as { order_type?: string }).order_type !== "module") {
+        return res.status(400).json({ error: "Conserto externo é exclusivo do laboratório." });
+      }
+
+      const body = req.body ?? {};
+      const clearing = body.externalRepair === null || body.clear === true;
+      const trimField = (v: unknown) => {
+        if (v == null) return null;
+        const t = String(v).trim();
+        return t === "" ? null : t.slice(0, 500);
+      };
+      const externalRepair: ExternalRepair | null = clearing
+        ? null
+        : {
+            vendor: trimField(body.vendor),
+            sentAt: trimField(body.sentAt),
+            expectedAt: trimField(body.expectedAt),
+            returnedAt: trimField(body.returnedAt),
+            cost: trimField(body.cost),
+            notes: body.notes == null ? null : String(body.notes).trim().slice(0, 4000) || null,
+          };
+
+      const { data, error } = await supabaseAdmin
+        .from("service_orders")
+        .update({
+          external_repair: externalRepair,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("*")
+        .single();
+      if (error) {
+        console.error("[API] PUT external-repair:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em PUT /api/service-orders/:id/external-repair:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });

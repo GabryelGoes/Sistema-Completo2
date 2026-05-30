@@ -21,6 +21,7 @@ import {
   updateServiceOrderVehicleCategory,
   updateServiceOrderReferenceLinks,
   updateServiceOrderLabServiceLinks,
+  updateServiceOrderBenchSlot,
   getServiceOrderPhotos,
   uploadServiceOrderPhoto,
   renameServiceOrderPhoto,
@@ -126,6 +127,7 @@ import {
   BOARD_PORTRAIT_HSCROLL_ZOOM_MULT,
   DESKTOP_LANDSCAPE_CARD_ZOOM,
 } from '../../utils/patioBoardGlassCard';
+import LabBenchPanel from '../lab/LabBenchPanel';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
 import { ReceptionArchivedHistoryHubCard, boardCardToArchivedHistoryHubOrder } from '../reception/ReceptionArchivedHistoryHubCard';
 import { archivedHistoryModalShell } from '../reception/archivedHistoryModalShell';
@@ -379,6 +381,9 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     vehicle_engine_info: detail.vehicle_engine_info ?? null,
     reference_links: parseReferenceLinksFromApi(detail.reference_links),
     lab_service_links: Array.isArray(detail.lab_service_links) ? (detail.lab_service_links as LabServiceLink[]) : [],
+    bench_slot: (detail as ServiceOrderDetail & { bench_slot?: number | null }).bench_slot ?? null,
+    bench_slot_at: (detail as ServiceOrderDetail & { bench_slot_at?: string | null }).bench_slot_at ?? null,
+    external_repair: (detail as ServiceOrderDetail & { external_repair?: unknown }).external_repair as never ?? null,
     diagnostic_authorization_signed_at: detail.diagnostic_authorization_signed_at ?? null,
     diagnostic_authorization_signature_path: detail.diagnostic_authorization_signature_path ?? null,
     created_at: detail.created_at,
@@ -422,6 +427,9 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     vehicleEngineInfo: o.vehicle_engine_info ?? null,
     referenceLinks: parseReferenceLinksFromApi(o.reference_links),
     labServiceLinks: Array.isArray(o.lab_service_links) ? (o.lab_service_links as LabServiceLink[]) : [],
+    benchSlot: o.bench_slot ?? null,
+    benchSlotAt: o.bench_slot_at ?? null,
+    externalRepair: o.external_repair ?? null,
   };
 }
 
@@ -836,6 +844,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Bancada do laboratório (painel visual dos 24 compartimentos)
+  const [benchPanelOpen, setBenchPanelOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return window.localStorage.getItem('lab-bench-panel-open') !== '0';
+  });
+
   // Card em Visualização DETALHADA (Full Screen Modal)
   const [selectedCard, setSelectedCard] = useState<TrelloCard | null>(null);
   const [serviceOrderDetail, setServiceOrderDetail] = useState<ServiceOrderDetail | null>(null);
@@ -1655,6 +1669,29 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const fetchDataRef = useRef(fetchData);
   fetchDataRef.current = fetchData;
+
+  /** Bancada: mover manualmente uma OS de módulo para um compartimento (ou liberar com null). */
+  const handleBenchMove = useCallback(async (cardId: string, slot: number | null) => {
+    // Atualização otimista para resposta imediata no painel.
+    setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, benchSlot: slot } : c)));
+    try {
+      await updateServiceOrderBenchSlot(cardId, slot);
+    } catch (err: any) {
+      window.alert(err?.message ?? 'Falha ao mover o compartimento.');
+    } finally {
+      fetchDataRef.current(true);
+    }
+  }, []);
+
+  const handleBenchPanelToggle = useCallback(() => {
+    setBenchPanelOpen((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('lab-bench-panel-open', next ? '1' : '0');
+      }
+      return next;
+    });
+  }, []);
 
   /** Retrato/paisagem: matchMedia falha ou “pisca” em alguns móveis ao rotacionar; debounce + dimensões evita zoom errado e sumiço de camada (WebKit). Após orientação, um refresh em fila re-alinha os dados. */
   const patioOrientationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3824,6 +3861,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
           </div>
         </header>
       </div>
+
+      {/* Bancada do laboratório — painel visual dos 24 compartimentos (só no modo módulo) */}
+      {isModuleMode && (
+        <div className="relative z-0 mx-auto w-full max-w-[100rem] px-3 pb-2 sm:px-5 md:px-6">
+          <button
+            type="button"
+            onClick={handleBenchPanelToggle}
+            aria-expanded={benchPanelOpen}
+            className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-zinc-200/80 bg-white/80 px-3 py-1.5 text-[13px] font-semibold text-zinc-700 shadow-sm backdrop-blur-xl transition-colors hover:border-[#A855F7]/40 hover:text-zinc-900 dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white"
+          >
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
+              strokeWidth={2.2}
+              aria-hidden
+            />
+            Bancada do laboratório
+          </button>
+          {benchPanelOpen && (
+            <LabBenchPanel
+              cards={cards}
+              onOpenCard={(card) => setSelectedCard(card)}
+              onMoveCard={handleBenchMove}
+            />
+          )}
+        </div>
+      )}
 
       {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. (z-0 para dropdown do cabeçalho z-50 ficar acima) */}
       <div className="relative z-0 mx-auto w-full max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3">

@@ -10,6 +10,8 @@ export type ServiceOrderStatus =
   | "ORCAMENTO_APROVADO"
   | "AGUARDANDO_PECAS"
   | "PECAS_DISPONIVEIS"
+  | "ENVIO_CONSERTO"
+  | "CHEGADA_CONSERTO"
   | "EM_SERVICO"
   | "FASE_DE_TESTE"
   | "FINALIZADO"
@@ -51,9 +53,11 @@ export const LABORATORY_SERVICE_ORDER_STAGES: StageConfig[] = [
   { id: "AGUARDANDO_APROVACAO", name: "Aguardando aprovação", style: "bg-amber-500 text-amber-950 border-amber-600", ringClass: "ring-2 ring-amber-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 3 },
   { id: "ORCAMENTO_APROVADO", name: "Orçamento aprovado", style: "bg-orange-600 text-white border-orange-600", ringClass: "ring-2 ring-orange-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 4 },
   { id: "AGUARDANDO_PECAS", name: "Aguardando peças", style: "bg-teal-500 text-white border-teal-500", ringClass: "ring-2 ring-teal-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 5 },
-  { id: "EM_SERVICO", name: "Em serviço", style: "bg-blue-600 text-white border-blue-600", ringClass: "ring-2 ring-blue-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 6 },
-  { id: "PRONTO_PRA_RETIRADA", name: "Pronto pra retirada", style: "bg-green-400 text-green-950 border-green-500", ringClass: "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 7 },
-  { id: "ORCAMENTO_NAO_APROVADO", name: "Orçamento não aprovado", style: "bg-violet-600 text-white border-violet-600", ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 8 },
+  { id: "ENVIO_CONSERTO", name: "Envio conserto", style: "bg-indigo-600 text-white border-indigo-600", ringClass: "ring-2 ring-indigo-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 6 },
+  { id: "CHEGADA_CONSERTO", name: "Chegada conserto", style: "bg-cyan-600 text-white border-cyan-600", ringClass: "ring-2 ring-cyan-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 7 },
+  { id: "EM_SERVICO", name: "Em serviço", style: "bg-blue-600 text-white border-blue-600", ringClass: "ring-2 ring-blue-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 8 },
+  { id: "PRONTO_PRA_RETIRADA", name: "Pronto pra retirada", style: "bg-green-400 text-green-950 border-green-500", ringClass: "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 9 },
+  { id: "ORCAMENTO_NAO_APROVADO", name: "Orçamento não aprovado", style: "bg-violet-600 text-white border-violet-600", ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 10 },
 ];
 
 /** Status legados do pátio ainda aceitos no banco — mapeados ao abrir o quadro do laboratório. */
