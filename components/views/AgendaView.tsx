@@ -31,7 +31,7 @@ import {
   iosPageGlass,
   iosInput,
   iosModalInsetCard,
-  iosModalOverlay,
+  resolveIosModalOverlayClass,
 } from '../ui/iosModalStyles';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { IosModalHeader } from '../ui/IosModalHeader';
@@ -47,6 +47,22 @@ import {
   type ServiceOrderListItem,
 } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
+import { useDesktopShellLayout } from '../ui/DesktopShellContext';
+import {
+  formatAgendaPeriodLabel,
+  navigatePeriod,
+  readStoredAgendaView,
+  storeAgendaView,
+  type AgendaViewMode,
+} from '../../utils/agendaViews';
+import {
+  AgendaDesktopMonthGrid,
+  AgendaMiniMonth,
+  AgendaScheduleList,
+  AgendaSidebarDayList,
+  AgendaTimeGrid,
+  AgendaViewSwitcher,
+} from './agenda/AgendaDesktopViews';
 
 interface AgendaViewProps {
   appointments: Appointment[];
@@ -112,7 +128,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [viewMode, setViewMode] = useState<AgendaViewMode>(() => readStoredAgendaView());
+  const desktopShell = useDesktopShellLayout();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [newAppointment, setNewAppointment] = useState<Partial<Appointment>>({
@@ -347,23 +364,35 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   // Save appointments to localStorage whenever they change (Removed as it's now in App.tsx)
 
   const nextPeriod = () => {
-    if (viewMode === 'month') {
-      setCurrentDate(addMonths(currentDate, 1));
-    } else {
-      setCurrentDate(addDays(currentDate, 7));
-    }
+    setCurrentDate((d) => navigatePeriod(viewMode, d, 1));
   };
 
   const prevPeriod = () => {
-    if (viewMode === 'month') {
-      setCurrentDate(subMonths(currentDate, 1));
-    } else {
-      setCurrentDate(addDays(currentDate, -7));
+    setCurrentDate((d) => navigatePeriod(viewMode, d, -1));
+  };
+
+  const handleViewModeChange = (mode: AgendaViewMode) => {
+    setViewMode(mode);
+    storeAgendaView(mode);
+    if (mode === 'day') {
+      setCurrentDate(selectedDate);
     }
+  };
+
+  const goToToday = () => {
+    const today = new Date();
+    setCurrentDate(today);
+    setSelectedDate(today);
   };
 
   const onDateClick = (day: Date) => {
     setSelectedDate(day);
+    if (desktopShell && viewMode === 'month') {
+      setCurrentDate(day);
+    }
+    if (desktopShell && viewMode === 'day') {
+      setCurrentDate(day);
+    }
   };
 
   const handleAddAppointment = async (e: React.FormEvent) => {
@@ -891,8 +920,119 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
     );
   };
 
+  const modalOverlayClass = resolveIosModalOverlayClass(desktopShell);
+
+  const renderDesktopShell = () => (
+    <div className="flex h-full min-h-0 w-full flex-col gap-3 px-4 py-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={goToToday}
+            className="rounded-lg border border-zinc-200/90 bg-white px-3 py-1.5 text-[13px] font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50 dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+          >
+            Hoje
+          </button>
+          <div className="flex items-center rounded-lg border border-zinc-200/90 bg-white dark:border-white/[0.1] dark:bg-zinc-900">
+            <button
+              type="button"
+              onClick={prevPeriod}
+              className="rounded-l-lg p-2 text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+              aria-label="Período anterior"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={nextPeriod}
+              className="rounded-r-lg p-2 text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+              aria-label="Próximo período"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+          <h2 className="min-w-0 truncate text-[15px] font-bold capitalize text-zinc-900 dark:text-white sm:text-[17px]">
+            {formatAgendaPeriodLabel(viewMode, currentDate)}
+          </h2>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <AgendaViewSwitcher mode={viewMode} onModeChange={handleViewModeChange} />
+          <button
+            type="button"
+            onClick={fetchAppointments}
+            disabled={isLoading}
+            className="rounded-lg border border-zinc-200/90 bg-white p-2 text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-300"
+            title="Atualizar lista"
+          >
+            <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleNewAppointment()}
+            className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-[13px] font-semibold text-white shadow-sm hover:bg-red-600"
+          >
+            <Plus className="h-4 w-4" />
+            Novo
+          </button>
+        </div>
+      </div>
+
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="flex min-h-[480px] flex-col">
+          {viewMode === 'month' ? (
+            <AgendaDesktopMonthGrid
+              currentDate={currentDate}
+              selectedDate={selectedDate}
+              appointments={appointments}
+              onSelectDay={onDateClick}
+              onNewAppointment={handleNewAppointment}
+              onSelectAppointment={setDetailAppointment}
+            />
+          ) : null}
+          {viewMode === 'week' || viewMode === 'day' ? (
+            <AgendaTimeGrid
+              mode={viewMode === 'day' ? 'day' : 'week'}
+              anchorDate={currentDate}
+              appointments={appointments}
+              selectedDate={selectedDate}
+              onSelectDay={onDateClick}
+              onSelectAppointment={setDetailAppointment}
+            />
+          ) : null}
+          {viewMode === 'schedule' ? (
+            <AgendaScheduleList
+              anchorDate={currentDate}
+              appointments={appointments}
+              onSelectAppointment={setDetailAppointment}
+            />
+          ) : null}
+        </div>
+        <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto pb-2">
+          <AgendaMiniMonth
+            currentDate={currentDate}
+            selectedDate={selectedDate}
+            appointments={appointments}
+            onSelectDay={(day) => {
+              onDateClick(day);
+              if (viewMode === 'week') setCurrentDate(day);
+            }}
+            onMonthChange={setCurrentDate}
+          />
+          <AgendaSidebarDayList
+            selectedDate={selectedDate}
+            appointments={appointments}
+            onSelectAppointment={setDetailAppointment}
+            onNewAppointment={() => handleNewAppointment(selectedDate)}
+          />
+        </aside>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-full w-full relative overflow-x-hidden">
+      {!desktopShell ? (
+        <>
       <div className="fixed inset-0 -z-10 bg-gradient-to-b from-zinc-200/90 via-zinc-100 to-zinc-200/85 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950" />
       <div className="fixed inset-0 -z-10 pointer-events-none opacity-35 dark:opacity-25 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(239,68,68,0.22),transparent),radial-gradient(ellipse_60%_40%_at_100%_0%,rgba(248,113,113,0.12),transparent),radial-gradient(ellipse_50%_35%_at_0%_100%,rgba(244,63,94,0.1),transparent)]" />
       <div className="fixed inset-0 -z-10 pointer-events-none backdrop-blur-[2px]" />
@@ -901,11 +1041,16 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       {renderDays()}
       {renderCells()}
       {renderSelectedDayDetails()}
+    </div>
+        </>
+      ) : (
+        renderDesktopShell()
+      )}
 
       {/* Modal detalhe do agendamento (calendário ou lista do dia) */}
       {detailAppointment && (
         <div
-          className={iosModalOverlay}
+          className={modalOverlayClass}
           onClick={() => setDetailAppointment(null)}
         >
           <div
@@ -1055,7 +1200,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
 
       {/* Modal Novo Agendamento */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 sm:p-6 animate-modal-backdrop">
+        <div className={`${modalOverlayClass} animate-modal-backdrop`}>
             <div className={`${iosModalShell} w-full max-w-md md:max-w-3xl xl:max-w-4xl max-h-[90vh] animate-modal-sheet`}>
                 <button
                   type="button"
@@ -1501,7 +1646,6 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
             </div>
         </div>
       )}
-    </div>
     </div>
   );
 };
