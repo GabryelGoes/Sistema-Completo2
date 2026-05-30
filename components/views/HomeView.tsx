@@ -1249,8 +1249,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           {(showFullAdminHub || (!!perms.access_settings && isSystemUser)) && (
                             <SettingsRow
                               onClick={() => {
-                                setSettingsHubOpen(false);
-                                onOpenApp('settings');
+                                if (onOpenSettings) onOpenSettings();
+                                else onOpenApp('settings');
                               }}
                               title="Tema do sistema"
                               subtitle="Configurações da oficina"

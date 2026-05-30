@@ -477,7 +477,7 @@ export default function App() {
 
   const handleHomeOpenApp = (app: HomeAppId) => {
     if (app === 'settings') {
-      setSettingsHubOpen(true);
+      setIsSettingsOpen(true);
       return;
     }
     if (app === 'reception') {
@@ -670,6 +670,10 @@ export default function App() {
                   setReturnTabAfterReception(null);
                   setAgendaIntakeSourceAppointmentId(null);
                 }
+                if (app === 'settings') {
+                  setIsSettingsOpen(true);
+                  return;
+                }
                 setUserTab(app as TabId);
               }}
               onLogout={handleLogout}
@@ -694,9 +698,9 @@ export default function App() {
                 } catch (_) {}
               }}
               systemUserPermissions={authSession.permissions}
-              onOpenSettings={() => setSettingsHubOpen(true)}
+              onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
-              globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen}
+              globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen || isSettingsOpen}
               patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
               onOpenVehicleAccompaniment={openVehicleAccompaniment}
             />
@@ -966,7 +970,8 @@ export default function App() {
             adminPhotoUrl={authSession?.role === 'admin' ? adminPhotoUrl : undefined}
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
-            globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen || isSettingsOpen}
             patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
             onOpenVehicleAccompaniment={openVehicleAccompaniment}
           />
