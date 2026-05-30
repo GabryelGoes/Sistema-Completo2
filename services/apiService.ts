@@ -343,6 +343,7 @@ export type ErrorBulletin = {
   dtcCodes: string;
   symptoms: string;
   possibleCauses: string;
+  probableCauses: string;
   solution: string;
   notes: string;
   status: ErrorBulletinStatus;
@@ -394,6 +395,7 @@ export async function createErrorBulletin(payload: {
   dtcCodes?: string;
   symptoms?: string;
   possibleCauses?: string;
+  probableCauses?: string;
   solution?: string;
   notes?: string;
   status?: ErrorBulletinStatus;
@@ -427,6 +429,7 @@ export async function updateErrorBulletin(
     dtcCodes: string;
     symptoms: string;
     possibleCauses: string;
+    probableCauses: string;
     solution: string;
     notes: string;
     status: ErrorBulletinStatus;

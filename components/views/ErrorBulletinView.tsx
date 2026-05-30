@@ -15,7 +15,7 @@ import {
   type ErrorBulletinStatus,
 } from '../../services/apiService';
 import type { AuthSession } from '../../services/apiService';
-import { ERROR_BULLETIN_ICON } from '../../constants/errorBulletinIcon';
+import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../../constants/errorBulletinIcon';
 
 const SETTINGS_KEY = 'app_error_bulletin_settings_v1';
 
@@ -165,7 +165,7 @@ export const ErrorBulletinView: React.FC<{ authSession?: AuthSession | null }> =
             </p>
             <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight md:text-[1.75rem]">
               <img src={ERROR_BULLETIN_ICON} alt="" className="h-9 w-9 shrink-0 rounded-xl object-cover" />
-              Boletim de Erros
+              {TECHNICAL_BULLETINS_MODULE_LABEL}
             </h1>
             <p className="max-w-xl text-[14px] leading-relaxed text-amber-50">
               Registre DTC do scanner, sintomas, soluções e anexos para consulta rápida da equipe.
@@ -364,7 +364,12 @@ export const ErrorBulletinView: React.FC<{ authSession?: AuthSession | null }> =
                   ) : null}
                   {b.possibleCauses ? (
                     <p className="mt-1 line-clamp-2 text-[13px] text-amber-800/90 dark:text-amber-200/90">
-                      <strong>Possíveis causas:</strong> {b.possibleCauses}
+                      <strong>Diagnóstico:</strong> {b.possibleCauses}
+                    </p>
+                  ) : null}
+                  {b.probableCauses ? (
+                    <p className="mt-1 line-clamp-2 text-[13px] text-zinc-600 dark:text-zinc-400">
+                      <strong>Possíveis causas:</strong> {b.probableCauses}
                     </p>
                   ) : null}
                   {b.solution ? (

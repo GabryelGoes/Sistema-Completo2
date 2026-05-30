@@ -34,7 +34,7 @@ export const DESKTOP_NAV_ITEMS: DesktopNavItem[] = [
   { id: 'laboratorio', label: 'Laboratório', shortLabel: 'Lab.', iconSrc: '/icons/laboratorio-ios.png' },
   { id: 'orcamentos', label: 'Orçamentos', shortLabel: 'Orçamentos', iconSrc: '/icons/orcamentos-ios.png' },
   { id: 'relatorios', label: 'Relatórios', shortLabel: 'Relatórios', iconSrc: '/icons/relatorios-ios.svg' },
-  { id: 'boletim_erros', label: 'Boletim de erros', shortLabel: 'Boletim', iconSrc: '/icons/boletim-erros-ios.png' },
+  { id: 'boletim_erros', label: 'Boletins Técnicos', shortLabel: 'Boletins', iconSrc: '/icons/boletins-tecnicos-ios.png' },
   { id: 'radar_qualidade', label: 'Radar de qualidade', shortLabel: 'Radar', iconSrc: '/icons/radar-qualidade-ios.png' },
 ];
 

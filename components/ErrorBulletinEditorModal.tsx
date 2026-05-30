@@ -16,6 +16,9 @@ import {
 import { Lightbox } from './Lightbox';
 import { PdfViewerModal } from './PdfViewerModal';
 import { ModalPortal } from './ui/ModalPortal';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { desktopShellViewportOverlayClass } from '../utils/desktopShellOverlay';
+import { TECHNICAL_BULLETINS_MODULE_LABEL } from '../constants/errorBulletinIcon';
 import { StorageThumbImg } from './ui/StorageThumbImg';
 import {
   addErrorBulletinLink,
@@ -69,6 +72,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
   onClose,
   onSaved,
 }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const isEdit = !!bulletinId;
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -84,6 +88,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
   const [dtcCodes, setDtcCodes] = useState('');
   const [symptoms, setSymptoms] = useState('');
   const [possibleCauses, setPossibleCauses] = useState('');
+  const [probableCauses, setProbableCauses] = useState('');
   const [solution, setSolution] = useState('');
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<ErrorBulletinStatus>('published');
@@ -122,6 +127,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     setDtcCodes(d.dtcCodes);
     setSymptoms(d.symptoms);
     setPossibleCauses(d.possibleCauses);
+    setProbableCauses(d.probableCauses);
     setSolution(d.solution);
     setNotes(d.notes);
     setStatus(d.status);
@@ -139,6 +145,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     setDtcCodes('');
     setSymptoms('');
     setPossibleCauses('');
+    setProbableCauses('');
     setSolution('');
     setNotes('');
     setStatus('published');
@@ -233,6 +240,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     dtcCodes: parseDtcLines(dtcCodes).join('\n'),
     symptoms: symptoms.trim(),
     possibleCauses: possibleCauses.trim(),
+    probableCauses: probableCauses.trim(),
     solution: solution.trim(),
     notes: notes.trim(),
     status,
@@ -333,16 +341,26 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-[280] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+      <div
+        className={
+          isDesktopShell
+            ? `${desktopShellViewportOverlayClass(true, 'z-[280]')} flex items-center justify-center bg-black/50 p-5 backdrop-blur-sm`
+            : 'fixed inset-0 z-[280] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4'
+        }
+      >
         <div
-          className="flex max-h-[min(96vh,920px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-[22px] border border-zinc-200/90 bg-white shadow-2xl dark:border-white/[0.1] dark:bg-zinc-900 sm:rounded-[22px]"
+          className={
+            isDesktopShell
+              ? 'flex h-[min(96%,960px)] w-full max-w-6xl flex-col overflow-hidden rounded-[22px] border border-zinc-200/90 bg-white shadow-2xl dark:border-white/[0.1] dark:bg-zinc-900'
+              : 'flex max-h-[min(96vh,920px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-[22px] border border-zinc-200/90 bg-white shadow-2xl dark:border-white/[0.1] dark:bg-zinc-900 sm:rounded-[22px]'
+          }
           role="dialog"
           aria-modal="true"
         >
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/80 bg-amber-500 px-5 py-4 dark:border-white/[0.08]">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-100">
-                Boletim de Erros
+                {TECHNICAL_BULLETINS_MODULE_LABEL}
               </p>
               <h2 className="text-lg font-bold text-white">
                 {isEdit ? 'Editar registro' : 'Novo registro'}
@@ -358,7 +376,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-5">
+          <div className={`min-h-0 flex-1 overflow-y-auto space-y-5 ${isDesktopShell ? 'p-6 lg:p-8' : 'p-5'}`}>
             {loading ? (
               <div className="flex flex-col items-center gap-3 py-16 text-zinc-500">
                 <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
@@ -372,13 +390,13 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                   </p>
                 ) : null}
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
+                <div className={`grid gap-4 sm:grid-cols-2 ${isDesktopShell ? 'lg:grid-cols-3' : ''}`}>
+                  <div className="sm:col-span-2 lg:col-span-3">
                     <label className={labelClass}>Título do registro</label>
                     <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex.: Falha ABS — Corolla 2018" />
                   </div>
 
-                  <div className="sm:col-span-2 rounded-2xl border border-zinc-200/90 bg-zinc-50/80 p-4 dark:border-white/[0.1] dark:bg-zinc-950/50">
+                  <div className="sm:col-span-2 lg:col-span-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/80 p-4 dark:border-white/[0.1] dark:bg-zinc-950/50">
                     <p className={labelClass}>Veículo</p>
                     <div className="mb-3 flex flex-wrap gap-2">
                       {(
@@ -485,11 +503,11 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                     <label className={labelClass}>Placa</label>
                     <input className={inputClass} value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} />
                   </div>
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-2 lg:col-span-3">
                     <label className={labelClass}>Motor / sistema</label>
                     <input className={inputClass} value={engineInfo} onChange={(e) => setEngineInfo(e.target.value)} placeholder="Ex.: 2.0 flex, módulo ABS" />
                   </div>
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-2 lg:col-span-3">
                     <label className={labelClass}>Status</label>
                     <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value as ErrorBulletinStatus)}>
                       <option value="published">Publicado</option>
@@ -497,7 +515,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                       <option value="archived">Arquivado</option>
                     </select>
                   </div>
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-2 lg:col-span-3">
                     <label className={labelClass}>Códigos DTC (scanner)</label>
                     <textarea
                       className={`${inputClass} min-h-[88px] font-mono text-[13px]`}
@@ -518,28 +536,37 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                       </div>
                     ) : null}
                   </div>
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-2 lg:col-span-3">
                     <label className={labelClass}>Sintomas / defeito</label>
                     <textarea className={`${inputClass} min-h-[100px]`} value={symptoms} onChange={(e) => setSymptoms(e.target.value)} />
                   </div>
-                  <div className="sm:col-span-2">
-                    <label className={labelClass}>Possíveis causas</label>
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <label className={labelClass}>Diagnóstico</label>
                     <textarea
                       className={`${inputClass} min-h-[100px]`}
                       value={possibleCauses}
                       onChange={(e) => setPossibleCauses(e.target.value)}
-                      placeholder="Ex.: sensor de roda com falha, chicote rompido, módulo com umidade…"
+                      placeholder="Ex.: falha intermitente no circuito do sensor ABS dianteiro esquerdo…"
                     />
                   </div>
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-2 lg:col-span-3">
                     <label className={labelClass}>Solução aplicada</label>
                     <textarea className={`${inputClass} min-h-[100px]`} value={solution} onChange={(e) => setSolution(e.target.value)} />
                   </div>
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <label className={labelClass}>Possíveis causas</label>
+                    <textarea
+                      className={`${inputClass} min-h-[100px]`}
+                      value={probableCauses}
+                      onChange={(e) => setProbableCauses(e.target.value)}
+                      placeholder="Ex.: sensor de roda com falha, chicote rompido, módulo com umidade…"
+                    />
+                  </div>
+                  <div className="sm:col-span-2 lg:col-span-3">
                     <label className={labelClass}>Observações internas</label>
                     <textarea className={`${inputClass} min-h-[72px]`} value={notes} onChange={(e) => setNotes(e.target.value)} />
                   </div>
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-2 lg:col-span-3">
                     <label className={labelClass}>Tags (vírgula)</label>
                     <input className={inputClass} value={tagsRaw} onChange={(e) => setTagsRaw(e.target.value)} placeholder="ABS, Toyota, intermitente" />
                   </div>

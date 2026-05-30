@@ -6956,6 +6956,7 @@ export function createApiApp() {
     dtcCodes: row.dtc_codes ?? "",
     symptoms: row.symptoms ?? "",
     possibleCauses: row.possible_causes ?? "",
+    probableCauses: row.probable_causes ?? "",
     solution: row.solution ?? "",
     notes: row.notes ?? "",
     status: row.status ?? "published",
@@ -7026,6 +7027,7 @@ export function createApiApp() {
             row.dtc_codes,
             row.symptoms,
             row.possible_causes,
+            row.probable_causes,
             row.solution,
             ...(Array.isArray(row.tags) ? row.tags : []),
           ]
@@ -7099,6 +7101,7 @@ export function createApiApp() {
           dtc_codes: (b.dtcCodes ?? "").toString(),
           symptoms: (b.symptoms ?? "").toString(),
           possible_causes: (b.possibleCauses ?? "").toString(),
+          probable_causes: (b.probableCauses ?? "").toString(),
           solution: (b.solution ?? "").toString(),
           notes: (b.notes ?? "").toString(),
           status: ["draft", "published", "archived"].includes(b.status) ? b.status : "published",
@@ -7143,6 +7146,7 @@ export function createApiApp() {
       if (b.dtcCodes !== undefined) updates.dtc_codes = String(b.dtcCodes);
       if (b.symptoms !== undefined) updates.symptoms = String(b.symptoms);
       if (b.possibleCauses !== undefined) updates.possible_causes = String(b.possibleCauses);
+      if (b.probableCauses !== undefined) updates.probable_causes = String(b.probableCauses);
       if (b.solution !== undefined) updates.solution = String(b.solution);
       if (b.notes !== undefined) updates.notes = String(b.notes);
       if (b.status !== undefined && ["draft", "published", "archived"].includes(b.status)) {

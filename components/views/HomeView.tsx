@@ -22,7 +22,7 @@ import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import { SYSTEM_NOTIFICATIONS_ICON } from '../../constants/systemNotificationsIcon';
 import { QUALITY_RADAR_ICON } from '../../constants/qualityRadar';
-import { ERROR_BULLETIN_ICON } from '../../constants/errorBulletinIcon';
+import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../../constants/errorBulletinIcon';
 import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../services/apiService';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
@@ -563,9 +563,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     if (showFullAdminHub || !!perms.access_boletim_erros) {
       extraTiles.push({
         id: 'boletim_erros',
-        label: 'Boletim de Erros',
+        label: TECHNICAL_BULLETINS_MODULE_LABEL,
         icon: (
-          <img src={ERROR_BULLETIN_ICON} alt="Boletim de Erros" className="h-full w-full object-cover" />
+          <img src={ERROR_BULLETIN_ICON} alt={TECHNICAL_BULLETINS_MODULE_LABEL} className="h-full w-full object-cover" />
         ),
         onOpen: () => onOpenApp('boletim_erros'),
       });

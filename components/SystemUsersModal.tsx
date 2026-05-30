@@ -28,7 +28,7 @@ import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { SYSTEM_NOTIFICATIONS_ICON } from '../constants/systemNotificationsIcon';
 import { QUALITY_RADAR_ICON } from '../constants/qualityRadar';
-import { ERROR_BULLETIN_ICON } from '../constants/errorBulletinIcon';
+import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../constants/errorBulletinIcon';
 import type { SystemUserPermissions, SystemUser } from '../services/apiService';
 import {
   getSystemUsers,
@@ -163,10 +163,10 @@ const HOME_MODULE_ACCESS: {
   },
   {
     key: 'access_boletim_erros',
-    label: 'Boletim de Erros',
+    label: TECHNICAL_BULLETINS_MODULE_LABEL,
     description: 'Base de DTC, sintomas, soluções e anexos técnicos',
     icon: ERROR_BULLETIN_ICON,
-    iconAlt: 'Boletim de Erros',
+    iconAlt: TECHNICAL_BULLETINS_MODULE_LABEL,
   },
   {
     key: 'access_radar_qualidade',
