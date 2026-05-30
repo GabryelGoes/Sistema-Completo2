@@ -34,3 +34,11 @@ html.light textarea[data-queixa-textarea] {
 html.dark textarea[data-queixa-textarea] {
   caret-color: #93c5fd !important;
 }
+
+/* Lightbox / PDF — controles sobre fundo escuro permanecem claros no modo claro */
+html.light [data-media-overlay] button,
+html.light [data-media-overlay] a[class*='rounded-full'],
+html.light [data-media-overlay] .text-white,
+html.light [data-media-overlay] .text-white\/80 {
+  color: #ffffff !important;
+}

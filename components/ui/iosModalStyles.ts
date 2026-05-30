@@ -74,6 +74,18 @@ export const iosVehicleModalInput =
 export const iosModalClose =
   'absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-black/10 dark:hover:bg-white/15 transition-colors';
 
+/** Botões sobre fundo escuro (Lightbox, PDF) — ícone sempre claro; evita override do html.light em text-zinc-*. */
+export const mediaOverlayCloseBtn =
+  'absolute top-[max(1.25rem,env(safe-area-inset-top))] right-[max(1.25rem,env(safe-area-inset-right))] z-50 flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-black/65 text-white shadow-[0_4px_20px_rgba(0,0,0,0.45)] backdrop-blur-md transition-colors hover:bg-black/85';
+
+export const mediaOverlayIconBtn =
+  'flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-black/65 text-white shadow-[0_4px_20px_rgba(0,0,0,0.45)] backdrop-blur-md transition-colors hover:bg-black/85';
+
+export const mediaOverlayNavBtn =
+  'z-50 flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-black/65 text-white shadow-[0_4px_20px_rgba(0,0,0,0.45)] backdrop-blur-md transition-colors hover:bg-black/85';
+
+export const mediaOverlayHintText = 'text-white/80';
+
 export const iosInput =
   'w-full rounded-2xl border border-zinc-200/90 dark:border-white/[0.08] bg-white/90 dark:bg-zinc-950/50 px-4 py-3 text-[15px] text-zinc-950 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow';
 

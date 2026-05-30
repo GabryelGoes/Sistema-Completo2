@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { ModalPortal } from './ui/ModalPortal';
+import { mediaOverlayCloseBtn, mediaOverlayHintText, mediaOverlayNavBtn } from './ui/iosModalStyles';
 
 const SWIPE_THRESHOLD = 44;
 
@@ -174,6 +175,7 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
   return (
     <ModalPortal>
       <div
+        data-media-overlay
         className="fixed inset-0 z-[300] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-modal-backdrop overflow-hidden overscroll-contain"
         onClick={onClose}
         role="dialog"
@@ -185,7 +187,8 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/80 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+          className={mediaOverlayCloseBtn}
+          aria-label="Fechar"
         >
           <X className="h-6 w-6" />
         </button>
@@ -197,7 +200,7 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
               e.stopPropagation();
               goPrev();
             }}
-            className="absolute left-2 top-1/2 z-50 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/80 text-white transition-colors hover:bg-zinc-800 md:left-6"
+            className={`absolute left-2 top-1/2 -translate-y-1/2 md:left-6 ${mediaOverlayNavBtn}`}
             aria-label="Foto anterior"
           >
             <ChevronLeft className="h-6 w-6" />
@@ -210,7 +213,7 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
               e.stopPropagation();
               goNext();
             }}
-            className="absolute right-2 top-1/2 z-50 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/80 text-white transition-colors hover:bg-zinc-800 md:right-14"
+            className={`absolute right-2 top-1/2 -translate-y-1/2 md:right-14 ${mediaOverlayNavBtn}`}
             aria-label="Próxima foto"
           >
             <ChevronRight className="h-6 w-6" />
@@ -253,12 +256,12 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
                 />
               ))}
             </div>
-            <p className="pointer-events-none absolute bottom-4 left-1/2 max-w-[min(90vw,20rem)] -translate-x-1/2 text-center text-[11px] font-medium leading-snug text-zinc-400">
+            <p className={`pointer-events-none absolute bottom-4 left-1/2 max-w-[min(90vw,20rem)] -translate-x-1/2 text-center text-[11px] font-medium leading-snug ${mediaOverlayHintText}`}>
               Setas ← → no teclado ou deslize o dedo para o lado
             </p>
           </>
         ) : (
-          <div className="pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/50 px-4 py-2 text-xs text-zinc-400 backdrop-blur-md">
+          <div className={`pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2 rounded-full border border-white/20 bg-black/50 px-4 py-2 text-xs ${mediaOverlayHintText} backdrop-blur-md`}>
             Toque duplo para zoom ou use pinça
           </div>
         )}

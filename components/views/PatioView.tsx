@@ -101,6 +101,9 @@ import {
   iosPageGlass,
   iosAccentPrimaryButton,
   iosPrimaryButton,
+  mediaOverlayCloseBtn,
+  mediaOverlayHintText,
+  mediaOverlayNavBtn,
 } from '../ui/iosModalStyles';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { markdownComponentsApp } from '../ui/markdownUi';
@@ -709,6 +712,7 @@ const Lightbox = ({
   return (
     <ModalPortal>
     <div
+      data-media-overlay
       className="fixed inset-0 z-[300] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-modal-backdrop overflow-hidden overscroll-contain"
       onClick={onClose}
       role="dialog"
@@ -716,8 +720,10 @@ const Lightbox = ({
       aria-label={hasMultiple ? 'Galeria de fotos — use as setas ou deslize para trocar' : 'Visualização de foto'}
     >
       <button
+        type="button"
         onClick={onClose}
-        className="absolute top-6 right-6 z-50 w-12 h-12 rounded-full bg-zinc-900/80 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors border border-zinc-700"
+        className={mediaOverlayCloseBtn}
+        aria-label="Fechar"
       >
         <X className="w-6 h-6" />
       </button>
@@ -726,7 +732,7 @@ const Lightbox = ({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); goPrev(); }}
-          className="absolute left-2 md:left-6 top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-zinc-900/80 flex items-center justify-center text-white hover:bg-zinc-800 transition-colors border border-zinc-700"
+          className={`absolute left-2 md:left-6 top-1/2 -translate-y-1/2 ${mediaOverlayNavBtn}`}
           aria-label="Foto anterior"
         >
           <ChevronLeft className="w-6 h-6" />
@@ -736,7 +742,7 @@ const Lightbox = ({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); goNext(); }}
-          className="absolute right-2 md:right-14 top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-zinc-900/80 flex items-center justify-center text-white hover:bg-zinc-800 transition-colors border border-zinc-700"
+          className={`absolute right-2 md:right-14 top-1/2 -translate-y-1/2 ${mediaOverlayNavBtn}`}
           aria-label="Próxima foto"
         >
           <ChevronRight className="w-6 h-6" />
@@ -777,13 +783,13 @@ const Lightbox = ({
               />
             ))}
           </div>
-          <p className="pointer-events-none absolute bottom-4 left-1/2 max-w-[min(90vw,20rem)] -translate-x-1/2 text-center text-[11px] font-medium leading-snug text-zinc-400">
+          <p className={`pointer-events-none absolute bottom-4 left-1/2 max-w-[min(90vw,20rem)] -translate-x-1/2 text-center text-[11px] font-medium leading-snug ${mediaOverlayHintText}`}>
             Setas ← → no teclado ou deslize o dedo para o lado
           </p>
         </>
       )}
       {!hasMultiple && (
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-zinc-400 text-xs pointer-events-none backdrop-blur-md border border-white/10">
+        <div className={`absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-xs pointer-events-none backdrop-blur-md border border-white/20 ${mediaOverlayHintText}`}>
           Toque duplo para zoom ou use pinça
         </div>
       )}

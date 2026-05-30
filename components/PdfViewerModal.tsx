@@ -1,6 +1,7 @@
 import React from 'react';
 import { FileText, Download, X } from 'lucide-react';
 import { ModalPortal } from './ui/ModalPortal';
+import { mediaOverlayIconBtn } from './ui/iosModalStyles';
 
 /**
  * Modal em tela cheia com iframe para visualizar PDF.
@@ -10,8 +11,8 @@ import { ModalPortal } from './ui/ModalPortal';
 export function PdfViewerModal({ src, onClose }: { src: string; onClose: () => void }) {
   return (
     <ModalPortal>
-    <div className="fixed inset-0 z-[300] flex flex-col bg-black/95 backdrop-blur-xl animate-modal-backdrop">
-      <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/80">
+    <div data-media-overlay className="fixed inset-0 z-[300] flex flex-col bg-black/95 backdrop-blur-xl animate-modal-backdrop">
+      <div className="flex items-center justify-between border-b border-white/15 bg-black/70 p-4 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <FileText className="w-6 h-6 text-brand-yellow" />
           <h3 className="text-white font-bold">Visualização de Documento</h3>
@@ -21,7 +22,7 @@ export function PdfViewerModal({ src, onClose }: { src: string; onClose: () => v
             href={src}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+            className={mediaOverlayIconBtn}
             title="Abrir Externamente / Baixar"
           >
             <Download className="w-5 h-5" />
@@ -29,7 +30,8 @@ export function PdfViewerModal({ src, onClose }: { src: string; onClose: () => v
           <button
             type="button"
             onClick={onClose}
-            className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors border border-zinc-700"
+            className={mediaOverlayIconBtn}
+            aria-label="Fechar"
           >
             <X className="w-5 h-5" />
           </button>
