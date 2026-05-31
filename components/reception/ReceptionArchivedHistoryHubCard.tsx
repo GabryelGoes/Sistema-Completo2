@@ -1,9 +1,10 @@
 import React from 'react';
-import { ChevronRight, FileText } from 'lucide-react';
+import { ChevronRight, FileText, Wrench } from 'lucide-react';
 import { getStageStyle } from '../../constants/serviceOrderStages';
 import type { BoardCard } from '../../types';
 import { parsePatioCardTitle } from '../../utils/patioCardTitle';
 import { labProductDisplayLabel, moduleVehicleKindLabel } from '../../utils/moduleMetadata';
+import { capitalizeFirst } from '../../utils/personNameFormat';
 
 /** Mesmo chrome visual do hub Orçamentos (`iosPageGlassOrcamentosVehicleCard`), com fundo branco sólido no claro. */
 const receptionHistoryVehicleCardShell =
@@ -37,6 +38,7 @@ export type ArchivedHistoryHubOrderLike = {
   customers?: { id: string; name: string; phone: string | null } | null;
   updated_at: string;
   garantia_tag?: boolean;
+  assigned_technician_name?: string | null;
 };
 
 export function boardCardToArchivedHistoryHubOrder(card: BoardCard, isModuleMode: boolean): ArchivedHistoryHubOrderLike {
@@ -53,6 +55,7 @@ export function boardCardToArchivedHistoryHubOrder(card: BoardCard, isModuleMode
     customers: null,
     updated_at: card.dateLastActivity,
     garantia_tag: card.garantiaTag === true,
+    assigned_technician_name: card.members?.[0]?.fullName ?? null,
   };
 }
 
@@ -94,6 +97,7 @@ export function ReceptionArchivedHistoryHubCard({
   const archivedStyle = getStageStyle('CANCELLED');
   const archivedWhen = formatArchivedDate(order.updated_at);
   const garantia = order.garantia_tag === true;
+  const mechanicName = (order.assigned_technician_name || '').trim();
 
   const titleLine = [order.vehicle_brand, order.vehicle_model].filter(Boolean).join(' ').trim() || model;
 
@@ -142,6 +146,10 @@ export function ReceptionArchivedHistoryHubCard({
           {customerFull ? (
             <p className="mt-0.5 truncate text-[13px] text-zinc-600 dark:text-zinc-400">{customerFull}</p>
           ) : null}
+          <p className="mt-1 flex min-w-0 items-center gap-1.5 truncate text-[13px] text-zinc-600 dark:text-zinc-400">
+            <Wrench className="h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" strokeWidth={2} aria-hidden />
+            <span className="truncate">{mechanicName ? capitalizeFirst(mechanicName) : 'Sem técnico'}</span>
+          </p>
           {isModuleMode && (order.module_kind || order.module_vehicle_kind) ? (
             <p className="mt-1 text-[12px] font-medium text-violet-700 dark:text-violet-300">
               {[

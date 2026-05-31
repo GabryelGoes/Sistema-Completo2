@@ -407,7 +407,7 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     : `${o.vehicle_model || 'Veículo'}${PATIO_CARD_TITLE_SEP}${(o.plate || '---').toUpperCase()}${PATIO_CARD_TITLE_SEP}${clientName}`;
   const techId = o.assigned_technician ?? null;
   const nameMap = technicianNameMap ?? {};
-  const techName = techId ? (nameMap[techId] ?? techId) : null;
+  const techName = techId ? (nameMap[techId] ?? o.assigned_technician_name?.trim() ?? techId) : null;
   return {
     id: o.id,
     name,
@@ -4659,6 +4659,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          >
                             <User className="h-5 w-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
                             <span className="truncate text-[16px] font-medium text-zinc-900 dark:text-white">{historyCardTitleParts?.customer}</span>
+                         </div>
+                         <div className={`${iosModalInsetCard} flex shrink-0 items-center gap-2 px-4 py-2.5`}>
+                            <Wrench className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" strokeWidth={2} />
+                            <span className="truncate text-[14px] font-medium text-zinc-800 dark:text-zinc-100">
+                              {selectedHistoryCard.members?.[0]?.fullName
+                                ? capitalizeFirst(selectedHistoryCard.members[0].fullName)
+                                : 'Sem técnico'}
+                            </span>
                          </div>
                          {selectedHistoryCard.due && (
                            <div className={`${iosModalInsetCard} flex shrink-0 items-center gap-2 px-4 py-2.5`}>
