@@ -16,7 +16,7 @@ import {
 } from '../../../services/apiService';
 import { getStageConfig, getStageStyle } from '../../../constants/serviceOrderStages';
 import { iosLabel, iosPageGlass, iosPageGlassOrcamentosVehicleCard } from '../../ui/iosModalStyles';
-import { desktopOnmotorCard } from '../../ui/desktopCardStyles';
+import { desktopOnmotorCard, desktopStatChip } from '../../ui/desktopCardStyles';
 import type { BudgetsHubViewMode, StageKanbanColumn, VehicleBudgetGroup } from '../../../utils/budgetsHubViews';
 import { BUDGETS_HUB_VIEW_MODES, budgetOrderFlow } from '../../../utils/budgetsHubViews';
 
@@ -147,10 +147,10 @@ export function BudgetsHubStatsStrip({
 }) {
   const chip = (label: string, value: number, accent?: string) => (
     <div
-      className={`flex min-w-[5.5rem] flex-col rounded-xl border px-3 py-2 ${
+      className={`flex min-w-[5.5rem] flex-col px-3 py-2 ${
         desktopShell
-          ? 'border-zinc-200/90 bg-white'
-          : 'border-zinc-200/80 bg-white/80 dark:border-white/[0.08] dark:bg-zinc-950/50'
+          ? desktopStatChip
+          : 'rounded-xl border border-zinc-200/80 bg-white/80 dark:border-white/[0.08] dark:bg-zinc-950/50'
       }`}
     >
       <span className={`text-[18px] font-bold tabular-nums leading-none ${accent ?? 'text-zinc-900 dark:text-white'}`}>

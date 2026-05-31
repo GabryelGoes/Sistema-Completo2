@@ -491,6 +491,11 @@ html.dark[data-desktop-shell='true'] .desktop-onmotor-card {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+html.dark[data-desktop-shell='true'] .desktop-stat-chip {
+  background-color: rgb(24 24 27 / 0.95);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
 html.dark[data-desktop-shell='true'] .desktop-home-hub-card {
   border-top-color: rgba(255, 255, 255, 0.1);
 }
