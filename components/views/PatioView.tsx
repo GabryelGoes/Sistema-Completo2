@@ -3708,6 +3708,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </span>
               <span className="tracking-tight">Lembretes</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setIsHistoryOpen(true)}
+              className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-zinc-200/80 bg-white/80 px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white sm:px-5 sm:py-3"
+              title={
+                isModuleMode
+                  ? 'Consultar histórico de módulos arquivados'
+                  : 'Consultar histórico de veículos arquivados'
+              }
+            >
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/15 text-[#007AFF]">
+                <History className="h-3.5 w-3.5" strokeWidth={2} />
+              </span>
+              <span className="tracking-tight">
+                {isModuleMode ? 'Histórico de módulos' : 'Histórico de veículos'}
+              </span>
+            </button>
             <div className="shrink-0">
               <button
                 type="button"
