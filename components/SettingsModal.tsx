@@ -12,8 +12,6 @@ interface SettingsModalProps {
   onClose: () => void;
   theme: 'dark' | 'light';
   onThemeChange: (theme: 'dark' | 'light') => void;
-  effectsEnabled: boolean;
-  onEffectsChange: (enabled: boolean) => void;
   cinematographicMode?: boolean;
   onCinematographicModeChange?: (enabled: boolean) => void;
   orientation?: 'portrait' | 'landscape';
@@ -25,8 +23,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   theme,
   onThemeChange,
-  effectsEnabled,
-  onEffectsChange,
   cinematographicMode = false,
   onCinematographicModeChange,
   orientation,
@@ -96,33 +92,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   }`}
                 >
                   Escuro
-                </button>
-              </div>
-            </div>
-
-            {/* Efeitos de movimento — chave estilo iOS */}
-            <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
-              <div className="flex items-center justify-between gap-4">
-                <label className="text-[15px] font-medium text-zinc-900 dark:text-white">
-                  Efeitos de Movimento
-                </label>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={effectsEnabled}
-                  onClick={() => onEffectsChange(!effectsEnabled)}
-                  className={`
-                  relative shrink-0 w-12 h-7 rounded-full transition-colors duration-200
-                  ${effectsEnabled ? 'bg-green-500' : 'bg-zinc-300 dark:bg-zinc-600'}
-                `}
-                >
-                  <span
-                    className={`
-                    absolute top-1 w-5 h-5 rounded-full bg-white shadow-md
-                    transition-transform duration-200 ease-out
-                    ${effectsEnabled ? 'translate-x-6 left-0.5' : 'translate-x-0 left-0.5'}
-                  `}
-                  />
                 </button>
               </div>
             </div>

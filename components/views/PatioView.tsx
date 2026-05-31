@@ -244,8 +244,6 @@ export type OpenServiceOrderSection = 'comments' | 'budgets' | 'description' | n
 interface PatioViewProps {
   onUseCustomerData?: (data: Customer) => void;
   onCreateRegistration?: (mode: ServiceOrderType) => void;
-  /** Se false, desativa efeitos (ex.: 3D nos cards). */
-  effectsEnabled?: boolean;
   /** Nome exibido nos comentários: "Rei do ABS" (admin) ou nome do técnico. */
   commentAuthorName?: string;
   /** Se definido, abre o modal do veículo com esta OS (vindo ex.: da central de notificações). */
@@ -819,7 +817,6 @@ const VEHICLE_MODAL_PHOTOS_BATCH = 8;
 export const PatioView: React.FC<PatioViewProps> = ({
   onUseCustomerData,
   onCreateRegistration,
-  effectsEnabled = true,
   commentAuthorName = 'Rei do ABS',
   openServiceOrderId: openServiceOrderIdProp,
   openServiceOrderSection,
@@ -1567,21 +1564,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setPatioPlateSearchApiInfo(null);
     setPatioPlateSearchLoading(false);
   }, []);
-
-  // Efeito "folha boiando na água" nos cards do pátio (hover 3D)
-  const [cardFloat, setCardFloat] = useState<{ id: string; rotateX: number; rotateY: number } | null>(null);
-  // Desativa o efeito 3D quando o mouse está sobre o conteúdo (botões), evitando cliques perdidos
-  const [interactingCardId, setInteractingCardId] = useState<string | null>(null);
-  const FLOAT_MAX_TILT = 6;
-  const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>, cardId: string) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const relX = (e.clientX - rect.left) / rect.width;
-    const relY = (e.clientY - rect.top) / rect.height;
-    const rotateY = (relX - 0.5) * 2 * FLOAT_MAX_TILT;
-    const rotateX = (0.5 - relY) * 2 * FLOAT_MAX_TILT;
-    setCardFloat({ id: cardId, rotateX, rotateY });
-  };
-  const handleCardMouseLeave = () => setCardFloat(null);
 
   // Helper para normalizar texto (remover acentos e lowercase) para comparações seguras
   const normalizeText = (text: string) => {
@@ -4098,7 +4080,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 ? 'ring-4 ring-inset ring-green-500 ring-offset-0 border-green-500/65 dark:ring-green-400 dark:border-green-400/65'
                 : 'ring-4 ring-inset ring-violet-500 ring-offset-0 border-violet-400/60 dark:ring-violet-400 dark:border-violet-400/60'
               : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]';
-          const isFloating = effectsEnabled && cardFloat?.id === card.id && interactingCardId !== card.id;
 
           return (
             <div
@@ -4123,12 +4104,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     }
                   : undefined
               }
-              className={`h-auto w-full self-start transition-[opacity,transform] duration-300 ease-out ${
+              className={`h-auto w-full self-start transition-opacity duration-300 ease-out ${
                 trelloDrag && trelloDragCardId === card.id ? 'opacity-55' : ''
               }`}
-              style={{ transformStyle: 'preserve-3d' }}
-              onMouseMove={(e) => handleCardMouseMove(e, card.id)}
-              onMouseLeave={handleCardMouseLeave}
             >
               <div
                 className={`w-full ${showLabOuterRing ? `${cardRadiusClass} p-1 ${labOuterRingClass}` : ''}`}
@@ -4147,7 +4125,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ${patioBoardGlassCardShadow}
                   hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
                   active:scale-[0.99]
-                  motion-safe:transition-[padding,border-radius,box-shadow] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]
+                  transition-[border-color,transform] duration-200 ease-out
                   ${trelloDrag ? 'cursor-grab select-none active:cursor-grabbing' : 'cursor-pointer'}
                   ${
                     boardPanoramic
@@ -4156,13 +4134,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   }
                   ${cardRingClass}
                 `}
-                style={{
-                  transform: isFloating
-                    ? `rotateX(${cardFloat.rotateX}deg) rotateY(${cardFloat.rotateY}deg) translateZ(6px)`
-                    : 'rotateX(0deg) rotateY(0deg) translateZ(0px)',
-                  transition: 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.35s ease, border-color 0.3s ease',
-                  transformStyle: 'preserve-3d',
-                }}
               >
               {/* Overlay de Loading (Geral para Card) */}
               {(isMoving && (cardInTransition?.id === card.id || stageChangingCardId === card.id)) || (isAssigning && cardForMemberAssignment?.id === card.id) || (archivingId === card.id) || (removingGarantiaId === card.id) ? (
@@ -4171,13 +4142,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               ) : null}
 
-              {/* Conteúdo interativo: ao entrar aqui desativamos o 3D para os cliques nos botões funcionarem */}
+              {/* Conteúdo interativo */}
               <div
                 className={`relative z-10 flex min-h-0 w-full flex-col ${
                   boardPanoramic ? 'gap-[calc(0.5rem*1.6146)]' : 'gap-2.5'
                 }`}
-                onMouseEnter={() => setInteractingCardId(card.id)}
-                onMouseLeave={() => setInteractingCardId(null)}
                 style={
                   isDesktopLandscape
                     ? ({

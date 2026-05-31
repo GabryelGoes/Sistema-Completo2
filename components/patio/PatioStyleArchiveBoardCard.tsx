@@ -83,7 +83,7 @@ export function PatioStyleArchiveBoardCard({
     boardPanoramic ? 'px-3 pb-[calc(0.75rem*1.6146)] pt-0 sm:px-3.5 sm:pb-[calc(0.875rem*1.6146)]' : 'px-4 pb-4 pt-0 sm:px-5 sm:pb-5';
 
   return (
-    <div className="h-auto w-full self-start transition-opacity duration-300 ease-out" style={{ transformStyle: 'preserve-3d' }}>
+    <div className="h-auto w-full self-start">
       <div
         className={`
           group relative flex min-h-0 w-full flex-col overflow-hidden border bg-white/70 backdrop-blur-2xl dark:bg-zinc-900/40
@@ -249,7 +249,6 @@ export function PatioStyleArchiveBoardCard({
                     : 'min-h-[57px] py-2.5 pl-5 pr-3'
                 }
                 ${archivedStyle}
-                group-hover:brightness-105
               `}
               >
                 <span className="min-w-0 flex-1 truncate text-left text-[17.6px] font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black sm:text-[18.7px] portrait:text-[12.67px] portrait:sm:text-[13.46px]">

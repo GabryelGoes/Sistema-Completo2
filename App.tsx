@@ -156,8 +156,6 @@ export default function App() {
     };
   }, [authSession, theme]);
 
-  // Efeitos do app (animações, 3D nos cards, etc.) — chave liga/desliga
-  const [effectsEnabled, setEffectsEnabled] = useState(true);
 
   // Modo cinematográfico: embaçar placas em todo o app (para gravar tela / redes sociais)
   const [cinematographicMode, setCinematographicMode] = useState(false);
@@ -379,10 +377,6 @@ export default function App() {
       setTheme('light');
     }
 
-    const savedEffects = localStorage.getItem('app_effects_enabled');
-    if (savedEffects !== null) {
-      setEffectsEnabled(savedEffects === 'true');
-    }
     const savedCinematographic = localStorage.getItem('app_cinematographic_mode');
     if (savedCinematographic !== null) {
       setCinematographicMode(savedCinematographic === 'true');
@@ -396,10 +390,6 @@ export default function App() {
     root.classList.add(theme);
     localStorage.setItem('app_theme', theme);
   }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem('app_effects_enabled', String(effectsEnabled));
-  }, [effectsEnabled]);
 
   useEffect(() => {
     localStorage.setItem('app_cinematographic_mode', String(cinematographicMode));
@@ -644,7 +634,6 @@ export default function App() {
         onOpenProfileEditor={openShellProfileEditor}
         onLogout={handleLogout}
         orcamentosBadge={patioBudgetsHub.badgeCount}
-        effectsEnabled={effectsEnabled}
         notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
         shellOverlayTopbar={shellOverlayTopbar}
         activeSidebarAction={activeDesktopSidebarAction}
@@ -792,7 +781,6 @@ export default function App() {
             <PatioView
               onUseCustomerData={handleUseCustomerData}
               onCreateRegistration={handleCreateRegistrationFromArea}
-              effectsEnabled={effectsEnabled}
               commentAuthorName={authSession.displayName ?? 'Usuário'}
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'patio'}
@@ -812,7 +800,6 @@ export default function App() {
               orderType="module"
               onUseCustomerData={handleUseCustomerData}
               onCreateRegistration={handleCreateRegistrationFromArea}
-              effectsEnabled={effectsEnabled}
               commentAuthorName={authSession.displayName ?? 'Usuário'}
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'laboratorio'}
@@ -849,8 +836,6 @@ export default function App() {
           onClose={() => setIsSettingsOpen(false)}
           theme={theme}
           onThemeChange={setTheme}
-          effectsEnabled={effectsEnabled}
-          onEffectsChange={setEffectsEnabled}
           cinematographicMode={cinematographicMode}
           onCinematographicModeChange={setCinematographicMode}
           orientation={orientation}
@@ -931,7 +916,6 @@ export default function App() {
       onOpenProfileEditor={openShellProfileEditor}
       onLogout={handleLogout}
       orcamentosBadge={patioBudgetsHub.badgeCount}
-      effectsEnabled={effectsEnabled}
       notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
       shellOverlayTopbar={shellOverlayTopbar}
       activeSidebarAction={activeDesktopSidebarAction}
@@ -1074,7 +1058,6 @@ export default function App() {
           <PatioView
             onUseCustomerData={handleUseCustomerData}
             onCreateRegistration={handleCreateRegistrationFromArea}
-            effectsEnabled={effectsEnabled}
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'patio'}
@@ -1094,7 +1077,6 @@ export default function App() {
             orderType="module"
             onUseCustomerData={handleUseCustomerData}
             onCreateRegistration={handleCreateRegistrationFromArea}
-            effectsEnabled={effectsEnabled}
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'laboratorio'}
@@ -1112,8 +1094,6 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
         theme={theme}
         onThemeChange={setTheme}
-        effectsEnabled={effectsEnabled}
-        onEffectsChange={setEffectsEnabled}
         cinematographicMode={cinematographicMode}
         onCinematographicModeChange={setCinematographicMode}
         orientation={orientation}
