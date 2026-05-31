@@ -131,6 +131,7 @@ import {
   BOARD_PORTRAIT_HSCROLL_ZOOM_MULT,
   DESKTOP_LANDSCAPE_CARD_ZOOM,
 } from '../../utils/patioBoardGlassCard';
+import { groupForSlot } from '../../constants/labBench';
 import LabBenchPanel from '../lab/LabBenchPanel';
 import type { ExternalRepair } from '../../constants/labBench';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
@@ -2152,6 +2153,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
         vehicleModel: detail.vehicle_model ?? '',
         vehicleBrand: detail.vehicle_brand ?? '',
         moduleIdentification: detail.module_identification ?? undefined,
+        moduleKind: parseModuleKind(detail.module_kind) ?? undefined,
+        moduleVehicleKind: parseModuleVehicleKind(detail.module_vehicle_kind) ?? undefined,
+        moduleProductOther: (detail.module_product_other ?? '').trim() || undefined,
         plate: (detail.plate || '').toUpperCase(),
         vehicleColor: detail.vehicle_color ?? '',
         vehicleYear: detail.vehicle_year ?? '',
@@ -4252,6 +4256,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </button>
                   </div>
                 </div>
+                {isModuleMode && typeof card.benchSlot === 'number' ? (
+                  <div className={boardPanoramic ? 'mt-2' : 'mt-2.5'}>
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200/80 bg-violet-50/90 px-2.5 py-1 text-[11px] font-semibold text-violet-800 dark:border-violet-500/30 dark:bg-violet-950/40 dark:text-violet-200"
+                      title={groupForSlot(card.benchSlot)?.label ?? 'Bancada do laboratório'}
+                    >
+                      Bancada · Cx. {card.benchSlot}
+                      {groupForSlot(card.benchSlot)?.label ? (
+                        <span className="font-normal text-violet-600/90 dark:text-violet-300/90">
+                          · {groupForSlot(card.benchSlot)!.label}
+                        </span>
+                      ) : null}
+                    </span>
+                  </div>
+                ) : null}
               </div>
 
               {/* Botões de Ação Inferiores */}
@@ -5364,6 +5383,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     {serviceOrderDetail.module_vehicle_kind ? (
                                       <span className="inline-flex items-center rounded-lg border border-violet-300/80 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100">
                                         {moduleVehicleKindLabel(serviceOrderDetail.module_vehicle_kind)}
+                                      </span>
+                                    ) : null}
+                                    {typeof serviceOrderDetail.bench_slot === 'number' ? (
+                                      <span className="inline-flex items-center rounded-lg border border-amber-300/80 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:border-amber-500/35 dark:bg-amber-950/40 dark:text-amber-100">
+                                        Bancada · Cx. {serviceOrderDetail.bench_slot}
+                                        {groupForSlot(serviceOrderDetail.bench_slot)?.label ? (
+                                          <span className="ml-1 font-normal opacity-90">
+                                            ({groupForSlot(serviceOrderDetail.bench_slot)!.label})
+                                          </span>
+                                        ) : null}
                                       </span>
                                     ) : null}
                                   </>

@@ -455,7 +455,11 @@ export default function App() {
     setAgendaIntakeSourceAppointmentId(null);
     setPrefillData(data);
     const inferredMode: 'vehicle' | 'module' =
-      (data.moduleIdentification ?? '').trim().length > 0 ? 'module' : 'vehicle';
+      data.moduleKind ||
+      data.moduleVehicleKind ||
+      (data.moduleIdentification ?? '').trim().length > 0
+        ? 'module'
+        : 'vehicle';
     setReceptionForcedMode(inferredMode);
     setReturnTabAfterReception(inferredMode === 'module' ? 'laboratorio' : 'patio');
     if (authSession?.role === 'user' && !hasFullAccess) {

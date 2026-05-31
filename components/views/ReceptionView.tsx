@@ -63,6 +63,7 @@ import {
   type ModuleKind,
   type ModuleVehicleKind,
 } from '../../utils/moduleMetadata';
+import { LabBenchIntakeHint } from '../lab/LabBenchIntakeHint';
 
 const ARCHIVED_PHOTOS_BATCH = 8;
 
@@ -208,7 +209,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [moduleKind, setModuleKind] = useState<ModuleKind | ''>('');
   const [moduleVehicleKind, setModuleVehicleKind] = useState<ModuleVehicleKind | ''>('');
   const [moduleProductOther, setModuleProductOther] = useState('');
-  const [moduleKindPickerOpen, setModuleKindPickerOpen] = useState(false);
+  const [labBenchHintRefreshKey, setLabBenchHintRefreshKey] = useState(0);
   const [plateLookupLoading, setPlateLookupLoading] = useState(false);
   const [plateLookupError, setPlateLookupError] = useState<string | null>(null);
   const lastFetchedPlacaRef = useRef<string | null>(null);
@@ -257,9 +258,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setModuleKind('');
       setModuleVehicleKind('');
       setModuleProductOther('');
-      setModuleKindPickerOpen(false);
     }
   }, [receptionMode]);
+
+  useEffect(() => {
+    if (receptionMode !== 'module' || !isReceptionTabActive) return;
+    setLabBenchHintRefreshKey((k) => k + 1);
+  }, [receptionMode, isReceptionTabActive]);
 
   // Refs — fotos: câmera (capture) vs galeria (múltiplas)
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -323,23 +328,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     return km ? `Km ${km}` : null;
   }, [customer.mileageKm]);
 
-  const modulePickerSummary = useMemo(() => {
-    const parts: string[] = [];
-    if (moduleKind) {
-      parts.push(
-        labProductDisplayLabel(
-          moduleKind,
-          moduleKind === 'outro' ? moduleProductOther : undefined
-        )
-      );
-    }
-    if (moduleVehicleKind) {
-      parts.push(moduleVehicleKindLabel(moduleVehicleKind));
-    }
-    if (parts.length === 0) return 'Selecione o produto';
-    return parts.join(' · ');
-  }, [moduleKind, moduleVehicleKind, moduleProductOther]);
-
   // Efeito para carregar dados iniciais vindos do Pátio ou Histórico (todos editáveis, inclusive placa)
   useEffect(() => {
     if (initialData) {
@@ -374,6 +362,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         issueDescription: initialData.issueDescription ?? prev.issueDescription,
         trelloCardId: initialData.trelloCardId,
       }));
+      if (initialData.moduleKind) {
+        setModuleKind(parseModuleKind(initialData.moduleKind) ?? '');
+      }
+      if (initialData.moduleVehicleKind) {
+        setModuleVehicleKind(parseModuleVehicleKind(initialData.moduleVehicleKind) ?? '');
+      }
+      if (initialData.moduleProductOther) {
+        setModuleProductOther((initialData.moduleProductOther ?? '').trim());
+      }
       if (onDataLoaded) onDataLoaded();
     }
   }, [initialData, onDataLoaded]);
@@ -609,8 +606,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       const intakeCustomer: Customer = {
         ...customer,
         issueDescription: customer.issueDescription,
-        moduleKind: isModule ? moduleKind : undefined,
-        moduleVehicleKind: isModule ? moduleVehicleKind : undefined,
+        moduleKind: isModule && moduleKind ? moduleKind : undefined,
+        moduleVehicleKind: isModule && moduleVehicleKind ? moduleVehicleKind : undefined,
         moduleProductOther:
           isModule && moduleKind === 'outro' ? moduleProductOther.trim() : undefined,
       };
@@ -923,6 +920,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleBrand: detail.vehicle_brand ?? '',
       vehicleModel: detail.vehicle_model ?? '',
       moduleIdentification: detail.module_identification ?? undefined,
+      moduleKind: parseModuleKind(detail.module_kind) ?? undefined,
+      moduleVehicleKind: parseModuleVehicleKind(detail.module_vehicle_kind) ?? undefined,
+      moduleProductOther: (detail.module_product_other ?? '').trim() || undefined,
       plate: (detail.plate || '').toUpperCase(),
       vehicleColor: detail.vehicle_color ?? '',
       vehicleYear: detail.vehicle_year ?? '',
@@ -1024,15 +1024,23 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
         <div className="app-view-page-chrome flex items-center gap-3 sm:gap-4 min-w-0 ml-[8%]">
           <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-            <img src="/icons/recepcao-ios.png" alt="" className="h-full w-full object-cover" />
+            <img
+              src={receptionMode === 'module' ? '/icons/laboratorio-ios.png' : '/icons/recepcao-ios.png'}
+              alt=""
+              className="h-full w-full object-cover"
+            />
           </IosAccentIconSquircle>
           <div className="min-w-0">
             <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
-              Recepção
+              {receptionMode === 'module' ? 'Cadastro de produto' : 'Recepção'}
             </h1>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
               <Sparkles className="w-3.5 h-3.5 text-[#007AFF] dark:text-[#7ab8ff] shrink-0" strokeWidth={2} />
-              <span>Cadastro de clientes e veículos</span>
+              <span>
+                {receptionMode === 'module'
+                  ? 'Laboratório — tipo de produto, bancada e ficha do cliente'
+                  : 'Cadastro de clientes e veículos'}
+              </span>
             </p>
           </div>
         </div>
@@ -1101,7 +1109,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     if (intakeCustomerBlurTimerRef.current) {
                       clearTimeout(intakeCustomerBlurTimerRef.current);
                     }
-                    intakeCustomerBlurTimerRef.current = window.setTimeout(() => {
+                    intakeCustomerBlurTimerRef.current = setTimeout(() => {
                       intakeCustomerBlurTimerRef.current = null;
                       setIntakeCustomerSearchOpen(false);
                     }, 180);
@@ -1400,30 +1408,29 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     icon={<Package className="w-4 h-4" />}
                   />
                   <div className="sm:col-span-2 space-y-4">
+                    <LabBenchIntakeHint refreshKey={labBenchHintRefreshKey} />
                     <div>
                       <label className={`${iosLabel} ml-1`} id="reception-module-kind-label">
-                        Produto <span className="text-red-500">*</span>
+                        Tipo de produto <span className="text-red-500">*</span>
                       </label>
-                      <button
-                        type="button"
-                        id="reception-module-kind-trigger"
-                        aria-haspopup="dialog"
-                        aria-expanded={moduleKindPickerOpen}
+                      <select
+                        id="reception-module-kind-select"
                         aria-labelledby="reception-module-kind-label"
-                        onClick={() => setModuleKindPickerOpen(true)}
-                        className="flex w-full min-h-[46px] items-center justify-between gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-left text-[15px] shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] transition-colors hover:border-violet-500/45 focus:outline-none focus:ring-2 focus:ring-violet-500/35 focus:border-violet-500/50 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:shadow-none"
+                        value={moduleKind}
+                        onChange={(e) => {
+                          const next = e.target.value as ModuleKind | '';
+                          setModuleKind(next);
+                          if (next !== 'outro') setModuleProductOther('');
+                        }}
+                        className="mt-1 flex w-full min-h-[46px] rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-[15px] font-semibold text-zinc-900 shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] transition-colors focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-100 dark:shadow-none"
                       >
-                        <span
-                          className={`min-w-0 truncate font-semibold ${
-                            moduleKind || moduleVehicleKind
-                              ? 'text-zinc-900 dark:text-zinc-100'
-                              : 'text-zinc-500 dark:text-zinc-400'
-                          }`}
-                        >
-                          {modulePickerSummary}
-                        </span>
-                        <ChevronDown className="h-5 w-5 shrink-0 text-zinc-500" aria-hidden />
-                      </button>
+                        <option value="">Selecione o tipo…</option>
+                        {MODULE_KIND_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
                       {moduleKind === 'outro' && (
                         <div className="mt-3">
                           <Input
@@ -1437,6 +1444,34 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           />
                         </div>
                       )}
+                    </div>
+                    <div>
+                      <label className={`${iosLabel} ml-1`}>
+                        Produto de <span className="text-red-500">*</span>
+                      </label>
+                      <p className="mb-2 ml-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+                        Informe se o item é de automóvel ou de motocicleta.
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {MODULE_VEHICLE_KIND_OPTIONS.map((opt) => {
+                          const selected = moduleVehicleKind === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => setModuleVehicleKind(opt.value)}
+                              className={`rounded-2xl border px-3 py-3 text-sm font-semibold transition-all active:scale-[0.98] ${
+                                selected
+                                  ? 'border-violet-600/85 bg-violet-600 text-white shadow-[0_10px_26px_-8px_rgba(124,58,237,0.32)] dark:shadow-md dark:shadow-violet-500/25'
+                                  : 'border-zinc-200/90 bg-white/80 text-zinc-700 hover:border-violet-500/45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-200'
+                              }`}
+                              aria-pressed={selected}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1621,128 +1656,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
         </form>
       </div>
-
-      {moduleKindPickerOpen ? (
-        <ModalPortal>
-          <div
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-[12px] p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
-            onClick={() => setModuleKindPickerOpen(false)}
-            role="presentation"
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="reception-module-kind-modal-title"
-              className={`${iosModalShell} relative flex w-full max-w-md max-h-[min(85vh,36rem)] flex-col`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                onClick={() => setModuleKindPickerOpen(false)}
-                className={iosModalClose}
-                aria-label="Fechar"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <div className="shrink-0 border-b border-zinc-200/70 px-5 pb-4 pt-7 pr-14 dark:border-white/[0.06]">
-                <h2
-                  id="reception-module-kind-modal-title"
-                  className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50"
-                >
-                  Produto
-                </h2>
-                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                  Tipo de produto e se é de automóvel ou motocicleta
-                </p>
-                {(moduleKind || moduleVehicleKind) ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {moduleKind ? (
-                      <span className="inline-flex max-w-full items-center rounded-lg border border-violet-300/80 bg-violet-50 px-2.5 py-1 text-[12px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100">
-                        <span className="truncate">
-                          {labProductDisplayLabel(
-                            moduleKind,
-                            moduleKind === 'outro' ? moduleProductOther : undefined
-                          )}
-                        </span>
-                      </span>
-                    ) : null}
-                    {moduleVehicleKind ? (
-                      <span className="inline-flex items-center rounded-lg border border-violet-300/80 bg-violet-50 px-2.5 py-1 text-[12px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100">
-                        {moduleVehicleKindLabel(moduleVehicleKind)}
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
-                <p className="px-5 pt-3 pb-1 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400">
-                  Tipo de produto
-                </p>
-                <ul>
-                  {MODULE_KIND_OPTIONS.map((opt) => {
-                    const selected = moduleKind === opt.value;
-                    return (
-                      <li key={opt.value}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setModuleKind(opt.value);
-                            if (opt.value !== 'outro') setModuleProductOther('');
-                          }}
-                          className={`flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left text-[15px] transition-colors ${
-                            selected
-                              ? 'bg-violet-500/12 font-semibold text-violet-950 dark:bg-violet-400/18 dark:text-violet-50'
-                              : 'font-medium text-zinc-800 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.06]'
-                          }`}
-                        >
-                          <span className="min-w-0 leading-snug">{opt.label}</span>
-                          {selected ? (
-                            <Check className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-300" strokeWidth={2.5} aria-hidden />
-                          ) : null}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <div className="mt-2 border-t border-zinc-200/70 px-5 pt-4 pb-2 dark:border-white/[0.06]">
-                  <p className="pb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400">
-                    Produto de
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {MODULE_VEHICLE_KIND_OPTIONS.map((opt) => {
-                      const selected = moduleVehicleKind === opt.value;
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => setModuleVehicleKind(opt.value)}
-                          className={`rounded-2xl border px-3 py-2.5 text-sm font-semibold transition-all active:scale-[0.98] ${
-                            selected
-                              ? 'border-violet-600/85 bg-violet-600 text-white shadow-[0_10px_26px_-8px_rgba(124,58,237,0.32)] dark:shadow-md dark:shadow-violet-500/25'
-                              : 'border-zinc-200/90 bg-white/80 text-zinc-700 hover:border-violet-500/45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-200'
-                          }`}
-                          aria-pressed={selected}
-                        >
-                          {opt.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-              <div className="shrink-0 border-t border-zinc-200/70 p-4 dark:border-white/[0.06]">
-                <button
-                  type="button"
-                  onClick={() => setModuleKindPickerOpen(false)}
-                  className="w-full rounded-2xl bg-violet-600 px-4 py-3 text-[15px] font-semibold text-white shadow-lg shadow-violet-500/25 transition-all hover:brightness-110 active:scale-[0.98] dark:shadow-violet-500/20"
-                >
-                  Concluir
-                </button>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      ) : null}
 
       <DiagnosticAuthorizationSignModal
         open={diagAuthSignModalOpen}
