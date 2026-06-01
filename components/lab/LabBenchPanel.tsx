@@ -12,6 +12,7 @@ import {
 } from '../../constants/labBench';
 import { getStageConfig } from '../../constants/serviceOrderStages';
 import { PATIO_CARD_TITLE_SEP } from '../../utils/patioCardTitle';
+import { getBenchQueuedCards } from '../../utils/labBenchQueue';
 
 interface BenchEntry {
   card: TrelloCard;
@@ -58,16 +59,11 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
   }, [moduleEntries]);
 
   /** Fila automática (compartimentos 1–4 lotados no cadastro). */
-  const queued = useMemo(
-    () =>
-      [...moduleEntries]
-        .filter((e) => e.card.benchQueuedAt && e.card.benchSlot == null)
-        .sort(
-          (a, b) =>
-            new Date(a.card.benchQueuedAt!).getTime() - new Date(b.card.benchQueuedAt!).getTime()
-        ),
-    [moduleEntries]
-  );
+  const queued = useMemo(() => {
+    const ordered = getBenchQueuedCards(cards);
+    const byId = new Map(moduleEntries.map((e) => [e.card.id, e]));
+    return ordered.map((c) => byId.get(c.id)).filter((e): e is BenchEntry => !!e);
+  }, [cards, moduleEntries]);
 
   /** Produtos em fluxo na bancada mas sem compartimento (cadastros antigos). */
   const unassigned = useMemo(

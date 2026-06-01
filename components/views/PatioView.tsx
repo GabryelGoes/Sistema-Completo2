@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -133,6 +133,7 @@ import {
 } from '../../utils/patioBoardGlassCard';
 import { groupForSlot, statusInIntakeBenchGroup, statusUsesBench } from '../../constants/labBench';
 import LabBenchPanel from '../lab/LabBenchPanel';
+import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
 import { LabBenchSlotEditor } from '../lab/LabBenchSlotEditor';
 import type { ExternalRepair } from '../../constants/labBench';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
@@ -872,6 +873,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (typeof window === 'undefined') return true;
     return window.localStorage.getItem('lab-bench-panel-open') !== '0';
   });
+  const [benchQueueModalOpen, setBenchQueueModalOpen] = useState(false);
 
   // Card em Visualização DETALHADA (Full Screen Modal)
   const [selectedCard, setSelectedCard] = useState<TrelloCard | null>(null);
@@ -1769,6 +1771,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
       }
       return next;
     });
+  }, []);
+
+  const handleOpenBenchPanelFromQueue = useCallback(() => {
+    setBenchPanelOpen(true);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('lab-bench-panel-open', '1');
+    }
   }, []);
 
   /** Retrato/paisagem: matchMedia falha ou “pisca” em alguns móveis ao rotacionar; debounce + dimensões evita zoom errado e sumiço de camada (WebKit). Após orientação, um refresh em fila re-alinha os dados. */
@@ -4010,28 +4019,43 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* Bancada do laboratório — painel visual dos 24 compartimentos (só no modo módulo) */}
       {isModuleMode && (
         <div className="relative z-0 mx-auto w-full max-w-[100rem] px-3 pb-2 sm:px-5 md:px-6">
-          <button
-            type="button"
-            onClick={handleBenchPanelToggle}
-            aria-expanded={benchPanelOpen}
-            className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-zinc-200/80 bg-white/80 px-3 py-1.5 text-[13px] font-semibold text-zinc-700 shadow-sm backdrop-blur-xl transition-colors hover:border-[#A855F7]/40 hover:text-zinc-900 dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white"
-          >
-            <ChevronDown
-              className={`h-4 w-4 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
-              strokeWidth={2.2}
-              aria-hidden
-            />
-            Bancada do laboratório
-            {benchQueueCount > 0 ? (
-              <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                {benchQueueCount}
-              </span>
-            ) : unassignedBenchCount > 0 ? (
-              <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                {unassignedBenchCount}
-              </span>
-            ) : null}
-          </button>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setBenchQueueModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-violet-200/90 bg-violet-50/90 px-3 py-1.5 text-[13px] font-semibold text-violet-900 shadow-sm backdrop-blur-xl transition-colors hover:border-violet-400/60 hover:bg-violet-100/90 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:border-violet-400/50"
+            >
+              <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
+              Fila da bancada
+              {benchQueueCount > 0 ? (
+                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
+                  {benchQueueCount}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              onClick={handleBenchPanelToggle}
+              aria-expanded={benchPanelOpen}
+              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/80 bg-white/80 px-3 py-1.5 text-[13px] font-semibold text-zinc-700 shadow-sm backdrop-blur-xl transition-colors hover:border-[#A855F7]/40 hover:text-zinc-900 dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white"
+            >
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
+                strokeWidth={2.2}
+                aria-hidden
+              />
+              Bancada do laboratório
+              {benchQueueCount > 0 ? (
+                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {benchQueueCount}
+                </span>
+              ) : unassignedBenchCount > 0 ? (
+                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {unassignedBenchCount}
+                </span>
+              ) : null}
+            </button>
+          </div>
           {benchPanelOpen && (
             <LabBenchPanel
               cards={cards}
@@ -9021,6 +9045,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
         </div>
         </ModalPortal>
+      )}
+
+      {isModuleMode && (
+        <LabBenchQueueModal
+          open={benchQueueModalOpen}
+          onClose={() => setBenchQueueModalOpen(false)}
+          cards={cards}
+          onOpenCard={(card) => setSelectedCard(card)}
+          onOpenBenchPanel={handleOpenBenchPanelFromQueue}
+        />
       )}
 
     </div>
