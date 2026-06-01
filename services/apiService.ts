@@ -804,6 +804,8 @@ export async function createServiceOrder(params: {
   issueDescription?: string;
   aiAnalysis?: string;
   orderType?: ServiceOrderType;
+  /** Laboratório: etapa inicial no quadro (padrão: aguardando avaliação). */
+  status?: ServiceOrderStatus;
   /** Só veículo: categoria escolhida na recepção */
   vehicleCategory?: string | null;
   vehicleBrand?: string | null;
@@ -837,6 +839,7 @@ export async function createServiceOrder(params: {
     if (params.moduleKind) body.moduleKind = params.moduleKind;
     if (params.moduleVehicleKind) body.moduleVehicleKind = params.moduleVehicleKind;
     if (params.moduleProductOther) body.moduleProductOther = params.moduleProductOther;
+    if (params.status) body.status = params.status;
   }
   const response = await fetch(`${API_BASE}/service-orders`, {
     method: "POST",
@@ -860,7 +863,8 @@ export async function createServiceOrder(params: {
 export async function saveReceptionIntake(
   customer: Customer,
   orderType: ServiceOrderType = "vehicle",
-  vehicleCategory?: string | null
+  vehicleCategory?: string | null,
+  moduleInitialStatus?: ServiceOrderStatus
 ) {
   const createdCustomer = await createCustomer(customer);
 
@@ -885,6 +889,7 @@ export async function saveReceptionIntake(
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
     vehicleEngineInfo:
       orderType === "vehicle" ? customer.vehicleEngineInfo?.trim() || null : undefined,
+    status: orderType === "module" ? moduleInitialStatus : undefined,
   });
 
   return {
@@ -898,7 +903,8 @@ export async function saveReceptionIntakeForExistingCustomer(
   customerId: string,
   customer: Customer,
   orderType: ServiceOrderType = "vehicle",
-  vehicleCategory?: string | null
+  vehicleCategory?: string | null,
+  moduleInitialStatus?: ServiceOrderStatus
 ) {
   const createdServiceOrder = await createServiceOrder({
     customerId,
@@ -920,6 +926,7 @@ export async function saveReceptionIntakeForExistingCustomer(
     vehicleColor: orderType === "vehicle" ? customer.vehicleColor?.trim() || null : undefined,
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
     vehicleEngineInfo: orderType === "vehicle" ? customer.vehicleEngineInfo?.trim() || null : undefined,
+    status: orderType === "module" ? moduleInitialStatus : undefined,
   });
   const all = await getCustomers();
   const row = all.find((c) => c.id === customerId);

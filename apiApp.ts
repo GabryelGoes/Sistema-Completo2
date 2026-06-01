@@ -15,6 +15,8 @@ import {
   ALL_STATUSES,
   SERVICE_ORDER_STAGES,
   CANCELLED_STATUS,
+  normalizeStatusForFlow,
+  LAB_MODULE_INTAKE_STATUSES,
 } from "./constants/serviceOrderStages.js";
 import {
   labGroupForStatus,
@@ -420,7 +422,7 @@ export function createApiApp() {
             .filter((x: unknown): x is string => typeof x === "string")
             .filter((x) => isValidSystemNotificationType(x));
         }
-      } catch {
+    } catch {
         adminNotificationTypes = [...DEFAULT_SYSTEM_NOTIFICATION_TYPES];
       }
     }
@@ -908,9 +910,9 @@ export function createApiApp() {
         .order("username");
 
       const availableUsers = (users || []).map((u: { id: string; username: string; display_name: string | null }) => ({
-        id: u.id,
-        username: u.username,
-        displayName: u.display_name || u.username,
+          id: u.id,
+          username: u.username,
+          displayName: u.display_name || u.username,
       }));
 
       const userMap = new Map(availableUsers.map((u) => [u.id, u]));
@@ -1459,19 +1461,19 @@ export function createApiApp() {
       const mediaFullscreen =
         (st === "image" || st === "video") && hasMedia ? true : parsed.mediaFullscreen;
       return {
-        id: row.id,
-        slideType: row.slide_type,
-        title: row.title ?? "",
+      id: row.id,
+      slideType: row.slide_type,
+      title: row.title ?? "",
         body: parsed.body,
-        mediaUrl: row.media_url ?? null,
-        durationSeconds: row.duration_seconds ?? 10,
-        sortOrder: row.sort_order ?? 0,
-        goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
-        goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
-        goalLabel: row.goal_label ?? null,
-        playSound: (row as { play_sound?: boolean }).play_sound === true,
-        goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
-        pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
+      mediaUrl: row.media_url ?? null,
+      durationSeconds: row.duration_seconds ?? 10,
+      sortOrder: row.sort_order ?? 0,
+      goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
+      goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
+      goalLabel: row.goal_label ?? null,
+      playSound: (row as { play_sound?: boolean }).play_sound === true,
+      goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
+      pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
         mediaFullscreen,
         mediaObjectFit: normalizeTvMediaObjectFit((row as { media_object_fit?: unknown }).media_object_fit),
       };
@@ -1532,20 +1534,20 @@ export function createApiApp() {
       const slides = (slideRows ?? []).map((row: Record<string, unknown>) => {
         const parsed = parseTvBodyAndFullscreen(row.body);
         return {
-          id: row.id,
-          slideType: row.slide_type,
-          title: row.title ?? "",
+        id: row.id,
+        slideType: row.slide_type,
+        title: row.title ?? "",
           body: parsed.body,
-          mediaUrl: row.media_url ?? null,
-          durationSeconds: row.duration_seconds ?? 10,
-          sortOrder: row.sort_order ?? 0,
-          isActive: row.is_active === true,
-          goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
-          goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
-          goalLabel: row.goal_label ?? null,
-          playSound: (row as { play_sound?: boolean }).play_sound === true,
-          goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
-          pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
+        mediaUrl: row.media_url ?? null,
+        durationSeconds: row.duration_seconds ?? 10,
+        sortOrder: row.sort_order ?? 0,
+        isActive: row.is_active === true,
+        goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
+        goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
+        goalLabel: row.goal_label ?? null,
+        playSound: (row as { play_sound?: boolean }).play_sound === true,
+        goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
+        pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
           mediaFullscreen: parsed.mediaFullscreen,
           mediaObjectFit: normalizeTvMediaObjectFit((row as { media_object_fit?: unknown }).media_object_fit),
         };
@@ -2343,6 +2345,7 @@ export function createApiApp() {
         moduleKind: bodyModuleKind,
         moduleVehicleKind: bodyModuleVehicleKind,
         moduleProductOther: bodyModuleProductOther,
+        status: bodyStatus,
       } = req.body;
 
       const orderType = bodyOrderType === "module" ? "module" : "vehicle";
@@ -2415,12 +2418,22 @@ export function createApiApp() {
       const vehicleBrandIns =
         orderType === "vehicle" ? trimOrNull(bodyVehicleBrand) : null;
 
-      // Laboratório: ao entrar, o produto recebe automaticamente o primeiro
-      // compartimento livre do grupo "Aguardando avaliação" (1..4).
+      let initialStatus: string = FIRST_STAGE;
+      if (orderType === "module" && bodyStatus != null && String(bodyStatus).trim() !== "") {
+        const normalized = normalizeStatusForFlow(String(bodyStatus), "module");
+        if (
+          normalized !== CANCELLED_STATUS &&
+          LAB_MODULE_INTAKE_STATUSES.includes(normalized)
+        ) {
+          initialStatus = normalized;
+        }
+      }
+
+      // Laboratório: compartimento livre no grupo da etapa inicial escolhida.
       let benchSlotIns: number | null = null;
-      if (orderType === "module" && statusUsesBench(FIRST_STAGE)) {
+      if (orderType === "module" && statusUsesBench(initialStatus)) {
         const occupied = await occupiedBenchSlots();
-        benchSlotIns = firstFreeSlotForStatus(FIRST_STAGE, occupied);
+        benchSlotIns = firstFreeSlotForStatus(initialStatus, occupied);
       }
 
       const { data, error } = await supabaseAdmin
@@ -2442,7 +2455,7 @@ export function createApiApp() {
           mileage_km: orderType === "vehicle" && mileageKm != null && String(mileageKm).trim() !== '' ? String(mileageKm).trim() : null,
           issue_description: issueDescription ?? null,
           ai_analysis: aiAnalysis ?? null,
-          status: FIRST_STAGE,
+          status: initialStatus,
           order_type: orderType,
           vehicle_category: vehicleCategoryTrimmed,
           vehicle_color: vehicleColorIns,
@@ -3021,14 +3034,14 @@ export function createApiApp() {
       if (isTechnicianActor) {
         const shouldAdmin = await shouldNotifyAdminForSystemType("budget_created");
         if (shouldAdmin) {
-          const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
-          await supabaseAdmin.from("notifications").insert({
-            workshop_id: WORKSHOP_ID,
-            type: "budget_created",
-            payload: { ...budgetPayload, technician_name: technicianLabel },
-            target_type: "admin",
-            target_slug: null,
-          }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_created:", e); });
+        const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
+        await supabaseAdmin.from("notifications").insert({
+          workshop_id: WORKSHOP_ID,
+          type: "budget_created",
+          payload: { ...budgetPayload, technician_name: technicianLabel },
+          target_type: "admin",
+          target_slug: null,
+        }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_created:", e); });
         }
       } else {
         const technicianIds = await getTechnicianRecipientIdsForSystemType("budget_created");
@@ -3178,14 +3191,14 @@ export function createApiApp() {
       if (isTechnicianActor) {
         const shouldAdmin = await shouldNotifyAdminForSystemType("budget_edited");
         if (shouldAdmin) {
-          const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
-          await supabaseAdmin.from("notifications").insert({
-            workshop_id: WORKSHOP_ID,
-            type: "budget_edited",
-            payload: { ...budgetEditPayload, technician_name: technicianLabel },
-            target_type: "admin",
-            target_slug: null,
-          }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited:", e); });
+        const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
+        await supabaseAdmin.from("notifications").insert({
+          workshop_id: WORKSHOP_ID,
+          type: "budget_edited",
+          payload: { ...budgetEditPayload, technician_name: technicianLabel },
+          target_type: "admin",
+          target_slug: null,
+        }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited:", e); });
         }
       } else {
         const technicianIds = await getTechnicianRecipientIdsForSystemType("budget_edited");
@@ -3371,13 +3384,13 @@ export function createApiApp() {
       if (!isAdminComment) {
         const shouldAdmin = await shouldNotifyAdminForSystemType("comment");
         if (shouldAdmin) {
-          await supabaseAdmin.from("notifications").insert({
-            workshop_id: WORKSHOP_ID,
-            type: "comment",
-            payload: commentPayload,
-            target_type: "admin",
-            target_slug: null,
-          }).then(({ error: notifErr }) => { if (notifErr) console.error("[API] Erro ao criar notificação de comentário (admin):", notifErr); });
+        await supabaseAdmin.from("notifications").insert({
+          workshop_id: WORKSHOP_ID,
+          type: "comment",
+          payload: commentPayload,
+          target_type: "admin",
+          target_slug: null,
+        }).then(({ error: notifErr }) => { if (notifErr) console.error("[API] Erro ao criar notificação de comentário (admin):", notifErr); });
         }
       }
       // Comentário do admin → notificar o mecânico responsável do veículo; se não houver, notificar todos os técnicos
@@ -5944,35 +5957,35 @@ export function createApiApp() {
           const shouldAdminDelivery = await shouldNotifyAdminForSystemType("delivery_date_changed");
           if (updatePayload.status !== undefined && previous.status !== data?.status) {
             if (shouldAdminStage) {
-              await supabaseAdmin.from("notifications").insert({
-                workshop_id: WORKSHOP_ID,
-                type: "stage_change",
-                payload: { ...payloadBase, new_status: data?.status, technician_name: technicianLabel },
-                target_type: "admin",
-                target_slug: null,
-              }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change (admin):", e); });
+            await supabaseAdmin.from("notifications").insert({
+              workshop_id: WORKSHOP_ID,
+              type: "stage_change",
+              payload: { ...payloadBase, new_status: data?.status, technician_name: technicianLabel },
+              target_type: "admin",
+              target_slug: null,
+            }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change (admin):", e); });
             }
           }
           if (updatePayload.issue_description !== undefined && previous.issue_description !== data?.issue_description) {
             if (shouldAdminComplaint) {
-              await supabaseAdmin.from("notifications").insert({
-                workshop_id: WORKSHOP_ID,
-                type: "complaint_edited",
-                payload: { ...payloadBase, technician_name: technicianLabel },
-                target_type: "admin",
-                target_slug: null,
-              }).then(({ error: e }) => { if (e) console.error("[API] Notificação complaint_edited (admin):", e); });
+            await supabaseAdmin.from("notifications").insert({
+              workshop_id: WORKSHOP_ID,
+              type: "complaint_edited",
+              payload: { ...payloadBase, technician_name: technicianLabel },
+              target_type: "admin",
+              target_slug: null,
+            }).then(({ error: e }) => { if (e) console.error("[API] Notificação complaint_edited (admin):", e); });
             }
           }
           if (updatePayload.delivery_date !== undefined && String(previous?.delivery_date ?? "") !== String(data?.delivery_date ?? "")) {
             if (shouldAdminDelivery) {
-              await supabaseAdmin.from("notifications").insert({
-                workshop_id: WORKSHOP_ID,
-                type: "delivery_date_changed",
-                payload: { ...payloadBase, delivery_date: data?.delivery_date ?? null, technician_name: technicianLabel },
-                target_type: "admin",
-                target_slug: null,
-              }).then(({ error: e }) => { if (e) console.error("[API] Notificação delivery_date_changed (admin):", e); });
+            await supabaseAdmin.from("notifications").insert({
+              workshop_id: WORKSHOP_ID,
+              type: "delivery_date_changed",
+              payload: { ...payloadBase, delivery_date: data?.delivery_date ?? null, technician_name: technicianLabel },
+              target_type: "admin",
+              target_slug: null,
+            }).then(({ error: e }) => { if (e) console.error("[API] Notificação delivery_date_changed (admin):", e); });
             }
           }
         }
@@ -6127,14 +6140,14 @@ export function createApiApp() {
       }
       const adminOk = await verifyAdminPasswordOnly(pwd);
       if (!adminOk) {
-        const expected = await supabaseAdmin
-          .from("workshop_settings")
-          .select("value")
-          .eq("workshop_id", WORKSHOP_ID)
-          .eq("key", "vehicle_delete_password")
-          .maybeSingle();
-        const expectedPassword = expected?.data?.value?.trim() ?? "";
-        if (!expectedPassword) {
+      const expected = await supabaseAdmin
+        .from("workshop_settings")
+        .select("value")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("key", "vehicle_delete_password")
+        .maybeSingle();
+      const expectedPassword = expected?.data?.value?.trim() ?? "";
+      if (!expectedPassword) {
           return res.status(401).json({
             error:
               "Senha incorreta. Use a senha do administrador (login Gerência) ou configure a senha de exclusão em Alterar senhas.",
@@ -6575,7 +6588,7 @@ export function createApiApp() {
         .from("service_orders")
         .select("id, order_type")
         .eq("id", serviceOrderId)
-        .eq("workshop_id", WORKSHOP_ID)
+      .eq("workshop_id", WORKSHOP_ID)
         .single();
       if (!so) {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });

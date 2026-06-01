@@ -64,6 +64,11 @@ import {
   type ModuleVehicleKind,
 } from '../../utils/moduleMetadata';
 import { LabBenchIntakeHint } from '../lab/LabBenchIntakeHint';
+import {
+  FIRST_STAGE,
+  LABORATORY_SERVICE_ORDER_STAGES,
+  type ServiceOrderStatus,
+} from '../../constants/serviceOrderStages';
 
 const ARCHIVED_PHOTOS_BATCH = 8;
 
@@ -106,6 +111,8 @@ interface ReceptionViewProps {
   initialData?: Customer | null;
   onDataLoaded?: () => void;
   forcedMode?: ServiceOrderType | null;
+  /** Laboratório: etapa inicial ao abrir cadastro a partir de uma coluna do quadro. */
+  initialModuleStatus?: ServiceOrderStatus | null;
   /** Modo cinematográfico: embaçar placas exibidas (para gravar tela / redes sociais). */
   blurPlates?: boolean;
   /** Preencher o formulário com dados da OS (igual ao Pátio: "Usar cadastro"). */
@@ -164,6 +171,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   initialData,
   onDataLoaded,
   forcedMode = null,
+  initialModuleStatus = null,
   blurPlates = false,
   onUseCustomerData,
   actorOptions,
@@ -209,6 +217,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [moduleKind, setModuleKind] = useState<ModuleKind | ''>('');
   const [moduleVehicleKind, setModuleVehicleKind] = useState<ModuleVehicleKind | ''>('');
   const [moduleProductOther, setModuleProductOther] = useState('');
+  const [moduleIntakeStatus, setModuleIntakeStatus] = useState<ServiceOrderStatus>(FIRST_STAGE);
   const [labBenchHintRefreshKey, setLabBenchHintRefreshKey] = useState(0);
   const [plateLookupLoading, setPlateLookupLoading] = useState(false);
   const [plateLookupError, setPlateLookupError] = useState<string | null>(null);
@@ -241,6 +250,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     if (!forcedMode) return;
     setReceptionMode(forcedMode);
   }, [forcedMode]);
+
+  useEffect(() => {
+    if (initialModuleStatus) {
+      setModuleIntakeStatus(initialModuleStatus);
+    }
+  }, [initialModuleStatus]);
 
   useEffect(() => {
     onReceptionModeChangeForBack?.(receptionMode);
@@ -616,12 +631,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             intakeExistingCustomerId!,
             intakeCustomer,
             receptionMode,
-            receptionMode === 'vehicle' ? vehicleCategory : null
+            receptionMode === 'vehicle' ? vehicleCategory : null,
+            receptionMode === 'module' ? moduleIntakeStatus : undefined
           )
         : await saveReceptionIntake(
             intakeCustomer,
             receptionMode,
-            receptionMode === 'vehicle' ? vehicleCategory : null
+            receptionMode === 'vehicle' ? vehicleCategory : null,
+            receptionMode === 'module' ? moduleIntakeStatus : undefined
           );
 
       // Fotos opcionais (câmera/galeria) — envio sequencial com compressão no cliente (uploadServiceOrderPhoto)
@@ -1408,7 +1425,36 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     icon={<Package className="w-4 h-4" />}
                   />
                   <div className="sm:col-span-2 space-y-4">
-                    <LabBenchIntakeHint refreshKey={labBenchHintRefreshKey} />
+                    <div>
+                      <label className={`${iosLabel} ml-1`} id="reception-module-stage-label">
+                        Etapa inicial no quadro <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="reception-module-stage-select"
+                        aria-labelledby="reception-module-stage-label"
+                        value={moduleIntakeStatus}
+                        onChange={(e) => {
+                          setModuleIntakeStatus(e.target.value as ServiceOrderStatus);
+                          setLabBenchHintRefreshKey((k) => k + 1);
+                        }}
+                        className="mt-1 flex w-full min-h-[46px] rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-[15px] font-semibold text-zinc-900 shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] transition-colors focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-100 dark:shadow-none"
+                      >
+                        {LABORATORY_SERVICE_ORDER_STAGES.filter(
+                          (s) => s.id !== 'ORCAMENTO_NAO_APROVADO'
+                        ).map((stage) => (
+                          <option key={stage.id} value={stage.id}>
+                            {stage.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+                        Use <strong>Envio conserto</strong> quando o produto já vai direto para conserto externo, sem passar pelas etapas anteriores.
+                      </p>
+                    </div>
+                    <LabBenchIntakeHint
+                      refreshKey={labBenchHintRefreshKey}
+                      intakeStatus={moduleIntakeStatus}
+                    />
                     <div>
                       <label className={`${iosLabel} ml-1`} id="reception-module-kind-label">
                         Tipo de produto <span className="text-red-500">*</span>

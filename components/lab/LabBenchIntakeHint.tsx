@@ -4,12 +4,18 @@ import {
   LAB_BENCH_GROUPS,
   LAB_BENCH_SLOT_COUNT,
   firstFreeSlotForStatus,
+  labGroupForStatus,
+  statusUsesBench,
 } from '../../constants/labBench';
 import { getServiceOrders } from '../../services/apiService';
+import { getStageConfig } from '../../constants/serviceOrderStages';
+import type { ServiceOrderStatus } from '../../constants/serviceOrderStages';
 
 type LabBenchIntakeHintProps = {
   /** Recarregar ocupação (ex.: ao focar a aba). */
   refreshKey?: number;
+  /** Etapa escolhida no cadastro (define grupo da bancada sugerido). */
+  intakeStatus?: ServiceOrderStatus;
   className?: string;
 };
 
@@ -17,7 +23,11 @@ type LabBenchIntakeHintProps = {
  * Resumo da bancada para o cadastro de produto no Laboratório:
  * onde o novo item será colocado e como funciona a organização por compartimentos.
  */
-export function LabBenchIntakeHint({ refreshKey = 0, className = '' }: LabBenchIntakeHintProps) {
+export function LabBenchIntakeHint({
+  refreshKey = 0,
+  intakeStatus = 'AGUARDANDO_AVALIACAO',
+  className = '',
+}: LabBenchIntakeHintProps) {
   const [loading, setLoading] = useState(true);
   const [occupiedSlots, setOccupiedSlots] = useState<number[]>([]);
 
@@ -44,13 +54,16 @@ export function LabBenchIntakeHint({ refreshKey = 0, className = '' }: LabBenchI
     };
   }, [refreshKey]);
 
+  const intakeStage = getStageConfig(intakeStatus, 'module');
+  const intakeGroup = labGroupForStatus(intakeStatus);
+  const onBench = statusUsesBench(intakeStatus);
+
   const intakeSuggestion = useMemo(
-    () => firstFreeSlotForStatus('AGUARDANDO_AVALIACAO', occupiedSlots),
-    [occupiedSlots]
+    () => (onBench ? firstFreeSlotForStatus(intakeStatus, occupiedSlots) : null),
+    [intakeStatus, onBench, occupiedSlots]
   );
 
   const occupiedCount = occupiedSlots.length;
-  const intakeGroup = LAB_BENCH_GROUPS[0];
 
   return (
     <section
@@ -69,9 +82,16 @@ export function LabBenchIntakeHint({ refreshKey = 0, className = '' }: LabBenchI
             Bancada do laboratório
           </h3>
           <p className="mt-1 text-[13px] leading-snug text-zinc-600 dark:text-zinc-400">
-            Ao criar a ficha, o produto entra em <span className="font-semibold text-zinc-800 dark:text-zinc-200">Aguardando avaliação</span>{' '}
-            e o sistema reserva automaticamente o primeiro compartimento livre (1–4). Ao mudar a etapa no quadro, o compartimento
-            acompanha o grupo da bancada (24 posições numeradas).
+            A ficha entra em{' '}
+            <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+              {intakeStage?.name ?? intakeStatus}
+            </span>
+            {onBench && intakeGroup
+              ? ` e o sistema reserva o primeiro compartimento livre do grupo (${intakeGroup.slots.join('–')}).`
+              : onBench
+                ? ' e recebe compartimento na bancada quando houver vaga no grupo da etapa.'
+                : ' (fora da bancada física — ex.: em serviço com o técnico).'}{' '}
+            Ao mudar a etapa no quadro, o compartimento acompanha o grupo correspondente.
           </p>
         </div>
       </div>
@@ -82,16 +102,24 @@ export function LabBenchIntakeHint({ refreshKey = 0, className = '' }: LabBenchI
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             Consultando bancada…
           </span>
+        ) : !onBench ? (
+          <span className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200/80 bg-zinc-50 px-3 py-2 text-[13px] font-medium text-zinc-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-300">
+            Esta etapa não usa compartimento na bancada
+          </span>
         ) : intakeSuggestion != null ? (
           <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300/80 bg-emerald-50 px-3 py-2 text-[13px] font-semibold text-emerald-800 dark:border-emerald-500/35 dark:bg-emerald-950/40 dark:text-emerald-200">
             Próxima entrada → compartimento {intakeSuggestion}
-            <span className="font-normal text-emerald-700/90 dark:text-emerald-300/90">
-              ({intakeGroup.label})
-            </span>
+            {intakeGroup ? (
+              <span className="font-normal text-emerald-700/90 dark:text-emerald-300/90">
+                ({intakeGroup.label})
+              </span>
+            ) : null}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300/80 bg-rose-50 px-3 py-2 text-[13px] font-semibold text-rose-800 dark:border-rose-500/35 dark:bg-rose-950/40 dark:text-rose-200">
-            Aguardando avaliação lotado — libere um compartimento 1–4 antes de cadastrar
+            {intakeGroup
+              ? `${intakeGroup.label} lotado — libere um compartimento ${intakeGroup.slots.join('–')} antes de cadastrar`
+              : 'Grupo da bancada lotado para esta etapa'}
           </span>
         )}
         {!loading ? (

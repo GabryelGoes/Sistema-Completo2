@@ -28,6 +28,7 @@ import {
   getWorkshopSettings,
   deleteAppointment,
 } from './services/apiService';
+import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
 import { applyAccentToRoot, DEFAULT_ACCENT } from './utils/appAppearance';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
@@ -202,6 +203,8 @@ export default function App() {
   // Estado para transferir dados do Histórico (Pátio) para a Recepção
   const [prefillData, setPrefillData] = useState<Customer | null>(null);
   const [receptionForcedMode, setReceptionForcedMode] = useState<'vehicle' | 'module' | null>(null);
+  const [receptionInitialModuleStatus, setReceptionInitialModuleStatus] =
+    useState<ServiceOrderStatus | null>(null);
   /** Ao fechar a Recepção aberta a partir do Pátio/Lab (criar veículo/módulo ou “usar dados”), voltar para esta aba em vez do Início. */
   const [returnTabAfterReception, setReturnTabAfterReception] = useState<TabId | null>(null);
   /** Agenda → “Chegou ao pátio”: id do agendamento (excluir após ficha criada; gesto voltar reabre o modal de detalhe). */
@@ -318,6 +321,7 @@ export default function App() {
       }
       setAgendaPendingDetailAppointmentId(null);
       setReturnTabAfterReception(null);
+      setReceptionInitialModuleStatus(null);
       const target: TabId = orderType === 'module' ? 'laboratorio' : 'patio';
       if (isLimitedSystemUser) {
         if (userAllowedTabs.includes(target)) setUserTab(target);
@@ -482,13 +486,16 @@ export default function App() {
   };
 
   const handleCreateRegistrationFromArea = useCallback(
-    (mode: 'vehicle' | 'module') => {
+    (mode: 'vehicle' | 'module', initialModuleStatus?: ServiceOrderStatus) => {
       try {
         localStorage.setItem('app_reception_mode', mode);
       } catch (_) {}
       setAgendaIntakeSourceAppointmentId(null);
       setPrefillData(null);
       setReceptionForcedMode(mode);
+      setReceptionInitialModuleStatus(
+        mode === 'module' && initialModuleStatus ? initialModuleStatus : null
+      );
       setReturnTabAfterReception(mode === 'module' ? 'laboratorio' : 'patio');
       if (isLimitedSystemUser) {
         setUserTab('reception');
@@ -747,6 +754,7 @@ export default function App() {
               initialData={prefillData}
               onDataLoaded={() => setPrefillData(null)}
               forcedMode={receptionForcedMode}
+              initialModuleStatus={receptionInitialModuleStatus}
               blurPlates={cinematographicMode}
               hidePageChrome={isDesktopShell}
               onUseCustomerData={handleUseCustomerData}
@@ -1018,6 +1026,7 @@ export default function App() {
             initialData={prefillData}
             onDataLoaded={() => setPrefillData(null)}
             forcedMode={receptionForcedMode}
+            initialModuleStatus={receptionInitialModuleStatus}
             blurPlates={cinematographicMode}
             hidePageChrome={isDesktopShell}
             onUseCustomerData={handleUseCustomerData}

@@ -67,11 +67,16 @@ export const LABORATORY_LEGACY_STATUS_MAP: Partial<Record<string, ServiceOrderSt
   FASE_DE_TESTE: "EM_SERVICO",
 };
 
-/** Primeira etapa (nova OS na recepção) */
+/** Primeira etapa padrão (nova OS na recepção) */
 export const FIRST_STAGE: ServiceOrderStatus = "AGUARDANDO_AVALIACAO";
 
 /** Status usado para "Entregue / Arquivado" (fora do fluxo) */
 export const CANCELLED_STATUS: ServiceOrderStatus = "CANCELLED";
+
+/** Etapas em que uma OS de laboratório pode entrar no cadastro (recepção). */
+export const LAB_MODULE_INTAKE_STATUSES: ServiceOrderStatus[] = LABORATORY_SERVICE_ORDER_STAGES.filter(
+  (s) => s.id !== "ORCAMENTO_NAO_APROVADO"
+).map((s) => s.id);
 
 export const ALL_STATUSES: ServiceOrderStatus[] = [
   ...new Set([

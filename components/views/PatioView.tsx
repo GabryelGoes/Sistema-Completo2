@@ -245,7 +245,7 @@ export type OpenServiceOrderSection = 'comments' | 'budgets' | 'description' | n
 
 interface PatioViewProps {
   onUseCustomerData?: (data: Customer) => void;
-  onCreateRegistration?: (mode: ServiceOrderType) => void;
+  onCreateRegistration?: (mode: ServiceOrderType, initialModuleStatus?: ServiceOrderStatus) => void;
   /** Nome exibido nos comentários: "Rei do ABS" (admin) ou nome do técnico. */
   commentAuthorName?: string;
   /** Se definido, abre o modal do veículo com esta OS (vindo ex.: da central de notificações). */
@@ -4442,9 +4442,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <span className="min-w-0 truncate text-[12px] font-bold uppercase tracking-wide sm:text-[13px]">
                             {stage.name}
                           </span>
-                          <span className="shrink-0 rounded-full bg-black/15 px-2 py-0.5 text-[11px] font-bold tabular-nums text-black/80 dark:bg-white/15 dark:text-white/90">
-                            {cardsForStageColumn(stage.id).length}
-                          </span>
+                          <div className="flex shrink-0 items-center gap-1">
+                            {isModuleMode && onCreateRegistration ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onCreateRegistration('module', stage.id as ServiceOrderStatus);
+                                }}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/15 text-black/90 transition hover:bg-black/25 dark:bg-white/15 dark:text-white dark:hover:bg-white/25"
+                                title={`Cadastrar produto em ${stage.name}`}
+                                aria-label={`Cadastrar produto em ${stage.name}`}
+                              >
+                                <Plus className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                              </button>
+                            ) : null}
+                            <span className="rounded-full bg-black/15 px-2 py-0.5 text-[11px] font-bold tabular-nums text-black/80 dark:bg-white/15 dark:text-white/90">
+                              {cardsForStageColumn(stage.id).length}
+                            </span>
+                          </div>
                         </div>
                         <div className="flex min-h-[min(12rem,40vh)] flex-1 flex-col gap-3 p-2.5 portrait:gap-2.5 portrait:p-2 sm:min-h-[14rem] sm:gap-3.5 sm:p-3">
                           {cardsForStageColumn(stage.id).map((c) => renderPatioBoardCard(c, true))}
