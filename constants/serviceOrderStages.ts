@@ -45,7 +45,7 @@ export const SERVICE_ORDER_STAGES: StageConfig[] = [
   { id: "ORCAMENTO_NAO_APROVADO", name: "Orçamento não aprovado", style: "bg-violet-600 text-white border-violet-600", ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 10 },
 ];
 
-/** Fluxo do Laboratório — sem peças disponíveis, fase de teste nem finalizado (usa pronto pra retirada). */
+/** Fluxo do Laboratório — sem fase de teste nem finalizado (usa pronto pra retirada). */
 export const LABORATORY_SERVICE_ORDER_STAGES: StageConfig[] = [
   { id: "GARANTIA", name: "Garantia", style: "bg-red-600 text-white border-red-600", ringClass: "ring-2 ring-red-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 0 },
   { id: "AGUARDANDO_AVALIACAO", name: "Aguardando avaliação", style: "bg-zinc-500 text-white border-zinc-600", ringClass: "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 1 },
@@ -53,17 +53,17 @@ export const LABORATORY_SERVICE_ORDER_STAGES: StageConfig[] = [
   { id: "AGUARDANDO_APROVACAO", name: "Aguardando aprovação", style: "bg-amber-500 text-amber-950 border-amber-600", ringClass: "ring-2 ring-amber-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 3 },
   { id: "ORCAMENTO_APROVADO", name: "Orçamento aprovado", style: "bg-orange-600 text-white border-orange-600", ringClass: "ring-2 ring-orange-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 4 },
   { id: "AGUARDANDO_PECAS", name: "Aguardando peças", style: "bg-teal-500 text-white border-teal-500", ringClass: "ring-2 ring-teal-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 5 },
-  { id: "ENVIO_CONSERTO", name: "Envio conserto", style: "bg-indigo-600 text-white border-indigo-600", ringClass: "ring-2 ring-indigo-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 6 },
-  { id: "CHEGADA_CONSERTO", name: "Chegada conserto", style: "bg-cyan-600 text-white border-cyan-600", ringClass: "ring-2 ring-cyan-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 7 },
-  { id: "EM_SERVICO", name: "Em serviço", style: "bg-blue-600 text-white border-blue-600", ringClass: "ring-2 ring-blue-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 8 },
-  { id: "PRONTO_PRA_RETIRADA", name: "Pronto pra retirada", style: "bg-green-400 text-green-950 border-green-500", ringClass: "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 9 },
-  { id: "ORCAMENTO_NAO_APROVADO", name: "Orçamento não aprovado", style: "bg-violet-600 text-white border-violet-600", ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 10 },
+  { id: "PECAS_DISPONIVEIS", name: "Peças disponíveis", style: "bg-pink-500 text-white border-pink-500", ringClass: "ring-2 ring-pink-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 6 },
+  { id: "ENVIO_CONSERTO", name: "Envio conserto", style: "bg-indigo-600 text-white border-indigo-600", ringClass: "ring-2 ring-indigo-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 7 },
+  { id: "CHEGADA_CONSERTO", name: "Chegada conserto", style: "bg-cyan-600 text-white border-cyan-600", ringClass: "ring-2 ring-cyan-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 8 },
+  { id: "EM_SERVICO", name: "Em serviço", style: "bg-blue-600 text-white border-blue-600", ringClass: "ring-2 ring-blue-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 9 },
+  { id: "PRONTO_PRA_RETIRADA", name: "Pronto pra retirada", style: "bg-green-400 text-green-950 border-green-500", ringClass: "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 10 },
+  { id: "ORCAMENTO_NAO_APROVADO", name: "Orçamento não aprovado", style: "bg-violet-600 text-white border-violet-600", ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 11 },
 ];
 
 /** Status legados do pátio ainda aceitos no banco — mapeados ao abrir o quadro do laboratório. */
 export const LABORATORY_LEGACY_STATUS_MAP: Partial<Record<string, ServiceOrderStatus>> = {
   FINALIZADO: "PRONTO_PRA_RETIRADA",
-  PECAS_DISPONIVEIS: "AGUARDANDO_PECAS",
   FASE_DE_TESTE: "EM_SERVICO",
 };
 
