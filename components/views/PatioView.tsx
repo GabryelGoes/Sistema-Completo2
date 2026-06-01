@@ -131,8 +131,9 @@ import {
   BOARD_PORTRAIT_HSCROLL_ZOOM_MULT,
   DESKTOP_LANDSCAPE_CARD_ZOOM,
 } from '../../utils/patioBoardGlassCard';
-import { groupForSlot } from '../../constants/labBench';
+import { groupForSlot, statusUsesBench } from '../../constants/labBench';
 import LabBenchPanel from '../lab/LabBenchPanel';
+import { LabBenchSlotEditor } from '../lab/LabBenchSlotEditor';
 import type { ExternalRepair } from '../../constants/labBench';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
 import { ReceptionArchivedHistoryHubCard, boardCardToArchivedHistoryHubOrder } from '../reception/ReceptionArchivedHistoryHubCard';
@@ -868,6 +869,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const emptyExternalRepairDraft = { vendor: '', sentAt: '', expectedAt: '', returnedAt: '', cost: '', notes: '' };
   const [externalRepairDraft, setExternalRepairDraft] = useState<{ vendor: string; sentAt: string; expectedAt: string; returnedAt: string; cost: string; notes: string }>(emptyExternalRepairDraft);
   const [externalRepairSaving, setExternalRepairSaving] = useState(false);
+  const [benchSlotSaving, setBenchSlotSaving] = useState(false);
   const [labServiceLinksDraft, setLabServiceLinksDraft] = useState<LabServiceLink[]>([]);
   const [labServiceLinksSaving, setLabServiceLinksSaving] = useState(false);
   const [creatingLabService, setCreatingLabService] = useState(false);
@@ -1667,16 +1669,55 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   /** Bancada: mover manualmente uma OS de módulo para um compartimento (ou liberar com null). */
   const handleBenchMove = useCallback(async (cardId: string, slot: number | null) => {
-    // Atualização otimista para resposta imediata no painel.
     setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, benchSlot: slot } : c)));
     try {
       await updateServiceOrderBenchSlot(cardId, slot);
+      if (selectedCard?.id === cardId) {
+        setSelectedCard((c) => (c ? { ...c, benchSlot: slot } : c));
+        setServiceOrderDetail((d) =>
+          d
+            ? {
+                ...d,
+                bench_slot: slot,
+                bench_slot_at: slot != null ? new Date().toISOString() : null,
+              }
+            : d
+        );
+      }
     } catch (err: any) {
       window.alert(err?.message ?? 'Falha ao mover o compartimento.');
     } finally {
       fetchDataRef.current(true);
     }
-  }, []);
+  }, [selectedCard?.id]);
+
+  const unassignedBenchCount = useMemo(
+    () =>
+      cards.filter((c) => c.benchSlot == null && statusUsesBench(c.idList)).length,
+    [cards]
+  );
+
+  const occupiedBenchSlotsForEditor = useMemo(() => {
+    const occupied: number[] = [];
+    for (const c of cards) {
+      if (c.id === selectedCard?.id) continue;
+      if (typeof c.benchSlot === 'number') occupied.push(c.benchSlot);
+    }
+    return occupied;
+  }, [cards, selectedCard?.id]);
+
+  const handleBenchSlotFromDetail = useCallback(
+    async (slot: number | null) => {
+      if (!selectedCard) return;
+      setBenchSlotSaving(true);
+      try {
+        await handleBenchMove(selectedCard.id, slot);
+      } finally {
+        setBenchSlotSaving(false);
+      }
+    },
+    [selectedCard, handleBenchMove]
+  );
 
   const handleBenchPanelToggle = useCallback(() => {
     setBenchPanelOpen((prev) => {
@@ -3939,6 +3980,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
               aria-hidden
             />
             Bancada do laboratório
+            {unassignedBenchCount > 0 ? (
+              <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {unassignedBenchCount}
+              </span>
+            ) : null}
           </button>
           {benchPanelOpen && (
             <LabBenchPanel
@@ -4256,19 +4302,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </button>
                   </div>
                 </div>
-                {isModuleMode && typeof card.benchSlot === 'number' ? (
+                {isModuleMode && (typeof card.benchSlot === 'number' || statusUsesBench(card.idList)) ? (
                   <div className={boardPanoramic ? 'mt-2' : 'mt-2.5'}>
-                    <span
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200/80 bg-violet-50/90 px-2.5 py-1 text-[11px] font-semibold text-violet-800 dark:border-violet-500/30 dark:bg-violet-950/40 dark:text-violet-200"
-                      title={groupForSlot(card.benchSlot)?.label ?? 'Bancada do laboratório'}
-                    >
-                      Bancada · Cx. {card.benchSlot}
-                      {groupForSlot(card.benchSlot)?.label ? (
-                        <span className="font-normal text-violet-600/90 dark:text-violet-300/90">
-                          · {groupForSlot(card.benchSlot)!.label}
-                        </span>
-                      ) : null}
-                    </span>
+                    {typeof card.benchSlot === 'number' ? (
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200/80 bg-violet-50/90 px-2.5 py-1 text-[11px] font-semibold text-violet-800 dark:border-violet-500/30 dark:bg-violet-950/40 dark:text-violet-200"
+                        title={groupForSlot(card.benchSlot)?.label ?? 'Bancada do laboratório'}
+                      >
+                        Bancada · Cx. {card.benchSlot}
+                        {groupForSlot(card.benchSlot)?.label ? (
+                          <span className="font-normal text-violet-600/90 dark:text-violet-300/90">
+                            · {groupForSlot(card.benchSlot)!.label}
+                          </span>
+                        ) : null}
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300/80 bg-amber-50/90 px-2.5 py-1 text-[11px] font-semibold text-amber-900 dark:border-amber-500/35 dark:bg-amber-950/40 dark:text-amber-100"
+                        title="Defina o compartimento na bancada (painel acima ou na ficha)"
+                      >
+                        Sem compartimento na bancada
+                      </span>
+                    )}
                   </div>
                 ) : null}
               </div>
@@ -5394,6 +5449,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           </span>
                                         ) : null}
                                       </span>
+                                    ) : statusUsesBench(serviceOrderDetail.status) ? (
+                                      <span className="inline-flex items-center rounded-lg border border-amber-400/80 bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/50 dark:text-amber-100">
+                                        Sem compartimento
+                                      </span>
                                     ) : null}
                                   </>
                                 ) : (
@@ -5566,6 +5625,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           })}
                                         </div>
                                       </div>
+                                      {serviceOrderDetail && statusUsesBench(serviceOrderDetail.status) ? (
+                                        <div className={`${vi} p-4 sm:p-5`}>
+                                          <p className={`${iosLabel} mb-2`}>Posição na bancada</p>
+                                          <LabBenchSlotEditor
+                                            status={serviceOrderDetail.status}
+                                            currentSlot={
+                                              typeof serviceOrderDetail.bench_slot === 'number'
+                                                ? serviceOrderDetail.bench_slot
+                                                : null
+                                            }
+                                            occupiedSlots={occupiedBenchSlotsForEditor}
+                                            disabled={!can('canEditFicha')}
+                                            saving={benchSlotSaving}
+                                            onSave={handleBenchSlotFromDetail}
+                                          />
+                                        </div>
+                                      ) : null}
                                     </>
                                   )}
                                   {!isModuleMode && (

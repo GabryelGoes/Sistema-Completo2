@@ -3,7 +3,9 @@ import type { TrelloCard } from '../../types';
 import {
   LAB_BENCH_GROUPS,
   LAB_BENCH_SLOT_COUNT,
+  firstFreeSlotForStatus,
   labGroupForStatus,
+  statusUsesBench,
   type LabBenchGroup,
 } from '../../constants/labBench';
 import { getStageConfig } from '../../constants/serviceOrderStages';
@@ -37,6 +39,7 @@ function toEntry(card: TrelloCard): BenchEntry {
 
 const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMoveCard }) => {
   const [movingCardId, setMovingCardId] = useState<string | null>(null);
+  const [autoAssigning, setAutoAssigning] = useState(false);
 
   const moduleEntries = useMemo(() => cards.map(toEntry), [cards]);
 
@@ -52,11 +55,20 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
     return map;
   }, [moduleEntries]);
 
+  /** Produtos em fluxo na bancada mas sem compartimento (cadastros antigos). */
+  const unassigned = useMemo(
+    () =>
+      moduleEntries.filter(
+        (e) => e.card.benchSlot == null && statusUsesBench(e.card.idList)
+      ),
+    [moduleEntries]
+  );
+
   /** OS em fluxo, porém sem compartimento (ex.: Em serviço, com o técnico). */
   const offBench = useMemo(
     () =>
       moduleEntries.filter(
-        (e) => (e.card.benchSlot == null) && !labGroupForStatus(e.card.idList)
+        (e) => e.card.benchSlot == null && !statusUsesBench(e.card.idList)
       ),
     [moduleEntries]
   );
@@ -79,16 +91,21 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
   const movingCard = movingCardId ? cards.find((c) => c.id === movingCardId) ?? null : null;
   const movingGroup = movingCard ? labGroupForStatus(movingCard.idList) : null;
 
+  const startMove = (cardId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!onMoveCard) return;
+    setMovingCardId(cardId);
+  };
+
   const handleSlotClick = (slot: number, group: LabBenchGroup) => {
     const occupant = bySlot.get(slot);
-    // Modo "mover": clicar num compartimento de destino do mesmo grupo.
     if (movingCardId && onMoveCard) {
       if (occupant && occupant.card.id === movingCardId) {
         setMovingCardId(null);
         return;
       }
-      if (occupant) return; // ocupado por outro
-      if (movingGroup && movingGroup.id !== group.id) return; // só dentro do grupo do status
+      if (occupant) return;
+      if (movingGroup && movingGroup.id !== group.id) return;
       void onMoveCard(movingCardId, slot);
       setMovingCardId(null);
       return;
@@ -96,9 +113,25 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
     if (occupant) onOpenCard(occupant.card);
   };
 
+  const handleAutoAssignAll = async () => {
+    if (!onMoveCard || unassigned.length === 0) return;
+    setAutoAssigning(true);
+    const occupied = new Set(bySlot.keys());
+    try {
+      for (const e of unassigned) {
+        const slot = firstFreeSlotForStatus(e.card.idList, occupied);
+        if (slot == null) continue;
+        await onMoveCard(e.card.id, slot);
+        occupied.add(slot);
+      }
+    } finally {
+      setAutoAssigning(false);
+      setMovingCardId(null);
+    }
+  };
+
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-[#111]">
-      {/* Cabeçalho + resumo / sugestão */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
@@ -111,26 +144,106 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Bancada do laboratório</p>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
               {occupiedCount}/{LAB_BENCH_SLOT_COUNT} compartimentos ocupados
+              {unassigned.length > 0 ? (
+                <span className="ml-1 font-semibold text-amber-600 dark:text-amber-400">
+                  · {unassigned.length} sem posição
+                </span>
+              ) : null}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {unassigned.length > 0 && onMoveCard ? (
+            <button
+              type="button"
+              disabled={autoAssigning}
+              onClick={() => void handleAutoAssignAll()}
+              className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
+            >
+              {autoAssigning ? 'Posicionando…' : 'Posicionar todos automaticamente'}
+            </button>
+          ) : null}
           {intakeSuggestion != null ? (
             <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
               Entrada de produto → compartimento {intakeSuggestion}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 rounded-lg bg-rose-500/15 px-2.5 py-1 text-xs font-medium text-rose-700 dark:text-rose-300">
-              "Aguardando avaliação" lotado
+              &quot;Aguardando avaliação&quot; lotado
             </span>
           )}
         </div>
       </div>
 
+      {unassigned.length > 0 && (
+        <div className="mb-3 rounded-lg border border-amber-300/80 bg-amber-50/90 p-2.5 dark:border-amber-600/40 dark:bg-amber-950/30">
+          <p className="mb-1.5 text-[11px] font-semibold text-amber-900 dark:text-amber-100">
+            Produtos sem compartimento na bancada
+          </p>
+          <p className="mb-2 text-[10px] leading-snug text-amber-800/90 dark:text-amber-200/80">
+            Estes produtos já estavam no sistema antes da bancada digital. Clique em{' '}
+            <strong>Posicionar</strong> e depois no compartimento livre do grupo da etapa atual, ou use o botão
+            automático acima.
+          </p>
+          <ul className="flex flex-col gap-1.5">
+            {unassigned.map((e) => {
+              const stage = getStageConfig(e.card.idList, 'module');
+              const group = labGroupForStatus(e.card.idList);
+              const isPlacing = movingCardId === e.card.id;
+              return (
+                <li
+                  key={e.card.id}
+                  className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-2 py-1.5 ${
+                    isPlacing
+                      ? 'border-blue-400 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/40'
+                      : 'border-amber-200/80 bg-white dark:border-amber-800/50 dark:bg-zinc-900/60'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+                      {e.card.osNumber != null && (
+                        <span className="mr-1 text-zinc-500 dark:text-zinc-400">OS {e.card.osNumber}</span>
+                      )}
+                      {e.identification || e.vehicle || '—'}
+                    </p>
+                    <p className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
+                      {e.customer || '—'}
+                      {stage ? ` · ${stage.name}` : ''}
+                      {group ? ` · compart. ${group.slots.join(', ')}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onOpenCard(e.card)}
+                      className="rounded-md border border-zinc-200 px-2 py-0.5 text-[10px] font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    >
+                      Abrir
+                    </button>
+                    {onMoveCard ? (
+                      <button
+                        type="button"
+                        onClick={() => startMove(e.card.id)}
+                        className={`rounded-md px-2 py-0.5 text-[10px] font-semibold text-white ${
+                          isPlacing ? 'bg-blue-600' : 'bg-amber-600 hover:bg-amber-500'
+                        }`}
+                      >
+                        {isPlacing ? 'Escolha o compartimento…' : 'Posicionar'}
+                      </button>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       {movingCardId && (
         <div className="mb-3 flex items-center justify-between rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
           <span>
-            Escolha um compartimento livre {movingGroup ? `do grupo "${movingGroup.label}"` : ''} para mover a OS.
+            Escolha um compartimento livre{' '}
+            {movingGroup ? `do grupo "${movingGroup.label}"` : ''} para posicionar o produto.
           </span>
           <button
             type="button"
@@ -142,7 +255,6 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
         </div>
       )}
 
-      {/* Linha dos 2 compartimentos grandes (apenas representação física, sem organização) */}
       <div className="mb-2 grid grid-cols-2 gap-2">
         {[0, 1].map((i) => (
           <div
@@ -154,7 +266,6 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
         ))}
       </div>
 
-      {/* 6 colunas (etapas) × 4 compartimentos */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {LAB_BENCH_GROUPS.map((group) => {
           const suggestion = suggestionByGroup.get(group.id) ?? null;
@@ -167,9 +278,7 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                 const occupant = bySlot.get(slot);
                 const isSuggested = suggestion === slot && !occupant;
                 const isMoveTarget =
-                  !!movingCardId &&
-                  !occupant &&
-                  (!movingGroup || movingGroup.id === group.id);
+                  !!movingCardId && !occupant && (!movingGroup || movingGroup.id === group.id);
                 const stage = occupant ? getStageConfig(occupant.card.idList, 'module') : undefined;
                 return (
                   <button
@@ -187,15 +296,30 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                       !occupant && !isMoveTarget ? 'cursor-default' : 'cursor-pointer',
                     ].join(' ')}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-0.5">
                       <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-zinc-200 text-[10px] font-bold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
                         {slot}
                       </span>
-                      {occupant?.card.osNumber != null && (
-                        <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
-                          OS {occupant.card.osNumber}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-0.5">
+                        {occupant?.card.osNumber != null && (
+                          <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
+                            OS {occupant.card.osNumber}
+                          </span>
+                        )}
+                        {occupant && onMoveCard ? (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(ev) => startMove(occupant.card.id, ev)}
+                            onKeyDown={(ev) => {
+                              if (ev.key === 'Enter' || ev.key === ' ') startMove(occupant.card.id, ev as unknown as React.MouseEvent);
+                            }}
+                            className="rounded px-1 text-[9px] font-semibold text-blue-600 opacity-0 transition group-hover:opacity-100 dark:text-blue-400"
+                          >
+                            Mover
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                     {occupant ? (
                       <div className="mt-1 min-w-0">
@@ -218,8 +342,10 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                       </div>
                     ) : (
                       <div className="mt-auto">
-                        <span className={`text-[10px] font-medium ${isSuggested ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-300 dark:text-zinc-600'}`}>
-                          {isSuggested ? 'Sugerido' : 'Vago'}
+                        <span
+                          className={`text-[10px] font-medium ${isSuggested ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-300 dark:text-zinc-600'}`}
+                        >
+                          {isSuggested ? 'Sugerido' : isMoveTarget ? 'Clique aqui' : 'Vago'}
                         </span>
                       </div>
                     )}
@@ -231,7 +357,6 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
         })}
       </div>
 
-      {/* OS fora da bancada (com o técnico / em serviço) */}
       {offBench.length > 0 && (
         <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
           <p className="mb-1 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
