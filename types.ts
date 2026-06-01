@@ -120,6 +120,8 @@ export interface BoardCard {
   idList: string;
   url: string;
   dateLastActivity: string;
+  /** Data de criação da OS (ISO). */
+  createdAt?: string | null;
   pos: number;
   due?: string | null;
   members?: BoardMember[];

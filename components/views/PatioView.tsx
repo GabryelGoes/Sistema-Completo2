@@ -187,7 +187,7 @@ function serviceOrderDetailPlaceholderFromCard(card: TrelloCard, orderType: Serv
     vehicle_year: card.vehicleYear ?? null,
     vehicle_engine_info: card.vehicleEngineInfo ?? null,
     reference_links: card.referenceLinks?.length ? card.referenceLinks : null,
-    created_at: card.dateLastActivity || now,
+    created_at: card.createdAt || card.dateLastActivity || now,
     updated_at: card.dateLastActivity || now,
     diagnostic_authorization_signed_at: null,
     diagnostic_authorization_signature_path: null,
@@ -421,6 +421,7 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     idList: o.status,
     url: '',
     dateLastActivity: o.updated_at,
+    createdAt: o.created_at ?? null,
     pos: 0,
     members: techName ? [{ id: techId!, fullName: capitalizeFirst(techName), username: '' }] : [],
     checklists: [],
@@ -443,6 +444,19 @@ function sortArchivedOrdersNewestFirst(orders: ServiceOrderListItem[]): ServiceO
   return [...orders].sort(
     (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   );
+}
+
+function formatServiceOrderCreatedAt(iso: string | null | undefined): string {
+  if (!iso?.trim()) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 // Interfaces separadas para Serviços (só descrição) e Peças (descrição + quantidade)
@@ -5257,6 +5271,31 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               )}
                             </div>
                           </button>
+                          {isModuleMode ? (
+                            <div
+                              className={`${vi} ${isPatioPcModal ? 'patio-vm-meta-card' : ''} relative w-full overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}
+                            >
+                              <div
+                                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(124,58,237,0.08),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.06),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(124,58,237,0.14),transparent_55%)]"
+                                aria-hidden
+                              />
+                              <div className={c.row}>
+                                <div className={c.iconSquircle}>
+                                  <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className={c.titleText}>Data de criação</p>
+                                  <p className={`${c.bodyText} tabular-nums`}>
+                                    {loadingDetails && !serviceOrderDetail?.created_at
+                                      ? 'Carregando…'
+                                      : formatServiceOrderCreatedAt(
+                                          serviceOrderDetail?.created_at ?? selectedCard.createdAt
+                                        )}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
                           {!isModuleMode && can('canEditMileage') && (
                             <div className={`${vi} ${isPatioPcModal ? 'patio-vm-meta-card' : ''} relative overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
                               <div
@@ -5468,6 +5507,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     ) : statusUsesBench(serviceOrderDetail.status) ? (
                                       <span className="inline-flex items-center rounded-lg border border-amber-400/80 bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/50 dark:text-amber-100">
                                         Sem compartimento
+                                      </span>
+                                    ) : null}
+                                    {serviceOrderDetail.created_at ? (
+                                      <span
+                                        className="inline-flex items-center rounded-lg border border-zinc-200/90 bg-zinc-50/95 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-zinc-700 dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-zinc-200"
+                                        title="Data e hora em que a OS foi criada"
+                                      >
+                                        <span className="mr-1.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500">
+                                          Criado
+                                        </span>
+                                        {formatServiceOrderCreatedAt(serviceOrderDetail.created_at)}
                                       </span>
                                     ) : null}
                                   </>
