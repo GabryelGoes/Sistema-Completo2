@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import type { TrelloCard } from '../../types';
 import {
   LAB_BENCH_GROUPS,
@@ -40,9 +40,14 @@ function toEntry(card: TrelloCard): BenchEntry {
   };
 }
 
+const BENCH_DRAG_MIME = 'application/x-lab-bench-card-id';
+
 const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMoveCard }) => {
   const [movingCardId, setMovingCardId] = useState<string | null>(null);
+  const [dragCardId, setDragCardId] = useState<string | null>(null);
+  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
   const [autoAssigning, setAutoAssigning] = useState(false);
+  const benchSkipClickRef = useRef(false);
 
   const moduleEntries = useMemo(() => cards.map(toEntry), [cards]);
 
@@ -102,29 +107,91 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
   /** Sugestão de entrada de novo produto = primeiro livre no grupo "Aguardando avaliação". */
   const intakeSuggestion = suggestionByGroup.get(LAB_BENCH_GROUPS[0].id) ?? null;
 
-  const movingCard = movingCardId ? cards.find((c) => c.id === movingCardId) ?? null : null;
+  const activeMoveCardId = dragCardId ?? movingCardId;
+  const movingCard = activeMoveCardId ? cards.find((c) => c.id === activeMoveCardId) ?? null : null;
   const movingGroup = movingCard ? labGroupForStatus(movingCard.idList) : null;
+
+  const canDropOnSlot = useCallback(
+    (cardId: string, slot: number, group: LabBenchGroup): boolean => {
+      if (!onMoveCard) return false;
+      const card = cards.find((c) => c.id === cardId);
+      if (!card) return false;
+      const cardGroup = labGroupForStatus(card.idList);
+      if (!cardGroup || cardGroup.id !== group.id) return false;
+      const occupant = bySlot.get(slot);
+      if (occupant && occupant.card.id !== cardId) return false;
+      const currentSlot = card.benchSlot;
+      if (currentSlot === slot) return false;
+      return true;
+    },
+    [cards, bySlot, onMoveCard]
+  );
 
   const startMove = (cardId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!onMoveCard) return;
+    setDragCardId(null);
+    setDragOverSlot(null);
     setMovingCardId(cardId);
   };
 
+  const beginDrag = (cardId: string, e: React.DragEvent) => {
+    if (!onMoveCard) return;
+    e.stopPropagation();
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData(BENCH_DRAG_MIME, cardId);
+    setDragCardId(cardId);
+    setMovingCardId(null);
+    setDragOverSlot(null);
+  };
+
+  const endDrag = () => {
+    setDragCardId(null);
+    setDragOverSlot(null);
+    benchSkipClickRef.current = true;
+  };
+
+  const finishMove = (cardId: string, slot: number) => {
+    if (!onMoveCard) return;
+    void onMoveCard(cardId, slot);
+    setMovingCardId(null);
+    setDragCardId(null);
+    setDragOverSlot(null);
+    benchSkipClickRef.current = true;
+  };
+
   const handleSlotClick = (slot: number, group: LabBenchGroup) => {
+    if (benchSkipClickRef.current) {
+      benchSkipClickRef.current = false;
+      return;
+    }
     const occupant = bySlot.get(slot);
     if (movingCardId && onMoveCard) {
       if (occupant && occupant.card.id === movingCardId) {
         setMovingCardId(null);
         return;
       }
-      if (occupant) return;
-      if (movingGroup && movingGroup.id !== group.id) return;
-      void onMoveCard(movingCardId, slot);
-      setMovingCardId(null);
+      if (!canDropOnSlot(movingCardId, slot, group)) return;
+      finishMove(movingCardId, slot);
       return;
     }
     if (occupant) onOpenCard(occupant.card);
+  };
+
+  const handleSlotDragOver = (e: React.DragEvent, slot: number, group: LabBenchGroup) => {
+    if (!dragCardId || !canDropOnSlot(dragCardId, slot, group)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverSlot(slot);
+  };
+
+  const handleSlotDrop = (e: React.DragEvent, slot: number, group: LabBenchGroup) => {
+    e.preventDefault();
+    const cardId = e.dataTransfer.getData(BENCH_DRAG_MIME) || dragCardId;
+    setDragOverSlot(null);
+    setDragCardId(null);
+    if (!cardId || !canDropOnSlot(cardId, slot, group)) return;
+    finishMove(cardId, slot);
   };
 
   const handleAutoAssignAll = async () => {
@@ -141,6 +208,8 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
     } finally {
       setAutoAssigning(false);
       setMovingCardId(null);
+      setDragCardId(null);
+      setDragOverSlot(null);
     }
   };
 
@@ -157,6 +226,7 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
           <div>
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Bancada do laboratório</p>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+              {onMoveCard ? 'Arraste entre compartimentos do mesmo grupo · ' : ''}
               {occupiedCount}/{LAB_BENCH_SLOT_COUNT} compartimentos ocupados
               {queued.length > 0 ? (
                 <span className="ml-1 font-semibold text-violet-600 dark:text-violet-400">
@@ -238,9 +308,8 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
             Produtos sem compartimento na bancada
           </p>
           <p className="mb-2 text-[10px] leading-snug text-amber-800/90 dark:text-amber-200/80">
-            Estes produtos já estavam no sistema antes da bancada digital. Clique em{' '}
-            <strong>Posicionar</strong> e depois no compartimento livre do grupo da etapa atual, ou use o botão
-            automático acima.
+            Estes produtos já estavam no sistema antes da bancada digital. Arraste para um compartimento livre
+            do grupo da etapa, use <strong>Posicionar</strong> (toque) ou o botão automático acima.
           </p>
           <ul className="flex flex-col gap-1.5">
             {unassigned.map((e) => {
@@ -250,11 +319,16 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
               return (
                 <li
                   key={e.card.id}
+                  draggable={!!onMoveCard}
+                  onDragStart={onMoveCard ? (ev) => beginDrag(e.card.id, ev) : undefined}
+                  onDragEnd={onMoveCard ? endDrag : undefined}
                   className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-2 py-1.5 ${
                     isPlacing
                       ? 'border-blue-400 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/40'
-                      : 'border-amber-200/80 bg-white dark:border-amber-800/50 dark:bg-zinc-900/60'
-                  }`}
+                      : dragCardId === e.card.id
+                        ? 'border-blue-400 bg-blue-50/80 opacity-60 dark:border-blue-700 dark:bg-blue-950/40'
+                        : 'border-amber-200/80 bg-white dark:border-amber-800/50 dark:bg-zinc-900/60'
+                  } ${onMoveCard ? 'cursor-grab active:cursor-grabbing' : ''}`}
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
@@ -296,11 +370,11 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
         </div>
       )}
 
-      {movingCardId && (
+      {movingCardId && !dragCardId && (
         <div className="mb-3 flex items-center justify-between rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
           <span>
-            Escolha um compartimento livre{' '}
-            {movingGroup ? `do grupo "${movingGroup.label}"` : ''} para posicionar o produto.
+            Toque em um compartimento livre{' '}
+            {movingGroup ? `do grupo "${movingGroup.label}"` : ''} para posicionar o produto (ou arraste).
           </span>
           <button
             type="button"
@@ -334,23 +408,58 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
               {group.slots.map((slot) => {
                 const occupant = bySlot.get(slot);
                 const isSuggested = suggestion === slot && !occupant;
-                const isMoveTarget =
-                  !!movingCardId && !occupant && (!movingGroup || movingGroup.id === group.id);
+                const isClickMoveTarget =
+                  !!movingCardId &&
+                  !dragCardId &&
+                  canDropOnSlot(movingCardId, slot, group);
+                const isDragDropTarget =
+                  !!dragCardId && canDropOnSlot(dragCardId, slot, group);
+                const isDropHighlight = dragOverSlot === slot && isDragDropTarget;
                 const stage = occupant ? getStageConfig(occupant.card.idList, 'module') : undefined;
+                const isDraggingThis = occupant && dragCardId === occupant.card.id;
                 return (
-                  <button
-                    type="button"
+                  <div
+                    role="button"
+                    tabIndex={occupant || isClickMoveTarget ? 0 : -1}
                     key={slot}
+                    draggable={!!onMoveCard && !!occupant}
+                    onDragStart={
+                      occupant && onMoveCard ? (ev) => beginDrag(occupant.card.id, ev) : undefined
+                    }
+                    onDragEnd={onMoveCard && occupant ? endDrag : undefined}
                     onClick={() => handleSlotClick(slot, group)}
-                    disabled={!occupant && !isMoveTarget}
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'Enter' || ev.key === ' ') {
+                        ev.preventDefault();
+                        handleSlotClick(slot, group);
+                      }
+                    }}
+                    onDragOver={onMoveCard ? (ev) => handleSlotDragOver(ev, slot, group) : undefined}
+                    onDragLeave={(ev) => {
+                      const rel = ev.relatedTarget as Node | null;
+                      if (rel && ev.currentTarget.contains(rel)) return;
+                      setDragOverSlot((prev) => (prev === slot ? null : prev));
+                    }}
+                    onDrop={onMoveCard ? (ev) => handleSlotDrop(ev, slot, group) : undefined}
                     className={[
                       'group relative flex min-h-[64px] flex-col rounded-lg border p-1.5 text-left transition',
                       occupant
                         ? 'border-zinc-200 bg-zinc-50 hover:border-zinc-300 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600'
                         : 'border-dashed border-zinc-200 bg-transparent dark:border-zinc-800',
                       isSuggested ? 'ring-2 ring-emerald-400 ring-offset-1 ring-offset-white dark:ring-offset-[#111]' : '',
-                      isMoveTarget ? 'cursor-pointer border-blue-400 bg-blue-50/60 dark:bg-blue-950/30' : '',
-                      !occupant && !isMoveTarget ? 'cursor-default' : 'cursor-pointer',
+                      isClickMoveTarget ? 'cursor-pointer border-blue-400 bg-blue-50/60 dark:bg-blue-950/30' : '',
+                      isDropHighlight ? 'scale-[1.02] border-blue-500 bg-blue-50 ring-2 ring-blue-400/70 dark:border-blue-500 dark:bg-blue-950/50' : '',
+                      isDragDropTarget && !occupant && !isDropHighlight
+                        ? 'border-blue-300/80 bg-blue-50/40 dark:border-blue-700/50 dark:bg-blue-950/20'
+                        : '',
+                      occupant && onMoveCard
+                        ? 'cursor-grab active:cursor-grabbing'
+                        : occupant
+                          ? 'cursor-pointer'
+                          : isClickMoveTarget || isDragDropTarget
+                            ? 'cursor-pointer'
+                            : 'cursor-default',
+                      isDraggingThis ? 'opacity-50' : '',
                     ].join(' ')}
                   >
                     <div className="flex items-center justify-between gap-0.5">
@@ -400,13 +509,25 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                     ) : (
                       <div className="mt-auto">
                         <span
-                          className={`text-[10px] font-medium ${isSuggested ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-300 dark:text-zinc-600'}`}
+                          className={`text-[10px] font-medium ${
+                            isSuggested
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : isClickMoveTarget || isDragDropTarget
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : 'text-zinc-300 dark:text-zinc-600'
+                          }`}
                         >
-                          {isSuggested ? 'Sugerido' : isMoveTarget ? 'Clique aqui' : 'Vago'}
+                          {isSuggested
+                            ? 'Sugerido'
+                            : isDropHighlight
+                              ? 'Soltar aqui'
+                              : isClickMoveTarget || isDragDropTarget
+                                ? 'Soltar aqui'
+                                : 'Vago'}
                         </span>
                       </div>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
