@@ -74,6 +74,15 @@ export const LAB_BENCH_GROUPS: LabBenchGroup[] = [
   },
 ];
 
+/** Grupo da bancada "Aguardando avaliação" (compartimentos 1..4) — único com fila automática. */
+export const LAB_BENCH_INTAKE_GROUP = LAB_BENCH_GROUPS[0];
+
+/** True se o status pertence ao grupo Aguardando avaliação (1..4). */
+export function statusInIntakeBenchGroup(status: string | null | undefined): boolean {
+  const group = labGroupForStatus(status);
+  return group?.id === LAB_BENCH_INTAKE_GROUP.id;
+}
+
 /** Total de compartimentos numerados da bancada. */
 export const LAB_BENCH_SLOT_COUNT = 24;
 

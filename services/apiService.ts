@@ -50,6 +50,7 @@ interface ApiServiceOrder {
   vehicle_engine_info?: string | null;
   bench_slot?: number | null;
   bench_slot_at?: string | null;
+  bench_queued_at?: string | null;
   external_repair?: ExternalRepair | null;
   diagnostic_authorization_signed_at?: string | null;
   diagnostic_authorization_signature_path?: string | null;
@@ -94,6 +95,7 @@ export interface ServiceOrderListItem {
   /** Bancada do laboratório: compartimento físico (1..24) ou null (fora da bancada). */
   bench_slot?: number | null;
   bench_slot_at?: string | null;
+  bench_queued_at?: string | null;
   /** Dados do conserto em terceiros. */
   external_repair?: ExternalRepair | null;
   diagnostic_authorization_signed_at?: string | null;
@@ -135,6 +137,7 @@ export interface ServiceOrderDetail {
   /** Bancada do laboratório: compartimento físico (1..24) ou null (fora da bancada). */
   bench_slot?: number | null;
   bench_slot_at?: string | null;
+  bench_queued_at?: string | null;
   /** Dados do conserto em terceiros. */
   external_repair?: ExternalRepair | null;
   diagnostic_authorization_signed_at?: string | null;

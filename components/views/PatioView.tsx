@@ -131,7 +131,7 @@ import {
   BOARD_PORTRAIT_HSCROLL_ZOOM_MULT,
   DESKTOP_LANDSCAPE_CARD_ZOOM,
 } from '../../utils/patioBoardGlassCard';
-import { groupForSlot, statusUsesBench } from '../../constants/labBench';
+import { groupForSlot, statusInIntakeBenchGroup, statusUsesBench } from '../../constants/labBench';
 import LabBenchPanel from '../lab/LabBenchPanel';
 import { LabBenchSlotEditor } from '../lab/LabBenchSlotEditor';
 import type { ExternalRepair } from '../../constants/labBench';
@@ -388,6 +388,7 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     lab_service_links: Array.isArray(detail.lab_service_links) ? (detail.lab_service_links as LabServiceLink[]) : [],
     bench_slot: (detail as ServiceOrderDetail & { bench_slot?: number | null }).bench_slot ?? null,
     bench_slot_at: (detail as ServiceOrderDetail & { bench_slot_at?: string | null }).bench_slot_at ?? null,
+    bench_queued_at: (detail as ServiceOrderDetail & { bench_queued_at?: string | null }).bench_queued_at ?? null,
     external_repair: (detail as ServiceOrderDetail & { external_repair?: unknown }).external_repair as never ?? null,
     diagnostic_authorization_signed_at: detail.diagnostic_authorization_signed_at ?? null,
     diagnostic_authorization_signature_path: detail.diagnostic_authorization_signature_path ?? null,
@@ -435,6 +436,7 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     labServiceLinks: Array.isArray(o.lab_service_links) ? (o.lab_service_links as LabServiceLink[]) : [],
     benchSlot: o.bench_slot ?? null,
     benchSlotAt: o.bench_slot_at ?? null,
+    benchQueuedAt: o.bench_queued_at ?? null,
     externalRepair: o.external_repair ?? null,
   };
 }
@@ -1683,17 +1685,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   /** Bancada: mover manualmente uma OS de módulo para um compartimento (ou liberar com null). */
   const handleBenchMove = useCallback(async (cardId: string, slot: number | null) => {
-    setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, benchSlot: slot } : c)));
+    setCards((prev) =>
+      prev.map((c) =>
+        c.id === cardId
+          ? { ...c, benchSlot: slot, benchQueuedAt: slot != null ? null : c.benchQueuedAt }
+          : c
+      )
+    );
     try {
       await updateServiceOrderBenchSlot(cardId, slot);
       if (selectedCard?.id === cardId) {
-        setSelectedCard((c) => (c ? { ...c, benchSlot: slot } : c));
+        setSelectedCard((c) =>
+          c
+            ? {
+                ...c,
+                benchSlot: slot,
+                benchQueuedAt: slot != null ? null : c.benchQueuedAt,
+              }
+            : c
+        );
         setServiceOrderDetail((d) =>
           d
             ? {
                 ...d,
                 bench_slot: slot,
                 bench_slot_at: slot != null ? new Date().toISOString() : null,
+                bench_queued_at: slot != null ? null : d.bench_queued_at,
               }
             : d
         );
@@ -1707,7 +1724,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const unassignedBenchCount = useMemo(
     () =>
-      cards.filter((c) => c.benchSlot == null && statusUsesBench(c.idList)).length,
+      cards.filter(
+        (c) =>
+          c.benchSlot == null &&
+          !c.benchQueuedAt &&
+          statusUsesBench(c.idList) &&
+          !statusInIntakeBenchGroup(c.idList)
+      ).length,
+    [cards]
+  );
+
+  const benchQueueCount = useMemo(
+    () => cards.filter((c) => c.benchQueuedAt && c.benchSlot == null).length,
     [cards]
   );
 
@@ -3994,7 +4022,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
               aria-hidden
             />
             Bancada do laboratório
-            {unassignedBenchCount > 0 ? (
+            {benchQueueCount > 0 ? (
+              <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {benchQueueCount}
+              </span>
+            ) : unassignedBenchCount > 0 ? (
               <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                 {unassignedBenchCount}
               </span>
@@ -4316,9 +4348,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </button>
                   </div>
                 </div>
-                {isModuleMode && (typeof card.benchSlot === 'number' || statusUsesBench(card.idList)) ? (
+                {isModuleMode &&
+                (typeof card.benchSlot === 'number' ||
+                  card.benchQueuedAt ||
+                  statusUsesBench(card.idList)) ? (
                   <div className={boardPanoramic ? 'mt-2' : 'mt-2.5'}>
-                    {typeof card.benchSlot === 'number' ? (
+                    {card.benchQueuedAt && card.benchSlot == null ? (
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-violet-300/80 bg-violet-50/90 px-2.5 py-1 text-[11px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100"
+                        title="Na fila: será posicionado automaticamente quando um compartimento 1–4 liberar"
+                      >
+                        Fila da bancada · aguardando vaga (1–4)
+                      </span>
+                    ) : typeof card.benchSlot === 'number' ? (
                       <span
                         className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200/80 bg-violet-50/90 px-2.5 py-1 text-[11px] font-semibold text-violet-800 dark:border-violet-500/30 dark:bg-violet-950/40 dark:text-violet-200"
                         title={groupForSlot(card.benchSlot)?.label ?? 'Bancada do laboratório'}
@@ -5503,6 +5545,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             ({groupForSlot(serviceOrderDetail.bench_slot)!.label})
                                           </span>
                                         ) : null}
+                                      </span>
+                                    ) : serviceOrderDetail.bench_queued_at ? (
+                                      <span className="inline-flex items-center rounded-lg border border-violet-400/80 bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-950 dark:border-violet-500/40 dark:bg-violet-950/50 dark:text-violet-100">
+                                        Na fila da bancada (1–4)
                                       </span>
                                     ) : statusUsesBench(serviceOrderDetail.status) ? (
                                       <span className="inline-flex items-center rounded-lg border border-amber-400/80 bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/50 dark:text-amber-100">

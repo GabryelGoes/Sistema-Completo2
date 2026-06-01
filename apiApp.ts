@@ -21,6 +21,8 @@ import {
 import {
   labGroupForStatus,
   statusUsesBench,
+  statusInIntakeBenchGroup,
+  LAB_BENCH_INTAKE_GROUP,
   firstFreeSlotForStatus,
   normalizeBenchSlot,
   type ExternalRepair,
@@ -137,6 +139,78 @@ export function createApiApp() {
     if (currentSlot != null && group.slots.includes(currentSlot)) return currentSlot;
     const occupied = await occupiedBenchSlots(excludeId);
     return firstFreeSlotForStatus(status, occupied);
+  }
+
+  /**
+   * Atribui compartimentos 1..4 a OS na fila (bench_queued_at), em ordem FIFO,
+   * sempre que houver vaga no grupo Aguardando avaliação.
+   */
+  async function processIntakeBenchQueue(): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return;
+    const occupied = await occupiedBenchSlots();
+    const maxPasses = LAB_BENCH_INTAKE_GROUP.slots.length + 8;
+    for (let pass = 0; pass < maxPasses; pass++) {
+      const freeSlot = firstFreeSlotForStatus(LAB_BENCH_INTAKE_GROUP.id, occupied);
+      if (freeSlot == null) break;
+
+      const { data: next, error: fetchErr } = await supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("order_type", "module")
+        .neq("status", CANCELLED_STATUS)
+        .is("bench_slot", null)
+        .not("bench_queued_at", "is", null)
+        .in("status", [...LAB_BENCH_INTAKE_GROUP.statuses])
+        .order("bench_queued_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (fetchErr) {
+        console.warn("[API] processIntakeBenchQueue fetch:", fetchErr.message);
+        break;
+      }
+      if (!next?.id) break;
+
+      const now = new Date().toISOString();
+      const { error: updErr } = await supabaseAdmin
+        .from("service_orders")
+        .update({
+          bench_slot: freeSlot,
+          bench_slot_at: now,
+          bench_queued_at: null,
+          updated_at: now,
+        })
+        .eq("id", next.id)
+        .eq("workshop_id", WORKSHOP_ID);
+
+      if (updErr) {
+        console.warn("[API] processIntakeBenchQueue assign:", updErr.message);
+        break;
+      }
+      occupied.add(freeSlot);
+    }
+  }
+
+  /** Compartimento + fila ao criar OS de módulo. */
+  async function benchFieldsForNewModule(status: string): Promise<{
+    bench_slot: number | null;
+    bench_slot_at: string | null;
+    bench_queued_at: string | null;
+  }> {
+    const now = new Date().toISOString();
+    if (!statusUsesBench(status)) {
+      return { bench_slot: null, bench_slot_at: null, bench_queued_at: null };
+    }
+    const occupied = await occupiedBenchSlots();
+    const slot = firstFreeSlotForStatus(status, occupied);
+    if (slot != null) {
+      return { bench_slot: slot, bench_slot_at: now, bench_queued_at: null };
+    }
+    if (statusInIntakeBenchGroup(status)) {
+      return { bench_slot: null, bench_slot_at: null, bench_queued_at: now };
+    }
+    return { bench_slot: null, bench_slot_at: null, bench_queued_at: null };
   }
 
   function reqOrderId(req: express.Request): string {
@@ -1977,7 +2051,7 @@ export function createApiApp() {
 
   // ----------------- ORDENS DE SERVIÇO -----------------
   const SERVICE_ORDERS_LIST_SELECT =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, bench_slot, bench_slot_at, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, bench_slot, bench_slot_at, bench_queued_at, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   const SERVICE_ORDERS_PAGE_SIZE = 1000;
 
   /** PostgREST limita ~1000 linhas por request — pagina até trazer todas as OS da oficina. */
@@ -2429,12 +2503,10 @@ export function createApiApp() {
         }
       }
 
-      // Laboratório: compartimento livre no grupo da etapa inicial escolhida.
-      let benchSlotIns: number | null = null;
-      if (orderType === "module" && statusUsesBench(initialStatus)) {
-        const occupied = await occupiedBenchSlots();
-        benchSlotIns = firstFreeSlotForStatus(initialStatus, occupied);
-      }
+      const benchFields =
+        orderType === "module"
+          ? await benchFieldsForNewModule(initialStatus)
+          : { bench_slot: null, bench_slot_at: null, bench_queued_at: null };
 
       const { data, error } = await supabaseAdmin
         .from("service_orders")
@@ -2461,8 +2533,9 @@ export function createApiApp() {
           vehicle_color: vehicleColorIns,
           vehicle_year: vehicleYearIns,
           vehicle_engine_info: vehicleEngineInfoIns,
-          bench_slot: benchSlotIns,
-          bench_slot_at: benchSlotIns != null ? new Date().toISOString() : null,
+          bench_slot: benchFields.bench_slot,
+          bench_slot_at: benchFields.bench_slot_at,
+          bench_queued_at: benchFields.bench_queued_at,
         })
         .select("*")
         .single();
@@ -2470,6 +2543,19 @@ export function createApiApp() {
       if (error) {
         console.error("[API] Erro ao criar service_order:", error);
         return res.status(500).json({ error: error.message });
+      }
+
+      if (orderType === "module") {
+        await processIntakeBenchQueue();
+        if (data?.id && benchFields.bench_queued_at) {
+          const { data: refreshed } = await supabaseAdmin
+            .from("service_orders")
+            .select("*")
+            .eq("id", data.id)
+            .eq("workshop_id", WORKSHOP_ID)
+            .maybeSingle();
+          if (refreshed) return res.status(201).json(refreshed);
+        }
       }
 
       return res.status(201).json(data);
@@ -5876,12 +5962,23 @@ export function createApiApp() {
         const nextStatus = String(updatePayload.status);
         if (statusUsesBench(nextStatus)) {
           const newSlot = await pickBenchSlotForStatus(nextStatus, currentSlot, id);
-          updatePayload.bench_slot = newSlot;
-          updatePayload.bench_slot_at = newSlot != null ? new Date().toISOString() : null;
+          if (newSlot != null) {
+            updatePayload.bench_slot = newSlot;
+            updatePayload.bench_slot_at = new Date().toISOString();
+            updatePayload.bench_queued_at = null;
+          } else if (statusInIntakeBenchGroup(nextStatus)) {
+            updatePayload.bench_slot = null;
+            updatePayload.bench_slot_at = null;
+            updatePayload.bench_queued_at = new Date().toISOString();
+          } else {
+            updatePayload.bench_slot = null;
+            updatePayload.bench_slot_at = null;
+            updatePayload.bench_queued_at = null;
+          }
         } else {
-          // Fora da bancada (com o técnico, finalizado, etc.)
           updatePayload.bench_slot = null;
           updatePayload.bench_slot_at = null;
+          updatePayload.bench_queued_at = null;
         }
       }
 
@@ -5898,6 +5995,10 @@ export function createApiApp() {
       if (error) {
         console.error("[API] Erro ao atualizar service_order:", error);
         return res.status(500).json({ error: error.message });
+      }
+
+      if (effectiveOrderType === "module") {
+        await processIntakeBenchQueue();
       }
 
       const techSlug = data?.assigned_technician ?? null;
@@ -6043,13 +6144,16 @@ export function createApiApp() {
         }
       }
 
+      const nowBench = new Date().toISOString();
+      const benchUpdate: Record<string, unknown> = {
+        bench_slot: slot,
+        bench_slot_at: slot != null ? nowBench : null,
+        updated_at: nowBench,
+      };
+      if (slot != null) benchUpdate.bench_queued_at = null;
       const { data, error } = await supabaseAdmin
         .from("service_orders")
-        .update({
-          bench_slot: slot,
-          bench_slot_at: slot != null ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString(),
-        })
+        .update(benchUpdate)
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
         .select("*")
@@ -6058,6 +6162,7 @@ export function createApiApp() {
         console.error("[API] PUT bench-slot:", error);
         return res.status(500).json({ error: error.message });
       }
+      await processIntakeBenchQueue();
       return res.json(data);
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/service-orders/:id/bench-slot:", err);
@@ -6160,12 +6265,19 @@ export function createApiApp() {
           });
         }
       }
+      const archivedAt = new Date().toISOString();
       const { data, error } = await supabaseAdmin
         .from("service_orders")
-        .update({ status: CANCELLED_STATUS, updated_at: new Date().toISOString() })
+        .update({
+          status: CANCELLED_STATUS,
+          bench_slot: null,
+          bench_slot_at: null,
+          bench_queued_at: null,
+          updated_at: archivedAt,
+        })
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
-        .select("id")
+        .select("id, order_type")
         .single();
       if (error) {
         console.error("[API] Falha ao arquivar OS:", id, error);
@@ -6173,6 +6285,9 @@ export function createApiApp() {
       }
       if (!data) {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if ((data as { order_type?: string }).order_type === "module") {
+        await processIntakeBenchQueue();
       }
       return res.json({ ok: true });
     } catch (err: any) {

@@ -148,6 +148,8 @@ export interface BoardCard {
   /** Bancada do laboratório: compartimento físico (1..24) ou null (fora da bancada). */
   benchSlot?: number | null;
   benchSlotAt?: string | null;
+  /** Na fila para compartimento 1..4 (aguardando avaliação). */
+  benchQueuedAt?: string | null;
   /** Dados do conserto em terceiros (laboratório). */
   externalRepair?: ExternalRepair | null;
 }

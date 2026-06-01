@@ -2,9 +2,11 @@ import React, { useMemo, useState } from 'react';
 import type { TrelloCard } from '../../types';
 import {
   LAB_BENCH_GROUPS,
+  LAB_BENCH_INTAKE_GROUP,
   LAB_BENCH_SLOT_COUNT,
   firstFreeSlotForStatus,
   labGroupForStatus,
+  statusInIntakeBenchGroup,
   statusUsesBench,
   type LabBenchGroup,
 } from '../../constants/labBench';
@@ -55,11 +57,27 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
     return map;
   }, [moduleEntries]);
 
+  /** Fila automática (compartimentos 1–4 lotados no cadastro). */
+  const queued = useMemo(
+    () =>
+      [...moduleEntries]
+        .filter((e) => e.card.benchQueuedAt && e.card.benchSlot == null)
+        .sort(
+          (a, b) =>
+            new Date(a.card.benchQueuedAt!).getTime() - new Date(b.card.benchQueuedAt!).getTime()
+        ),
+    [moduleEntries]
+  );
+
   /** Produtos em fluxo na bancada mas sem compartimento (cadastros antigos). */
   const unassigned = useMemo(
     () =>
       moduleEntries.filter(
-        (e) => e.card.benchSlot == null && statusUsesBench(e.card.idList)
+        (e) =>
+          e.card.benchSlot == null &&
+          !e.card.benchQueuedAt &&
+          statusUsesBench(e.card.idList) &&
+          !statusInIntakeBenchGroup(e.card.idList)
       ),
     [moduleEntries]
   );
@@ -144,6 +162,11 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Bancada do laboratório</p>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
               {occupiedCount}/{LAB_BENCH_SLOT_COUNT} compartimentos ocupados
+              {queued.length > 0 ? (
+                <span className="ml-1 font-semibold text-violet-600 dark:text-violet-400">
+                  · {queued.length} na fila
+                </span>
+              ) : null}
               {unassigned.length > 0 ? (
                 <span className="ml-1 font-semibold text-amber-600 dark:text-amber-400">
                   · {unassigned.length} sem posição
@@ -174,6 +197,44 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
           )}
         </div>
       </div>
+
+      {queued.length > 0 && (
+        <div className="mb-3 rounded-lg border border-violet-300/80 bg-violet-50/90 p-2.5 dark:border-violet-600/40 dark:bg-violet-950/30">
+          <p className="mb-1.5 text-[11px] font-semibold text-violet-900 dark:text-violet-100">
+            Fila — Aguardando avaliação (compartimentos {LAB_BENCH_INTAKE_GROUP.slots.join('–')})
+          </p>
+          <p className="mb-2 text-[10px] leading-snug text-violet-800/90 dark:text-violet-200/80">
+            Quando um compartimento 1–4 liberar (mudança de etapa, entrega ou arquivamento), o próximo da fila
+            ocupa o espaço automaticamente.
+          </p>
+          <ol className="flex flex-col gap-1.5">
+            {queued.map((e, index) => (
+              <li
+                key={e.card.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-violet-200/80 bg-white px-2 py-1.5 dark:border-violet-800/50 dark:bg-zinc-900/60"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+                    <span className="mr-1.5 text-violet-600 dark:text-violet-400">#{index + 1}</span>
+                    {e.card.osNumber != null && (
+                      <span className="mr-1 text-zinc-500 dark:text-zinc-400">OS {e.card.osNumber}</span>
+                    )}
+                    {e.identification || e.vehicle || '—'}
+                  </p>
+                  <p className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">{e.customer || '—'}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenCard(e.card)}
+                  className="rounded-md border border-violet-200 px-2 py-0.5 text-[10px] font-medium text-violet-800 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-200 dark:hover:bg-violet-950/50"
+                >
+                  Abrir
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
 
       {unassigned.length > 0 && (
         <div className="mb-3 rounded-lg border border-amber-300/80 bg-amber-50/90 p-2.5 dark:border-amber-600/40 dark:bg-amber-950/30">

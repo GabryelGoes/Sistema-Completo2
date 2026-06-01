@@ -5,6 +5,7 @@ import {
   LAB_BENCH_SLOT_COUNT,
   firstFreeSlotForStatus,
   labGroupForStatus,
+  statusInIntakeBenchGroup,
   statusUsesBench,
 } from '../../constants/labBench';
 import { getServiceOrders } from '../../services/apiService';
@@ -30,6 +31,7 @@ export function LabBenchIntakeHint({
 }: LabBenchIntakeHintProps) {
   const [loading, setLoading] = useState(true);
   const [occupiedSlots, setOccupiedSlots] = useState<number[]>([]);
+  const [queueCount, setQueueCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,11 +39,14 @@ export function LabBenchIntakeHint({
     void getServiceOrders(undefined, 'module')
       .then((orders) => {
         if (cancelled) return;
-        const slots = orders
-          .filter((o) => o.status !== 'CANCELLED')
+        const active = orders.filter((o) => o.status !== 'CANCELLED');
+        const slots = active
           .map((o) => o.bench_slot)
           .filter((s): s is number => typeof s === 'number' && s >= 1 && s <= LAB_BENCH_SLOT_COUNT);
         setOccupiedSlots(slots);
+        setQueueCount(
+          active.filter((o) => o.bench_queued_at && o.bench_slot == null).length
+        );
       })
       .catch(() => {
         if (!cancelled) setOccupiedSlots([]);
@@ -87,7 +92,11 @@ export function LabBenchIntakeHint({
               {intakeStage?.name ?? intakeStatus}
             </span>
             {onBench && intakeGroup
-              ? ` e o sistema reserva o primeiro compartimento livre do grupo (${intakeGroup.slots.join('–')}).`
+              ? ` e o sistema reserva o primeiro compartimento livre do grupo (${intakeGroup.slots.join('–')})${
+                  statusInIntakeBenchGroup(intakeStatus)
+                    ? ', ou entra na fila se estiver lotado.'
+                    : '.'
+                }`
               : onBench
                 ? ' e recebe compartimento na bancada quando houver vaga no grupo da etapa.'
                 : ' (fora da bancada física — ex.: em serviço com o técnico).'}{' '}
@@ -115,10 +124,15 @@ export function LabBenchIntakeHint({
               </span>
             ) : null}
           </span>
+        ) : statusInIntakeBenchGroup(intakeStatus) ? (
+          <span className="inline-flex items-center gap-1.5 rounded-xl border border-violet-300/80 bg-violet-50 px-3 py-2 text-[13px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-200">
+            Compartimentos {intakeGroup?.slots.join('–') ?? '1–4'} lotados — novo produto entra na fila
+            {queueCount > 0 ? ` (${queueCount} aguardando)` : ''}
+          </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300/80 bg-rose-50 px-3 py-2 text-[13px] font-semibold text-rose-800 dark:border-rose-500/35 dark:bg-rose-950/40 dark:text-rose-200">
             {intakeGroup
-              ? `${intakeGroup.label} lotado — libere um compartimento ${intakeGroup.slots.join('–')} antes de cadastrar`
+              ? `${intakeGroup.label} lotado — libere um compartimento ${intakeGroup.slots.join('–')}`
               : 'Grupo da bancada lotado para esta etapa'}
           </span>
         )}
