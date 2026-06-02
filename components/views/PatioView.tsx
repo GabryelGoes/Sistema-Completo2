@@ -876,8 +876,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return window.localStorage.getItem('lab-bench-panel-open') !== '0';
   });
   const [benchQueueModalOpen, setBenchQueueModalOpen] = useState(false);
-  /** Visualização da bancada em tela cheia. */
-  const [benchFullscreenOpen, setBenchFullscreenOpen] = useState(false);
   /** Módulos enviados para conserto externo (fora do quadro/bancada). */
   const [externalRepairCards, setExternalRepairCards] = useState<TrelloCard[]>([]);
   const [externalRepairModalOpen, setExternalRepairModalOpen] = useState(false);
@@ -1169,16 +1167,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [boardPanoramic, setBoardPanoramic] = useState(false);
   const { isDesktop, isTablet, isSmartphone, viewportWidth } = useDeviceTypeContext();
   const desktopShell = useDesktopShellLayout();
+  /** Visualização da bancada em tela cheia. */
+  const [benchFullscreenOpen, setBenchFullscreenOpen] = useState(false);
   /** Modal de veículo em layout PC: duas colunas (shell OnMotor ou viewport ≥1024px). */
-  const isPatioPcModal = desktopShell || (isDesktop && viewportWidth >= 1024);
+  /** Com a bancada em tela cheia, o modal da OS abre como card flutuante (layout não-PC) por cima dela. */
+  const isPatioPcModal = (desktopShell || (isDesktop && viewportWidth >= 1024)) && !benchFullscreenOpen;
   const patioVehicleVm = useMemo(() => getPatioVehicleModalLayout(isPatioPcModal), [isPatioPcModal]);
   const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isPatioPcModal), [isPatioPcModal]);
   const patioVehicleModalOverlayClass = useMemo(() => {
+    if (benchFullscreenOpen) {
+      return patioVehicleVm.overlay.replace('z-[100]', 'z-[320]');
+    }
     if (desktopShell) {
       return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop flex min-h-0 flex-col overflow-hidden bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
     }
     return patioVehicleVm.overlay;
-  }, [desktopShell, patioVehicleVm.overlay]);
+  }, [benchFullscreenOpen, desktopShell, patioVehicleVm.overlay]);
   const patioHistoryModalOverlayClass = useMemo(() => {
     if (desktopShell) {
       return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop flex min-h-0 flex-col overflow-hidden overscroll-none bg-[#E8E8ED] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
@@ -9190,10 +9194,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
               <LabBenchPanel
                 cards={cards}
-                onOpenCard={(card) => {
-                  setBenchFullscreenOpen(false);
-                  setSelectedCard(card);
-                }}
+                onOpenCard={(card) => setSelectedCard(card)}
                 onMoveCard={handleBenchMove}
               />
             </div>
