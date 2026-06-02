@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -69,6 +69,7 @@ import {
   normalizeStatusForFlow,
   type ServiceOrderFlowKind,
   CANCELLED_STATUS,
+  EXTERNAL_REPAIR_STATUS,
   type ServiceOrderStatus,
 } from '../../constants/serviceOrderStages';
 import {
@@ -134,6 +135,7 @@ import {
 import { groupForSlot, statusInIntakeBenchGroup, statusUsesBench } from '../../constants/labBench';
 import LabBenchPanel from '../lab/LabBenchPanel';
 import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
+import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
 import { LabBenchSlotEditor } from '../lab/LabBenchSlotEditor';
 import type { ExternalRepair } from '../../constants/labBench';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
@@ -874,6 +876,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return window.localStorage.getItem('lab-bench-panel-open') !== '0';
   });
   const [benchQueueModalOpen, setBenchQueueModalOpen] = useState(false);
+  /** Módulos enviados para conserto externo (fora do quadro/bancada). */
+  const [externalRepairCards, setExternalRepairCards] = useState<TrelloCard[]>([]);
+  const [externalRepairModalOpen, setExternalRepairModalOpen] = useState(false);
 
   // Card em Visualização DETALHADA (Full Screen Modal)
   const [selectedCard, setSelectedCard] = useState<TrelloCard | null>(null);
@@ -1652,8 +1657,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setLists(boardListsFromStages(boardStages));
       const nameMap = buildTechnicianNameMap(technicians);
       const onlyActive = orders.filter((o) => o.status !== 'CANCELLED');
+      // Módulos em conserto externo saem do quadro/bancada e vão para a aba dedicada.
+      const externalRepairOrders =
+        flowKind === 'module'
+          ? onlyActive.filter((o) => o.status === EXTERNAL_REPAIR_STATUS)
+          : [];
+      const boardOrders =
+        flowKind === 'module'
+          ? onlyActive.filter((o) => o.status !== EXTERNAL_REPAIR_STATUS)
+          : onlyActive;
       const byId = new Map<string, TrelloCard>();
-      for (const o of onlyActive) {
+      for (const o of boardOrders) {
         const row: ServiceOrderListItem = {
           ...o,
           status: normalizeStatusForFlow(o.status, flowKind),
@@ -1665,6 +1679,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
         [...byId.values()].sort(
           (a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime()
         )
+      );
+      setExternalRepairCards(
+        externalRepairOrders
+          .map((o) => orderToCard({ ...o, status: EXTERNAL_REPAIR_STATUS } as ServiceOrderListItem, nameMap, orderType))
+          .sort((a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime())
       );
       setAllMembers([]);
       setError(null);
@@ -2759,6 +2778,29 @@ export const PatioView: React.FC<PatioViewProps> = ({
       alert(err?.message ?? 'Erro ao salvar conserto externo.');
     } finally {
       setExternalRepairSaving(false);
+    }
+  };
+
+  /** Registra o envio do módulo ao conserto externo: sai do quadro e vai para a aba. */
+  const handleSendToExternalRepair = async (cardId: string) => {
+    try {
+      await updateServiceOrderStatus(cardId, EXTERNAL_REPAIR_STATUS, actorOptions);
+      setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao registrar envio ao conserto externo.');
+    } finally {
+      fetchDataRef.current(true);
+    }
+  };
+
+  /** Registra o retorno do conserto externo: move para a coluna "Chegada conserto". */
+  const handleRegisterExternalReturn = async (cardId: string) => {
+    try {
+      await updateServiceOrderStatus(cardId, 'CHEGADA_CONSERTO', actorOptions);
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao registrar chegada do conserto.');
+    } finally {
+      fetchDataRef.current(true);
     }
   };
 
@@ -4030,6 +4072,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
               {benchQueueCount > 0 ? (
                 <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
                   {benchQueueCount}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              onClick={() => setExternalRepairModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-purple-200/90 bg-purple-50/90 px-3 py-1.5 text-[13px] font-semibold text-purple-900 shadow-sm backdrop-blur-xl transition-colors hover:border-purple-400/60 hover:bg-purple-100/90 dark:border-purple-500/35 dark:bg-purple-950/40 dark:text-purple-100 dark:hover:border-purple-400/50"
+            >
+              <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
+              Conserto externo
+              {externalRepairCards.length > 0 ? (
+                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
+                  {externalRepairCards.length}
                 </span>
               ) : null}
             </button>
@@ -6561,7 +6616,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           className={`${vin} resize-y`}
                                         />
                                       </div>
-                                      <div className="flex justify-end border-t border-zinc-200/60 pt-2.5 dark:border-white/[0.06]">
+                                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200/60 pt-2.5 dark:border-white/[0.06]">
+                                        {serviceOrderDetail?.status === 'ENVIO_CONSERTO' && selectedCard ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleSendToExternalRepair(selectedCard.id)}
+                                            disabled={loadingDetails}
+                                            className="inline-flex items-center gap-2 rounded-xl bg-purple-700 px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-purple-600 disabled:opacity-60"
+                                            title="Salve os dados antes; o módulo sai da bancada e vai para a aba Conserto externo"
+                                          >
+                                            <Truck className="h-4 w-4" strokeWidth={2.2} />
+                                            Registrar envio
+                                          </button>
+                                        ) : <span />}
                                         <button
                                           type="button"
                                           onClick={handleSaveExternalRepair}
@@ -9054,6 +9121,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
           cards={cards}
           onOpenCard={(card) => setSelectedCard(card)}
           onOpenBenchPanel={handleOpenBenchPanelFromQueue}
+        />
+      )}
+
+      {isModuleMode && (
+        <LabExternalRepairModal
+          open={externalRepairModalOpen}
+          onClose={() => setExternalRepairModalOpen(false)}
+          cards={externalRepairCards}
+          onOpenCard={(card) => setSelectedCard(card)}
+          onRegisterReturn={handleRegisterExternalReturn}
         />
       )}
 

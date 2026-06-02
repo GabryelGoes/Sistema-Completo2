@@ -11,6 +11,7 @@ export type ServiceOrderStatus =
   | "AGUARDANDO_PECAS"
   | "PECAS_DISPONIVEIS"
   | "ENVIO_CONSERTO"
+  | "EM_CONSERTO_EXTERNO"
   | "CHEGADA_CONSERTO"
   | "EM_SERVICO"
   | "FASE_DE_TESTE"
@@ -61,6 +62,28 @@ export const LABORATORY_SERVICE_ORDER_STAGES: StageConfig[] = [
   { id: "ORCAMENTO_NAO_APROVADO", name: "Orçamento não aprovado", style: "bg-violet-600 text-white border-violet-600", ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 11 },
 ];
 
+/**
+ * Status "fora do quadro" do Laboratório: o módulo foi fisicamente enviado a um
+ * terceiro e está em conserto externo. Não aparece como coluna da bancada — é
+ * gerenciado na aba "Conserto externo".
+ */
+export const EXTERNAL_REPAIR_STATUS: ServiceOrderStatus = "EM_CONSERTO_EXTERNO";
+
+export const EXTERNAL_REPAIR_STAGE: StageConfig = {
+  id: "EM_CONSERTO_EXTERNO",
+  name: "Em conserto externo",
+  style: "bg-purple-700 text-white border-purple-700",
+  ringClass: "ring-2 ring-purple-700 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]",
+  pos: 99,
+};
+
+/** Etapas do laboratório que existem mas NÃO viram coluna no quadro. */
+export const LABORATORY_OFF_BOARD_STAGES: StageConfig[] = [EXTERNAL_REPAIR_STAGE];
+
+export function isExternalRepairStatus(status: string | null | undefined): boolean {
+  return String(status ?? "").trim() === EXTERNAL_REPAIR_STATUS;
+}
+
 /** Status legados do pátio ainda aceitos no banco — mapeados ao abrir o quadro do laboratório. */
 export const LABORATORY_LEGACY_STATUS_MAP: Partial<Record<string, ServiceOrderStatus>> = {
   FINALIZADO: "PRONTO_PRA_RETIRADA",
@@ -82,6 +105,7 @@ export const ALL_STATUSES: ServiceOrderStatus[] = [
   ...new Set([
     ...SERVICE_ORDER_STAGES.map((s) => s.id),
     ...LABORATORY_SERVICE_ORDER_STAGES.map((s) => s.id),
+    ...LABORATORY_OFF_BOARD_STAGES.map((s) => s.id),
     CANCELLED_STATUS,
   ]),
 ];
@@ -98,6 +122,7 @@ export function normalizeStatusForFlow(
 ): ServiceOrderStatus {
   const s = String(status ?? "").trim();
   if (s === CANCELLED_STATUS) return CANCELLED_STATUS;
+  if (flow === "module" && s === EXTERNAL_REPAIR_STATUS) return EXTERNAL_REPAIR_STATUS;
   const stages = getServiceOrderStages(flow);
   if (stages.some((st) => st.id === s)) return s as ServiceOrderStatus;
   if (flow === "module") {
@@ -112,17 +137,20 @@ export function getStageConfig(
   flow?: ServiceOrderFlowKind
 ): StageConfig | undefined {
   const s = String(status ?? "").trim();
+  if (s === EXTERNAL_REPAIR_STATUS) return EXTERNAL_REPAIR_STAGE;
   if (flow === "module") {
     const mapped = LABORATORY_LEGACY_STATUS_MAP[s];
     const id = (mapped ?? s) as ServiceOrderStatus;
     return (
       LABORATORY_SERVICE_ORDER_STAGES.find((st) => st.id === id) ??
+      LABORATORY_OFF_BOARD_STAGES.find((st) => st.id === id) ??
       SERVICE_ORDER_STAGES.find((st) => st.id === s)
     );
   }
   return (
     SERVICE_ORDER_STAGES.find((st) => st.id === s) ??
-    LABORATORY_SERVICE_ORDER_STAGES.find((st) => st.id === s)
+    LABORATORY_SERVICE_ORDER_STAGES.find((st) => st.id === s) ??
+    LABORATORY_OFF_BOARD_STAGES.find((st) => st.id === s)
   );
 }
 

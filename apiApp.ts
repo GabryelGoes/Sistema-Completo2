@@ -5937,7 +5937,7 @@ export function createApiApp() {
 
       const { data: previous } = await supabaseAdmin
         .from("service_orders")
-        .select("status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, order_type, bench_slot, customers(name)")
+        .select("status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, order_type, bench_slot, external_repair, customers(name)")
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -5979,6 +5979,21 @@ export function createApiApp() {
           updatePayload.bench_slot = null;
           updatePayload.bench_slot_at = null;
           updatePayload.bench_queued_at = null;
+        }
+
+        // Conserto externo: carimba datas automaticamente ao enviar/registrar retorno.
+        const prevStatus = String((previous as { status?: string }).status ?? "");
+        const today = new Date().toISOString().slice(0, 10);
+        const prevExternal =
+          (previous as { external_repair?: ExternalRepair | null }).external_repair ?? null;
+        if (nextStatus === "EM_CONSERTO_EXTERNO") {
+          const merged: ExternalRepair = { ...(prevExternal ?? {}) };
+          if (!merged.sentAt) merged.sentAt = today;
+          updatePayload.external_repair = merged;
+        } else if (nextStatus === "CHEGADA_CONSERTO" && prevStatus === "EM_CONSERTO_EXTERNO") {
+          const merged: ExternalRepair = { ...(prevExternal ?? {}) };
+          if (!merged.returnedAt) merged.returnedAt = today;
+          updatePayload.external_repair = merged;
         }
       }
 
