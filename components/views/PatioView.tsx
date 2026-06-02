@@ -9190,7 +9190,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
               <LabBenchPanel
                 cards={cards}
-                onOpenCard={(card) => setSelectedCard(card)}
+                onOpenCard={(card) => {
+                  setBenchFullscreenOpen(false);
+                  setSelectedCard(card);
+                }}
                 onMoveCard={handleBenchMove}
               />
             </div>
