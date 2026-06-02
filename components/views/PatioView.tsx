@@ -876,6 +876,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return window.localStorage.getItem('lab-bench-panel-open') !== '0';
   });
   const [benchQueueModalOpen, setBenchQueueModalOpen] = useState(false);
+  /** Visualização da bancada em tela cheia. */
+  const [benchFullscreenOpen, setBenchFullscreenOpen] = useState(false);
   /** Módulos enviados para conserto externo (fora do quadro/bancada). */
   const [externalRepairCards, setExternalRepairCards] = useState<TrelloCard[]>([]);
   const [externalRepairModalOpen, setExternalRepairModalOpen] = useState(false);
@@ -3865,6 +3867,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   style={patioToolsPopoverStyle}
                   className="max-h-[min(70vh,calc(100dvh-5rem))] overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200/90 bg-white py-2 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
                 >
+                  {isModuleMode && (
+                    <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
+                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Bancada</p>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                        onClick={() => {
+                          setBenchFullscreenOpen(true);
+                          setIsPatioHeaderToolsOpen(false);
+                        }}
+                      >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet-200/80 bg-violet-50 dark:border-violet-500/30 dark:bg-violet-950/40">
+                          <LayoutGrid className="h-5 w-5 text-[#A855F7] dark:text-violet-300" strokeWidth={2.2} aria-hidden />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[14px] font-semibold leading-snug">Visualizar bancada (tela cheia)</span>
+                          <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                            Abre o balcão ocupando toda a tela do laboratório
+                          </span>
+                        </span>
+                      </button>
+                    </div>
+                  )}
                   <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
                     <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Tamanho dos cartões</p>
                     <button
@@ -9132,6 +9158,44 @@ export const PatioView: React.FC<PatioViewProps> = ({
           onOpenCard={(card) => setSelectedCard(card)}
           onRegisterReturn={handleRegisterExternalReturn}
         />
+      )}
+
+      {isModuleMode && benchFullscreenOpen && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[300] flex flex-col bg-zinc-50 dark:bg-[#0a0a0a]">
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-200/80 bg-white/90 px-4 py-3 backdrop-blur-xl dark:border-white/[0.08] dark:bg-zinc-900/80 sm:px-6">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#A855F7]/15 text-[#A855F7] dark:text-violet-300">
+                  <LayoutGrid className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[16px] font-semibold leading-tight text-zinc-900 dark:text-white sm:text-[18px]">
+                    Bancada do laboratório
+                  </p>
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                    Visualização em tela cheia
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBenchFullscreenOpen(false)}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-zinc-200/90 bg-white px-4 py-2 text-[14px] font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-white/[0.06]"
+                aria-label="Fechar tela cheia"
+              >
+                <X className="h-4 w-4" strokeWidth={2.4} aria-hidden />
+                Fechar
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+              <LabBenchPanel
+                cards={cards}
+                onOpenCard={(card) => setSelectedCard(card)}
+                onMoveCard={handleBenchMove}
+              />
+            </div>
+          </div>
+        </ModalPortal>
       )}
 
     </div>
