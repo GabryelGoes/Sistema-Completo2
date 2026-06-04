@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutGrid, Loader2 } from 'lucide-react';
 import {
   LAB_BENCH_GROUPS,
@@ -32,6 +32,24 @@ export function LabBenchIntakeHint({
   const [loading, setLoading] = useState(true);
   const [occupiedSlots, setOccupiedSlots] = useState<number[]>([]);
   const [queueCount, setQueueCount] = useState(0);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const helpRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!helpOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (helpRef.current && !helpRef.current.contains(e.target as Node)) setHelpOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setHelpOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [helpOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,28 +98,45 @@ export function LabBenchIntakeHint({
           <LayoutGrid className="h-5 w-5" strokeWidth={2} aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
-          <h3
-            id="lab-bench-intake-title"
-            className="text-[15px] font-bold tracking-tight text-zinc-900 dark:text-white"
-          >
-            Bancada do laboratório
-          </h3>
-          <p className="mt-1 text-[13px] leading-snug text-zinc-600 dark:text-zinc-400">
-            A ficha entra em{' '}
-            <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-              {intakeStage?.name ?? intakeStatus}
-            </span>
-            {onBench && intakeGroup
-              ? ` e o sistema reserva o primeiro compartimento livre do grupo (${intakeGroup.slots.join('–')})${
-                  statusInIntakeBenchGroup(intakeStatus)
-                    ? ', ou entra na fila se estiver lotado.'
-                    : '.'
-                }`
-              : onBench
-                ? ' e recebe compartimento na bancada quando houver vaga no grupo da etapa.'
-                : ' (fora da bancada física — ex.: em serviço com o técnico).'}{' '}
-            Ao mudar a etapa no quadro, o compartimento acompanha o grupo correspondente.
-          </p>
+          <div className="flex items-center gap-2">
+            <h3
+              id="lab-bench-intake-title"
+              className="text-[15px] font-bold tracking-tight text-zinc-900 dark:text-white"
+            >
+              Bancada do laboratório
+            </h3>
+            <div ref={helpRef} className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setHelpOpen((o) => !o)}
+                aria-label="Como funciona a organização da bancada?"
+                aria-expanded={helpOpen}
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF] text-[12px] font-bold text-white shadow-sm transition-colors hover:bg-[#0058c7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-1"
+              >
+                ?
+              </button>
+              {helpOpen ? (
+                <div className="absolute left-0 z-30 mt-2 w-72 rounded-xl border border-zinc-200/90 bg-white p-3 text-left shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] dark:border-white/[0.12] dark:bg-zinc-900 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]">
+                  <p className="text-[12px] leading-relaxed text-zinc-700 dark:text-zinc-300">
+                    A ficha entra em{' '}
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                      {intakeStage?.name ?? intakeStatus}
+                    </span>
+                    {onBench && intakeGroup
+                      ? ` e o sistema reserva o primeiro compartimento livre do grupo (${intakeGroup.slots.join('–')})${
+                          statusInIntakeBenchGroup(intakeStatus)
+                            ? ', ou entra na fila se estiver lotado.'
+                            : '.'
+                        }`
+                      : onBench
+                        ? ' e recebe compartimento na bancada quando houver vaga no grupo da etapa.'
+                        : ' (fora da bancada física — ex.: em serviço com o técnico).'}{' '}
+                    Ao mudar a etapa no quadro, o compartimento acompanha o grupo correspondente.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
       </div>
 
