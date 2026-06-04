@@ -275,14 +275,14 @@ export function BudgetHubVehicleGroup({
           type="button"
           onClick={onToggle}
           aria-expanded={open}
-          className={`flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors ${
+          className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors ${
             vehicleNeedsAttention
               ? 'hover:!bg-red-50/92 dark:hover:!bg-red-950/40'
               : 'hover:bg-zinc-50/80 dark:hover:bg-white/[0.04]'
           }`}
         >
           <div
-            className={`flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg ring-1 ${
+            className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ${
               vehicleNeedsAttention
                 ? '!bg-red-100/88 ring-red-300/50 dark:!bg-red-500/12'
                 : isLab
@@ -300,20 +300,20 @@ export function BudgetHubVehicleGroup({
             <div className="flex items-center gap-1.5">
               <span
                 className={`truncate font-bold tracking-wide text-zinc-900 dark:text-white ${
-                  isLab ? 'text-[12px]' : 'font-mono text-[12px]'
+                  isLab ? 'text-[14px]' : 'font-mono text-[14px]'
                 }`}
               >
                 {budgetOrderTitle(head, plateDisplay)}
               </span>
-              <span className="ml-auto flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-zinc-200/90 px-1.5 text-[10px] font-bold text-zinc-700 dark:bg-white/[0.12] dark:text-zinc-200">
+              <span className="ml-auto flex h-5 min-w-[1.4rem] shrink-0 items-center justify-center rounded-full bg-zinc-200/90 px-1.5 text-[11px] font-bold text-zinc-700 dark:bg-white/[0.12] dark:text-zinc-200">
                 {items.length}
               </span>
             </div>
-            <p className="truncate text-[11px] font-medium text-zinc-600 dark:text-zinc-400">
+            <p className="truncate text-[12.5px] font-medium text-zinc-600 dark:text-zinc-400">
               {[head.vehicleBrand, head.vehicleModel].filter(Boolean).join(' ') || 'Veículo'}
             </p>
           </div>
-          <ChevronRight className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-90' : ''}`} />
+          <ChevronRight className={`h-[18px] w-[18px] shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-90' : ''}`} />
         </button>
         {open ? (
           <ul className="border-t border-zinc-200/60 divide-y divide-zinc-200/60 dark:border-white/[0.06] dark:divide-white/[0.06]">
@@ -513,7 +513,7 @@ export function BudgetHubStageBoard({
   onToggleExpand: (orderId: string) => void;
   desktopShell?: boolean;
 }) {
-  const colMin = desktopShell ? 'min-w-[17rem] w-[17rem]' : 'min-w-[14.5rem] w-[14.5rem]';
+  const colMin = desktopShell ? 'min-w-[20rem] w-[20rem]' : 'min-w-[16.5rem] w-[16.5rem]';
 
   return (
     <div className="-mx-1 flex gap-3 overflow-x-auto pb-2 px-1 [scrollbar-width:thin] lg:mx-0">
