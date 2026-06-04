@@ -3801,7 +3801,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className="flex justify-center portrait:hidden md:justify-self-center md:px-2">
+            <div className={`flex justify-center portrait:hidden md:justify-self-center md:px-2 ${isModuleMode ? 'hidden' : ''}`}>
               <button
                 type="button"
                 onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
@@ -3819,6 +3819,58 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
 
             <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-2 overflow-visible portrait:justify-end md:w-auto md:justify-self-end md:justify-end">
+            {isModuleMode && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setBenchQueueModalOpen(true)}
+                  className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-violet-200/90 bg-violet-50/90 px-4 py-2.5 text-sm font-semibold text-violet-900 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-violet-400/60 hover:bg-violet-100/90 active:scale-[0.98] dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:border-violet-400/50 sm:px-5 sm:py-3"
+                >
+                  <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
+                  <span className="tracking-tight">Fila da bancada</span>
+                  {benchQueueCount > 0 ? (
+                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
+                      {benchQueueCount}
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExternalRepairModalOpen(true)}
+                  className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-purple-200/90 bg-purple-50/90 px-4 py-2.5 text-sm font-semibold text-purple-900 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-purple-400/60 hover:bg-purple-100/90 active:scale-[0.98] dark:border-purple-500/35 dark:bg-purple-950/40 dark:text-purple-100 dark:hover:border-purple-400/50 sm:px-5 sm:py-3"
+                >
+                  <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
+                  <span className="tracking-tight">Conserto externo</span>
+                  {externalRepairCards.length > 0 ? (
+                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
+                      {externalRepairCards.length}
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBenchPanelToggle}
+                  aria-expanded={benchPanelOpen}
+                  className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-zinc-200/80 bg-white/80 px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#A855F7]/40 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white sm:px-5 sm:py-3"
+                >
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
+                    strokeWidth={2.2}
+                    aria-hidden
+                  />
+                  <span className="tracking-tight">Bancada do laboratório</span>
+                  {benchQueueCount > 0 ? (
+                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {benchQueueCount}
+                    </span>
+                  ) : unassignedBenchCount > 0 ? (
+                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {unassignedBenchCount}
+                    </span>
+                  ) : null}
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -4070,7 +4122,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
               />
             </div>
-            <div className="hidden shrink-0 portrait:block">
+            <div className={`shrink-0 ${isModuleMode ? '' : 'hidden portrait:block'}`}>
               <button
                 type="button"
                 onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
@@ -4083,7 +4135,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white">
                   <Plus className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden />
                 </span>
-                <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
+                <span>{isModuleMode ? 'Cadastrar produto' : 'Criar veículo'}</span>
               </button>
             </div>
           </div>
@@ -4092,65 +4144,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
       </div>
 
       {/* Bancada do laboratório — painel visual dos 24 compartimentos (só no modo módulo) */}
-      {isModuleMode && (
+      {isModuleMode && benchPanelOpen && (
         <div className="relative z-0 mx-auto w-full max-w-[100rem] px-3 pb-2 sm:px-5 md:px-6">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setBenchQueueModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-violet-200/90 bg-violet-50/90 px-3 py-1.5 text-[13px] font-semibold text-violet-900 shadow-sm backdrop-blur-xl transition-colors hover:border-violet-400/60 hover:bg-violet-100/90 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:border-violet-400/50"
-            >
-              <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-              Fila da bancada
-              {benchQueueCount > 0 ? (
-                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
-                  {benchQueueCount}
-                </span>
-              ) : null}
-            </button>
-            <button
-              type="button"
-              onClick={() => setExternalRepairModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-purple-200/90 bg-purple-50/90 px-3 py-1.5 text-[13px] font-semibold text-purple-900 shadow-sm backdrop-blur-xl transition-colors hover:border-purple-400/60 hover:bg-purple-100/90 dark:border-purple-500/35 dark:bg-purple-950/40 dark:text-purple-100 dark:hover:border-purple-400/50"
-            >
-              <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-              Conserto externo
-              {externalRepairCards.length > 0 ? (
-                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
-                  {externalRepairCards.length}
-                </span>
-              ) : null}
-            </button>
-            <button
-              type="button"
-              onClick={handleBenchPanelToggle}
-              aria-expanded={benchPanelOpen}
-              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/80 bg-white/80 px-3 py-1.5 text-[13px] font-semibold text-zinc-700 shadow-sm backdrop-blur-xl transition-colors hover:border-[#A855F7]/40 hover:text-zinc-900 dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white"
-            >
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
-                strokeWidth={2.2}
-                aria-hidden
-              />
-              Bancada do laboratório
-              {benchQueueCount > 0 ? (
-                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {benchQueueCount}
-                </span>
-              ) : unassignedBenchCount > 0 ? (
-                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {unassignedBenchCount}
-                </span>
-              ) : null}
-            </button>
-          </div>
-          {benchPanelOpen && (
-            <LabBenchPanel
-              cards={cards}
-              onOpenCard={(card) => setSelectedCard(card)}
-              onMoveCard={handleBenchMove}
-            />
-          )}
+          <LabBenchPanel
+            cards={cards}
+            onOpenCard={(card) => setSelectedCard(card)}
+            onMoveCard={handleBenchMove}
+          />
         </div>
       )}
 
