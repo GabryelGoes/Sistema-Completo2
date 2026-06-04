@@ -7,10 +7,12 @@ import {
   User,
   ExternalLink,
   Sparkles,
+  Package,
   X,
 } from 'lucide-react';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
+import { LabProductTypesModal } from '../LabProductTypesModal';
 import { WorkshopPartsModal } from '../WorkshopPartsModal';
 import { PatioChecklistsModal } from '../PatioChecklistsModal';
 import { ChangePasswordsModal } from '../ChangePasswordsModal';
@@ -235,6 +237,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
   const hubCardClass = desktopShell ? desktopHomeHubCard : iosCard;
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
+  const [isLabProductTypesOpen, setIsLabProductTypesOpen] = useState(false);
   const [isChangePasswordsOpen, setIsChangePasswordsOpen] = useState(false);
   const [isTechnicianProfileOpen, setIsTechnicianProfileOpen] = useState(false);
   const [isAdminProfileOpen, setIsAdminProfileOpen] = useState(false);
@@ -454,6 +457,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isSystemUsersOpen ||
       isSystemNotificationsOpen ||
       isServicesModalOpen ||
+      isLabProductTypesOpen ||
       isPartsModalOpen ||
       isPatioChecklistsOpen ||
       isChangePasswordsOpen ||
@@ -466,6 +470,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isSystemUsersOpen,
       isSystemNotificationsOpen,
       isServicesModalOpen,
+      isLabProductTypesOpen,
       isPartsModalOpen,
       isPatioChecklistsOpen,
       isChangePasswordsOpen,
@@ -485,6 +490,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isPartsModalOpen, () => setIsPartsModalOpen(false));
   useBrowserBackLayer(isPatioChecklistsOpen, () => setIsPatioChecklistsOpen(false));
   useBrowserBackLayer(isServicesModalOpen, () => setIsServicesModalOpen(false));
+  useBrowserBackLayer(isLabProductTypesOpen, () => setIsLabProductTypesOpen(false));
   useBrowserBackLayer(isSystemUsersOpen, () => setIsSystemUsersOpen(false));
   useBrowserBackLayer(Boolean(technicianId) && isTechnicianProfileOpen, () => setIsTechnicianProfileOpen(false));
   useBrowserBackLayer(isTvPatioOpen, () => setIsTvPatioOpen(false));
@@ -1178,6 +1184,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               }
                             />
                           )}
+                          {(showFullAdminHub || !!perms.access_servicos_oficina) && (
+                            <SettingsRow
+                              onClick={() => setIsLabProductTypesOpen(true)}
+                              title="Tipos de produto do laboratório"
+                              subtitle="Adicionar, renomear ou excluir"
+                              icon={
+                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                  <Package />
+                                </IosAccentIconSquircle>
+                              }
+                            />
+                          )}
                         </div>
                         <div className="space-y-0.5 lg:border-l lg:border-zinc-200/60 lg:pl-2 dark:lg:border-white/[0.06]">
                           {(showFullAdminHub || !!perms.access_checklists_patio) && (
@@ -1355,6 +1373,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />
           <SystemNotificationsModal isOpen={isSystemNotificationsOpen} onClose={() => setIsSystemNotificationsOpen(false)} />
           <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
+          <LabProductTypesModal isOpen={isLabProductTypesOpen} onClose={() => setIsLabProductTypesOpen(false)} />
           {!onOpenPartsStock ? (
             <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
           ) : null}

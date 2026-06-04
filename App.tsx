@@ -31,6 +31,7 @@ import {
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
 import { applyAccentToRoot, DEFAULT_ACCENT } from './utils/appAppearance';
+import { setLabProductKinds } from './utils/moduleMetadata';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
 import { OverlayPageNavBar } from './components/ui/OverlayPageNavBar';
 import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
@@ -406,6 +407,7 @@ export default function App() {
     getWorkshopSettings()
       .then((s) => {
         if (cancelled) return;
+        setLabProductKinds(s.labProductKinds ?? null);
         if (authSession.role === 'admin') {
           setAdminDisplayName(s.adminDisplayName ?? 'Rei do ABS');
           setAdminPhotoUrl(s.adminPhotoUrl ?? null);

@@ -73,7 +73,7 @@ import {
   type ServiceOrderStatus,
 } from '../../constants/serviceOrderStages';
 import {
-  MODULE_KIND_OPTIONS,
+  getModuleKindOptions,
   MODULE_VEHICLE_KIND_OPTIONS,
   labProductDisplayLabel,
   moduleVehicleKindLabel,
@@ -5809,7 +5809,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           className={vin}
                                         >
                                           <option value="">Selecione…</option>
-                                          {MODULE_KIND_OPTIONS.map((opt) => (
+                                          {getModuleKindOptions().map((opt) => (
                                             <option key={opt.value} value={opt.value}>
                                               {opt.label}
                                             </option>

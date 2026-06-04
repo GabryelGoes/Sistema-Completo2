@@ -929,6 +929,56 @@ export function createApiApp() {
   });
 
   // ----------------- CONFIGURAÇÕES DA OFICINA (login pátio) -----------------
+  const DEFAULT_LAB_PRODUCT_KINDS = [
+    { id: "completo", label: "Módulo completo" },
+    { id: "eletronico", label: "Módulo eletrônico" },
+    { id: "hidraulico", label: "Módulo hidráulico" },
+    { id: "pinca_freio", label: "Pinça de freio" },
+    { id: "outro", label: "Outro produto" },
+  ];
+
+  function slugifyKindId(raw: unknown): string {
+    return String(raw ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 48);
+  }
+
+  function normalizeLabProductKinds(list: any): { id: string; label: string }[] {
+    if (!Array.isArray(list) || list.length === 0) return [...DEFAULT_LAB_PRODUCT_KINDS];
+    const seen = new Set<string>();
+    const cleaned: { id: string; label: string }[] = [];
+    for (const item of list) {
+      const label = String(item?.label ?? "").trim();
+      let id = slugifyKindId(String(item?.id ?? "") || label);
+      if (!id || !label) continue;
+      if (seen.has(id)) {
+        let n = 2;
+        while (seen.has(`${id}_${n}`)) n += 1;
+        id = `${id}_${n}`;
+      }
+      seen.add(id);
+      cleaned.push({ id, label });
+    }
+    if (!cleaned.some((k) => k.id === "outro")) {
+      cleaned.push({ id: "outro", label: "Outro produto" });
+    }
+    return cleaned.length ? cleaned : [...DEFAULT_LAB_PRODUCT_KINDS];
+  }
+
+  function parseLabProductKindsValue(raw: string | null | undefined): { id: string; label: string }[] {
+    const s = (raw ?? "").trim();
+    if (!s) return [...DEFAULT_LAB_PRODUCT_KINDS];
+    try {
+      return normalizeLabProductKinds(JSON.parse(s));
+    } catch {
+      return [...DEFAULT_LAB_PRODUCT_KINDS];
+    }
+  }
+
   app.get("/api/workshop-settings", async (_req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -962,6 +1012,7 @@ export function createApiApp() {
         adminPhotoUrl: map.admin_photo_url || null,
         vehicleDeletePassword: map.vehicle_delete_password || "",
         appAppearance,
+        labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
       });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop-settings:", err);
@@ -1075,6 +1126,7 @@ export function createApiApp() {
         technicianAccessPatio,
         vehicleDeletePassword,
         appAppearance,
+        labProductKinds,
       } = req.body || {};
       const updates: { key: string; value: string; updated_at: string }[] = [];
       if (typeof patioLoginEnabled === "boolean") {
@@ -1111,6 +1163,13 @@ export function createApiApp() {
           updated_at: new Date().toISOString(),
         });
       }
+      if (Array.isArray(labProductKinds)) {
+        updates.push({
+          key: "lab_product_kinds",
+          value: JSON.stringify(normalizeLabProductKinds(labProductKinds)),
+          updated_at: new Date().toISOString(),
+        });
+      }
       if (updates.length === 0) {
         return res.status(400).json({ error: "Nada para atualizar." });
       }
@@ -1138,6 +1197,7 @@ export function createApiApp() {
           "admin_photo_url",
           "vehicle_delete_password",
           "app_appearance",
+          "lab_product_kinds",
         ]);
       const map = (data || []).reduce((acc: Record<string, string>, r: { key: string; value: string | null }) => {
         acc[r.key] = r.value ?? "";
@@ -1162,6 +1222,7 @@ export function createApiApp() {
         adminPhotoUrl: map.admin_photo_url || null,
         vehicleDeletePassword: map.vehicle_delete_password || "",
         appAppearance: appAppearanceOut,
+        labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
       });
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/workshop-settings:", err);
@@ -1535,19 +1596,19 @@ export function createApiApp() {
       const mediaFullscreen =
         (st === "image" || st === "video") && hasMedia ? true : parsed.mediaFullscreen;
       return {
-      id: row.id,
-      slideType: row.slide_type,
-      title: row.title ?? "",
+        id: row.id,
+        slideType: row.slide_type,
+        title: row.title ?? "",
         body: parsed.body,
-      mediaUrl: row.media_url ?? null,
-      durationSeconds: row.duration_seconds ?? 10,
-      sortOrder: row.sort_order ?? 0,
-      goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
-      goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
-      goalLabel: row.goal_label ?? null,
-      playSound: (row as { play_sound?: boolean }).play_sound === true,
-      goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
-      pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
+        mediaUrl: row.media_url ?? null,
+        durationSeconds: row.duration_seconds ?? 10,
+        sortOrder: row.sort_order ?? 0,
+        goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
+        goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
+        goalLabel: row.goal_label ?? null,
+        playSound: (row as { play_sound?: boolean }).play_sound === true,
+        goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
+        pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
         mediaFullscreen,
         mediaObjectFit: normalizeTvMediaObjectFit((row as { media_object_fit?: unknown }).media_object_fit),
       };
@@ -1608,20 +1669,20 @@ export function createApiApp() {
       const slides = (slideRows ?? []).map((row: Record<string, unknown>) => {
         const parsed = parseTvBodyAndFullscreen(row.body);
         return {
-        id: row.id,
-        slideType: row.slide_type,
-        title: row.title ?? "",
+          id: row.id,
+          slideType: row.slide_type,
+          title: row.title ?? "",
           body: parsed.body,
-        mediaUrl: row.media_url ?? null,
-        durationSeconds: row.duration_seconds ?? 10,
-        sortOrder: row.sort_order ?? 0,
-        isActive: row.is_active === true,
-        goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
-        goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
-        goalLabel: row.goal_label ?? null,
-        playSound: (row as { play_sound?: boolean }).play_sound === true,
-        goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
-        pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
+          mediaUrl: row.media_url ?? null,
+          durationSeconds: row.duration_seconds ?? 10,
+          sortOrder: row.sort_order ?? 0,
+          isActive: row.is_active === true,
+          goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
+          goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
+          goalLabel: row.goal_label ?? null,
+          playSound: (row as { play_sound?: boolean }).play_sound === true,
+          goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
+          pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
           mediaFullscreen: parsed.mediaFullscreen,
           mediaObjectFit: normalizeTvMediaObjectFit((row as { media_object_fit?: unknown }).media_object_fit),
         };

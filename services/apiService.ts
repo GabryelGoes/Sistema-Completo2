@@ -2940,6 +2940,8 @@ export interface WorkshopSettings {
   vehicleDeletePassword?: string;
   /** Configuração visual da oficina (cor de destaque, wallpapers); null se nunca salvo. */
   appAppearance?: WorkshopAppAppearance | null;
+  /** Tipos de produto do laboratório configuráveis (id + rótulo). */
+  labProductKinds?: { id: string; label: string }[];
 }
 
 export async function getWorkshopSettings(): Promise<WorkshopSettings> {
@@ -2958,6 +2960,7 @@ export async function updateWorkshopSettings(
     adminPhotoUrl?: string | null;
     vehicleDeletePassword?: string;
     appAppearance?: WorkshopAppAppearance | null;
+    labProductKinds?: { id: string; label: string }[];
   }
 ): Promise<WorkshopSettings> {
   const response = await fetch(`${API_BASE}/workshop-settings`, {

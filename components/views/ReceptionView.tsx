@@ -54,12 +54,13 @@ import { DiagnosticAuthorizationSignModal } from '../diagnostic/DiagnosticAuthor
 import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAuthorizationSheetModal';
 import { getVehiclePhotoPublicUrl } from '../../utils/vehicleStoragePublicUrl';
 import {
-  MODULE_KIND_OPTIONS,
+  getModuleKindOptions,
   MODULE_VEHICLE_KIND_OPTIONS,
   labProductDisplayLabel,
   moduleVehicleKindLabel,
   parseModuleKind,
   parseModuleVehicleKind,
+  LAB_PRODUCT_KINDS_CHANGED_EVENT,
   type ModuleKind,
   type ModuleVehicleKind,
 } from '../../utils/moduleMetadata';
@@ -231,6 +232,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [intakeCustomerSearchOpen, setIntakeCustomerSearchOpen] = useState(false);
   const intakeCustomerBlurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customerSearchBoxRef = useRef<HTMLDivElement | null>(null);
+  const [, setLabKindsVersion] = useState(0);
+
+  useEffect(() => {
+    const onKindsChanged = () => setLabKindsVersion((v) => v + 1);
+    window.addEventListener(LAB_PRODUCT_KINDS_CHANGED_EVENT, onKindsChanged);
+    return () => window.removeEventListener(LAB_PRODUCT_KINDS_CHANGED_EVENT, onKindsChanged);
+  }, []);
 
   useEffect(() => {
     if (!intakeCustomerSearchOpen) return;
@@ -1460,7 +1468,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         className="mt-1 flex w-full min-h-[46px] rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-[15px] font-semibold text-zinc-900 shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] transition-colors focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-100 dark:shadow-none"
                       >
                         <option value="">Selecione o tipo…</option>
-                        {MODULE_KIND_OPTIONS.map((opt) => (
+                        {getModuleKindOptions().map((opt) => (
                           <option key={opt.value} value={opt.value}>
                             {opt.label}
                           </option>
