@@ -109,7 +109,7 @@ export function LabBenchIntakeHint({
             >
               Bancada do laboratório
             </h3>
-            <div ref={helpRef} className="relative shrink-0">
+            <div ref={helpRef} className={`relative shrink-0 ${collapsible && !open ? 'hidden' : ''}`}>
               <button
                 type="button"
                 onClick={() => setHelpOpen((o) => !o)}
