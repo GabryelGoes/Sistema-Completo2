@@ -298,19 +298,19 @@ export function BudgetHubVehicleGroup({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span
-                className={`truncate font-bold tracking-wide text-zinc-900 dark:text-white ${
-                  isLab ? 'text-[14px]' : 'font-mono text-[14px]'
-                }`}
-              >
-                {budgetOrderTitle(head, plateDisplay)}
+              <span className="truncate text-[15px] font-bold tracking-tight text-zinc-900 dark:text-white">
+                {[head.vehicleBrand, head.vehicleModel].filter(Boolean).join(' ') || (isLab ? 'Módulo' : 'Veículo')}
               </span>
               <span className="ml-auto flex h-5 min-w-[1.4rem] shrink-0 items-center justify-center rounded-full bg-zinc-200/90 px-1.5 text-[11px] font-bold text-zinc-700 dark:bg-white/[0.12] dark:text-zinc-200">
                 {items.length}
               </span>
             </div>
-            <p className="truncate text-[12.5px] font-medium text-zinc-600 dark:text-zinc-400">
-              {[head.vehicleBrand, head.vehicleModel].filter(Boolean).join(' ') || 'Veículo'}
+            <p
+              className={`truncate text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 ${
+                isLab ? '' : 'font-mono tracking-wide'
+              }`}
+            >
+              {budgetOrderTitle(head, plateDisplay)}
             </p>
           </div>
           <ChevronRight className={`h-[18px] w-[18px] shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-90' : ''}`} />
