@@ -84,6 +84,7 @@ import {
 } from '../../utils/moduleMetadata';
 import { useDeviceTypeContext } from '../ui/DeviceTypeContext';
 import { useDesktopShellLayout } from '../ui/DesktopShellContext';
+import { useDragScroll } from '../../hooks/useDragScroll';
 import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverlay';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { ModalPortal } from '../ui/ModalPortal';
@@ -1169,6 +1170,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const desktopShell = useDesktopShellLayout();
   /** Visualização da bancada em tela cheia. */
   const [benchFullscreenOpen, setBenchFullscreenOpen] = useState(false);
+  /** Arrastar (pan) o quadro estilo Trello clicando em espaços vazios (PC). */
+  const boardDragScrollRef = useDragScroll<HTMLDivElement>();
   /** Modal de veículo em layout PC: duas colunas (shell OnMotor ou viewport ≥1024px). */
   /** Com a bancada em tela cheia, o modal da OS abre como card flutuante (layout não-PC) por cima dela. */
   const isPatioPcModal = (desktopShell || (isDesktop && viewportWidth >= 1024)) && !benchFullscreenOpen;
@@ -4289,6 +4292,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           return (
             <div
               key={card.id}
+              data-no-drag-scroll
               draggable={trelloDrag}
               onDragStart={
                 trelloDrag
@@ -4572,7 +4576,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           <div key={boardLayoutMode} className={layoutMotion}>
             {boardLayoutMode === 'trello'
               ? zoomWrap(
-                  <div className="patio-board-hscroll flex max-w-full gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] scroll-smooth portrait:gap-2 portrait:pb-1.5 sm:gap-4 sm:pb-2.5">
+                  <div ref={boardDragScrollRef} className="patio-board-hscroll flex max-w-full cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] scroll-smooth portrait:gap-2 portrait:pb-1.5 sm:gap-4 sm:pb-2.5">
                     {stageColumnsSorted.map((stage) => (
                       <div
                         key={stage.id}
@@ -4637,7 +4641,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 )
               : boardLayoutMode === 'by_mechanic'
                 ? zoomWrap(
-                    <div className="patio-board-hscroll flex max-w-full gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] scroll-smooth portrait:gap-2 portrait:pb-1.5 sm:gap-4 sm:pb-2.5">
+                    <div ref={boardDragScrollRef} className="patio-board-hscroll flex max-w-full cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] scroll-smooth portrait:gap-2 portrait:pb-1.5 sm:gap-4 sm:pb-2.5">
                       {mechanicColumns.map((col) => (
                         <div
                           key={col.key}

@@ -15,6 +15,7 @@ import {
   type PatioVehicleBudgetAggregateItem,
 } from '../../../services/apiService';
 import { getStageConfig, getStageStyle } from '../../../constants/serviceOrderStages';
+import { useDragScroll } from '../../../hooks/useDragScroll';
 import { iosLabel, iosPageGlass, iosPageGlassOrcamentosVehicleCard } from '../../ui/iosModalStyles';
 import { desktopOnmotorCard, desktopStatChip } from '../../ui/desktopCardStyles';
 import type { BudgetsHubViewMode, StageKanbanColumn, VehicleBudgetGroup } from '../../../utils/budgetsHubViews';
@@ -514,9 +515,13 @@ export function BudgetHubStageBoard({
   desktopShell?: boolean;
 }) {
   const colMin = desktopShell ? 'min-w-[20rem] w-[20rem]' : 'min-w-[16.5rem] w-[16.5rem]';
+  const dragRef = useDragScroll<HTMLDivElement>();
 
   return (
-    <div className="-mx-1 flex gap-3 overflow-x-auto pb-2 px-1 [scrollbar-width:thin] lg:mx-0">
+    <div
+      ref={dragRef}
+      className="-mx-1 flex cursor-grab gap-3 overflow-x-auto pb-2 px-1 [scrollbar-width:thin] lg:mx-0"
+    >
       {columns.map((col) => (
         <div
           key={col.status}
