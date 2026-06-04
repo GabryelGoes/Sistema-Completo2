@@ -99,33 +99,74 @@ export function BudgetsHubViewSwitcher({
   desktopShell?: boolean;
 }) {
   const activeMeta = BUDGETS_HUB_VIEW_MODES.find((m) => m.id === mode);
+  const [helpOpen, setHelpOpen] = React.useState(false);
+  const helpRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!helpOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (helpRef.current && !helpRef.current.contains(e.target as Node)) setHelpOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setHelpOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [helpOpen]);
+
   return (
     <div className={desktopShell ? 'mb-4' : 'mb-3'}>
-      <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
-        {BUDGETS_HUB_VIEW_MODES.map((m) => {
-          const active = mode === m.id;
-          return (
+      <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
+          {BUDGETS_HUB_VIEW_MODES.map((m) => {
+            const active = mode === m.id;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => onModeChange(m.id)}
+                title={m.description}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.06em] transition-all ${
+                  active
+                    ? 'border-zinc-800 bg-zinc-900 text-white shadow-md dark:border-zinc-200 dark:bg-white dark:text-zinc-900'
+                    : 'border-zinc-200/90 bg-white/90 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                }`}
+              >
+                {VIEW_ICONS[m.id]}
+                <span className="hidden sm:inline">{m.label}</span>
+                <span className="sm:hidden">{m.shortLabel}</span>
+              </button>
+            );
+          })}
+        </div>
+        {activeMeta ? (
+          <div ref={helpRef} className="relative shrink-0">
             <button
-              key={m.id}
               type="button"
-              onClick={() => onModeChange(m.id)}
-              title={m.description}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.06em] transition-all ${
-                active
-                  ? 'border-zinc-800 bg-zinc-900 text-white shadow-md dark:border-zinc-200 dark:bg-white dark:text-zinc-900'
-                  : 'border-zinc-200/90 bg-white/90 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-800'
-              }`}
+              onClick={() => setHelpOpen((o) => !o)}
+              aria-label="O que é esta visualização?"
+              aria-expanded={helpOpen}
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-[#007AFF] text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#0058c7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-1"
             >
-              {VIEW_ICONS[m.id]}
-              <span className="hidden sm:inline">{m.label}</span>
-              <span className="sm:hidden">{m.shortLabel}</span>
+              ?
             </button>
-          );
-        })}
+            {helpOpen ? (
+              <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl border border-zinc-200/90 bg-white p-3 text-left shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] dark:border-white/[0.12] dark:bg-zinc-900 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]">
+                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400">
+                  {activeMeta.label}
+                </p>
+                <p className="mt-1 text-[12px] leading-relaxed text-zinc-700 dark:text-zinc-300">
+                  {activeMeta.description}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
-      {activeMeta ? (
-        <p className="mt-2 text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-400">{activeMeta.description}</p>
-      ) : null}
     </div>
   );
 }
