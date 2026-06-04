@@ -275,7 +275,7 @@ export function BudgetHubVehicleGroup({
           type="button"
           onClick={onToggle}
           aria-expanded={open}
-          className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors ${
+          className={`flex w-full items-center gap-2.5 px-3 py-[1.4rem] text-left transition-colors ${
             vehicleNeedsAttention
               ? 'hover:!bg-red-50/92 dark:hover:!bg-red-950/40'
               : 'hover:bg-zinc-50/80 dark:hover:bg-white/[0.04]'
