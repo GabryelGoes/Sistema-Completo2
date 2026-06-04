@@ -237,6 +237,8 @@ type VehicleGroupProps = {
   onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
   defaultOpen?: boolean;
   desktopShell?: boolean;
+  /** Modo enxuto (visualização "por etapa"): card minimizado com poucas infos. */
+  compact?: boolean;
 };
 
 export function BudgetHubVehicleGroup({
@@ -249,14 +251,87 @@ export function BudgetHubVehicleGroup({
   onOpenBudget,
   defaultOpen,
   desktopShell,
+  compact,
 }: VehicleGroupProps) {
-  const { head, items, orderId } = group;
+  const { head, items } = group;
   const flow = budgetOrderFlow(head.orderType);
   const stage = getStageConfig(head.orderStatus, flow);
   const isLab = head.orderType === 'module';
-  const open = defaultOpen ?? expanded;
+  // No modo compacto o clique sempre alterna (não força aberto).
+  const open = compact ? expanded : (defaultOpen ?? expanded);
   const cardShell = desktopShell ? desktopOnmotorCard : iosPageGlassOrcamentosVehicleCard;
   const chrono = items.map((x) => ({ id: x.budgetId, createdAt: x.createdAt }));
+
+  if (compact) {
+    return (
+      <section
+        className={`${cardShell} overflow-hidden transition-[box-shadow,background-color,border-color] duration-300 ${
+          vehicleNeedsAttention
+            ? '!border-2 !border-red-400/65 !bg-red-50/88 dark:!border-red-400/50 dark:!bg-red-950/[0.34]'
+            : ''
+        }`}
+      >
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className={`flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors ${
+            vehicleNeedsAttention
+              ? 'hover:!bg-red-50/92 dark:hover:!bg-red-950/40'
+              : 'hover:bg-zinc-50/80 dark:hover:bg-white/[0.04]'
+          }`}
+        >
+          <div
+            className={`flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg ring-1 ${
+              vehicleNeedsAttention
+                ? '!bg-red-100/88 ring-red-300/50 dark:!bg-red-500/12'
+                : isLab
+                  ? 'bg-violet-500/10 ring-violet-400/35'
+                  : 'bg-[#007AFF]/10 ring-[#007AFF]/25'
+            }`}
+          >
+            <img
+              src={isLab ? '/icons/laboratorio-ios.png' : '/icons/patio-ios.png'}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`truncate font-bold tracking-wide text-zinc-900 dark:text-white ${
+                  isLab ? 'text-[12px]' : 'font-mono text-[12px]'
+                }`}
+              >
+                {budgetOrderTitle(head, plateDisplay)}
+              </span>
+              <span className="ml-auto flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-zinc-200/90 px-1.5 text-[10px] font-bold text-zinc-700 dark:bg-white/[0.12] dark:text-zinc-200">
+                {items.length}
+              </span>
+            </div>
+            <p className="truncate text-[11px] font-medium text-zinc-600 dark:text-zinc-400">
+              {[head.vehicleBrand, head.vehicleModel].filter(Boolean).join(' ') || 'Veículo'}
+            </p>
+          </div>
+          <ChevronRight className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-90' : ''}`} />
+        </button>
+        {open ? (
+          <ul className="border-t border-zinc-200/60 divide-y divide-zinc-200/60 dark:border-white/[0.06] dark:divide-white/[0.06]">
+            {items.map((row) => (
+              <BudgetHubBudgetRow
+                key={row.budgetId}
+                row={row}
+                budgetNum={budgetChronologicalNumber(chrono, row.budgetId)}
+                pulse={pulseByBudgetId[String(row.budgetId).trim()]}
+                onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
+                compact
+              />
+            ))}
+          </ul>
+        ) : null}
+      </section>
+    );
+  }
 
   return (
     <section
@@ -471,7 +546,7 @@ export function BudgetHubStageBoard({
                     vehicleNeedsAttention={vehicleNeedsAttention}
                     pulseByBudgetId={pulseByBudgetId}
                     onOpenBudget={onOpenBudget}
-                    defaultOpen
+                    compact
                     desktopShell={desktopShell}
                   />
                 );
