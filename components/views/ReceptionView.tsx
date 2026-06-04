@@ -1140,7 +1140,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setIntakeCustomerSearchOpen((o) => !o)}
+                    onClick={() =>
+                      setIntakeCustomerSearchOpen((o) => {
+                        const next = !o;
+                        if (next) setIntakeCustomerSearch((customer.name ?? '').trim());
+                        return next;
+                      })
+                    }
                     aria-expanded={intakeCustomerSearchOpen}
                     className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 text-sm font-semibold text-zinc-800 shadow-[0_6px_18px_-7px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.06)] transition-all hover:border-[#007AFF]/45 active:scale-[0.98] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none sm:mb-0.5"
                     title="Buscar cliente já cadastrado"
