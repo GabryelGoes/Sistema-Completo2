@@ -1774,11 +1774,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   >
                     <Camera className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2} />
                     <span className="text-left text-sm font-semibold leading-tight">
-                      {intakePhotos.length === 0
-                        ? receptionMode === 'module'
-                          ? 'Abrir câmera (módulo)'
-                          : 'Abrir câmera (veículo)'
-                        : 'Mais uma foto (câmera)'}
+                      Câmera
                     </span>
                   </button>
                   <button
@@ -1788,7 +1784,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-zinc-100/60 py-3.5 text-sm font-semibold text-zinc-800 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all hover:bg-zinc-100 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]"
                   >
                     <ImageIcon className="h-5 w-5 shrink-0 text-zinc-600 dark:text-zinc-300" strokeWidth={2} />
-                    Galeria (uma ou várias)
+                    Galeria
                   </button>
                 </div>
                 {intakePhotos.length > 0 ? (
