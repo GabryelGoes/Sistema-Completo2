@@ -230,6 +230,25 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [intakeCustomerSearch, setIntakeCustomerSearch] = useState('');
   const [intakeCustomerSearchOpen, setIntakeCustomerSearchOpen] = useState(false);
   const intakeCustomerBlurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const customerSearchBoxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!intakeCustomerSearchOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (customerSearchBoxRef.current && !customerSearchBoxRef.current.contains(e.target as Node)) {
+        setIntakeCustomerSearchOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIntakeCustomerSearchOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [intakeCustomerSearchOpen]);
 
   useEffect(() => {
     return () => {
@@ -1106,34 +1125,32 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <h2 className="border-b border-zinc-200/80 pb-2 text-[14px] font-bold uppercase tracking-[0.08em] text-zinc-700 dark:border-white/[0.08] dark:text-zinc-200">
                 Dados do cliente
               </h2>
-              <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-3 shadow-[0_8px_22px_-10px_rgba(0,0,0,0.1),0_4px_12px_-6px_rgba(0,0,0,0.07),0_1px_4px_-2px_rgba(0,0,0,0.04)] dark:border-white/[0.08] dark:bg-zinc-950/30 dark:shadow-none">
-                <Input
-                  className="[&>label]:sr-only"
-                  label="Buscar cliente"
-                  autoComplete="off"
-                  value={intakeCustomerSearch}
-                  onChange={(e) => setIntakeCustomerSearch(e.target.value)}
-                  placeholder="Buscar cliente"
-                  icon={<Search className="h-4 w-4" />}
-                  onFocus={() => {
-                    if (intakeCustomerBlurTimerRef.current) {
-                      clearTimeout(intakeCustomerBlurTimerRef.current);
-                      intakeCustomerBlurTimerRef.current = null;
-                    }
-                    setIntakeCustomerSearchOpen(true);
-                  }}
-                  onBlur={() => {
-                    if (intakeCustomerBlurTimerRef.current) {
-                      clearTimeout(intakeCustomerBlurTimerRef.current);
-                    }
-                    intakeCustomerBlurTimerRef.current = setTimeout(() => {
-                      intakeCustomerBlurTimerRef.current = null;
-                      setIntakeCustomerSearchOpen(false);
-                    }, 180);
-                  }}
-                />
+              <div className="relative" ref={customerSearchBoxRef}>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      label="Nome Completo"
+                      name="name"
+                      placeholder="Ex: João da Silva"
+                      value={customer.name}
+                      onChange={handleInputChange}
+                      icon={<User className="w-4 h-4" />}
+                      required
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIntakeCustomerSearchOpen((o) => !o)}
+                    aria-expanded={intakeCustomerSearchOpen}
+                    className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 text-sm font-semibold text-zinc-800 shadow-[0_6px_18px_-7px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.06)] transition-all hover:border-[#007AFF]/45 active:scale-[0.98] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none sm:mb-0.5"
+                    title="Buscar cliente já cadastrado"
+                  >
+                    <Search className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
+                    Buscar cliente
+                  </button>
+                </div>
                 {intakeExistingCustomerId ? (
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200/70 pt-2 dark:border-white/[0.08]">
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/70 px-3 py-2 dark:border-white/[0.08] dark:bg-zinc-950/30">
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                       Cliente selecionado — os dados do veículo ou produto ao lado são mantidos.
                     </p>
@@ -1147,10 +1164,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </div>
                 ) : null}
                 {intakeCustomerSearchOpen ? (
-                  <div
-                    className="mt-2 space-y-2 rounded-lg border border-zinc-200/80 bg-white/90 p-2 shadow-[0_10px_28px_-10px_rgba(0,0,0,0.11),0_5px_14px_-8px_rgba(0,0,0,0.08),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:border-white/[0.08] dark:bg-zinc-950/50 dark:shadow-sm"
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
+                  <div className="absolute left-0 right-0 z-30 mt-2 space-y-2 rounded-xl border border-zinc-200/80 bg-white/95 p-2 shadow-[0_14px_40px_-10px_rgba(0,0,0,0.22),0_6px_18px_-8px_rgba(0,0,0,0.12)] backdrop-blur dark:border-white/[0.1] dark:bg-zinc-900/95">
+                    <Input
+                      autoFocus
+                      className="[&>label]:sr-only"
+                      label="Buscar cliente"
+                      autoComplete="off"
+                      value={intakeCustomerSearch}
+                      onChange={(e) => setIntakeCustomerSearch(e.target.value)}
+                      placeholder="Digite o nome, telefone ou CPF…"
+                      icon={<Search className="h-4 w-4" />}
+                    />
                     <p className="px-1 text-[12px] text-zinc-500 dark:text-zinc-400">
                       Opcional: nova OS no mesmo cadastro. Digite para filtrar ou role a lista.
                     </p>
@@ -1164,7 +1188,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <p className="px-1 text-xs text-red-600 dark:text-red-400">{intakeCustomerDirectoryError}</p>
                     ) : null}
                     {!intakeCustomerDirectoryLoading && intakeCustomerDirectory ? (
-                      <div className="max-h-44 overflow-y-auto rounded-md border border-zinc-200/70 shadow-[0_4px_12px_-6px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] dark:border-white/[0.08] dark:shadow-none">
+                      <div className="max-h-56 overflow-y-auto rounded-md border border-zinc-200/70 shadow-[0_4px_12px_-6px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] dark:border-white/[0.08] dark:shadow-none">
                         {intakeExistingCustomerFiltered.length === 0 ? (
                           <p className="p-3 text-xs text-zinc-500 dark:text-zinc-400">
                             Nenhum cliente encontrado. Ajuste a busca.
@@ -1202,23 +1226,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
-                  label="CEP"
-                  name="cep"
-                  placeholder="00000-000"
-                  value={customer.cep}
+                  label="Telefone"
+                  name="phone"
+                  placeholder="(11) 99999-9999"
+                  value={customer.phone}
                   onChange={handleInputChange}
-                  icon={<MapPin className="w-4 h-4" />}
+                  icon={<Smartphone className="w-4 h-4" />}
+                  required
                 />
-                <Input
-                  label="Cidade"
-                  name="city"
-                  placeholder="Ex: São Paulo"
-                  value={customer.city ?? ''}
-                  onChange={handleInputChange}
-                  icon={<Building2 className="w-4 h-4" />}
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="CPF"
                   name="cpf"
@@ -1227,6 +1242,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   onChange={handleInputChange}
                   icon={<ShieldCheck className="w-4 h-4" />}
                 />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="E-mail"
                   name="email"
@@ -1234,6 +1251,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   value={customer.email}
                   onChange={handleInputChange}
                   icon={<Mail className="w-4 h-4" />}
+                />
+                <Input
+                  label="CEP"
+                  name="cep"
+                  placeholder="00000-000"
+                  value={customer.cep}
+                  onChange={handleInputChange}
+                  icon={<MapPin className="w-4 h-4" />}
                 />
               </div>
               <div>
@@ -1246,17 +1271,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   icon={<Map className="w-4 h-4" />}
                 />
               </div>
-              <div>
-                <Input
-                  label="Nome Completo"
-                  name="name"
-                  placeholder="Ex: João da Silva"
-                  value={customer.name}
-                  onChange={handleInputChange}
-                  icon={<User className="w-4 h-4" />}
-                  required
-                />
-              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Nº"
@@ -1267,13 +1281,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   icon={<Hash className="w-4 h-4" />}
                 />
                 <Input
-                  label="Telefone"
-                  name="phone"
-                  placeholder="(11) 99999-9999"
-                  value={customer.phone}
+                  label="Cidade"
+                  name="city"
+                  placeholder="Ex: São Paulo"
+                  value={customer.city ?? ''}
                   onChange={handleInputChange}
-                  icon={<Smartphone className="w-4 h-4" />}
-                  required
+                  icon={<Building2 className="w-4 h-4" />}
                 />
               </div>
             </div>
@@ -1426,36 +1439,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   />
                   <div className="sm:col-span-2 space-y-4">
                     <div>
-                      <label className={`${iosLabel} ml-1`} id="reception-module-stage-label">
-                        Etapa inicial no quadro <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        id="reception-module-stage-select"
-                        aria-labelledby="reception-module-stage-label"
-                        value={moduleIntakeStatus}
-                        onChange={(e) => {
-                          setModuleIntakeStatus(e.target.value as ServiceOrderStatus);
-                          setLabBenchHintRefreshKey((k) => k + 1);
-                        }}
-                        className="mt-1 flex w-full min-h-[46px] rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-[15px] font-semibold text-zinc-900 shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] transition-colors focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-100 dark:shadow-none"
-                      >
-                        {LABORATORY_SERVICE_ORDER_STAGES.filter(
-                          (s) => s.id !== 'ORCAMENTO_NAO_APROVADO'
-                        ).map((stage) => (
-                          <option key={stage.id} value={stage.id}>
-                            {stage.name}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="mt-1.5 text-[12px] text-zinc-500 dark:text-zinc-400">
-                        Use <strong>Envio conserto</strong> quando o produto já vai direto para conserto externo, sem passar pelas etapas anteriores.
-                      </p>
-                    </div>
-                    <LabBenchIntakeHint
-                      refreshKey={labBenchHintRefreshKey}
-                      intakeStatus={moduleIntakeStatus}
-                    />
-                    <div>
                       <label className={`${iosLabel} ml-1`} id="reception-module-kind-label">
                         Tipo de produto <span className="text-red-500">*</span>
                       </label>
@@ -1519,6 +1502,47 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         })}
                       </div>
                     </div>
+                    <div className="relative">
+                      <TextArea
+                        label="Queixa do cliente"
+                        name="issueDescription"
+                        placeholder="Descreva o problema relatado pelo cliente..."
+                        value={customer.issueDescription}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className={`${iosLabel} ml-1`} id="reception-module-stage-label">
+                        Etapa inicial no quadro <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="reception-module-stage-select"
+                        aria-labelledby="reception-module-stage-label"
+                        value={moduleIntakeStatus}
+                        onChange={(e) => {
+                          setModuleIntakeStatus(e.target.value as ServiceOrderStatus);
+                          setLabBenchHintRefreshKey((k) => k + 1);
+                        }}
+                        className="mt-1 flex w-full min-h-[46px] rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-[15px] font-semibold text-zinc-900 shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] transition-colors focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-100 dark:shadow-none"
+                      >
+                        {LABORATORY_SERVICE_ORDER_STAGES.filter(
+                          (s) => s.id !== 'ORCAMENTO_NAO_APROVADO'
+                        ).map((stage) => (
+                          <option key={stage.id} value={stage.id}>
+                            {stage.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+                        Use <strong>Envio conserto</strong> quando o produto já vai direto para conserto externo, sem passar pelas etapas anteriores.
+                      </p>
+                    </div>
+                    <LabBenchIntakeHint
+                      refreshKey={labBenchHintRefreshKey}
+                      intakeStatus={moduleIntakeStatus}
+                      collapsible
+                    />
                   </div>
                 </div>
               )}
@@ -1595,16 +1619,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 </div>
               )}
 
-              <div className="relative">
-                <TextArea
-                  label="Queixa do cliente"
-                  name="issueDescription"
-                  placeholder="Descreva o problema relatado pelo cliente..."
-                  value={customer.issueDescription}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
+              {receptionMode === 'vehicle' && (
+                <div className="relative">
+                  <TextArea
+                    label="Queixa do cliente"
+                    name="issueDescription"
+                    placeholder="Descreva o problema relatado pelo cliente..."
+                    value={customer.issueDescription}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+              )}
 
               <div className="h-px bg-zinc-200/80 dark:bg-white/[0.08]" />
 

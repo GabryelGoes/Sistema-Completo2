@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { LayoutGrid, Loader2 } from 'lucide-react';
+import { ChevronDown, LayoutGrid, Loader2 } from 'lucide-react';
 import {
   LAB_BENCH_GROUPS,
   LAB_BENCH_SLOT_COUNT,
@@ -18,6 +18,8 @@ type LabBenchIntakeHintProps = {
   /** Etapa escolhida no cadastro (define grupo da bancada sugerido). */
   intakeStatus?: ServiceOrderStatus;
   className?: string;
+  /** Exibe o painel minimizado (recolhido), expandindo só ao clicar. */
+  collapsible?: boolean;
 };
 
 /**
@@ -28,11 +30,13 @@ export function LabBenchIntakeHint({
   refreshKey = 0,
   intakeStatus = 'AGUARDANDO_AVALIACAO',
   className = '',
+  collapsible = false,
 }: LabBenchIntakeHintProps) {
   const [loading, setLoading] = useState(true);
   const [occupiedSlots, setOccupiedSlots] = useState<number[]>([]);
   const [queueCount, setQueueCount] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [open, setOpen] = useState(!collapsible);
   const helpRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -138,8 +142,21 @@ export function LabBenchIntakeHint({
             </div>
           </div>
         </div>
+        {collapsible ? (
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-label={open ? 'Minimizar bancada' : 'Expandir bancada'}
+            className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-violet-700 transition-colors hover:bg-violet-500/10 dark:text-violet-200 dark:hover:bg-violet-400/10"
+          >
+            <ChevronDown className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
+          </button>
+        ) : null}
       </div>
 
+      {open ? (
+      <>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {loading ? (
           <span className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/80 bg-white/80 px-3 py-2 text-[13px] font-medium text-zinc-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-300">
@@ -197,6 +214,8 @@ export function LabBenchIntakeHint({
           );
         })}
       </div>
+      </>
+      ) : null}
     </section>
   );
 }
