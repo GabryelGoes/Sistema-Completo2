@@ -232,7 +232,27 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [intakeCustomerSearchOpen, setIntakeCustomerSearchOpen] = useState(false);
   const intakeCustomerBlurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customerSearchBoxRef = useRef<HTMLDivElement | null>(null);
+  const stageMenuRef = useRef<HTMLDivElement | null>(null);
+  const [stageMenuOpen, setStageMenuOpen] = useState(false);
   const [, setLabKindsVersion] = useState(0);
+
+  useEffect(() => {
+    if (!stageMenuOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (stageMenuRef.current && !stageMenuRef.current.contains(e.target as Node)) {
+        setStageMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setStageMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [stageMenuOpen]);
 
   useEffect(() => {
     const onKindsChanged = () => setLabKindsVersion((v) => v + 1);
@@ -1530,24 +1550,78 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <label className={`${iosLabel} ml-1`} id="reception-module-stage-label">
                         Etapa inicial no quadro <span className="text-red-500">*</span>
                       </label>
-                      <select
-                        id="reception-module-stage-select"
-                        aria-labelledby="reception-module-stage-label"
-                        value={moduleIntakeStatus}
-                        onChange={(e) => {
-                          setModuleIntakeStatus(e.target.value as ServiceOrderStatus);
-                          setLabBenchHintRefreshKey((k) => k + 1);
-                        }}
-                        className="mt-1 flex w-full min-h-[46px] rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-[15px] font-semibold text-zinc-900 shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] transition-colors focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-100 dark:shadow-none"
-                      >
-                        {LABORATORY_SERVICE_ORDER_STAGES.filter(
-                          (s) => s.id !== 'ORCAMENTO_NAO_APROVADO'
-                        ).map((stage) => (
-                          <option key={stage.id} value={stage.id}>
-                            {stage.name}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="relative mt-1" ref={stageMenuRef}>
+                        <button
+                          type="button"
+                          id="reception-module-stage-select"
+                          aria-labelledby="reception-module-stage-label"
+                          aria-haspopup="listbox"
+                          aria-expanded={stageMenuOpen}
+                          onClick={() => setStageMenuOpen((o) => !o)}
+                          className="flex w-full min-h-[46px] items-center justify-between gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-3 py-2 text-left shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] transition-colors focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/35 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:shadow-none"
+                        >
+                          {(() => {
+                            const sel = LABORATORY_SERVICE_ORDER_STAGES.find(
+                              (s) => s.id === moduleIntakeStatus
+                            );
+                            return (
+                              <span
+                                className={`inline-flex items-center rounded-xl border px-3 py-1.5 text-[14px] font-bold ${
+                                  sel?.style ?? 'bg-zinc-500 text-white border-zinc-600'
+                                }`}
+                              >
+                                {sel?.name ?? 'Selecione…'}
+                              </span>
+                            );
+                          })()}
+                          <ChevronDown
+                            className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform dark:text-zinc-400 ${
+                              stageMenuOpen ? 'rotate-180' : ''
+                            }`}
+                            aria-hidden
+                          />
+                        </button>
+                        {stageMenuOpen ? (
+                          <div
+                            role="listbox"
+                            className="absolute left-0 right-0 z-30 mt-2 max-h-72 space-y-1 overflow-y-auto rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_14px_40px_-10px_rgba(0,0,0,0.22),0_6px_18px_-8px_rgba(0,0,0,0.12)] backdrop-blur dark:border-white/[0.1] dark:bg-zinc-900/95"
+                          >
+                            {LABORATORY_SERVICE_ORDER_STAGES.filter(
+                              (s) => s.id !== 'ORCAMENTO_NAO_APROVADO'
+                            ).map((stage) => {
+                              const selected = stage.id === moduleIntakeStatus;
+                              return (
+                                <button
+                                  key={stage.id}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={selected}
+                                  onClick={() => {
+                                    setModuleIntakeStatus(stage.id as ServiceOrderStatus);
+                                    setLabBenchHintRefreshKey((k) => k + 1);
+                                    setStageMenuOpen(false);
+                                  }}
+                                  className={`flex w-full items-center gap-2 rounded-xl px-1.5 py-1 text-left transition-colors hover:bg-zinc-100/80 dark:hover:bg-white/[0.06] ${
+                                    selected ? 'bg-zinc-100/70 dark:bg-white/[0.06]' : ''
+                                  }`}
+                                >
+                                  <span
+                                    className={`inline-flex flex-1 items-center rounded-lg border px-3 py-1.5 text-[14px] font-bold ${stage.style}`}
+                                  >
+                                    {stage.name}
+                                  </span>
+                                  {selected ? (
+                                    <Check
+                                      className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-300"
+                                      aria-hidden
+                                    />
+                                  ) : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
                       <p className="mt-1.5 text-[12px] text-zinc-500 dark:text-zinc-400">
                         Use <strong>Envio conserto</strong> quando o produto já vai direto para conserto externo, sem passar pelas etapas anteriores.
                       </p>
