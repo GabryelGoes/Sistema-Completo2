@@ -71,9 +71,9 @@ export const EXTERNAL_REPAIR_STATUS: ServiceOrderStatus = "EM_CONSERTO_EXTERNO";
 
 export const EXTERNAL_REPAIR_STAGE: StageConfig = {
   id: "EM_CONSERTO_EXTERNO",
-  name: "Em conserto externo",
-  style: "bg-purple-700 text-white border-purple-700",
-  ringClass: "ring-2 ring-purple-700 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]",
+  name: "Em conserto",
+  style: "bg-violet-600 text-white border-violet-600",
+  ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]",
   pos: 99,
 };
 

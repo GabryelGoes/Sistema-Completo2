@@ -69,7 +69,9 @@ import {
   normalizeStatusForFlow,
   type ServiceOrderFlowKind,
   CANCELLED_STATUS,
+  EXTERNAL_REPAIR_STAGE,
   EXTERNAL_REPAIR_STATUS,
+  isExternalRepairStatus,
   type ServiceOrderStatus,
 } from '../../constants/serviceOrderStages';
 import {
@@ -3427,13 +3429,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const getStatusConfig = (listName: string, listId?: string) => {
+    if (isExternalRepairStatus(listId)) {
+      return {
+        style: EXTERNAL_REPAIR_STAGE.style,
+        label: EXTERNAL_REPAIR_STAGE.name,
+        ringClass: EXTERNAL_REPAIR_STAGE.ringClass,
+      };
+    }
     const byName = boardStages.find(
       (s) => s.name.toLowerCase() === listName.toLowerCase()
     );
     if (byName) return { style: byName.style, label: byName.name, ringClass: byName.ringClass };
     if (listId === "CANCELLED")
       return { style: "bg-zinc-600 text-zinc-300 border-zinc-600", label: "Arquivado", ringClass: getStageRingClass("CANCELLED") };
-    return { style: getStageStyle(listId || ""), label: listName, ringClass: getStageRingClass(listId || "") };
+    return { style: getStageStyle(listId || "", flowKind), label: listName, ringClass: getStageRingClass(listId || "", flowKind) };
+  };
+
+  /** Etapa exibida no modal da OS (inclui "Em conserto", que não é coluna do quadro). */
+  const resolveCardStageStatus = (card: TrelloCard): string =>
+    String(serviceOrderDetail?.status ?? card.idList ?? "").trim();
+
+  const resolveCardStageLabel = (card: TrelloCard): string => {
+    const status = resolveCardStageStatus(card);
+    if (isExternalRepairStatus(status)) return EXTERNAL_REPAIR_STAGE.name;
+    return lists.find((l) => l.id === status)?.name ?? getStatusConfig("", status).label;
   };
 
   // Mapa de accent_color (perfil do técnico) para classes Tailwind
@@ -5291,8 +5310,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* MODAL DETALHE DO VEÍCULO */}
       {selectedCard && patioPortalsVisible && (() => {
-        const modalListName = lists.find(l => l.id === selectedCard.idList)?.name ?? '';
-        const modalStatusConfig = getStatusConfig(modalListName, selectedCard.idList);
+        const modalStageStatus = resolveCardStageStatus(selectedCard);
+        const modalListName = resolveCardStageLabel(selectedCard);
+        const modalStatusConfig = getStatusConfig(modalListName, modalStageStatus);
         const modalRingClass = selectedCard.garantiaTag
           ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-[#F2F2F7] dark:ring-offset-[#0a0a0a] border-2 border-red-500/30'
           : `${modalStatusConfig.ringClass} border border-zinc-300/70 dark:border-white/[0.08]`;
@@ -5422,10 +5442,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               handleOpenMoveModal(selectedCard, e);
                             }}
                             title="Alterar etapa"
-                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[15px] sm:text-base font-black uppercase tracking-widest !text-black shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 portrait:scale-[0.78] portrait:origin-left dark:!text-black dark:focus-visible:ring-offset-[#0a0a0a] ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name || '', selectedCard.idList).style}`}
+                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[15px] sm:text-base font-black uppercase tracking-widest shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 portrait:scale-[0.78] portrait:origin-left dark:focus-visible:ring-offset-[#0a0a0a] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'} ${modalStatusConfig.style}`}
                           >
-                            {lists.find(l => l.id === selectedCard.idList)?.name}
-                            <ChevronDown className="h-4 w-4 shrink-0 opacity-90 text-black dark:text-black" aria-hidden />
+                            {modalListName}
+                            <ChevronDown
+                              className={`h-4 w-4 shrink-0 opacity-90 ${isExternalRepairStatus(modalStageStatus) ? 'text-white' : 'text-black dark:text-black'}`}
+                              aria-hidden
+                            />
                           </button>
                           {selectedCard.garantiaTag && (
                             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 border-2 border-red-500/50">
@@ -7540,12 +7563,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   e.stopPropagation();
                                   handleOpenMoveModal(selectedCard, e);
                                 }}
-                                className={`group flex w-full items-center justify-between rounded-xl border-2 p-4 !text-black transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] dark:!text-black ${getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).style}`}
+                                className={`group flex w-full items-center justify-between rounded-xl border-2 p-4 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'} ${modalStatusConfig.style}`}
                               >
-                                <span className="text-[16px] font-bold uppercase leading-snug !text-black dark:!text-black sm:text-[17px]">
-                                  {getStatusConfig(lists.find(l => l.id === selectedCard.idList)?.name ?? '', selectedCard.idList).label}
+                                <span className={`text-[16px] font-bold uppercase leading-snug sm:text-[17px] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'}`}>
+                                  {modalListName}
                                 </span>
-                                <ChevronDown className="h-5 w-5 opacity-90 text-black dark:text-black" />
+                                <ChevronDown
+                                  className={`h-5 w-5 opacity-90 ${isExternalRepairStatus(modalStageStatus) ? 'text-white' : 'text-black dark:text-black'}`}
+                                />
                             </button>
                          </div>
 
@@ -8782,10 +8807,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   Atualizando etapa…
                 </p>
               )}
+              {isExternalRepairStatus(cardInTransition.idList) ? (
+                <div
+                  className={`mb-3 flex min-h-[54px] items-center justify-between gap-3 rounded-[16px] border-2 px-4 py-3.5 sm:min-h-[56px] sm:px-5 ${EXTERNAL_REPAIR_STAGE.style}`}
+                >
+                  <span className="text-[16px] font-semibold uppercase leading-snug tracking-wide !text-white sm:text-[17px]">
+                    {EXTERNAL_REPAIR_STAGE.name}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/90">
+                    <Check className="h-5 w-5 shrink-0" strokeWidth={2.5} />
+                    Atual
+                  </span>
+                </div>
+              ) : null}
               <div className="space-y-2.5">
                 {lists.map((list) => {
                   const config = getStatusConfig(list.name, list.id);
-                  const isCurrent = list.id === cardInTransition.idList;
+                  const isCurrent = !isExternalRepairStatus(cardInTransition.idList) && list.id === cardInTransition.idList;
                   return (
                     <button
                       key={list.id}
