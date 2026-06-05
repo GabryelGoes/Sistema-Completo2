@@ -45,6 +45,15 @@ export function extractPatioServiceLabel(detail: {
   return '';
 }
 
+function pickExternalRepairText(
+  primary: string | null | undefined,
+  fallback: string | null | undefined
+): string {
+  const p = String(primary ?? '').trim();
+  if (p) return p;
+  return String(fallback ?? '').trim();
+}
+
 export function buildExternalRepairDraft(
   detail: {
     vehicle_model?: string | null;
@@ -54,25 +63,33 @@ export function buildExternalRepairDraft(
     issue_description?: string | null;
     lab_service_links?: unknown;
     external_repair?: ExternalRepair | null;
-  } | null
+  } | null,
+  fallbackExternalRepair?: ExternalRepair | null
 ): ExternalRepairDraft {
   if (!detail) return { ...EMPTY_EXTERNAL_REPAIR_DRAFT };
   const er = detail.external_repair ?? null;
+  const fb = fallbackExternalRepair ?? null;
   const patioService = extractPatioServiceLabel(detail);
   return {
-    vehicleRef: (er?.vehicleRef ?? '').trim() || (detail.vehicle_model ?? '').trim(),
+    vehicleRef:
+      pickExternalRepairText(er?.vehicleRef, fb?.vehicleRef) || (detail.vehicle_model ?? '').trim(),
     productIdentification:
-      (er?.productIdentification ?? '').trim() || (detail.module_identification ?? '').trim(),
-    productType: (er?.productType ?? '').trim() || parseModuleKind(detail.module_kind) || '',
+      pickExternalRepairText(er?.productIdentification, fb?.productIdentification) ||
+      (detail.module_identification ?? '').trim(),
+    productType:
+      pickExternalRepairText(er?.productType, fb?.productType) ||
+      parseModuleKind(detail.module_kind) ||
+      '',
     productTypeOther:
-      (er?.productTypeOther ?? '').trim() || (detail.module_product_other ?? '').trim(),
-    service: (er?.service ?? '').trim() || patioService,
-    vendor: (er?.vendor ?? '').trim(),
-    sentAt: (er?.sentAt ?? '').trim(),
-    expectedAt: (er?.expectedAt ?? '').trim(),
-    returnedAt: (er?.returnedAt ?? '').trim(),
-    cost: (er?.cost ?? '').trim(),
-    notes: (er?.notes ?? '').trim(),
+      pickExternalRepairText(er?.productTypeOther, fb?.productTypeOther) ||
+      (detail.module_product_other ?? '').trim(),
+    service: pickExternalRepairText(er?.service, fb?.service) || patioService,
+    vendor: pickExternalRepairText(er?.vendor, fb?.vendor),
+    sentAt: pickExternalRepairText(er?.sentAt, fb?.sentAt),
+    expectedAt: pickExternalRepairText(er?.expectedAt, fb?.expectedAt),
+    returnedAt: pickExternalRepairText(er?.returnedAt, fb?.returnedAt),
+    cost: pickExternalRepairText(er?.cost, fb?.cost),
+    notes: pickExternalRepairText(er?.notes, fb?.notes),
   };
 }
 

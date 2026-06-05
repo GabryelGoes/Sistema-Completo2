@@ -200,6 +200,7 @@ function serviceOrderDetailPlaceholderFromCard(card: TrelloCard, orderType: Serv
     vehicle_year: card.vehicleYear ?? null,
     vehicle_engine_info: card.vehicleEngineInfo ?? null,
     reference_links: card.referenceLinks?.length ? card.referenceLinks : null,
+    external_repair: card.externalRepair ?? null,
     created_at: card.createdAt || card.dateLastActivity || now,
     updated_at: card.dateLastActivity || now,
     diagnostic_authorization_signed_at: null,
@@ -1459,6 +1460,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const freshCard = orderToCard(listItem, nameMap, orderType);
       setSelectedCard((prev) => (prev?.id === id ? freshCard : prev));
       setCards((prev) => prev.map((c) => (c.id === id ? freshCard : c)));
+      setExternalRepairCards((prev) => prev.map((c) => (c.id === id ? freshCard : c)));
       const skipCommentsRefresh =
         !!newCommentRef.current.trim() ||
         !!editingActionIdRef.current ||
@@ -2060,13 +2062,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setExternalRepairDraft(EMPTY_EXTERNAL_REPAIR_DRAFT);
       return;
     }
+    if (isExternalRepairEditing) return;
     setExternalRepairDraft(
       buildExternalRepairDraft(
-        serviceOrderDetail as ServiceOrderDetail & { external_repair?: ExternalRepair | null }
+        serviceOrderDetail as ServiceOrderDetail & { external_repair?: ExternalRepair | null },
+        selectedCard?.externalRepair ?? null
       )
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at]);
+  }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at, isExternalRepairEditing, selectedCard?.externalRepair]);
 
   useEffect(() => {
     if (!serviceOrderDetail) {
@@ -2820,6 +2824,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const updatedCard = { ...selectedCard, externalRepair: payload, dateLastActivity: updated.updated_at };
       setSelectedCard(updatedCard);
       setCards((prev) => prev.map((c) => (c.id === selectedCard.id ? updatedCard : c)));
+      setExternalRepairCards((prev) => prev.map((c) => (c.id === selectedCard.id ? updatedCard : c)));
       setIsExternalRepairEditing(false);
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao salvar conserto externo.');
@@ -6643,7 +6648,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               {can('canEditFicha') && !isExternalRepairEditing ? (
                                 <button
                                   type="button"
-                                  onClick={() => setIsExternalRepairEditing(true)}
+                                  onClick={() => {
+                                    if (serviceOrderDetail) {
+                                      setExternalRepairDraft(
+                                        buildExternalRepairDraft(
+                                          serviceOrderDetail as ServiceOrderDetail & {
+                                            external_repair?: ExternalRepair | null;
+                                          },
+                                          selectedCard?.externalRepair ?? null
+                                        )
+                                      );
+                                    }
+                                    setIsExternalRepairEditing(true);
+                                  }}
                                   className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200/90 bg-indigo-50/80 px-3 py-2 text-[13px] font-semibold text-indigo-700 transition-colors hover:bg-indigo-100 dark:border-indigo-500/30 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:bg-indigo-950/60"
                                 >
                                   <Pencil className="h-4 w-4" strokeWidth={2.2} />
