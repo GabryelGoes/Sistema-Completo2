@@ -11,7 +11,7 @@ import {
   type LabBenchGroup,
 } from '../../constants/labBench';
 import { getStageConfig } from '../../constants/serviceOrderStages';
-import { PATIO_CARD_TITLE_SEP } from '../../utils/patioCardTitle';
+import { parsePatioCardTitle } from '../../utils/patioCardTitle';
 import { getBenchQueuedCards } from '../../utils/labBenchQueue';
 
 interface BenchEntry {
@@ -31,13 +31,76 @@ interface LabBenchPanelProps {
 }
 
 function toEntry(card: TrelloCard): BenchEntry {
-  const parts = (card.name || '').split(PATIO_CARD_TITLE_SEP).map((s) => s.trim());
+  const { vehicle, plateOrModule, customer } = parsePatioCardTitle(card.name || '');
   return {
     card,
-    vehicle: parts[0] ?? '',
-    identification: parts[1] ?? '',
-    customer: parts.slice(2).join(PATIO_CARD_TITLE_SEP),
+    vehicle,
+    identification: plateOrModule,
+    customer,
   };
+}
+
+/** Informações exibidas em cada produto na bancada. */
+function BenchProductDetails({
+  entry,
+  size = 'slot',
+}: {
+  entry: BenchEntry;
+  size?: 'slot' | 'list';
+}) {
+  const stage = getStageConfig(entry.card.idList, 'module');
+  const isSlot = size === 'slot';
+  const labelClass = isSlot
+    ? 'text-[8px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500'
+    : 'text-[9px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500';
+  const valueClass = isSlot
+    ? 'truncate text-[9px] font-medium leading-snug text-zinc-800 dark:text-zinc-200'
+    : 'truncate text-[10px] font-medium leading-snug text-zinc-800 dark:text-zinc-200';
+  const vehicleClass = isSlot
+    ? 'truncate text-[10px] font-bold leading-snug text-zinc-900 dark:text-zinc-100'
+    : 'truncate text-[11px] font-bold leading-snug text-zinc-900 dark:text-zinc-100';
+
+  return (
+    <div className="min-w-0 space-y-0.5">
+      <div>
+        <p className={labelClass}>Veículo</p>
+        <p className={vehicleClass} title={entry.vehicle}>
+          {entry.vehicle || '—'}
+        </p>
+      </div>
+      <div>
+        <p className={labelClass}>Cliente</p>
+        <p className={valueClass} title={entry.customer}>
+          {entry.customer || '—'}
+        </p>
+      </div>
+      <div>
+        <p className={labelClass}>OS</p>
+        <p className={valueClass}>
+          {entry.card.osNumber != null ? entry.card.osNumber : '—'}
+        </p>
+      </div>
+      <div>
+        <p className={labelClass}>Identificação</p>
+        <p className={valueClass} title={entry.identification}>
+          {entry.identification || '—'}
+        </p>
+      </div>
+      <div>
+        <p className={labelClass}>Etapa</p>
+        {stage ? (
+          <span
+            className={`inline-block max-w-full truncate rounded px-1 py-0.5 text-[8px] font-semibold leading-tight ${stage.style}`}
+            title={stage.name}
+          >
+            {stage.name}
+          </span>
+        ) : (
+          <p className={valueClass}>—</p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 const BENCH_DRAG_MIME = 'application/x-lab-bench-card-id';
@@ -280,14 +343,10 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                 className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-violet-200/80 bg-white px-2 py-1.5 dark:border-violet-800/50 dark:bg-zinc-900/60"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
-                    <span className="mr-1.5 text-violet-600 dark:text-violet-400">#{index + 1}</span>
-                    {e.card.osNumber != null && (
-                      <span className="mr-1 text-zinc-500 dark:text-zinc-400">OS {e.card.osNumber}</span>
-                    )}
-                    {e.identification || e.vehicle || '—'}
+                  <p className="mb-1 text-[10px] font-bold text-violet-700 dark:text-violet-300">
+                    Fila #{index + 1}
                   </p>
-                  <p className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">{e.customer || '—'}</p>
+                  <BenchProductDetails entry={e} size="list" />
                 </div>
                 <button
                   type="button"
@@ -313,7 +372,6 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
           </p>
           <ul className="flex flex-col gap-1.5">
             {unassigned.map((e) => {
-              const stage = getStageConfig(e.card.idList, 'module');
               const group = labGroupForStatus(e.card.idList);
               const isPlacing = movingCardId === e.card.id;
               return (
@@ -331,17 +389,12 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                   } ${onMoveCard ? 'cursor-grab active:cursor-grabbing' : ''}`}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
-                      {e.card.osNumber != null && (
-                        <span className="mr-1 text-zinc-500 dark:text-zinc-400">OS {e.card.osNumber}</span>
-                      )}
-                      {e.identification || e.vehicle || '—'}
-                    </p>
-                    <p className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
-                      {e.customer || '—'}
-                      {stage ? ` · ${stage.name}` : ''}
-                      {group ? ` · compart. ${group.slots.join(', ')}` : ''}
-                    </p>
+                    <BenchProductDetails entry={e} size="list" />
+                    {group ? (
+                      <p className="mt-1 text-[9px] text-amber-700/90 dark:text-amber-300/90">
+                        Compartimentos {group.slots.join(', ')}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex shrink-0 gap-1">
                     <button
@@ -415,7 +468,6 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                 const isDragDropTarget =
                   !!dragCardId && canDropOnSlot(dragCardId, slot, group);
                 const isDropHighlight = dragOverSlot === slot && isDragDropTarget;
-                const stage = occupant ? getStageConfig(occupant.card.idList, 'module') : undefined;
                 const isDraggingThis = occupant && dragCardId === occupant.card.id;
                 return (
                   <div
@@ -442,7 +494,7 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                     }}
                     onDrop={onMoveCard ? (ev) => handleSlotDrop(ev, slot, group) : undefined}
                     className={[
-                      'group relative flex min-h-[64px] flex-col rounded-lg border p-1.5 text-left transition',
+                      'group relative flex min-h-[108px] flex-col rounded-lg border p-1.5 text-left transition',
                       occupant
                         ? 'border-zinc-200 bg-zinc-50 hover:border-zinc-300 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600'
                         : 'border-dashed border-zinc-200 bg-transparent dark:border-zinc-800',
@@ -467,11 +519,6 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                         {slot}
                       </span>
                       <div className="flex items-center gap-0.5">
-                        {occupant?.card.osNumber != null && (
-                          <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
-                            OS {occupant.card.osNumber}
-                          </span>
-                        )}
                         {occupant && onMoveCard ? (
                           <span
                             role="button"
@@ -488,20 +535,10 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                       </div>
                     </div>
                     {occupant ? (
-                      <div className="mt-1 min-w-0">
-                        <p className="truncate text-[11px] font-semibold leading-tight text-zinc-900 dark:text-zinc-100">
-                          {occupant.identification || occupant.vehicle || '—'}
-                        </p>
-                        <p className="truncate text-[10px] leading-tight text-zinc-500 dark:text-zinc-400">
-                          {occupant.customer || '—'}
-                        </p>
-                        {stage && (
-                          <span className={`mt-1 inline-block rounded px-1 py-0.5 text-[9px] font-medium leading-none ${stage.style}`}>
-                            {stage.name}
-                          </span>
-                        )}
+                      <div className="mt-1 min-w-0 flex-1">
+                        <BenchProductDetails entry={occupant} size="slot" />
                         {occupant.card.externalRepair?.vendor && (
-                          <p className="mt-0.5 truncate text-[9px] italic text-indigo-500 dark:text-indigo-300">
+                          <p className="mt-0.5 truncate text-[8px] italic text-indigo-500 dark:text-indigo-300">
                             ↪ {occupant.card.externalRepair.vendor}
                           </p>
                         )}
@@ -541,21 +578,16 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
             Fora da bancada (com o técnico)
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {offBench.map((e) => {
-              const stage = getStageConfig(e.card.idList, 'module');
-              return (
+            {offBench.map((e) => (
                 <button
                   type="button"
                   key={e.card.id}
                   onClick={() => onOpenCard(e.card)}
-                  className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-700 hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-                  title={stage?.name}
+                  className="max-w-[200px] rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-left hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600"
                 >
-                  {e.card.osNumber != null && <span className="font-semibold">OS {e.card.osNumber}</span>}
-                  <span className="max-w-[120px] truncate">{e.identification || e.vehicle || '—'}</span>
+                  <BenchProductDetails entry={e} size="list" />
                 </button>
-              );
-            })}
+            ))}
           </div>
         </div>
       )}
