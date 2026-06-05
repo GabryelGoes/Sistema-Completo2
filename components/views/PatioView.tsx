@@ -902,6 +902,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Conserto externo (laboratório): rascunho do formulário no modal. */
   const [externalRepairDraft, setExternalRepairDraft] = useState<ExternalRepairDraft>(EMPTY_EXTERNAL_REPAIR_DRAFT);
   const [externalRepairSaving, setExternalRepairSaving] = useState(false);
+  /** Conserto externo: formulário começa minimizado; "Editar" expande, "Salvar" recolhe. */
+  const [isExternalRepairEditing, setIsExternalRepairEditing] = useState(false);
   const [benchSlotSaving, setBenchSlotSaving] = useState(false);
   const [labServiceLinksDraft, setLabServiceLinksDraft] = useState<LabServiceLink[]>([]);
   const [labServiceLinksSaving, setLabServiceLinksSaving] = useState(false);
@@ -919,7 +921,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const dadosFichaExpandedPrevRef = useRef(false);
 
   useEffect(() => {
-    if (selectedCard?.id) setIsDadosFichaExpanded(false);
+    if (selectedCard?.id) {
+      setIsDadosFichaExpanded(false);
+      setIsExternalRepairEditing(false);
+    }
   }, [selectedCard?.id]);
 
   /** Hidrata o formulário só ao expandir a secção (não a cada sync da OS). */
@@ -2815,6 +2820,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const updatedCard = { ...selectedCard, externalRepair: payload, dateLastActivity: updated.updated_at };
       setSelectedCard(updatedCard);
       setCards((prev) => prev.map((c) => (c.id === selectedCard.id ? updatedCard : c)));
+      setIsExternalRepairEditing(false);
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao salvar conserto externo.');
     } finally {
@@ -6618,6 +6624,175 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
 
+                        {isModuleMode && serviceOrderDetail && (
+                          <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)]`}>
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
+                              <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-indigo-200/95 bg-gradient-to-b from-indigo-50 to-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-indigo-500/25 dark:from-indigo-950/40 dark:to-indigo-950/20">
+                                  <Wrench className="h-4 w-4 text-indigo-600 dark:text-indigo-300" strokeWidth={2.25} aria-hidden />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="bg-gradient-to-r from-indigo-900 via-indigo-700 to-indigo-500 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-indigo-200 dark:via-indigo-300 dark:to-indigo-400 sm:text-[17px]">
+                                    Conserto externo (terceiros)
+                                  </p>
+                                  <p className="mt-0.5 text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+                                    Etapas &quot;Envio/Chegada conserto&quot;
+                                  </p>
+                                </div>
+                              </div>
+                              {can('canEditFicha') && !isExternalRepairEditing ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsExternalRepairEditing(true)}
+                                  className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200/90 bg-indigo-50/80 px-3 py-2 text-[13px] font-semibold text-indigo-700 transition-colors hover:bg-indigo-100 dark:border-indigo-500/30 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:bg-indigo-950/60"
+                                >
+                                  <Pencil className="h-4 w-4" strokeWidth={2.2} />
+                                  Editar
+                                </button>
+                              ) : null}
+                            </div>
+
+                            {!isExternalRepairEditing || !can('canEditFicha') ? (
+                              <div className="space-y-1 px-3 py-3 text-[14px] text-zinc-700 dark:text-zinc-300 sm:px-4 sm:py-3.5">
+                                {externalRepairDraft.vehicleRef.trim() ? (
+                                  <p><span className="font-semibold">Veículo:</span> {externalRepairDraft.vehicleRef}</p>
+                                ) : null}
+                                {externalRepairDraft.productIdentification.trim() ? (
+                                  <p><span className="font-semibold">Identificação:</span> {externalRepairDraft.productIdentification}</p>
+                                ) : null}
+                                {externalRepairDraft.productType.trim() ? (
+                                  <p>
+                                    <span className="font-semibold">Tipo:</span>{' '}
+                                    {labProductDisplayLabel(externalRepairDraft.productType, externalRepairDraft.productTypeOther)}
+                                  </p>
+                                ) : null}
+                                {externalRepairDraft.service.trim() ? (
+                                  <p><span className="font-semibold">Serviço:</span> {externalRepairDraft.service}</p>
+                                ) : null}
+                                {externalRepairDraft.vendor.trim() ? (
+                                  <p><span className="font-semibold">Fornecedor:</span> {externalRepairDraft.vendor}</p>
+                                ) : null}
+                                {externalRepairDraft.sentAt.trim() ? (
+                                  <p><span className="font-semibold">Enviado:</span> {externalRepairDraft.sentAt}</p>
+                                ) : null}
+                                {![
+                                  externalRepairDraft.vehicleRef,
+                                  externalRepairDraft.productIdentification,
+                                  externalRepairDraft.productType,
+                                  externalRepairDraft.service,
+                                  externalRepairDraft.vendor,
+                                  externalRepairDraft.sentAt,
+                                ].some((v) => v.trim()) ? (
+                                  <p className="text-zinc-500 dark:text-zinc-400">Nenhum conserto externo registrado.</p>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <div className="space-y-2.5 px-3 py-3 sm:px-4 sm:py-3.5">
+                                <div>
+                                  <label className={`${iosLabel} !mb-1`}>Veículo / referência</label>
+                                  <input
+                                    value={externalRepairDraft.vehicleRef}
+                                    onChange={(e) => setExternalRepairDraft((p) => ({ ...p, vehicleRef: e.target.value }))}
+                                    placeholder="Ex.: BMW 320i ou referência do pátio"
+                                    className={vin}
+                                  />
+                                </div>
+                                <div>
+                                  <label className={`${iosLabel} !mb-1`}>Identificação do produto</label>
+                                  <input
+                                    value={externalRepairDraft.productIdentification}
+                                    onChange={(e) => setExternalRepairDraft((p) => ({ ...p, productIdentification: e.target.value }))}
+                                    placeholder="Ex.: Módulo ABS XYZ, nº de série…"
+                                    className={vin}
+                                  />
+                                </div>
+                                <div>
+                                  <label className={`${iosLabel} !mb-1`}>Tipo de produto</label>
+                                  <select
+                                    value={externalRepairDraft.productType}
+                                    onChange={(e) => {
+                                      const next = e.target.value;
+                                      setExternalRepairDraft((p) => ({
+                                        ...p,
+                                        productType: next,
+                                        productTypeOther: next === OTHER_MODULE_KIND_ID ? p.productTypeOther : '',
+                                      }));
+                                    }}
+                                    className={vin}
+                                  >
+                                    <option value="">Selecione…</option>
+                                    {getModuleKindOptions().map((opt) => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                {externalRepairDraft.productType === OTHER_MODULE_KIND_ID && (
+                                  <div>
+                                    <label className={`${iosLabel} !mb-1`}>Qual produto?</label>
+                                    <input
+                                      value={externalRepairDraft.productTypeOther}
+                                      onChange={(e) => setExternalRepairDraft((p) => ({ ...p, productTypeOther: e.target.value }))}
+                                      placeholder="Ex.: bomba de direção, atuador…"
+                                      className={vin}
+                                    />
+                                  </div>
+                                )}
+                                <div>
+                                  <label className={`${iosLabel} !mb-1`}>Serviço</label>
+                                  <input
+                                    value={externalRepairDraft.service}
+                                    onChange={(e) => setExternalRepairDraft((p) => ({ ...p, service: e.target.value }))}
+                                    placeholder="Serviço do pátio ou descrição do reparo"
+                                    className={vin}
+                                  />
+                                </div>
+                                <div>
+                                  <label className={`${iosLabel} !mb-1`}>Fornecedor</label>
+                                  <input
+                                    value={externalRepairDraft.vendor}
+                                    onChange={(e) => setExternalRepairDraft((p) => ({ ...p, vendor: e.target.value }))}
+                                    placeholder="Ex.: Eletrônica do João"
+                                    className={vin}
+                                  />
+                                </div>
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200/60 pt-2.5 dark:border-white/[0.06]">
+                                  {serviceOrderDetail?.status === 'ENVIO_CONSERTO' && selectedCard ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSendToExternalRepair(selectedCard.id)}
+                                      disabled={loadingDetails}
+                                      className="inline-flex items-center gap-2 rounded-xl bg-purple-700 px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-purple-600 disabled:opacity-60"
+                                      title="Salve os dados antes; o módulo sai da bancada e vai para a aba Conserto externo"
+                                    >
+                                      <Truck className="h-4 w-4" strokeWidth={2.2} />
+                                      Registrar envio
+                                    </button>
+                                  ) : <span />}
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleSaveExternalRepair()}
+                                    disabled={
+                                      externalRepairSaving ||
+                                      loadingDetails ||
+                                      serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
+                                    }
+                                    className={`${iosPrimaryButton} inline-flex items-center gap-2 px-6 py-2.5`}
+                                  >
+                                    {externalRepairSaving ? (
+                                      <RefreshCw className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Save className="h-4 w-4" />
+                                    )}
+                                    Salvar
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                          {/* Anexos (fotos) + Documentos (arquivos) */}
                          <div className={`${vi} flex flex-col overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.1),0_2px_10px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_34px_-12px_rgba(0,0,0,0.45)]`}>
                             <div className="border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
@@ -6682,162 +6857,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                             </div>
                             </div>
-
-                            {isModuleMode && serviceOrderDetail && (
-                              <div className="order-0 px-3 py-2 sm:px-4 sm:py-2.5">
-                                <div
-                                  className={`${vi} overflow-hidden p-2.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-3`}
-                                >
-                                  <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5">
-                                    <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-500 dark:text-indigo-300">
-                                      <Wrench className="h-3.5 w-3.5" />
-                                      Conserto externo (terceiros)
-                                    </h3>
-                                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
-                                      Etapas "Envio/Chegada conserto"
-                                    </span>
-                                  </div>
-                                  {can('canEditFicha') ? (
-                                    <div className="space-y-2.5">
-                                      <div>
-                                        <label className={`${iosLabel} !mb-1`}>Veículo / referência</label>
-                                        <input
-                                          value={externalRepairDraft.vehicleRef}
-                                          onChange={(e) => setExternalRepairDraft((p) => ({ ...p, vehicleRef: e.target.value }))}
-                                          placeholder="Ex.: BMW 320i ou referência do pátio"
-                                          className={vin}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className={`${iosLabel} !mb-1`}>Identificação do produto</label>
-                                        <input
-                                          value={externalRepairDraft.productIdentification}
-                                          onChange={(e) => setExternalRepairDraft((p) => ({ ...p, productIdentification: e.target.value }))}
-                                          placeholder="Ex.: Módulo ABS XYZ, nº de série…"
-                                          className={vin}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className={`${iosLabel} !mb-1`}>Tipo de produto</label>
-                                        <select
-                                          value={externalRepairDraft.productType}
-                                          onChange={(e) => {
-                                            const next = e.target.value;
-                                            setExternalRepairDraft((p) => ({
-                                              ...p,
-                                              productType: next,
-                                              productTypeOther: next === OTHER_MODULE_KIND_ID ? p.productTypeOther : '',
-                                            }));
-                                          }}
-                                          className={vin}
-                                        >
-                                          <option value="">Selecione…</option>
-                                          {getModuleKindOptions().map((opt) => (
-                                            <option key={opt.value} value={opt.value}>
-                                              {opt.label}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </div>
-                                      {externalRepairDraft.productType === OTHER_MODULE_KIND_ID && (
-                                        <div>
-                                          <label className={`${iosLabel} !mb-1`}>Qual produto?</label>
-                                          <input
-                                            value={externalRepairDraft.productTypeOther}
-                                            onChange={(e) => setExternalRepairDraft((p) => ({ ...p, productTypeOther: e.target.value }))}
-                                            placeholder="Ex.: bomba de direção, atuador…"
-                                            className={vin}
-                                          />
-                                        </div>
-                                      )}
-                                      <div>
-                                        <label className={`${iosLabel} !mb-1`}>Serviço</label>
-                                        <input
-                                          value={externalRepairDraft.service}
-                                          onChange={(e) => setExternalRepairDraft((p) => ({ ...p, service: e.target.value }))}
-                                          placeholder="Serviço do pátio ou descrição do reparo"
-                                          className={vin}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className={`${iosLabel} !mb-1`}>Fornecedor</label>
-                                        <input
-                                          value={externalRepairDraft.vendor}
-                                          onChange={(e) => setExternalRepairDraft((p) => ({ ...p, vendor: e.target.value }))}
-                                          placeholder="Ex.: Eletrônica do João"
-                                          className={vin}
-                                        />
-                                      </div>
-                                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200/60 pt-2.5 dark:border-white/[0.06]">
-                                        {serviceOrderDetail?.status === 'ENVIO_CONSERTO' && selectedCard ? (
-                                          <button
-                                            type="button"
-                                            onClick={() => handleSendToExternalRepair(selectedCard.id)}
-                                            disabled={loadingDetails}
-                                            className="inline-flex items-center gap-2 rounded-xl bg-purple-700 px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-purple-600 disabled:opacity-60"
-                                            title="Salve os dados antes; o módulo sai da bancada e vai para a aba Conserto externo"
-                                          >
-                                            <Truck className="h-4 w-4" strokeWidth={2.2} />
-                                            Registrar envio
-                                          </button>
-                                        ) : <span />}
-                                        <button
-                                          type="button"
-                                          onClick={handleSaveExternalRepair}
-                                          disabled={
-                                            externalRepairSaving ||
-                                            loadingDetails ||
-                                            serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
-                                          }
-                                          className={`${iosPrimaryButton} inline-flex items-center gap-2 px-6 py-2.5`}
-                                        >
-                                          {externalRepairSaving ? (
-                                            <RefreshCw className="h-4 w-4 animate-spin" />
-                                          ) : (
-                                            <Save className="h-4 w-4" />
-                                          )}
-                                          Salvar conserto externo
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="space-y-1 text-[14px] text-zinc-700 dark:text-zinc-300">
-                                      {externalRepairDraft.vehicleRef.trim() ? (
-                                        <p><span className="font-semibold">Veículo:</span> {externalRepairDraft.vehicleRef}</p>
-                                      ) : null}
-                                      {externalRepairDraft.productIdentification.trim() ? (
-                                        <p><span className="font-semibold">Identificação:</span> {externalRepairDraft.productIdentification}</p>
-                                      ) : null}
-                                      {externalRepairDraft.productType.trim() ? (
-                                        <p>
-                                          <span className="font-semibold">Tipo:</span>{' '}
-                                          {labProductDisplayLabel(externalRepairDraft.productType, externalRepairDraft.productTypeOther)}
-                                        </p>
-                                      ) : null}
-                                      {externalRepairDraft.service.trim() ? (
-                                        <p><span className="font-semibold">Serviço:</span> {externalRepairDraft.service}</p>
-                                      ) : null}
-                                      {externalRepairDraft.vendor.trim() ? (
-                                        <p><span className="font-semibold">Fornecedor:</span> {externalRepairDraft.vendor}</p>
-                                      ) : null}
-                                      {externalRepairDraft.sentAt.trim() ? (
-                                        <p><span className="font-semibold">Enviado:</span> {externalRepairDraft.sentAt}</p>
-                                      ) : null}
-                                      {![
-                                        externalRepairDraft.vehicleRef,
-                                        externalRepairDraft.productIdentification,
-                                        externalRepairDraft.productType,
-                                        externalRepairDraft.service,
-                                        externalRepairDraft.vendor,
-                                        externalRepairDraft.sentAt,
-                                      ].some((v) => v.trim()) ? (
-                                        <p className="text-zinc-500 dark:text-zinc-400">Nenhum conserto externo registrado.</p>
-                                      ) : null}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
 
                             {serviceOrderDetail && (referenceLinksDraft.length > 0 || pendingReferenceLink || can('canEditFicha')) && (
                               <div className="order-1 px-3 py-2 sm:px-4 sm:py-2.5">
