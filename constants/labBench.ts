@@ -92,6 +92,16 @@ export const LAB_BENCH_LAST_SLOT = 24;
 
 /** Conserto externo (terceiros) — armazenado em service_orders.external_repair (jsonb). */
 export interface ExternalRepair {
+  /** Veículo ou referência do produto enviado. */
+  vehicleRef?: string | null;
+  /** Identificação do produto (nº de série, código, etc.). */
+  productIdentification?: string | null;
+  /** Id do tipo de produto (slug configurável) ou "outro". */
+  productType?: string | null;
+  /** Texto livre quando productType === "outro". */
+  productTypeOther?: string | null;
+  /** Serviço solicitado (do pátio ou digitado manualmente). */
+  service?: string | null;
   /** Fornecedor / empresa que fará o conserto. */
   vendor?: string | null;
   /** Data de envio (ISO ou yyyy-mm-dd). */

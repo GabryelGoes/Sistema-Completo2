@@ -6278,6 +6278,11 @@ export function createApiApp() {
       const externalRepair: ExternalRepair | null = clearing
         ? null
         : {
+            vehicleRef: trimField(body.vehicleRef),
+            productIdentification: trimField(body.productIdentification),
+            productType: trimField(body.productType),
+            productTypeOther: trimField(body.productTypeOther),
+            service: trimField(body.service),
             vendor: trimField(body.vendor),
             sentAt: trimField(body.sentAt),
             expectedAt: trimField(body.expectedAt),
