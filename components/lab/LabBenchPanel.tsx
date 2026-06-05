@@ -40,7 +40,7 @@ function toEntry(card: TrelloCard): BenchEntry {
   };
 }
 
-/** Informações exibidas em cada produto na bancada. */
+/** Informações exibidas em cada produto na bancada (somente valores, sem rótulos). */
 function BenchProductDetails({
   entry,
   size = 'slot',
@@ -50,9 +50,6 @@ function BenchProductDetails({
 }) {
   const stage = getStageConfig(entry.card.idList, 'module');
   const isSlot = size === 'slot';
-  const labelClass = isSlot
-    ? 'text-[8px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500'
-    : 'text-[9px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500';
   const valueClass = isSlot
     ? 'truncate text-[9px] font-medium leading-snug text-zinc-800 dark:text-zinc-200'
     : 'truncate text-[10px] font-medium leading-snug text-zinc-800 dark:text-zinc-200';
@@ -62,43 +59,28 @@ function BenchProductDetails({
 
   return (
     <div className="min-w-0 space-y-0.5">
-      <div>
-        <p className={labelClass}>Veículo</p>
-        <p className={vehicleClass} title={entry.vehicle}>
-          {entry.vehicle || '—'}
-        </p>
-      </div>
-      <div>
-        <p className={labelClass}>Cliente</p>
-        <p className={valueClass} title={entry.customer}>
-          {entry.customer || '—'}
-        </p>
-      </div>
-      <div>
-        <p className={labelClass}>OS</p>
-        <p className={valueClass}>
-          {entry.card.osNumber != null ? entry.card.osNumber : '—'}
-        </p>
-      </div>
-      <div>
-        <p className={labelClass}>Identificação</p>
-        <p className={valueClass} title={entry.identification}>
-          {entry.identification || '—'}
-        </p>
-      </div>
-      <div>
-        <p className={labelClass}>Etapa</p>
-        {stage ? (
-          <span
-            className={`inline-block max-w-full truncate rounded px-1 py-0.5 text-[8px] font-semibold leading-tight ${stage.style}`}
-            title={stage.name}
-          >
-            {stage.name}
-          </span>
-        ) : (
-          <p className={valueClass}>—</p>
-        )}
-      </div>
+      <p className={vehicleClass} title={entry.vehicle}>
+        {entry.vehicle || '—'}
+      </p>
+      <p className={valueClass} title={entry.customer}>
+        {entry.customer || '—'}
+      </p>
+      <p className={valueClass}>
+        {entry.card.osNumber != null ? `OS ${entry.card.osNumber}` : '—'}
+      </p>
+      <p className={valueClass} title={entry.identification}>
+        {entry.identification || '—'}
+      </p>
+      {stage ? (
+        <span
+          className={`inline-block max-w-full truncate rounded px-1 py-0.5 text-[8px] font-semibold leading-tight ${stage.style}`}
+          title={stage.name}
+        >
+          {stage.name}
+        </span>
+      ) : (
+        <p className={valueClass}>—</p>
+      )}
     </div>
   );
 }
