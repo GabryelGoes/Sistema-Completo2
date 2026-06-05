@@ -1199,6 +1199,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Zoom dos cards no quadro: PC ou tablet em paisagem (não smartphone). */
   const isDesktopLandscape =
     !isSmartphone && !isPortraitOrientation && (isDesktop || isTablet);
+  /** Layout de PC (desktop ≥1024 ou shell OnMotor) — distinto de tablet. */
+  const isPcLayout = desktopShell || (isDesktop && viewportWidth >= 1024);
+  /** Cabeçalho do laboratório em uma única linha (apenas PC): botões da bancada embutidos. */
+  const headerActionsOneLine = isModuleMode && isPcLayout;
+  /** Tamanho dos botões de ação do cabeçalho — menores quando tudo fica numa linha (PC laboratório). */
+  const headerPillSize = headerActionsOneLine
+    ? 'gap-1.5 px-3 py-2 text-[12.5px]'
+    : 'gap-2 px-4 py-2.5 text-sm sm:px-5 sm:py-3';
   /** Menu ⋯ do cabeçalho: zoom da grade, busca/atualizar, histórico (portal em body para ficar acima dos cards). */
   const [isPatioHeaderToolsOpen, setIsPatioHeaderToolsOpen] = useState(false);
   const patioHeaderToolsTriggerRef = useRef<HTMLButtonElement>(null);
@@ -3779,7 +3787,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       <div className="relative z-0 mx-auto max-w-[100rem] overflow-visible px-3 pt-2 sm:px-5 md:px-6 md:pt-3">
         {/* Cabeçalho — mesmo padrão Recepção/Agenda: sem painel vidro em volta; ícone = tile da Home (Pátio / Laboratório) */}
         <header className="relative z-50 mb-6 overflow-visible sm:mb-8">
-          <div className="grid w-full grid-cols-1 items-center gap-y-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-3">
+          <div className={`w-full items-center gap-y-4 md:gap-x-3 ${headerActionsOneLine ? 'flex flex-nowrap md:justify-between' : 'grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'}`}>
             <div className="app-view-page-chrome flex min-w-0 items-center gap-3 sm:gap-4 md:justify-self-start">
               {isModuleMode ? (
                 <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
@@ -3801,7 +3809,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className={`flex justify-center portrait:hidden md:justify-self-center md:px-2 ${isModuleMode ? 'hidden' : ''}`}>
+            <div className={`flex justify-center portrait:hidden md:justify-self-center md:px-2 ${headerActionsOneLine ? 'hidden' : ''}`}>
               <button
                 type="button"
                 onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
@@ -3818,13 +3826,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </button>
             </div>
 
-            <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-2 overflow-visible portrait:justify-end md:w-auto md:justify-self-end md:justify-end">
-            {isModuleMode && (
+            <div className={`flex items-center ${headerActionsOneLine ? 'min-w-0 flex-1 flex-nowrap justify-end gap-1.5 overflow-x-auto' : 'w-full min-w-0 flex-wrap justify-center gap-2 overflow-visible portrait:justify-end md:w-auto md:justify-self-end md:justify-end'}`}>
+            {headerActionsOneLine && (
               <>
                 <button
                   type="button"
                   onClick={() => setBenchQueueModalOpen(true)}
-                  className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-violet-200/90 bg-violet-50/90 px-4 py-2.5 text-sm font-semibold text-violet-900 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-violet-400/60 hover:bg-violet-100/90 active:scale-[0.98] dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:border-violet-400/50 sm:px-5 sm:py-3"
+                  className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-violet-200/90 bg-violet-50/90 font-semibold text-violet-900 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-violet-400/60 hover:bg-violet-100/90 active:scale-[0.98] dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:border-violet-400/50 ${headerPillSize}`}
                 >
                   <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
                   <span className="tracking-tight">Fila da bancada</span>
@@ -3837,7 +3845,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setExternalRepairModalOpen(true)}
-                  className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-purple-200/90 bg-purple-50/90 px-4 py-2.5 text-sm font-semibold text-purple-900 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-purple-400/60 hover:bg-purple-100/90 active:scale-[0.98] dark:border-purple-500/35 dark:bg-purple-950/40 dark:text-purple-100 dark:hover:border-purple-400/50 sm:px-5 sm:py-3"
+                  className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-purple-200/90 bg-purple-50/90 font-semibold text-purple-900 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-purple-400/60 hover:bg-purple-100/90 active:scale-[0.98] dark:border-purple-500/35 dark:bg-purple-950/40 dark:text-purple-100 dark:hover:border-purple-400/50 ${headerPillSize}`}
                 >
                   <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
                   <span className="tracking-tight">Conserto externo</span>
@@ -3851,7 +3859,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   type="button"
                   onClick={handleBenchPanelToggle}
                   aria-expanded={benchPanelOpen}
-                  className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-zinc-200/80 bg-white/80 px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#A855F7]/40 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white sm:px-5 sm:py-3"
+                  className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/80 font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#A855F7]/40 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white ${headerPillSize}`}
                 >
                   <ChevronDown
                     className={`h-4 w-4 shrink-0 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
@@ -3877,7 +3885,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 setReminderSaveError(null);
                 setIsRemindersOpen(true);
               }}
-              className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-zinc-200/80 bg-white/80 px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white sm:px-5 sm:py-3"
+              className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/80 font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white ${headerPillSize}`}
             >
               {remindersBadgeCount > 0 && (
                 <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1.5 text-[11px] font-bold leading-none text-white shadow-sm dark:border-zinc-900">
@@ -3892,7 +3900,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <button
               type="button"
               onClick={() => setIsHistoryOpen(true)}
-              className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-zinc-200/80 bg-white/80 px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white sm:px-5 sm:py-3"
+              className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/80 font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white ${headerPillSize}`}
               title={
                 isModuleMode
                   ? 'Consultar histórico de módulos arquivados'
@@ -3914,9 +3922,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 aria-expanded={isPatioHeaderToolsOpen}
                 aria-haspopup="menu"
                 aria-label="Mais opções: visualização do quadro, tamanho dos cartões, busca e histórico"
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-[#64B5FF]"
+                className={`flex shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-[#64B5FF] ${headerActionsOneLine ? 'h-10 w-10' : 'h-12 w-12'}`}
               >
-                <MoreHorizontal className="h-6 w-6" strokeWidth={2.2} aria-hidden />
+                <MoreHorizontal className={headerActionsOneLine ? 'h-5 w-5' : 'h-6 w-6'} strokeWidth={2.2} aria-hidden />
               </button>
               {isPatioHeaderToolsOpen && typeof document !== 'undefined'
                 ? createPortal(
@@ -4122,7 +4130,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
               />
             </div>
-            <div className={`shrink-0 ${isModuleMode ? '' : 'hidden portrait:block'}`}>
+            <div className={`shrink-0 ${headerActionsOneLine ? '' : 'hidden portrait:block'}`}>
               <button
                 type="button"
                 onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
@@ -4144,13 +4152,67 @@ export const PatioView: React.FC<PatioViewProps> = ({
       </div>
 
       {/* Bancada do laboratório — painel visual dos 24 compartimentos (só no modo módulo) */}
-      {isModuleMode && benchPanelOpen && (
+      {isModuleMode && (!headerActionsOneLine || benchPanelOpen) && (
         <div className="relative z-0 mx-auto w-full max-w-[100rem] px-3 pb-2 sm:px-5 md:px-6">
-          <LabBenchPanel
-            cards={cards}
-            onOpenCard={(card) => setSelectedCard(card)}
-            onMoveCard={handleBenchMove}
-          />
+          {!headerActionsOneLine && (
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setBenchQueueModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-violet-200/90 bg-violet-50/90 px-3 py-1.5 text-[13px] font-semibold text-violet-900 shadow-sm backdrop-blur-xl transition-colors hover:border-violet-400/60 hover:bg-violet-100/90 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:border-violet-400/50"
+              >
+                <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
+                Fila da bancada
+                {benchQueueCount > 0 ? (
+                  <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
+                    {benchQueueCount}
+                  </span>
+                ) : null}
+              </button>
+              <button
+                type="button"
+                onClick={() => setExternalRepairModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-purple-200/90 bg-purple-50/90 px-3 py-1.5 text-[13px] font-semibold text-purple-900 shadow-sm backdrop-blur-xl transition-colors hover:border-purple-400/60 hover:bg-purple-100/90 dark:border-purple-500/35 dark:bg-purple-950/40 dark:text-purple-100 dark:hover:border-purple-400/50"
+              >
+                <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
+                Conserto externo
+                {externalRepairCards.length > 0 ? (
+                  <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
+                    {externalRepairCards.length}
+                  </span>
+                ) : null}
+              </button>
+              <button
+                type="button"
+                onClick={handleBenchPanelToggle}
+                aria-expanded={benchPanelOpen}
+                className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/80 bg-white/80 px-3 py-1.5 text-[13px] font-semibold text-zinc-700 shadow-sm backdrop-blur-xl transition-colors hover:border-[#A855F7]/40 hover:text-zinc-900 dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white"
+              >
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
+                  strokeWidth={2.2}
+                  aria-hidden
+                />
+                Bancada do laboratório
+                {benchQueueCount > 0 ? (
+                  <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {benchQueueCount}
+                  </span>
+                ) : unassignedBenchCount > 0 ? (
+                  <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {unassignedBenchCount}
+                  </span>
+                ) : null}
+              </button>
+            </div>
+          )}
+          {benchPanelOpen && (
+            <LabBenchPanel
+              cards={cards}
+              onOpenCard={(card) => setSelectedCard(card)}
+              onMoveCard={handleBenchMove}
+            />
+          )}
         </div>
       )}
 
