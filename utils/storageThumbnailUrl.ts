@@ -23,7 +23,10 @@ export function storageThumbnailUrl(publicUrl: string, options?: StorageThumbOpt
   const marker = "/storage/v1/object/public/";
   const i = publicUrl.indexOf(marker);
   if (i === -1) return publicUrl;
-  const [baseNoQuery] = publicUrl.split("?");
+  const qIndex = publicUrl.indexOf("?");
+  const baseNoQuery = qIndex === -1 ? publicUrl : publicUrl.slice(0, qIndex);
+  const cacheQuery = qIndex === -1 ? "" : publicUrl.slice(qIndex + 1);
+  const cacheBust = cacheQuery.match(/(?:^|&)(v=[^&]+)/)?.[1];
   const originEnd = baseNoQuery.indexOf(marker);
   const origin = baseNoQuery.slice(0, originEnd);
   const rest = baseNoQuery.slice(originEnd + marker.length);
@@ -35,7 +38,9 @@ export function storageThumbnailUrl(publicUrl: string, options?: StorageThumbOpt
     const resize = options?.resize ?? "cover";
     query += `&height=${h}&resize=${resize}`;
   }
-  return `${origin}/storage/v1/render/image/public/${rest}?${query}`;
+  let url = `${origin}/storage/v1/render/image/public/${rest}?${query}`;
+  if (cacheBust) url += `&${cacheBust}`;
+  return url;
 }
 
 /** URL otimizada para visualização em tela cheia (lightbox) — menor que o original. */

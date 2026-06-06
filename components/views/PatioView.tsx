@@ -1121,10 +1121,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     for (let i = 0; i < preloadCount; i++) {
       const att = imageAttachments[i];
       const thumbUrl = storageThumbnailUrl(att.url, {
-        maxWidth: 280,
-        quality: 72,
-        format: 'origin',
-        resize: 'contain',
+        maxWidth: 200,
+        maxHeight: 200,
+        resize: 'cover',
+        quality: 52,
       });
       if (!attachmentPreloadRef.current.has(thumbUrl)) {
         const img = new Image();
@@ -3704,7 +3704,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
         );
         return { ...prev, items };
       });
-      attachmentPreloadRef.current.clear();
+      for (const cached of [...attachmentPreloadRef.current]) {
+        if (cached.includes(previousBase) || cached.includes(freshUrl.split('?')[0])) {
+          attachmentPreloadRef.current.delete(cached);
+        }
+      }
       preloadLightboxUrl(freshUrl);
     },
     [preloadLightboxUrl]
@@ -5448,6 +5452,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                            <div className="relative flex h-24 items-center justify-center overflow-hidden bg-zinc-100/80 dark:bg-white/[0.04]">
                                               {showImgThumb ? (
                                                  <StorageThumbImg
+                                                   key={att.url}
                                                    src={att.url}
                                                    alt={att.name}
                                                    className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
@@ -7416,7 +7421,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                   ) : (
                                                     <>
                                                       <div className="relative rounded-[14px] bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_8px_18px_-10px_rgba(0,122,255,0.45)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.4)]">
-                                                      <div className="group relative aspect-[4/3] overflow-hidden rounded-[12px] bg-zinc-100 dark:bg-zinc-900">
+                                                      <div className="group relative aspect-square overflow-hidden rounded-[12px] bg-zinc-100 dark:bg-zinc-900">
                                                         <button
                                                           type="button"
                                                           onPointerEnter={() => preloadLightboxUrl(att.url)}
@@ -7442,14 +7447,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                           ) : (
                                                             <>
                                                               <StorageThumbImg
+                                                                key={att.url}
                                                                 src={att.url}
                                                                 alt={label}
-                                                                className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-[1.02]"
-                                                                sizes="(max-width: 640px) 45vw, (max-width: 1024px) 28vw, 220px"
-                                                                thumbMaxWidth={280}
-                                                                thumbQuality={72}
-                                                                thumbFormat="origin"
-                                                                thumbResize="contain"
+                                                                className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                                                sizes="(max-width: 640px) 45vw, (max-width: 1024px) 28vw, 180px"
+                                                                thumbMaxWidth={200}
+                                                                thumbMaxHeight={200}
+                                                                thumbQuality={52}
                                                                 loading={photoIndex < 8 ? 'eager' : 'lazy'}
                                                                 fetchPriority={photoIndex < 4 ? 'high' : 'low'}
                                                               />

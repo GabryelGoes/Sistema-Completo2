@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { storageThumbnailUrl, type StorageThumbOptions } from '../../utils/storageThumbnailUrl';
 
 type Props = React.ImgHTMLAttributes<HTMLImageElement> & {
@@ -42,11 +42,17 @@ export function StorageThumbImg({
     [src, thumbMaxWidth, thumbMaxHeight, thumbResize, thumbQuality, thumbFormat]
   );
   const [useOriginal, setUseOriginal] = useState(false);
+
+  useEffect(() => {
+    setUseOriginal(false);
+  }, [src, thumb]);
+
   const effective = useOriginal ? src : thumb;
 
   return (
     <img
       {...rest}
+      key={effective}
       src={effective}
       alt={alt}
       loading={loading}
