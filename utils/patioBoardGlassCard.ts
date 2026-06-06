@@ -17,24 +17,24 @@ export const BOARD_PORTRAIT_HSCROLL_ZOOM_MULT = 0.835;
 
 export const DESKTOP_LANDSCAPE_CARD_ZOOM = 0.65025;
 
-/** Cantos dos cards do quadro — PC alinhado à página Orçamentos (`rounded-md`). */
+/** Cantos dos cards do quadro — PC: suave, entre Orçamentos e o estilo mobile. */
 export function getPatioBoardCardRadiusClass(isPcLayout: boolean, boardPanoramic: boolean): string {
   if (isPcLayout) {
-    return boardPanoramic ? 'rounded-lg' : 'rounded-md';
+    return boardPanoramic ? 'rounded-[1.35rem]' : 'rounded-2xl';
   }
   return boardPanoramic
     ? 'rounded-[1.85rem] sm:rounded-[2.1rem]'
     : 'rounded-[2rem] sm:rounded-[2.25rem]';
 }
 
-/** Shell das colunas Trello / por mecânico — PC alinhado ao kanban de Orçamentos. */
+/** Shell das colunas Trello / por mecânico — PC com cantos um pouco mais suaves. */
 export function getPatioBoardColumnShellClass(isPcLayout: boolean): string {
   if (isPcLayout) {
-    return 'rounded-xl border border-zinc-200/90 bg-zinc-100/90 transition-[box-shadow,transform,border-color] duration-300 ease-out dark:border-white/[0.08] dark:bg-zinc-900/40';
+    return 'rounded-[1.35rem] border border-zinc-200/90 bg-zinc-100/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] transition-[box-shadow,transform,border-color] duration-300 ease-out dark:border-white/[0.08] dark:bg-zinc-900/40 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
   }
   return 'rounded-[1.35rem] border border-zinc-200/70 bg-zinc-100/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-md transition-[box-shadow,transform,border-color] duration-300 ease-out dark:border-white/[0.08] dark:bg-zinc-900/45 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]';
 }
 
-export function getPatioBoardColumnHeaderTopClass(isPcLayout: boolean): string {
-  return isPcLayout ? 'rounded-t-xl' : 'rounded-t-[1.35rem]';
+export function getPatioBoardColumnHeaderTopClass(_isPcLayout: boolean): string {
+  return 'rounded-t-[1.35rem]';
 }
