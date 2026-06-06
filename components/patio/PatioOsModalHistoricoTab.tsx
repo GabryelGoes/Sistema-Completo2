@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { Clock, MessageSquare, Calculator, Truck, FileText } from 'lucide-react';
-import type { ServiceOrderDetail } from '../../services/apiService';
-import type { SavedBudget } from '../../services/apiService';
+import type { ServiceOrderDetail, SavedBudgetFromApi } from '../../services/apiService';
 import type { TrelloAction } from '../../types';
 import type { ExternalRepairDraft } from '../../utils/externalRepair';
 import { formatExternalRepairDate } from '../../utils/externalRepair';
@@ -9,7 +8,7 @@ import { formatExternalRepairDate } from '../../utils/externalRepair';
 export type PatioOsModalHistoricoTabProps = {
   serviceOrderDetail: ServiceOrderDetail | null;
   comments: TrelloAction[];
-  budgets: SavedBudget[];
+  budgets: SavedBudgetFromApi[];
   serviceOrderId: string;
   externalRepairDraft: ExternalRepairDraft;
   insetCardClass: string;
