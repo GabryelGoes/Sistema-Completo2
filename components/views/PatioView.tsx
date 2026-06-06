@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, ArrowLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -5370,7 +5370,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <Trash2 className="h-5 w-5" />
                 </button>
                 )}
-                {!isPatioPcModal ? (
                 <button
                   type="button"
                   onClick={() => setSelectedCard(null)}
@@ -5379,7 +5378,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 >
                   <X className="h-5 w-5" />
                 </button>
-                ) : null}
               </div>
 
               {can('canDeleteCards') && isDeleteVehicleOpen && (
@@ -5446,16 +5444,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div className={patioVehicleVm.scroll}>
                   <div className={patioVehicleVm.header}>
                      <div className={patioVehicleVm.headerInner}>
-                        {isPatioPcModal ? (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedCard(null)}
-                            className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-semibold text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-                          >
-                            <ArrowLeft className="h-4 w-4" strokeWidth={2.2} />
-                            Voltar
-                          </button>
-                        ) : null}
                         <div className={isPatioPcModal ? patioVehicleVm.headerTitlePad : undefined}>
                         <div className="flex flex-wrap items-center gap-2">
                           {(serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null && (
