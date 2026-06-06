@@ -96,3 +96,58 @@ export function compressImageForUpload(
     img.src = url;
   });
 }
+
+/** Baixa imagem pública (Storage) para processamento no cliente. */
+export async function fetchImageBlob(url: string): Promise<Blob> {
+  const response = await fetch(url.split("?")[0], { mode: "cors", cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("Não foi possível carregar a imagem.");
+  }
+  return response.blob();
+}
+
+/** Gira imagem 90° no sentido horário ou anti-horário. */
+export function rotateImageBlob(blob: Blob, direction: "cw" | "ccw"): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const clockwise = direction === "cw";
+      const sourceW = img.naturalWidth;
+      const sourceH = img.naturalHeight;
+      const canvas = document.createElement("canvas");
+      canvas.width = sourceH;
+      canvas.height = sourceW;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(blob);
+        return;
+      }
+      if (clockwise) {
+        ctx.translate(sourceH, 0);
+        ctx.rotate(Math.PI / 2);
+      } else {
+        ctx.translate(0, sourceW);
+        ctx.rotate(-Math.PI / 2);
+      }
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob(
+        (result) => {
+          if (result) resolve(result);
+          else resolve(blob);
+        },
+        "image/jpeg",
+        0.9
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Não foi possível processar a imagem para rotação."));
+    };
+
+    img.src = url;
+  });
+}

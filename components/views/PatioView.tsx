@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -26,6 +26,7 @@ import {
   getServiceOrderPhotos,
   uploadServiceOrderPhoto,
   renameServiceOrderPhoto,
+  rotateServiceOrderPhoto,
   deleteServiceOrderPhoto,
   getServiceOrderBudgets,
   createServiceOrder,
@@ -96,6 +97,8 @@ import { useDesktopShellLayout } from '../ui/DesktopShellContext';
 import { useDragScroll } from '../../hooks/useDragScroll';
 import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverlay';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
+import { storageThumbnailUrl, storageDisplayUrl, bustStoragePublicUrl } from '../../utils/storageThumbnailUrl';
+import { fetchImageBlob, rotateImageBlob } from '../../utils/imageUpload';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import {
@@ -580,16 +583,29 @@ export interface SavedBudget {
 // --- Componente Lightbox com Zoom (Pinch) e Navegação entre Fotos ---
 const SWIPE_THRESHOLD = 44;
 
+type PatioPreviewImageItem = {
+  path: string;
+  url: string;
+  displayUrl: string;
+  name: string;
+};
+
 const Lightbox = ({
   src: singleSrc,
   images: imagesProp,
   initialIndex = 0,
   onClose,
+  onRotate,
+  isRotating = false,
+  canRotate = false,
 }: {
   src?: string;
   images?: string[];
   initialIndex?: number;
   onClose: () => void;
+  onRotate?: (direction: 'cw' | 'ccw') => void;
+  isRotating?: boolean;
+  canRotate?: boolean;
 }) => {
   const images = imagesProp && imagesProp.length > 0 ? imagesProp : (singleSrc ? [singleSrc] : []);
   const [currentIndex, setCurrentIndex] = useState(initialIndex >= 0 && initialIndex < images.length ? initialIndex : 0);
@@ -599,6 +615,7 @@ const Lightbox = ({
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [isSwiping, setIsSwiping] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const preloadedImagesRef = useRef<Set<string>>(new Set());
 
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
@@ -627,6 +644,7 @@ const Lightbox = ({
   useEffect(() => {
     setScale(1);
     setTranslate({ x: 0, y: 0 });
+    setImageLoaded(false);
   }, [src]);
 
   // Pré-carrega imagens vizinhas para swipe ficar imediato
@@ -768,6 +786,29 @@ const Lightbox = ({
         <X className="w-6 h-6" />
       </button>
 
+      {canRotate && onRotate && (
+        <div className="absolute left-3 top-3 z-10 flex gap-2 sm:left-5 sm:top-5">
+          <button
+            type="button"
+            disabled={isRotating}
+            onClick={(e) => { e.stopPropagation(); onRotate('ccw'); }}
+            className={`${mediaOverlayNavBtn} disabled:opacity-40`}
+            aria-label="Girar anti-horário"
+          >
+            <RotateCcw className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            disabled={isRotating}
+            onClick={(e) => { e.stopPropagation(); onRotate('cw'); }}
+            className={`${mediaOverlayNavBtn} disabled:opacity-40`}
+            aria-label="Girar horário"
+          >
+            <RotateCw className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
       {hasMultiple && canGoPrev && (
         <button
           type="button"
@@ -790,23 +831,32 @@ const Lightbox = ({
       )}
 
       <div
-        className="w-full h-full flex items-center justify-center touch-none"
+        className="relative w-full h-full flex items-center justify-center touch-none"
         onClick={(e) => e.stopPropagation()}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
       >
+        {(!imageLoaded || isRotating) && (
+          <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center">
+            <Loader2 className="h-10 w-10 animate-spin text-brand-yellow" aria-hidden />
+          </div>
+        )}
         <img
+          key={src}
           ref={imageRef}
           src={src}
           alt="Preview"
           decoding="async"
           loading="eager"
+          fetchPriority="high"
+          onLoad={() => setImageLoaded(true)}
           onDoubleClick={handleDoubleTap}
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
             transition: isDragging || isSwiping ? "none" : "transform 0.2s ease-out",
+            opacity: imageLoaded && !isRotating ? 1 : 0,
           }}
           className="max-w-full max-h-full object-contain select-none"
           draggable={false}
@@ -1033,9 +1083,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
     new Map()
   );
 
-  // Visualização de Imagem (Lightbox) — lista de URLs e índice para navegar entre fotos
-  const [previewImages, setPreviewImages] = useState<{ urls: string[]; currentIndex: number } | null>(null);
+  // Visualização de Imagem (Lightbox) — itens com URL otimizada e path para rotação
+  const [previewImages, setPreviewImages] = useState<{ items: PatioPreviewImageItem[]; currentIndex: number } | null>(null);
+  const [rotatingPreviewPhoto, setRotatingPreviewPhoto] = useState(false);
   const [loadingAttachmentId, setLoadingAttachmentId] = useState<string | null>(null);
+  const attachmentPreloadRef = useRef<Set<string>>(new Set());
   const [renameAttachmentId, setRenameAttachmentId] = useState<string | null>(null);
   const [renameAttachmentNewName, setRenameAttachmentNewName] = useState('');
   const [renamingAttachmentId, setRenamingAttachmentId] = useState<string | null>(null);
@@ -1045,6 +1097,47 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useEffect(() => {
     setVehicleModalPhotoVisibleCount(VEHICLE_MODAL_PHOTOS_BATCH);
   }, [selectedCard?.id]);
+
+  useEffect(() => {
+    attachmentPreloadRef.current.clear();
+  }, [selectedCard?.id]);
+
+  useEffect(() => {
+    if (!cardDetails?.attachments?.length) return;
+    const imageAttachments = cardDetails.attachments.filter(
+      (att) =>
+        att.mimeType?.startsWith('image/') ||
+        /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(att.url)
+    );
+    const preloadCount = Math.min(imageAttachments.length, vehicleModalPhotoVisibleCount + 4);
+    for (let i = 0; i < preloadCount; i++) {
+      const att = imageAttachments[i];
+      const thumbUrl = storageThumbnailUrl(att.url, {
+        maxWidth: 200,
+        maxHeight: 200,
+        resize: 'cover',
+        quality: 50,
+      });
+      if (!attachmentPreloadRef.current.has(thumbUrl)) {
+        const img = new Image();
+        img.decoding = 'async';
+        if (i < 8 && 'fetchPriority' in img) {
+          (img as HTMLImageElement & { fetchPriority?: string }).fetchPriority = i < 4 ? 'high' : 'low';
+        }
+        img.src = thumbUrl;
+        attachmentPreloadRef.current.add(thumbUrl);
+      }
+      if (i < 6) {
+        const displayUrl = storageDisplayUrl(att.url);
+        if (!attachmentPreloadRef.current.has(displayUrl)) {
+          const displayImg = new Image();
+          displayImg.decoding = 'async';
+          displayImg.src = displayUrl;
+          attachmentPreloadRef.current.add(displayUrl);
+        }
+      }
+    }
+  }, [cardDetails?.attachments, vehicleModalPhotoVisibleCount]);
 
   // Visualização de PDF
   const [previewPdf, setPreviewPdf] = useState<string | null>(null);
@@ -3553,6 +3646,78 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return "application/octet-stream";
   };
 
+  const mapPhotosToAttachments = useCallback(
+    (photos: { path: string; name: string; url: string }[]): TrelloAttachment[] =>
+      photos.map((p, i) => ({
+        id: p.path || String(i),
+        name: p.name,
+        url: p.url,
+        mimeType: attachmentMimeType(p.name),
+        previews: [{ url: p.url, width: 200, height: 200 }],
+      })),
+    []
+  );
+
+  const preloadLightboxDisplayUrl = useCallback((url: string) => {
+    const displayUrl = storageDisplayUrl(url);
+    if (attachmentPreloadRef.current.has(displayUrl)) return;
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = displayUrl;
+    attachmentPreloadRef.current.add(displayUrl);
+  }, []);
+
+  const handleRotatePreviewPhoto = async (direction: 'cw' | 'ccw') => {
+    if (!previewImages || !selectedCard || rotatingPreviewPhoto) return;
+    const item = previewImages.items[previewImages.currentIndex];
+    if (!item?.path || /^\d+$/.test(String(item.path))) return;
+
+    setRotatingPreviewPhoto(true);
+    try {
+      const blob = await fetchImageBlob(item.url);
+      const rotated = await rotateImageBlob(blob, direction);
+      const result = await rotateServiceOrderPhoto(selectedCard.id, item.path, rotated, item.name);
+      const freshUrl = bustStoragePublicUrl(result.url);
+      const freshDisplay = storageDisplayUrl(freshUrl);
+
+      setCardDetails((prev) =>
+        prev
+          ? {
+              ...prev,
+              attachments: prev.attachments.map((a) =>
+                a.id === item.path || a.url.split('?')[0] === item.url.split('?')[0]
+                  ? { ...a, url: freshUrl, previews: [{ url: freshUrl, width: 200, height: 200 }] }
+                  : a
+              ),
+            }
+          : null
+      );
+
+      setPreviewImages((prev) => {
+        if (!prev) return null;
+        const items = prev.items.map((it, i) =>
+          i === prev.currentIndex ? { ...it, url: freshUrl, displayUrl: freshDisplay } : it
+        );
+        return { ...prev, items };
+      });
+
+      const thumbUrl = storageThumbnailUrl(freshUrl, {
+        maxWidth: 200,
+        maxHeight: 200,
+        resize: 'cover',
+        quality: 50,
+      });
+      attachmentPreloadRef.current.delete(thumbUrl);
+      attachmentPreloadRef.current.delete(freshDisplay);
+      preloadLightboxDisplayUrl(freshUrl);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao girar foto.';
+      alert(message);
+    } finally {
+      setRotatingPreviewPhoto(false);
+    }
+  };
+
   const handleDeleteAttachment = async (path: string, attId: string, url: string) => {
     if (!selectedCard) return;
     if (!window.confirm("Excluir este anexo permanentemente?")) return;
@@ -3560,34 +3725,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
     try {
       await deleteServiceOrderPhoto(selectedCard.id, path);
       const photos = await getServiceOrderPhotos(selectedCard.id);
-      setCardDetails((prev) =>
-        prev
-          ? {
-              ...prev,
-              attachments: photos.map((p, i) => ({
-                id: p.path || String(i),
-                name: p.name,
-                url: p.url,
-                mimeType: attachmentMimeType(p.name),
-                previews: [{ url: p.url, width: 200, height: 200 }],
-              })),
-            }
-          : null
-      );
+      setCardDetails((prev) => (prev ? { ...prev, attachments: mapPhotosToAttachments(photos) } : null));
       if (renameAttachmentId === attId) {
         setRenameAttachmentId(null);
         setRenameAttachmentNewName("");
       }
       setPreviewImages((prev) => {
         if (!prev) return null;
-        const newUrls = prev.urls.filter((u) => u !== url);
-        if (newUrls.length === 0) return null;
-        const oldIdx = prev.urls.indexOf(url);
-        if (oldIdx === -1) return { urls: newUrls, currentIndex: Math.min(prev.currentIndex, newUrls.length - 1) };
+        const urlBase = url.split('?')[0];
+        const newItems = prev.items.filter((it) => it.url.split('?')[0] !== urlBase);
+        if (newItems.length === 0) return null;
+        const oldIdx = prev.items.findIndex((it) => it.url.split('?')[0] === urlBase);
+        if (oldIdx === -1) return { items: newItems, currentIndex: Math.min(prev.currentIndex, newItems.length - 1) };
         let newIndex = prev.currentIndex;
         if (oldIdx < prev.currentIndex) newIndex = prev.currentIndex - 1;
-        else if (oldIdx === prev.currentIndex) newIndex = Math.min(prev.currentIndex, newUrls.length - 1);
-        return { urls: newUrls, currentIndex: newIndex };
+        else if (oldIdx === prev.currentIndex) newIndex = Math.min(prev.currentIndex, newItems.length - 1);
+        return { items: newItems, currentIndex: newIndex };
       });
       setPreviewPdf((prev) => (prev === url ? null : prev));
     } catch (err: any) {
@@ -7104,7 +7257,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             </div>
                                             <div className="rounded-xl border border-zinc-200/70 bg-white/70 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] dark:border-white/[0.08] dark:bg-white/[0.03]">
                                             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 md:gap-3">
-                                            {visibleImages.map(att => {
+                                            {visibleImages.map((att, photoIndex) => {
                                               const isLoadingThis = loadingAttachmentId === att.id;
                                               const isDeletingThis = deletingAttachmentId === att.id;
                                               const attachmentPath = att.id;
@@ -7216,13 +7369,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                       <div className="group relative aspect-square overflow-hidden rounded-[12px] bg-zinc-100 dark:bg-zinc-900">
                                                         <button
                                                           type="button"
-                                                          onClick={() =>
-                                                            !isLoadingThis &&
+                                                          onPointerEnter={() => preloadLightboxDisplayUrl(att.url)}
+                                                          onFocus={() => preloadLightboxDisplayUrl(att.url)}
+                                                          onClick={() => {
+                                                            if (isLoadingThis) return;
+                                                            preloadLightboxDisplayUrl(att.url);
                                                             setPreviewImages({
-                                                              urls: images.map((a) => a.url),
+                                                              items: images.map((a) => ({
+                                                                path: a.id,
+                                                                url: a.url,
+                                                                displayUrl: storageDisplayUrl(a.url),
+                                                                name: a.name,
+                                                              })),
                                                               currentIndex: images.findIndex((a) => a.url === att.url),
-                                                            })
-                                                          }
+                                                            });
+                                                          }}
                                                           className="absolute inset-0 h-full w-full rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
                                                         >
                                                           {isLoadingThis ? (
@@ -7239,6 +7400,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                                 thumbMaxWidth={200}
                                                                 thumbMaxHeight={200}
                                                                 thumbQuality={50}
+                                                                loading={photoIndex < 8 ? 'eager' : 'lazy'}
+                                                                fetchPriority={photoIndex < 4 ? 'high' : 'low'}
                                                               />
                                                               <div className="absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/50 via-transparent to-transparent px-2 pb-2 opacity-0 transition-opacity group-hover:opacity-100">
                                                                 <button
@@ -8185,9 +8348,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* LIGHTBOX MODAL (IMAGE PREVIEW) WITH ZOOM E NAVEGAÇÃO */}
       {previewImages && patioPortalsVisible && (
         <Lightbox
-          images={previewImages.urls}
+          images={previewImages.items.map((item) => item.displayUrl)}
           initialIndex={previewImages.currentIndex}
           onClose={() => setPreviewImages(null)}
+          onRotate={can('canEditFicha') ? handleRotatePreviewPhoto : undefined}
+          isRotating={rotatingPreviewPhoto}
+          canRotate={can('canEditFicha') && !!selectedCard}
         />
       )}
 

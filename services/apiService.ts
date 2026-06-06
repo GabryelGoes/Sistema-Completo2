@@ -1503,6 +1503,29 @@ export async function deleteServiceOrderPhoto(serviceOrderId: string, path: stri
   }
 }
 
+/** Substitui o arquivo no Storage (mesmo path) após rotação no cliente. */
+export async function rotateServiceOrderPhoto(
+  serviceOrderId: string,
+  path: string,
+  file: Blob,
+  fileName: string
+): Promise<ServiceOrderPhoto> {
+  const toSend = await compressImageForUpload(file, 3 * 1024 * 1024);
+  const name = toSend === file ? fileName : (fileName.replace(/\.\w+$/i, ".jpg") || "photo.jpg");
+  const formData = new FormData();
+  formData.append("file", toSend, name);
+  formData.append("path", path);
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/photos/rotate`, {
+    method: "PATCH",
+    body: formData,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao girar foto (${response.status})`);
+  }
+  return response.json();
+}
+
 // ---------- Comentários do modal do veículo ----------
 
 export interface ServiceOrderComment {

@@ -37,3 +37,18 @@ export function storageThumbnailUrl(publicUrl: string, options?: StorageThumbOpt
   }
   return `${origin}/storage/v1/render/image/public/${rest}?${query}`;
 }
+
+/** URL otimizada para visualização em tela cheia (lightbox) — menor que o original. */
+export function storageDisplayUrl(publicUrl: string, maxWidth = 1400): string {
+  return storageThumbnailUrl(publicUrl, {
+    maxWidth,
+    quality: 80,
+    format: "webp",
+    resize: "contain",
+  });
+}
+
+export function bustStoragePublicUrl(publicUrl: string): string {
+  const base = publicUrl.split("?")[0] ?? publicUrl;
+  return `${base}?v=${Date.now()}`;
+}
