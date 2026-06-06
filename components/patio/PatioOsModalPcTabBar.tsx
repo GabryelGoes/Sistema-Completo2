@@ -1,10 +1,11 @@
 import React from 'react';
 
-export type PatioOsModalPcTab = 'dados' | 'arquivos' | 'laboratorio';
+export type PatioOsModalPcTab = 'dados' | 'arquivos' | 'conserto_externo' | 'laboratorio';
 
 const ALL_TABS: { id: PatioOsModalPcTab; label: string }[] = [
-  { id: 'dados', label: 'Dados da ficha' },
+  { id: 'dados', label: 'Dados' },
   { id: 'arquivos', label: 'Arquivos' },
+  { id: 'conserto_externo', label: 'Conserto externo' },
   { id: 'laboratorio', label: 'Serviços no laboratório' },
 ];
 
