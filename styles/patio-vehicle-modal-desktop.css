@@ -25,6 +25,7 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vehicle-modal__s
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-card,
 html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-card {
+  border-radius: 6px;
   transition:
     border-color 0.15s ease,
     box-shadow 0.18s ease;

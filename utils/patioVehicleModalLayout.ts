@@ -103,7 +103,7 @@ const COMPACT_DESKTOP: PatioVehicleModalCompact = {
   deliveryDateBarLabel: '',
   dateInputBar: '',
   iconSquircle:
-    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]',
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]',
   iconGlyph: 'h-3.5 w-3.5 text-[#007AFF] dark:text-[#7ab8ff]',
   titleText:
     'truncate bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[11px] font-bold leading-tight tracking-[-0.02em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400',
@@ -111,22 +111,22 @@ const COMPACT_DESKTOP: PatioVehicleModalCompact = {
   assignHint: 'mt-0.5 truncate text-[12px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff]',
   chevron: 'relative z-[1] h-3.5 w-3.5 shrink-0',
   numericInput:
-    'patio-vm-meta-input patio-vm-meta-input--km h-8 w-[4.75rem] min-w-0 shrink-0 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2 py-1 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500',
+    'patio-vm-meta-input patio-vm-meta-input--km h-8 w-[4.75rem] min-w-0 shrink-0 rounded-md border border-zinc-300/90 bg-zinc-50 px-2 py-1 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500',
   dateInput:
-    'patio-vm-meta-input patio-vm-meta-input--date h-8 w-[8.25rem] min-w-0 shrink-0 rounded-lg border border-zinc-300/90 bg-zinc-50 px-2 py-1 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white',
+    'patio-vm-meta-input patio-vm-meta-input--date h-8 w-[8.25rem] min-w-0 shrink-0 rounded-md border border-zinc-300/90 bg-zinc-50 px-2 py-1 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white',
   dateFieldWrap: '',
   dateFieldLabel: '',
   dateFieldRow: '',
   saveBtn:
-    'inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-white shadow-md transition-all hover:brightness-105 disabled:opacity-50',
+    'inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-white shadow-md transition-all hover:brightness-105 disabled:opacity-50',
   saveIcon: 'h-3.5 w-3.5',
   salvo: 'sr-only',
   mechanicWrap:
-    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow-md',
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-md shadow-md',
   mechanicWrench:
     'h-3.5 w-3.5 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]',
   emptyTech:
-    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12',
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12',
   fieldRow: 'ml-auto flex shrink-0 items-center gap-1',
 };
 
@@ -182,9 +182,9 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
     asideCol:
       'patio-vm-aside-col min-w-0 space-y-5 border-t border-zinc-300/70 bg-[#F2F2F7]/80 pt-5 dark:border-white/[0.08] dark:bg-zinc-950/40 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0',
     insetCard:
-      'patio-vm-card rounded-[16px] border border-zinc-300/70 bg-white shadow-[0_8px_28px_-8px_rgba(63,63,70,0.15),0_3px_14px_-6px_rgba(82,82,91,0.10)] dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]',
+      'patio-vm-card rounded-[6px] border border-zinc-300/70 bg-white shadow-[0_8px_28px_-8px_rgba(63,63,70,0.15),0_3px_14px_-6px_rgba(82,82,91,0.10)] dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]',
     input:
-      'w-full rounded-xl border border-zinc-300/85 bg-zinc-50 px-3.5 py-2.5 text-[15px] leading-relaxed text-zinc-950 placeholder:text-zinc-500 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 transition-shadow dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500',
+      'w-full rounded-md border border-zinc-300/85 bg-zinc-50 px-3.5 py-2.5 text-[15px] leading-relaxed text-zinc-950 placeholder:text-zinc-500 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 transition-shadow dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500',
     closeBtn:
       'patio-vehicle-modal__icon-btn flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15',
     assignHintLabel: 'Clique para atribuir',

@@ -1007,12 +1007,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   sendingCommentRef.current = sendingComment;
   editingActionIdRef.current = editingActionId;
 
-  const handleJumpToCustomerNameEdit = () => {
-    setIsDadosFichaExpanded(true);
-    setFocusCustomerNameAfterExpand(true);
-    customerDataSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
   // Estados para Edição da DESCRIÇÃO (Ficha Técnica)
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [descText, setDescText] = useState('');
@@ -1195,6 +1189,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Modal de veículo em layout PC: duas colunas (shell OnMotor ou viewport ≥1024px). */
   /** Com a bancada em tela cheia, o modal da OS abre como card flutuante (layout não-PC) por cima dela. */
   const isPatioPcModal = (desktopShell || (isDesktop && viewportWidth >= 1024)) && !benchFullscreenOpen;
+
+  const handleJumpToCustomerNameEdit = useCallback(() => {
+    if (isPatioPcModal) {
+      setIsDadosFichaExpanded((v) => !v);
+      setFocusCustomerNameAfterExpand(true);
+      return;
+    }
+    setIsDadosFichaExpanded(true);
+    setFocusCustomerNameAfterExpand(true);
+    customerDataSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [isPatioPcModal]);
+
   const patioVehicleVm = useMemo(() => getPatioVehicleModalLayout(isPatioPcModal), [isPatioPcModal]);
   const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isPatioPcModal), [isPatioPcModal]);
   const patioVehicleModalOverlayClass = useMemo(() => {
@@ -5445,9 +5451,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className={patioVehicleVm.header}>
                      <div className={patioVehicleVm.headerInner}>
                         <div className={isPatioPcModal ? patioVehicleVm.headerTitlePad : undefined}>
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div
+                          className={
+                            isPatioPcModal && !isModuleMode
+                              ? 'flex flex-wrap items-start justify-between gap-3'
+                              : 'flex flex-wrap items-center gap-2'
+                          }
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
                           {(serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null && (
-                            <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-600/60">
+                            <span className={`inline-flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wider bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-600/60 ${isPatioPcModal ? 'rounded-md' : 'rounded-lg'}`}>
                               OS #{(serviceOrderDetail?.os_number ?? selectedCard.osNumber)}
                             </span>
                           )}
@@ -5481,28 +5494,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </button>
                             </span>
                           )}
-                        </div>
-                        {!isModuleMode &&
-                        (serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand)?.trim() ? (
-                          <p className={patioVehicleVm.brandSubtitle}>
-                            {(serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand || '').trim()}
-                          </p>
-                        ) : null}
-                        <div className="mt-0.5 flex min-w-0 items-end gap-3">
-                          <h1
-                            className={`${patioVehicleVm.title} ${vehicleModalTitleShadow}`}
-                            title={selectedCardTitleParts?.vehicle}
-                          >
-                            {selectedCardTitleParts?.vehicle}
-                          </h1>
-                          {!isModuleMode && (
-                            <div
-                              className={
-                                isPatioPcModal
-                                  ? 'inline-flex shrink-0 origin-right scale-[1.08] items-center justify-center'
-                                  : 'inline-flex shrink-0 origin-right scale-[1.2] portrait:scale-[0.936] items-center justify-center'
-                              }
-                            >
+                          </div>
+                          {isPatioPcModal && !isModuleMode ? (
+                            <div className="inline-flex shrink-0 origin-right scale-[1.08] items-center justify-center">
                               <MercosulPlateMockup
                                 plate={selectedCardTitleParts?.plateOrModule || '---'}
                                 blurPlates={blurPlates}
@@ -5510,14 +5504,48 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 selectable
                               />
                             </div>
-                          )}
+                          ) : null}
                         </div>
                         {!isModuleMode &&
-                        (serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor)?.trim() ? (
-                          <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
-                            {isPatioPcModal ? 'Cor: ' : 'Cor · '}
-                            {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '').trim()}
+                        (serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand)?.trim() ? (
+                          <p className={patioVehicleVm.brandSubtitle}>
+                            {(serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand || '').trim()}
                           </p>
+                        ) : null}
+                        <div className={`${isPatioPcModal ? 'mt-1' : 'mt-0.5'} flex min-w-0 items-end gap-3`}>
+                          <h1
+                            className={`${patioVehicleVm.title} ${vehicleModalTitleShadow}`}
+                            title={selectedCardTitleParts?.vehicle}
+                          >
+                            {selectedCardTitleParts?.vehicle}
+                          </h1>
+                          {!isModuleMode && !isPatioPcModal ? (
+                            <div className="inline-flex shrink-0 origin-right scale-[1.2] portrait:scale-[0.936] items-center justify-center">
+                              <MercosulPlateMockup
+                                plate={selectedCardTitleParts?.plateOrModule || '---'}
+                                blurPlates={blurPlates}
+                                size="modal"
+                                selectable
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                        {!isModuleMode &&
+                        ((serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor)?.trim() ||
+                          (serviceOrderDetail?.vehicle_year ?? selectedCard.vehicleYear ?? '').trim()) ? (
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                            {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor)?.trim() ? (
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
+                                {isPatioPcModal ? 'Cor: ' : 'Cor · '}
+                                {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '').trim()}
+                              </p>
+                            ) : null}
+                            {(serviceOrderDetail?.vehicle_year ?? selectedCard.vehicleYear ?? '').trim() ? (
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
+                                Ano: {(serviceOrderDetail?.vehicle_year ?? selectedCard.vehicleYear ?? '').trim()}
+                              </p>
+                            ) : null}
+                          </div>
                         ) : null}
                         </div>
                         {/* Cliente | Km | Data de entrega | Técnico */}
@@ -5525,9 +5553,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <button
                             type="button"
                             onClick={handleJumpToCustomerNameEdit}
-                            disabled={!can('canEditFicha')}
-                            title={can('canEditFicha') ? 'Editar nome do cliente em Dados da ficha' : 'Dados do cliente'}
-                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isPatioPcModal ? 'patio-vm-meta-card cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${!isPatioPcModal && !isModuleMode && can('canEditMileage') ? '' : !isPatioPcModal ? 'sm:col-span-2' : ''}`}
+                            disabled={!isPatioPcModal && !can('canEditFicha')}
+                            title={
+                              isPatioPcModal
+                                ? can('canEditFicha')
+                                  ? isDadosFichaExpanded
+                                    ? 'Fechar dados da ficha'
+                                    : 'Abrir dados da ficha'
+                                  : 'Ver dados da ficha'
+                                : can('canEditFicha')
+                                  ? 'Editar nome do cliente em Dados da ficha'
+                                  : 'Dados do cliente'
+                            }
+                            aria-expanded={isPatioPcModal ? isDadosFichaExpanded : undefined}
+                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isPatioPcModal ? 'patio-vm-meta-card cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${isPatioPcModal && isDadosFichaExpanded ? 'border-[#007AFF]/40 ring-1 ring-[#007AFF]/15' : ''} ${!isPatioPcModal && !isModuleMode && can('canEditMileage') ? '' : !isPatioPcModal ? 'sm:col-span-2' : ''}`}
                           >
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -5545,8 +5584,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <p className={c.titleText}>Cliente</p>
                                 <p className={c.bodyText}>{selectedCardTitleParts?.customer || '—'}</p>
                               </div>
-                              {can('canEditFicha') && (
-                                <ChevronRight strokeWidth={2.25} className={`${c.chevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
+                              {(isPatioPcModal || can('canEditFicha')) && (
+                                <ChevronRight
+                                  strokeWidth={2.25}
+                                  className={`${c.chevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff] ${isPatioPcModal && isDadosFichaExpanded ? 'rotate-90' : ''}`}
+                                  aria-hidden
+                                />
                               )}
                             </div>
                           </button>
@@ -5720,10 +5763,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           )}
                         </div>
 
-                        {/* Dados da ficha — cabeçalho com camadas, tipografia forte e chips de resumo */}
-                        {serviceOrderDetail && showPcOsTab('dados') && (
+                        {/* Dados da ficha — no PC abre pelo card Cliente; no mobile mantém cabeçalho colapsável */}
+                        {serviceOrderDetail &&
+                        ((!isPatioPcModal && showPcOsTab('dados')) || (isPatioPcModal && isDadosFichaExpanded)) && (
                         <div ref={customerDataSectionRef} className="mt-2 w-full">
                       <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
+                        {!isPatioPcModal ? (
                         <div className="relative border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-zinc-950/25">
                           <div
                             className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.14),transparent_52%)]"
@@ -5831,6 +5876,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             />
                           </button>
                         </div>
+                        ) : null}
                         {isDadosFichaExpanded && (
                         <div className="flex flex-col gap-6 bg-zinc-50/90 p-5 dark:bg-white/[0.02] sm:p-6">
                           {can('canEditFicha') ? (
