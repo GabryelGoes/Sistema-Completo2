@@ -7096,9 +7096,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       Anexos
                                     </p>
                                   </div>
-                                  <p className="mt-1.5 max-w-md text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
-                                    Links úteis ficam logo abaixo dos botões. Cada foto pode ter um nome — aparece abaixo da miniatura. Use o lápis para renomear e a lixeira para excluir (fotos e documentos).
-                                  </p>
                                 </div>
                                 <div className="grid grid-cols-3 gap-2 sm:gap-2 sm:justify-items-end sm:shrink-0">
                                     <input 
