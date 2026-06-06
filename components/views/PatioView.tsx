@@ -118,7 +118,12 @@ import {
 } from '../ui/iosModalStyles';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { markdownComponentsApp } from '../ui/markdownUi';
-import { uiReadBody, uiSectionTitleRow } from '../ui/appTypography';
+import {
+  uiOsModalCardSectionTitle,
+  uiOsModalSectionIconWrap,
+  uiReadBody,
+  uiSectionTitleRow,
+} from '../ui/appTypography';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { usePatioBoardLiveSync } from '../../hooks/usePatioBoardLiveSync';
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from '../../utils/budgetPrintWithDetail';
@@ -5785,7 +5790,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           >
                             <div className="pointer-events-none absolute inset-y-2 left-2.5 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)] sm:left-3 sm:inset-y-2.5" aria-hidden />
                             <div className="min-w-0 flex-1 pl-4 sm:pl-5">
-                              <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent sm:text-[17px] dark:from-white dark:via-zinc-100 dark:to-zinc-400">
+                              <p className={uiOsModalCardSectionTitle}>
                                 Dados da ficha
                               </p>
                               <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -6352,10 +6357,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                             <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                               <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                <div className={uiOsModalSectionIconWrap}>
                                   <FileText className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                 </div>
-                                <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[17px]">
+                                <p className={uiOsModalCardSectionTitle}>
                                   Queixa do cliente
                                 </p>
                               </div>
@@ -6445,10 +6450,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               />
 
                               <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                <div className={uiOsModalSectionIconWrap}>
                                   <Calculator className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                 </div>
-                                <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[17px]">
+                                <p className={uiOsModalCardSectionTitle}>
                                   Orçamentos
                                 </p>
                               </div>
@@ -6555,10 +6560,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
                               <div className="relative min-w-0">
                                 <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
-                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                  <div className={uiOsModalSectionIconWrap}>
                                     <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                   </div>
-                                  <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[17px]">
+                                  <p className={uiOsModalCardSectionTitle}>
                                     Serviços no laboratório
                                   </p>
                                 </div>
@@ -6688,20 +6693,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
 
                         {isModuleMode && serviceOrderDetail && (
-                          <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)]`}>
-                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
-                              <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-indigo-200/95 bg-gradient-to-b from-indigo-50 to-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-indigo-500/25 dark:from-indigo-950/40 dark:to-indigo-950/20">
-                                  <Wrench className="h-4 w-4 text-indigo-600 dark:text-indigo-300" strokeWidth={2.25} aria-hidden />
+                          <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
+                            <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                              <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                                <div className={uiOsModalSectionIconWrap}>
+                                  <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                 </div>
-                                <div className="min-w-0">
-                                  <p className="bg-gradient-to-r from-indigo-900 via-indigo-700 to-indigo-500 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-indigo-200 dark:via-indigo-300 dark:to-indigo-400 sm:text-[17px]">
-                                    Conserto externo (terceiros)
-                                  </p>
-                                  <p className="mt-0.5 text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
-                                    Etapas &quot;Envio/Chegada conserto&quot;
-                                  </p>
-                                </div>
+                                <p className={uiOsModalCardSectionTitle}>
+                                  Conserto externo
+                                </p>
                               </div>
                               {can('canEditFicha') && !isExternalRepairEditing ? (
                                 <button
@@ -6719,16 +6719,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     }
                                     setIsExternalRepairEditing(true);
                                   }}
-                                  className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200/90 bg-indigo-50/80 px-3 py-2 text-[13px] font-semibold text-indigo-700 transition-colors hover:bg-indigo-100 dark:border-indigo-500/30 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:bg-indigo-950/60"
+                                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
                                 >
-                                  <Pencil className="h-4 w-4" strokeWidth={2.2} />
+                                  <Pencil className="h-3 w-3" aria-hidden strokeWidth={2.5} />
                                   Editar
                                 </button>
                               ) : null}
                             </div>
 
                             {!isExternalRepairEditing || !can('canEditFicha') ? (
-                              <div className="space-y-1 px-3 py-3 text-[14px] text-zinc-700 dark:text-zinc-300 sm:px-4 sm:py-3.5">
+                              <div className="space-y-1 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 text-[14px] text-zinc-700 dark:border-white/[0.06] dark:bg-white/[0.02] dark:text-zinc-300 sm:px-4 sm:py-3.5">
                                 {externalRepairDraft.vehicleRef.trim() ? (
                                   <p><span className="font-semibold">Veículo:</span> {externalRepairDraft.vehicleRef}</p>
                                 ) : null}
@@ -6762,7 +6762,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 ) : null}
                               </div>
                             ) : (
-                              <div className="space-y-2.5 px-3 py-3 sm:px-4 sm:py-3.5">
+                              <div className="space-y-2.5 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-3.5">
                                 <div>
                                   <label className={`${iosLabel} !mb-1`}>Veículo / referência</label>
                                   <input
@@ -6879,10 +6879,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div className="min-w-0">
                                   <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
-                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                    <div className={uiOsModalSectionIconWrap}>
                                       <Paperclip className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                     </div>
-                                    <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[17px]">
+                                    <p className={uiOsModalCardSectionTitle}>
                                       Anexos
                                     </p>
                                   </div>
@@ -7091,10 +7091,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         {images.length > 0 && (
                                           <div className="order-2">
                                             <div className="mb-2 flex min-w-0 items-center gap-2 pl-1.5 sm:gap-2.5 sm:pl-2">
-                                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                              <div className={uiOsModalSectionIconWrap}>
                                                 <ImageIcon className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                               </div>
-                                              <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[17px]">
+                                              <p className={uiOsModalCardSectionTitle}>
                                                 Fotos
                                               </p>
                                             </div>
@@ -7317,10 +7317,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         {others.length > 0 && (
                                           <div className="order-1">
                                             <div className="mb-2 flex min-w-0 items-center gap-2 pl-1.5 sm:gap-2.5 sm:pl-2">
-                                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
+                                              <div className={uiOsModalSectionIconWrap}>
                                                 <FileText className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                               </div>
-                                              <p className="bg-gradient-to-r from-zinc-950 via-zinc-800 to-zinc-600 bg-clip-text text-[16px] font-bold leading-tight tracking-[-0.03em] text-transparent dark:from-white dark:via-zinc-100 dark:to-zinc-400 sm:text-[17px]">
+                                              <p className={uiOsModalCardSectionTitle}>
                                                 Documentos
                                               </p>
                                             </div>
