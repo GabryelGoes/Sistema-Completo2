@@ -158,7 +158,7 @@ import LabBenchPanel from '../lab/LabBenchPanel';
 import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
 import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
 import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsModalPcTabBar';
-import { PatioOsModalHistoricoTab } from '../patio/PatioOsModalHistoricoTab';
+import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServicesSection';
 import { LabBenchSlotEditor } from '../lab/LabBenchSlotEditor';
 import type { ExternalRepair } from '../../constants/labBench';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
@@ -5564,6 +5564,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const vin = patioVehicleVm.input;
         const c = patioVehicleVm.compact;
         const showPcOsTab = (tab: PatioOsModalPcTab) => !isPatioPcModal || pcOsModalTab === tab;
+        const renderLabServicesSection = (wrapClassName?: string) =>
+          !isModuleMode && can('canEditBudgets') ? (
+            <PatioOsModalLabServicesSection
+              insetCardClass={vi}
+              inputClass={vin}
+              wrapClassName={wrapClassName}
+              newLabServiceMode={newLabServiceMode}
+              onLabServiceModeChange={setNewLabServiceMode}
+              newLabBudgetRef={newLabBudgetRef}
+              onLabBudgetRefChange={setNewLabBudgetRef}
+              newLabManualLabel={newLabManualLabel}
+              onLabManualLabelChange={setNewLabManualLabel}
+              newLabServiceDetails={newLabServiceDetails}
+              onLabServiceDetailsChange={setNewLabServiceDetails}
+              budgetServiceOptions={budgetServiceOptions}
+              onCreateLabService={() => void handleCreateLabServiceFromVehicle()}
+              creatingLabService={creatingLabService}
+              labServiceLinksSaving={labServiceLinksSaving}
+              labServiceLinksDraft={labServiceLinksDraft}
+              labOrdersLookup={labOrdersLookup}
+              getStageName={(status) => getStageConfig(status, 'module')?.name ?? status}
+              getStageStyleClass={(status) => getStageStyle(status, 'module')}
+              onOpenLaboratoryOrder={onOpenLaboratoryOrder}
+              onRemoveLabServiceLink={(linkId) => void handleRemoveLabServiceLink(linkId)}
+            />
+          ) : null;
         return (
         <ModalPortal>
         <div className={patioVehicleModalOverlayClass}>
@@ -6546,7 +6572,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
 
                   {isPatioPcModal ? (
-                    <PatioOsModalPcTabBar active={pcOsModalTab} onChange={setPcOsModalTab} />
+                    <PatioOsModalPcTabBar
+                      active={pcOsModalTab}
+                      onChange={setPcOsModalTab}
+                      hiddenTabs={isModuleMode ? ['laboratorio'] : undefined}
+                    />
                   ) : null}
 
                   <div className={patioVehicleVm.body}>
@@ -6765,140 +6795,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          </div>
                          )}
 
-                        {!isModuleMode && can('canEditBudgets') && (
-                          <div className="mt-3">
-                            <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
-                              <div className="relative min-w-0">
-                                <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
-                                  <div className={uiOsModalSectionIconWrap}>
-                                    <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
-                                  </div>
-                                  <p className={uiOsModalCardSectionTitle}>
-                                    Serviços no laboratório
-                                  </p>
-                                </div>
-
-                                <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
-                                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
-                                    <select
-                                      value={newLabServiceMode}
-                                      onChange={(e) => setNewLabServiceMode(e.target.value === "manual" ? "manual" : "budget")}
-                                      className={`${vin} !h-11 !py-0 text-[13px]`}
-                                    >
-                                      <option value="budget">Do orçamento</option>
-                                      <option value="manual">Manual</option>
-                                    </select>
-                                    {newLabServiceMode === "budget" ? (
-                                      <select
-                                        value={newLabBudgetRef}
-                                        onChange={(e) => setNewLabBudgetRef(e.target.value)}
-                                        className={`${vin} !h-11 !py-0 text-[13px]`}
-                                      >
-                                        <option value="">Selecione o serviço do orçamento</option>
-                                        {budgetServiceOptions.map((opt) => (
-                                          <option key={opt.key} value={opt.key}>
-                                            {opt.label}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    ) : (
-                                      <input
-                                        value={newLabManualLabel}
-                                        onChange={(e) => setNewLabManualLabel(e.target.value)}
-                                        placeholder="Ex.: reparo de módulo ABS"
-                                        className={`${vin} !h-11 !py-0 text-[13px]`}
-                                      />
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={() => void handleCreateLabServiceFromVehicle()}
-                                      disabled={creatingLabService || labServiceLinksSaving}
-                                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#007AFF] px-3 py-2 text-[13px] font-semibold text-white disabled:opacity-55"
-                                    >
-                                      {creatingLabService ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                                      Enviar
-                                    </button>
-                                  </div>
-
-                                  <div>
-                                    <label
-                                      htmlFor="new-lab-service-details"
-                                      className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"
-                                    >
-                                      Detalhes do serviço <span className="font-normal normal-case tracking-normal text-zinc-400 dark:text-zinc-500">(opcional)</span>
-                                    </label>
-                                    <textarea
-                                      id="new-lab-service-details"
-                                      value={newLabServiceDetails}
-                                      onChange={(e) => setNewLabServiceDetails(e.target.value)}
-                                      placeholder="Ex.: sintomas, peça avariada, prazo combinado com o cliente..."
-                                      rows={3}
-                                      maxLength={2000}
-                                      disabled={creatingLabService || labServiceLinksSaving}
-                                      className={`${vin} min-h-[88px] resize-y text-[13px] leading-relaxed disabled:opacity-55`}
-                                    />
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    {labServiceLinksDraft.length === 0 ? (
-                                      <p className="rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-4 text-[13px] text-zinc-600 dark:border-white/[0.12] dark:bg-white/[0.04] dark:text-zinc-400">
-                                        Nenhum serviço enviado ao laboratório.
-                                      </p>
-                                    ) : (
-                                      labServiceLinksDraft.map((link) => {
-                                        const linkedOrder = labOrdersLookup[link.laboratoryOrderId];
-                                        const statusLabel = linkedOrder
-                                          ? getStageConfig(linkedOrder.status, "module")?.name ?? linkedOrder.status
-                                          : "Não localizado";
-                                        const statusStyle = linkedOrder
-                                          ? getStageStyle(linkedOrder.status, "module")
-                                          : "bg-zinc-500 text-white border-zinc-600";
-                                        return (
-                                          <div
-                                            key={link.id}
-                                            className="flex flex-col gap-2 rounded-xl border border-zinc-200/70 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60 sm:flex-row sm:items-center sm:justify-between"
-                                          >
-                                            <div className="min-w-0">
-                                              <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">{link.serviceLabel}</p>
-                                              {link.serviceDetails?.trim() ? (
-                                                <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-300">
-                                                  {link.serviceDetails.trim()}
-                                                </p>
-                                              ) : null}
-                                              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                                                {link.source === "budget" ? "Origem: orçamento" : "Origem: manual"} · OS lab {link.laboratoryOrderId.slice(0, 8)}
-                                              </p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                              <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${statusStyle}`}>
-                                                {statusLabel}
-                                              </span>
-                                              <button
-                                                type="button"
-                                                onClick={() => onOpenLaboratoryOrder?.(link.laboratoryOrderId)}
-                                                className="inline-flex items-center gap-1 rounded-lg border border-[#007AFF]/25 bg-[#007AFF]/10 px-2.5 py-1.5 text-[12px] font-semibold text-[#007AFF]"
-                                              >
-                                                Abrir <ArrowRight className="h-3.5 w-3.5" />
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() => void handleRemoveLabServiceLink(link.id)}
-                                                disabled={labServiceLinksSaving}
-                                                className="inline-flex items-center gap-1 rounded-lg border border-red-300/70 bg-red-50 px-2.5 py-1.5 text-[12px] font-semibold text-red-700 dark:border-red-500/35 dark:bg-red-500/10 dark:text-red-300 disabled:opacity-60"
-                                              >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                              </button>
-                                            </div>
-                                          </div>
-                                        );
-                                      })
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                        {!isPatioPcModal && renderLabServicesSection('mt-3')}
 
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
 
@@ -7734,16 +7631,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </>
                         ) : null}
 
-                        {isPatioPcModal && pcOsModalTab === 'historico' ? (
-                          <PatioOsModalHistoricoTab
-                            serviceOrderDetail={serviceOrderDetail}
-                            comments={cardDetails?.actions ?? []}
-                            budgets={savedBudgets}
-                            serviceOrderId={selectedCard.id}
-                            externalRepairDraft={externalRepairDraft}
-                            insetCardClass={vi}
-                          />
-                        ) : null}
+                        {isPatioPcModal && showPcOsTab('laboratorio') && renderLabServicesSection()}
 
                       </div>
 

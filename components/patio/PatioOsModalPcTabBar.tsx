@@ -1,26 +1,34 @@
 import React from 'react';
 
-export type PatioOsModalPcTab = 'dados' | 'arquivos' | 'historico';
+export type PatioOsModalPcTab = 'dados' | 'arquivos' | 'laboratorio';
 
-const TABS: { id: PatioOsModalPcTab; label: string }[] = [
+const ALL_TABS: { id: PatioOsModalPcTab; label: string }[] = [
   { id: 'dados', label: 'Dados da ficha' },
   { id: 'arquivos', label: 'Arquivos' },
-  { id: 'historico', label: 'Histórico' },
+  { id: 'laboratorio', label: 'Serviços no laboratório' },
 ];
 
 export type PatioOsModalPcTabBarProps = {
   active: PatioOsModalPcTab;
   onChange: (tab: PatioOsModalPcTab) => void;
+  /** Omitir abas (ex.: laboratório no modo módulo). */
+  hiddenTabs?: PatioOsModalPcTab[];
 };
 
-export const PatioOsModalPcTabBar: React.FC<PatioOsModalPcTabBarProps> = ({ active, onChange }) => (
+export const PatioOsModalPcTabBar: React.FC<PatioOsModalPcTabBarProps> = ({
+  active,
+  onChange,
+  hiddenTabs = [],
+}) => {
+  const tabs = ALL_TABS.filter((tab) => !hiddenTabs.includes(tab.id));
+  return (
   <div
     className="patio-vm-tabs shrink-0 border-b border-zinc-300/80 bg-white/95 dark:border-white/[0.08] dark:bg-zinc-900/95"
     role="tablist"
     aria-label="Seções da ordem de serviço"
   >
     <div className="mx-auto flex w-full max-w-[1680px] gap-0 px-6 xl:px-8">
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const selected = active === tab.id;
         return (
           <button
@@ -47,4 +55,5 @@ export const PatioOsModalPcTabBar: React.FC<PatioOsModalPcTabBarProps> = ({ acti
       })}
     </div>
   </div>
-);
+  );
+};
