@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, ArrowLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -146,6 +146,8 @@ import { groupForSlot, statusInIntakeBenchGroup, statusUsesBench } from '../../c
 import LabBenchPanel from '../lab/LabBenchPanel';
 import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
 import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
+import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsModalPcTabBar';
+import { PatioOsModalHistoricoTab } from '../patio/PatioOsModalHistoricoTab';
 import { LabBenchSlotEditor } from '../lab/LabBenchSlotEditor';
 import type { ExternalRepair } from '../../constants/labBench';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
@@ -905,6 +907,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [externalRepairSaving, setExternalRepairSaving] = useState(false);
   /** Conserto externo: formulário começa minimizado; "Editar" expande, "Salvar" recolhe. */
   const [isExternalRepairEditing, setIsExternalRepairEditing] = useState(false);
+  /** Aba ativa no modal da OS (somente layout PC). */
+  const [pcOsModalTab, setPcOsModalTab] = useState<PatioOsModalPcTab>('dados');
   const [benchSlotSaving, setBenchSlotSaving] = useState(false);
   const [labServiceLinksDraft, setLabServiceLinksDraft] = useState<LabServiceLink[]>([]);
   const [labServiceLinksSaving, setLabServiceLinksSaving] = useState(false);
@@ -925,6 +929,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (selectedCard?.id) {
       setIsDadosFichaExpanded(false);
       setIsExternalRepairEditing(false);
+      setPcOsModalTab('dados');
     }
   }, [selectedCard?.id]);
 
@@ -5337,6 +5342,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const vi = patioVehicleVm.insetCard;
         const vin = patioVehicleVm.input;
         const c = patioVehicleVm.compact;
+        const showPcOsTab = (tab: PatioOsModalPcTab) => !isPatioPcModal || pcOsModalTab === tab;
         return (
         <ModalPortal>
         <div className={patioVehicleModalOverlayClass}>
@@ -5364,6 +5370,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <Trash2 className="h-5 w-5" />
                 </button>
                 )}
+                {!isPatioPcModal ? (
                 <button
                   type="button"
                   onClick={() => setSelectedCard(null)}
@@ -5372,6 +5379,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 >
                   <X className="h-5 w-5" />
                 </button>
+                ) : null}
               </div>
 
               {can('canDeleteCards') && isDeleteVehicleOpen && (
@@ -5438,6 +5446,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div className={patioVehicleVm.scroll}>
                   <div className={patioVehicleVm.header}>
                      <div className={patioVehicleVm.headerInner}>
+                        {isPatioPcModal ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCard(null)}
+                            className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-semibold text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                          >
+                            <ArrowLeft className="h-4 w-4" strokeWidth={2.2} />
+                            Voltar
+                          </button>
+                        ) : null}
                         <div className={isPatioPcModal ? patioVehicleVm.headerTitlePad : undefined}>
                         <div className="flex flex-wrap items-center gap-2">
                           {(serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null && (
@@ -5509,7 +5527,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         {!isModuleMode &&
                         (serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor)?.trim() ? (
                           <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
-                            Cor ·{' '}
+                            {isPatioPcModal ? 'Cor: ' : 'Cor · '}
                             {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '').trim()}
                           </p>
                         ) : null}
@@ -5715,7 +5733,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </div>
 
                         {/* Dados da ficha — cabeçalho com camadas, tipografia forte e chips de resumo */}
-                        {serviceOrderDetail && (
+                        {serviceOrderDetail && showPcOsTab('dados') && (
                         <div ref={customerDataSectionRef} className="mt-2 w-full">
                       <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
                         <div className="relative border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-zinc-950/25">
@@ -6278,8 +6296,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                      </div>
                   </div>
 
+                  {isPatioPcModal ? (
+                    <PatioOsModalPcTabBar active={pcOsModalTab} onChange={setPcOsModalTab} />
+                  ) : null}
+
                   <div className={patioVehicleVm.body}>
                       <div className={patioVehicleVm.mainCol}>
+                        {showPcOsTab('dados') ? (
+                        <>
                         <div ref={descriptionSectionRef}>
                           <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
                             <div className="relative min-w-0">
@@ -6810,6 +6834,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                         )}
 
+                        </>
+                        ) : null}
+
+                        {showPcOsTab('arquivos') ? (
+                        <>
                          {/* Anexos (fotos) + Documentos (arquivos) */}
                          <div className={`${vi} flex flex-col overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.1),0_2px_10px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_34px_-12px_rgba(0,0,0,0.45)]`}>
                             <div className="border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
@@ -7425,6 +7454,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                )}
                             </div>
                          </div>
+                        </>
+                        ) : null}
+
+                        {isPatioPcModal && pcOsModalTab === 'historico' ? (
+                          <PatioOsModalHistoricoTab
+                            serviceOrderDetail={serviceOrderDetail}
+                            comments={cardDetails?.actions ?? []}
+                            budgets={savedBudgets}
+                            serviceOrderId={selectedCard.id}
+                            externalRepairDraft={externalRepairDraft}
+                            insetCardClass={vi}
+                          />
+                        ) : null}
 
                       </div>
 

@@ -118,3 +118,19 @@ html[data-device='desktop'] .patio-vm-header-meta--pc .patio-vm-meta-input--date
 html[data-device='tablet'] .patio-vm-header-meta--pc .patio-vm-meta-input--date::-webkit-datetime-edit {
   min-width: 0;
 }
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-tabs,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-aside-col,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-aside-col {
+  position: sticky;
+  top: 3.25rem;
+  align-self: start;
+  max-height: calc(100dvh - 4rem);
+  overflow-y: auto;
+}
