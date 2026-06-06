@@ -146,6 +146,9 @@ import {
   BOARD_PANORAMIC_ZOOM,
   BOARD_PORTRAIT_HSCROLL_ZOOM_MULT,
   DESKTOP_LANDSCAPE_CARD_ZOOM,
+  getPatioBoardCardRadiusClass,
+  getPatioBoardColumnHeaderTopClass,
+  getPatioBoardColumnShellClass,
 } from '../../utils/patioBoardGlassCard';
 import { groupForSlot, statusInIntakeBenchGroup, statusUsesBench } from '../../constants/labBench';
 import LabBenchPanel from '../lab/LabBenchPanel';
@@ -4405,9 +4408,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
             (l) => labLinkedStatusByOrderId[l.laboratoryOrderId] === "PRONTO_PRA_RETIRADA"
           );
           const showLabOuterRing = isGarantia && hasLabUndelivered;
-          const cardRadiusClass = boardPanoramic
-            ? 'rounded-[1.85rem] sm:rounded-[2.1rem]'
-            : 'rounded-[2rem] sm:rounded-[2.25rem]';
+          const cardRadiusClass = getPatioBoardCardRadiusClass(isPcLayout, boardPanoramic);
+          const boardColumnShellClass = getPatioBoardColumnShellClass(isPcLayout);
+          const boardColumnHeaderTopClass = getPatioBoardColumnHeaderTopClass(isPcLayout);
           const labOuterRingClass = hasLabReady
             ? 'ring-4 ring-green-500 dark:ring-green-400'
             : 'ring-4 ring-violet-500 dark:ring-violet-400';
@@ -4710,7 +4713,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     {stageColumnsSorted.map((stage) => (
                       <div
                         key={stage.id}
-                        className={`flex w-[min(18.5rem,calc(100vw-2.5rem))] shrink-0 snap-start snap-always portrait:w-[min(15.25rem,calc(92vw-1.25rem))] flex-col rounded-[1.35rem] border border-zinc-200/70 bg-zinc-100/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-md transition-[box-shadow,transform,border-color] duration-300 ease-out dark:border-white/[0.08] dark:bg-zinc-900/45 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
+                        className={`flex w-[min(18.5rem,calc(100vw-2.5rem))] shrink-0 snap-start snap-always portrait:w-[min(15.25rem,calc(92vw-1.25rem))] flex-col ${boardColumnShellClass} ${
                           trelloDragOverListId === stage.id
                             ? 'scale-[1.01] ring-2 ring-[#007AFF]/55 ring-offset-2 ring-offset-zinc-100/80 dark:ring-[#64B5FF]/60 dark:ring-offset-zinc-950/90'
                             : ''
@@ -4736,7 +4739,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         }}
                       >
                         <div
-                          className={`sticky top-0 z-[1] flex shrink-0 items-center justify-between gap-2 rounded-t-[1.35rem] border-b border-zinc-200/60 px-3 py-2.5 dark:border-white/[0.08] sm:px-3.5 ${stage.style}`}
+                          className={`sticky top-0 z-[1] flex shrink-0 items-center justify-between gap-2 ${boardColumnHeaderTopClass} border-b border-zinc-200/60 px-3 py-2.5 dark:border-white/[0.08] sm:px-3.5 ${stage.style}`}
                         >
                           <span className="min-w-0 truncate text-[12px] font-bold uppercase tracking-wide sm:text-[13px]">
                             {stage.name}
@@ -4775,9 +4778,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       {mechanicColumns.map((col) => (
                         <div
                           key={col.key}
-                          className="flex w-[min(18.5rem,calc(100vw-2.5rem))] shrink-0 snap-start snap-always portrait:w-[min(15.25rem,calc(92vw-1.25rem))] flex-col rounded-[1.35rem] border border-zinc-200/70 bg-zinc-100/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-md transition-shadow duration-300 dark:border-white/[0.08] dark:bg-zinc-900/45 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                          className={`flex w-[min(18.5rem,calc(100vw-2.5rem))] shrink-0 snap-start snap-always portrait:w-[min(15.25rem,calc(92vw-1.25rem))] flex-col ${boardColumnShellClass}`}
                         >
-                          <div className="flex shrink-0 items-center gap-2 rounded-t-[1.35rem] border-b border-zinc-200/60 bg-white/60 px-3 py-2.5 dark:border-white/[0.08] dark:bg-zinc-950/50 sm:px-3.5">
+                          <div className={`flex shrink-0 items-center gap-2 ${boardColumnHeaderTopClass} border-b border-zinc-200/60 bg-white/60 px-3 py-2.5 dark:border-white/[0.08] dark:bg-zinc-950/50 sm:px-3.5`}>
                             {col.photo ? (
                               <img
                                 src={col.photo}
