@@ -1516,7 +1516,7 @@ export async function rotateServiceOrderPhoto(
   formData.append("file", toSend, name);
   formData.append("path", path);
   const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/photos/rotate`, {
-    method: "PATCH",
+    method: "POST",
     body: formData,
   });
   if (!response.ok) {

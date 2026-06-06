@@ -97,7 +97,7 @@ import { useDesktopShellLayout } from '../ui/DesktopShellContext';
 import { useDragScroll } from '../../hooks/useDragScroll';
 import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverlay';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
-import { storageThumbnailUrl, storageDisplayUrl, bustStoragePublicUrl } from '../../utils/storageThumbnailUrl';
+import { storageThumbnailUrl, bustStoragePublicUrl } from '../../utils/storageThumbnailUrl';
 import { fetchImageBlob, rotateImageBlob } from '../../utils/imageUpload';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
@@ -586,7 +586,6 @@ const SWIPE_THRESHOLD = 44;
 type PatioPreviewImageItem = {
   path: string;
   url: string;
-  displayUrl: string;
   name: string;
 };
 
@@ -595,6 +594,7 @@ const Lightbox = ({
   images: imagesProp,
   initialIndex = 0,
   onClose,
+  onIndexChange,
   onRotate,
   isRotating = false,
   canRotate = false,
@@ -603,7 +603,8 @@ const Lightbox = ({
   images?: string[];
   initialIndex?: number;
   onClose: () => void;
-  onRotate?: (direction: 'cw' | 'ccw') => void;
+  onIndexChange?: (index: number) => void;
+  onRotate?: (direction: 'cw' | 'ccw', index: number) => void;
   isRotating?: boolean;
   canRotate?: boolean;
 }) => {
@@ -622,6 +623,8 @@ const Lightbox = ({
   const lastDistRef = useRef<number | null>(null);
   const dragStartXRef = useRef<number>(0);
   const imageRef = useRef<HTMLImageElement>(null);
+  const onIndexChangeRef = useRef(onIndexChange);
+  onIndexChangeRef.current = onIndexChange;
 
   const hasMultiple = images.length > 1;
   const canGoPrev = hasMultiple && currentIndex > 0;
@@ -640,6 +643,10 @@ const Lightbox = ({
     setTranslate({ x: 0, y: 0 });
     setCurrentIndex(initialIndex >= 0 && initialIndex < images.length ? initialIndex : 0);
   }, [initialIndex, images.length]);
+
+  useEffect(() => {
+    onIndexChangeRef.current?.(currentIndex);
+  }, [currentIndex]);
 
   useEffect(() => {
     setScale(1);
@@ -791,7 +798,7 @@ const Lightbox = ({
           <button
             type="button"
             disabled={isRotating}
-            onClick={(e) => { e.stopPropagation(); onRotate('ccw'); }}
+            onClick={(e) => { e.stopPropagation(); onRotate('ccw', currentIndex); }}
             className={`${mediaOverlayNavBtn} disabled:opacity-40`}
             aria-label="Girar anti-horário"
           >
@@ -800,7 +807,7 @@ const Lightbox = ({
           <button
             type="button"
             disabled={isRotating}
-            onClick={(e) => { e.stopPropagation(); onRotate('cw'); }}
+            onClick={(e) => { e.stopPropagation(); onRotate('cw', currentIndex); }}
             className={`${mediaOverlayNavBtn} disabled:opacity-40`}
             aria-label="Girar horário"
           >
@@ -1086,6 +1093,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // Visualização de Imagem (Lightbox) — itens com URL otimizada e path para rotação
   const [previewImages, setPreviewImages] = useState<{ items: PatioPreviewImageItem[]; currentIndex: number } | null>(null);
   const [rotatingPreviewPhoto, setRotatingPreviewPhoto] = useState(false);
+  const [rotatingAttachmentPath, setRotatingAttachmentPath] = useState<string | null>(null);
   const [loadingAttachmentId, setLoadingAttachmentId] = useState<string | null>(null);
   const attachmentPreloadRef = useRef<Set<string>>(new Set());
   const [renameAttachmentId, setRenameAttachmentId] = useState<string | null>(null);
@@ -1113,10 +1121,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     for (let i = 0; i < preloadCount; i++) {
       const att = imageAttachments[i];
       const thumbUrl = storageThumbnailUrl(att.url, {
-        maxWidth: 200,
-        maxHeight: 200,
-        resize: 'cover',
-        quality: 50,
+        maxWidth: 280,
+        quality: 72,
+        format: 'origin',
+        resize: 'contain',
       });
       if (!attachmentPreloadRef.current.has(thumbUrl)) {
         const img = new Image();
@@ -1127,13 +1135,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
         img.src = thumbUrl;
         attachmentPreloadRef.current.add(thumbUrl);
       }
-      if (i < 6) {
-        const displayUrl = storageDisplayUrl(att.url);
-        if (!attachmentPreloadRef.current.has(displayUrl)) {
-          const displayImg = new Image();
-          displayImg.decoding = 'async';
-          displayImg.src = displayUrl;
-          attachmentPreloadRef.current.add(displayUrl);
+      if (i < 4) {
+        const originalUrl = att.url.split('?')[0];
+        if (!attachmentPreloadRef.current.has(originalUrl)) {
+          const fullImg = new Image();
+          fullImg.decoding = 'async';
+          fullImg.src = originalUrl;
+          attachmentPreloadRef.current.add(originalUrl);
         }
       }
     }
@@ -3658,63 +3666,103 @@ export const PatioView: React.FC<PatioViewProps> = ({
     []
   );
 
-  const preloadLightboxDisplayUrl = useCallback((url: string) => {
-    const displayUrl = storageDisplayUrl(url);
-    if (attachmentPreloadRef.current.has(displayUrl)) return;
+  const preloadLightboxUrl = useCallback((url: string) => {
+    const originalUrl = url.split('?')[0];
+    if (!originalUrl || attachmentPreloadRef.current.has(originalUrl)) return;
     const img = new Image();
     img.decoding = 'async';
-    img.src = displayUrl;
-    attachmentPreloadRef.current.add(displayUrl);
+    img.src = originalUrl;
+    attachmentPreloadRef.current.add(originalUrl);
   }, []);
 
-  const handleRotatePreviewPhoto = async (direction: 'cw' | 'ccw') => {
-    if (!previewImages || !selectedCard || rotatingPreviewPhoto) return;
-    const item = previewImages.items[previewImages.currentIndex];
-    if (!item?.path || /^\d+$/.test(String(item.path))) return;
-
-    setRotatingPreviewPhoto(true);
-    try {
-      const blob = await fetchImageBlob(item.url);
-      const rotated = await rotateImageBlob(blob, direction);
-      const result = await rotateServiceOrderPhoto(selectedCard.id, item.path, rotated, item.name);
-      const freshUrl = bustStoragePublicUrl(result.url);
-      const freshDisplay = storageDisplayUrl(freshUrl);
-
+  const applyRotatedPhoto = useCallback(
+    (path: string, previousUrl: string, freshUrl: string, freshName: string) => {
+      const previousBase = previousUrl.split('?')[0];
       setCardDetails((prev) =>
         prev
           ? {
               ...prev,
               attachments: prev.attachments.map((a) =>
-                a.id === item.path || a.url.split('?')[0] === item.url.split('?')[0]
-                  ? { ...a, url: freshUrl, previews: [{ url: freshUrl, width: 200, height: 200 }] }
+                a.id === path || a.url.split('?')[0] === previousBase
+                  ? {
+                      ...a,
+                      name: freshName,
+                      url: freshUrl,
+                      previews: [{ url: freshUrl, width: 200, height: 200 }],
+                    }
                   : a
               ),
             }
           : null
       );
-
       setPreviewImages((prev) => {
         if (!prev) return null;
-        const items = prev.items.map((it, i) =>
-          i === prev.currentIndex ? { ...it, url: freshUrl, displayUrl: freshDisplay } : it
+        const items = prev.items.map((it) =>
+          it.path === path || it.url.split('?')[0] === previousBase
+            ? { ...it, url: freshUrl, name: freshName }
+            : it
         );
         return { ...prev, items };
       });
+      attachmentPreloadRef.current.clear();
+      preloadLightboxUrl(freshUrl);
+    },
+    [preloadLightboxUrl]
+  );
 
-      const thumbUrl = storageThumbnailUrl(freshUrl, {
-        maxWidth: 200,
-        maxHeight: 200,
-        resize: 'cover',
-        quality: 50,
-      });
-      attachmentPreloadRef.current.delete(thumbUrl);
-      attachmentPreloadRef.current.delete(freshDisplay);
-      preloadLightboxDisplayUrl(freshUrl);
+  const rotateAttachmentPhoto = useCallback(
+    async (path: string, url: string, name: string, direction: 'cw' | 'ccw') => {
+      if (!selectedCard || !path || /^\d+$/.test(String(path))) return;
+      const blob = await fetchImageBlob(url);
+      const rotated = await rotateImageBlob(blob, direction, name);
+      const result = await rotateServiceOrderPhoto(selectedCard.id, path, rotated, name);
+      const freshUrl = bustStoragePublicUrl(result.url);
+      applyRotatedPhoto(path, url, freshUrl, result.name || name);
+      return freshUrl;
+    },
+    [selectedCard, applyRotatedPhoto]
+  );
+
+  const handlePreviewIndexChange = useCallback((index: number) => {
+    setPreviewImages((prev) =>
+      prev && prev.currentIndex !== index ? { ...prev, currentIndex: index } : prev
+    );
+  }, []);
+
+  const handleRotatePreviewPhoto = async (direction: 'cw' | 'ccw', index: number) => {
+    if (!previewImages || !selectedCard || rotatingPreviewPhoto) return;
+    const item = previewImages.items[index];
+    if (!item?.path) return;
+
+    setRotatingPreviewPhoto(true);
+    try {
+      await rotateAttachmentPhoto(item.path, item.url, item.name, direction);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao girar foto.';
       alert(message);
     } finally {
       setRotatingPreviewPhoto(false);
+    }
+  };
+
+  const handleRotateGridPhoto = async (
+    e: React.MouseEvent,
+    path: string,
+    url: string,
+    name: string,
+    direction: 'cw' | 'ccw'
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (rotatingAttachmentPath) return;
+    setRotatingAttachmentPath(path);
+    try {
+      await rotateAttachmentPhoto(path, url, name, direction);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao girar foto.';
+      alert(message);
+    } finally {
+      setRotatingAttachmentPath(null);
     }
   };
 
@@ -7260,8 +7308,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             {visibleImages.map((att, photoIndex) => {
                                               const isLoadingThis = loadingAttachmentId === att.id;
                                               const isDeletingThis = deletingAttachmentId === att.id;
+                                              const isRotatingThis = rotatingAttachmentPath === att.id;
                                               const attachmentPath = att.id;
                                               const canRename = attachmentPath && !/^\d+$/.test(String(attachmentPath));
+                                              const canRotatePhoto = canRename && can('canEditFicha');
                                               const isEditingName = renameAttachmentId === att.id;
                                               const isRenamingThis = renamingAttachmentId === att.id;
                                               const label = attachmentDisplayName(att.name);
@@ -7366,19 +7416,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                   ) : (
                                                     <>
                                                       <div className="relative rounded-[14px] bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_8px_18px_-10px_rgba(0,122,255,0.45)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.4)]">
-                                                      <div className="group relative aspect-square overflow-hidden rounded-[12px] bg-zinc-100 dark:bg-zinc-900">
+                                                      <div className="group relative aspect-[4/3] overflow-hidden rounded-[12px] bg-zinc-100 dark:bg-zinc-900">
                                                         <button
                                                           type="button"
-                                                          onPointerEnter={() => preloadLightboxDisplayUrl(att.url)}
-                                                          onFocus={() => preloadLightboxDisplayUrl(att.url)}
+                                                          onPointerEnter={() => preloadLightboxUrl(att.url)}
+                                                          onFocus={() => preloadLightboxUrl(att.url)}
                                                           onClick={() => {
-                                                            if (isLoadingThis) return;
-                                                            preloadLightboxDisplayUrl(att.url);
+                                                            if (isLoadingThis || isRotatingThis) return;
+                                                            preloadLightboxUrl(att.url);
                                                             setPreviewImages({
                                                               items: images.map((a) => ({
                                                                 path: a.id,
                                                                 url: a.url,
-                                                                displayUrl: storageDisplayUrl(a.url),
                                                                 name: a.name,
                                                               })),
                                                               currentIndex: images.findIndex((a) => a.url === att.url),
@@ -7386,7 +7435,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                           }}
                                                           className="absolute inset-0 h-full w-full rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
                                                         >
-                                                          {isLoadingThis ? (
+                                                          {isLoadingThis || isRotatingThis ? (
                                                             <div className="absolute inset-0 flex items-center justify-center bg-zinc-200/80 dark:bg-zinc-800/80">
                                                               <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
                                                             </div>
@@ -7395,11 +7444,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                               <StorageThumbImg
                                                                 src={att.url}
                                                                 alt={label}
-                                                                className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                                                                sizes="(max-width: 640px) 45vw, (max-width: 1024px) 28vw, 180px"
-                                                                thumbMaxWidth={200}
-                                                                thumbMaxHeight={200}
-                                                                thumbQuality={50}
+                                                                className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-[1.02]"
+                                                                sizes="(max-width: 640px) 45vw, (max-width: 1024px) 28vw, 220px"
+                                                                thumbMaxWidth={280}
+                                                                thumbQuality={72}
+                                                                thumbFormat="origin"
+                                                                thumbResize="contain"
                                                                 loading={photoIndex < 8 ? 'eager' : 'lazy'}
                                                                 fetchPriority={photoIndex < 4 ? 'high' : 'low'}
                                                               />
@@ -7428,6 +7478,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                         </span>
                                                         {canRename && (
                                                           <>
+                                                            {canRotatePhoto && (
+                                                              <button
+                                                                type="button"
+                                                                onClick={(e) =>
+                                                                  handleRotateGridPhoto(
+                                                                    e,
+                                                                    String(attachmentPath),
+                                                                    att.url,
+                                                                    att.name,
+                                                                    'cw'
+                                                                  )
+                                                                }
+                                                                disabled={isDeletingThis || isRotatingThis}
+                                                                className="shrink-0 rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 disabled:opacity-50 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                                                                title="Girar foto"
+                                                                aria-label="Girar foto"
+                                                              >
+                                                                {isRotatingThis ? (
+                                                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                ) : (
+                                                                  <RotateCw className="h-3.5 w-3.5" />
+                                                                )}
+                                                              </button>
+                                                            )}
                                                             <button
                                                               type="button"
                                                               onClick={() => {
@@ -7437,7 +7511,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                               className="shrink-0 rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                                                               title="Nomear ou renomear foto"
                                                               aria-label="Nomear ou renomear foto"
-                                                              disabled={isDeletingThis}
+                                                              disabled={isDeletingThis || isRotatingThis}
                                                             >
                                                               <Pencil className="h-3.5 w-3.5" />
                                                             </button>
@@ -8348,9 +8422,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* LIGHTBOX MODAL (IMAGE PREVIEW) WITH ZOOM E NAVEGAÇÃO */}
       {previewImages && patioPortalsVisible && (
         <Lightbox
-          images={previewImages.items.map((item) => item.displayUrl)}
+          images={previewImages.items.map((item) => item.url)}
           initialIndex={previewImages.currentIndex}
           onClose={() => setPreviewImages(null)}
+          onIndexChange={handlePreviewIndexChange}
           onRotate={can('canEditFicha') ? handleRotatePreviewPhoto : undefined}
           isRotating={rotatingPreviewPhoto}
           canRotate={can('canEditFicha') && !!selectedCard}

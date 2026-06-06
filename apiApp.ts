@@ -2986,83 +2986,93 @@ export function createApiApp() {
   });
 
   // Girar foto no Storage (substitui o mesmo path; imagem já rotacionada no cliente)
+  const rotateServiceOrderPhotoHandler = async (
+    req: express.Request,
+    res: express.Response
+  ) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const serviceOrderId = reqOrderId(req);
+      const objectPath =
+        typeof req.body?.path === "string" ? req.body.path.trim() : "";
+      const file = req.file;
+
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "ID da OS inválido." });
+      }
+      if (!objectPath) {
+        return res.status(400).json({ error: "Corpo inválido: envie path." });
+      }
+      if (!file) {
+        return res.status(400).json({ error: "Arquivo não enviado." });
+      }
+
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+
+      if (!so) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      const folderPath = `${WORKSHOP_ID}/${serviceOrderId}`;
+      if (!objectPath.startsWith(`${folderPath}/`)) {
+        return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
+      }
+
+      const bucket = VEHICLE_PHOTOS_BUCKET;
+      const fileName = objectPath.split("/").pop() || "photo.jpg";
+      const contentType = file.mimetype?.startsWith("image/")
+        ? file.mimetype
+        : "image/jpeg";
+
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(bucket)
+        .upload(objectPath, file.buffer, {
+          contentType,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error("[API] Erro ao girar foto no Storage:", uploadError);
+        return res.status(500).json({ error: uploadError.message });
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabaseAdmin.storage.from(bucket).getPublicUrl(objectPath);
+
+      await touchServiceOrderUpdatedAt(serviceOrderId);
+
+      return res.json({
+        url: publicUrl,
+        name: fileName,
+        path: objectPath,
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em POST/PATCH /api/service-orders/:id/photos/rotate:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  };
+
+  app.post(
+    "/api/service-orders/:id/photos/rotate",
+    upload.single("file"),
+    rotateServiceOrderPhotoHandler
+  );
   app.patch(
     "/api/service-orders/:id/photos/rotate",
     upload.single("file"),
-    async (req, res) => {
-      try {
-        if (!supabaseAdmin || !WORKSHOP_ID) {
-          return res.status(500).json({
-            error:
-              "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
-          });
-        }
-
-        const serviceOrderId = reqOrderId(req);
-        const objectPath =
-          typeof req.body?.path === "string" ? req.body.path.trim() : "";
-        const file = req.file;
-
-        if (!serviceOrderId) {
-          return res.status(400).json({ error: "ID da OS inválido." });
-        }
-        if (!objectPath) {
-          return res.status(400).json({ error: "Corpo inválido: envie path." });
-        }
-        if (!file) {
-          return res.status(400).json({ error: "Arquivo não enviado." });
-        }
-
-        const { data: so } = await supabaseAdmin
-          .from("service_orders")
-          .select("id")
-          .eq("id", serviceOrderId)
-          .eq("workshop_id", WORKSHOP_ID)
-          .single();
-
-        if (!so) {
-          return res.status(404).json({ error: "Ordem de serviço não encontrada." });
-        }
-
-        const folderPath = `${WORKSHOP_ID}/${serviceOrderId}`;
-        if (!objectPath.startsWith(`${folderPath}/`)) {
-          return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
-        }
-
-        const bucket = VEHICLE_PHOTOS_BUCKET;
-        const fileName = objectPath.split("/").pop() || "photo.jpg";
-        const contentType = file.mimetype?.startsWith("image/")
-          ? file.mimetype
-          : "image/jpeg";
-
-        const { error: uploadError } = await supabaseAdmin.storage
-          .from(bucket)
-          .upload(objectPath, file.buffer, {
-            contentType,
-            upsert: true,
-          });
-
-        if (uploadError) {
-          console.error("[API] Erro ao girar foto no Storage:", uploadError);
-          return res.status(500).json({ error: uploadError.message });
-        }
-
-        const {
-          data: { publicUrl },
-        } = supabaseAdmin.storage.from(bucket).getPublicUrl(objectPath);
-
-        await touchServiceOrderUpdatedAt(serviceOrderId);
-
-        return res.json({
-          url: publicUrl,
-          name: fileName,
-          path: objectPath,
-        });
-      } catch (err: any) {
-        console.error("[API] Erro em PATCH /api/service-orders/:id/photos/rotate:", err);
-        return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
-      }
-    }
+    rotateServiceOrderPhotoHandler
   );
 
   // Excluir um anexo (foto/documento) da OS no Storage

@@ -106,11 +106,26 @@ export async function fetchImageBlob(url: string): Promise<Blob> {
   return response.blob();
 }
 
-/** Gira imagem 90° no sentido horário ou anti-horário. */
-export function rotateImageBlob(blob: Blob, direction: "cw" | "ccw"): Promise<Blob> {
+function outputMimeForImage(blob: Blob, fileName?: string): string {
+  if (blob.type.startsWith("image/")) return blob.type;
+  const ext = (fileName || "").toLowerCase();
+  if (ext.endsWith(".png")) return "image/png";
+  if (ext.endsWith(".webp")) return "image/webp";
+  if (ext.endsWith(".gif")) return "image/gif";
+  return "image/jpeg";
+}
+
+/** Gira imagem 90° no sentido horário ou anti-horário, preservando o formato quando possível. */
+export function rotateImageBlob(
+  blob: Blob,
+  direction: "cw" | "ccw",
+  fileName?: string
+): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
     const img = new Image();
+    const outputMime = outputMimeForImage(blob, fileName);
+    const outputQuality = outputMime === "image/png" ? undefined : 0.92;
 
     img.onload = () => {
       URL.revokeObjectURL(url);
@@ -138,8 +153,8 @@ export function rotateImageBlob(blob: Blob, direction: "cw" | "ccw"): Promise<Bl
           if (result) resolve(result);
           else resolve(blob);
         },
-        "image/jpeg",
-        0.9
+        outputMime,
+        outputQuality
       );
     };
 
