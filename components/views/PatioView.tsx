@@ -4369,6 +4369,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
           </div>
         );
 
+        const cardRadiusClass = getPatioBoardCardRadiusClass(isPcLayout, boardPanoramic);
+        const boardColumnShellClass = getPatioBoardColumnShellClass(isPcLayout);
+        const boardColumnHeaderTopClass = getPatioBoardColumnHeaderTopClass(isPcLayout);
+
         const renderPatioBoardCard = (card: TrelloCard, trelloDrag: boolean) => {
           const titleParts = parsePatioCardTitle(card.name);
           const model = titleParts.vehicle || card.name;
@@ -4408,9 +4412,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
             (l) => labLinkedStatusByOrderId[l.laboratoryOrderId] === "PRONTO_PRA_RETIRADA"
           );
           const showLabOuterRing = isGarantia && hasLabUndelivered;
-          const cardRadiusClass = getPatioBoardCardRadiusClass(isPcLayout, boardPanoramic);
-          const boardColumnShellClass = getPatioBoardColumnShellClass(isPcLayout);
-          const boardColumnHeaderTopClass = getPatioBoardColumnHeaderTopClass(isPcLayout);
           const labOuterRingClass = hasLabReady
             ? 'ring-4 ring-green-500 dark:ring-green-400'
             : 'ring-4 ring-violet-500 dark:ring-violet-400';
