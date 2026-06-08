@@ -1675,8 +1675,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // --- Attachment States ---
   const [isUploading, setIsUploading] = useState(false);
   const galleryInputRef = useRef<HTMLInputElement>(null);
-  /** Input para "Foto do veículo" (mesmo comportamento da recepção: câmera ou galeria). */
+  /** Câmera nativa do dispositivo (`capture` no input). */
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  /** Seletor de documentos/arquivos (sem imagens — galeria fica no outro input). */
+  const filesInputRef = useRef<HTMLInputElement>(null);
 
   // Camera State
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -3829,16 +3831,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  const handleGallerySelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0 || !selectedCard) return;
-    const files = Array.from(e.target.files);
+  const uploadAttachmentFiles = async (files: File[]) => {
+    if (!selectedCard || files.length === 0) return;
     setIsUploading(true);
     try {
       for (const file of files) {
         await uploadServiceOrderPhoto(selectedCard.id, file, file.name);
       }
       const photos = await getServiceOrderPhotos(selectedCard.id);
-      setCardDetails(prev => ({
+      setCardDetails((prev) => ({
         actions: prev?.actions ?? [],
         attachments: photos.map((p, i) => ({
           id: p.path || String(i),
@@ -3848,41 +3849,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
           previews: [{ url: p.url, width: 200, height: 200 }],
         })),
       }));
-    } catch (err: any) {
-      alert(err?.message ?? "Erro ao enviar arquivo(s).");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao enviar arquivo(s).';
+      alert(message);
     } finally {
       setIsUploading(false);
-      if (galleryInputRef.current) galleryInputRef.current.value = '';
     }
   };
 
-  /** Mesmo comportamento do botão "Foto do veículo" da recepção: abre câmera (mobile) ou seletor de arquivo. */
-  const handleCameraFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0 || !selectedCard) return;
-    const files = Array.from(e.target.files);
-    setIsUploading(true);
-    try {
-      for (const file of files) {
-        await uploadServiceOrderPhoto(selectedCard.id, file, file.name);
-      }
-      const photos = await getServiceOrderPhotos(selectedCard.id);
-      setCardDetails(prev => ({
-        actions: prev?.actions ?? [],
-        attachments: photos.map((p, i) => ({
-          id: p.path || String(i),
-          name: p.name,
-          url: p.url,
-          mimeType: attachmentMimeType(p.name),
-          previews: [{ url: p.url, width: 200, height: 200 }],
-        })),
-      }));
-    } catch (err: any) {
-      alert(err?.message ?? "Erro ao enviar foto.");
-    } finally {
-      setIsUploading(false);
-      if (cameraInputRef.current) cameraInputRef.current.value = '';
-    }
-  };
+  const handleAttachmentInputChange =
+    (inputRef: React.RefObject<HTMLInputElement | null>) =>
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (!e.target.files || e.target.files.length === 0) return;
+      const files = Array.from(e.target.files);
+      await uploadAttachmentFiles(files);
+      if (inputRef.current) inputRef.current.value = '';
+    };
 
   // Camera Functions
   const startCamera = () => {
@@ -6997,46 +6979,57 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   </div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-2 sm:gap-2 sm:justify-items-end sm:shrink-0">
-                                    <input 
-                                        type="file" 
-                                        ref={galleryInputRef} 
-                                        className="hidden" 
-                                        accept="image/*,application/pdf,.png,.jpg,.jpeg,.webp,.heic,.heif,.pdf"
-                                        multiple
-                                        onChange={handleGallerySelect}
-                                    />
-                                    <input 
-                                        type="file" 
-                                        ref={cameraInputRef} 
-                                        className="hidden" 
-                                        accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif,.bmp"
+                                    <input
+                                        type="file"
+                                        ref={cameraInputRef}
+                                        className="hidden"
+                                        accept="image/*"
                                         capture="environment"
-                                        onChange={handleCameraFileSelect}
+                                        onChange={handleAttachmentInputChange(cameraInputRef)}
                                     />
-                                    <button 
+                                    <input
+                                        type="file"
+                                        ref={galleryInputRef}
+                                        className="hidden"
+                                        accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif,.bmp"
+                                        multiple
+                                        onChange={handleAttachmentInputChange(galleryInputRef)}
+                                    />
+                                    <input
+                                        type="file"
+                                        ref={filesInputRef}
+                                        className="hidden"
+                                        accept="application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,application/zip,application/x-rar-compressed"
+                                        multiple
+                                        onChange={handleAttachmentInputChange(filesInputRef)}
+                                    />
+                                    <button
                                         type="button"
                                         onClick={() => cameraInputRef.current?.click()}
                                         disabled={isUploading}
                                         className="flex items-center justify-center w-12 h-12 sm:w-10 sm:h-10 rounded-xl sm:rounded-lg bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Abrir câmera do dispositivo"
+                                        title="Abrir câmera"
+                                        aria-label="Abrir câmera"
                                     >
                                         <Camera className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
                                     </button>
-                                    <button 
+                                    <button
                                         type="button"
                                         onClick={() => galleryInputRef.current?.click()}
                                         disabled={isUploading}
                                         className="flex items-center justify-center w-12 h-12 sm:w-10 sm:h-10 rounded-xl sm:rounded-lg bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Galeria / Documentos"
+                                        title="Abrir galeria"
+                                        aria-label="Abrir galeria"
                                     >
                                         <ImageIcon className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
                                     </button>
-                                    <button 
+                                    <button
                                         type="button"
-                                        onClick={() => galleryInputRef.current?.click()}
+                                        onClick={() => filesInputRef.current?.click()}
                                         disabled={isUploading}
                                         className="flex items-center justify-center w-12 h-12 sm:w-10 sm:h-10 rounded-xl sm:rounded-lg bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Arquivos do dispositivo"
+                                        title="Abrir arquivos"
+                                        aria-label="Abrir arquivos"
                                     >
                                         <FolderOpen className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
                                     </button>
