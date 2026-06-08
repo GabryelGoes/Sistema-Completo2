@@ -98,7 +98,12 @@ import { useDragScroll } from '../../hooks/useDragScroll';
 import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverlay';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { storageThumbnailUrl, bustStoragePublicUrl } from '../../utils/storageThumbnailUrl';
-import { fetchImageBlob, rotateImageBlob } from '../../utils/imageUpload';
+import {
+  fetchImageBlob,
+  rotateImageBlob,
+  isAttachmentImageFile,
+  isAttachmentDocumentFile,
+} from '../../utils/imageUpload';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import {
@@ -3866,6 +3871,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
       if (inputRef.current) inputRef.current.value = '';
     };
 
+  const handleFilesInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const picked = Array.from(e.target.files);
+    const documents = picked.filter((f) => isAttachmentDocumentFile(f, f.name));
+    const images = picked.filter((f) => isAttachmentImageFile(f, f.name));
+    if (documents.length === 0) {
+      if (images.length > 0) {
+        alert('Para fotos, use o botão Galeria ou Câmera. O botão Arquivos é para documentos (PDF, Word, etc.).');
+      }
+      if (filesInputRef.current) filesInputRef.current.value = '';
+      return;
+    }
+    if (images.length > 0) {
+      alert('Alguns itens ignorados: fotos devem ser enviadas pela Galeria ou Câmera.');
+    }
+    await uploadAttachmentFiles(documents);
+    if (filesInputRef.current) filesInputRef.current.value = '';
+  };
+
   // Camera Functions
   const startCamera = () => {
     setIsCameraOpen(true);
@@ -6999,9 +7023,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         type="file"
                                         ref={filesInputRef}
                                         className="hidden"
-                                        accept="application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,application/zip,application/x-rar-compressed"
                                         multiple
-                                        onChange={handleAttachmentInputChange(filesInputRef)}
+                                        onChange={handleFilesInputChange}
                                     />
                                     <button
                                         type="button"

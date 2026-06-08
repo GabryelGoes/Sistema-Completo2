@@ -2664,11 +2664,16 @@ export function createApiApp() {
         const bucket = VEHICLE_PHOTOS_BUCKET;
         const safeName = sanitizeVehiclePhotoFileName(file.originalname);
         const pathInBucket = `${WORKSHOP_ID}/${serviceOrderId}/${Date.now()}_${safeName}`;
+        const contentType = /\.pdf$/i.test(safeName)
+          ? "application/pdf"
+          : file.mimetype?.startsWith("image/")
+            ? file.mimetype
+            : file.mimetype || "application/octet-stream";
 
         const { error: uploadError } = await supabaseAdmin.storage
           .from(bucket)
           .upload(pathInBucket, file.buffer, {
-            contentType: file.mimetype,
+            contentType,
             upsert: false,
           });
 

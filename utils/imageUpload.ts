@@ -9,6 +9,37 @@ const MAX_DIMENSION = 1920;
 const JPEG_QUALITY_START = 0.88;
 const JPEG_QUALITY_MIN = 0.5;
 
+export function isAttachmentImageFile(blob: Blob, fileName = ""): boolean {
+  if (blob.type.startsWith("image/")) return true;
+  const name = fileName || (blob instanceof File ? blob.name : "");
+  return /\.(png|jpe?g|gif|webp|heic|heif|bmp)$/i.test(name);
+}
+
+export function isAttachmentDocumentFile(blob: Blob, fileName = ""): boolean {
+  if (isAttachmentImageFile(blob, fileName)) return false;
+  const name = (fileName || (blob instanceof File ? blob.name : "")).toLowerCase();
+  const type = (blob.type || "").toLowerCase();
+  if (type === "application/pdf" || name.endsWith(".pdf")) return true;
+  if (
+    type.startsWith("application/") ||
+    type.startsWith("text/") ||
+    /\.(pdf|docx?|xlsx?|txt|zip|rar|7z|csv|pptx?)$/i.test(name)
+  ) {
+    return true;
+  }
+  return !isAttachmentImageFile(blob, fileName) && (type === "" || type === "application/octet-stream");
+}
+
+/** Garante extensão coerente quando o SO não informa mime (comum em PDF no Android). */
+export function normalizeAttachmentFileName(blob: Blob, fileName: string): string {
+  let name = (fileName || (blob instanceof File ? blob.name : "") || "arquivo").trim();
+  const type = (blob.type || "").toLowerCase();
+  if (type === "application/pdf" && !/\.pdf$/i.test(name)) {
+    name = `${name.replace(/\.+$/, "")}.pdf`;
+  }
+  return name || "arquivo";
+}
+
 function isImageType(blob: Blob): boolean {
   if (blob.type.startsWith("image/")) return true;
   // Tablets/Android às vezes enviam screenshot com type vazio ou genérico; inferir pela extensão.

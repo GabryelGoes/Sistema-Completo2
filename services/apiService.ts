@@ -3,7 +3,11 @@ import type { Appointment } from "../types";
 import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
 import type { ExternalRepair } from "../constants/labBench";
 import { API_BASE } from "./apiConfig";
-import { compressImageForUpload } from "../utils/imageUpload";
+import {
+  compressImageForUpload,
+  isAttachmentImageFile,
+  normalizeAttachmentFileName,
+} from "../utils/imageUpload";
 import type { BudgetPartFields } from "../utils/budgetPartStock";
 import { normalizeTvChimeConfig, type TvChimeScheduleConfig } from "@/utils/tvChimeSchedule";
 
@@ -1422,15 +1426,32 @@ export async function uploadServiceOrderPhoto(
   file: Blob,
   fileName: string
 ): Promise<ServiceOrderPhoto> {
+  const normalizedName = normalizeAttachmentFileName(file, fileName);
   const toSend = await compressImageForUpload(file, 3 * 1024 * 1024);
   if (toSend.size > UPLOAD_MAX_BYTES) {
+    const isImage = isAttachmentImageFile(file, normalizedName);
     throw new Error(
-      `Arquivo muito grande (${Math.max(1, Math.round(toSend.size / 1024 / 1024))} MB). Limite para envio é ~3,5 MB. Tente outra imagem ou reduza a resolução.`
+      isImage
+        ? `Arquivo muito grande (${Math.max(1, Math.round(toSend.size / 1024 / 1024))} MB). Limite para envio é ~3,5 MB. Tente outra imagem ou reduza a resolução.`
+        : `Arquivo muito grande (${Math.max(1, Math.round(toSend.size / 1024 / 1024))} MB). Limite para envio é ~3,5 MB.`
     );
   }
-  const name = toSend === file ? fileName : (fileName.replace(/\.\w+$/i, ".jpg") || "photo.jpg");
+  const name =
+    toSend === file
+      ? normalizedName
+      : normalizedName.replace(/\.\w+$/i, ".jpg") || "photo.jpg";
+  const uploadBlob =
+    toSend instanceof File
+      ? toSend
+      : new File([toSend], name, {
+          type:
+            file.type ||
+            (/\.pdf$/i.test(name)
+              ? "application/pdf"
+              : "application/octet-stream"),
+        });
   const formData = new FormData();
-  formData.append("file", toSend, name);
+  formData.append("file", uploadBlob, name);
   const path = `/service-orders/${id}/photos`;
   const url =
     API_BASE.startsWith("/") && typeof window !== "undefined"
