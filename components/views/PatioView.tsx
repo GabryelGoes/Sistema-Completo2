@@ -626,9 +626,16 @@ const Lightbox = ({
 
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
   const lastDistRef = useRef<number | null>(null);
+  const lastPinchCenterRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartXRef = useRef<number>(0);
+  const scaleRef = useRef(1);
+  const translateRef = useRef({ x: 0, y: 0 });
   const [isMousePanning, setIsMousePanning] = useState(false);
+  const pinchContainerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+
+  scaleRef.current = scale;
+  translateRef.current = translate;
   const onIndexChangeRef = useRef(onIndexChange);
   onIndexChangeRef.current = onIndexChange;
 
@@ -708,30 +715,88 @@ const Lightbox = ({
     if (canGoNext) setCurrentIndex((i) => i + 1);
   };
 
+  const getPinchFocalOffset = (pinchCenterX: number, pinchCenterY: number) => {
+    const rect = pinchContainerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return {
+      x: pinchCenterX - (rect.left + rect.width / 2),
+      y: pinchCenterY - (rect.top + rect.height / 2),
+    };
+  };
+
+  const applyPinchZoom = (pinchCenterX: number, pinchCenterY: number, dist: number) => {
+    if (!lastDistRef.current) return;
+    const oldScale = scaleRef.current;
+    const oldTx = translateRef.current.x;
+    const oldTy = translateRef.current.y;
+    const ratio = dist / lastDistRef.current;
+    let newScale = Math.min(Math.max(1, oldScale * ratio), 5);
+    const { x: fx, y: fy } = getPinchFocalOffset(pinchCenterX, pinchCenterY);
+
+    if (newScale <= 1) {
+      newScale = 1;
+      setScale(1);
+      setTranslate({ x: 0, y: 0 });
+    } else {
+      const zoomRatio = newScale / oldScale;
+      let newTx = fx * (1 - zoomRatio) + oldTx * zoomRatio;
+      let newTy = fy * (1 - zoomRatio) + oldTy * zoomRatio;
+      if (lastPinchCenterRef.current) {
+        newTx += pinchCenterX - lastPinchCenterRef.current.x;
+        newTy += pinchCenterY - lastPinchCenterRef.current.y;
+      }
+      setScale(newScale);
+      setTranslate({ x: newTx, y: newTy });
+    }
+
+    lastDistRef.current = dist;
+    lastPinchCenterRef.current = { x: pinchCenterX, y: pinchCenterY };
+  };
+
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       dragStartXRef.current = e.touches[0].clientX;
-      if (scale > 1) {
+      if (scaleRef.current > 1) {
         setIsDragging(true);
       } else if (hasMultiple) {
         setIsSwiping(true);
         setTranslate({ x: 0, y: 0 });
       }
     } else if (e.touches.length === 2) {
-      const dist = Math.hypot(
+      const pinchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const pinchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      lastDistRef.current = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      lastDistRef.current = dist;
+      lastPinchCenterRef.current = { x: pinchCenterX, y: pinchCenterY };
+      setIsDragging(false);
+      setIsSwiping(false);
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const pinchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const pinchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (!lastDistRef.current) {
+        lastDistRef.current = dist;
+        lastPinchCenterRef.current = { x: pinchCenterX, y: pinchCenterY };
+        return;
+      }
+      applyPinchZoom(pinchCenterX, pinchCenterY, dist);
+      return;
+    }
+
     if (e.touches.length === 1 && lastTouchRef.current) {
       const dx = e.touches[0].clientX - lastTouchRef.current.x;
       const dy = e.touches[0].clientY - lastTouchRef.current.y;
-      if (scale > 1) {
+      if (scaleRef.current > 1) {
         setIsDragging(true);
         setTranslate((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
       } else if (hasMultiple && Math.abs(dx) > Math.abs(dy)) {
@@ -740,25 +805,24 @@ const Lightbox = ({
         setTranslate({ x: deltaX, y: 0 });
       }
       lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    } else if (e.touches.length === 2 && lastDistRef.current) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      const ratio = dist / lastDistRef.current;
-      setScale((s) => {
-        const next = Math.min(Math.max(1, s * ratio), 5);
-        if (next <= 1) setTranslate({ x: 0, y: 0 });
-        return next;
-      });
-      lastDistRef.current = dist;
     }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lastDistRef.current = null;
+      lastPinchCenterRef.current = null;
+      setIsDragging(scaleRef.current > 1);
+      setIsSwiping(false);
+      return;
+    }
+
+    if (e.touches.length > 1) return;
+
     const endTouch = e.changedTouches[0];
     const endX = endTouch?.clientX ?? lastTouchRef.current?.x ?? dragStartXRef.current;
-    if (scale > 1) {
+    if (scaleRef.current > 1) {
       setIsDragging(false);
     } else {
       if (hasMultiple) {
@@ -770,8 +834,9 @@ const Lightbox = ({
     }
     lastTouchRef.current = null;
     lastDistRef.current = null;
+    lastPinchCenterRef.current = null;
     setIsSwiping(false);
-    if (scale < 1) setScale(1);
+    if (scaleRef.current < 1) setScale(1);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -882,6 +947,7 @@ const Lightbox = ({
       )}
 
       <div
+        ref={pinchContainerRef}
         className={`relative w-full h-full flex items-center justify-center touch-none ${scale > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={handleTouchStart}
