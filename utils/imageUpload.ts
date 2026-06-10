@@ -130,9 +130,17 @@ export function compressImageForUpload(
   });
 }
 
-/** Baixa imagem pública (Storage) para processamento no cliente. */
+/** Baixa imagem para processamento no cliente (preserva cache-bust em URLs do Storage). */
 export async function fetchImageBlob(url: string): Promise<Blob> {
-  const response = await fetch(url.split("?")[0], { mode: "cors", cache: "no-store" });
+  let fetchUrl = url;
+  if (!url.startsWith("blob:") && !url.startsWith("data:")) {
+    const qIndex = url.indexOf("?");
+    fetchUrl =
+      qIndex === -1
+        ? `${url}?v=${Date.now()}`
+        : url;
+  }
+  const response = await fetch(fetchUrl, { mode: "cors", cache: "no-store" });
   if (!response.ok) {
     throw new Error("Não foi possível carregar a imagem.");
   }
@@ -141,8 +149,10 @@ export async function fetchImageBlob(url: string): Promise<Blob> {
 
 /** Versão mais leve para rotação (evita baixar o arquivo original inteiro). */
 export async function fetchImageBlobForRotate(publicUrl: string): Promise<Blob> {
-  const base = publicUrl.split("?")[0];
-  const optimized = storageThumbnailUrl(base, {
+  if (publicUrl.startsWith("blob:") || publicUrl.startsWith("data:")) {
+    return fetchImageBlob(publicUrl);
+  }
+  const optimized = storageThumbnailUrl(publicUrl, {
     maxWidth: 2048,
     maxHeight: 2048,
     quality: 88,
@@ -152,7 +162,7 @@ export async function fetchImageBlobForRotate(publicUrl: string): Promise<Blob> 
   try {
     return await fetchImageBlob(optimized);
   } catch {
-    return fetchImageBlob(base);
+    return fetchImageBlob(publicUrl);
   }
 }
 
@@ -232,7 +242,9 @@ export async function resolveRotatedImageBlob(
     }
   }
 
-  return rotateImageBlob(await fetchImageBlobForRotate(url), direction, name);
+  const fetchUrl =
+    imgReady && img!.src.startsWith("blob:") ? img!.src : url;
+  return rotateImageBlob(await fetchImageBlobForRotate(fetchUrl), direction, name);
 }
 
 function outputMimeForImage(blob: Blob, fileName?: string): string {

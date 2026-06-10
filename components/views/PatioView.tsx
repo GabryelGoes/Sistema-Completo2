@@ -1203,6 +1203,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   // Visualização de Imagem (Lightbox) — itens com URL otimizada e path para rotação
   const [previewImages, setPreviewImages] = useState<{ items: PatioPreviewImageItem[]; currentIndex: number } | null>(null);
+  const previewImagesRef = useRef(previewImages);
+  previewImagesRef.current = previewImages;
   const [rotatingPreviewPhoto, setRotatingPreviewPhoto] = useState(false);
   const [rotatingAttachmentPath, setRotatingAttachmentPath] = useState<string | null>(null);
   const [loadingAttachmentId, setLoadingAttachmentId] = useState<string | null>(null);
@@ -3828,6 +3830,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
   );
 
   const pendingRotationBlobUrlsRef = useRef<Set<string>>(new Set());
+  const rotationUploadSeqRef = useRef<Map<string, number>>(new Map());
+
+  const revokePendingBlobUrl = useCallback((blobUrl: string) => {
+    if (!blobUrl.startsWith('blob:')) return;
+    if (!pendingRotationBlobUrlsRef.current.has(blobUrl)) return;
+    URL.revokeObjectURL(blobUrl);
+    pendingRotationBlobUrlsRef.current.delete(blobUrl);
+  }, []);
 
   const rotateAttachmentPhoto = useCallback(
     async (
@@ -3848,23 +3858,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       const previewUrl = URL.createObjectURL(rotated);
       pendingRotationBlobUrlsRef.current.add(previewUrl);
+      revokePendingBlobUrl(previousUrl);
       applyRotatedPhoto(path, previousUrl, previewUrl, name);
 
-      try {
-        const result = await rotateServiceOrderPhoto(selectedCard.id, path, rotated, name);
-        const freshUrl = bustStoragePublicUrl(result.url);
-        URL.revokeObjectURL(previewUrl);
-        pendingRotationBlobUrlsRef.current.delete(previewUrl);
-        applyRotatedPhoto(path, previewUrl, freshUrl, result.name || name);
-        return freshUrl;
-      } catch (err) {
-        URL.revokeObjectURL(previewUrl);
-        pendingRotationBlobUrlsRef.current.delete(previewUrl);
-        applyRotatedPhoto(path, previewUrl, previousUrl, name);
-        throw err;
-      }
+      const uploadSeq = (rotationUploadSeqRef.current.get(path) ?? 0) + 1;
+      rotationUploadSeqRef.current.set(path, uploadSeq);
+
+      void (async () => {
+        try {
+          const result = await rotateServiceOrderPhoto(selectedCard.id, path, rotated, name);
+          if (rotationUploadSeqRef.current.get(path) !== uploadSeq) return;
+
+          const freshUrl = bustStoragePublicUrl(result.url);
+          revokePendingBlobUrl(previewUrl);
+          applyRotatedPhoto(path, previewUrl, freshUrl, result.name || name);
+        } catch (err) {
+          if (rotationUploadSeqRef.current.get(path) !== uploadSeq) return;
+          revokePendingBlobUrl(previewUrl);
+          applyRotatedPhoto(path, previewUrl, previousUrl, name);
+          const message = err instanceof Error ? err.message : 'Erro ao salvar foto girada.';
+          alert(message);
+        }
+      })();
+
+      return previewUrl;
     },
-    [selectedCard, applyRotatedPhoto]
+    [selectedCard, applyRotatedPhoto, revokePendingBlobUrl]
   );
 
   const handlePreviewIndexChange = useCallback((index: number) => {
@@ -3878,8 +3897,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     index: number,
     sourceImage: HTMLImageElement | null
   ) => {
-    if (!previewImages || !selectedCard || rotatingPreviewPhoto) return;
-    const item = previewImages.items[index];
+    const preview = previewImagesRef.current;
+    if (!preview || !selectedCard || rotatingPreviewPhoto) return;
+    const item = preview.items[index];
     if (!item?.path) return;
 
     setRotatingPreviewPhoto(true);
@@ -3902,7 +3922,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   ) => {
     e.preventDefault();
     e.stopPropagation();
-    if (rotatingAttachmentPath) return;
+    if (rotatingAttachmentPath === path) return;
     setRotatingAttachmentPath(path);
     try {
       await rotateAttachmentPhoto(path, url, name, direction);
