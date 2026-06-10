@@ -16,7 +16,7 @@ export const iosModalOverlay =
   'fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/45 backdrop-blur-[20px]';
 
 /** Hub de configurações no PC usa z-[100]; modais filhos precisam ficar acima. */
-export const SETTINGS_CHILD_MODAL_Z = 'z-[110]';
+export const SETTINGS_CHILD_MODAL_Z = 'z-[125]';
 
 const iosModalOverlayAppearance =
   'flex items-center justify-center p-3 sm:p-6 bg-black/45 backdrop-blur-[20px]';

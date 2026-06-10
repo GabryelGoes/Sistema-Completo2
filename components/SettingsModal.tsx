@@ -6,6 +6,7 @@ import { IosModalHeader } from './ui/IosModalHeader';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { useDeviceTypeContext } from './ui/DeviceTypeContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { IosSwitch } from './ui/IosSwitch';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -38,7 +39,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     <ModalPortal>
     <div className={resolveIosModalOverlayClass(isDesktopShell)}>
       <div className={`${iosModalShell} max-h-[94vh] max-w-xl`}>
-        <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+        <button
+          type="button"
+          onClick={onClose}
+          className={`${iosModalClose} z-50 shadow-sm ring-1 ring-zinc-200/80 dark:ring-white/10`}
+          aria-label="Fechar"
+        >
           <X className="w-5 h-5" />
         </button>
 
@@ -65,32 +71,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
-              <label className="block text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                Tema do sistema
-              </label>
-              <div className="flex bg-zinc-200 dark:bg-black/40 p-1 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => onThemeChange('light')}
-                  className={`flex-1 py-3 px-4 rounded-lg text-[15px] font-semibold transition-all ${
-                    theme === 'light'
-                      ? 'bg-light-elevated text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
-                      : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  Claro
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onThemeChange('dark')}
-                  className={`flex-1 py-3 px-4 rounded-lg text-[15px] font-semibold transition-all ${
-                    theme === 'dark'
-                      ? 'bg-zinc-800 text-white shadow-sm'
-                      : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  Escuro
-                </button>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <label className="text-[15px] font-medium text-zinc-900 dark:text-white block">
+                    Tema escuro
+                  </label>
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    Desligado usa o tema claro em todo o sistema
+                  </p>
+                </div>
+                <IosSwitch
+                  id="settings-modal-dark-theme"
+                  checked={theme === 'dark'}
+                  onChange={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
+                  ariaLabel="Ativar tema escuro"
+                />
               </div>
             </div>
 
@@ -106,24 +101,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       Embaralha as placas no app para gravar tela e postar em redes sociais
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={cinematographicMode}
-                    onClick={() => onCinematographicModeChange(!cinematographicMode)}
-                    className={`
-                    relative shrink-0 w-12 h-7 rounded-full transition-colors duration-200
-                    ${cinematographicMode ? 'bg-brand-yellow' : 'bg-zinc-300 dark:bg-zinc-600'}
-                  `}
-                  >
-                    <span
-                      className={`
-                      absolute top-1 w-5 h-5 rounded-full bg-white shadow-md
-                      transition-transform duration-200 ease-out
-                      ${cinematographicMode ? 'translate-x-6 left-0.5' : 'translate-x-0 left-0.5'}
-                    `}
-                    />
-                  </button>
+                  <IosSwitch
+                    id="settings-modal-cinematic-mode"
+                    checked={cinematographicMode}
+                    onChange={() => onCinematographicModeChange(!cinematographicMode)}
+                    ariaLabel="Ativar modo cinematográfico"
+                  />
                 </div>
               </div>
             )}

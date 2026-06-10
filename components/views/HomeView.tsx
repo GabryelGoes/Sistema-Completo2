@@ -1083,21 +1083,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
             aria-modal="true"
             aria-label="Configurações"
           >
-            {!desktopShell ? (
-            <header className="shrink-0 border-b border-zinc-200/80 bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-[0_1px_0_0_rgba(255,255,255,0.55)_inset] dark:border-white/[0.08] dark:bg-zinc-950 dark:shadow-none">
+            <header className={`shrink-0 border-b border-zinc-200/80 bg-white shadow-[0_1px_0_0_rgba(255,255,255,0.55)_inset] dark:border-white/[0.08] dark:bg-zinc-950 dark:shadow-none ${desktopShell ? 'px-5 py-3' : 'px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]'}`}>
               <div className="relative w-full">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (childModalStackActive) return;
-                    setSettingsHubOpen(false);
-                  }}
-                  className="absolute left-0 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
-                  aria-label="Voltar"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </button>
-                <div className="mx-auto flex min-h-[2.5rem] max-w-xl flex-col items-center justify-center px-12 text-center lg:max-w-5xl">
+                {!desktopShell ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (childModalStackActive) return;
+                      setSettingsHubOpen(false);
+                    }}
+                    className="absolute left-0 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200/75 bg-white/80 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/75 dark:text-zinc-200 dark:hover:bg-zinc-900/90"
+                    aria-label="Voltar"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (childModalStackActive) return;
+                      setSettingsHubOpen(false);
+                    }}
+                    className="absolute right-0 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200/75 bg-white/90 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.2)] transition-all hover:bg-zinc-50 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    aria-label="Fechar"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+                <div className={`mx-auto flex min-h-[2.5rem] max-w-xl flex-col items-center justify-center text-center lg:max-w-5xl ${desktopShell ? 'px-12' : 'px-12'}`}>
                   <div className="mb-0.5 flex h-9 w-9 items-center justify-center overflow-hidden rounded-2xl border border-zinc-300/75 bg-zinc-100 shadow-inner dark:border-white/[0.12] dark:bg-zinc-800/95">
                     <img src="/icons/configuracoes-ios.png" alt="" className="h-full w-full object-cover" />
                   </div>
@@ -1107,7 +1120,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
               </div>
             </header>
-            ) : null}
 
             <div className={`min-h-0 w-full flex-1 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable] ${desktopShell ? 'pt-3' : 'pt-5'}`}>
               <div className="mx-auto w-full max-w-xl space-y-6 px-4 sm:px-6 lg:max-w-5xl">
