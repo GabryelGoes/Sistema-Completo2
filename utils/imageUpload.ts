@@ -156,7 +156,7 @@ export async function fetchImageBlobForRotate(publicUrl: string): Promise<Blob> 
   }
 }
 
-/** Gira um <img> já decodificado na tela (sem novo download). */
+/** Gira um <img> já decodificado na tela (sem novo download). Só seguro com blob/data ou CORS. */
 export function rotateImageElement(
   img: HTMLImageElement,
   direction: "cw" | "ccw",
@@ -189,15 +189,50 @@ export function rotateImageElement(
       ctx.rotate(-Math.PI / 2);
     }
     ctx.drawImage(img, 0, 0, sourceW, sourceH);
-    canvas.toBlob(
-      (result) => {
-        if (result) resolve(result);
-        else reject(new Error("Não foi possível processar a imagem para rotação."));
-      },
-      outputMime,
-      outputQuality
-    );
+    try {
+      canvas.toBlob(
+        (result) => {
+          if (result) resolve(result);
+          else reject(new Error("Não foi possível processar a imagem para rotação."));
+        },
+        outputMime,
+        outputQuality
+      );
+    } catch (err) {
+      reject(err instanceof Error ? err : new Error("Não foi possível exportar a imagem girada."));
+    }
   });
+}
+
+/**
+ * Gira imagem usando o <img> da tela quando seguro (blob/CORS); senão baixa via fetch.
+ * Evita "Tainted canvases may not be exported" em URLs cross-origin sem CORS.
+ */
+export async function resolveRotatedImageBlob(
+  direction: "cw" | "ccw",
+  options: {
+    url: string;
+    name?: string;
+    sourceImage?: HTMLImageElement | null;
+  }
+): Promise<Blob> {
+  const { url, name, sourceImage } = options;
+  const img = sourceImage;
+  const imgReady = !!(img?.naturalWidth && img.naturalHeight);
+  // Só blob/data são same-origin; URLs do Storage no <img> contaminam o canvas.
+  const canUseElement =
+    imgReady &&
+    (img!.src.startsWith("blob:") || img!.src.startsWith("data:"));
+
+  if (canUseElement) {
+    try {
+      return await rotateImageElement(img!, direction, name);
+    } catch {
+      // canvas tainted ou falha de export — fallback abaixo
+    }
+  }
+
+  return rotateImageBlob(await fetchImageBlobForRotate(url), direction, name);
 }
 
 function outputMimeForImage(blob: Blob, fileName?: string): string {

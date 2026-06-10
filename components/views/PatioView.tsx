@@ -99,9 +99,7 @@ import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverla
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { storageThumbnailUrl, bustStoragePublicUrl } from '../../utils/storageThumbnailUrl';
 import {
-  fetchImageBlobForRotate,
-  rotateImageBlob,
-  rotateImageElement,
+  resolveRotatedImageBlob,
   isAttachmentImageFile,
   isAttachmentDocumentFile,
 } from '../../utils/imageUpload';
@@ -967,6 +965,7 @@ const Lightbox = ({
           ref={imageRef}
           src={src}
           alt="Preview"
+          crossOrigin={src.startsWith("blob:") || src.startsWith("data:") ? undefined : "anonymous"}
           decoding="async"
           loading="eager"
           fetchPriority="high"
@@ -3841,10 +3840,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       if (!selectedCard || !path || /^\d+$/.test(String(path))) return;
       const previousUrl = url;
 
-      const rotated =
-        sourceImage?.naturalWidth && sourceImage.naturalHeight
-          ? await rotateImageElement(sourceImage, direction, name)
-          : await rotateImageBlob(await fetchImageBlobForRotate(url), direction, name);
+      const rotated = await resolveRotatedImageBlob(direction, {
+        url,
+        name,
+        sourceImage,
+      });
 
       const previewUrl = URL.createObjectURL(rotated);
       pendingRotationBlobUrlsRef.current.add(previewUrl);
