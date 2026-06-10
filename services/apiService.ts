@@ -3,6 +3,18 @@ import type { Appointment } from "../types";
 import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
 import type { ExternalRepair } from "../constants/labBench";
 import { API_BASE } from "./apiConfig";
+
+async function readResponseJson<T>(response: Response, emptyMessage: string, invalidMessage: string): Promise<T> {
+  const text = await response.text();
+  if (!text.trim()) {
+    throw new Error(response.ok ? emptyMessage : `Falha na requisição (${response.status}).`);
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(response.ok ? invalidMessage : `Falha na requisição (${response.status}).`);
+  }
+}
 import {
   compressImageForUpload,
   isAttachmentImageFile,
@@ -955,10 +967,18 @@ export async function getServiceOrders(
   const url = `${API_BASE}/service-orders${params.toString() ? `?${params.toString()}` : ""}`;
   const response = await fetch(url);
   if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
+    const err = await readResponseJson<{ error?: string }>(
+      response,
+      `Falha ao listar ordens (${response.status}).`,
+      `Falha ao listar ordens (${response.status}).`
+    ).catch(() => ({} as { error?: string }));
     throw new Error(err.error || `Falha ao listar ordens (${response.status})`);
   }
-  const data = await response.json();
+  const data = await readResponseJson<unknown>(
+    response,
+    "Servidor retornou resposta vazia ao listar ordens. Tente novamente em instantes.",
+    "Resposta incompleta ao listar ordens. Atualize a página ou tente de novo em instantes."
+  );
   if (!Array.isArray(data)) {
     const message =
       data && typeof data === "object" && "error" in data && typeof (data as { error?: unknown }).error === "string"

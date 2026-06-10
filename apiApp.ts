@@ -2116,6 +2116,11 @@ export function createApiApp() {
   /** Fallback quando migrações recentes ainda não foram aplicadas no projeto Supabase. */
   const SERVICE_ORDERS_LIST_SELECT_MINIMAL =
     "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+  /** Histórico arquivado — sem textos/JSON pesados (ai_analysis, anexos, etc.). */
+  const SERVICE_ORDERS_ARCHIVE_LIST_SELECT =
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, status, assigned_technician, garantia_tag, order_type, vehicle_category, created_at, updated_at";
+  const SERVICE_ORDERS_ARCHIVE_LIST_SELECT_MINIMAL =
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, status, assigned_technician, garantia_tag, order_type, vehicle_category, created_at, updated_at";
   const SERVICE_ORDERS_PAGE_SIZE = 1000;
   /** Evita URL gigante no PostgREST ao enriquecer nomes (histórico com centenas de OS). */
   const IN_FILTER_CHUNK_SIZE = 75;
@@ -2196,17 +2201,31 @@ export function createApiApp() {
     return all;
   }
 
+  function resolveServiceOrdersListSelect(status?: string): { primary: string; fallback: string } {
+    if (status === CANCELLED_STATUS) {
+      return {
+        primary: SERVICE_ORDERS_ARCHIVE_LIST_SELECT,
+        fallback: SERVICE_ORDERS_ARCHIVE_LIST_SELECT_MINIMAL,
+      };
+    }
+    return {
+      primary: SERVICE_ORDERS_LIST_SELECT,
+      fallback: SERVICE_ORDERS_LIST_SELECT_MINIMAL,
+    };
+  }
+
   async function fetchAllServiceOrderRows(filters: {
     status?: string;
     orderType?: string;
   }): Promise<Record<string, unknown>[]> {
+    const { primary, fallback } = resolveServiceOrdersListSelect(filters.status);
     try {
-      return await fetchAllServiceOrderRowsWithSelect(SERVICE_ORDERS_LIST_SELECT, filters);
+      return await fetchAllServiceOrderRowsWithSelect(primary, filters);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err ?? "");
       if (/column|does not exist|42703/i.test(msg)) {
-        console.warn("[API] Select completo de service_orders falhou; usando select reduzido:", msg);
-        return await fetchAllServiceOrderRowsWithSelect(SERVICE_ORDERS_LIST_SELECT_MINIMAL, filters);
+        console.warn("[API] Select de service_orders falhou; usando select reduzido:", msg);
+        return await fetchAllServiceOrderRowsWithSelect(fallback, filters);
       }
       throw err;
     }
