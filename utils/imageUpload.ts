@@ -1,3 +1,5 @@
+import { storageThumbnailUrl } from "./storageThumbnailUrl";
+
 /**
  * Comprime imagem no cliente para evitar 413 (Payload Too Large) no Vercel.
  * Limite típico do corpo da requisição em serverless é 4,5 MB.
@@ -137,6 +139,67 @@ export async function fetchImageBlob(url: string): Promise<Blob> {
   return response.blob();
 }
 
+/** Versão mais leve para rotação (evita baixar o arquivo original inteiro). */
+export async function fetchImageBlobForRotate(publicUrl: string): Promise<Blob> {
+  const base = publicUrl.split("?")[0];
+  const optimized = storageThumbnailUrl(base, {
+    maxWidth: 2048,
+    maxHeight: 2048,
+    quality: 88,
+    format: "origin",
+    resize: "contain",
+  });
+  try {
+    return await fetchImageBlob(optimized);
+  } catch {
+    return fetchImageBlob(base);
+  }
+}
+
+/** Gira um <img> já decodificado na tela (sem novo download). */
+export function rotateImageElement(
+  img: HTMLImageElement,
+  direction: "cw" | "ccw",
+  fileName?: string
+): Promise<Blob> {
+  const outputMime = outputMimeForImage(new Blob([], { type: img.type || "" }), fileName);
+  const outputQuality = outputMime === "image/png" ? undefined : 0.85;
+
+  return new Promise((resolve, reject) => {
+    const clockwise = direction === "cw";
+    const sourceW = img.naturalWidth;
+    const sourceH = img.naturalHeight;
+    if (!sourceW || !sourceH) {
+      reject(new Error("Imagem ainda não carregou para rotação."));
+      return;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = sourceH;
+    canvas.height = sourceW;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      reject(new Error("Não foi possível processar a imagem para rotação."));
+      return;
+    }
+    if (clockwise) {
+      ctx.translate(sourceH, 0);
+      ctx.rotate(Math.PI / 2);
+    } else {
+      ctx.translate(0, sourceW);
+      ctx.rotate(-Math.PI / 2);
+    }
+    ctx.drawImage(img, 0, 0, sourceW, sourceH);
+    canvas.toBlob(
+      (result) => {
+        if (result) resolve(result);
+        else reject(new Error("Não foi possível processar a imagem para rotação."));
+      },
+      outputMime,
+      outputQuality
+    );
+  });
+}
+
 function outputMimeForImage(blob: Blob, fileName?: string): string {
   if (blob.type.startsWith("image/")) return blob.type;
   const ext = (fileName || "").toLowerCase();
@@ -156,7 +219,7 @@ export function rotateImageBlob(
     const url = URL.createObjectURL(blob);
     const img = new Image();
     const outputMime = outputMimeForImage(blob, fileName);
-    const outputQuality = outputMime === "image/png" ? undefined : 0.92;
+    const outputQuality = outputMime === "image/png" ? undefined : 0.85;
 
     img.onload = () => {
       URL.revokeObjectURL(url);

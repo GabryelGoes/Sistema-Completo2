@@ -99,8 +99,9 @@ import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverla
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { storageThumbnailUrl, bustStoragePublicUrl } from '../../utils/storageThumbnailUrl';
 import {
-  fetchImageBlob,
+  fetchImageBlobForRotate,
   rotateImageBlob,
+  rotateImageElement,
   isAttachmentImageFile,
   isAttachmentDocumentFile,
 } from '../../utils/imageUpload';
@@ -609,7 +610,7 @@ const Lightbox = ({
   initialIndex?: number;
   onClose: () => void;
   onIndexChange?: (index: number) => void;
-  onRotate?: (direction: 'cw' | 'ccw', index: number) => void;
+  onRotate?: (direction: 'cw' | 'ccw', index: number, sourceImage: HTMLImageElement | null) => void;
   isRotating?: boolean;
   canRotate?: boolean;
 }) => {
@@ -907,7 +908,7 @@ const Lightbox = ({
           <button
             type="button"
             disabled={isRotating}
-            onClick={(e) => { e.stopPropagation(); onRotate('ccw', currentIndex); }}
+            onClick={(e) => { e.stopPropagation(); onRotate('ccw', currentIndex, imageRef.current); }}
             className={`${mediaOverlayNavBtn} disabled:opacity-40`}
             aria-label="Girar anti-horário"
           >
@@ -916,7 +917,7 @@ const Lightbox = ({
           <button
             type="button"
             disabled={isRotating}
-            onClick={(e) => { e.stopPropagation(); onRotate('cw', currentIndex); }}
+            onClick={(e) => { e.stopPropagation(); onRotate('cw', currentIndex, imageRef.current); }}
             className={`${mediaOverlayNavBtn} disabled:opacity-40`}
             aria-label="Girar horário"
           >
@@ -956,7 +957,7 @@ const Lightbox = ({
         onTouchCancel={handleTouchEnd}
         onMouseDown={handleMouseDown}
       >
-        {(!imageLoaded || isRotating) && (
+        {!imageLoaded && (
           <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center">
             <Loader2 className="h-10 w-10 animate-spin text-brand-yellow" aria-hidden />
           </div>
@@ -974,7 +975,7 @@ const Lightbox = ({
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
             transition: isDragging || isSwiping || scale > 1 ? "none" : "transform 0.2s ease-out",
-            opacity: imageLoaded && !isRotating ? 1 : 0,
+            opacity: imageLoaded ? 1 : 0,
           }}
           className="max-w-full max-h-full object-contain select-none"
           draggable={false}
@@ -3827,15 +3828,41 @@ export const PatioView: React.FC<PatioViewProps> = ({
     [preloadLightboxUrl]
   );
 
+  const pendingRotationBlobUrlsRef = useRef<Set<string>>(new Set());
+
   const rotateAttachmentPhoto = useCallback(
-    async (path: string, url: string, name: string, direction: 'cw' | 'ccw') => {
+    async (
+      path: string,
+      url: string,
+      name: string,
+      direction: 'cw' | 'ccw',
+      sourceImage?: HTMLImageElement | null
+    ) => {
       if (!selectedCard || !path || /^\d+$/.test(String(path))) return;
-      const blob = await fetchImageBlob(url);
-      const rotated = await rotateImageBlob(blob, direction, name);
-      const result = await rotateServiceOrderPhoto(selectedCard.id, path, rotated, name);
-      const freshUrl = bustStoragePublicUrl(result.url);
-      applyRotatedPhoto(path, url, freshUrl, result.name || name);
-      return freshUrl;
+      const previousUrl = url;
+
+      const rotated =
+        sourceImage?.naturalWidth && sourceImage.naturalHeight
+          ? await rotateImageElement(sourceImage, direction, name)
+          : await rotateImageBlob(await fetchImageBlobForRotate(url), direction, name);
+
+      const previewUrl = URL.createObjectURL(rotated);
+      pendingRotationBlobUrlsRef.current.add(previewUrl);
+      applyRotatedPhoto(path, previousUrl, previewUrl, name);
+
+      try {
+        const result = await rotateServiceOrderPhoto(selectedCard.id, path, rotated, name);
+        const freshUrl = bustStoragePublicUrl(result.url);
+        URL.revokeObjectURL(previewUrl);
+        pendingRotationBlobUrlsRef.current.delete(previewUrl);
+        applyRotatedPhoto(path, previewUrl, freshUrl, result.name || name);
+        return freshUrl;
+      } catch (err) {
+        URL.revokeObjectURL(previewUrl);
+        pendingRotationBlobUrlsRef.current.delete(previewUrl);
+        applyRotatedPhoto(path, previewUrl, previousUrl, name);
+        throw err;
+      }
     },
     [selectedCard, applyRotatedPhoto]
   );
@@ -3846,14 +3873,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
     );
   }, []);
 
-  const handleRotatePreviewPhoto = async (direction: 'cw' | 'ccw', index: number) => {
+  const handleRotatePreviewPhoto = async (
+    direction: 'cw' | 'ccw',
+    index: number,
+    sourceImage: HTMLImageElement | null
+  ) => {
     if (!previewImages || !selectedCard || rotatingPreviewPhoto) return;
     const item = previewImages.items[index];
     if (!item?.path) return;
 
     setRotatingPreviewPhoto(true);
     try {
-      await rotateAttachmentPhoto(item.path, item.url, item.name, direction);
+      await rotateAttachmentPhoto(item.path, item.url, item.name, direction, sourceImage);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao girar foto.';
       alert(message);
@@ -7458,7 +7489,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                           }}
                                                           className="absolute inset-0 h-full w-full rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
                                                         >
-                                                          {isLoadingThis || isRotatingThis ? (
+                                                          {isLoadingThis ? (
                                                             <div className="absolute inset-0 flex items-center justify-center bg-zinc-200/80 dark:bg-zinc-800/80">
                                                               <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
                                                             </div>

@@ -1427,7 +1427,11 @@ export async function uploadServiceOrderPhoto(
   fileName: string
 ): Promise<ServiceOrderPhoto> {
   const normalizedName = normalizeAttachmentFileName(file, fileName);
-  const toSend = await compressImageForUpload(file, 3 * 1024 * 1024);
+  const skipCompress =
+    file.type === "image/jpeg" && file.size <= 3 * 1024 * 1024;
+  const toSend = skipCompress
+    ? file
+    : await compressImageForUpload(file, 3 * 1024 * 1024);
   if (toSend.size > UPLOAD_MAX_BYTES) {
     const isImage = isAttachmentImageFile(file, normalizedName);
     throw new Error(
@@ -1531,8 +1535,16 @@ export async function rotateServiceOrderPhoto(
   file: Blob,
   fileName: string
 ): Promise<ServiceOrderPhoto> {
-  const toSend = await compressImageForUpload(file, 3 * 1024 * 1024);
-  const name = toSend === file ? fileName : (fileName.replace(/\.\w+$/i, ".jpg") || "photo.jpg");
+  const normalizedName = normalizeAttachmentFileName(file, fileName);
+  const skipCompress =
+    file.type === "image/jpeg" && file.size <= 3 * 1024 * 1024;
+  const toSend = skipCompress
+    ? file
+    : await compressImageForUpload(file, 3 * 1024 * 1024);
+  const name =
+    toSend === file
+      ? normalizedName
+      : normalizedName.replace(/\.\w+$/i, ".jpg") || "photo.jpg";
   const formData = new FormData();
   formData.append("file", toSend, name);
   formData.append("path", path);
