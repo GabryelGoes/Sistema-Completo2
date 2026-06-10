@@ -627,6 +627,7 @@ const Lightbox = ({
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
   const lastDistRef = useRef<number | null>(null);
   const dragStartXRef = useRef<number>(0);
+  const [isMousePanning, setIsMousePanning] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
   const onIndexChangeRef = useRef(onIndexChange);
   onIndexChangeRef.current = onIndexChange;
@@ -745,7 +746,11 @@ const Lightbox = ({
         e.touches[0].clientY - e.touches[1].clientY
       );
       const ratio = dist / lastDistRef.current;
-      setScale((s) => Math.min(Math.max(1, s * ratio), 5));
+      setScale((s) => {
+        const next = Math.min(Math.max(1, s * ratio), 5);
+        if (next <= 1) setTranslate({ x: 0, y: 0 });
+        return next;
+      });
       lastDistRef.current = dist;
     }
   };
@@ -755,17 +760,51 @@ const Lightbox = ({
     const endX = endTouch?.clientX ?? lastTouchRef.current?.x ?? dragStartXRef.current;
     if (scale > 1) {
       setIsDragging(false);
-    } else if (hasMultiple) {
-      const deltaX = endX - dragStartXRef.current;
-      if (deltaX > SWIPE_THRESHOLD && canGoPrev) goPrev();
-      else if (deltaX < -SWIPE_THRESHOLD && canGoNext) goNext();
+    } else {
+      if (hasMultiple) {
+        const deltaX = endX - dragStartXRef.current;
+        if (deltaX > SWIPE_THRESHOLD && canGoPrev) goPrev();
+        else if (deltaX < -SWIPE_THRESHOLD && canGoNext) goNext();
+      }
+      setTranslate({ x: 0, y: 0 });
     }
-    setTranslate({ x: 0, y: 0 });
     lastTouchRef.current = null;
     lastDistRef.current = null;
     setIsSwiping(false);
     if (scale < 1) setScale(1);
   };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (scale <= 1 || e.button !== 0) return;
+    e.preventDefault();
+    setIsMousePanning(true);
+    lastTouchRef.current = { x: e.clientX, y: e.clientY };
+    setIsDragging(true);
+  };
+
+  const stopMousePanning = React.useCallback(() => {
+    setIsMousePanning(false);
+    setIsDragging(false);
+    lastTouchRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (!isMousePanning) return;
+    const onMove = (e: MouseEvent) => {
+      if (!lastTouchRef.current) return;
+      const dx = e.clientX - lastTouchRef.current.x;
+      const dy = e.clientY - lastTouchRef.current.y;
+      setTranslate((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+      lastTouchRef.current = { x: e.clientX, y: e.clientY };
+    };
+    const onUp = () => stopMousePanning();
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [isMousePanning, stopMousePanning]);
 
   const handleDoubleTap = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -843,12 +882,13 @@ const Lightbox = ({
       )}
 
       <div
-        className="relative w-full h-full flex items-center justify-center touch-none"
+        className={`relative w-full h-full flex items-center justify-center touch-none ${scale > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
+        onMouseDown={handleMouseDown}
       >
         {(!imageLoaded || isRotating) && (
           <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center">
@@ -867,7 +907,7 @@ const Lightbox = ({
           onDoubleClick={handleDoubleTap}
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-            transition: isDragging || isSwiping ? "none" : "transform 0.2s ease-out",
+            transition: isDragging || isSwiping || scale > 1 ? "none" : "transform 0.2s ease-out",
             opacity: imageLoaded && !isRotating ? 1 : 0,
           }}
           className="max-w-full max-h-full object-contain select-none"
