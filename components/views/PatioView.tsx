@@ -681,12 +681,6 @@ const Lightbox = ({
   }, [hasMultiple, images, currentIndex, src, preloadImage]);
 
   useEffect(() => {
-    return () => {
-      if (src.startsWith("blob:")) URL.revokeObjectURL(src);
-    };
-  }, [src]);
-
-  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -1545,6 +1539,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const cardInTransitionTitleParts = cardInTransition ? parsePatioCardTitle(cardInTransition.name) : null;
 
   const closePatioPrimaryOverlays = useCallback(() => {
+    setPreviewImages(null);
     setSelectedCard(null);
     setSelectedHistoryCard(null);
     setViewingBudget(null);
@@ -3790,26 +3785,65 @@ export const PatioView: React.FC<PatioViewProps> = ({
     attachmentPreloadRef.current.add(originalUrl);
   }, []);
 
+  const mapRotatedAttachments = useCallback(
+    (
+      attachments: TrelloAttachment[],
+      path: string,
+      previousBase: string,
+      freshUrl: string,
+      freshName: string
+    ) =>
+      attachments.map((a) =>
+        a.id === path || a.url.split('?')[0] === previousBase
+          ? {
+              ...a,
+              name: freshName,
+              url: freshUrl,
+              previews: [{ url: freshUrl, width: 200, height: 200 }],
+            }
+          : a
+      ),
+    []
+  );
+
   const applyRotatedPhoto = useCallback(
-    (path: string, previousUrl: string, freshUrl: string, freshName: string) => {
+    (
+      path: string,
+      previousUrl: string,
+      freshUrl: string,
+      freshName: string,
+      serviceOrderId?: string
+    ) => {
       const previousBase = previousUrl.split('?')[0];
       setCardDetails((prev) =>
         prev
           ? {
               ...prev,
-              attachments: prev.attachments.map((a) =>
-                a.id === path || a.url.split('?')[0] === previousBase
-                  ? {
-                      ...a,
-                      name: freshName,
-                      url: freshUrl,
-                      previews: [{ url: freshUrl, width: 200, height: 200 }],
-                    }
-                  : a
+              attachments: mapRotatedAttachments(
+                prev.attachments,
+                path,
+                previousBase,
+                freshUrl,
+                freshName
               ),
             }
           : null
       );
+      if (serviceOrderId) {
+        const cached = vehicleCardDetailsCacheRef.current.get(serviceOrderId);
+        if (cached) {
+          vehicleCardDetailsCacheRef.current.set(serviceOrderId, {
+            actions: cached.actions,
+            attachments: mapRotatedAttachments(
+              cached.attachments,
+              path,
+              previousBase,
+              freshUrl,
+              freshName
+            ),
+          });
+        }
+      }
       setPreviewImages((prev) => {
         if (!prev) return null;
         const items = prev.items.map((it) =>
@@ -3826,11 +3860,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
       }
       preloadLightboxUrl(freshUrl);
     },
-    [preloadLightboxUrl]
+    [mapRotatedAttachments, preloadLightboxUrl]
   );
 
   const pendingRotationBlobUrlsRef = useRef<Set<string>>(new Set());
   const rotationUploadSeqRef = useRef<Map<string, number>>(new Map());
+  const rotationBlobRetainRef = useRef<Map<string, Blob>>(new Map());
 
   const revokePendingBlobUrl = useCallback((blobUrl: string) => {
     if (!blobUrl.startsWith('blob:')) return;
@@ -3847,8 +3882,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
       direction: 'cw' | 'ccw',
       sourceImage?: HTMLImageElement | null
     ) => {
-      if (!selectedCard || !path || /^\d+$/.test(String(path))) return;
+      const serviceOrderId = selectedCardRef.current?.id;
+      if (!serviceOrderId || !path || /^\d+$/.test(String(path))) return;
       const previousUrl = url;
+      const retainKey = `${serviceOrderId}:${path}`;
 
       const rotated = await resolveRotatedImageBlob(direction, {
         url,
@@ -3858,24 +3895,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       const previewUrl = URL.createObjectURL(rotated);
       pendingRotationBlobUrlsRef.current.add(previewUrl);
+      rotationBlobRetainRef.current.set(retainKey, rotated);
       revokePendingBlobUrl(previousUrl);
-      applyRotatedPhoto(path, previousUrl, previewUrl, name);
+      applyRotatedPhoto(path, previousUrl, previewUrl, name, serviceOrderId);
 
       const uploadSeq = (rotationUploadSeqRef.current.get(path) ?? 0) + 1;
       rotationUploadSeqRef.current.set(path, uploadSeq);
 
       void (async () => {
         try {
-          const result = await rotateServiceOrderPhoto(selectedCard.id, path, rotated, name);
+          const result = await rotateServiceOrderPhoto(serviceOrderId, path, rotated, name);
           if (rotationUploadSeqRef.current.get(path) !== uploadSeq) return;
 
           const freshUrl = bustStoragePublicUrl(result.url);
           revokePendingBlobUrl(previewUrl);
-          applyRotatedPhoto(path, previewUrl, freshUrl, result.name || name);
+          rotationBlobRetainRef.current.delete(retainKey);
+          applyRotatedPhoto(path, previewUrl, freshUrl, result.name || name, serviceOrderId);
         } catch (err) {
           if (rotationUploadSeqRef.current.get(path) !== uploadSeq) return;
           revokePendingBlobUrl(previewUrl);
-          applyRotatedPhoto(path, previewUrl, previousUrl, name);
+          rotationBlobRetainRef.current.delete(retainKey);
+          applyRotatedPhoto(path, previewUrl, previousUrl, name, serviceOrderId);
           const message = err instanceof Error ? err.message : 'Erro ao salvar foto girada.';
           alert(message);
         }
@@ -3883,7 +3923,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       return previewUrl;
     },
-    [selectedCard, applyRotatedPhoto, revokePendingBlobUrl]
+    [applyRotatedPhoto, revokePendingBlobUrl]
   );
 
   const handlePreviewIndexChange = useCallback((index: number) => {
@@ -8491,7 +8531,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <Lightbox
           images={previewImages.items.map((item) => item.url)}
           initialIndex={previewImages.currentIndex}
-          onClose={() => setPreviewImages(null)}
+          onClose={() => {
+            setPreviewImages(null);
+          }}
           onIndexChange={handlePreviewIndexChange}
           onRotate={can('canEditFicha') ? handleRotatePreviewPhoto : undefined}
           isRotating={rotatingPreviewPhoto}
