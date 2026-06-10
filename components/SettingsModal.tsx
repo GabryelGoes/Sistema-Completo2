@@ -38,14 +38,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     <ModalPortal>
     <div className={resolveIosModalOverlayClass(isDesktopShell)}>
       <div className={`${iosModalShell} max-h-[94vh] max-w-xl`}>
-        {!isDesktopShell ? (
-          <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
-            <X className="w-5 h-5" />
-          </button>
-        ) : null}
+        <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+          <X className="w-5 h-5" />
+        </button>
 
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
-          <div className={`px-6 sm:px-8 pt-8 pb-4 shrink-0 ${isDesktopShell ? 'pr-6 sm:pr-8' : 'pr-14'}`}>
+          <div className="px-6 sm:px-8 pt-8 pb-4 shrink-0 pr-14">
             <IosModalHeader
               icon={<img src="/icons/configuracoes-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Configurações"

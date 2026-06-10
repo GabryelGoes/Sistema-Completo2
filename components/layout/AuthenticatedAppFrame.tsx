@@ -26,6 +26,8 @@ export type AuthenticatedAppFrameProps = {
   /** Título/cor da barra superior quando um módulo da sidebar está aberto (PC). */
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
   activeSidebarAction?: DesktopShellSidebarModuleId | null;
+  theme?: 'dark' | 'light';
+  onThemeChange?: (theme: 'dark' | 'light') => void;
   children: React.ReactNode;
 };
 
@@ -46,6 +48,8 @@ export function AuthenticatedAppFrame({
   notificationCenter,
   shellOverlayTopbar = null,
   activeSidebarAction = null,
+  theme,
+  onThemeChange,
   children,
 }: AuthenticatedAppFrameProps) {
   if (isDesktopShell) {
@@ -69,6 +73,8 @@ export function AuthenticatedAppFrame({
             notificationCenter={notificationCenter}
             shellOverlayTopbar={shellOverlayTopbar}
             activeSidebarAction={activeSidebarAction}
+            theme={theme}
+            onThemeChange={onThemeChange}
           >
             {children}
           </DesktopAppShell>

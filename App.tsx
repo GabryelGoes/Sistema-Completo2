@@ -650,6 +650,8 @@ export default function App() {
         notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
         shellOverlayTopbar={shellOverlayTopbar}
         activeSidebarAction={activeDesktopSidebarAction}
+        theme={theme}
+        onThemeChange={setTheme}
       >
           <KeepAliveTabPanel
             tabId="home"
@@ -933,6 +935,8 @@ export default function App() {
       notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
       shellOverlayTopbar={shellOverlayTopbar}
       activeSidebarAction={activeDesktopSidebarAction}
+      theme={theme}
+      onThemeChange={setTheme}
     >
         <KeepAliveTabPanel
           tabId="home"

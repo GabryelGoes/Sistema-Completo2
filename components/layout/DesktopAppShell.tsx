@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Headphones, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Headphones, Moon, Settings } from 'lucide-react';
 import { NotificationCenter, type NotificationCenterProps } from '../NotificationCenter';
 import { DesktopShellAccountMenu } from './DesktopShellAccountMenu';
+import { IosSwitch } from '../ui/IosSwitch';
 import type { TabId } from '../TabBar';
 import { moduleAccentColor, moduleTopbarTextTone } from '../../utils/appAppearance';
 import {
@@ -42,6 +43,8 @@ export type DesktopAppShellProps = {
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
   /** Atalho da sidebar aberto (Central, Estoque, Configurações). */
   activeSidebarAction?: DesktopSidebarActionId | null;
+  theme?: 'dark' | 'light';
+  onThemeChange?: (theme: 'dark' | 'light') => void;
   children: React.ReactNode;
 };
 
@@ -90,6 +93,8 @@ export function DesktopAppShell({
   notificationCenter,
   shellOverlayTopbar = null,
   activeSidebarAction = null,
+  theme = 'dark',
+  onThemeChange,
   children,
 }: DesktopAppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
@@ -194,6 +199,30 @@ export function DesktopAppShell({
             );
           })}
         </nav>
+
+        {onThemeChange ? (
+          <div
+            className="desktop-shell-theme-toggle"
+            title={
+              sidebarCollapsed
+                ? theme === 'dark'
+                  ? 'Tema escuro: ligado'
+                  : 'Tema escuro: desligado'
+                : undefined
+            }
+          >
+            <span className="desktop-shell-theme-toggle-leading" aria-hidden={sidebarCollapsed}>
+              <Moon className="desktop-shell-theme-toggle-icon h-4 w-4 shrink-0" strokeWidth={2.25} />
+              <span className="desktop-shell-theme-toggle-label">Tema escuro</span>
+            </span>
+            <IosSwitch
+              id="desktop-sidebar-dark-theme"
+              checked={theme === 'dark'}
+              onChange={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
+              ariaLabel="Ativar tema escuro"
+            />
+          </div>
+        ) : null}
 
         <a
           href="https://wa.me/"

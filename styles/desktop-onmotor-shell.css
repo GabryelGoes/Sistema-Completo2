@@ -200,8 +200,54 @@ html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell
 }
 
 html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-label,
-html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-support-label {
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-support-label,
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-theme-toggle-label {
   display: none;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-theme-toggle {
+  margin-top: auto;
+  margin-left: 0.65rem;
+  margin-right: 0.65rem;
+  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e8e8e8;
+  background: #f8f8f8;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-theme-toggle-leading {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-theme-toggle-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #52525b;
+  white-space: nowrap;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-theme-toggle-icon {
+  color: #71717a;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-theme-toggle {
+  margin-left: 0.4rem;
+  margin-right: 0.4rem;
+  justify-content: center;
+  padding: 0.55rem 0.4rem;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-theme-toggle-leading {
+  flex: 0;
 }
 
 html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-nav-item {
@@ -506,6 +552,19 @@ html.dark[data-desktop-shell='true'] .desktop-shell-content .ios-page-glass-desk
   border-color: rgba(255, 255, 255, 0.1) !important;
   border-top-color: rgb(var(--desktop-shell-accent-rgb) / 1) !important;
   box-shadow: 0 4px 16px -6px rgba(0, 0, 0, 0.45) !important;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-theme-toggle {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #27272a;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-theme-toggle-label {
+  color: #d4d4d8;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-theme-toggle-icon {
+  color: #a1a1aa;
 }
 
 html.dark[data-desktop-shell='true'] .desktop-shell-support {
