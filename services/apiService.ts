@@ -958,7 +958,15 @@ export async function getServiceOrders(
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao listar ordens (${response.status})`);
   }
-  return response.json();
+  const data = await response.json();
+  if (!Array.isArray(data)) {
+    const message =
+      data && typeof data === "object" && "error" in data && typeof (data as { error?: unknown }).error === "string"
+        ? (data as { error: string }).error
+        : "Resposta inválida ao listar ordens.";
+    throw new Error(message);
+  }
+  return data;
 }
 
 export async function getServiceOrderById(id: string): Promise<ServiceOrderDetail> {

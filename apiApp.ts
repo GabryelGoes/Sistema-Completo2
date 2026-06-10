@@ -2113,20 +2113,72 @@ export function createApiApp() {
   // ----------------- ORDENS DE SERVIÇO -----------------
   const SERVICE_ORDERS_LIST_SELECT =
     "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, bench_slot, bench_slot_at, bench_queued_at, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+  /** Fallback quando migrações recentes ainda não foram aplicadas no projeto Supabase. */
+  const SERVICE_ORDERS_LIST_SELECT_MINIMAL =
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   const SERVICE_ORDERS_PAGE_SIZE = 1000;
+  /** Evita URL gigante no PostgREST ao enriquecer nomes (histórico com centenas de OS). */
+  const IN_FILTER_CHUNK_SIZE = 75;
+
+  async function mapCustomerNamesByIds(ids: string[]): Promise<Record<string, string>> {
+    const customerNameMap: Record<string, string> = {};
+    if (!supabaseAdmin || ids.length === 0) return customerNameMap;
+    const unique = [...new Set(ids.filter(Boolean))];
+    for (let i = 0; i < unique.length; i += IN_FILTER_CHUNK_SIZE) {
+      const chunk = unique.slice(i, i + IN_FILTER_CHUNK_SIZE);
+      const { data, error } = await supabaseAdmin
+        .from("customers")
+        .select("id, name")
+        .in("id", chunk);
+      if (error) {
+        console.warn("[API] Falha ao enriquecer clientes (chunk):", error.message);
+        continue;
+      }
+      (data ?? []).forEach((c: { id: string; name?: string | null }) => {
+        const n = (c.name ?? "").trim();
+        if (c.id && n) customerNameMap[c.id] = n;
+      });
+    }
+    return customerNameMap;
+  }
+
+  async function mapTechnicianUsersByIds(ids: string[]): Promise<Record<string, string>> {
+    const technicianNameMap: Record<string, string> = {};
+    if (!supabaseAdmin || !WORKSHOP_ID || ids.length === 0) return technicianNameMap;
+    const unique = [...new Set(ids.filter(Boolean))];
+    for (let i = 0; i < unique.length; i += IN_FILTER_CHUNK_SIZE) {
+      const chunk = unique.slice(i, i + IN_FILTER_CHUNK_SIZE);
+      const { data, error } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("id, display_name, username")
+        .eq("workshop_id", WORKSHOP_ID)
+        .in("id", chunk);
+      if (error) {
+        console.warn("[API] Falha ao enriquecer técnicos (chunk):", error.message);
+        continue;
+      }
+      (data ?? []).forEach((u: { id: string; display_name?: string | null; username?: string | null }) => {
+        technicianNameMap[u.id] = (u.display_name || u.username || "").trim() || "Técnico";
+      });
+    }
+    return technicianNameMap;
+  }
 
   /** PostgREST limita ~1000 linhas por request — pagina até trazer todas as OS da oficina. */
-  async function fetchAllServiceOrderRows(filters: {
-    status?: string;
-    orderType?: string;
-  }): Promise<Record<string, unknown>[]> {
+  async function fetchAllServiceOrderRowsWithSelect(
+    select: string,
+    filters: {
+      status?: string;
+      orderType?: string;
+    }
+  ): Promise<Record<string, unknown>[]> {
     if (!supabaseAdmin || !WORKSHOP_ID) return [];
     const all: Record<string, unknown>[] = [];
     let offset = 0;
     for (;;) {
       let query = supabaseAdmin
         .from("service_orders")
-        .select(SERVICE_ORDERS_LIST_SELECT)
+        .select(select)
         .eq("workshop_id", WORKSHOP_ID)
         .order("created_at", { ascending: false })
         .range(offset, offset + SERVICE_ORDERS_PAGE_SIZE - 1);
@@ -2144,6 +2196,22 @@ export function createApiApp() {
     return all;
   }
 
+  async function fetchAllServiceOrderRows(filters: {
+    status?: string;
+    orderType?: string;
+  }): Promise<Record<string, unknown>[]> {
+    try {
+      return await fetchAllServiceOrderRowsWithSelect(SERVICE_ORDERS_LIST_SELECT, filters);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err ?? "");
+      if (/column|does not exist|42703/i.test(msg)) {
+        console.warn("[API] Select completo de service_orders falhou; usando select reduzido:", msg);
+        return await fetchAllServiceOrderRowsWithSelect(SERVICE_ORDERS_LIST_SELECT_MINIMAL, filters);
+      }
+      throw err;
+    }
+  }
+
   app.get("/api/service-orders", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -2158,17 +2226,7 @@ export function createApiApp() {
 
       const rows = await fetchAllServiceOrderRows({ status, orderType });
       const customerIds = [...new Set((rows as { customer_id?: string }[]).map((r) => r.customer_id).filter(Boolean))] as string[];
-      const customerNameMap: Record<string, string> = {};
-      if (customerIds.length > 0) {
-        const { data: customersData } = await supabaseAdmin
-          .from("customers")
-          .select("id, name")
-          .in("id", customerIds);
-        (customersData ?? []).forEach((c: { id: string; name?: string | null }) => {
-          const n = (c.name ?? "").trim();
-          if (c.id && n) customerNameMap[c.id] = n;
-        });
-      }
+      const customerNameMap = await mapCustomerNamesByIds(customerIds);
 
       const techValues = [...new Set(rows.map((r: { assigned_technician?: string | null }) => r.assigned_technician).filter(Boolean))] as string[];
       const technicianNameMap: Record<string, string> = {};
@@ -2179,14 +2237,7 @@ export function createApiApp() {
         const slugs = techValues.filter((v) => !looksLikeUuid(v));
 
         if (uuids.length > 0) {
-          const { data: techUsers } = await supabaseAdmin
-            .from("workshop_system_users")
-            .select("id, display_name, username")
-            .eq("workshop_id", WORKSHOP_ID)
-            .in("id", uuids);
-          (techUsers ?? []).forEach((u: { id: string; display_name?: string | null; username?: string | null }) => {
-            technicianNameMap[u.id] = (u.display_name || u.username || "").trim() || "Técnico";
-          });
+          Object.assign(technicianNameMap, await mapTechnicianUsersByIds(uuids));
         }
         if (slugs.length > 0) {
           const { data: workshopTechs } = await supabaseAdmin

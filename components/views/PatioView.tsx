@@ -479,6 +479,22 @@ function sortArchivedOrdersNewestFirst(orders: ServiceOrderListItem[]): ServiceO
   );
 }
 
+function mapArchivedOrdersToCards(
+  orders: ServiceOrderListItem[],
+  nameMap: Record<string, string>,
+  orderType: ServiceOrderType
+): TrelloCard[] {
+  const cards: TrelloCard[] = [];
+  for (const order of sortArchivedOrdersNewestFirst(orders)) {
+    try {
+      cards.push(orderToCard(order, nameMap, orderType));
+    } catch (err) {
+      console.warn("Histórico: ignorando OS com dados inválidos", order?.id, err);
+    }
+  }
+  return cards;
+}
+
 function formatServiceOrderCreatedAt(iso: string | null | undefined): string {
   if (!iso?.trim()) return '—';
   const d = new Date(iso);
@@ -2385,13 +2401,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
     try {
       const orders = await getServiceOrders('CANCELLED', orderType);
       const nameMap = buildTechnicianNameMap(systemTechnicians);
-      const list = sortArchivedOrdersNewestFirst(orders).map((o) => orderToCard(o, nameMap, orderType));
+      const list = mapArchivedOrdersToCards(orders, nameMap, orderType);
       setRecentArchivedCards(list);
       setArchivedCards(list);
     } catch (err) {
-      console.error(err);
+      console.error('loadRecentArchived', err);
       setArchivedCards([]);
-      alert("Erro ao carregar histórico.");
+      const message = err instanceof Error ? err.message : 'Erro ao carregar histórico.';
+      alert(message);
     } finally {
       setIsLoadingHistory(false);
     }
@@ -2410,22 +2427,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const orders = await getServiceOrders('CANCELLED', orderType);
       const nameMap = buildTechnicianNameMap(systemTechnicians);
       if (!term) {
-        const list = sortArchivedOrdersNewestFirst(orders).map((o) => orderToCard(o, nameMap, orderType));
+        const list = mapArchivedOrdersToCards(orders, nameMap, orderType);
         setRecentArchivedCards(list);
         setArchivedCards(list);
         return;
       }
+      const termUpper = term.toUpperCase();
+      const termLower = term.toLowerCase();
       const cancelled = orders.filter(
         o =>
-          (o.plate && o.plate.toUpperCase().includes(term.toUpperCase())) ||
-          (o.customers?.name && o.customers.name.toLowerCase().includes(term.toLowerCase())) ||
-          (o.vehicle_model && o.vehicle_model.toLowerCase().includes(term.toLowerCase())) ||
-          (o.vehicle_brand && o.vehicle_brand.toLowerCase().includes(term.toLowerCase())) ||
-          (o.module_identification && o.module_identification.toLowerCase().includes(term.toLowerCase()))
+          (o.plate && o.plate.toUpperCase().includes(termUpper)) ||
+          (o.customer_name && o.customer_name.toLowerCase().includes(termLower)) ||
+          (o.customers?.name && o.customers.name.toLowerCase().includes(termLower)) ||
+          (o.vehicle_model && o.vehicle_model.toLowerCase().includes(termLower)) ||
+          (o.vehicle_brand && o.vehicle_brand.toLowerCase().includes(termLower)) ||
+          (o.module_identification && o.module_identification.toLowerCase().includes(termLower))
       );
-      const cards = sortArchivedOrdersNewestFirst(cancelled).map((o) => orderToCard(o, nameMap, orderType));
+      const cards = mapArchivedOrdersToCards(cancelled, nameMap, orderType);
       if (cards.length === 0) {
-        const list = sortArchivedOrdersNewestFirst(orders).map((o) => orderToCard(o, nameMap, orderType));
+        const list = mapArchivedOrdersToCards(orders, nameMap, orderType);
         setRecentArchivedCards(list);
         setArchivedCards(list);
         setHistoryShowingFallback(list.length > 0);
@@ -2433,10 +2453,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
         setArchivedCards(cards);
       }
     } catch (err) {
-      console.error(err);
+      console.error('handleSearchHistory', err);
       setArchivedCards(recentArchivedCards);
       setHistoryShowingFallback(recentArchivedCards.length > 0);
-      alert("Erro ao buscar histórico.");
+      const message = err instanceof Error ? err.message : 'Erro ao buscar histórico.';
+      alert(message);
     } finally {
       setIsLoadingHistory(false);
     }
