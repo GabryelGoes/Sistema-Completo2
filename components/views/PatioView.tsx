@@ -2243,6 +2243,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const b = savedBudgets.find((x) => x.id === openBudgetIdAfterLoad);
     if (b) {
       setViewingBudget(b);
+      setConferenceBudgetId(b.id);
     }
     openServiceOrderHandledRef.current = true;
     onOpenServiceOrderHandled?.();
@@ -3445,6 +3446,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
       .catch(() => setWorkshopParts([]));
   };
 
+  const openBudgetForView = useCallback(
+    (budget: SavedBudget) => {
+      setViewingBudget(budget);
+      if (selectedCard && budget.serviceOrderId === selectedCard.id) {
+        setConferenceBudgetId(budget.id);
+      }
+    },
+    [selectedCard?.id]
+  );
+
   const handleVerifyBudget = async (budgetId: string) => {
     if (!selectedCard || !canVerifyBudgetsEffective) return;
     const budget = savedBudgets.find((b) => b.id === budgetId);
@@ -3457,8 +3468,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
         { verifiedByName: commentAuthorName?.trim() || 'Administrador' },
         actorOptions
       );
-      setSavedBudgets((prev) => prev.map((b) => (b.id === updated.id ? { ...b, ...updated } : b)));
+      const mergedBudgets = savedBudgets.map((b) => (b.id === updated.id ? { ...b, ...updated } : b));
+      setSavedBudgets(mergedBudgets);
       setViewingBudget((prev) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
+      const siblings = mergedBudgets
+        .filter((b) => b.serviceOrderId === selectedCard.id)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      const nextPending = siblings.find((b) => b.id !== updated.id && !isBudgetVerified(b));
+      if (nextPending) {
+        setConferenceBudgetId(nextPending.id);
+      }
       window.dispatchEvent(new CustomEvent('rda-patio-budgets-changed'));
     } catch (err: unknown) {
       alert((err as Error)?.message ?? 'Erro ao verificar orçamento.');
@@ -3713,11 +3732,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
       if (editingBudget) {
         const updated = await updateServiceOrderBudget(selectedCard.id, editingBudget.id, payload, actorOptions);
         setSavedBudgets(prev => prev.map(b => b.id === editingBudget.id ? updated : b));
+        setConferenceBudgetId(editingBudget.id);
         closeBudgetModal();
         window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
       } else {
         const budget = await createServiceOrderBudget(selectedCard.id, payload, actorOptions);
         setSavedBudgets(prev => [budget, ...prev]);
+        setConferenceBudgetId(budget.id);
         closeBudgetModal();
         window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
       }
@@ -7387,7 +7408,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     >
                                     <button
                                       type="button"
-                                      onClick={() => setViewingBudget(budget)}
+                                      onClick={() => openBudgetForView(budget)}
                                       className="group relative w-full overflow-hidden rounded-[16px] border border-white/85 bg-white/95 p-3.5 text-left shadow-[0_6px_16px_-8px_rgba(0,0,0,0.22)] ring-1 ring-transparent transition-all duration-200 hover:-translate-y-[1px] hover:border-white hover:shadow-[0_10px_22px_-8px_rgba(0,122,255,0.33)] hover:ring-[#007AFF]/20 active:translate-y-0 dark:border-white/[0.08] dark:bg-zinc-950/85 dark:shadow-[0_8px_20px_-10px_rgba(0,0,0,0.6)] dark:hover:border-[#93c5fd]/35 dark:hover:shadow-[0_12px_26px_-10px_rgba(59,130,246,0.28)] dark:hover:ring-[#7ab8ff]/20"
                                     >
                                       <div className="mb-2.5 flex items-center justify-between gap-2">
@@ -7476,6 +7497,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       diagnosis={conferenceBudget.diagnosis}
                                       services={conferenceBudget.services}
                                       parts={conferenceBudget.parts}
+                                      budgetNum={
+                                        cardBudgets.length > 1
+                                          ? budgetChronologicalNumber(cardBudgets, conferenceBudget.id)
+                                          : undefined
+                                      }
                                     />
                                   </div>
                                 );

@@ -12,6 +12,8 @@ export type BudgetVerificationPanelProps = {
   diagnosis: string;
   services: { description: string }[];
   parts: BudgetPartFields[];
+  /** Número cronológico do orçamento (quando há mais de um na OS). */
+  budgetNum?: number;
   /** Orçamento criado/editado recentemente — destaque visual de pendência. */
   highlightPending?: boolean;
 };
@@ -26,6 +28,7 @@ export const BudgetVerificationPanel: React.FC<BudgetVerificationPanelProps> = (
   diagnosis,
   services,
   parts,
+  budgetNum,
   highlightPending = true,
 }) => {
   const checklist = useMemo(() => {
@@ -66,7 +69,7 @@ export const BudgetVerificationPanel: React.FC<BudgetVerificationPanelProps> = (
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-[12px] font-semibold leading-tight text-emerald-900 dark:text-emerald-200">
-            Verificado e liberado
+            {budgetNum != null ? `Orçamento ${budgetNum} verificado` : 'Verificado e liberado'}
           </p>
           <p className="truncate text-[10px] leading-tight text-emerald-800/80 dark:text-emerald-300/80">
             {verifiedByName?.trim() ? verifiedByName.trim() : 'Responsável'}
@@ -86,7 +89,7 @@ export const BudgetVerificationPanel: React.FC<BudgetVerificationPanelProps> = (
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-sky-800/90 dark:text-sky-300/90">
-              Conferência do orçamento
+              Conferência{budgetNum != null ? ` · orçamento ${budgetNum}` : ' do orçamento'}
             </p>
             <p className="text-[11px] leading-tight text-slate-600 dark:text-zinc-400">
               Revise e libere para o orçamentista
@@ -144,7 +147,7 @@ export const BudgetVerificationPanel: React.FC<BudgetVerificationPanelProps> = (
       </div>
       <div className="min-w-0">
         <p className="text-[12px] font-semibold leading-tight text-amber-950 dark:text-amber-100">
-          Aguardando verificação
+          {budgetNum != null ? `Orçamento ${budgetNum} aguardando` : 'Aguardando verificação'}
         </p>
         <p className="text-[10px] leading-tight text-amber-900/80 dark:text-amber-200/80">
           Um responsável precisa conferir antes da continuidade.
