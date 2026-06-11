@@ -10,11 +10,11 @@ export type IosSwitchProps = {
   ariaLabel: string;
   disabled?: boolean;
   size?: IosSwitchSize;
-  /** `neo` = neomórfico com LED (sidebar PC); `ios` = interruptor iOS plano. */
+  /** `neo` = neomórfico com aro colorido (sidebar PC); `ios` = interruptor iOS plano. */
   appearance?: IosSwitchAppearance;
 };
 
-/** Interruptor — iOS plano ou neomórfico 3D com LED indicador. */
+/** Interruptor — iOS plano ou neomórfico 3D. */
 export function IosSwitch({
   checked,
   onChange,
@@ -46,7 +46,6 @@ export function IosSwitch({
     return (
       <label htmlFor={id} className={rootClass}>
         {input}
-        <span className="ios-switch__led" aria-hidden />
         <span className="ios-switch__track" aria-hidden>
           <span className="ios-switch__knob" />
         </span>

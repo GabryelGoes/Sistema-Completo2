@@ -1,4 +1,4 @@
-/* Interruptor — variantes iOS (plano) e neo (neomórfico 3D + LED). */
+/* Interruptor — variantes iOS (plano) e neo (neomórfico 3D + aro colorido). */
 
 .ios-switch,
 .ios-switch__input {
@@ -30,15 +30,13 @@
 }
 
 .ios-switch--neo.ios-switch--default {
-  width: 3.6em;
-  height: 2.15em;
-  padding-top: 0.55em;
+  width: 3.85em;
+  height: 2.05em;
 }
 
 .ios-switch--neo.ios-switch--compact {
-  width: 2.85em;
-  height: 1.65em;
-  padding-top: 0.45em;
+  width: 3.35em;
+  height: 1.85em;
 }
 
 .ios-switch__input {
@@ -153,10 +151,10 @@ html.dark .ios-switch--ios .ios-switch__input:focus-visible ~ .ios-switch__base-
   --neo-inset-light: rgba(255, 255, 255, 0.75);
   --neo-knob-shadow-dark: rgba(0, 0, 0, 0.35);
   --neo-knob-shadow-light: rgba(255, 255, 255, 0.9);
-  --neo-led-off: #c2410c;
-  --neo-led-off-glow: rgba(194, 65, 12, 0.55);
-  --neo-led-on: #84cc16;
-  --neo-led-on-glow: rgba(132, 204, 22, 0.75);
+  --neo-ring-off: #f97316;
+  --neo-ring-off-glow: rgba(249, 115, 22, 0.35);
+  --neo-ring-on: #4ade80;
+  --neo-ring-on-glow: rgba(74, 222, 128, 0.4);
 }
 
 html.dark .ios-switch--neo {
@@ -169,48 +167,28 @@ html.dark .ios-switch--neo {
   --neo-knob-shadow-light: rgba(255, 255, 255, 0.08);
 }
 
-.ios-switch--neo .ios-switch__led {
-  position: absolute;
-  top: 0.05em;
-  left: 0.2em;
-  width: 0.38em;
-  height: 0.38em;
-  border-radius: 50%;
-  background: var(--neo-led-off);
-  box-shadow:
-    0 0 0.15em var(--neo-led-off-glow),
-    0 0 0.45em var(--neo-led-off-glow);
-  transition:
-    background 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.ios-switch--neo .ios-switch__input:checked ~ .ios-switch__led {
-  background: var(--neo-led-on);
-  box-shadow:
-    0 0 0.2em var(--neo-led-on-glow),
-    0 0 0.55em var(--neo-led-on-glow);
-}
-
 .ios-switch--neo .ios-switch__track {
   display: block;
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   border-radius: 999px;
   background: var(--neo-surface);
+  border: 2px solid var(--neo-ring-off);
   box-shadow:
     inset 0.18em 0.18em 0.35em var(--neo-inset-dark),
-    inset -0.12em -0.12em 0.28em var(--neo-inset-light);
+    inset -0.12em -0.12em 0.28em var(--neo-inset-light),
+    0 0 0.35em var(--neo-ring-off-glow);
+  transition:
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
 }
 
-.ios-switch--neo.ios-switch--default .ios-switch__track {
-  height: 1.6em;
-}
-
-.ios-switch--neo.ios-switch--compact .ios-switch__track {
-  height: 1.2em;
+.ios-switch--neo .ios-switch__input:checked ~ .ios-switch__track {
+  border-color: var(--neo-ring-on);
+  box-shadow:
+    inset 0.18em 0.18em 0.35em var(--neo-inset-dark),
+    inset -0.12em -0.12em 0.28em var(--neo-inset-light),
+    0 0 0.4em var(--neo-ring-on-glow);
 }
 
 .ios-switch--neo .ios-switch__knob {
@@ -229,25 +207,25 @@ html.dark .ios-switch--neo {
 }
 
 .ios-switch--neo.ios-switch--default .ios-switch__knob {
-  width: 1.32em;
-  height: 1.32em;
+  width: 1.45em;
+  height: 1.45em;
 }
 
 .ios-switch--neo.ios-switch--compact .ios-switch__knob {
-  width: 0.95em;
-  height: 0.95em;
+  width: 1.22em;
+  height: 1.22em;
 }
 
 .ios-switch--neo.ios-switch--default .ios-switch__input:checked ~ .ios-switch__track .ios-switch__knob {
-  transform: translate(1.95em, -50%);
+  transform: translate(2.05em, -50%);
 }
 
 .ios-switch--neo.ios-switch--compact .ios-switch__input:checked ~ .ios-switch__track .ios-switch__knob {
-  transform: translate(1.55em, -50%);
+  transform: translate(1.82em, -50%);
 }
 
 .ios-switch--neo .ios-switch__input:focus-visible ~ .ios-switch__track {
-  outline: 2px solid rgba(132, 204, 22, 0.45);
+  outline: 2px solid var(--neo-ring-on);
   outline-offset: 2px;
 }
 
