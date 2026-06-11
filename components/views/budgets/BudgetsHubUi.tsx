@@ -226,9 +226,54 @@ type BudgetRowProps = {
   pulse?: 'created' | 'edited';
   onOpen: () => void;
   compact?: boolean;
+  /** Linha enxuta sempre visível no card (selo + prévia), sem expandir. */
+  summary?: boolean;
 };
 
-export function BudgetHubBudgetRow({ row, budgetNum, pulse, onOpen, compact }: BudgetRowProps) {
+export function BudgetHubBudgetRow({ row, budgetNum, pulse, onOpen, compact, summary }: BudgetRowProps) {
+  const preview = row.diagnosisPreview.trim() || row.cardName?.trim() || 'Sem descrição de diagnóstico';
+
+  if (summary) {
+    return (
+      <li>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-zinc-50/90 dark:hover:bg-white/[0.04]"
+        >
+          <span className={`${iosLabel} mb-0 shrink-0 text-[9px]`}>Orç. {budgetNum}</span>
+          {row.isVerified ? (
+            <BudgetVerifiedSeal
+              verifiedAt={row.verifiedAt}
+              verifiedByName={row.verifiedByName}
+              size="sm"
+            />
+          ) : (
+            <span className="shrink-0 rounded-full border border-amber-300/70 bg-amber-50 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+              Pendente
+            </span>
+          )}
+          {pulse === 'created' ? (
+            <span className="shrink-0 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300">
+              Novo
+            </span>
+          ) : null}
+          {pulse === 'edited' ? (
+            <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 dark:text-amber-200">
+              Editado
+            </span>
+          ) : null}
+          <span className="min-w-0 flex-1 truncate text-[12px] leading-tight text-zinc-800 dark:text-zinc-200">
+            {preview}
+          </span>
+          <span className="shrink-0 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
+            {formatBudgetWhen(row.updatedAt)}
+          </span>
+        </button>
+      </li>
+    );
+  }
+
   return (
     <li>
       <button
@@ -257,8 +302,12 @@ export function BudgetHubBudgetRow({ row, budgetNum, pulse, onOpen, compact }: B
               verifiedByName={row.verifiedByName}
               size={compact ? 'sm' : 'md'}
             />
-          ) : compact ? null : (
-            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-800/90 dark:bg-amber-500/15 dark:text-amber-200/90">
+          ) : (
+            <span
+              className={`rounded-full bg-amber-500/10 font-semibold text-amber-800/90 dark:bg-amber-500/15 dark:text-amber-200/90 ${
+                compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[11px]'
+              }`}
+            >
               Aguardando verificação
             </span>
           )}
@@ -272,7 +321,7 @@ export function BudgetHubBudgetRow({ row, budgetNum, pulse, onOpen, compact }: B
           </span>
         </div>
         <p className={`line-clamp-2 leading-snug text-zinc-900 dark:text-zinc-100 ${compact ? 'text-[13px]' : 'text-[15px]'}`}>
-          {row.diagnosisPreview.trim() || row.cardName?.trim() || 'Sem descrição de diagnóstico'}
+          {preview}
         </p>
         <p className="text-[12px] text-zinc-500 dark:text-zinc-500">
           {row.servicesCount} serviço{row.servicesCount === 1 ? '' : 's'} · {row.partsCount} peça
@@ -371,20 +420,19 @@ export function BudgetHubVehicleGroup({
           </div>
           <ChevronRight className={`h-[18px] w-[18px] shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-90' : ''}`} />
         </button>
-        {open ? (
-          <ul className="border-t border-zinc-200/60 divide-y divide-zinc-200/60 dark:border-white/[0.06] dark:divide-white/[0.06]">
-            {items.map((row) => (
-              <BudgetHubBudgetRow
-                key={row.budgetId}
-                row={row}
-                budgetNum={budgetChronologicalNumber(chrono, row.budgetId)}
-                pulse={pulseByBudgetId[String(row.budgetId).trim()]}
-                onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
-                compact
-              />
-            ))}
-          </ul>
-        ) : null}
+        <ul className="border-t border-zinc-200/60 divide-y divide-zinc-200/60 dark:border-white/[0.06] dark:divide-white/[0.06]">
+          {items.map((row) => (
+            <BudgetHubBudgetRow
+              key={row.budgetId}
+              row={row}
+              budgetNum={budgetChronologicalNumber(chrono, row.budgetId)}
+              pulse={pulseByBudgetId[String(row.budgetId).trim()]}
+              onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
+              compact={open}
+              summary={!open}
+            />
+          ))}
+        </ul>
       </section>
     );
   }
@@ -453,19 +501,18 @@ export function BudgetHubVehicleGroup({
         </div>
         <ChevronRight className={`mt-1 h-5 w-5 shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-90' : ''}`} />
       </button>
-      {open ? (
-        <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
-          {items.map((row) => (
-            <BudgetHubBudgetRow
-              key={row.budgetId}
-              row={row}
-              budgetNum={budgetChronologicalNumber(chrono, row.budgetId)}
-              pulse={pulseByBudgetId[String(row.budgetId).trim()]}
-              onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
-            />
-          ))}
-        </ul>
-      ) : null}
+      <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
+        {items.map((row) => (
+          <BudgetHubBudgetRow
+            key={row.budgetId}
+            row={row}
+            budgetNum={budgetChronologicalNumber(chrono, row.budgetId)}
+            pulse={pulseByBudgetId[String(row.budgetId).trim()]}
+            onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
+            summary={!open}
+          />
+        ))}
+      </ul>
     </section>
   );
 }
