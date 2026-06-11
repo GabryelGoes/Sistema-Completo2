@@ -1,4 +1,4 @@
-/* Interruptor iOS — estrutura em camadas (base-outer / base-inner / knob). */
+/* Interruptor — variantes iOS (plano) e neo (neomórfico 3D + LED). */
 
 .ios-switch,
 .ios-switch__input {
@@ -17,6 +17,8 @@
   opacity: 0.5;
 }
 
+/* ── Tamanhos ── */
+
 .ios-switch--default {
   width: 3.2em;
   height: 1.94em;
@@ -27,6 +29,18 @@
   height: 1.5em;
 }
 
+.ios-switch--neo.ios-switch--default {
+  width: 3.6em;
+  height: 2.15em;
+  padding-top: 0.55em;
+}
+
+.ios-switch--neo.ios-switch--compact {
+  width: 2.85em;
+  height: 1.65em;
+  padding-top: 0.45em;
+}
+
 .ios-switch__input {
   position: absolute;
   opacity: 0;
@@ -35,15 +49,20 @@
   margin: 0;
 }
 
-.ios-switch__base-outer,
-.ios-switch__base-inner {
+/* ══════════════════════════════════════
+   Variante iOS (modais / configurações)
+   ══════════════════════════════════════ */
+
+.ios-switch--ios .ios-switch__base-outer,
+.ios-switch--ios .ios-switch__base-inner {
   display: block;
   position: absolute;
   border-radius: 999px;
 }
 
-.ios-switch__base-outer {
+.ios-switch--ios .ios-switch__base-outer {
   inset: 0;
+  top: 0;
   background: #e9e9ea;
   box-shadow:
     inset 0 0.5px 0 rgba(255, 255, 255, 0.65),
@@ -51,14 +70,14 @@
   transition: background-color 0.22s ease;
 }
 
-.ios-switch__base-inner {
+.ios-switch--ios .ios-switch__base-inner {
   inset: 1px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(0, 0, 0, 0.04) 100%);
   opacity: 0.85;
   transition: opacity 0.22s ease;
 }
 
-.ios-switch__knob {
+.ios-switch--ios .ios-switch__knob {
   display: block;
   position: absolute;
   top: 50%;
@@ -73,51 +92,167 @@
   will-change: transform;
 }
 
-.ios-switch--default .ios-switch__knob {
+.ios-switch--ios.ios-switch--default .ios-switch__knob {
   width: 1.69em;
   height: 1.69em;
 }
 
-.ios-switch--compact .ios-switch__knob {
+.ios-switch--ios.ios-switch--compact .ios-switch__knob {
   width: 1.25em;
   height: 1.25em;
 }
 
-.ios-switch--default .ios-switch__input:checked ~ .ios-switch__knob {
+.ios-switch--ios.ios-switch--default .ios-switch__input:checked ~ .ios-switch__knob {
   transform: translate(1.25em, -50%);
 }
 
-.ios-switch--compact .ios-switch__input:checked ~ .ios-switch__knob {
+.ios-switch--ios.ios-switch--compact .ios-switch__input:checked ~ .ios-switch__knob {
   transform: translate(1em, -50%);
 }
 
-.ios-switch__input:checked ~ .ios-switch__base-outer {
+.ios-switch--ios .ios-switch__input:checked ~ .ios-switch__base-outer {
   background: #34c759;
   box-shadow:
     inset 0 0.5px 0 rgba(255, 255, 255, 0.25),
     inset 0 -0.5px 0 rgba(0, 0, 0, 0.12);
 }
 
-.ios-switch__input:checked ~ .ios-switch__base-outer .ios-switch__base-inner {
+.ios-switch--ios .ios-switch__input:checked ~ .ios-switch__base-outer .ios-switch__base-inner {
   opacity: 0.55;
 }
 
-.ios-switch__input:focus-visible ~ .ios-switch__base-outer {
+.ios-switch--ios .ios-switch__input:focus-visible ~ .ios-switch__base-outer {
   outline: 2px solid rgba(52, 199, 89, 0.45);
   outline-offset: 2px;
 }
 
-html.dark .ios-switch__base-outer {
+html.dark .ios-switch--ios .ios-switch__base-outer {
   background: #52525b;
   box-shadow:
     inset 0 0.5px 0 rgba(255, 255, 255, 0.08),
     inset 0 -0.5px 0 rgba(0, 0, 0, 0.25);
 }
 
-html.dark .ios-switch__input:checked ~ .ios-switch__base-outer {
+html.dark .ios-switch--ios .ios-switch__input:checked ~ .ios-switch__base-outer {
   background: #30d158;
 }
 
-html.dark .ios-switch__input:focus-visible ~ .ios-switch__base-outer {
+html.dark .ios-switch--ios .ios-switch__input:focus-visible ~ .ios-switch__base-outer {
   outline-color: rgba(48, 209, 88, 0.45);
+}
+
+/* ══════════════════════════════════════
+   Variante neo (neomórfico — sidebar PC)
+   ══════════════════════════════════════ */
+
+.ios-switch--neo {
+  --neo-surface: #ececec;
+  --neo-knob-top: #f4f4f4;
+  --neo-knob-bottom: #d4d4d4;
+  --neo-inset-dark: rgba(0, 0, 0, 0.28);
+  --neo-inset-light: rgba(255, 255, 255, 0.75);
+  --neo-knob-shadow-dark: rgba(0, 0, 0, 0.35);
+  --neo-knob-shadow-light: rgba(255, 255, 255, 0.9);
+  --neo-led-off: #c2410c;
+  --neo-led-off-glow: rgba(194, 65, 12, 0.55);
+  --neo-led-on: #84cc16;
+  --neo-led-on-glow: rgba(132, 204, 22, 0.75);
+}
+
+html.dark .ios-switch--neo {
+  --neo-surface: #1c1c1f;
+  --neo-knob-top: #3a3a40;
+  --neo-knob-bottom: #222226;
+  --neo-inset-dark: rgba(0, 0, 0, 0.65);
+  --neo-inset-light: rgba(255, 255, 255, 0.06);
+  --neo-knob-shadow-dark: rgba(0, 0, 0, 0.55);
+  --neo-knob-shadow-light: rgba(255, 255, 255, 0.08);
+}
+
+.ios-switch--neo .ios-switch__led {
+  position: absolute;
+  top: 0.05em;
+  left: 0.2em;
+  width: 0.38em;
+  height: 0.38em;
+  border-radius: 50%;
+  background: var(--neo-led-off);
+  box-shadow:
+    0 0 0.15em var(--neo-led-off-glow),
+    0 0 0.45em var(--neo-led-off-glow);
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.ios-switch--neo .ios-switch__input:checked ~ .ios-switch__led {
+  background: var(--neo-led-on);
+  box-shadow:
+    0 0 0.2em var(--neo-led-on-glow),
+    0 0 0.55em var(--neo-led-on-glow);
+}
+
+.ios-switch--neo .ios-switch__track {
+  display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: var(--neo-surface);
+  box-shadow:
+    inset 0.18em 0.18em 0.35em var(--neo-inset-dark),
+    inset -0.12em -0.12em 0.28em var(--neo-inset-light);
+}
+
+.ios-switch--neo.ios-switch--default .ios-switch__track {
+  height: 1.6em;
+}
+
+.ios-switch--neo.ios-switch--compact .ios-switch__track {
+  height: 1.2em;
+}
+
+.ios-switch--neo .ios-switch__knob {
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 0.14em;
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--neo-knob-top), var(--neo-knob-bottom));
+  transform: translateY(-50%);
+  transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  box-shadow:
+    0.12em 0.12em 0.28em var(--neo-knob-shadow-dark),
+    -0.08em -0.08em 0.2em var(--neo-knob-shadow-light);
+}
+
+.ios-switch--neo.ios-switch--default .ios-switch__knob {
+  width: 1.32em;
+  height: 1.32em;
+}
+
+.ios-switch--neo.ios-switch--compact .ios-switch__knob {
+  width: 0.95em;
+  height: 0.95em;
+}
+
+.ios-switch--neo.ios-switch--default .ios-switch__input:checked ~ .ios-switch__track .ios-switch__knob {
+  transform: translate(1.95em, -50%);
+}
+
+.ios-switch--neo.ios-switch--compact .ios-switch__input:checked ~ .ios-switch__track .ios-switch__knob {
+  transform: translate(1.55em, -50%);
+}
+
+.ios-switch--neo .ios-switch__input:focus-visible ~ .ios-switch__track {
+  outline: 2px solid rgba(132, 204, 22, 0.45);
+  outline-offset: 2px;
+}
+
+.ios-switch--neo .ios-switch__input:active ~ .ios-switch__track .ios-switch__knob {
+  box-shadow:
+    0.06em 0.06em 0.18em var(--neo-knob-shadow-dark),
+    -0.04em -0.04em 0.12em var(--neo-knob-shadow-light);
 }

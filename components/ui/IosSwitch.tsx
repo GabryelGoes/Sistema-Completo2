@@ -1,6 +1,7 @@
 import React from 'react';
 
 export type IosSwitchSize = 'default' | 'compact';
+export type IosSwitchAppearance = 'ios' | 'neo';
 
 export type IosSwitchProps = {
   checked: boolean;
@@ -9,9 +10,11 @@ export type IosSwitchProps = {
   ariaLabel: string;
   disabled?: boolean;
   size?: IosSwitchSize;
+  /** `neo` = neomórfico com LED (sidebar PC); `ios` = interruptor iOS plano. */
+  appearance?: IosSwitchAppearance;
 };
 
-/** Interruptor estilo iOS (UISwitch) com trilho em camadas. */
+/** Interruptor — iOS plano ou neomórfico 3D com LED indicador. */
 export function IosSwitch({
   checked,
   onChange,
@@ -19,23 +22,41 @@ export function IosSwitch({
   ariaLabel,
   disabled = false,
   size = 'default',
+  appearance = 'ios',
 }: IosSwitchProps) {
+  const rootClass = `ios-switch ios-switch--${appearance} ios-switch--${size}${
+    disabled ? ' ios-switch--disabled' : ''
+  }`;
+
+  const input = (
+    <input
+      id={id}
+      type="checkbox"
+      role="switch"
+      checked={checked}
+      disabled={disabled}
+      onChange={onChange}
+      className="ios-switch__input"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+    />
+  );
+
+  if (appearance === 'neo') {
+    return (
+      <label htmlFor={id} className={rootClass}>
+        {input}
+        <span className="ios-switch__led" aria-hidden />
+        <span className="ios-switch__track" aria-hidden>
+          <span className="ios-switch__knob" />
+        </span>
+      </label>
+    );
+  }
+
   return (
-    <label
-      htmlFor={id}
-      className={`ios-switch ios-switch--${size}${disabled ? ' ios-switch--disabled' : ''}`}
-    >
-      <input
-        id={id}
-        type="checkbox"
-        role="switch"
-        checked={checked}
-        disabled={disabled}
-        onChange={onChange}
-        className="ios-switch__input"
-        aria-checked={checked}
-        aria-label={ariaLabel}
-      />
+    <label htmlFor={id} className={rootClass}>
+      {input}
       <span className="ios-switch__base-outer" aria-hidden>
         <span className="ios-switch__base-inner" />
       </span>

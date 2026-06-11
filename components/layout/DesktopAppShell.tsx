@@ -222,6 +222,7 @@ export function DesktopAppShell({
             ) : null}
             <IosSwitch
               id="desktop-sidebar-dark-theme"
+              appearance="neo"
               size="compact"
               checked={theme === 'dark'}
               onChange={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}

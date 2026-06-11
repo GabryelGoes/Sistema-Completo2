@@ -239,6 +239,14 @@ html[data-desktop-shell='true'] .desktop-shell-theme-toggle-icon {
   color: #71717a;
 }
 
+html[data-desktop-shell='true'] .desktop-shell-theme-toggle .ios-switch--neo {
+  --neo-surface: #ececec;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-theme-toggle--collapsed .ios-switch--neo {
+  --neo-surface: #ffffff;
+}
+
 html[data-desktop-shell='true'] .desktop-shell-theme-toggle--collapsed {
   margin-left: auto;
   margin-right: auto;
@@ -587,6 +595,14 @@ html.dark[data-desktop-shell='true'] .desktop-shell-theme-toggle {
 html.dark[data-desktop-shell='true'] .desktop-shell-theme-toggle--collapsed {
   border: none;
   background: transparent;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-theme-toggle .ios-switch--neo {
+  --neo-surface: #141416;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-theme-toggle--collapsed .ios-switch--neo {
+  --neo-surface: #18181b;
 }
 
 html.dark[data-desktop-shell='true'] .desktop-shell-theme-toggle-label {
