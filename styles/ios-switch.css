@@ -1,0 +1,123 @@
+/* Interruptor iOS — estrutura em camadas (base-outer / base-inner / knob). */
+
+.ios-switch,
+.ios-switch__input {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ios-switch {
+  display: block;
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.ios-switch--disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ios-switch--default {
+  width: 3.2em;
+  height: 1.94em;
+}
+
+.ios-switch--compact {
+  width: 2.5em;
+  height: 1.5em;
+}
+
+.ios-switch__input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+}
+
+.ios-switch__base-outer,
+.ios-switch__base-inner {
+  display: block;
+  position: absolute;
+  border-radius: 999px;
+}
+
+.ios-switch__base-outer {
+  inset: 0;
+  background: #e9e9ea;
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -0.5px 0 rgba(0, 0, 0, 0.06);
+  transition: background-color 0.22s ease;
+}
+
+.ios-switch__base-inner {
+  inset: 1px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(0, 0, 0, 0.04) 100%);
+  opacity: 0.85;
+  transition: opacity 0.22s ease;
+}
+
+.ios-switch__knob {
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 0.125em;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 0.15em 0.35em rgba(0, 0, 0, 0.14),
+    0 0.05em 0.1em rgba(0, 0, 0, 0.08);
+  transform: translateY(-50%);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.ios-switch--default .ios-switch__knob {
+  width: 1.69em;
+  height: 1.69em;
+}
+
+.ios-switch--compact .ios-switch__knob {
+  width: 1.25em;
+  height: 1.25em;
+}
+
+.ios-switch--default .ios-switch__input:checked ~ .ios-switch__knob {
+  transform: translate(1.25em, -50%);
+}
+
+.ios-switch--compact .ios-switch__input:checked ~ .ios-switch__knob {
+  transform: translate(1em, -50%);
+}
+
+.ios-switch__input:checked ~ .ios-switch__base-outer {
+  background: #34c759;
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -0.5px 0 rgba(0, 0, 0, 0.12);
+}
+
+.ios-switch__input:checked ~ .ios-switch__base-outer .ios-switch__base-inner {
+  opacity: 0.55;
+}
+
+.ios-switch__input:focus-visible ~ .ios-switch__base-outer {
+  outline: 2px solid rgba(52, 199, 89, 0.45);
+  outline-offset: 2px;
+}
+
+html.dark .ios-switch__base-outer {
+  background: #52525b;
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -0.5px 0 rgba(0, 0, 0, 0.25);
+}
+
+html.dark .ios-switch__input:checked ~ .ios-switch__base-outer {
+  background: #30d158;
+}
+
+html.dark .ios-switch__input:focus-visible ~ .ios-switch__base-outer {
+  outline-color: rgba(48, 209, 88, 0.45);
+}

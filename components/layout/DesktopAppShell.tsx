@@ -205,7 +205,7 @@ export function DesktopAppShell({
 
         {onThemeChange ? (
           <div
-            className="desktop-shell-theme-toggle"
+            className={`desktop-shell-theme-toggle${sidebarCollapsed ? ' desktop-shell-theme-toggle--collapsed' : ''}`}
             title={
               sidebarCollapsed
                 ? theme === 'dark'
@@ -214,12 +214,15 @@ export function DesktopAppShell({
                 : undefined
             }
           >
-            <span className="desktop-shell-theme-toggle-leading" aria-hidden={sidebarCollapsed}>
-              <Moon className="desktop-shell-theme-toggle-icon h-4 w-4 shrink-0" strokeWidth={2.25} />
-              <span className="desktop-shell-theme-toggle-label">Tema escuro</span>
-            </span>
+            {!sidebarCollapsed ? (
+              <span className="desktop-shell-theme-toggle-leading">
+                <Moon className="desktop-shell-theme-toggle-icon h-4 w-4 shrink-0" strokeWidth={2.25} />
+                <span className="desktop-shell-theme-toggle-label">Tema escuro</span>
+              </span>
+            ) : null}
             <IosSwitch
               id="desktop-sidebar-dark-theme"
+              size="compact"
               checked={theme === 'dark'}
               onChange={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
               ariaLabel="Ativar tema escuro"
