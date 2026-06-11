@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -17,6 +17,7 @@ import {
   updateServiceOrderGarantiaTag,
   updateServiceOrderMileage,
   updateServiceOrderDeliveryDate,
+  updateServiceOrderVehicleObservations,
   updateServiceOrderVehicle,
   updateServiceOrderVehicleCategory,
   updateServiceOrderReferenceLinks,
@@ -406,6 +407,7 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     plate: detail.plate,
     mileage_km: detail.mileage_km,
     delivery_date: detail.delivery_date,
+    vehicle_observations: detail.vehicle_observations ?? null,
     issue_description: detail.issue_description,
     ai_analysis: detail.ai_analysis,
     status: detail.status as ServiceOrderStatus,
@@ -462,6 +464,7 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     garantiaTag: o.garantia_tag === true,
     mileageKm: o.mileage_km ?? null,
     deliveryDate: o.delivery_date ?? null,
+    vehicleObservations: o.vehicle_observations ?? null,
     vehicleColor: o.vehicle_color ?? null,
     vehicleYear: o.vehicle_year ?? null,
     vehicleEngineInfo: o.vehicle_engine_info ?? null,
@@ -1744,6 +1747,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       if (!isEditingDescRef.current) {
         setDescText(stripLegacyVehicleCategoryFromComplaint(order.issue_description || ""));
       }
+      if (!isEditingVehicleObservationsRef.current) {
+        const obs = order.vehicle_observations ?? '';
+        setVehicleObservationsEditValue(obs);
+        setLastSavedVehicleObservations(obs);
+      }
       void fetchReminders();
     } catch (e) {
       console.error("syncOpenVehicleModalFromServer", e);
@@ -1768,6 +1776,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
         getServiceOrderBudgets(card.id),
       ]);
       setHistoryServiceOrderDetail(order);
+      if (!isEditingVehicleObservationsRef.current && !selectedCardRef.current) {
+        const obs = order.vehicle_observations ?? '';
+        setVehicleObservationsEditValue(obs);
+        setLastSavedVehicleObservations(obs);
+      }
       setHistorySavedBudgets(budgets);
       setHistoryCardDetails({
         actions: (comments ?? []).map(commentToAction),
@@ -1828,6 +1841,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [lastSavedDeliveryDate, setLastSavedDeliveryDate] = useState('');
   const [savingDeliveryDate, setSavingDeliveryDate] = useState(false);
   const [deliveryDateSavedMessage, setDeliveryDateSavedMessage] = useState(false);
+
+  // Observações internas do veículo (modal Pátio)
+  const [vehicleObservationsEditValue, setVehicleObservationsEditValue] = useState('');
+  const [lastSavedVehicleObservations, setLastSavedVehicleObservations] = useState('');
+  const [savingVehicleObservations, setSavingVehicleObservations] = useState(false);
+  const [vehicleObservationsSavedMessage, setVehicleObservationsSavedMessage] = useState(false);
+  const isEditingVehicleObservationsRef = useRef(false);
 
   // Modal editar nome do veículo / placa
   const [isVehicleEditOpen, setIsVehicleEditOpen] = useState(false);
@@ -2138,8 +2158,37 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setDeliveryDateEditValue(dd);
       setLastSavedDeliveryDate(dd);
       setDeliveryDateSavedMessage(false);
+      if (!isEditingVehicleObservationsRef.current) {
+        const obs = selectedCard.vehicleObservations ?? '';
+        setVehicleObservationsEditValue(obs);
+        setLastSavedVehicleObservations(obs);
+        setVehicleObservationsSavedMessage(false);
+      }
     }
-  }, [selectedCard?.id, selectedCard?.mileageKm, selectedCard?.deliveryDate]);
+  }, [selectedCard?.id, selectedCard?.mileageKm, selectedCard?.deliveryDate, selectedCard?.vehicleObservations]);
+
+  useEffect(() => {
+    if (selectedCard || !selectedHistoryCard) return;
+    if (!isEditingVehicleObservationsRef.current) {
+      const obs = historyServiceOrderDetail?.vehicle_observations ?? '';
+      setVehicleObservationsEditValue(obs);
+      setLastSavedVehicleObservations(obs);
+      setVehicleObservationsSavedMessage(false);
+    }
+  }, [
+    selectedCard,
+    selectedHistoryCard?.id,
+    historyServiceOrderDetail?.id,
+    historyServiceOrderDetail?.vehicle_observations,
+  ]);
+
+  useEffect(() => {
+    if (!selectedCard || serviceOrderDetail?.id !== selectedCard.id) return;
+    if (isEditingVehicleObservationsRef.current) return;
+    const obs = serviceOrderDetail.vehicle_observations ?? '';
+    setVehicleObservationsEditValue(obs);
+    setLastSavedVehicleObservations(obs);
+  }, [selectedCard?.id, serviceOrderDetail?.id, serviceOrderDetail?.vehicle_observations]);
 
   useEffect(() => {
     onActiveCardsCountChange?.(cards.length);
@@ -2498,6 +2547,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const handleOpenHistoryCardDetails = (card: TrelloCard) => {
     setSelectedHistoryCard(card);
+    setVehicleObservationsEditValue('');
+    setLastSavedVehicleObservations('');
+    setVehicleObservationsSavedMessage(false);
     const cached = vehicleCardDetailsCacheRef.current.get(card.id);
     setHistoryCardDetails(
       cached
@@ -2519,6 +2571,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       .then(([order, photos, comments, budgets]) => {
         if (selectedHistoryCardRef.current?.id !== order.id) return;
         setHistoryServiceOrderDetail(order);
+        if (!isEditingVehicleObservationsRef.current) {
+          const obs = order.vehicle_observations ?? '';
+          setVehicleObservationsEditValue(obs);
+          setLastSavedVehicleObservations(obs);
+        }
         setHistorySavedBudgets(budgets);
         setHistoryCardDetails({
           actions: (comments ?? []).map(commentToAction),
@@ -2698,6 +2755,38 @@ export const PatioView: React.FC<PatioViewProps> = ({
       alert(e?.message ?? 'Erro ao salvar data de entrega.');
     } finally {
       setSavingDeliveryDate(false);
+    }
+  };
+
+  const handleSaveVehicleObservations = async () => {
+    const orderId = selectedCard?.id ?? selectedHistoryCard?.id;
+    if (!orderId) return;
+    const value = vehicleObservationsEditValue.trim();
+    setSavingVehicleObservations(true);
+    setVehicleObservationsSavedMessage(false);
+    try {
+      await updateServiceOrderVehicleObservations(orderId, value || null, actorOptions);
+      setLastSavedVehicleObservations(value);
+      setVehicleObservationsSavedMessage(true);
+      setTimeout(() => setVehicleObservationsSavedMessage(false), 2500);
+      if (selectedCard?.id === orderId) {
+        const updated = { ...selectedCard, vehicleObservations: value || null };
+        setSelectedCard(updated);
+        setCards((prev) => prev.map((c) => (c.id === orderId ? updated : c)));
+        setServiceOrderDetail((prev) =>
+          prev?.id === orderId ? { ...prev, vehicle_observations: value || null } : prev
+        );
+      }
+      if (selectedHistoryCard?.id === orderId) {
+        setHistoryServiceOrderDetail((prev) =>
+          prev?.id === orderId ? { ...prev, vehicle_observations: value || null } : prev
+        );
+      }
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Erro ao salvar observações do veículo.';
+      alert(message);
+    } finally {
+      setSavingVehicleObservations(false);
     }
   };
 
@@ -5530,6 +5619,64 @@ export const PatioView: React.FC<PatioViewProps> = ({
                            </div>
                         </div>
 
+                        {!isModuleMode ? (
+                          <div>
+                            <p className={uiSectionTitleRow}>
+                              <ClipboardList className="h-3.5 w-3.5" />
+                              Observações do veículo
+                            </p>
+                            <div className={`${iosModalInsetCard} p-5 sm:p-6`}>
+                              <p className="mb-3 text-[12px] text-zinc-500 dark:text-zinc-400">
+                                Anotações internas da oficina (não é a queixa do cliente)
+                              </p>
+                              {can('canEditFicha') ? (
+                                <>
+                                  <textarea
+                                    value={vehicleObservationsEditValue}
+                                    onChange={(e) => {
+                                      isEditingVehicleObservationsRef.current = true;
+                                      setVehicleObservationsEditValue(e.target.value);
+                                    }}
+                                    onBlur={() => {
+                                      isEditingVehicleObservationsRef.current = false;
+                                    }}
+                                    placeholder="Ex.: observações sobre o veículo arquivado…"
+                                    className={`${vin} min-h-[120px] w-full resize-y rounded-2xl border border-zinc-200/90 bg-white px-4 py-3 text-[15px] leading-relaxed text-zinc-900 shadow-sm dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white`}
+                                  />
+                                  <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                                    {vehicleObservationsSavedMessage ? (
+                                      <span className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                        Salvo!
+                                      </span>
+                                    ) : null}
+                                    <button
+                                      type="button"
+                                      onClick={handleSaveVehicleObservations}
+                                      disabled={
+                                        savingVehicleObservations ||
+                                        vehicleObservationsEditValue.trim() === lastSavedVehicleObservations
+                                      }
+                                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#007AFF] px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-45"
+                                    >
+                                      {savingVehicleObservations ? (
+                                        <RefreshCw className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Save className="h-4 w-4" />
+                                      )}
+                                      Salvar observações
+                                    </button>
+                                  </div>
+                                </>
+                              ) : (
+                                <p className={`${uiReadBody} whitespace-pre-wrap text-[15px] leading-relaxed`}>
+                                  {(historyServiceOrderDetail?.vehicle_observations ?? '').trim() ||
+                                    'Nenhuma observação registrada para este veículo.'}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+
                         <div>
                            <p className={uiSectionTitleRow}>
                              <MessageSquare className="h-3.5 w-3.5" />
@@ -7111,6 +7258,79 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                         </div>
                         </div>
+
+                        {!isModuleMode ? (
+                          <div className="mt-6">
+                            <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
+                              <div className="relative min-w-0">
+                                <div
+                                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(245,158,11,0.08),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(0,122,255,0.06),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(245,158,11,0.12),transparent_55%)]"
+                                  aria-hidden
+                                />
+                                <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                                  <div className={uiOsModalSectionIconWrap}>
+                                    <ClipboardList className="h-4 w-4 text-amber-600 dark:text-amber-400" strokeWidth={2.25} aria-hidden />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className={uiOsModalCardSectionTitle}>Observações do veículo</p>
+                                    <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                      Anotações internas da oficina (não é a queixa do cliente)
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+                                  {can('canEditFicha') ? (
+                                    <>
+                                      <textarea
+                                        value={vehicleObservationsEditValue}
+                                        onChange={(e) => {
+                                          isEditingVehicleObservationsRef.current = true;
+                                          setVehicleObservationsEditValue(e.target.value);
+                                        }}
+                                        onBlur={() => {
+                                          isEditingVehicleObservationsRef.current = false;
+                                        }}
+                                        placeholder="Ex.: cliente pediu para ligar antes de aprovar; veículo com cheiro forte; chave reserva no porta-malas…"
+                                        className={`${vin} min-h-[120px] resize-y text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
+                                      />
+                                      <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                                        {vehicleObservationsSavedMessage ? (
+                                          <span className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400 animate-in fade-in">
+                                            Salvo!
+                                          </span>
+                                        ) : null}
+                                        <button
+                                          type="button"
+                                          onClick={handleSaveVehicleObservations}
+                                          disabled={
+                                            savingVehicleObservations ||
+                                            vehicleObservationsEditValue.trim() === lastSavedVehicleObservations
+                                          }
+                                          className="inline-flex items-center gap-1 rounded-lg bg-[#007AFF] px-3 py-2 text-[12px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-45"
+                                        >
+                                          {savingVehicleObservations ? (
+                                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                          ) : (
+                                            <Save className="h-3.5 w-3.5" />
+                                          )}
+                                          Salvar observações
+                                        </button>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <p className={`${uiReadBody} whitespace-pre-wrap text-[15px] leading-relaxed`}>
+                                      {(
+                                        serviceOrderDetail?.vehicle_observations ??
+                                        selectedCard?.vehicleObservations ??
+                                        ''
+                                      ).trim() || 'Nenhuma observação registrada para este veículo.'}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
 
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
 

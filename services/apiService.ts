@@ -57,6 +57,7 @@ interface ApiServiceOrder {
   plate: string;
   mileage_km: string | null;
   delivery_date: string | null;
+  vehicle_observations?: string | null;
   issue_description: string | null;
   ai_analysis: string | null;
   status: string;
@@ -90,6 +91,7 @@ export interface ServiceOrderListItem {
   plate: string | null;
   mileage_km: string | null;
   delivery_date: string | null;
+  vehicle_observations?: string | null;
   issue_description: string | null;
   ai_analysis: string | null;
   status: ServiceOrderStatus;
@@ -138,6 +140,7 @@ export interface ServiceOrderDetail {
   plate: string;
   mileage_km: string | null;
   delivery_date: string | null;
+  vehicle_observations?: string | null;
   issue_description: string | null;
   ai_analysis: string | null;
   status: string;
@@ -1244,6 +1247,33 @@ export async function updateServiceOrderDeliveryDate(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao atualizar data de entrega (${response.status})`);
+  }
+  return response.json();
+}
+
+/** Atualiza observações internas do veículo (modal do Pátio). */
+export async function updateServiceOrderVehicleObservations(
+  id: string,
+  vehicleObservations: string | null,
+  options?: ServiceOrderUpdateActor
+): Promise<ApiServiceOrder> {
+  const body = mergeActorIntoBody(
+    {
+      vehicleObservations:
+        vehicleObservations == null || vehicleObservations.trim() === ''
+          ? null
+          : vehicleObservations.trim(),
+    },
+    options
+  );
+  const response = await fetch(`${API_BASE}/service-orders/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao salvar observações do veículo (${response.status})`);
   }
   return response.json();
 }

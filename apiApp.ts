@@ -2112,7 +2112,7 @@ export function createApiApp() {
 
   // ----------------- ORDENS DE SERVIÇO -----------------
   const SERVICE_ORDERS_LIST_SELECT =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, bench_slot, bench_slot_at, bench_queued_at, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, vehicle_observations, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, bench_slot, bench_slot_at, bench_queued_at, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   /** Fallback quando migrações recentes ainda não foram aplicadas no projeto Supabase. */
   const SERVICE_ORDERS_LIST_SELECT_MINIMAL =
     "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
@@ -5914,6 +5914,7 @@ export function createApiApp() {
         garantiaTag,
         mileageKm,
         deliveryDate,
+        vehicleObservations,
         vehicleModel,
         moduleIdentification,
         plate,
@@ -5977,6 +5978,12 @@ export function createApiApp() {
       }
       if (deliveryDate !== undefined) {
         updatePayload.delivery_date = deliveryDate == null || String(deliveryDate).trim() === '' ? null : String(deliveryDate).trim();
+      }
+      if (vehicleObservations !== undefined) {
+        updatePayload.vehicle_observations =
+          vehicleObservations == null || String(vehicleObservations).trim() === ''
+            ? null
+            : String(vehicleObservations).trim();
       }
       if (status !== undefined) {
         if (!ALL_STATUSES.includes(status)) {
