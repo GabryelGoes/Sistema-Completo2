@@ -642,7 +642,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                     ) : (
                       <PermSwitch
                         label="Aprovar itens do orçamento"
-                        description="Aprovar ou reprovar serviços e peças no modal de orçamento. Se nunca foi salvo, segue a regra de «Criar e editar orçamentos»."
+                        description="Aprovar ou reprovar serviços e peças na página Orçamentos. Se nunca foi salvo, segue a regra de «Criar e editar orçamentos»."
                         checked={effectivePatioApproveBudgetItems(formPermissions)}
                         onChange={(v) => setPerm('patio_approve_budget_items', v)}
                         disabled={!!formPermissions.full_access}

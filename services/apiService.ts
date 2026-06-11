@@ -2795,7 +2795,7 @@ export interface SystemUserPermissions {
   patio_archive_card?: boolean;
 }
 
-/** Se o usuário pode aprovar/reprovar itens do orçamento no Pátio/Laboratório (respeita legado quando a chave não existe no JSON). */
+/** Se o usuário pode aprovar/reprovar itens do orçamento no módulo Orçamentos (respeita legado quando a chave não existe no JSON). */
 export function effectivePatioApproveBudgetItems(perms: SystemUserPermissions | undefined): boolean {
   if (!perms) return true;
   if (perms.full_access) return true;

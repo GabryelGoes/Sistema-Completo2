@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Eye, Printer, RefreshCw, X } from "lucide-react";
+import { Calculator, CheckCircle2, Eye, Printer, RefreshCw, X } from "lucide-react";
 import { ModalPortal } from "./ui/ModalPortal";
 import {
   budgetChronologicalNumber,
@@ -10,6 +10,7 @@ import {
   verifyServiceOrderBudget,
   type SavedBudgetFromApi,
   type ServiceOrderDetail,
+  type ServiceOrderUpdateActor,
 } from "../services/apiService";
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from "../utils/budgetPrintWithDetail";
 import { DiagnosticAuthorizationSheetModal } from "./diagnostic/DiagnosticAuthorizationSheetModal";
@@ -17,6 +18,7 @@ import { getVehiclePhotoPublicUrl } from "../utils/vehicleStoragePublicUrl";
 import { BudgetReadModalBody } from "./budget/BudgetReadModalBody";
 import { BudgetVerificationPanel } from "./budget/BudgetVerificationPanel";
 import { BudgetVerifiedSeal } from "./budget/BudgetVerifiedSeal";
+import { BudgetApprovalModal } from "./budget/BudgetApprovalModal";
 import {
   budgetReadFooterBtnClass,
   budgetReadFooterPrimaryClass,
@@ -34,6 +36,8 @@ export interface BudgetHubViewerModalProps {
   /** Admin ou usuário com acesso total. */
   canVerifyBudgets?: boolean;
   verifierDisplayName?: string;
+  canApproveBudgetItems?: boolean;
+  actorOptions?: ServiceOrderUpdateActor;
 }
 
 export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
@@ -42,12 +46,15 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
   onClose,
   canVerifyBudgets = false,
   verifierDisplayName = "Administrador",
+  canApproveBudgetItems = false,
+  actorOptions,
 }) => {
   const [detail, setDetail] = useState<ServiceOrderDetail | null>(null);
   const [budgets, setBudgets] = useState<SavedBudgetFromApi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [approvalOpen, setApprovalOpen] = useState(false);
   const [diagAuthSheetOpen, setDiagAuthSheetOpen] = useState(false);
 
   useEffect(() => {
@@ -80,6 +87,7 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
 
   useEffect(() => {
     setDiagAuthSheetOpen(false);
+    setApprovalOpen(false);
   }, [serviceOrderId, budgetId]);
 
   const budget = useMemo(
@@ -219,6 +227,16 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
                   >
                     <Printer className="h-4 w-4" /> Via mecânico
                   </button>
+                  {canApproveBudgetItems &&
+                  (budget.services.length > 0 || budget.parts.length > 0) ? (
+                    <button
+                      type="button"
+                      onClick={() => setApprovalOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-xl border border-brand-yellow/50 bg-brand-yellow/10 px-5 py-2.5 text-sm font-medium text-zinc-900 shadow-sm transition-colors hover:bg-brand-yellow/20"
+                    >
+                      <CheckCircle2 className="h-4 w-4" /> Aprovar itens
+                    </button>
+                  ) : null}
                   <button type="button" onClick={onClose} className={budgetReadFooterPrimaryClass}>
                     Fechar
                   </button>
@@ -238,6 +256,18 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
           subtitleExtra={diagAuthSubtitleKm}
         />
       ) : null}
+
+      <BudgetApprovalModal
+        open={approvalOpen}
+        budget={budget}
+        serviceOrderId={serviceOrderId}
+        onClose={() => setApprovalOpen(false)}
+        onSaved={(updated) => {
+          setBudgets((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+        }}
+        actorOptions={actorOptions}
+        headerIcon={<Calculator className="h-5 w-5" />}
+      />
     </ModalPortal>
   );
 };

@@ -242,10 +242,23 @@ export default function App() {
   const hasFullAccess = authSession?.role === 'user' && !!authSession?.permissions?.full_access;
   const isLimitedSystemUser = authSession?.role === 'user' && !hasFullAccess;
   const canVerifyBudgetsApp = authSession?.role === 'admin' || hasFullAccess;
+  const canApproveBudgetItemsApp =
+    authSession?.role === 'admin' ||
+    (authSession?.role === 'user' && effectivePatioApproveBudgetItems(authSession.permissions));
   const budgetVerifierDisplayName =
     authSession?.role === 'admin'
       ? adminDisplayName
       : (authSession?.displayName ?? authSession?.username ?? 'Administrador');
+  const budgetHubActorOptions =
+    authSession?.role === 'admin'
+      ? { actor: 'admin' as const }
+      : authSession?.role === 'user'
+        ? {
+            actor: 'technician' as const,
+            actorTechnicianSlug: authSession.userId,
+            actorTechnicianName: authSession.displayName ?? authSession.username,
+          }
+        : undefined;
   /** Qualquer usuário logado pode tentar excluir; a senha do admin (ou de exclusão) é a proteção. */
   const canDeleteOrdersInReports = Boolean(authSession);
   const [userTab, setUserTab] = useState<TabId>('home');
@@ -643,7 +656,6 @@ export default function App() {
       canEditDeliveryDate: perms.patio_edit_delivery_date,
       canEditMileage: perms.patio_edit_mileage,
       canEditBudgets: perms.patio_edit_budgets,
-      canApproveBudgetItems: effectivePatioApproveBudgetItems(perms),
       canAddComments: perms.patio_add_comments,
       canArchiveCard: perms.patio_archive_card,
     };
@@ -887,6 +899,8 @@ export default function App() {
             onClose={() => setHubBudgetViewer(null)}
             canVerifyBudgets={canVerifyBudgetsApp}
             verifierDisplayName={budgetVerifierDisplayName}
+            canApproveBudgetItems={canApproveBudgetItemsApp}
+            actorOptions={budgetHubActorOptions}
           />
         ) : null}
         <VehicleAccompanimentModal
@@ -1153,6 +1167,8 @@ export default function App() {
           onClose={() => setHubBudgetViewer(null)}
           canVerifyBudgets={canVerifyBudgetsApp}
           verifierDisplayName={budgetVerifierDisplayName}
+          canApproveBudgetItems={canApproveBudgetItemsApp}
+          actorOptions={budgetHubActorOptions}
         />
       ) : null}
       <VehicleAccompanimentModal

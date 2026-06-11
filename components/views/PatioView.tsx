@@ -140,7 +140,6 @@ import { printBudgetMechanicWithDetail, printBudgetWithDetail } from '../../util
 import { printLabModuleFicha } from '../../utils/labModuleFichaPrint';
 import { PATIO_CARD_TITLE_SEP, parsePatioCardTitle } from '../../utils/patioCardTitle';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
-import { budgetHasExplicitApprovalDecisions } from '../../utils/budgetItemDisplay';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { resolveBudgetPartStockFlags, type BudgetPartFields } from '../../utils/budgetPartStock';
 import { parseReferenceLinksFromApi } from '../../utils/vehicleReferenceLinks';
@@ -326,8 +325,6 @@ interface PatioViewProps {
     canEditDeliveryDate?: boolean;
     canEditMileage?: boolean;
     canEditBudgets?: boolean;
-    /** Aprovar/reprovar serviços e peças no orçamento (modal de aprovação). */
-    canApproveBudgetItems?: boolean;
     canAddComments?: boolean;
     canArchiveCard?: boolean;
   };
@@ -1091,7 +1088,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const budgetsSectionRef = useRef<HTMLDivElement>(null);
   const openServiceOrderHandledRef = useRef(false);
   /** OS id: após mover para "Orçamento aprovado", abre o modal de aprovação quando os orçamentos terminarem de carregar. */
-  const pendingBudgetApprovalAfterModalLoadRef = useRef<string | null>(null);
   const [allMembers, setAllMembers] = useState<TrelloMember[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1312,12 +1308,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [editingBudget, setEditingBudget] = useState<SavedBudget | null>(null);
   const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
   const [verifyingBudgetId, setVerifyingBudgetId] = useState<string | null>(null);
-  /** Admin: orçamento em aprovação (modal com toggles por serviço/peça). */
-  const [budgetApprovalTarget, setBudgetApprovalTarget] = useState<SavedBudget | null>(null);
-  const [approvalServices, setApprovalServices] = useState<boolean[]>([]);
-  const [approvalParts, setApprovalParts] = useState<boolean[]>([]);
-  const [savingApproval, setSavingApproval] = useState(false);
-
   const closeBudgetModal = useCallback(() => {
     setIsBudgetOpen(false);
     setEditingBudget(null);
@@ -1581,7 +1571,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setSelectedCard(null);
     setSelectedHistoryCard(null);
     setViewingBudget(null);
-    setBudgetApprovalTarget(null);
     setIsBudgetOpen(false);
     setIsVehicleEditOpen(false);
     setIsDeleteVehicleOpen(false);
@@ -1751,11 +1740,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       }
       setSavedBudgets(budgets);
       setViewingBudget((prev) => {
-        if (!prev) return null;
-        const next = budgets.find((b) => b.id === prev.id);
-        return next ?? null;
-      });
-      setBudgetApprovalTarget((prev) => {
         if (!prev) return null;
         const next = budgets.find((b) => b.id === prev.id);
         return next ?? null;
@@ -2337,28 +2321,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
           })),
         });
         setSavedBudgets(budgets);
-        const pendingApprovalId = pendingBudgetApprovalAfterModalLoadRef.current;
-        if (pendingApprovalId && pendingApprovalId === order.id) {
-          pendingBudgetApprovalAfterModalLoadRef.current = null;
-          const stillThisCard = selectedCardRef.current?.id === order.id;
-          const canApproveItems =
-            patioPermissions === undefined ? true : patioPermissions.canApproveBudgetItems === true;
-          if (stillThisCard && canApproveItems && budgets.length > 0) {
-            // Quando houver múltiplos orçamentos, "primeiro" = mais antigo (Orçamento 1).
-            const first = [...budgets].sort(
-              (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-            )[0];
-            const lineCount = first.services.length + first.parts.length;
-            if (
-              lineCount > 0 &&
-              !budgetHasExplicitApprovalDecisions(first.services, first.parts)
-            ) {
-              setBudgetApprovalTarget(first);
-              setApprovalServices(first.services.map((s) => s.approved === true));
-              setApprovalParts(first.parts.map((p) => p.approved === true));
-            }
-          }
-        }
       })
       .catch((err) => console.error("Erro ao carregar detalhes", err))
       .finally(() => {
@@ -2677,13 +2639,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
           c.id === card.id ? { ...c, idList: newListId, garantiaTag: newListId === 'GARANTIA' || c.garantiaTag } : c
         )
       );
-      const shouldAutoOpenBudgetApproval =
-        newListId === 'ORCAMENTO_APROVADO' && can('canApproveBudgetItems');
-      if (shouldAutoOpenBudgetApproval) {
-        pendingBudgetApprovalAfterModalLoadRef.current = card.id;
-      }
       const sel = selectedCardRef.current;
-      if (sel?.id === card.id || shouldAutoOpenBudgetApproval) {
+      if (sel?.id === card.id) {
         setSelectedCard(updatedCard);
       }
     } catch (err: any) {
@@ -3519,67 +3476,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       alert((err as Error)?.message ?? 'Erro ao excluir orçamento.');
     } finally {
       setDeletingBudgetId(null);
-    }
-  };
-
-  /** Abre o modal de aprovação do orçamento (quem tem permissão de aprovar itens). */
-  const openBudgetApproval = (budget: SavedBudget) => {
-    if (!can('canApproveBudgetItems')) return;
-    setBudgetApprovalTarget(budget);
-    setApprovalServices(budget.services.map((s) => s.approved === true));
-    setApprovalParts(budget.parts.map((p) => p.approved === true));
-  };
-
-  const closeBudgetApproval = () => {
-    setBudgetApprovalTarget(null);
-    setApprovalServices([]);
-    setApprovalParts([]);
-  };
-
-  const handleSaveApproval = async () => {
-    if (!selectedCard || !budgetApprovalTarget) return;
-    if (!can('canApproveBudgetItems')) return;
-    setSavingApproval(true);
-    try {
-      const services = budgetApprovalTarget.services.map((s, i) => ({
-        description: s.description,
-        approved: approvalServices[i] ?? false,
-        labor_hours: s.labor_hours ?? null,
-      }));
-      const parts = budgetApprovalTarget.parts.map((p, i) => {
-        const row: BudgetPartFields = {
-          description: p.description,
-          quantity: p.quantity,
-          approved: approvalParts[i] ?? false,
-        };
-        if (p.fromStock) {
-          row.fromStock = true;
-          if (p.workshopPartId) row.workshopPartId = p.workshopPartId;
-        }
-        return row;
-      });
-      const updated = await updateServiceOrderBudget(
-        selectedCard.id,
-        budgetApprovalTarget.id,
-        {
-          cardName: budgetApprovalTarget.cardName,
-          diagnosis: budgetApprovalTarget.diagnosis,
-          services,
-          parts,
-          observations: budgetApprovalTarget.observations,
-        },
-        actorOptions
-      );
-      setSavedBudgets((prev) =>
-        prev.map((b) => (b.id === updated.id ? { ...updated, createdAt: b.createdAt, updatedAt: updated.updatedAt } : b))
-      );
-      if (viewingBudget?.id === updated.id) setViewingBudget(updated);
-      closeBudgetApproval();
-      window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
-    } catch (err: any) {
-      alert(err?.message ?? 'Erro ao salvar aprovação.');
-    } finally {
-      setSavingApproval(false);
     }
   };
 
@@ -7510,31 +7406,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               )}
                               </div>
 
-                              {can('canApproveBudgetItems') && savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length > 0 && (
-                                <div className="rounded-xl border border-zinc-200/75 bg-white/90 p-3 shadow-sm dark:border-white/[0.08] dark:bg-zinc-950/35">
-                                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Aprovar orçamento</p>
-                                  <p className="mt-1 text-[11px] leading-snug text-zinc-600 dark:text-zinc-500">Selecione um orçamento para marcar cada serviço e peça como aprovado ou reprovado.</p>
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    {savedBudgets
-                                      .filter((b) => b.serviceOrderId === selectedCard.id)
-                                      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-                                      .map((budget) => (
-                                        <button
-                                          key={budget.id}
-                                          type="button"
-                                          onClick={() => openBudgetApproval(budget)}
-                                          className="inline-flex items-center gap-2 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.08] px-3 py-2 text-[13px] font-semibold text-[#007AFF] shadow-sm transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/14 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
-                                        >
-                                          <CheckCircle2 className="h-4 w-4 shrink-0" />
-                                          Aprovar orçamento {budgetChronologicalNumber(
-                                            savedBudgets.filter((x) => x.serviceOrderId === selectedCard.id),
-                                            budget.id
-                                          )}
-                                        </button>
-                                      ))}
-                                  </div>
-                                </div>
-                              )}
                               </div>
                             </div>
                           </div>
@@ -8991,20 +8862,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <span />
               )}
               <div className="flex flex-wrap items-center justify-end gap-3">
-                {can('canApproveBudgetItems') && !!selectedCard && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const b = viewingBudget;
-                      setViewingBudget(null);
-                      openBudgetApproval(b);
-                    }}
-                    disabled={!!deletingBudgetId || !!verifyingBudgetId}
-                    className="inline-flex items-center gap-2 rounded-xl border border-brand-yellow/50 bg-brand-yellow/10 px-5 py-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-brand-yellow/20 disabled:opacity-50 dark:text-zinc-100"
-                  >
-                    <CheckCircle2 className="h-4 w-4" /> Aprovar itens
-                  </button>
-                )}
                 <button
                   type="button"
                   onClick={() =>
@@ -9063,122 +8920,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
           subtitleExtra={diagnosticAuthSubtitleKm}
         />
       ) : null}
-
-      {/* Modal: Aprovar orçamento — mesmo idioma dos outros modais iOS */}
-      {budgetApprovalTarget && selectedCard && patioPortalsVisible && (
-        <ModalPortal>
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6 animate-in fade-in duration-200">
-          <div className={`relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-full max-w-lg min-h-0 flex-col overflow-hidden rounded-[2rem] animate-in zoom-in-95 duration-200 shadow-[0_10px_36px_-12px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_44px_-14px_rgba(0,0,0,0.55)] ${iosModalShell}`}>
-            <button type="button" onClick={closeBudgetApproval} className={iosModalClose} aria-label="Fechar">
-              <X className="h-5 w-5" />
-            </button>
-            <div className="shrink-0 border-b border-zinc-200/60 px-5 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
-              <div className="flex items-start gap-3 pr-10">
-                <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                  {patioOrLabModuleIcon}
-                </IosAccentIconSquircle>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">Aprovação</p>
-                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white">Aprovar orçamento</h2>
-                  <p className="mt-1 flex items-start gap-1.5 text-[13px] leading-snug text-zinc-600 dark:text-zinc-400">
-                    <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                    Ligue = aprovado, desligue = reprovado. O técnico verá ✓ ou ✗ em cada item.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-5 custom-scrollbar sm:px-8 space-y-6">
-              {budgetApprovalTarget.services.length > 0 && (
-                <section>
-                  <h3 className={`${iosLabel} mb-2`}>Serviços</h3>
-                  <ul className="space-y-2">
-                    {budgetApprovalTarget.services.map((s, i) => (
-                      <li key={i} className={`flex items-center gap-3 p-3.5 ${iosModalInsetCard}`}>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={approvalServices[i]}
-                          onClick={() => setApprovalServices((prev) => {
-                            const next = [...prev];
-                            next[i] = !next[i];
-                            return next;
-                          })}
-                          className={`relative w-12 h-7 rounded-full shrink-0 transition-colors ${approvalServices[i] ? 'bg-emerald-500' : 'bg-zinc-400 dark:bg-zinc-600'}`}
-                        >
-                          <span className="absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 left-0.5" style={{ transform: approvalServices[i] ? 'translateX(20px)' : 'translateX(0)' }} />
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 block">{s.description}</span>
-                          {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
-                            <span className="text-[12px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400 mt-0.5 block">
-                              {formatLaborLabel(Number(s.labor_hours))}
-                            </span>
-                          ) : null}
-                        </div>
-                        <span className={`text-xs font-semibold shrink-0 ${approvalServices[i] ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                          {approvalServices[i] ? 'Aprovado' : 'Reprovado'}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-              {budgetApprovalTarget.parts.length > 0 && (
-                <section>
-                  <h3 className={`${iosLabel} mb-2`}>Peças</h3>
-                  <ul className="space-y-2">
-                    {budgetApprovalTarget.parts.map((p, i) => (
-                      <li key={i} className={`flex items-center gap-3 p-3.5 ${iosModalInsetCard}`}>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={approvalParts[i]}
-                          onClick={() => setApprovalParts((prev) => {
-                            const next = [...prev];
-                            next[i] = !next[i];
-                            return next;
-                          })}
-                          className={`relative w-12 h-7 rounded-full shrink-0 transition-colors ${approvalParts[i] ? 'bg-emerald-500' : 'bg-zinc-400 dark:bg-zinc-600'}`}
-                        >
-                          <span className="absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 left-0.5" style={{ transform: approvalParts[i] ? 'translateX(20px)' : 'translateX(0)' }} />
-                        </button>
-                        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                          <span>
-                            ({p.quantity}x) {p.description}
-                          </span>
-                          {p.fromStock ? <BudgetPartStockBadge /> : null}
-                        </span>
-                        <span className={`text-xs font-semibold shrink-0 ${approvalParts[i] ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                          {approvalParts[i] ? 'Aprovado' : 'Reprovado'}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-            </div>
-            <div className="flex shrink-0 flex-col gap-3 border-t border-zinc-200/60 px-4 py-4 dark:border-white/[0.07] sm:flex-row sm:px-6">
-              <button
-                type="button"
-                onClick={closeBudgetApproval}
-                className="flex-1 rounded-xl border border-zinc-200/90 py-3 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveApproval}
-                disabled={savingApproval}
-                className={`${iosAccentPrimaryButton} flex flex-1 items-center justify-center gap-2 py-3 text-[15px] disabled:opacity-50`}
-              >
-                {savingApproval ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
-                {savingApproval ? 'Salvando…' : 'Salvar aprovação'}
-              </button>
-            </div>
-          </div>
-        </div>
-        </ModalPortal>
-      )}
 
       {/* MODAL CRIAR/EDITAR ORÇAMENTO — tela cheia, sempre visual de tema claro */}
       {isBudgetOpen && selectedCard && patioPortalsVisible && (
