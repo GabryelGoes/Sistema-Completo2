@@ -4430,8 +4430,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       <div className="relative z-0 mx-auto max-w-[100rem] overflow-visible px-3 pt-2 sm:px-5 md:px-6 md:pt-3">
         {/* Cabeçalho — mesmo padrão Recepção/Agenda: sem painel vidro em volta; ícone = tile da Home (Pátio / Laboratório) */}
-        <header className="relative z-50 mb-6 overflow-visible sm:mb-8">
-          <div className={`w-full items-center gap-y-4 md:gap-x-3 ${headerActionsOneLine ? 'flex flex-nowrap md:justify-between' : 'grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'}`}>
+        <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-6 pb-0.5 sm:mb-8' : 'mb-6 sm:mb-8'}`}>
+          <div className={`w-full gap-y-4 md:gap-x-3 ${headerActionsOneLine ? 'flex flex-nowrap items-center md:justify-between' : 'grid grid-cols-1 items-center md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'}`}>
             {desktopShell ? (
               <div className="flex min-w-0 items-center md:justify-self-start">{patioActiveCountBadge}</div>
             ) : (
@@ -4477,7 +4477,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </button>
             </div>
 
-            <div className={`flex items-center ${headerActionsOneLine ? 'min-w-0 flex-1 flex-nowrap justify-end gap-1.5 overflow-x-auto' : 'w-full min-w-0 flex-wrap justify-center gap-2 overflow-visible portrait:justify-end md:w-auto md:justify-self-end md:justify-end'}`}>
+            <div
+              className={
+                headerActionsOneLine
+                  ? 'min-w-0 flex-1 overflow-x-auto overflow-y-visible pb-1.5 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]'
+                  : 'flex w-full min-w-0 flex-wrap items-center justify-center gap-2 overflow-visible portrait:justify-end md:w-auto md:justify-self-end md:justify-end'
+              }
+            >
+            <div
+              className={
+                headerActionsOneLine
+                  ? 'flex w-max min-w-full flex-nowrap items-center justify-end gap-1.5 py-1'
+                  : 'contents'
+              }
+            >
             {headerActionsOneLine && (
               <>
                 <button
@@ -4781,11 +4794,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
               />
             </div>
-            <div className={`shrink-0 ${headerActionsOneLine ? '' : 'hidden portrait:block'}`}>
+            <div className={`shrink-0 ${headerActionsOneLine ? 'self-center' : 'hidden portrait:block'}`}>
               <button
                 type="button"
                 onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
-                className={`relative inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-bold tracking-tight text-white ring-0 ring-offset-0 transition-all duration-200 hover:brightness-110 active:translate-y-0.5 active:shadow-[0_2px_0_0_rgba(0,0,0,0.15)] dark:text-white dark:ring-1 dark:ring-white/20 dark:ring-offset-1 dark:ring-offset-zinc-900 dark:hover:brightness-110 sm:min-h-[40px] sm:px-5 sm:py-2.5 sm:text-[14px] ${
+                className={`relative inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-bold tracking-tight text-white ring-0 ring-offset-0 transition-all duration-200 hover:brightness-110 active:translate-y-px active:shadow-[0_2px_0_0_rgba(0,0,0,0.15)] dark:text-white dark:ring-1 dark:ring-white/20 dark:ring-offset-1 dark:ring-offset-zinc-900 dark:hover:brightness-110 sm:min-h-[40px] sm:px-5 sm:py-2.5 sm:text-[14px] ${
                   isModuleMode
                     ? 'border border-[#6d28d9] bg-[#A855F7] shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_8px_28px_-6px_rgba(168,85,247,0.5),0_4px_16px_-4px_rgba(0,0,0,0.15)] hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_10px_32px_-4px_rgba(168,85,247,0.55)] dark:border-violet-300/45 dark:bg-[#A855F7] dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_8px_32px_-6px_rgba(167,139,250,0.48),0_4px_20px_-6px_rgba(0,0,0,0.45)]'
                     : 'border border-[#0058c7] bg-[#007AFF] shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_8px_28px_-6px_rgba(0,122,255,0.45),0_4px_16px_-4px_rgba(0,0,0,0.15)] hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_10px_32px_-4px_rgba(0,122,255,0.5)] dark:border-[#0A84FF]/80 dark:bg-[#0A84FF] dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_8px_32px_-6px_rgba(10,132,255,0.4),0_4px_20px_-6px_rgba(0,0,0,0.45)]'
@@ -4796,6 +4809,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </span>
                 <span>{isModuleMode ? 'Cadastrar produto' : 'Criar veículo'}</span>
               </button>
+            </div>
             </div>
           </div>
           </div>
