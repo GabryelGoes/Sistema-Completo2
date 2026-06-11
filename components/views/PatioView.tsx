@@ -7442,9 +7442,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 const conferenceBudget = cardBudgets.find((b) => b.id === activeConferenceId);
                                 if (!conferenceBudget) return null;
                                 return (
-                                  <div className="space-y-2.5">
+                                  <div className="space-y-1.5">
                                     {cardBudgets.length > 1 ? (
-                                      <div className="flex flex-wrap gap-2">
+                                      <div className="flex flex-wrap gap-1">
                                         {cardBudgets.map((b) => {
                                           const num = budgetChronologicalNumber(cardBudgets, b.id);
                                           const active = b.id === activeConferenceId;
@@ -7453,14 +7453,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               key={b.id}
                                               type="button"
                                               onClick={() => setConferenceBudgetId(b.id)}
-                                              className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                                              className={`rounded-md px-2 py-1 text-[10px] font-semibold transition-colors ${
                                                 active
-                                                  ? 'bg-[#007AFF] text-white shadow-sm'
-                                                  : 'border border-zinc-200/80 bg-white text-zinc-700 hover:border-[#007AFF]/35 dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-200'
+                                                  ? 'bg-[#007AFF] text-white'
+                                                  : 'border border-zinc-200/80 bg-white text-zinc-600 hover:border-[#007AFF]/35 dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-300'
                                               }`}
                                             >
-                                              Orçamento {num}
-                                              {isBudgetVerified(b) ? ' · verificado' : ''}
+                                              #{num}
+                                              {isBudgetVerified(b) ? ' ✓' : ''}
                                             </button>
                                           );
                                         })}
