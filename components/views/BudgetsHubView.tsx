@@ -38,6 +38,9 @@ function normalizeAggregateItem(raw: PatioVehicleBudgetAggregateItem): PatioVehi
     approvedItemsCount: raw.approvedItemsCount ?? 0,
     rejectedItemsCount: raw.rejectedItemsCount ?? 0,
     pendingItemsCount: raw.pendingItemsCount ?? 0,
+    isVerified: raw.isVerified ?? false,
+    verifiedAt: raw.verifiedAt ?? null,
+    verifiedByName: raw.verifiedByName ?? null,
   };
 }
 

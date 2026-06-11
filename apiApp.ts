@@ -2336,7 +2336,7 @@ export function createApiApp() {
 
       const { data: budgets, error: e2 } = await supabaseAdmin
         .from("budgets")
-        .select("id, service_order_id, created_at, updated_at, diagnosis, services, parts, observations, card_name")
+        .select("id, service_order_id, created_at, updated_at, diagnosis, services, parts, observations, card_name, verified_at, verified_by_name")
         .eq("workshop_id", WORKSHOP_ID)
         .in("service_order_id", orderIds);
 
@@ -2423,6 +2423,9 @@ export function createApiApp() {
           approvedItemsCount,
           rejectedItemsCount,
           pendingItemsCount,
+          isVerified: b.verified_at != null && String(b.verified_at).trim() !== "",
+          verifiedAt: b.verified_at != null ? String(b.verified_at) : null,
+          verifiedByName: b.verified_by_name != null ? String(b.verified_by_name) : null,
         };
       });
 
@@ -3231,7 +3234,7 @@ export function createApiApp() {
 
       const { data, error } = await supabaseAdmin
         .from("budgets")
-        .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at")
+        .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at, verified_at, verified_by_name")
         .eq("service_order_id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID);
 
@@ -3314,7 +3317,7 @@ export function createApiApp() {
         const legacy = await supabaseAdmin
           .from("budgets")
           .insert(payload)
-          .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at")
+          .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at, verified_at, verified_by_name")
           .single();
         data = legacy.data;
         error = legacy.error;
@@ -3463,7 +3466,7 @@ export function createApiApp() {
           .eq("id", budgetId)
           .eq("service_order_id", serviceOrderId)
           .eq("workshop_id", WORKSHOP_ID)
-          .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at")
+          .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at, verified_at, verified_by_name")
           .single();
         data = legacy.data;
         error = legacy.error;
@@ -3488,9 +3491,22 @@ export function createApiApp() {
         return res.status(500).json({ error: message });
       }
 
-      const updated = Array.isArray(data) ? data[0] : data;
+      let updated = Array.isArray(data) ? data[0] : data;
       if (!updated) {
         return res.status(404).json({ error: "Orçamento não encontrado." });
+      }
+
+      // Edição invalida o selo de verificação.
+      const cleared = await supabaseAdmin
+        .from("budgets")
+        .update({ verified_at: null, verified_by_name: null })
+        .eq("id", budgetId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at, verified_at, verified_by_name")
+        .single();
+      if (!cleared.error && cleared.data) {
+        updated = cleared.data;
       }
 
       const budgetEditPayload = {
@@ -3528,6 +3544,59 @@ export function createApiApp() {
       return res.json(updated);
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/service-orders/:id/budgets/:budgetId:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Marcar orçamento como verificado (acesso total / admin)
+  app.post("/api/service-orders/:id/budgets/:budgetId/verify", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error: "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const { id: serviceOrderId, budgetId } = req.params;
+      const { verifiedByName } = req.body ?? {};
+      const label =
+        typeof verifiedByName === "string" && verifiedByName.trim()
+          ? verifiedByName.trim()
+          : "Administrador";
+
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+
+      if (!so) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("budgets")
+        .update({
+          verified_at: new Date().toISOString(),
+          verified_by_name: label,
+        })
+        .eq("id", budgetId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at, verified_at, verified_by_name")
+        .single();
+
+      if (error || !data) {
+        console.error("[API] Erro ao verificar orçamento:", error);
+        return res.status(error?.code === "PGRST116" ? 404 : 500).json({
+          error: error?.message ?? "Orçamento não encontrado.",
+        });
+      }
+
+      return res.json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/service-orders/:id/budgets/:budgetId/verify:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });

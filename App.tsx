@@ -241,6 +241,11 @@ export default function App() {
   const userAllowedTabs = authSession?.role === 'user' ? permissionsToTabs(authSession.permissions) : [];
   const hasFullAccess = authSession?.role === 'user' && !!authSession?.permissions?.full_access;
   const isLimitedSystemUser = authSession?.role === 'user' && !hasFullAccess;
+  const canVerifyBudgetsApp = authSession?.role === 'admin' || hasFullAccess;
+  const budgetVerifierDisplayName =
+    authSession?.role === 'admin'
+      ? adminDisplayName
+      : (authSession?.displayName ?? authSession?.username ?? 'Administrador');
   /** Qualquer usuário logado pode tentar excluir; a senha do admin (ou de exclusão) é a proteção. */
   const canDeleteOrdersInReports = Boolean(authSession);
   const [userTab, setUserTab] = useState<TabId>('home');
@@ -880,6 +885,8 @@ export default function App() {
             serviceOrderId={hubBudgetViewer.serviceOrderId}
             budgetId={hubBudgetViewer.budgetId}
             onClose={() => setHubBudgetViewer(null)}
+            canVerifyBudgets={canVerifyBudgetsApp}
+            verifierDisplayName={budgetVerifierDisplayName}
           />
         ) : null}
         <VehicleAccompanimentModal
@@ -1100,6 +1107,7 @@ export default function App() {
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
             onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
             onActiveCardsCountChange={setPatioActiveCount}
+            canVerifyBudgets={canVerifyBudgetsApp}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         </KeepAliveTabPanel>
@@ -1143,6 +1151,8 @@ export default function App() {
           serviceOrderId={hubBudgetViewer.serviceOrderId}
           budgetId={hubBudgetViewer.budgetId}
           onClose={() => setHubBudgetViewer(null)}
+          canVerifyBudgets={canVerifyBudgetsApp}
+          verifierDisplayName={budgetVerifierDisplayName}
         />
       ) : null}
       <VehicleAccompanimentModal

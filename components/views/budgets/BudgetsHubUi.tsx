@@ -184,6 +184,7 @@ export function BudgetsHubStatsStrip({
     approvedCount: number;
     inServiceCount: number;
     awaitingCount: number;
+    unverifiedCount: number;
   };
   desktopShell?: boolean;
 }) {
@@ -213,6 +214,7 @@ export function BudgetsHubStatsStrip({
       {chip('Aprovados', stats.approvedCount, 'text-sky-700 dark:text-sky-300')}
       {chip('Em serviço', stats.inServiceCount, 'text-blue-700 dark:text-blue-300')}
       {chip('Pendentes', stats.awaitingCount, 'text-amber-700 dark:text-amber-300')}
+      {chip('Sem verificação', stats.unverifiedCount, 'text-orange-700 dark:text-orange-300')}
     </div>
   );
 }
@@ -248,6 +250,15 @@ export function BudgetHubBudgetRow({ row, budgetNum, pulse, onOpen, compact }: B
               Editado
             </span>
           ) : null}
+          {row.isVerified ? (
+            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
+              Verificado
+            </span>
+          ) : (
+            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-800/90 dark:bg-amber-500/15 dark:text-amber-200/90">
+              Aguardando verificação
+            </span>
+          )}
           {row.hasApprovedItems ? (
             <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-800 dark:bg-sky-500/20 dark:text-sky-200">
               {row.approvedItemsCount} aprovado{row.approvedItemsCount === 1 ? '' : 's'}

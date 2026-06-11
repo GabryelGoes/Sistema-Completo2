@@ -1950,6 +1950,8 @@ interface ApiBudget {
   observations: string;
   created_at: string;
   updated_at?: string | null;
+  verified_at?: string | null;
+  verified_by_name?: string | null;
 }
 
 /** Orçamento no formato do frontend (SavedBudget). approved = aprovado (true) ou reprovado (false) pelo admin. */
@@ -1964,6 +1966,9 @@ export interface SavedBudgetFromApi {
   services: { description: string; approved?: boolean; labor_hours?: number | null }[];
   parts: BudgetPartFields[];
   observations: string;
+  /** Conferência por usuário de acesso total. */
+  verifiedAt?: string | null;
+  verifiedByName?: string | null;
 }
 
 /** Timestamp (ms) da última atividade: criação ou última edição. */
@@ -1997,7 +2002,13 @@ function mapApiBudgetToSaved(b: ApiBudget): SavedBudgetFromApi {
     services: b.services ?? [],
     parts: b.parts ?? [],
     observations: b.observations ?? "",
+    verifiedAt: b.verified_at ?? null,
+    verifiedByName: b.verified_by_name ?? null,
   };
+}
+
+export function isBudgetVerified(b: { verifiedAt?: string | null }): boolean {
+  return b.verifiedAt != null && String(b.verifiedAt).trim() !== "";
 }
 
 export async function getServiceOrderBudgets(
@@ -2037,6 +2048,9 @@ export interface PatioVehicleBudgetAggregateItem {
   approvedItemsCount: number;
   rejectedItemsCount: number;
   pendingItemsCount: number;
+  isVerified: boolean;
+  verifiedAt: string | null;
+  verifiedByName: string | null;
 }
 
 export async function getPatioVehicleBudgetsAggregate(): Promise<PatioVehicleBudgetAggregateItem[]> {
@@ -2113,6 +2127,32 @@ export async function updateServiceOrderBudget(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao atualizar orçamento (${response.status})`);
+  }
+  const data: ApiBudget = await response.json();
+  return mapApiBudgetToSaved(data);
+}
+
+export async function verifyServiceOrderBudget(
+  serviceOrderId: string,
+  budgetId: string,
+  payload: { verifiedByName: string },
+  options?: ServiceOrderUpdateActor
+): Promise<SavedBudgetFromApi> {
+  const body = mergeActorIntoBody(
+    { verifiedByName: payload.verifiedByName.trim() },
+    options
+  );
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/budgets/${budgetId}/verify`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao verificar orçamento (${response.status})`);
   }
   const data: ApiBudget = await response.json();
   return mapApiBudgetToSaved(data);

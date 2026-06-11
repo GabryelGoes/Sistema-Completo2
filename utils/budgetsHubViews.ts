@@ -236,6 +236,7 @@ export type BudgetsHubStats = {
   approvedCount: number;
   inServiceCount: number;
   awaitingCount: number;
+  unverifiedCount: number;
 };
 
 export function computeBudgetsHubStats(items: PatioVehicleBudgetAggregateItem[]): BudgetsHubStats {
@@ -253,6 +254,7 @@ export function computeBudgetsHubStats(items: PatioVehicleBudgetAggregateItem[])
         i.orderStatus === 'AGUARDANDO_APROVACAO' ||
         (i.hasExplicitApprovalDecisions && i.pendingItemsCount > 0 && !i.hasApprovedItems)
     ).length,
+    unverifiedCount: items.filter((i) => !i.isVerified).length,
   };
 }
 
