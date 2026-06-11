@@ -6015,6 +6015,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
               insetCardClass={vi}
               inputClass={vin}
               wrapClassName={wrapClassName}
+              collapsible={!isPatioPcModal}
+              defaultExpanded={false}
               newLabServiceMode={newLabServiceMode}
               onLabServiceModeChange={setNewLabServiceMode}
               newLabBudgetRef={newLabBudgetRef}
@@ -7494,8 +7496,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          </div>
                          )}
 
-                        {!isPatioPcModal && renderLabServicesSection('mt-3')}
-
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
 
                         {!isPatioPcModal && renderExternalRepairSection()}
@@ -8165,6 +8165,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          </div>
                         </>
                         ) : null}
+
+                        {!isPatioPcModal && renderLabServicesSection('mt-3')}
 
                         {isPatioPcModal && showPcOsTab('laboratorio') && renderLabServicesSection()}
 

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Wrench, Plus, Loader2, Trash2, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Wrench, Plus, Loader2, Trash2, ArrowRight, ChevronDown } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
 import { uiOsModalCardSectionTitle, uiOsModalSectionIconWrap } from '../ui/appTypography';
@@ -28,6 +28,9 @@ export type PatioOsModalLabServicesSectionProps = {
   getStageStyleClass: (status: string) => string;
   onOpenLaboratoryOrder?: (laboratoryOrderId: string) => void;
   onRemoveLabServiceLink: (linkId: string) => void;
+  /** Em tablet/mobile: cabeçalho clicável, conteúdo recolhido por padrão. */
+  collapsible?: boolean;
+  defaultExpanded?: boolean;
 };
 
 export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSectionProps> = ({
@@ -52,19 +55,57 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   getStageStyleClass,
   onOpenLaboratoryOrder,
   onRemoveLabServiceLink,
-}) => (
+  collapsible = false,
+  defaultExpanded = false,
+}) => {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const isOpen = !collapsible || expanded;
+  const linkedCount = labServiceLinksDraft.length;
+
+  const headerInner = (
+    <>
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+        <div className={uiOsModalSectionIconWrap}>
+          <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+        </div>
+        <p className={uiOsModalCardSectionTitle}>Serviços no laboratório</p>
+        {collapsible && !isOpen && linkedCount > 0 ? (
+          <span className="inline-flex shrink-0 items-center rounded-full bg-[#007AFF]/12 px-2 py-0.5 text-[11px] font-semibold text-[#007AFF] dark:bg-[#007AFF]/20 dark:text-[#7ab8ff]">
+            {linkedCount}
+          </span>
+        ) : null}
+      </div>
+      {collapsible ? (
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 dark:text-zinc-400 ${isOpen ? 'rotate-180' : ''}`}
+          aria-hidden
+        />
+      ) : null}
+    </>
+  );
+
+  return (
   <div className={wrapClassName}>
     <div
       className={`${insetCardClass} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}
     >
       <div className="relative min-w-0">
-        <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
-          <div className={uiOsModalSectionIconWrap}>
-            <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+        {collapsible ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={isOpen}
+            className="relative flex w-full items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 text-left backdrop-blur-[2px] transition-colors hover:bg-white/95 dark:border-white/[0.08] dark:bg-zinc-950/35 dark:hover:bg-zinc-950/50 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4"
+          >
+            {headerInner}
+          </button>
+        ) : (
+          <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+            {headerInner}
           </div>
-          <p className={uiOsModalCardSectionTitle}>Serviços no laboratório</p>
-        </div>
+        )}
 
+        {isOpen ? (
         <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
             <select
@@ -188,7 +229,9 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
             )}
           </div>
         </div>
+        ) : null}
       </div>
     </div>
   </div>
-);
+  );
+};
