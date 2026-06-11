@@ -43,6 +43,8 @@ export type DesktopAppShellProps = {
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
   /** Atalho da sidebar aberto (Central, Estoque, Configurações). */
   activeSidebarAction?: DesktopSidebarActionId | null;
+  /** Contagem ao lado do título (ex.: veículos no Pátio). */
+  topbarCountLabel?: string;
   theme?: 'dark' | 'light';
   onThemeChange?: (theme: 'dark' | 'light') => void;
   children: React.ReactNode;
@@ -93,6 +95,7 @@ export function DesktopAppShell({
   notificationCenter,
   shellOverlayTopbar = null,
   activeSidebarAction = null,
+  topbarCountLabel,
   theme = 'dark',
   onThemeChange,
   children,
@@ -243,7 +246,14 @@ export function DesktopAppShell({
           data-accent-tone={topbarTone}
           aria-label="Página atual"
         >
-          <h1 className="desktop-shell-topbar-title">{pageTitle}</h1>
+          <h1 className="desktop-shell-topbar-title">
+            <span className="desktop-shell-topbar-title-text">{pageTitle}</span>
+            {topbarCountLabel ? (
+              <span className="desktop-shell-topbar-count" aria-label={topbarCountLabel}>
+                {topbarCountLabel}
+              </span>
+            ) : null}
+          </h1>
           <div className="desktop-shell-topbar-actions">
             <span className="hidden max-w-[10rem] truncate text-[11px] font-medium text-white/85 xl:inline">
               {displayName}

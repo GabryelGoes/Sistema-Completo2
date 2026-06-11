@@ -147,6 +147,8 @@ export default function App() {
 
   // Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [patioActiveCount, setPatioActiveCount] = useState(0);
+  const [laboratorioActiveCount, setLaboratorioActiveCount] = useState(0);
 
   const notificationCenterProps = useMemo((): Omit<NotificationCenterProps, 'placement'> | undefined => {
     if (!authSession) return undefined;
@@ -243,6 +245,17 @@ export default function App() {
   const canDeleteOrdersInReports = Boolean(authSession);
   const [userTab, setUserTab] = useState<TabId>('home');
   const activeAppTab: TabId = isLimitedSystemUser ? userTab : currentTab;
+
+  const desktopTopbarCountLabel = useMemo(() => {
+    if (!isDesktopShell || shellOverlayTopbar) return undefined;
+    if (activeAppTab === 'patio') {
+      return patioActiveCount === 1 ? '1 veículo' : `${patioActiveCount} veículos`;
+    }
+    if (activeAppTab === 'laboratorio') {
+      return laboratorioActiveCount === 1 ? '1 módulo' : `${laboratorioActiveCount} módulos`;
+    }
+    return undefined;
+  }, [isDesktopShell, shellOverlayTopbar, activeAppTab, patioActiveCount, laboratorioActiveCount]);
 
   const patioBudgetsHub = usePatioBudgetsHubNotifier({
     enabled: Boolean(authSession),
@@ -650,6 +663,7 @@ export default function App() {
         notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
         shellOverlayTopbar={shellOverlayTopbar}
         activeSidebarAction={activeDesktopSidebarAction}
+        topbarCountLabel={desktopTopbarCountLabel}
         theme={theme}
         onThemeChange={setTheme}
       >
@@ -802,6 +816,7 @@ export default function App() {
               isAppTabActive={userTab === 'patio'}
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
               onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
+              onActiveCardsCountChange={setPatioActiveCount}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
@@ -823,6 +838,7 @@ export default function App() {
               openServiceOrderId={laboratorioPendingOrderId}
               openServiceOrderSection={null}
               onOpenServiceOrderHandled={handleLaboratoryOrderHandled}
+              onActiveCardsCountChange={setLaboratorioActiveCount}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
             />
@@ -935,6 +951,7 @@ export default function App() {
       notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
       shellOverlayTopbar={shellOverlayTopbar}
       activeSidebarAction={activeDesktopSidebarAction}
+      topbarCountLabel={desktopTopbarCountLabel}
       theme={theme}
       onThemeChange={setTheme}
     >
@@ -1082,6 +1099,7 @@ export default function App() {
             isAppTabActive={currentTab === 'patio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
             onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
+            onActiveCardsCountChange={setPatioActiveCount}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         </KeepAliveTabPanel>
@@ -1100,6 +1118,7 @@ export default function App() {
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'laboratorio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
+            onActiveCardsCountChange={setLaboratorioActiveCount}
             openServiceOrderId={laboratorioPendingOrderId}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={handleLaboratoryOrderHandled}

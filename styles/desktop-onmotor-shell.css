@@ -325,7 +325,10 @@ html[data-desktop-shell='true'] .desktop-shell-topbar[data-accent-tone='dark'] .
 }
 
 html[data-desktop-shell='true'] .desktop-shell-topbar-title {
+  display: flex;
   flex: 1;
+  align-items: center;
+  gap: 0.65rem;
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -335,7 +338,26 @@ html[data-desktop-shell='true'] .desktop-shell-topbar-title {
   text-transform: uppercase;
   color: #fff;
   overflow: hidden;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-topbar-title-text {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-topbar-count {
+  flex-shrink: 0;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  text-transform: none;
+  color: inherit;
   white-space: nowrap;
 }
 

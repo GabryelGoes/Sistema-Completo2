@@ -318,6 +318,8 @@ interface PatioViewProps {
   };
   /** Pátio: abrir uma OS específica no Laboratório (troca de aba + modal). */
   onOpenLaboratoryOrder?: (serviceOrderId: string) => void;
+  /** Atualiza contagem de veículos/módulos ativos (ex.: barra superior no modo PC). */
+  onActiveCardsCountChange?: (count: number) => void;
 }
 
 function boardListsFromStages(stages: ReturnType<typeof getServiceOrderStages>): BoardList[] {
@@ -1050,6 +1052,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   isAppTabActive = true,
   suppressVehiclePortals = false,
   onOpenLaboratoryOrder,
+  onActiveCardsCountChange,
 }) => {
   /** Admin: sem patioPermissions = tudo permitido. Usuário do sistema: só o que for explicitamente true. */
   const can = (key: keyof NonNullable<PatioViewProps['patioPermissions']>) =>
@@ -2137,6 +2140,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setDeliveryDateSavedMessage(false);
     }
   }, [selectedCard?.id, selectedCard?.mileageKm, selectedCard?.deliveryDate]);
+
+  useEffect(() => {
+    onActiveCardsCountChange?.(cards.length);
+  }, [cards.length, onActiveCardsCountChange]);
 
   // Abrir modal do veículo ao clicar em notificação (navegação da central de notificações)
   useEffect(() => {
@@ -4276,6 +4283,31 @@ export const PatioView: React.FC<PatioViewProps> = ({
     systemTechnicians.some(t => t.id === m.id || m.fullName.toLowerCase().includes(t.display_name?.toLowerCase() ?? ""))
   );
 
+  const activeBoardCount = cards.length;
+  const activeBoardCountUnit = isModuleMode
+    ? activeBoardCount === 1
+      ? 'módulo'
+      : 'módulos'
+    : activeBoardCount === 1
+      ? 'veículo'
+      : 'veículos';
+  const activeBoardCountContext = isModuleMode ? 'no laboratório' : 'no pátio';
+
+  const patioActiveCountBadge = (
+    <span
+      className="patio-active-count-badge inline-flex items-center gap-2 rounded-full border border-zinc-200/80 bg-white/90 px-3.5 py-1.5 text-[13px] font-semibold text-zinc-800 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.08)] tabular-nums dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-100 dark:shadow-none"
+      aria-live="polite"
+      aria-label={`${activeBoardCount} ${activeBoardCountUnit} ${activeBoardCountContext}`}
+    >
+      <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-[#007AFF]/12 px-1.5 text-[12px] font-bold leading-none text-[#007AFF] dark:bg-[#0A84FF]/20 dark:text-[#7ab8ff]">
+        {activeBoardCount}
+      </span>
+      <span className="whitespace-nowrap">
+        {activeBoardCountUnit} {activeBoardCountContext}
+      </span>
+    </span>
+  );
+
   return (
     <div className="relative min-h-full w-full animate-in pb-32 fade-in duration-500">
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
@@ -4288,26 +4320,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
         {/* Cabeçalho — mesmo padrão Recepção/Agenda: sem painel vidro em volta; ícone = tile da Home (Pátio / Laboratório) */}
         <header className="relative z-50 mb-6 overflow-visible sm:mb-8">
           <div className={`w-full items-center gap-y-4 md:gap-x-3 ${headerActionsOneLine ? 'flex flex-nowrap md:justify-between' : 'grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'}`}>
-            <div className="app-view-page-chrome flex min-w-0 items-center gap-3 sm:gap-4 md:justify-self-start">
-              {isModuleMode ? (
-                <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-                  <img src="/icons/laboratorio-ios.png" alt="" className="h-full w-full object-cover" />
-                </IosAccentIconSquircle>
-              ) : (
-                <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-                  <img src="/icons/patio-ios.png" alt="" className="h-full w-full object-cover" />
-                </IosAccentIconSquircle>
-              )}
-              <div className="min-w-0">
-                <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
-                  {isModuleMode ? 'Laboratório' : 'Pátio'}
-                </h1>
-                <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                  <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                  {cards.length} {isModuleMode ? 'módulos' : 'veículos'} na oficina
-                </p>
+            {desktopShell ? (
+              <div className="flex min-w-0 items-center md:justify-self-start">{patioActiveCountBadge}</div>
+            ) : (
+              <div className="app-view-page-chrome flex min-w-0 items-center gap-3 sm:gap-4 md:justify-self-start">
+                {isModuleMode ? (
+                  <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
+                    <img src="/icons/laboratorio-ios.png" alt="" className="h-full w-full object-cover" />
+                  </IosAccentIconSquircle>
+                ) : (
+                  <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
+                    <img src="/icons/patio-ios.png" alt="" className="h-full w-full object-cover" />
+                  </IosAccentIconSquircle>
+                )}
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
+                      {isModuleMode ? 'Laboratório' : 'Pátio'}
+                    </h1>
+                    {patioActiveCountBadge}
+                  </div>
+                  <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
+                    {isModuleMode ? 'Módulos ativos no quadro' : 'Veículos ativos no quadro'}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className={`flex justify-center portrait:hidden md:justify-self-center md:px-2 ${headerActionsOneLine ? 'hidden' : ''}`}>
               <button

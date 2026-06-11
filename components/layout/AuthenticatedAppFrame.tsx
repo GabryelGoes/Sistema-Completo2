@@ -26,6 +26,8 @@ export type AuthenticatedAppFrameProps = {
   /** Título/cor da barra superior quando um módulo da sidebar está aberto (PC). */
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
   activeSidebarAction?: DesktopShellSidebarModuleId | null;
+  /** Contagem exibida ao lado do título na barra superior (ex.: veículos no Pátio). */
+  topbarCountLabel?: string;
   theme?: 'dark' | 'light';
   onThemeChange?: (theme: 'dark' | 'light') => void;
   children: React.ReactNode;
@@ -48,6 +50,7 @@ export function AuthenticatedAppFrame({
   notificationCenter,
   shellOverlayTopbar = null,
   activeSidebarAction = null,
+  topbarCountLabel,
   theme,
   onThemeChange,
   children,
@@ -73,6 +76,7 @@ export function AuthenticatedAppFrame({
             notificationCenter={notificationCenter}
             shellOverlayTopbar={shellOverlayTopbar}
             activeSidebarAction={activeSidebarAction}
+            topbarCountLabel={topbarCountLabel}
             theme={theme}
             onThemeChange={onThemeChange}
           >
