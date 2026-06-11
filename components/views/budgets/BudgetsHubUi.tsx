@@ -14,6 +14,7 @@ import {
   budgetChronologicalNumber,
   type PatioVehicleBudgetAggregateItem,
 } from '../../../services/apiService';
+import { BudgetVerifiedSeal } from '../../budget/BudgetVerifiedSeal';
 import { getStageConfig, getStageStyle } from '../../../constants/serviceOrderStages';
 import { useDragScroll } from '../../../hooks/useDragScroll';
 import { iosLabel, iosPageGlass, iosPageGlassOrcamentosVehicleCard } from '../../ui/iosModalStyles';
@@ -251,10 +252,12 @@ export function BudgetHubBudgetRow({ row, budgetNum, pulse, onOpen, compact }: B
             </span>
           ) : null}
           {row.isVerified ? (
-            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
-              Verificado
-            </span>
-          ) : (
+            <BudgetVerifiedSeal
+              verifiedAt={row.verifiedAt}
+              verifiedByName={row.verifiedByName}
+              size={compact ? 'sm' : 'md'}
+            />
+          ) : compact ? null : (
             <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-800/90 dark:bg-amber-500/15 dark:text-amber-200/90">
               Aguardando verificação
             </span>
