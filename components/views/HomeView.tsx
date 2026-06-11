@@ -311,11 +311,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
     !!(
       perms.access_notificacoes_sistema ||
       perms.access_servicos_oficina ||
+      perms.access_laboratorio ||
       perms.access_checklists_patio ||
       perms.access_tv_patio ||
       perms.access_estoque_pecas ||
       perms.access_relatorios
     );
+  const canManageLabProductTypes =
+    showFullAdminHub || !!perms.access_servicos_oficina || !!perms.access_laboratorio;
   const showAdminSection = showFullAdminHub || showGranularAdminHub;
   const hasRichQuickGrid =
     showFullAdminHub ||
@@ -1196,7 +1199,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               }
                             />
                           )}
-                          {(showFullAdminHub || !!perms.access_servicos_oficina) && (
+                          {canManageLabProductTypes && (
                             <SettingsRow
                               onClick={() => setIsLabProductTypesOpen(true)}
                               title="Tipos de produto do laboratório"

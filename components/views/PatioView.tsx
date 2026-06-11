@@ -3173,9 +3173,41 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   /** Registra o envio do módulo ao conserto externo: sai do quadro e vai para a aba. */
   const handleSendToExternalRepair = async (cardId: string) => {
+    const boardCard =
+      cards.find((c) => c.id === cardId) ??
+      externalRepairCards.find((c) => c.id === cardId) ??
+      (selectedCard?.id === cardId ? selectedCard : null);
+    const currentStatus =
+      selectedCard?.id === cardId
+        ? (serviceOrderDetail?.status ?? selectedCard.idList)
+        : boardCard?.idList;
+    if (isExternalRepairStatus(currentStatus)) return;
+
     try {
+      let repairPayload: ReturnType<typeof draftToExternalRepairPayload> = null;
+      if (selectedCard?.id === cardId) {
+        repairPayload =
+          draftToExternalRepairPayload(externalRepairDraft) ??
+          selectedCard.externalRepair ??
+          serviceOrderDetail?.external_repair ??
+          null;
+      } else {
+        repairPayload = boardCard?.externalRepair ?? null;
+      }
+
+      if (repairPayload) {
+        await updateServiceOrderExternalRepair(cardId, repairPayload);
+      } else {
+        alert(
+          'Abra o produto, preencha a seção Conserto externo (fornecedor, tipo de produto, etc.) e tente novamente.'
+        );
+        return;
+      }
+
       await updateServiceOrderStatus(cardId, EXTERNAL_REPAIR_STATUS, actorOptions);
       setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
+      setCardInTransition((prev) => (prev?.id === cardId ? null : prev));
+      setIsExternalRepairEditing(false);
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao registrar envio ao conserto externo.');
     } finally {
@@ -6049,6 +6081,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               ) : null}
                             </div>
 
+                            {!isExternalRepairStatus(serviceOrderDetail?.status) ? (
+                              <p className="border-t border-zinc-200/60 bg-purple-50/50 px-3 py-2 text-[11px] leading-snug text-purple-900/90 dark:border-white/[0.06] dark:bg-purple-950/20 dark:text-purple-200/90 sm:px-4">
+                                Para marcar como <strong>Em conserto</strong>, preencha os dados abaixo e use{' '}
+                                <strong>Registrar envio</strong>. O produto sai do quadro e aparece em Conserto externo.
+                              </p>
+                            ) : null}
+
                             {!isExternalRepairEditing || !can('canEditFicha') ? (
                               <div className="space-y-1 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 text-[14px] text-zinc-700 dark:border-white/[0.06] dark:bg-white/[0.02] dark:text-zinc-300 sm:px-4 sm:py-3.5">
                                 {externalRepairDraft.vehicleRef.trim() ? (
@@ -6081,6 +6120,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   externalRepairDraft.sentAt,
                                 ].some((v) => v.trim()) ? (
                                   <p className="text-zinc-500 dark:text-zinc-400">Nenhum conserto externo registrado.</p>
+                                ) : null}
+                                {can('canEditFicha') &&
+                                selectedCard &&
+                                !isExternalRepairStatus(serviceOrderDetail?.status) ? (
+                                  <div className="flex flex-wrap gap-2 border-t border-zinc-200/60 pt-3 dark:border-white/[0.06]">
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleSendToExternalRepair(selectedCard.id)}
+                                      disabled={loadingDetails}
+                                      className="inline-flex items-center gap-2 rounded-xl bg-purple-700 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-purple-600 disabled:opacity-60"
+                                    >
+                                      <Truck className="h-4 w-4" strokeWidth={2.2} />
+                                      Registrar envio (Em conserto)
+                                    </button>
+                                  </div>
                                 ) : null}
                               </div>
                             ) : (
@@ -6155,18 +6209,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   />
                                 </div>
                                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200/60 pt-2.5 dark:border-white/[0.06]">
-                                  {serviceOrderDetail?.status === 'ENVIO_CONSERTO' && selectedCard ? (
+                                  {selectedCard && !isExternalRepairStatus(serviceOrderDetail?.status) ? (
                                     <button
                                       type="button"
-                                      onClick={() => handleSendToExternalRepair(selectedCard.id)}
+                                      onClick={() => void handleSendToExternalRepair(selectedCard.id)}
                                       disabled={loadingDetails}
                                       className="inline-flex items-center gap-2 rounded-xl bg-purple-700 px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-purple-600 disabled:opacity-60"
-                                      title="Salve os dados antes; o módulo sai da bancada e vai para a aba Conserto externo"
+                                      title="Salva os dados e marca o produto como em conserto externo"
                                     >
                                       <Truck className="h-4 w-4" strokeWidth={2.2} />
-                                      Registrar envio
+                                      Registrar envio (Em conserto)
                                     </button>
-                                  ) : <span />}
+                                  ) : (
+                                    <span />
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => void handleSaveExternalRepair()}
@@ -9463,6 +9519,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   );
                 })}
               </div>
+              {isModuleMode &&
+              cardInTransition &&
+              !isExternalRepairStatus(cardInTransition.idList) &&
+              can('canEditFicha') ? (
+                <div className="mt-4 border-t border-zinc-200/70 pt-4 dark:border-white/[0.08]">
+                  <p className={iosLabel}>Conserto em terceiros</p>
+                  <button
+                    type="button"
+                    onClick={() => void handleSendToExternalRepair(cardInTransition.id)}
+                    disabled={isMoving}
+                    className={`group flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[16px] border-2 border-transparent px-4 py-3.5 text-left transition-all duration-200 sm:min-h-[56px] sm:px-5 ${EXTERNAL_REPAIR_STAGE.style} shadow-[0_2px_12px_-2px_rgba(0,0,0,0.12)] hover:brightness-110 active:scale-[0.99] disabled:opacity-55`}
+                  >
+                    <span className="text-[16px] font-semibold uppercase leading-snug tracking-wide !text-white sm:text-[17px]">
+                      {EXTERNAL_REPAIR_STAGE.name}
+                    </span>
+                    <Truck className="h-5 w-5 shrink-0 text-white/90" strokeWidth={2.2} />
+                  </button>
+                  <p className="mt-2 text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
+                    Exige dados salvos em Conserto externo no cadastro do produto.
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <div className="shrink-0 border-t border-zinc-200/60 bg-white px-4 py-3 dark:border-white/[0.07] dark:bg-zinc-950/40 sm:px-6">
