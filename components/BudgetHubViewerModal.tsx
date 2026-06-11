@@ -7,7 +7,6 @@ import {
   getServiceOrderBudgets,
   getServiceOrderById,
   isBudgetVerified,
-  verifyServiceOrderBudget,
   type SavedBudgetFromApi,
   type ServiceOrderDetail,
   type ServiceOrderUpdateActor,
@@ -16,7 +15,6 @@ import { printBudgetMechanicWithDetail, printBudgetWithDetail } from "../utils/b
 import { DiagnosticAuthorizationSheetModal } from "./diagnostic/DiagnosticAuthorizationSheetModal";
 import { getVehiclePhotoPublicUrl } from "../utils/vehicleStoragePublicUrl";
 import { BudgetReadModalBody } from "./budget/BudgetReadModalBody";
-import { BudgetVerificationPanel } from "./budget/BudgetVerificationPanel";
 import { BudgetVerifiedSeal } from "./budget/BudgetVerifiedSeal";
 import { BudgetApprovalModal } from "./budget/BudgetApprovalModal";
 import {
@@ -33,9 +31,6 @@ export interface BudgetHubViewerModalProps {
   serviceOrderId: string;
   budgetId: string;
   onClose: () => void;
-  /** Admin ou usuário com acesso total. */
-  canVerifyBudgets?: boolean;
-  verifierDisplayName?: string;
   canApproveBudgetItems?: boolean;
   actorOptions?: ServiceOrderUpdateActor;
 }
@@ -44,8 +39,6 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
   serviceOrderId,
   budgetId,
   onClose,
-  canVerifyBudgets = false,
-  verifierDisplayName = "Administrador",
   canApproveBudgetItems = false,
   actorOptions,
 }) => {
@@ -53,7 +46,6 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
   const [budgets, setBudgets] = useState<SavedBudgetFromApi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [diagAuthSheetOpen, setDiagAuthSheetOpen] = useState(false);
 
@@ -108,22 +100,6 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
 
   const diagAuthSubtitleKm =
     mileageKm != null && String(mileageKm).trim() !== "" ? `Km ${String(mileageKm).trim()}` : null;
-
-  const handleVerify = async () => {
-    if (!budget || verifying) return;
-    setVerifying(true);
-    try {
-      const updated = await verifyServiceOrderBudget(serviceOrderId, budget.id, {
-        verifiedByName: verifierDisplayName,
-      });
-      setBudgets((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
-      window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
-    } catch (e: unknown) {
-      alert((e as Error)?.message ?? "Não foi possível verificar o orçamento.");
-    } finally {
-      setVerifying(false);
-    }
-  };
 
   return (
     <ModalPortal>
@@ -181,17 +157,6 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
               <div className="p-6 text-sm font-medium text-slate-700">Orçamento não encontrado.</div>
             ) : (
               <div className={budgetReadModalScrollClass}>
-                <BudgetVerificationPanel
-                  isVerified={isVerified}
-                  verifiedAt={budget.verifiedAt}
-                  verifiedByName={budget.verifiedByName}
-                  canVerify={canVerifyBudgets}
-                  verifying={verifying}
-                  onVerify={() => void handleVerify()}
-                  diagnosis={budget.diagnosis}
-                  services={budget.services}
-                  parts={budget.parts}
-                />
                 <BudgetReadModalBody
                   diagnosis={budget.diagnosis}
                   services={budget.services}

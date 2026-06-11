@@ -245,10 +245,6 @@ export default function App() {
   const canApproveBudgetItemsApp =
     authSession?.role === 'admin' ||
     (authSession?.role === 'user' && effectivePatioApproveBudgetItems(authSession.permissions));
-  const budgetVerifierDisplayName =
-    authSession?.role === 'admin'
-      ? adminDisplayName
-      : (authSession?.displayName ?? authSession?.username ?? 'Administrador');
   const budgetHubActorOptions =
     authSession?.role === 'admin'
       ? { actor: 'admin' as const }
@@ -897,8 +893,6 @@ export default function App() {
             serviceOrderId={hubBudgetViewer.serviceOrderId}
             budgetId={hubBudgetViewer.budgetId}
             onClose={() => setHubBudgetViewer(null)}
-            canVerifyBudgets={canVerifyBudgetsApp}
-            verifierDisplayName={budgetVerifierDisplayName}
             canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={budgetHubActorOptions}
           />
@@ -1165,8 +1159,6 @@ export default function App() {
           serviceOrderId={hubBudgetViewer.serviceOrderId}
           budgetId={hubBudgetViewer.budgetId}
           onClose={() => setHubBudgetViewer(null)}
-          canVerifyBudgets={canVerifyBudgetsApp}
-          verifierDisplayName={budgetVerifierDisplayName}
           canApproveBudgetItems={canApproveBudgetItemsApp}
           actorOptions={budgetHubActorOptions}
         />

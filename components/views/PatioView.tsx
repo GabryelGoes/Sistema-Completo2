@@ -1308,6 +1308,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [editingBudget, setEditingBudget] = useState<SavedBudget | null>(null);
   const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
   const [verifyingBudgetId, setVerifyingBudgetId] = useState<string | null>(null);
+  /** Orçamento em conferência no modal do veículo (quando há mais de um). */
+  const [conferenceBudgetId, setConferenceBudgetId] = useState<string | null>(null);
   const closeBudgetModal = useCallback(() => {
     setIsBudgetOpen(false);
     setEditingBudget(null);
@@ -3443,13 +3445,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
       .catch(() => setWorkshopParts([]));
   };
 
-  const handleVerifyBudget = async () => {
-    if (!selectedCard || !viewingBudget || !canVerifyBudgetsEffective) return;
-    setVerifyingBudgetId(viewingBudget.id);
+  const handleVerifyBudget = async (budgetId: string) => {
+    if (!selectedCard || !canVerifyBudgetsEffective) return;
+    const budget = savedBudgets.find((b) => b.id === budgetId);
+    if (!budget) return;
+    setVerifyingBudgetId(budgetId);
     try {
       const updated = await verifyServiceOrderBudget(
         selectedCard.id,
-        viewingBudget.id,
+        budgetId,
         { verifiedByName: commentAuthorName?.trim() || 'Administrador' },
         actorOptions
       );
@@ -3462,6 +3466,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setVerifyingBudgetId(null);
     }
   };
+
+  useEffect(() => {
+    if (!selectedCard?.id) {
+      setConferenceBudgetId(null);
+      return;
+    }
+    const list = savedBudgets
+      .filter((b) => b.serviceOrderId === selectedCard.id)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    if (list.length === 0) {
+      setConferenceBudgetId(null);
+      return;
+    }
+    setConferenceBudgetId((prev) => {
+      if (prev && list.some((b) => b.id === prev)) return prev;
+      const pending = list.find((b) => !isBudgetVerified(b));
+      return pending?.id ?? list[list.length - 1].id;
+    });
+  }, [selectedCard?.id, savedBudgets]);
 
   const handleDeleteBudget = async () => {
     if (!selectedCard || !viewingBudget) return;
@@ -7406,6 +7429,58 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               )}
                               </div>
 
+                              {(() => {
+                                const cardBudgets = savedBudgets
+                                  .filter((b) => b.serviceOrderId === selectedCard.id)
+                                  .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                                if (cardBudgets.length === 0) return null;
+                                const activeConferenceId =
+                                  conferenceBudgetId && cardBudgets.some((b) => b.id === conferenceBudgetId)
+                                    ? conferenceBudgetId
+                                    : cardBudgets.find((b) => !isBudgetVerified(b))?.id ??
+                                      cardBudgets[cardBudgets.length - 1].id;
+                                const conferenceBudget = cardBudgets.find((b) => b.id === activeConferenceId);
+                                if (!conferenceBudget) return null;
+                                return (
+                                  <div className="space-y-2.5">
+                                    {cardBudgets.length > 1 ? (
+                                      <div className="flex flex-wrap gap-2">
+                                        {cardBudgets.map((b) => {
+                                          const num = budgetChronologicalNumber(cardBudgets, b.id);
+                                          const active = b.id === activeConferenceId;
+                                          return (
+                                            <button
+                                              key={b.id}
+                                              type="button"
+                                              onClick={() => setConferenceBudgetId(b.id)}
+                                              className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                                                active
+                                                  ? 'bg-[#007AFF] text-white shadow-sm'
+                                                  : 'border border-zinc-200/80 bg-white text-zinc-700 hover:border-[#007AFF]/35 dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-200'
+                                              }`}
+                                            >
+                                              Orçamento {num}
+                                              {isBudgetVerified(b) ? ' · verificado' : ''}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    ) : null}
+                                    <BudgetVerificationPanel
+                                      isVerified={isBudgetVerified(conferenceBudget)}
+                                      verifiedAt={conferenceBudget.verifiedAt}
+                                      verifiedByName={conferenceBudget.verifiedByName}
+                                      canVerify={canVerifyBudgetsEffective}
+                                      verifying={verifyingBudgetId === conferenceBudget.id}
+                                      onVerify={() => void handleVerifyBudget(conferenceBudget.id)}
+                                      diagnosis={conferenceBudget.diagnosis}
+                                      services={conferenceBudget.services}
+                                      parts={conferenceBudget.parts}
+                                    />
+                                  </div>
+                                );
+                              })()}
+
                               </div>
                             </div>
                           </div>
@@ -8827,19 +8902,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </button>
             </div>
             <div className={budgetReadModalScrollClass}>
-              {!!selectedCard && (
-                <BudgetVerificationPanel
-                  isVerified={isBudgetVerified(viewingBudget)}
-                  verifiedAt={viewingBudget.verifiedAt}
-                  verifiedByName={viewingBudget.verifiedByName}
-                  canVerify={canVerifyBudgetsEffective}
-                  verifying={verifyingBudgetId === viewingBudget.id}
-                  onVerify={() => void handleVerifyBudget()}
-                  diagnosis={viewingBudget.diagnosis}
-                  services={viewingBudget.services}
-                  parts={viewingBudget.parts}
-                />
-              )}
               <BudgetReadModalBody
                 diagnosis={viewingBudget.diagnosis}
                 services={viewingBudget.services}
