@@ -6132,7 +6132,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       className="inline-flex items-center gap-2 rounded-xl bg-purple-700 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-purple-600 disabled:opacity-60"
                                     >
                                       <Truck className="h-4 w-4" strokeWidth={2.2} />
-                                      Registrar envio (Em conserto)
+                                      Registrar Envio
                                     </button>
                                   </div>
                                 ) : null}
@@ -6218,7 +6218,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       title="Salva os dados e marca o produto como em conserto externo"
                                     >
                                       <Truck className="h-4 w-4" strokeWidth={2.2} />
-                                      Registrar envio (Em conserto)
+                                      Registrar Envio
                                     </button>
                                   ) : (
                                     <span />
