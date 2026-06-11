@@ -90,6 +90,55 @@ export function createApiApp() {
   const corsAllowedOrigins = parseCorsAllowedOrigins();
   app.use(express.json());
 
+  /** Cache: colunas de verificação de orçamento (migration 20260605140000). */
+  let budgetVerifiedColumnsAvailable: boolean | null = null;
+
+  const BUDGET_ROW_SELECT_BASE =
+    "id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at";
+  const BUDGET_VERIFY_SELECT_SUFFIX = ", verified_at, verified_by_name";
+  const BUDGET_AGGREGATE_SELECT_BASE =
+    "id, service_order_id, created_at, updated_at, diagnosis, services, parts, observations, card_name";
+
+  function isMissingBudgetVerifyColumnError(message: string | undefined): boolean {
+    if (!message) return false;
+    return /verified_(at|by_name)/i.test(message) && /does not exist|column/i.test(message);
+  }
+
+  async function hasBudgetVerifyColumns(): Promise<boolean> {
+    if (budgetVerifiedColumnsAvailable !== null) return budgetVerifiedColumnsAvailable;
+    if (!supabaseAdmin) {
+      budgetVerifiedColumnsAvailable = false;
+      return false;
+    }
+    const { error } = await supabaseAdmin.from("budgets").select("verified_at").limit(1);
+    if (error && isMissingBudgetVerifyColumnError(error.message)) {
+      budgetVerifiedColumnsAvailable = false;
+      console.warn(
+        "[API] Colunas budgets.verified_at ausentes — aplique supabase/migrations/20260605140000_budgets_verification.sql no Supabase."
+      );
+      return false;
+    }
+    budgetVerifiedColumnsAvailable = true;
+    return true;
+  }
+
+  async function budgetRowSelect(): Promise<string> {
+    return (await hasBudgetVerifyColumns())
+      ? BUDGET_ROW_SELECT_BASE + BUDGET_VERIFY_SELECT_SUFFIX
+      : BUDGET_ROW_SELECT_BASE;
+  }
+
+  async function budgetAggregateSelect(): Promise<string> {
+    return (await hasBudgetVerifyColumns())
+      ? BUDGET_AGGREGATE_SELECT_BASE + BUDGET_VERIFY_SELECT_SUFFIX
+      : BUDGET_AGGREGATE_SELECT_BASE;
+  }
+
+  function withBudgetVerifyDefaults<T extends Record<string, unknown>>(row: T): T {
+    if ("verified_at" in row && "verified_by_name" in row) return row;
+    return { ...row, verified_at: null, verified_by_name: null };
+  }
+
   /** Atualiza `updated_at` na OS para disparar Realtime/SSE (ex.: após mudança só no Storage). */
   async function touchServiceOrderUpdatedAt(serviceOrderId: string): Promise<void> {
     if (!supabaseAdmin) return;
@@ -2336,7 +2385,7 @@ export function createApiApp() {
 
       const { data: budgets, error: e2 } = await supabaseAdmin
         .from("budgets")
-        .select("id, service_order_id, created_at, updated_at, diagnosis, services, parts, observations, card_name, verified_at, verified_by_name")
+        .select(await budgetAggregateSelect())
         .eq("workshop_id", WORKSHOP_ID)
         .in("service_order_id", orderIds);
 
@@ -3234,7 +3283,7 @@ export function createApiApp() {
 
       const { data, error } = await supabaseAdmin
         .from("budgets")
-        .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at, verified_at, verified_by_name")
+        .select(await budgetRowSelect())
         .eq("service_order_id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID);
 
@@ -3255,7 +3304,9 @@ export function createApiApp() {
         );
         return tb - ta;
       });
-      return res.json(rows);
+      return res.json(
+        rows.map((row) => withBudgetVerifyDefaults(row as Record<string, unknown>))
+      );
     } catch (err: any) {
       console.error("[API] Erro em GET /api/service-orders/:id/budgets:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -3317,7 +3368,7 @@ export function createApiApp() {
         const legacy = await supabaseAdmin
           .from("budgets")
           .insert(payload)
-          .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at, verified_at, verified_by_name")
+          .select(await budgetRowSelect())
           .single();
         data = legacy.data;
         error = legacy.error;
@@ -3372,7 +3423,7 @@ export function createApiApp() {
       }
 
       const created = Array.isArray(data) ? data[0] : data;
-      return res.status(201).json(created);
+      return res.status(201).json(withBudgetVerifyDefaults((created ?? {}) as Record<string, unknown>));
     } catch (err: any) {
       console.error("[API] Erro em POST /api/service-orders/:id/budgets:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -3466,7 +3517,7 @@ export function createApiApp() {
           .eq("id", budgetId)
           .eq("service_order_id", serviceOrderId)
           .eq("workshop_id", WORKSHOP_ID)
-          .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at, verified_at, verified_by_name")
+          .select(await budgetRowSelect())
           .single();
         data = legacy.data;
         error = legacy.error;
@@ -3496,17 +3547,19 @@ export function createApiApp() {
         return res.status(404).json({ error: "Orçamento não encontrado." });
       }
 
-      // Edição invalida o selo de verificação.
-      const cleared = await supabaseAdmin
-        .from("budgets")
-        .update({ verified_at: null, verified_by_name: null })
-        .eq("id", budgetId)
-        .eq("service_order_id", serviceOrderId)
-        .eq("workshop_id", WORKSHOP_ID)
-        .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at, verified_at, verified_by_name")
-        .single();
-      if (!cleared.error && cleared.data) {
-        updated = cleared.data;
+      // Edição invalida o selo de verificação (quando a migration já foi aplicada).
+      if (await hasBudgetVerifyColumns()) {
+        const cleared = await supabaseAdmin
+          .from("budgets")
+          .update({ verified_at: null, verified_by_name: null })
+          .eq("id", budgetId)
+          .eq("service_order_id", serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID)
+          .select(await budgetRowSelect())
+          .single();
+        if (!cleared.error && cleared.data) {
+          updated = cleared.data;
+        }
       }
 
       const budgetEditPayload = {
@@ -3541,7 +3594,7 @@ export function createApiApp() {
         }
       }
 
-      return res.json(updated);
+      return res.json(withBudgetVerifyDefaults((updated ?? {}) as Record<string, unknown>));
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/service-orders/:id/budgets/:budgetId:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -3575,6 +3628,13 @@ export function createApiApp() {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
 
+      if (!(await hasBudgetVerifyColumns())) {
+        return res.status(503).json({
+          error:
+            "Verificação de orçamento indisponível: aplique a migration budgets_verification no Supabase (colunas verified_at e verified_by_name).",
+        });
+      }
+
       const { data, error } = await supabaseAdmin
         .from("budgets")
         .update({
@@ -3584,7 +3644,7 @@ export function createApiApp() {
         .eq("id", budgetId)
         .eq("service_order_id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
-        .select("id, service_order_id, card_name, diagnosis, services, parts, observations, created_at, updated_at, verified_at, verified_by_name")
+        .select(await budgetRowSelect())
         .single();
 
       if (error || !data) {
