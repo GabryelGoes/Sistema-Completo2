@@ -1844,11 +1844,8 @@ export function createApiApp() {
 
     const slides = (slideRows ?? []).map((row: Record<string, unknown>) => {
       const parsed = parseTvBodyAndFullscreen(row.body);
-      const st = String(row.slide_type ?? "");
-      const hasMedia = row.media_url != null && String(row.media_url).trim() !== "";
-      /** Na TV, imagem/vídeo com URL ocupam a área inteira (sem cabeçalho de marca no cliente). */
-      const mediaFullscreen =
-        (st === "image" || st === "video") && hasMedia ? true : parsed.mediaFullscreen;
+      /** Respeita o botão "Mídia em tela cheia" configurado no app (não força mais sempre true). */
+      const mediaFullscreen = parsed.mediaFullscreen;
       return {
         id: row.id,
         slideType: row.slide_type,
