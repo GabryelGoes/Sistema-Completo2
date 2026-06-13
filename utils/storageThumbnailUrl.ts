@@ -43,10 +43,16 @@ export function storageThumbnailUrl(publicUrl: string, options?: StorageThumbOpt
   return url;
 }
 
-/** URL otimizada para visualização em tela cheia (lightbox) — menor que o original. */
-export function storageDisplayUrl(publicUrl: string, maxWidth = 1400): string {
+/**
+ * URL otimizada para visualização em tela cheia (lightbox) — menor que o original.
+ * Usa caixa width×height com `resize=contain` para **preservar a proporção** (sem esticar)
+ * e limitar o tamanho transformado (mais rápido). Sem `height`, o Supabase mantinha a altura
+ * original e a imagem aparecia distorcida/comprida.
+ */
+export function storageDisplayUrl(publicUrl: string, maxSize = 1400): string {
   return storageThumbnailUrl(publicUrl, {
-    maxWidth,
+    maxWidth: maxSize,
+    maxHeight: maxSize,
     quality: 80,
     format: "webp",
     resize: "contain",
