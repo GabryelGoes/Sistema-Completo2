@@ -3,6 +3,7 @@ import type { Appointment } from "../types";
 import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
 import type { ExternalRepair } from "../constants/labBench";
 import { API_BASE } from "./apiConfig";
+import "./httpClient";
 
 async function readResponseJson<T>(response: Response, emptyMessage: string, invalidMessage: string): Promise<T> {
   const text = await response.text();
@@ -2822,6 +2823,8 @@ export interface AuthSession {
   displayName?: string;
   photoUrl?: string | null;
   profileToken?: string;
+  /** Token de sessão (HMAC) enviado como Authorization: Bearer em toda chamada à API. */
+  token?: string;
   isTechnician?: boolean;
   accentColor?: string | null;
   permissions?: SystemUserPermissions;
@@ -2838,7 +2841,7 @@ export async function login(username: string, password: string): Promise<AuthSes
     throw new Error(err.error || "Usuário ou senha incorretos.");
   }
   const data = await response.json();
-  if (data.role === "admin") return { role: "admin" };
+  if (data.role === "admin") return { role: "admin", token: data.token };
   return {
     role: "user",
     userId: data.userId,
@@ -2846,6 +2849,7 @@ export async function login(username: string, password: string): Promise<AuthSes
     displayName: data.displayName || data.username,
     photoUrl: data.photoUrl ?? null,
     profileToken: data.profileToken ?? undefined,
+    token: data.token,
     isTechnician: data.isTechnician ?? false,
     accentColor: data.accentColor ?? null,
     permissions: data.permissions || {},
@@ -2874,8 +2878,9 @@ export interface SystemUserTechnician {
 }
 
 export async function getSystemUsers(adminPassword: string): Promise<SystemUser[]> {
-  const url = `${API_BASE}/system-users?adminPassword=${encodeURIComponent(adminPassword)}`;
-  const response = await fetch(url);
+  const response = await fetch(`${API_BASE}/system-users`, {
+    headers: { "X-Admin-Password": adminPassword },
+  });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || "Falha ao listar usuários.");
@@ -2971,8 +2976,10 @@ export async function updateSystemUser(
 }
 
 export async function deleteSystemUser(id: string, adminPassword: string): Promise<void> {
-  const url = `${API_BASE}/system-users/${id}?adminPassword=${encodeURIComponent(adminPassword)}`;
-  const response = await fetch(url, { method: "DELETE" });
+  const response = await fetch(`${API_BASE}/system-users/${id}`, {
+    method: "DELETE",
+    headers: { "X-Admin-Password": adminPassword },
+  });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || "Falha ao excluir usuário.");

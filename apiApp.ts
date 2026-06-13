@@ -47,7 +47,82 @@ function verifyPassword(password: string, stored: string): boolean {
   const [salt, hash] = stored.split(":");
   if (!salt || !hash) return false;
   const computed = crypto.pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, KEY_LEN, DIGEST).toString("hex");
-  return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(computed, "hex"));
+  const a = Buffer.from(hash, "hex");
+  const b = Buffer.from(computed, "hex");
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+/** Formato de senha "salted hash" (salt:hash em hex) gerado por hashPassword(). */
+function looksHashed(value: string): boolean {
+  return /^[0-9a-f]{32}:[0-9a-f]{128}$/i.test(String(value || ""));
+}
+
+/** Comparação de strings resistente a timing attacks. */
+function safeStringEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(String(a), "utf8");
+  const bb = Buffer.from(String(b), "utf8");
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
+
+// ----------------- TOKENS DE SESSÃO (HMAC, sem estado) -----------------
+const SESSION_SECRET =
+  process.env.SESSION_SECRET ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  "dev-only-insecure-secret";
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h
+
+type SessionPayload = {
+  r: "admin" | "user";
+  u?: string; // userId
+  n?: string; // username
+  exp: number;
+};
+
+function b64url(input: Buffer | string): string {
+  return Buffer.from(input)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+function b64urlDecode(input: string): Buffer {
+  const pad = input.length % 4 === 0 ? "" : "=".repeat(4 - (input.length % 4));
+  return Buffer.from(input.replace(/-/g, "+").replace(/_/g, "/") + pad, "base64");
+}
+
+function signSessionToken(payload: Omit<SessionPayload, "exp">, ttlMs = SESSION_TTL_MS): string {
+  const full: SessionPayload = { ...payload, exp: Date.now() + ttlMs };
+  const body = b64url(JSON.stringify(full));
+  const sig = b64url(crypto.createHmac("sha256", SESSION_SECRET).update(body).digest());
+  return `${body}.${sig}`;
+}
+
+function verifySessionToken(token: string | undefined | null): SessionPayload | null {
+  if (!token || typeof token !== "string") return null;
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [body, sig] = parts;
+  const expected = b64url(crypto.createHmac("sha256", SESSION_SECRET).update(body).digest());
+  if (!safeStringEqual(sig, expected)) return null;
+  try {
+    const payload = JSON.parse(b64urlDecode(body).toString("utf8")) as SessionPayload;
+    if (!payload || (payload.r !== "admin" && payload.r !== "user")) return null;
+    if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function getBearerToken(req: { headers: Record<string, unknown> }): string | null {
+  const raw = req.headers["authorization"];
+  const header = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
+  if (!header) return null;
+  const m = /^Bearer\s+(.+)$/i.exec(header);
+  return m ? m[1].trim() : null;
 }
 
 /**
@@ -303,12 +378,55 @@ export function createApiApp() {
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Requested-With, Accept, Accept-Language"
+      "Content-Type, Authorization, X-Requested-With, Accept, Accept-Language, X-Admin-Password"
     );
     res.setHeader("Access-Control-Max-Age", "86400");
     if (req.method === "OPTIONS") return res.sendStatus(204);
     next();
   });
+
+  /**
+   * Rotas públicas (sem token de sessão):
+   * - healthcheck e login (emite o token);
+   * - acompanhamento público do cliente (via share token na própria URL).
+   * Todo o resto exige um token de sessão válido (staff logado).
+   */
+  function isPublicApiRoute(method: string, urlPath: string): boolean {
+    if (urlPath === "/api/health") return true;
+    if (urlPath === "/api/auth/login" && method === "POST") return true;
+    if (/^\/api\/public\/vehicle-accompaniment\/[^/]+\/?$/.test(urlPath)) return true;
+    return false;
+  }
+
+  app.use((req, res, next) => {
+    const urlPath = (req.path || req.url || "").split("?")[0];
+    // Só protegemos a API; assets/SPA passam direto.
+    if (!urlPath.startsWith("/api/")) return next();
+    if (isPublicApiRoute(req.method, urlPath)) return next();
+
+    const auth = verifySessionToken(getBearerToken(req));
+    if (!auth) {
+      return res.status(401).json({ error: "Sessão inválida ou expirada. Faça login novamente." });
+    }
+    (req as unknown as { auth: SessionPayload }).auth = auth;
+    next();
+  });
+
+  /** True se a requisição vem de uma sessão de Gerência (token admin). */
+  function isAdminRequest(req: express.Request): boolean {
+    const auth = (req as unknown as { auth?: SessionPayload }).auth;
+    return auth?.r === "admin";
+  }
+
+  /** Lê a senha da Gerência do header (preferido), body ou query (legado), sem expor na URL. */
+  function adminPasswordFromReq(req: express.Request): string {
+    const header = req.headers["x-admin-password"];
+    if (typeof header === "string" && header) return header;
+    const body = (req.body as { adminPassword?: unknown } | undefined)?.adminPassword;
+    if (typeof body === "string" && body) return body;
+    if (typeof req.query.adminPassword === "string") return req.query.adminPassword;
+    return "";
+  }
 
   /** Retorna os IDs (workshop_system_users.id) de todos os técnicos da oficina para notificá-los quando o admin age. */
   async function getTechnicianUserIds(): Promise<string[]> {
@@ -454,19 +572,24 @@ export function createApiApp() {
   });
 
   // ----------------- AUTENTICAÇÃO -----------------
-  const DEFAULT_ADMIN_PASSWORD = "admin";
+  const IS_PRODUCTION = process.env.NODE_ENV === "production";
+  // Fallback inseguro APENAS em desenvolvimento. Em produção exige ADMIN_PASSWORD ou senha no banco.
+  const DEFAULT_ADMIN_PASSWORD = IS_PRODUCTION ? "" : "admin";
   const ADMIN_USERNAME = "Gerência";
 
-  async function getAdminPassword(): Promise<string> {
-    if (!supabaseAdmin || !WORKSHOP_ID) return process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
-    const { data: row } = await supabaseAdmin
-      .from("workshop_settings")
-      .select("value")
-      .eq("workshop_id", WORKSHOP_ID)
-      .eq("key", "admin_password")
-      .maybeSingle();
-    const db = row?.value != null && String(row.value).trim() !== "" ? String(row.value).trim() : "";
-    return db || process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
+  /** Retorna a credencial admin armazenada (pode ser hash salgado, ou texto puro vindo de env/legado). */
+  async function getStoredAdminCredential(): Promise<string> {
+    if (supabaseAdmin && WORKSHOP_ID) {
+      const { data: row } = await supabaseAdmin
+        .from("workshop_settings")
+        .select("value")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("key", "admin_password")
+        .maybeSingle();
+      const db = row?.value != null && String(row.value).trim() !== "" ? String(row.value).trim() : "";
+      if (db) return db;
+    }
+    return (process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD).trim();
   }
 
   async function verifyAdmin(username: string, password: string): Promise<boolean> {
@@ -476,8 +599,12 @@ export function createApiApp() {
   }
 
   async function verifyAdminPasswordOnly(password: string): Promise<boolean> {
-    const expected = await getAdminPassword();
-    return String(password).trim() === expected;
+    const stored = await getStoredAdminCredential();
+    if (!stored) return false; // produção sem senha configurada: nega tudo
+    const provided = String(password ?? "").trim();
+    if (!provided) return false;
+    if (looksHashed(stored)) return verifyPassword(provided, stored);
+    return safeStringEqual(provided, stored); // env/legado em texto puro
   }
 
   const DEFAULT_SYSTEM_NOTIFICATION_TYPES: string[] = [...SYSTEM_NOTIFICATION_IDS];
@@ -575,8 +702,37 @@ export function createApiApp() {
       .map((s) => s.systemUserId);
   }
 
+  // Rate limit simples por IP para o login (mitiga brute force). Em memória (por instância).
+  const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+  const LOGIN_MAX_ATTEMPTS = 10;
+  const LOGIN_WINDOW_MS = 5 * 60 * 1000; // 5 min
+
+  function loginRateLimited(ip: string): boolean {
+    const now = Date.now();
+    const entry = loginAttempts.get(ip);
+    if (!entry || entry.resetAt < now) {
+      loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+      return false;
+    }
+    entry.count += 1;
+    return entry.count > LOGIN_MAX_ATTEMPTS;
+  }
+
+  function resetLoginAttempts(ip: string): void {
+    loginAttempts.delete(ip);
+  }
+
   app.post("/api/auth/login", async (req, res) => {
     try {
+      const ip =
+        (typeof req.headers["x-forwarded-for"] === "string"
+          ? req.headers["x-forwarded-for"].split(",")[0].trim()
+          : "") || req.ip || "unknown";
+      if (loginRateLimited(ip)) {
+        return res
+          .status(429)
+          .json({ error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente." });
+      }
       const { username, password } = req.body || {};
       const u = typeof username === "string" ? username.trim() : "";
       const p = typeof password === "string" ? password : "";
@@ -584,7 +740,8 @@ export function createApiApp() {
         return res.status(400).json({ error: "Informe o usuário." });
       }
       if (await verifyAdmin(u, p)) {
-        return res.json({ role: "admin" });
+        resetLoginAttempts(ip);
+        return res.json({ role: "admin", token: signSessionToken({ r: "admin", n: ADMIN_USERNAME }) });
       }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(401).json({ error: "Usuário ou senha incorretos." });
@@ -604,6 +761,7 @@ export function createApiApp() {
       if (!verifyPassword(p, user.password_hash)) {
         return res.status(401).json({ error: "Usuário ou senha incorretos." });
       }
+      resetLoginAttempts(ip);
       const profileToken = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       await supabaseAdmin
@@ -619,6 +777,7 @@ export function createApiApp() {
         displayName: user.display_name || user.username,
         photoUrl: user.photo_url || null,
         profileToken,
+        token: signSessionToken({ r: "user", u: user.id, n: user.username }),
         isTechnician: !!(user as { is_technician?: boolean }).is_technician,
         accentColor: (user as { accent_color?: string | null }).accent_color || null,
         permissions,
@@ -666,7 +825,12 @@ export function createApiApp() {
     const uLower = u.toLowerCase();
     const user = (users || []).find(
       (r: { username: string; profile_token: string | null; profile_token_expires_at: string | null }) =>
-        String(r.username).trim().toLowerCase() === uLower && r.profile_token === t && r.profile_token_expires_at && r.profile_token_expires_at > now
+        String(r.username).trim().toLowerCase() === uLower &&
+        typeof r.profile_token === "string" &&
+        r.profile_token.length > 0 &&
+        safeStringEqual(r.profile_token, t) &&
+        r.profile_token_expires_at &&
+        r.profile_token_expires_at > now
     );
     if (!user) return null;
     return { id: user.id, username: user.username };
@@ -680,8 +844,8 @@ export function createApiApp() {
         return res.status(401).json({ error: "Usuário ou senha atual incorretos." });
       }
       const np = typeof newPassword === "string" ? newPassword : "";
-      if (!np || np.length < 4) {
-        return res.status(400).json({ error: "A nova senha deve ter no mínimo 4 caracteres." });
+      if (!np || np.length < 6) {
+        return res.status(400).json({ error: "A nova senha deve ter no mínimo 6 caracteres." });
       }
       const { error } = await supabaseAdmin
         .from("workshop_system_users")
@@ -828,8 +992,8 @@ export function createApiApp() {
 
   app.get("/api/system-users", async (req, res) => {
     try {
-      const adminPassword = typeof req.query.adminPassword === "string" ? req.query.adminPassword : "";
-      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+      const adminPassword = adminPasswordFromReq(req);
+      if (!WORKSHOP_ID || !(isAdminRequest(req) || (await verifyAdmin(ADMIN_USERNAME, adminPassword)))) {
         return res.status(403).json({ error: "Acesso negado." });
       }
       const { data, error } = await supabaseAdmin
@@ -856,7 +1020,7 @@ export function createApiApp() {
       const u = typeof username === "string" ? username.trim() : "";
       const p = typeof password === "string" ? password : "";
       if (!u) return res.status(400).json({ error: "Nome de usuário é obrigatório." });
-      if (!p || p.length < 4) return res.status(400).json({ error: "Senha deve ter no mínimo 4 caracteres." });
+      if (!p || p.length < 6) return res.status(400).json({ error: "Senha deve ter no mínimo 6 caracteres." });
       const perms = typeof permissions === "object" && permissions !== null ? permissions : {};
       const isTech = isTechnician === true || isTechnician === "true";
       const job = typeof jobTitle === "string" ? jobTitle.trim() || null : null;
@@ -895,7 +1059,7 @@ export function createApiApp() {
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if (typeof permissions === "object" && permissions !== null) updates.permissions = permissions;
       if (typeof displayName === "string") updates.display_name = displayName.trim() || null;
-      if (typeof password === "string" && password.length >= 4) updates.password_hash = hashPassword(password);
+      if (typeof password === "string" && password.length >= 6) updates.password_hash = hashPassword(password);
       if (isTechnician !== undefined) updates.is_technician = isTechnician === true || isTechnician === "true";
       if (jobTitle !== undefined) updates.job_title = typeof jobTitle === "string" ? jobTitle.trim() || null : null;
       const { data, error } = await supabaseAdmin
@@ -916,8 +1080,8 @@ export function createApiApp() {
 
   app.delete("/api/system-users/:id", async (req, res) => {
     try {
-      const adminPassword = typeof req.query.adminPassword === "string" ? req.query.adminPassword : "";
-      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+      const adminPassword = adminPasswordFromReq(req);
+      if (!WORKSHOP_ID || !(isAdminRequest(req) || (await verifyAdmin(ADMIN_USERNAME, adminPassword)))) {
         return res.status(403).json({ error: "Acesso negado." });
       }
       const { error } = await supabaseAdmin
@@ -1177,6 +1341,24 @@ export function createApiApp() {
         appAppearance,
         labProductKinds,
       } = req.body || {};
+
+      // Chaves sensíveis (senha de gerência, PIN do pátio, senha de exclusão, acessos e perfil
+      // do admin) só podem ser alteradas pela Gerência. labProductKinds/appAppearance ficam
+      // liberados para usuários autenticados (ex.: laboratório configurando tipos de produto).
+      const touchesSensitive =
+        (typeof adminPassword === "string" && adminPassword.trim()) ||
+        typeof patioPin === "string" ||
+        typeof vehicleDeletePassword === "string" ||
+        typeof adminDisplayName === "string" ||
+        typeof adminPhotoUrl === "string" ||
+        typeof patioLoginEnabled === "boolean" ||
+        typeof technicianAccessReception === "boolean" ||
+        typeof technicianAccessAgenda === "boolean" ||
+        typeof technicianAccessPatio === "boolean";
+      if (touchesSensitive && !isAdminRequest(req)) {
+        return res.status(403).json({ error: "Apenas a Gerência pode alterar estas configurações." });
+      }
+
       const updates: { key: string; value: string; updated_at: string }[] = [];
       if (typeof patioLoginEnabled === "boolean") {
         updates.push({ key: "patio_login_enabled", value: String(patioLoginEnabled), updated_at: new Date().toISOString() });
@@ -1185,7 +1367,8 @@ export function createApiApp() {
         updates.push({ key: "patio_pin", value: patioPin.trim(), updated_at: new Date().toISOString() });
       }
       if (typeof adminPassword === "string" && adminPassword.trim()) {
-        updates.push({ key: "admin_password", value: adminPassword.trim(), updated_at: new Date().toISOString() });
+        // Armazena com hash salgado (PBKDF2), nunca em texto puro.
+        updates.push({ key: "admin_password", value: hashPassword(adminPassword.trim()), updated_at: new Date().toISOString() });
       }
       if (typeof adminDisplayName === "string") {
         updates.push({ key: "admin_display_name", value: adminDisplayName.trim() || "Rei do ABS", updated_at: new Date().toISOString() });
