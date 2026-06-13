@@ -100,7 +100,7 @@ import { useDesktopShellLayout } from '../ui/DesktopShellContext';
 import { useDragScroll } from '../../hooks/useDragScroll';
 import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverlay';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
-import { storageThumbnailUrl, bustStoragePublicUrl } from '../../utils/storageThumbnailUrl';
+import { storageThumbnailUrl, storageDisplayUrl, bustStoragePublicUrl } from '../../utils/storageThumbnailUrl';
 import {
   resolveRotatedImageBlob,
   isAttachmentImageFile,
@@ -657,6 +657,9 @@ const Lightbox = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isSwiping, setIsSwiping] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  /** Mostra versão otimizada (menor) do Storage; só cai para a original se a otimizada falhar. */
+  const [displayFailed, setDisplayFailed] = useState(false);
+  const effectiveSrc = displayFailed ? src : storageDisplayUrl(src);
   const preloadedImagesRef = useRef<Set<string>>(new Set());
 
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
@@ -700,20 +703,25 @@ const Lightbox = ({
     setScale(1);
     setTranslate({ x: 0, y: 0 });
     setImageLoaded(false);
+    setDisplayFailed(false);
   }, [src]);
 
-  // Pré-carrega imagens vizinhas para swipe ficar imediato
+  // Pré-carrega imagens vizinhas (versão otimizada) para swipe ficar imediato
   useEffect(() => {
+    const toDisplay = (i: number) => {
+      const u = images[i];
+      return u ? storageDisplayUrl(u) : undefined;
+    };
     if (!hasMultiple) {
-      preloadImage(src);
+      preloadImage(storageDisplayUrl(src));
       return;
     }
-    preloadImage(images[currentIndex]);
-    preloadImage(images[currentIndex - 1]);
-    preloadImage(images[currentIndex + 1]);
+    preloadImage(toDisplay(currentIndex));
+    preloadImage(toDisplay(currentIndex - 1));
+    preloadImage(toDisplay(currentIndex + 1));
     // Buffer adicional para navegação rápida em sequência
-    preloadImage(images[currentIndex - 2]);
-    preloadImage(images[currentIndex + 2]);
+    preloadImage(toDisplay(currentIndex - 2));
+    preloadImage(toDisplay(currentIndex + 2));
   }, [hasMultiple, images, currentIndex, src, preloadImage]);
 
   useEffect(() => {
@@ -993,13 +1001,16 @@ const Lightbox = ({
         <img
           key={src}
           ref={imageRef}
-          src={src}
+          src={effectiveSrc}
           alt="Preview"
           crossOrigin={src.startsWith("blob:") || src.startsWith("data:") ? undefined : "anonymous"}
           decoding="async"
           loading="eager"
           fetchPriority="high"
           onLoad={() => setImageLoaded(true)}
+          onError={() => {
+            if (!displayFailed && effectiveSrc !== src) setDisplayFailed(true);
+          }}
           onDoubleClick={handleDoubleTap}
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
@@ -3921,7 +3932,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!originalUrl || attachmentPreloadRef.current.has(originalUrl)) return;
     const img = new Image();
     img.decoding = 'async';
-    img.src = originalUrl;
+    // Pré-carrega a versão otimizada (mesma que o lightbox exibe) para abrir instantâneo.
+    img.src = storageDisplayUrl(originalUrl);
     attachmentPreloadRef.current.add(originalUrl);
   }, []);
 
