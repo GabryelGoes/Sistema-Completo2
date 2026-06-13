@@ -35,6 +35,7 @@ Para o login e a API funcionarem no deploy, configure no projeto Vercel as **var
 | `WORKSHOP_ID` | Sim | ID da oficina (UUID em `workshops`) |
 | `ADMIN_PASSWORD` | Sim (produção) | Senha da Gerência. Sem ela (e sem senha salva no banco) o login de Gerência é negado em produção |
 | `SESSION_SECRET` | Recomendada | Segredo para assinar os tokens de sessão (HMAC). Se ausente, deriva da `SUPABASE_SERVICE_ROLE_KEY` |
+| `TV_API_TOKEN` | Recomendada | Token de leitura das TVs (rodam sem login). Se definido, os projetos `Patio-View`/`Laboratorio-View` precisam enviar o mesmo valor em `VITE_TV_TOKEN`. Se ausente, as rotas de leitura da TV (`GET /api/tv/playlist` e `GET /api/service-orders`) ficam abertas |
 | `PATIO_VIEW_ORIGINS` | Não | CORS: origens extras além de `https://patio-view.vercel.app` (separadas por vírgula) |
 
 Em **Vercel → Project → Settings → Environment Variables**, adicione essas variáveis e faça um novo deploy. Sem elas, as chamadas a `/api/auth/admin` e `/api/auth/patio` falham e o login não funciona.

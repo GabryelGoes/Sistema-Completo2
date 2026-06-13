@@ -398,18 +398,40 @@ export function createApiApp() {
     return false;
   }
 
+  /**
+   * Rotas de leitura usadas pelos painéis de TV (Patio-View / Laboratorio-View),
+   * que rodam sem login. Apenas GET e somente o necessário para o quadro + playlist.
+   */
+  const TV_API_TOKEN = (process.env.TV_API_TOKEN || "").trim();
+  function isTvReadRoute(method: string, urlPath: string): boolean {
+    if (method !== "GET") return false;
+    return urlPath === "/api/tv/playlist" || urlPath === "/api/service-orders";
+  }
+
   app.use((req, res, next) => {
     const urlPath = (req.path || req.url || "").split("?")[0];
     // Só protegemos a API; assets/SPA passam direto.
     if (!urlPath.startsWith("/api/")) return next();
     if (isPublicApiRoute(req.method, urlPath)) return next();
 
-    const auth = verifySessionToken(getBearerToken(req));
-    if (!auth) {
-      return res.status(401).json({ error: "Sessão inválida ou expirada. Faça login novamente." });
+    const bearer = getBearerToken(req);
+
+    // 1) Sessão de staff (token HMAC do login) — acesso pleno.
+    const auth = verifySessionToken(bearer);
+    if (auth) {
+      (req as unknown as { auth: SessionPayload }).auth = auth;
+      return next();
     }
-    (req as unknown as { auth: SessionPayload }).auth = auth;
-    next();
+
+    // 2) Painéis de TV: apenas rotas de leitura do quadro/playlist.
+    if (isTvReadRoute(req.method, urlPath)) {
+      // Se TV_API_TOKEN estiver configurado, exige-o; senão, libera (fallback p/ não derrubar a TV).
+      if (!TV_API_TOKEN) return next();
+      if (bearer && safeStringEqual(bearer, TV_API_TOKEN)) return next();
+      return res.status(401).json({ error: "Token de TV inválido." });
+    }
+
+    return res.status(401).json({ error: "Sessão inválida ou expirada. Faça login novamente." });
   });
 
   /** True se a requisição vem de uma sessão de Gerência (token admin). */
