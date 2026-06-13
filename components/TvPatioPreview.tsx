@@ -16,6 +16,15 @@ function mediaObjectFitClass(fit: TvMediaObjectFit | undefined): string {
   }
 }
 
+/** Vídeo local do PC da TV (ex.: "local:promo.mp4") — só toca na TV física. */
+function isLocalVideoRef(url: string): boolean {
+  return url.trim().toLowerCase().startsWith('local:');
+}
+
+function localVideoName(url: string): string {
+  return url.trim().slice('local:'.length).replace(/^[/\\]+/, '').trim();
+}
+
 function extractYoutubeId(url: string): string | null {
   const m = url.match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([a-zA-Z0-9_-]{11})/);
   if (m) return m[1];
@@ -213,6 +222,20 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
     }
 
     if (t === 'video' && slide.mediaUrl) {
+      if (isLocalVideoRef(slide.mediaUrl)) {
+        return (
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 bg-black px-4 text-center">
+            <svg viewBox="0 0 24 24" className="h-7 w-7 fill-emerald-400/80">
+              <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+            </svg>
+            <p className="text-[11px] font-black uppercase tracking-wider text-emerald-300/90">Vídeo local</p>
+            <p className="max-w-[85%] break-all text-[9px] font-semibold text-white/55">{localVideoName(slide.mediaUrl)}</p>
+            <p className="max-w-[85%] text-[8px] leading-snug text-white/35">
+              Lido da pasta do PC da TV — não aparece neste preview, mas toca na TV física.
+            </p>
+          </div>
+        );
+      }
       const yt = /youtube\.com|youtu\.be/.test(slide.mediaUrl);
       if (yt) {
         const id = extractYoutubeId(slide.mediaUrl);

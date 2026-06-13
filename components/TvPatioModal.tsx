@@ -1487,9 +1487,20 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             value={newMediaUrl}
                             onChange={(e) => setNewMediaUrl(e.target.value)}
                             className={iosInput}
-                            placeholder="https://..."
+                            placeholder={newType === 'video' ? 'https://...  ou  local:meu-video.mp4' : 'https://...'}
                           />
                         </div>
+                        {newType === 'video' && (
+                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3">
+                            <p className="text-[12px] font-semibold text-emerald-900">Vídeo da pasta do PC da TV</p>
+                            <p className="mt-1 text-[11px] leading-relaxed text-emerald-800/80">
+                              Para vídeos grandes sem depender de upload, digite{' '}
+                              <code className="rounded bg-emerald-100 px-1 font-mono text-[10px]">local:nome-do-arquivo.mp4</code>{' '}
+                              no campo acima. O vídeo é lido direto da pasta escolhida no PC da TV (configure a pasta no canto
+                              superior da TV do Pátio). As imagens continuam por URL/upload normalmente.
+                            </p>
+                          </div>
+                        )}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
                           <div>
                             <p className="text-[13px] font-semibold text-zinc-900">Mídia em tela cheia</p>
@@ -1833,9 +1844,19 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                     value={editForm.mediaUrl}
                                     onChange={(e) => setEditForm((f) => (f ? { ...f, mediaUrl: e.target.value } : f))}
                                     className={iosInput}
-                                    placeholder="https://..."
+                                    placeholder={editForm.slideType === 'video' ? 'https://...  ou  local:meu-video.mp4' : 'https://...'}
                                   />
                                 </div>
+                                {editForm.slideType === 'video' && (
+                                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3">
+                                    <p className="text-[12px] font-semibold text-emerald-900">Vídeo da pasta do PC da TV</p>
+                                    <p className="mt-1 text-[11px] leading-relaxed text-emerald-800/80">
+                                      Digite{' '}
+                                      <code className="rounded bg-emerald-100 px-1 font-mono text-[10px]">local:nome-do-arquivo.mp4</code>{' '}
+                                      para tocar o vídeo direto da pasta do PC da TV (sem upload e sem limite de tamanho).
+                                    </p>
+                                  </div>
+                                )}
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
                                   <div>
                                     <p className="text-[13px] font-semibold text-zinc-900">Mídia em tela cheia</p>
