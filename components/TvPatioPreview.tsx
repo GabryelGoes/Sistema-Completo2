@@ -3,6 +3,7 @@ import type { TvMediaObjectFit, TvSlide } from '../services/apiService';
 import { normalizeTvMediaObjectFit } from '../services/apiService';
 import type { TvChimeAlert, TvChimeKind, TvChimeScheduleConfig } from '../utils/tvChimeSchedule';
 import { TvChimeBannerCard } from './TvChimeBannerCard';
+import { TvUploadedVideoPlayer } from './tv/TvUploadedVideoPlayer';
 
 function mediaObjectFitClass(fit: TvMediaObjectFit | undefined): string {
   switch (normalizeTvMediaObjectFit(fit)) {
@@ -222,10 +223,14 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
           </div>
         );
       }
-      const fit = mediaObjectFitClass(slide.mediaObjectFit);
       return (
         <div className="flex min-h-0 flex-1 items-center justify-center bg-black p-0">
-          <video src={slide.mediaUrl} className={`h-full w-full rounded-none ${fit}`} muted playsInline controls={false} />
+          <TvUploadedVideoPlayer
+            src={slide.mediaUrl}
+            className="h-full w-full rounded-none"
+            objectFit={normalizeTvMediaObjectFit(slide.mediaObjectFit)}
+            preview
+          />
         </div>
       );
     }
