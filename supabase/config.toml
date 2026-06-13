@@ -1,0 +1,9 @@
+# Configuração do Supabase CLI para este projeto.
+# Apenas o necessário para deploy da Edge Function de limpeza.
+# O `project_id` deve ser o ref do seu projeto (visível na URL do dashboard).
+# Ajuste se for usar `supabase link`/`supabase functions deploy`.
+
+[functions.cleanup-old-attachments]
+# Mantemos a verificação de JWT ligada; mesmo assim a função exige o header
+# secreto "x-cleanup-secret" para impedir disparos não autorizados.
+verify_jwt = true
