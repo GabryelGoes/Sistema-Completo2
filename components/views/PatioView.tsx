@@ -1459,6 +1459,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [isPatioPcModal]);
 
   const patioVehicleVm = useMemo(() => getPatioVehicleModalLayout(isPatioPcModal), [isPatioPcModal]);
+  const patioVmInsetCard = patioVehicleVm.insetCard;
+  const patioVmInputClass = patioVehicleVm.input;
   const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isPatioPcModal), [isPatioPcModal]);
   const patioVehicleModalOverlayClass = useMemo(() => {
     if (benchFullscreenOpen) {
@@ -5670,7 +5672,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         {!isModuleMode ? (
                           <div>
-                            <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
+                            <div className={`${patioVmInsetCard} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
                               <div className="relative min-w-0">
                                 <div
                                   className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -5706,7 +5708,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <textarea
                                       value={vehicleObservationsEditValue}
                                       onChange={(e) => setVehicleObservationsEditValue(e.target.value)}
-                                      className={`${vin} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
+                                      className={`${patioVmInputClass} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
                                       placeholder="Digite observações sobre o veículo…"
                                     />
                                     <div className="flex justify-end gap-1.5">
@@ -7392,7 +7394,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <textarea
                                       value={vehicleObservationsEditValue}
                                       onChange={(e) => setVehicleObservationsEditValue(e.target.value)}
-                                      className={`${vin} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
+                                      className={`${patioVehicleVm.input} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
                                       placeholder="Digite observações sobre o veículo…"
                                     />
                                     <div className="flex justify-end gap-1.5">
