@@ -19,11 +19,8 @@ import {
   LAB_MODULE_INTAKE_STATUSES,
 } from "./constants/serviceOrderStages.js";
 import {
-  labGroupForStatus,
   statusUsesBench,
-  statusInIntakeBenchGroup,
-  LAB_BENCH_INTAKE_GROUP,
-  firstFreeSlotForStatus,
+  firstFreeBenchSlot,
   normalizeBenchSlot,
   type ExternalRepair,
 } from "./constants/labBench.js";
@@ -248,33 +245,31 @@ export function createApiApp() {
   }
 
   /**
-   * Sugere o compartimento da bancada para um status.
-   * Mantém o slot atual se ele já pertencer ao grupo do novo status; senão pega o
-   * primeiro livre do grupo. Retorna `null` quando o status fica fora da bancada
-   * (ex.: EM_SERVICO) ou quando o grupo está cheio.
+   * Compartimento da bancada (vaga fixa): mantém o slot atual se já atribuído;
+   * senão primeiro livre entre 1..24. Null se fora da bancada ou lotada.
    */
   async function pickBenchSlotForStatus(
     status: string,
     currentSlot: number | null,
     excludeId?: string | null
   ): Promise<number | null> {
-    const group = labGroupForStatus(status);
-    if (!group) return null;
-    if (currentSlot != null && group.slots.includes(currentSlot)) return currentSlot;
+    if (!statusUsesBench(status)) return null;
+    const normalized = normalizeBenchSlot(currentSlot);
+    if (normalized != null) return normalized;
     const occupied = await occupiedBenchSlots(excludeId);
-    return firstFreeSlotForStatus(status, occupied);
+    return firstFreeBenchSlot(occupied);
   }
 
   /**
-   * Atribui compartimentos 1..4 a OS na fila (bench_queued_at), em ordem FIFO,
-   * sempre que houver vaga no grupo Aguardando avaliação.
+   * Atribui compartimentos a OS na fila (bench_queued_at), em ordem FIFO,
+   * quando qualquer vaga 1..24 liberar.
    */
   async function processIntakeBenchQueue(): Promise<void> {
     if (!supabaseAdmin || !WORKSHOP_ID) return;
     const occupied = await occupiedBenchSlots();
-    const maxPasses = LAB_BENCH_INTAKE_GROUP.slots.length + 8;
+    const maxPasses = 32;
     for (let pass = 0; pass < maxPasses; pass++) {
-      const freeSlot = firstFreeSlotForStatus(LAB_BENCH_INTAKE_GROUP.id, occupied);
+      const freeSlot = firstFreeBenchSlot(occupied);
       if (freeSlot == null) break;
 
       const { data: next, error: fetchErr } = await supabaseAdmin
@@ -285,7 +280,6 @@ export function createApiApp() {
         .neq("status", CANCELLED_STATUS)
         .is("bench_slot", null)
         .not("bench_queued_at", "is", null)
-        .in("status", [...LAB_BENCH_INTAKE_GROUP.statuses])
         .order("bench_queued_at", { ascending: true })
         .limit(1)
         .maybeSingle();
@@ -327,11 +321,11 @@ export function createApiApp() {
       return { bench_slot: null, bench_slot_at: null, bench_queued_at: null };
     }
     const occupied = await occupiedBenchSlots();
-    const slot = firstFreeSlotForStatus(status, occupied);
+    const slot = firstFreeBenchSlot(occupied);
     if (slot != null) {
       return { bench_slot: slot, bench_slot_at: now, bench_queued_at: null };
     }
-    if (statusInIntakeBenchGroup(status)) {
+    if (statusUsesBench(status)) {
       return { bench_slot: null, bench_slot_at: null, bench_queued_at: now };
     }
     return { bench_slot: null, bench_slot_at: null, bench_queued_at: null };
@@ -6530,14 +6524,10 @@ export function createApiApp() {
             updatePayload.bench_slot = newSlot;
             updatePayload.bench_slot_at = new Date().toISOString();
             updatePayload.bench_queued_at = null;
-          } else if (statusInIntakeBenchGroup(nextStatus)) {
-            updatePayload.bench_slot = null;
-            updatePayload.bench_slot_at = null;
-            updatePayload.bench_queued_at = new Date().toISOString();
           } else {
             updatePayload.bench_slot = null;
             updatePayload.bench_slot_at = null;
-            updatePayload.bench_queued_at = null;
+            updatePayload.bench_queued_at = new Date().toISOString();
           }
         } else {
           updatePayload.bench_slot = null;

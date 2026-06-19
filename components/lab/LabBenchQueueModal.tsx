@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Clock, ListOrdered, X } from 'lucide-react';
 import type { TrelloCard } from '../../types';
-import { LAB_BENCH_INTAKE_GROUP } from '../../constants/labBench';
+import { LAB_BENCH_SLOT_COUNT } from '../../constants/labBench';
 import { getStageConfig } from '../../constants/serviceOrderStages';
 import { PATIO_CARD_TITLE_SEP } from '../../utils/patioCardTitle';
 import { formatBenchQueuedAt, getBenchQueuedCards } from '../../utils/labBenchQueue';
@@ -58,7 +58,7 @@ export const LabBenchQueueModal: React.FC<LabBenchQueueModalProps> = ({
             <IosModalHeader
               icon={<ListOrdered className="h-6 w-6" strokeWidth={2} aria-hidden />}
               title="Fila da bancada"
-              subtitle={`Compartimentos ${LAB_BENCH_INTAKE_GROUP.slots.join('–')} · Aguardando avaliação`}
+              subtitle="Aguardando vaga na bancada (1–24)"
             />
             <button
               type="button"
@@ -72,9 +72,8 @@ export const LabBenchQueueModal: React.FC<LabBenchQueueModalProps> = ({
 
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             <p className="mb-4 text-[13px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-              Estes módulos foram cadastrados com a bancada de entrada lotada. Quando um compartimento{' '}
-              {LAB_BENCH_INTAKE_GROUP.slots.join(', ')} liberar, o primeiro da fila ocupa o espaço
-              automaticamente.
+              Estes módulos aguardam vaga na bancada (1–24). Quando um compartimento liberar, o primeiro da
+              fila ocupa automaticamente.
             </p>
 
             {queued.length === 0 ? (
@@ -83,8 +82,7 @@ export const LabBenchQueueModal: React.FC<LabBenchQueueModalProps> = ({
                   Nenhum módulo na fila
                 </p>
                 <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
-                  Todos os produtos em &quot;Aguardando avaliação&quot; já têm compartimento ou não estão
-                  aguardando vaga.
+                  Todos os produtos na bancada já têm compartimento ou não estão aguardando vaga.
                 </p>
               </div>
             ) : (

@@ -159,7 +159,7 @@ import {
   getPatioBoardColumnHeaderTopClass,
   getPatioBoardColumnShellClass,
 } from '../../utils/patioBoardGlassCard';
-import { groupForSlot, statusInIntakeBenchGroup, statusUsesBench } from '../../constants/labBench';
+import { LAB_BENCH_SLOT_COUNT, statusUsesBench } from '../../constants/labBench';
 import LabBenchPanel from '../lab/LabBenchPanel';
 import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
 import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
@@ -2067,8 +2067,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         (c) =>
           c.benchSlot == null &&
           !c.benchQueuedAt &&
-          statusUsesBench(c.idList) &&
-          !statusInIntakeBenchGroup(c.idList)
+          statusUsesBench(c.idList)
       ).length,
     [cards]
   );
@@ -5211,21 +5210,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     {card.benchQueuedAt && card.benchSlot == null ? (
                       <span
                         className="inline-flex items-center gap-1.5 rounded-xl border border-violet-300/80 bg-violet-50/90 px-2.5 py-1 text-[11px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100"
-                        title="Na fila: será posicionado automaticamente quando um compartimento 1–4 liberar"
+                        title="Na fila: será posicionado quando um compartimento liberar (1–24)"
                       >
-                        Fila da bancada · aguardando vaga (1–4)
+                        Fila da bancada · aguardando vaga
                       </span>
                     ) : typeof card.benchSlot === 'number' ? (
                       <span
                         className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200/80 bg-violet-50/90 px-2.5 py-1 text-[11px] font-semibold text-violet-800 dark:border-violet-500/30 dark:bg-violet-950/40 dark:text-violet-200"
-                        title={groupForSlot(card.benchSlot)?.label ?? 'Bancada do laboratório'}
+                        title="Bancada do laboratório — vaga fixa"
                       >
                         Bancada · Cx. {card.benchSlot}
-                        {groupForSlot(card.benchSlot)?.label ? (
-                          <span className="font-normal text-violet-600/90 dark:text-violet-300/90">
-                            · {groupForSlot(card.benchSlot)!.label}
-                          </span>
-                        ) : null}
                       </span>
                     ) : (
                       <span
@@ -6746,15 +6740,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     {typeof serviceOrderDetail.bench_slot === 'number' ? (
                                       <span className="inline-flex items-center rounded-lg border border-amber-300/80 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:border-amber-500/35 dark:bg-amber-950/40 dark:text-amber-100">
                                         Bancada · Cx. {serviceOrderDetail.bench_slot}
-                                        {groupForSlot(serviceOrderDetail.bench_slot)?.label ? (
-                                          <span className="ml-1 font-normal opacity-90">
-                                            ({groupForSlot(serviceOrderDetail.bench_slot)!.label})
-                                          </span>
-                                        ) : null}
                                       </span>
                                     ) : serviceOrderDetail.bench_queued_at ? (
                                       <span className="inline-flex items-center rounded-lg border border-violet-400/80 bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-950 dark:border-violet-500/40 dark:bg-violet-950/50 dark:text-violet-100">
-                                        Na fila da bancada (1–4)
+                                        Na fila da bancada
                                       </span>
                                     ) : statusUsesBench(serviceOrderDetail.status) ? (
                                       <span className="inline-flex items-center rounded-lg border border-amber-400/80 bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/50 dark:text-amber-100">

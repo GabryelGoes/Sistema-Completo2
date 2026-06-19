@@ -1,14 +1,11 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import type { TrelloCard } from '../../types';
 import {
-  LAB_BENCH_GROUPS,
-  LAB_BENCH_INTAKE_GROUP,
+  ALL_BENCH_SLOTS,
   LAB_BENCH_SLOT_COUNT,
-  firstFreeSlotForStatus,
-  labGroupForStatus,
-  statusInIntakeBenchGroup,
+  LAB_BENCH_STAGE_LEGEND,
+  firstFreeBenchSlot,
   statusUsesBench,
-  type LabBenchGroup,
 } from '../../constants/labBench';
 import { getStageConfig } from '../../constants/serviceOrderStages';
 import { parsePatioCardTitle } from '../../utils/patioCardTitle';
@@ -22,25 +19,16 @@ interface BenchEntry {
 }
 
 interface LabBenchPanelProps {
-  /** Cards de módulo (laboratório) atualmente em fluxo. */
   cards: TrelloCard[];
-  /** Abre o modal da OS ao clicar num compartimento ocupado. */
   onOpenCard: (card: TrelloCard) => void;
-  /** Move manualmente uma OS para um compartimento (ou null para liberar). */
   onMoveCard?: (cardId: string, slot: number | null) => void | Promise<void>;
 }
 
 function toEntry(card: TrelloCard): BenchEntry {
   const { vehicle, plateOrModule, customer } = parsePatioCardTitle(card.name || '');
-  return {
-    card,
-    vehicle,
-    identification: plateOrModule,
-    customer,
-  };
+  return { card, vehicle, identification: plateOrModule, customer };
 }
 
-/** Informações exibidas em cada produto na bancada (somente valores, sem rótulos). */
 function BenchProductDetails({
   entry,
   size = 'slot',
@@ -59,17 +47,10 @@ function BenchProductDetails({
 
   return (
     <div className="min-w-0 space-y-0.5">
-      <p className={vehicleClass} title={entry.vehicle}>
-        {entry.vehicle || '—'}
-      </p>
-      <p className={valueClass} title={entry.customer}>
-        {entry.customer || '—'}
-      </p>
+      <p className={vehicleClass} title={entry.vehicle}>{entry.vehicle || '—'}</p>
+      <p className={valueClass} title={entry.customer}>{entry.customer || '—'}</p>
       <p className={valueClass}>
         {entry.card.osNumber != null ? `OS ${entry.card.osNumber}` : '—'}
-      </p>
-      <p className={valueClass} title={entry.identification}>
-        {entry.identification || '—'}
       </p>
       {stage ? (
         <span
@@ -92,11 +73,11 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
   const [dragCardId, setDragCardId] = useState<string | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
   const [autoAssigning, setAutoAssigning] = useState(false);
+  const [search, setSearch] = useState('');
   const benchSkipClickRef = useRef(false);
 
   const moduleEntries = useMemo(() => cards.map(toEntry), [cards]);
 
-  /** Compartimento (1..24) -> OS que o ocupa. */
   const bySlot = useMemo(() => {
     const map = new Map<number, BenchEntry>();
     for (const e of moduleEntries) {
@@ -108,65 +89,57 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
     return map;
   }, [moduleEntries]);
 
-  /** Fila automática (compartimentos 1–4 lotados no cadastro). */
   const queued = useMemo(() => {
     const ordered = getBenchQueuedCards(cards);
     const byId = new Map(moduleEntries.map((e) => [e.card.id, e]));
     return ordered.map((c) => byId.get(c.id)).filter((e): e is BenchEntry => !!e);
   }, [cards, moduleEntries]);
 
-  /** Produtos em fluxo na bancada mas sem compartimento (cadastros antigos). */
   const unassigned = useMemo(
     () =>
       moduleEntries.filter(
         (e) =>
           e.card.benchSlot == null &&
           !e.card.benchQueuedAt &&
-          statusUsesBench(e.card.idList) &&
-          !statusInIntakeBenchGroup(e.card.idList)
+          statusUsesBench(e.card.idList)
       ),
     [moduleEntries]
   );
 
-  /** OS em fluxo, porém sem compartimento (ex.: Em serviço, com o técnico). */
   const offBench = useMemo(
-    () =>
-      moduleEntries.filter(
-        (e) => e.card.benchSlot == null && !statusUsesBench(e.card.idList)
-      ),
+    () => moduleEntries.filter((e) => e.card.benchSlot == null && !statusUsesBench(e.card.idList)),
     [moduleEntries]
   );
 
   const occupiedCount = bySlot.size;
+  const nextFreeSlot = useMemo(() => firstFreeBenchSlot(bySlot.keys()), [bySlot]);
 
-  /** Primeiro compartimento livre por grupo (para destacar a sugestão). */
-  const suggestionByGroup = useMemo(() => {
-    const map = new Map<string, number | null>();
-    for (const g of LAB_BENCH_GROUPS) {
-      const free = g.slots.find((s) => !bySlot.has(s)) ?? null;
-      map.set(g.id, free);
-    }
-    return map;
-  }, [bySlot]);
-
-  /** Sugestão de entrada de novo produto = primeiro livre no grupo "Aguardando avaliação". */
-  const intakeSuggestion = suggestionByGroup.get(LAB_BENCH_GROUPS[0].id) ?? null;
-
-  const activeMoveCardId = dragCardId ?? movingCardId;
-  const movingCard = activeMoveCardId ? cards.find((c) => c.id === activeMoveCardId) ?? null : null;
-  const movingGroup = movingCard ? labGroupForStatus(movingCard.idList) : null;
+  const searchLower = search.trim().toLowerCase();
+  const matchesSearch = useCallback(
+    (e: BenchEntry) => {
+      if (!searchLower) return true;
+      const hay = [
+        e.vehicle,
+        e.customer,
+        e.identification,
+        e.card.osNumber != null ? String(e.card.osNumber) : '',
+        getStageConfig(e.card.idList, 'module')?.name ?? '',
+      ]
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(searchLower);
+    },
+    [searchLower]
+  );
 
   const canDropOnSlot = useCallback(
-    (cardId: string, slot: number, group: LabBenchGroup): boolean => {
+    (cardId: string, slot: number): boolean => {
       if (!onMoveCard) return false;
       const card = cards.find((c) => c.id === cardId);
-      if (!card) return false;
-      const cardGroup = labGroupForStatus(card.idList);
-      if (!cardGroup || cardGroup.id !== group.id) return false;
+      if (!card || !statusUsesBench(card.idList)) return false;
       const occupant = bySlot.get(slot);
       if (occupant && occupant.card.id !== cardId) return false;
-      const currentSlot = card.benchSlot;
-      if (currentSlot === slot) return false;
+      if (card.benchSlot === slot) return false;
       return true;
     },
     [cards, bySlot, onMoveCard]
@@ -205,7 +178,7 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
     benchSkipClickRef.current = true;
   };
 
-  const handleSlotClick = (slot: number, group: LabBenchGroup) => {
+  const handleSlotClick = (slot: number) => {
     if (benchSkipClickRef.current) {
       benchSkipClickRef.current = false;
       return;
@@ -216,27 +189,11 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
         setMovingCardId(null);
         return;
       }
-      if (!canDropOnSlot(movingCardId, slot, group)) return;
+      if (!canDropOnSlot(movingCardId, slot)) return;
       finishMove(movingCardId, slot);
       return;
     }
     if (occupant) onOpenCard(occupant.card);
-  };
-
-  const handleSlotDragOver = (e: React.DragEvent, slot: number, group: LabBenchGroup) => {
-    if (!dragCardId || !canDropOnSlot(dragCardId, slot, group)) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverSlot(slot);
-  };
-
-  const handleSlotDrop = (e: React.DragEvent, slot: number, group: LabBenchGroup) => {
-    e.preventDefault();
-    const cardId = e.dataTransfer.getData(BENCH_DRAG_MIME) || dragCardId;
-    setDragOverSlot(null);
-    setDragCardId(null);
-    if (!cardId || !canDropOnSlot(cardId, slot, group)) return;
-    finishMove(cardId, slot);
   };
 
   const handleAutoAssignAll = async () => {
@@ -245,8 +202,8 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
     const occupied = new Set(bySlot.keys());
     try {
       for (const e of unassigned) {
-        const slot = firstFreeSlotForStatus(e.card.idList, occupied);
-        if (slot == null) continue;
+        const slot = firstFreeBenchSlot(occupied);
+        if (slot == null) break;
         await onMoveCard(e.card.id, slot);
         occupied.add(slot);
       }
@@ -271,22 +228,19 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
           <div>
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Bancada do laboratório</p>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-              {onMoveCard ? 'Arraste entre compartimentos do mesmo grupo · ' : ''}
-              {occupiedCount}/{LAB_BENCH_SLOT_COUNT} compartimentos ocupados
-              {queued.length > 0 ? (
-                <span className="ml-1 font-semibold text-violet-600 dark:text-violet-400">
-                  · {queued.length} na fila
-                </span>
-              ) : null}
-              {unassigned.length > 0 ? (
-                <span className="ml-1 font-semibold text-amber-600 dark:text-amber-400">
-                  · {unassigned.length} sem posição
-                </span>
-              ) : null}
+              Vaga fixa 1–24 · a etapa muda só no sistema
+              {onMoveCard ? ' · arraste para trocar vaga' : ''}
             </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar OS, cliente, produto…"
+            className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-800 outline-none focus:border-violet-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          />
           {unassigned.length > 0 && onMoveCard ? (
             <button
               type="button"
@@ -294,16 +248,19 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
               onClick={() => void handleAutoAssignAll()}
               className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
             >
-              {autoAssigning ? 'Posicionando…' : 'Posicionar todos automaticamente'}
+              {autoAssigning ? 'Posicionando…' : 'Posicionar todos'}
             </button>
           ) : null}
-          {intakeSuggestion != null ? (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-              Entrada de produto → compartimento {intakeSuggestion}
+          <span className="text-xs font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">
+            {occupiedCount}/{LAB_BENCH_SLOT_COUNT} ocupados
+          </span>
+          {nextFreeSlot != null ? (
+            <span className="inline-flex rounded-lg bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+              Próxima vaga → {nextFreeSlot}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-rose-500/15 px-2.5 py-1 text-xs font-medium text-rose-700 dark:text-rose-300">
-              &quot;Aguardando avaliação&quot; lotado
+            <span className="inline-flex rounded-lg bg-rose-500/15 px-2.5 py-1 text-xs font-medium text-rose-700 dark:text-rose-300">
+              Bancada cheia
             </span>
           )}
         </div>
@@ -312,11 +269,10 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
       {queued.length > 0 && (
         <div className="mb-3 rounded-lg border border-violet-300/80 bg-violet-50/90 p-2.5 dark:border-violet-600/40 dark:bg-violet-950/30">
           <p className="mb-1.5 text-[11px] font-semibold text-violet-900 dark:text-violet-100">
-            Fila — Aguardando avaliação (compartimentos {LAB_BENCH_INTAKE_GROUP.slots.join('–')})
+            Fila — aguardando vaga na bancada ({queued.length})
           </p>
           <p className="mb-2 text-[10px] leading-snug text-violet-800/90 dark:text-violet-200/80">
-            Quando um compartimento 1–4 liberar (mudança de etapa, entrega ou arquivamento), o próximo da fila
-            ocupa o espaço automaticamente.
+            Quando um compartimento liberar, o próximo da fila ocupa automaticamente.
           </p>
           <ol className="flex flex-col gap-1.5">
             {queued.map((e, index) => (
@@ -325,15 +281,13 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                 className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-violet-200/80 bg-white px-2 py-1.5 dark:border-violet-800/50 dark:bg-zinc-900/60"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="mb-1 text-[10px] font-bold text-violet-700 dark:text-violet-300">
-                    Fila #{index + 1}
-                  </p>
+                  <p className="mb-1 text-[10px] font-bold text-violet-700 dark:text-violet-300">Fila #{index + 1}</p>
                   <BenchProductDetails entry={e} size="list" />
                 </div>
                 <button
                   type="button"
                   onClick={() => onOpenCard(e.card)}
-                  className="rounded-md border border-violet-200 px-2 py-0.5 text-[10px] font-medium text-violet-800 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-200 dark:hover:bg-violet-950/50"
+                  className="rounded-md border border-violet-200 px-2 py-0.5 text-[10px] font-medium text-violet-800 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-200"
                 >
                   Abrir
                 </button>
@@ -346,76 +300,42 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
       {unassigned.length > 0 && (
         <div className="mb-3 rounded-lg border border-amber-300/80 bg-amber-50/90 p-2.5 dark:border-amber-600/40 dark:bg-amber-950/30">
           <p className="mb-1.5 text-[11px] font-semibold text-amber-900 dark:text-amber-100">
-            Produtos sem compartimento na bancada
-          </p>
-          <p className="mb-2 text-[10px] leading-snug text-amber-800/90 dark:text-amber-200/80">
-            Estes produtos já estavam no sistema antes da bancada digital. Arraste para um compartimento livre
-            do grupo da etapa, use <strong>Posicionar</strong> (toque) ou o botão automático acima.
+            Sem compartimento ({unassigned.length})
           </p>
           <ul className="flex flex-col gap-1.5">
-            {unassigned.map((e) => {
-              const group = labGroupForStatus(e.card.idList);
-              const isPlacing = movingCardId === e.card.id;
-              return (
-                <li
-                  key={e.card.id}
-                  draggable={!!onMoveCard}
-                  onDragStart={onMoveCard ? (ev) => beginDrag(e.card.id, ev) : undefined}
-                  onDragEnd={onMoveCard ? endDrag : undefined}
-                  className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-2 py-1.5 ${
-                    isPlacing
-                      ? 'border-blue-400 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/40'
-                      : dragCardId === e.card.id
-                        ? 'border-blue-400 bg-blue-50/80 opacity-60 dark:border-blue-700 dark:bg-blue-950/40'
-                        : 'border-amber-200/80 bg-white dark:border-amber-800/50 dark:bg-zinc-900/60'
-                  } ${onMoveCard ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <BenchProductDetails entry={e} size="list" />
-                    {group ? (
-                      <p className="mt-1 text-[9px] text-amber-700/90 dark:text-amber-300/90">
-                        Compartimentos {group.slots.join(', ')}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex shrink-0 gap-1">
+            {unassigned.map((e) => (
+              <li
+                key={e.card.id}
+                draggable={!!onMoveCard}
+                onDragStart={onMoveCard ? (ev) => beginDrag(e.card.id, ev) : undefined}
+                onDragEnd={onMoveCard ? endDrag : undefined}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200/80 bg-white px-2 py-1.5 dark:border-amber-800/50 dark:bg-zinc-900/60"
+              >
+                <BenchProductDetails entry={e} size="list" />
+                <div className="flex shrink-0 gap-1">
+                  <button type="button" onClick={() => onOpenCard(e.card)} className="rounded-md border px-2 py-0.5 text-[10px] font-medium">
+                    Abrir
+                  </button>
+                  {onMoveCard ? (
                     <button
                       type="button"
-                      onClick={() => onOpenCard(e.card)}
-                      className="rounded-md border border-zinc-200 px-2 py-0.5 text-[10px] font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      onClick={() => startMove(e.card.id)}
+                      className="rounded-md bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white"
                     >
-                      Abrir
+                      Posicionar
                     </button>
-                    {onMoveCard ? (
-                      <button
-                        type="button"
-                        onClick={() => startMove(e.card.id)}
-                        className={`rounded-md px-2 py-0.5 text-[10px] font-semibold text-white ${
-                          isPlacing ? 'bg-blue-600' : 'bg-amber-600 hover:bg-amber-500'
-                        }`}
-                      >
-                        {isPlacing ? 'Escolha o compartimento…' : 'Posicionar'}
-                      </button>
-                    ) : null}
-                  </div>
-                </li>
-              );
-            })}
+                  ) : null}
+                </div>
+              </li>
+            ))}
           </ul>
         </div>
       )}
 
       {movingCardId && !dragCardId && (
         <div className="mb-3 flex items-center justify-between rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-          <span>
-            Toque em um compartimento livre{' '}
-            {movingGroup ? `do grupo "${movingGroup.label}"` : ''} para posicionar o produto (ou arraste).
-          </span>
-          <button
-            type="button"
-            onClick={() => setMovingCardId(null)}
-            className="rounded-md px-2 py-0.5 font-medium hover:bg-blue-100 dark:hover:bg-blue-900"
-          >
+          <span>Toque em um compartimento vago ou arraste o produto.</span>
+          <button type="button" onClick={() => setMovingCardId(null)} className="rounded-md px-2 py-0.5 font-medium">
             Cancelar
           </button>
         </div>
@@ -425,150 +345,130 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
         {[0, 1].map((i) => (
           <div
             key={`big-${i}`}
-            className="flex h-12 items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 text-[11px] font-medium text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900/40"
+            className="flex h-10 items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 text-[10px] font-medium text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900/40"
           >
             Compartimento grande {i + 1}
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        {LAB_BENCH_GROUPS.map((group) => {
-          const suggestion = suggestionByGroup.get(group.id) ?? null;
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+        {ALL_BENCH_SLOTS.map((slot) => {
+          const occupant = bySlot.get(slot);
+          const dimmed = occupant && searchLower && !matchesSearch(occupant);
+          const isClickMoveTarget = !!movingCardId && !dragCardId && canDropOnSlot(movingCardId, slot);
+          const isDragDropTarget = !!dragCardId && canDropOnSlot(dragCardId, slot);
+          const isDropHighlight = dragOverSlot === slot && isDragDropTarget;
+          const isSuggested = nextFreeSlot === slot && !occupant;
+          const isDraggingThis = occupant && dragCardId === occupant.card.id;
+          const stageStyle = occupant ? getStageConfig(occupant.card.idList, 'module')?.style : '';
+
           return (
-            <div key={group.id} className="flex flex-col gap-1.5">
-              <div className={`rounded-md px-2 py-1 text-center text-[11px] font-semibold text-white ${group.accent}`}>
-                {group.label}
-              </div>
-              {group.slots.map((slot) => {
-                const occupant = bySlot.get(slot);
-                const isSuggested = suggestion === slot && !occupant;
-                const isClickMoveTarget =
-                  !!movingCardId &&
-                  !dragCardId &&
-                  canDropOnSlot(movingCardId, slot, group);
-                const isDragDropTarget =
-                  !!dragCardId && canDropOnSlot(dragCardId, slot, group);
-                const isDropHighlight = dragOverSlot === slot && isDragDropTarget;
-                const isDraggingThis = occupant && dragCardId === occupant.card.id;
-                return (
-                  <div
-                    role="button"
-                    tabIndex={occupant || isClickMoveTarget ? 0 : -1}
-                    key={slot}
-                    draggable={!!onMoveCard && !!occupant}
-                    onDragStart={
-                      occupant && onMoveCard ? (ev) => beginDrag(occupant.card.id, ev) : undefined
+            <div
+              role="button"
+              tabIndex={occupant || isClickMoveTarget ? 0 : -1}
+              key={slot}
+              draggable={!!onMoveCard && !!occupant}
+              onDragStart={occupant && onMoveCard ? (ev) => beginDrag(occupant.card.id, ev) : undefined}
+              onDragEnd={onMoveCard && occupant ? endDrag : undefined}
+              onClick={() => handleSlotClick(slot)}
+              onDragOver={
+                onMoveCard
+                  ? (ev) => {
+                      if (!dragCardId || !canDropOnSlot(dragCardId, slot)) return;
+                      ev.preventDefault();
+                      ev.dataTransfer.dropEffect = 'move';
+                      setDragOverSlot(slot);
                     }
-                    onDragEnd={onMoveCard && occupant ? endDrag : undefined}
-                    onClick={() => handleSlotClick(slot, group)}
-                    onKeyDown={(ev) => {
-                      if (ev.key === 'Enter' || ev.key === ' ') {
-                        ev.preventDefault();
-                        handleSlotClick(slot, group);
-                      }
-                    }}
-                    onDragOver={onMoveCard ? (ev) => handleSlotDragOver(ev, slot, group) : undefined}
-                    onDragLeave={(ev) => {
-                      const rel = ev.relatedTarget as Node | null;
-                      if (rel && ev.currentTarget.contains(rel)) return;
-                      setDragOverSlot((prev) => (prev === slot ? null : prev));
-                    }}
-                    onDrop={onMoveCard ? (ev) => handleSlotDrop(ev, slot, group) : undefined}
-                    className={[
-                      'group relative flex min-h-[108px] flex-col rounded-lg border p-1.5 text-left transition',
-                      occupant
-                        ? 'border-zinc-200 bg-zinc-50 hover:border-zinc-300 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600'
-                        : 'border-dashed border-zinc-200 bg-transparent dark:border-zinc-800',
-                      isSuggested ? 'ring-2 ring-emerald-400 ring-offset-1 ring-offset-white dark:ring-offset-[#111]' : '',
-                      isClickMoveTarget ? 'cursor-pointer border-blue-400 bg-blue-50/60 dark:bg-blue-950/30' : '',
-                      isDropHighlight ? 'scale-[1.02] border-blue-500 bg-blue-50 ring-2 ring-blue-400/70 dark:border-blue-500 dark:bg-blue-950/50' : '',
-                      isDragDropTarget && !occupant && !isDropHighlight
-                        ? 'border-blue-300/80 bg-blue-50/40 dark:border-blue-700/50 dark:bg-blue-950/20'
-                        : '',
-                      occupant && onMoveCard
-                        ? 'cursor-grab active:cursor-grabbing'
-                        : occupant
-                          ? 'cursor-pointer'
-                          : isClickMoveTarget || isDragDropTarget
-                            ? 'cursor-pointer'
-                            : 'cursor-default',
-                      isDraggingThis ? 'opacity-50' : '',
-                    ].join(' ')}
+                  : undefined
+              }
+              onDragLeave={(ev) => {
+                const rel = ev.relatedTarget as Node | null;
+                if (rel && ev.currentTarget.contains(rel)) return;
+                setDragOverSlot((prev) => (prev === slot ? null : prev));
+              }}
+              onDrop={
+                onMoveCard
+                  ? (ev) => {
+                      ev.preventDefault();
+                      const cardId = ev.dataTransfer.getData(BENCH_DRAG_MIME) || dragCardId;
+                      setDragOverSlot(null);
+                      setDragCardId(null);
+                      if (!cardId || !canDropOnSlot(cardId, slot)) return;
+                      finishMove(cardId, slot);
+                    }
+                  : undefined
+              }
+              className={[
+                'group relative flex min-h-[100px] flex-col rounded-lg border p-1.5 text-left transition',
+                occupant
+                  ? `border-zinc-200 bg-zinc-50 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900 ${dimmed ? 'opacity-25' : ''}`
+                  : 'border-dashed border-zinc-200 bg-transparent dark:border-zinc-800',
+                isSuggested ? 'ring-2 ring-emerald-400/70 ring-offset-1 dark:ring-offset-[#111]' : '',
+                isClickMoveTarget ? 'border-blue-400 bg-blue-50/60 dark:bg-blue-950/30' : '',
+                isDropHighlight ? 'scale-[1.02] border-blue-500 bg-blue-50 ring-2 ring-blue-400/70' : '',
+                occupant && onMoveCard ? 'cursor-grab active:cursor-grabbing' : occupant ? 'cursor-pointer' : '',
+                isDraggingThis ? 'opacity-50' : '',
+              ].join(' ')}
+            >
+              <div className="flex items-center justify-between gap-0.5">
+                <span
+                  className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-md px-1 text-[10px] font-bold ${
+                    stageStyle && occupant ? stageStyle : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200'
+                  }`}
+                >
+                  {slot}
+                </span>
+                {occupant && onMoveCard ? (
+                  <button
+                    type="button"
+                    onClick={(ev) => startMove(occupant.card.id, ev)}
+                    className="rounded px-1 text-[9px] font-semibold text-blue-600 opacity-0 group-hover:opacity-100 dark:text-blue-400"
                   >
-                    <div className="flex items-center justify-between gap-0.5">
-                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-zinc-200 text-[10px] font-bold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
-                        {slot}
-                      </span>
-                      <div className="flex items-center gap-0.5">
-                        {occupant && onMoveCard ? (
-                          <span
-                            role="button"
-                            tabIndex={0}
-                            onClick={(ev) => startMove(occupant.card.id, ev)}
-                            onKeyDown={(ev) => {
-                              if (ev.key === 'Enter' || ev.key === ' ') startMove(occupant.card.id, ev as unknown as React.MouseEvent);
-                            }}
-                            className="rounded px-1 text-[9px] font-semibold text-blue-600 opacity-0 transition group-hover:opacity-100 dark:text-blue-400"
-                          >
-                            Mover
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    {occupant ? (
-                      <div className="mt-1 min-w-0 flex-1">
-                        <BenchProductDetails entry={occupant} size="slot" />
-                        {occupant.card.externalRepair?.vendor && (
-                          <p className="mt-0.5 truncate text-[8px] italic text-indigo-500 dark:text-indigo-300">
-                            ↪ {occupant.card.externalRepair.vendor}
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="mt-auto">
-                        <span
-                          className={`text-[10px] font-medium ${
-                            isSuggested
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : isClickMoveTarget || isDragDropTarget
-                                ? 'text-blue-600 dark:text-blue-400'
-                                : 'text-zinc-300 dark:text-zinc-600'
-                          }`}
-                        >
-                          {isSuggested
-                            ? 'Sugerido'
-                            : isDropHighlight
-                              ? 'Soltar aqui'
-                              : isClickMoveTarget || isDragDropTarget
-                                ? 'Soltar aqui'
-                                : 'Vago'}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                    Mover
+                  </button>
+                ) : null}
+              </div>
+              {occupant ? (
+                <div className="mt-1 min-w-0 flex-1">
+                  <BenchProductDetails entry={occupant} size="slot" />
+                </div>
+              ) : (
+                <span className="mt-auto text-[10px] font-medium text-zinc-400">
+                  {isSuggested ? 'Próxima vaga' : isClickMoveTarget || isDragDropTarget ? 'Soltar' : 'Vago'}
+                </span>
+              )}
             </div>
           );
         })}
       </div>
 
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {LAB_BENCH_STAGE_LEGEND.map((leg) => (
+          <span
+            key={leg.id}
+            className={`rounded px-2 py-0.5 text-[10px] font-semibold text-white ${leg.accent}`}
+          >
+            {leg.label}
+          </span>
+        ))}
+      </div>
+
       {offBench.length > 0 && (
         <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
           <p className="mb-1 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
-            Fora da bancada (com o técnico)
+            Fora da bancada (com o técnico / conserto externo)
           </p>
           <div className="flex flex-wrap gap-1.5">
             {offBench.map((e) => (
-                <button
-                  type="button"
-                  key={e.card.id}
-                  onClick={() => onOpenCard(e.card)}
-                  className="max-w-[200px] rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-left hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600"
-                >
-                  <BenchProductDetails entry={e} size="list" />
-                </button>
+              <button
+                type="button"
+                key={e.card.id}
+                onClick={() => onOpenCard(e.card)}
+                className="max-w-[200px] rounded-md border bg-white px-2 py-1.5 text-left dark:border-zinc-700 dark:bg-zinc-900"
+              >
+                <BenchProductDetails entry={e} size="list" />
+              </button>
             ))}
           </div>
         </div>

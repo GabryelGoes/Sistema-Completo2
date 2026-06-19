@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, LayoutGrid, Loader2 } from 'lucide-react';
 import {
-  LAB_BENCH_GROUPS,
+  ALL_BENCH_SLOTS,
   LAB_BENCH_SLOT_COUNT,
-  firstFreeSlotForStatus,
-  labGroupForStatus,
-  statusInIntakeBenchGroup,
+  LAB_BENCH_STAGE_LEGEND,
+  firstFreeBenchSlot,
   statusUsesBench,
 } from '../../constants/labBench';
 import { getServiceOrders } from '../../services/apiService';
@@ -13,19 +12,12 @@ import { getStageConfig } from '../../constants/serviceOrderStages';
 import type { ServiceOrderStatus } from '../../constants/serviceOrderStages';
 
 type LabBenchIntakeHintProps = {
-  /** Recarregar ocupação (ex.: ao focar a aba). */
   refreshKey?: number;
-  /** Etapa escolhida no cadastro (define grupo da bancada sugerido). */
   intakeStatus?: ServiceOrderStatus;
   className?: string;
-  /** Exibe o painel minimizado (recolhido), expandindo só ao clicar. */
   collapsible?: boolean;
 };
 
-/**
- * Resumo da bancada para o cadastro de produto no Laboratório:
- * onde o novo item será colocado e como funciona a organização por compartimentos.
- */
 export function LabBenchIntakeHint({
   refreshKey = 0,
   intakeStatus = 'AGUARDANDO_AVALIACAO',
@@ -66,9 +58,7 @@ export function LabBenchIntakeHint({
           .map((o) => o.bench_slot)
           .filter((s): s is number => typeof s === 'number' && s >= 1 && s <= LAB_BENCH_SLOT_COUNT);
         setOccupiedSlots(slots);
-        setQueueCount(
-          active.filter((o) => o.bench_queued_at && o.bench_slot == null).length
-        );
+        setQueueCount(active.filter((o) => o.bench_queued_at && o.bench_slot == null).length);
       })
       .catch(() => {
         if (!cancelled) setOccupiedSlots([]);
@@ -82,19 +72,16 @@ export function LabBenchIntakeHint({
   }, [refreshKey]);
 
   const intakeStage = getStageConfig(intakeStatus, 'module');
-  const intakeGroup = labGroupForStatus(intakeStatus);
   const onBench = statusUsesBench(intakeStatus);
-
   const intakeSuggestion = useMemo(
-    () => (onBench ? firstFreeSlotForStatus(intakeStatus, occupiedSlots) : null),
+    () => (onBench ? firstFreeBenchSlot(occupiedSlots) : null),
     [intakeStatus, onBench, occupiedSlots]
   );
-
   const occupiedCount = occupiedSlots.length;
 
   return (
     <section
-      className={`rounded-[1.25rem] border border-violet-200/80 bg-gradient-to-br from-violet-50/95 via-white to-zinc-50/90 p-4 shadow-[0_8px_28px_-12px_rgba(124,58,237,0.18)] dark:border-violet-500/25 dark:from-violet-950/35 dark:via-zinc-950/40 dark:to-zinc-950/20 dark:shadow-[0_12px_40px_-16px_rgba(124,58,237,0.22)] sm:p-5 ${className}`}
+      className={`rounded-[1.25rem] border border-violet-200/80 bg-gradient-to-br from-violet-50/95 via-white to-zinc-50/90 p-4 shadow-[0_8px_28px_-12px_rgba(124,58,237,0.18)] dark:border-violet-500/25 dark:from-violet-950/35 dark:via-zinc-950/40 dark:to-zinc-950/20 sm:p-5 ${className}`}
       aria-labelledby="lab-bench-intake-title"
     >
       <div className="flex flex-wrap items-start gap-3">
@@ -103,10 +90,7 @@ export function LabBenchIntakeHint({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3
-              id="lab-bench-intake-title"
-              className="text-[15px] font-bold tracking-tight text-zinc-900 dark:text-white"
-            >
+            <h3 id="lab-bench-intake-title" className="text-[15px] font-bold tracking-tight text-zinc-900 dark:text-white">
               Bancada do laboratório
             </h3>
             <div ref={helpRef} className={`relative shrink-0 ${collapsible && !open ? 'hidden' : ''}`}>
@@ -115,27 +99,16 @@ export function LabBenchIntakeHint({
                 onClick={() => setHelpOpen((o) => !o)}
                 aria-label="Como funciona a organização da bancada?"
                 aria-expanded={helpOpen}
-                className="flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF] text-[12px] font-bold text-white shadow-sm transition-colors hover:bg-[#0058c7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-1"
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF] text-[12px] font-bold text-white shadow-sm hover:bg-[#0058c7]"
               >
                 ?
               </button>
               {helpOpen ? (
-                <div className="absolute left-0 z-30 mt-2 w-72 rounded-xl border border-zinc-200/90 bg-white p-3 text-left shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] dark:border-white/[0.12] dark:bg-zinc-900 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]">
+                <div className="absolute left-0 z-30 mt-2 w-72 rounded-xl border bg-white p-3 text-left shadow-lg dark:border-white/12 dark:bg-zinc-900">
                   <p className="text-[12px] leading-relaxed text-zinc-700 dark:text-zinc-300">
-                    A ficha entra em{' '}
-                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                      {intakeStage?.name ?? intakeStatus}
-                    </span>
-                    {onBench && intakeGroup
-                      ? ` e o sistema reserva o primeiro compartimento livre do grupo (${intakeGroup.slots.join('–')})${
-                          statusInIntakeBenchGroup(intakeStatus)
-                            ? ', ou entra na fila se estiver lotado.'
-                            : '.'
-                        }`
-                      : onBench
-                        ? ' e recebe compartimento na bancada quando houver vaga no grupo da etapa.'
-                        : ' (fora da bancada física — ex.: em serviço com o técnico).'}{' '}
-                    Ao mudar a etapa no quadro, o compartimento acompanha o grupo correspondente.
+                    Cada produto recebe um compartimento fixo (1–24) na entrada e{' '}
+                    <strong>não muda de lugar</strong> ao mudar de etapa — só a cor do card muda.
+                    Se a bancada estiver cheia, o produto entra na fila até liberar uma vaga.
                   </p>
                 </div>
               ) : null}
@@ -147,74 +120,69 @@ export function LabBenchIntakeHint({
             type="button"
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
-            aria-label={open ? 'Minimizar bancada' : 'Expandir bancada'}
-            className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-violet-700 transition-colors hover:bg-violet-500/10 dark:text-violet-200 dark:hover:bg-violet-400/10"
+            className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-violet-700 hover:bg-violet-500/10 dark:text-violet-200"
           >
-            <ChevronDown className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
+            <ChevronDown className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`} />
           </button>
         ) : null}
       </div>
 
       {open ? (
-      <>
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {loading ? (
-          <span className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/80 bg-white/80 px-3 py-2 text-[13px] font-medium text-zinc-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-300">
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            Consultando bancada…
-          </span>
-        ) : !onBench ? (
-          <span className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200/80 bg-zinc-50 px-3 py-2 text-[13px] font-medium text-zinc-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-300">
-            Esta etapa não usa compartimento na bancada
-          </span>
-        ) : intakeSuggestion != null ? (
-          <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300/80 bg-emerald-50 px-3 py-2 text-[13px] font-semibold text-emerald-800 dark:border-emerald-500/35 dark:bg-emerald-950/40 dark:text-emerald-200">
-            Próxima entrada → compartimento {intakeSuggestion}
-            {intakeGroup ? (
-              <span className="font-normal text-emerald-700/90 dark:text-emerald-300/90">
-                ({intakeGroup.label})
+        <>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {loading ? (
+              <span className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[13px] text-zinc-600 dark:text-zinc-300">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Consultando bancada…
+              </span>
+            ) : !onBench ? (
+              <span className="rounded-xl border px-3 py-2 text-[13px] text-zinc-600 dark:text-zinc-300">
+                Esta etapa não usa compartimento na bancada
+              </span>
+            ) : intakeSuggestion != null ? (
+              <span className="rounded-xl border border-emerald-300/80 bg-emerald-50 px-3 py-2 text-[13px] font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+                Próxima entrada → compartimento {intakeSuggestion}
+                <span className="font-normal text-emerald-700/90"> ({intakeStage?.name})</span>
+              </span>
+            ) : (
+              <span className="rounded-xl border border-violet-300/80 bg-violet-50 px-3 py-2 text-[13px] font-semibold text-violet-900 dark:bg-violet-950/40 dark:text-violet-200">
+                Bancada cheia — novo produto entra na fila
+                {queueCount > 0 ? ` (${queueCount} aguardando)` : ''}
+              </span>
+            )}
+            {!loading ? (
+              <span className="rounded-xl border px-3 py-2 text-[12px] font-semibold tabular-nums text-zinc-600 dark:text-zinc-300">
+                {occupiedCount}/{LAB_BENCH_SLOT_COUNT} ocupados
               </span>
             ) : null}
-          </span>
-        ) : statusInIntakeBenchGroup(intakeStatus) ? (
-          <span className="inline-flex items-center gap-1.5 rounded-xl border border-violet-300/80 bg-violet-50 px-3 py-2 text-[13px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-200">
-            Compartimentos {intakeGroup?.slots.join('–') ?? '1–4'} lotados — novo produto entra na fila
-            {queueCount > 0 ? ` (${queueCount} aguardando)` : ''}
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300/80 bg-rose-50 px-3 py-2 text-[13px] font-semibold text-rose-800 dark:border-rose-500/35 dark:bg-rose-950/40 dark:text-rose-200">
-            {intakeGroup
-              ? `${intakeGroup.label} lotado — libere um compartimento ${intakeGroup.slots.join('–')}`
-              : 'Grupo da bancada lotado para esta etapa'}
-          </span>
-        )}
-        {!loading ? (
-          <span className="inline-flex items-center rounded-xl border border-zinc-200/80 bg-white/70 px-3 py-2 text-[12px] font-semibold tabular-nums text-zinc-600 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-300">
-            {occupiedCount}/{LAB_BENCH_SLOT_COUNT} ocupados
-          </span>
-        ) : null}
-      </div>
+          </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-6">
-        {LAB_BENCH_GROUPS.map((group) => {
-          const groupOccupied = group.slots.filter((s) => occupiedSlots.includes(s)).length;
-          const freeInGroup = group.slots.length - groupOccupied;
-          return (
-            <div
-              key={group.id}
-              className="rounded-lg border border-zinc-200/70 bg-white/60 px-2 py-1.5 dark:border-white/[0.08] dark:bg-white/[0.04]"
-            >
-              <p className={`truncate text-[10px] font-bold uppercase tracking-wide text-white rounded px-1 py-0.5 ${group.accent}`}>
-                {group.label}
-              </p>
-              <p className="mt-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-400">
-                {group.slots[0]}–{group.slots[group.slots.length - 1]} · {freeInGroup} vago{freeInGroup === 1 ? '' : 's'}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-      </>
+          <div className="mt-4 grid grid-cols-6 gap-1">
+            {ALL_BENCH_SLOTS.map((slot) => {
+              const taken = occupiedSlots.includes(slot);
+              return (
+                <div
+                  key={slot}
+                  className={`flex h-7 items-center justify-center rounded text-[10px] font-bold ${
+                    taken
+                      ? 'bg-violet-600 text-white'
+                      : 'border border-dashed border-zinc-300 text-zinc-400 dark:border-zinc-600'
+                  }`}
+                >
+                  {slot}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-1">
+            {LAB_BENCH_STAGE_LEGEND.map((leg) => (
+              <span key={leg.id} className={`rounded px-1.5 py-0.5 text-[9px] font-semibold text-white ${leg.accent}`}>
+                {leg.label}
+              </span>
+            ))}
+          </div>
+        </>
       ) : null}
     </section>
   );
