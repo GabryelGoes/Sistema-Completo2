@@ -3389,11 +3389,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
 
     if (!newLabProductKind) {
-      alert("Selecione o tipo de produto a enviar ao laboratório.");
+      alert("Selecione o tipo de produto ou marque a opção para digitar o nome manualmente.");
       return;
     }
     if (newLabProductKind === OTHER_MODULE_KIND_ID && !newLabProductOther.trim()) {
-      alert('Informe qual é o produto (tipo "Outro").');
+      alert("Informe o nome do produto.");
       return;
     }
 

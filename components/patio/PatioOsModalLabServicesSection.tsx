@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Wrench, Plus, Loader2, Trash2, ArrowRight, ChevronDown } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
@@ -73,8 +73,26 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   defaultExpanded = false,
 }) => {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [manualProductName, setManualProductName] = useState(false);
   const isOpen = !collapsible || expanded;
+  const listProductKindOptions = productKindOptions.filter((opt) => opt.value !== otherProductKindId);
   const linkedCount = labServiceLinksDraft.length;
+
+  const toggleManualProductName = (checked: boolean) => {
+    setManualProductName(checked);
+    if (checked) {
+      onLabProductKindChange(otherProductKindId);
+    } else {
+      onLabProductKindChange('');
+      onLabProductOtherChange('');
+    }
+  };
+
+  useEffect(() => {
+    if (!newLabProductKind && !newLabProductOther.trim()) {
+      setManualProductName(false);
+    }
+  }, [newLabProductKind, newLabProductOther]);
 
   const headerInner = (
     <>
@@ -121,37 +139,59 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
 
         {isOpen ? (
         <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                Tipo de produto
-              </label>
-              <select
-                value={newLabProductKind}
-                onChange={(e) => onLabProductKindChange(e.target.value)}
-                className={`${inputClass} !h-11 !py-0 text-[13px]`}
-              >
-                <option value="">Selecione o tipo de produto</option>
-                {productKindOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {newLabProductKind === otherProductKindId ? (
+          <div className="space-y-2">
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-zinc-200/80 bg-white/90 px-3 py-2.5 dark:border-white/[0.1] dark:bg-zinc-950/50">
+              <input
+                type="checkbox"
+                checked={manualProductName}
+                onChange={(e) => toggleManualProductName(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-[#007AFF] focus:ring-[#007AFF]/40"
+              />
+              <span className="text-[13px] leading-snug text-zinc-700 dark:text-zinc-200">
+                <span className="font-semibold">Produto não está na lista</span>
+                <span className="block text-[12px] font-normal text-zinc-500 dark:text-zinc-400">
+                  Marque para digitar o nome do produto manualmente.
+                </span>
+              </span>
+            </label>
+
+            {manualProductName ? (
               <div>
                 <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Qual produto?
+                  Nome do produto
                 </label>
                 <input
                   value={newLabProductOther}
                   onChange={(e) => onLabProductOtherChange(e.target.value)}
-                  placeholder="Ex.: bomba de direção, atuador…"
+                  placeholder="Ex.: bomba de direção, atuador, válvula solenoide…"
                   className={`${inputClass} !h-11 !py-0 text-[13px]`}
                 />
               </div>
-            ) : null}
+            ) : (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    Tipo de produto
+                  </label>
+                  <select
+                    value={newLabProductKind}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      onLabProductKindChange(next);
+                      if (next !== otherProductKindId) onLabProductOtherChange('');
+                    }}
+                    className={`${inputClass} !h-11 !py-0 text-[13px]`}
+                  >
+                    <option value="">Selecione o tipo de produto</option>
+                    {listProductKindOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
