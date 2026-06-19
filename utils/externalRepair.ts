@@ -29,6 +29,15 @@ export const EMPTY_EXTERNAL_REPAIR_DRAFT: ExternalRepairDraft = {
   notes: '',
 };
 
+/** OS de módulo criada pelo encaminhamento pátio → laboratório. */
+export function isLabModuleFromPatio(issueDescription: string | null | undefined): boolean {
+  const s = String(issueDescription ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  return s.includes('servico enviado do patio');
+}
+
 /** Extrai o rótulo do serviço encaminhado do pátio (vínculos ou issue_description). */
 export function extractPatioServiceLabel(detail: {
   issue_description?: string | null;

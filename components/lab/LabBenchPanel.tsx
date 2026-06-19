@@ -10,6 +10,13 @@ import {
 import { getStageConfig } from '../../constants/serviceOrderStages';
 import { parsePatioCardTitle } from '../../utils/patioCardTitle';
 import { getBenchQueuedCards } from '../../utils/labBenchQueue';
+import { isLabModuleFromPatio } from '../../utils/externalRepair';
+
+function patioOriginRingClass(card: TrelloCard): string {
+  return isLabModuleFromPatio(card.desc)
+    ? 'ring-2 ring-amber-500 ring-offset-1 dark:ring-amber-400 dark:ring-offset-[#111]'
+    : '';
+}
 
 interface BenchEntry {
   card: TrelloCard;
@@ -278,7 +285,7 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
             {queued.map((e, index) => (
               <li
                 key={e.card.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-violet-200/80 bg-white px-2 py-1.5 dark:border-violet-800/50 dark:bg-zinc-900/60"
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-md border border-violet-200/80 bg-white px-2 py-1.5 dark:border-violet-800/50 dark:bg-zinc-900/60 ${patioOriginRingClass(e.card)}`}
               >
                 <div className="min-w-0 flex-1">
                   <p className="mb-1 text-[10px] font-bold text-violet-700 dark:text-violet-300">Fila #{index + 1}</p>
@@ -309,7 +316,7 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                 draggable={!!onMoveCard}
                 onDragStart={onMoveCard ? (ev) => beginDrag(e.card.id, ev) : undefined}
                 onDragEnd={onMoveCard ? endDrag : undefined}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200/80 bg-white px-2 py-1.5 dark:border-amber-800/50 dark:bg-zinc-900/60"
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200/80 bg-white px-2 py-1.5 dark:border-amber-800/50 dark:bg-zinc-900/60 ${patioOriginRingClass(e.card)}`}
               >
                 <BenchProductDetails entry={e} size="list" />
                 <div className="flex shrink-0 gap-1">
@@ -402,7 +409,7 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
               className={[
                 'group relative flex min-h-[100px] flex-col rounded-lg border p-1.5 text-left transition',
                 occupant
-                  ? `border-zinc-200 bg-zinc-50 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900 ${dimmed ? 'opacity-25' : ''}`
+                  ? `border-zinc-200 bg-zinc-50 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900 ${dimmed ? 'opacity-25' : ''} ${patioOriginRingClass(occupant.card)}`
                   : 'border-dashed border-zinc-200 bg-transparent dark:border-zinc-800',
                 isSuggested ? 'ring-2 ring-emerald-400/70 ring-offset-1 dark:ring-offset-[#111]' : '',
                 isClickMoveTarget ? 'border-blue-400 bg-blue-50/60 dark:bg-blue-950/30' : '',
@@ -465,7 +472,7 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                 type="button"
                 key={e.card.id}
                 onClick={() => onOpenCard(e.card)}
-                className="max-w-[200px] rounded-md border bg-white px-2 py-1.5 text-left dark:border-zinc-700 dark:bg-zinc-900"
+                className={`max-w-[200px] rounded-md border bg-white px-2 py-1.5 text-left dark:border-zinc-700 dark:bg-zinc-900 ${patioOriginRingClass(e.card)}`}
               >
                 <BenchProductDetails entry={e} size="list" />
               </button>
