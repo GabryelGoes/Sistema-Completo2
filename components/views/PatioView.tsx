@@ -5045,12 +5045,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
           const labOuterRingClass = hasLabReady
             ? 'ring-4 ring-green-500 dark:ring-green-400'
             : 'ring-4 ring-violet-500 dark:ring-violet-400';
-          const showPatioOriginOuterRing = fromPatio && !isGarantia;
-          const patioOriginOuterRingClass = 'ring-4 ring-amber-500 dark:ring-amber-400';
           const cardRingClass = isGarantia
             ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40'
             : fromPatio
-              ? 'border-amber-400/55 dark:border-amber-500/50 ring-2 ring-inset ring-amber-500/70 ring-offset-0 dark:ring-amber-400/65'
+              ? 'ring-2 ring-amber-500 ring-offset-0 border-amber-500/50 dark:ring-amber-400 dark:border-amber-400/50'
             : hasLabUndelivered
               ? hasLabReady
                 ? 'ring-4 ring-inset ring-green-500 ring-offset-0 border-green-500/65 dark:ring-green-400 dark:border-green-400/65'
@@ -5086,13 +5084,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               }`}
             >
               <div
-                className={`w-full ${
-                  showLabOuterRing
-                    ? `${cardRadiusClass} p-1 ${labOuterRingClass}`
-                    : showPatioOriginOuterRing
-                      ? `${cardRadiusClass} p-1 ${patioOriginOuterRingClass}`
-                      : ''
-                }`}
+                className={`w-full ${showLabOuterRing ? `${cardRadiusClass} p-1 ${labOuterRingClass}` : ''}`}
               >
               <div
                 onClick={() => {
