@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import type { TrelloCard } from '../../types';
 import {
-  ALL_BENCH_SLOTS,
+  LAB_BENCH_GRID_CELLS,
+  LAB_BENCH_GRID_COLS,
   LAB_BENCH_SLOT_COUNT,
   LAB_BENCH_STAGE_LEGEND,
   firstFreeBenchSlot,
@@ -222,6 +223,95 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
     }
   };
 
+  const renderSlotCell = (slot: number) => {
+    const occupant = bySlot.get(slot);
+    const dimmed = occupant && searchLower && !matchesSearch(occupant);
+    const isClickMoveTarget = !!movingCardId && !dragCardId && canDropOnSlot(movingCardId, slot);
+    const isDragDropTarget = !!dragCardId && canDropOnSlot(dragCardId, slot);
+    const isDropHighlight = dragOverSlot === slot && isDragDropTarget;
+    const isSuggested = nextFreeSlot === slot && !occupant;
+    const isDraggingThis = occupant && dragCardId === occupant.card.id;
+    const stageStyle = occupant ? getStageConfig(occupant.card.idList, 'module')?.style : '';
+
+    return (
+      <div
+        role="button"
+        tabIndex={occupant || isClickMoveTarget ? 0 : -1}
+        key={`slot-${slot}`}
+        draggable={!!onMoveCard && !!occupant}
+        onDragStart={occupant && onMoveCard ? (ev) => beginDrag(occupant.card.id, ev) : undefined}
+        onDragEnd={onMoveCard && occupant ? endDrag : undefined}
+        onClick={() => handleSlotClick(slot)}
+        onDragOver={
+          onMoveCard
+            ? (ev) => {
+                if (!dragCardId || !canDropOnSlot(dragCardId, slot)) return;
+                ev.preventDefault();
+                ev.dataTransfer.dropEffect = 'move';
+                setDragOverSlot(slot);
+              }
+            : undefined
+        }
+        onDragLeave={(ev) => {
+          const rel = ev.relatedTarget as Node | null;
+          if (rel && ev.currentTarget.contains(rel)) return;
+          setDragOverSlot((prev) => (prev === slot ? null : prev));
+        }}
+        onDrop={
+          onMoveCard
+            ? (ev) => {
+                ev.preventDefault();
+                const cardId = ev.dataTransfer.getData(BENCH_DRAG_MIME) || dragCardId;
+                setDragOverSlot(null);
+                setDragCardId(null);
+                if (!cardId || !canDropOnSlot(cardId, slot)) return;
+                finishMove(cardId, slot);
+              }
+            : undefined
+        }
+        className={[
+          'group relative flex min-h-[88px] flex-col rounded-lg border p-1.5 text-left transition',
+          occupant
+            ? `border-zinc-200 bg-zinc-50 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900 ${dimmed ? 'opacity-25' : ''} ${patioOriginRingClass(occupant.card)}`
+            : 'border-dashed border-zinc-200 bg-transparent dark:border-zinc-800',
+          isSuggested ? 'ring-2 ring-emerald-400/70 ring-offset-1 dark:ring-offset-[#111]' : '',
+          isClickMoveTarget ? 'border-blue-400 bg-blue-50/60 dark:bg-blue-950/30' : '',
+          isDropHighlight ? 'scale-[1.02] border-blue-500 bg-blue-50 ring-2 ring-blue-400/70' : '',
+          occupant && onMoveCard ? 'cursor-grab active:cursor-grabbing' : occupant ? 'cursor-pointer' : '',
+          isDraggingThis ? 'opacity-50' : '',
+        ].join(' ')}
+      >
+        <div className="flex items-center justify-between gap-0.5">
+          <span
+            className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-md px-1 text-[10px] font-bold ${
+              stageStyle && occupant ? stageStyle : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200'
+            }`}
+          >
+            {slot}
+          </span>
+          {occupant && onMoveCard ? (
+            <button
+              type="button"
+              onClick={(ev) => startMove(occupant.card.id, ev)}
+              className="rounded px-1 text-[9px] font-semibold text-blue-600 opacity-0 group-hover:opacity-100 dark:text-blue-400"
+            >
+              Mover
+            </button>
+          ) : null}
+        </div>
+        {occupant ? (
+          <div className="mt-1 min-w-0 flex-1">
+            <BenchProductDetails entry={occupant} size="slot" />
+          </div>
+        ) : (
+          <span className="mt-auto text-[10px] font-medium text-zinc-400">
+            {isSuggested ? 'Próxima vaga' : isClickMoveTarget || isDragDropTarget ? 'Soltar' : 'Vago'}
+          </span>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-[#111]">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -235,7 +325,7 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
           <div>
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Bancada do laboratório</p>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-              Vaga fixa 1–24 · a etapa muda só no sistema
+              Grade 5×6 (1–24 da esquerda para a direita) · etapa muda só no sistema
               {onMoveCard ? ' · arraste para trocar vaga' : ''}
             </p>
           </div>
@@ -348,106 +438,36 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
         </div>
       )}
 
-      <div className="mb-2 grid grid-cols-2 gap-2">
-        {[0, 1].map((i) => (
-          <div
-            key={`big-${i}`}
-            className="flex h-10 items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 text-[10px] font-medium text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900/40"
-          >
-            Compartimento grande {i + 1}
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
-        {ALL_BENCH_SLOTS.map((slot) => {
-          const occupant = bySlot.get(slot);
-          const dimmed = occupant && searchLower && !matchesSearch(occupant);
-          const isClickMoveTarget = !!movingCardId && !dragCardId && canDropOnSlot(movingCardId, slot);
-          const isDragDropTarget = !!dragCardId && canDropOnSlot(dragCardId, slot);
-          const isDropHighlight = dragOverSlot === slot && isDragDropTarget;
-          const isSuggested = nextFreeSlot === slot && !occupant;
-          const isDraggingThis = occupant && dragCardId === occupant.card.id;
-          const stageStyle = occupant ? getStageConfig(occupant.card.idList, 'module')?.style : '';
-
-          return (
-            <div
-              role="button"
-              tabIndex={occupant || isClickMoveTarget ? 0 : -1}
-              key={slot}
-              draggable={!!onMoveCard && !!occupant}
-              onDragStart={occupant && onMoveCard ? (ev) => beginDrag(occupant.card.id, ev) : undefined}
-              onDragEnd={onMoveCard && occupant ? endDrag : undefined}
-              onClick={() => handleSlotClick(slot)}
-              onDragOver={
-                onMoveCard
-                  ? (ev) => {
-                      if (!dragCardId || !canDropOnSlot(dragCardId, slot)) return;
-                      ev.preventDefault();
-                      ev.dataTransfer.dropEffect = 'move';
-                      setDragOverSlot(slot);
-                    }
-                  : undefined
-              }
-              onDragLeave={(ev) => {
-                const rel = ev.relatedTarget as Node | null;
-                if (rel && ev.currentTarget.contains(rel)) return;
-                setDragOverSlot((prev) => (prev === slot ? null : prev));
-              }}
-              onDrop={
-                onMoveCard
-                  ? (ev) => {
-                      ev.preventDefault();
-                      const cardId = ev.dataTransfer.getData(BENCH_DRAG_MIME) || dragCardId;
-                      setDragOverSlot(null);
-                      setDragCardId(null);
-                      if (!cardId || !canDropOnSlot(cardId, slot)) return;
-                      finishMove(cardId, slot);
-                    }
-                  : undefined
-              }
-              className={[
-                'group relative flex min-h-[100px] flex-col rounded-lg border p-1.5 text-left transition',
-                occupant
-                  ? `border-zinc-200 bg-zinc-50 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900 ${dimmed ? 'opacity-25' : ''} ${patioOriginRingClass(occupant.card)}`
-                  : 'border-dashed border-zinc-200 bg-transparent dark:border-zinc-800',
-                isSuggested ? 'ring-2 ring-emerald-400/70 ring-offset-1 dark:ring-offset-[#111]' : '',
-                isClickMoveTarget ? 'border-blue-400 bg-blue-50/60 dark:bg-blue-950/30' : '',
-                isDropHighlight ? 'scale-[1.02] border-blue-500 bg-blue-50 ring-2 ring-blue-400/70' : '',
-                occupant && onMoveCard ? 'cursor-grab active:cursor-grabbing' : occupant ? 'cursor-pointer' : '',
-                isDraggingThis ? 'opacity-50' : '',
-              ].join(' ')}
-            >
-              <div className="flex items-center justify-between gap-0.5">
-                <span
-                  className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-md px-1 text-[10px] font-bold ${
-                    stageStyle && occupant ? stageStyle : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200'
-                  }`}
+      <div className="overflow-x-auto">
+        <div
+          className="grid min-w-[min(100%,320px)] gap-2"
+          style={{
+            gridTemplateColumns: `repeat(${LAB_BENCH_GRID_COLS}, minmax(0, 1fr))`,
+          }}
+        >
+          {LAB_BENCH_GRID_CELLS.map((cell, index) => {
+            if (cell.kind === 'large') {
+              return (
+                <div
+                  key={`large-${index}`}
+                  className="flex min-h-[52px] items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-1 text-center text-[9px] font-medium leading-tight text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900/40 sm:text-[10px]"
                 >
-                  {slot}
-                </span>
-                {occupant && onMoveCard ? (
-                  <button
-                    type="button"
-                    onClick={(ev) => startMove(occupant.card.id, ev)}
-                    className="rounded px-1 text-[9px] font-semibold text-blue-600 opacity-0 group-hover:opacity-100 dark:text-blue-400"
-                  >
-                    Mover
-                  </button>
-                ) : null}
-              </div>
-              {occupant ? (
-                <div className="mt-1 min-w-0 flex-1">
-                  <BenchProductDetails entry={occupant} size="slot" />
+                  {cell.label}
                 </div>
-              ) : (
-                <span className="mt-auto text-[10px] font-medium text-zinc-400">
-                  {isSuggested ? 'Próxima vaga' : isClickMoveTarget || isDragDropTarget ? 'Soltar' : 'Vago'}
-                </span>
-              )}
-            </div>
-          );
-        })}
+              );
+            }
+            if (cell.kind === 'empty') {
+              return (
+                <div
+                  key={`empty-${index}`}
+                  className="min-h-[52px] rounded-lg border border-transparent"
+                  aria-hidden
+                />
+              );
+            }
+            return renderSlotCell(cell.slot);
+          })}
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
