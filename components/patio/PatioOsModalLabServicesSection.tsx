@@ -6,6 +6,8 @@ import { uiOsModalCardSectionTitle, uiOsModalSectionIconWrap } from '../ui/appTy
 
 export type LabBudgetServiceOption = { key: string; label: string };
 
+export type LabProductKindOption = { value: string; label: string };
+
 export type PatioOsModalLabServicesSectionProps = {
   insetCardClass: string;
   inputClass: string;
@@ -18,6 +20,12 @@ export type PatioOsModalLabServicesSectionProps = {
   onLabManualLabelChange: (value: string) => void;
   newLabServiceDetails: string;
   onLabServiceDetailsChange: (value: string) => void;
+  productKindOptions: LabProductKindOption[];
+  newLabProductKind: string;
+  onLabProductKindChange: (value: string) => void;
+  newLabProductOther: string;
+  onLabProductOtherChange: (value: string) => void;
+  otherProductKindId: string;
   budgetServiceOptions: LabBudgetServiceOption[];
   onCreateLabService: () => void;
   creatingLabService: boolean;
@@ -45,6 +53,12 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   onLabManualLabelChange,
   newLabServiceDetails,
   onLabServiceDetailsChange,
+  productKindOptions,
+  newLabProductKind,
+  onLabProductKindChange,
+  newLabProductOther,
+  onLabProductOtherChange,
+  otherProductKindId,
   budgetServiceOptions,
   onCreateLabService,
   creatingLabService,
@@ -107,6 +121,39 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
 
         {isOpen ? (
         <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                Tipo de produto
+              </label>
+              <select
+                value={newLabProductKind}
+                onChange={(e) => onLabProductKindChange(e.target.value)}
+                className={`${inputClass} !h-11 !py-0 text-[13px]`}
+              >
+                <option value="">Selecione o tipo de produto</option>
+                {productKindOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {newLabProductKind === otherProductKindId ? (
+              <div>
+                <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  Qual produto?
+                </label>
+                <input
+                  value={newLabProductOther}
+                  onChange={(e) => onLabProductOtherChange(e.target.value)}
+                  placeholder="Ex.: bomba de direção, atuador…"
+                  className={`${inputClass} !h-11 !py-0 text-[13px]`}
+                />
+              </div>
+            ) : null}
+          </div>
+
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
             <select
               value={newLabServiceMode}

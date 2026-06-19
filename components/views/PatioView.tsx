@@ -1137,6 +1137,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [newLabBudgetRef, setNewLabBudgetRef] = useState<string>("");
   const [newLabManualLabel, setNewLabManualLabel] = useState("");
   const [newLabServiceDetails, setNewLabServiceDetails] = useState("");
+  const [newLabProductKind, setNewLabProductKind] = useState<ModuleKind | "">("");
+  const [newLabProductOther, setNewLabProductOther] = useState("");
   const [labOrdersLookup, setLabOrdersLookup] = useState<Record<string, ServiceOrderDetail>>({});
   const [labLinkedStatusByOrderId, setLabLinkedStatusByOrderId] = useState<Record<string, string>>({});
   const [labLinkedStatusRefreshTick, setLabLinkedStatusRefreshTick] = useState(0);
@@ -3386,6 +3388,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
       return;
     }
 
+    if (!newLabProductKind) {
+      alert("Selecione o tipo de produto a enviar ao laboratório.");
+      return;
+    }
+    if (newLabProductKind === OTHER_MODULE_KIND_ID && !newLabProductOther.trim()) {
+      alert('Informe qual é o produto (tipo "Outro").');
+      return;
+    }
+
     const serviceDetails = newLabServiceDetails.trim();
     const patioOsRef = serviceOrderDetail.os_number ?? "—";
     let issueDescription = `Serviço enviado do pátio (OS #${patioOsRef}): ${serviceLabel}`;
@@ -3395,14 +3406,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
     setCreatingLabService(true);
     try {
+      const vehicleDisplay =
+        [serviceOrderDetail.vehicle_brand, serviceOrderDetail.vehicle_model]
+          .map((s) => String(s ?? "").trim())
+          .filter(Boolean)
+          .join(" ")
+          .trim() || "Serviço de laboratório";
+
       const created = await createServiceOrder({
         customerId: serviceOrderDetail.customers.id,
         orderType: "module",
-        vehicleModel: (serviceOrderDetail.vehicle_model || "").trim() || "Serviço de laboratório",
+        vehicleModel: vehicleDisplay,
         moduleIdentification: serviceLabel,
-        moduleKind: "outro",
+        moduleKind: newLabProductKind,
         moduleVehicleKind: "carro",
-        moduleProductOther: serviceLabel,
+        moduleProductOther:
+          newLabProductKind === OTHER_MODULE_KIND_ID ? newLabProductOther.trim() || null : null,
         issueDescription,
       });
       const next: LabServiceLink[] = [
@@ -3422,6 +3441,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setNewLabManualLabel("");
       setNewLabBudgetRef("");
       setNewLabServiceDetails("");
+      setNewLabProductKind("");
+      setNewLabProductOther("");
     } catch (err: any) {
       alert(err?.message ?? "Não foi possível criar o serviço no laboratório.");
     } finally {
@@ -6055,6 +6076,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
               onLabManualLabelChange={setNewLabManualLabel}
               newLabServiceDetails={newLabServiceDetails}
               onLabServiceDetailsChange={setNewLabServiceDetails}
+              productKindOptions={getModuleKindOptions()}
+              newLabProductKind={newLabProductKind}
+              onLabProductKindChange={(value) => {
+                setNewLabProductKind((value || "") as ModuleKind | "");
+                if (value !== OTHER_MODULE_KIND_ID) setNewLabProductOther("");
+              }}
+              newLabProductOther={newLabProductOther}
+              onLabProductOtherChange={setNewLabProductOther}
+              otherProductKindId={OTHER_MODULE_KIND_ID}
               budgetServiceOptions={budgetServiceOptions}
               onCreateLabService={() => void handleCreateLabServiceFromVehicle()}
               creatingLabService={creatingLabService}
