@@ -49,29 +49,6 @@ export const ALL_BENCH_SLOTS: number[] = Array.from(
   (_, i) => i + 1
 );
 
-/** Colunas do balcão físico (5×6). */
-export const LAB_BENCH_GRID_COLS = 5;
-
-export type LabBenchGridCell =
-  | { kind: 'large'; label: string }
-  | { kind: 'slot'; slot: number }
-  | { kind: 'empty' };
-
-/** Grade 5×6: 2 compartimentos grandes + slots 1–24 em ordem horizontal (esq.→dir., cima→baixo). */
-export const LAB_BENCH_GRID_CELLS: LabBenchGridCell[] = (() => {
-  const cells: LabBenchGridCell[] = [
-    { kind: 'large', label: 'Compartimento grande 1' },
-    { kind: 'large', label: 'Compartimento grande 2' },
-  ];
-  for (let slot = LAB_BENCH_FIRST_SLOT; slot <= LAB_BENCH_LAST_SLOT; slot++) {
-    cells.push({ kind: 'slot', slot });
-  }
-  while (cells.length % LAB_BENCH_GRID_COLS !== 0) {
-    cells.push({ kind: 'empty' });
-  }
-  return cells;
-})();
-
 /** Legenda visual das etapas (cores na UI — não define zona física). */
 export interface LabBenchStageLegend {
   id: string;
