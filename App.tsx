@@ -41,6 +41,7 @@ import { useDesktopShell } from './hooks/useDesktopShell';
 import { PublicVehicleAccompanimentPage } from './components/public/PublicVehicleAccompanimentPage';
 import { VehicleAccompanimentModal } from './components/VehicleAccompanimentModal';
 import { WorkshopPartsModal } from './components/WorkshopPartsModal';
+import { TvPatioModal } from './components/TvPatioModal';
 import { AdminProfileModal } from './components/AdminProfileModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import {
@@ -78,6 +79,7 @@ export default function App() {
   const [vehicleAccompanimentPresetId, setVehicleAccompanimentPresetId] = useState<string | null>(null);
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
+  const [isTvPatioModalOpen, setIsTvPatioModalOpen] = useState(false);
   const [settingsHubOpen, setSettingsHubOpen] = useState(false);
   const homeSettingsHubOpenerRef = useRef<(() => void) | null>(null);
   const homeSettingsHubCloserRef = useRef<(() => void) | null>(null);
@@ -96,6 +98,7 @@ export default function App() {
   const dismissDesktopShellOverlays = useCallback(() => {
     closeVehicleAccompaniment();
     setIsPartsModalOpen(false);
+    setIsTvPatioModalOpen(false);
     setIsSettingsOpen(false);
     setSettingsHubOpen(false);
   }, [closeVehicleAccompaniment]);
@@ -119,6 +122,11 @@ export default function App() {
       if (action === 'estoque_pecas') {
         dismissDesktopShellOverlays();
         setIsPartsModalOpen(true);
+        return;
+      }
+      if (action === 'tvs_oficina') {
+        dismissDesktopShellOverlays();
+        setIsTvPatioModalOpen(true);
         return;
       }
       if (action === 'configuracoes') {
@@ -173,6 +181,7 @@ export default function App() {
     return resolveDesktopShellOverlayTopbar(
       vehicleAccompanimentOpen,
       isPartsModalOpen,
+      isTvPatioModalOpen,
       isSettingsOpen,
       settingsHubOpen
     );
@@ -180,6 +189,7 @@ export default function App() {
     isDesktopShell,
     vehicleAccompanimentOpen,
     isPartsModalOpen,
+    isTvPatioModalOpen,
     isSettingsOpen,
     settingsHubOpen,
   ]);
@@ -189,6 +199,7 @@ export default function App() {
     return resolveActiveDesktopSidebarAction(
       vehicleAccompanimentOpen,
       isPartsModalOpen,
+      isTvPatioModalOpen,
       isSettingsOpen,
       settingsHubOpen
     );
@@ -196,6 +207,7 @@ export default function App() {
     isDesktopShell,
     vehicleAccompanimentOpen,
     isPartsModalOpen,
+    isTvPatioModalOpen,
     isSettingsOpen,
     settingsHubOpen,
   ]);
@@ -693,6 +705,7 @@ export default function App() {
               settingsHubOpenerRef={homeSettingsHubOpenerRef}
               settingsHubCloserRef={homeSettingsHubCloserRef}
               onOpenPartsStock={() => setIsPartsModalOpen(true)}
+              onOpenTvPatio={() => setIsTvPatioModalOpen(true)}
               isTechnician={authSession.isTechnician ?? false}
               technicianName={authSession.displayName ?? 'Usuário'}
               allowedTabs={userAllowedTabs}
@@ -731,7 +744,7 @@ export default function App() {
               systemUserPermissions={authSession.permissions}
               onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
-              globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen || isSettingsOpen}
+              globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
               patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
               onOpenVehicleAccompaniment={openVehicleAccompaniment}
             />
@@ -903,6 +916,7 @@ export default function App() {
           initialServiceOrderId={vehicleAccompanimentPresetId}
         />
         <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
+        <TvPatioModal isOpen={isTvPatioModalOpen} onClose={() => setIsTvPatioModalOpen(false)} />
         {authSession.role === 'user' ? (
           <UserProfileModal
             isOpen={shellProfileModal === 'user'}
@@ -983,6 +997,7 @@ export default function App() {
             settingsHubOpenerRef={homeSettingsHubOpenerRef}
             settingsHubCloserRef={homeSettingsHubCloserRef}
             onOpenPartsStock={() => setIsPartsModalOpen(true)}
+            onOpenTvPatio={() => setIsTvPatioModalOpen(true)}
             onOpenApp={handleHomeOpenApp}
             onLogout={handleLogout}
             isTechnician={false}
@@ -1005,7 +1020,7 @@ export default function App() {
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
             onOpenSettings={() => setIsSettingsOpen(true)}
-            globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen || isSettingsOpen}
+            globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
             patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
             onOpenVehicleAccompaniment={openVehicleAccompaniment}
           />
@@ -1169,6 +1184,7 @@ export default function App() {
         initialServiceOrderId={vehicleAccompanimentPresetId}
       />
       <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
+      <TvPatioModal isOpen={isTvPatioModalOpen} onClose={() => setIsTvPatioModalOpen(false)} />
       {authSession?.role === 'admin' ? (
         <AdminProfileModal
           isOpen={shellProfileModal === 'admin'}

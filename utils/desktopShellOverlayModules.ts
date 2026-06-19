@@ -1,6 +1,10 @@
 /** Módulos abertos por atalho da sidebar (fora das abas principais). */
 
-export type DesktopShellSidebarModuleId = 'centro_atendimento' | 'estoque_pecas' | 'configuracoes';
+export type DesktopShellSidebarModuleId =
+  | 'centro_atendimento'
+  | 'estoque_pecas'
+  | 'tvs_oficina'
+  | 'configuracoes';
 
 export type DesktopShellOverlayTopbar = {
   title: string;
@@ -23,6 +27,11 @@ export const DESKTOP_SHELL_MODULE_TOPBARS: Record<
     accent: '#16A34A',
     tone: 'light',
   },
+  tvs_oficina: {
+    title: 'TVs da oficina',
+    accent: '#0EA5E9',
+    tone: 'light',
+  },
   configuracoes: {
     title: 'Configurações',
     accent: '#6B7280',
@@ -33,11 +42,13 @@ export const DESKTOP_SHELL_MODULE_TOPBARS: Record<
 export function resolveActiveDesktopSidebarAction(
   vehicleAccompanimentOpen: boolean,
   partsModalOpen: boolean,
+  tvPatioModalOpen: boolean,
   settingsModalOpen: boolean,
   settingsHubOpen: boolean
 ): DesktopShellSidebarModuleId | null {
   if (vehicleAccompanimentOpen) return 'centro_atendimento';
   if (partsModalOpen) return 'estoque_pecas';
+  if (tvPatioModalOpen) return 'tvs_oficina';
   if (settingsModalOpen || settingsHubOpen) return 'configuracoes';
   return null;
 }
@@ -45,12 +56,14 @@ export function resolveActiveDesktopSidebarAction(
 export function resolveDesktopShellOverlayTopbar(
   vehicleAccompanimentOpen: boolean,
   partsModalOpen: boolean,
+  tvPatioModalOpen: boolean,
   settingsModalOpen: boolean,
   settingsHubOpen: boolean
 ): DesktopShellOverlayTopbar | null {
   const action = resolveActiveDesktopSidebarAction(
     vehicleAccompanimentOpen,
     partsModalOpen,
+    tvPatioModalOpen,
     settingsModalOpen,
     settingsHubOpen
   );

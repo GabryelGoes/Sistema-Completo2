@@ -1,9 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import type { TrelloCard } from '../../types';
 import {
-  ALL_BENCH_SLOTS,
   LAB_BENCH_SLOT_COUNT,
-  LAB_BENCH_STAGE_LEGEND,
   firstFreeBenchSlot,
   statusUsesBench,
 } from '../../constants/labBench';
@@ -448,17 +446,6 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
             </div>
           );
         })}
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {LAB_BENCH_STAGE_LEGEND.map((leg) => (
-          <span
-            key={leg.id}
-            className={`rounded px-2 py-0.5 text-[10px] font-semibold text-white ${leg.accent}`}
-          >
-            {leg.label}
-          </span>
-        ))}
       </div>
 
       {offBench.length > 0 && (

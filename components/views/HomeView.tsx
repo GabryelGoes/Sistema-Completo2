@@ -95,6 +95,8 @@ interface HomeViewProps {
   onSettingsHubOpenChange?: (open: boolean) => void;
   /** Abre estoque de peças (modal global no App quando definido). */
   onOpenPartsStock?: () => void;
+  /** Abre TVs da oficina (modal global no App quando definido). */
+  onOpenTvPatio?: () => void;
 }
 
 /** Alinhado ao modal TV do pátio: vidro, sombra suave, cantos iOS. */
@@ -234,6 +236,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   settingsHubOpen: settingsHubOpenProp = false,
   onSettingsHubOpenChange,
   onOpenPartsStock,
+  onOpenTvPatio,
 }) => {
   const hubCardClass = desktopShell ? desktopHomeHubCard : iosCard;
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
@@ -464,7 +467,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isPartsModalOpen ||
       isPatioChecklistsOpen ||
       isChangePasswordsOpen ||
-      isTvPatioOpen ||
+      (!onOpenTvPatio && isTvPatioOpen) ||
       (Boolean(technicianId) && isTechnicianProfileOpen) ||
       isAdminProfileOpen ||
       isUserProfileOpen ||
@@ -477,6 +480,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isPartsModalOpen,
       isPatioChecklistsOpen,
       isChangePasswordsOpen,
+      onOpenTvPatio,
       isTvPatioOpen,
       technicianId,
       isTechnicianProfileOpen,
@@ -496,7 +500,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isLabProductTypesOpen, () => setIsLabProductTypesOpen(false));
   useBrowserBackLayer(isSystemUsersOpen, () => setIsSystemUsersOpen(false));
   useBrowserBackLayer(Boolean(technicianId) && isTechnicianProfileOpen, () => setIsTechnicianProfileOpen(false));
-  useBrowserBackLayer(isTvPatioOpen, () => setIsTvPatioOpen(false));
+  useBrowserBackLayer(!onOpenTvPatio && isTvPatioOpen, () => setIsTvPatioOpen(false));
   useBrowserBackLayer(isUserProfileOpen, () => setIsUserProfileOpen(false));
   useBrowserBackLayer(isSystemNotificationsOpen, () => setIsSystemNotificationsOpen(false));
   useBrowserBackLayer(isHeaderProfileMenuOpen, () => setIsHeaderProfileMenuOpen(false));
@@ -540,7 +544,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         id: 'tv_patio',
         label: 'TVs da oficina',
         icon: <img src="/icons/tv-patio-ios.png" alt="TVs Pátio e Laboratório" className="h-full w-full object-cover" />,
-        onOpen: () => setIsTvPatioOpen(true),
+        onOpen: () => (onOpenTvPatio ? onOpenTvPatio() : setIsTvPatioOpen(true)),
       });
     }
     if (showFullAdminHub || !!perms.access_centro_atendimento) {
@@ -590,7 +594,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       });
     }
     return [...baseTiles, ...extraTiles, settingsTile];
-  }, [onOpenApp, onOpenVehicleAccompaniment, onOpenPartsStock, operationalForView, perms, showFullAdminHub]);
+  }, [onOpenApp, onOpenVehicleAccompaniment, onOpenPartsStock, onOpenTvPatio, operationalForView, perms, showFullAdminHub]);
   const operationalById = useMemo(
     () =>
       Object.fromEntries(quickTilesForView.map((tile) => [tile.id, tile])) as Record<
@@ -1396,7 +1400,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <ChangePasswordsModal isOpen={isChangePasswordsOpen} onClose={() => setIsChangePasswordsOpen(false)} />
         </>
       )}
-      <TvPatioModal isOpen={isTvPatioOpen} onClose={() => setIsTvPatioOpen(false)} />
+      {!onOpenTvPatio ? (
+        <TvPatioModal isOpen={isTvPatioOpen} onClose={() => setIsTvPatioOpen(false)} />
+      ) : null}
       {technicianId && (
         <TechnicianProfileModal
           isOpen={isTechnicianProfileOpen}

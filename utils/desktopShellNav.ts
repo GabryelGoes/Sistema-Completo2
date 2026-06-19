@@ -10,7 +10,11 @@ export type DesktopNavItem = {
   sidebar?: boolean;
 };
 
-export type DesktopSidebarActionId = 'centro_atendimento' | 'estoque_pecas' | 'configuracoes';
+export type DesktopSidebarActionId =
+  | 'centro_atendimento'
+  | 'estoque_pecas'
+  | 'tvs_oficina'
+  | 'configuracoes';
 
 export type DesktopSidebarActionItem = {
   id: DesktopSidebarActionId;
@@ -53,6 +57,12 @@ export const DESKTOP_SIDEBAR_ACTIONS: DesktopSidebarActionItem[] = [
     iconSrc: '/icons/estoque-ios.png',
   },
   {
+    id: 'tvs_oficina',
+    label: 'TVs da oficina',
+    shortLabel: 'TVs',
+    iconSrc: '/icons/tv-patio-ios.png',
+  },
+  {
     id: 'configuracoes',
     label: 'Configurações',
     shortLabel: 'Config.',
@@ -63,6 +73,7 @@ export const DESKTOP_SIDEBAR_ACTIONS: DesktopSidebarActionItem[] = [
 export type DesktopSidebarAccess = {
   centroAtendimento: boolean;
   estoquePecas: boolean;
+  tvsOficina: boolean;
   configuracoes: boolean;
 };
 
@@ -71,17 +82,18 @@ export function resolveDesktopSidebarAccess(
   perms: SystemUserPermissions | undefined
 ): DesktopSidebarAccess {
   if (role === 'admin') {
-    return { centroAtendimento: true, estoquePecas: true, configuracoes: true };
+    return { centroAtendimento: true, estoquePecas: true, tvsOficina: true, configuracoes: true };
   }
   if (role !== 'user' || !perms) {
-    return { centroAtendimento: false, estoquePecas: false, configuracoes: false };
+    return { centroAtendimento: false, estoquePecas: false, tvsOficina: false, configuracoes: false };
   }
   if (perms.full_access) {
-    return { centroAtendimento: true, estoquePecas: true, configuracoes: true };
+    return { centroAtendimento: true, estoquePecas: true, tvsOficina: true, configuracoes: true };
   }
   return {
     centroAtendimento: !!perms.access_centro_atendimento,
     estoquePecas: !!perms.access_estoque_pecas,
+    tvsOficina: !!perms.access_tv_patio,
     configuracoes: !!(
       perms.access_settings ||
       perms.access_change_passwords ||
@@ -100,6 +112,7 @@ export function filterDesktopSidebarActions(access: DesktopSidebarAccess): Deskt
   return DESKTOP_SIDEBAR_ACTIONS.filter((item) => {
     if (item.id === 'centro_atendimento') return access.centroAtendimento;
     if (item.id === 'estoque_pecas') return access.estoquePecas;
+    if (item.id === 'tvs_oficina') return access.tvsOficina;
     if (item.id === 'configuracoes') return access.configuracoes;
     return false;
   });
