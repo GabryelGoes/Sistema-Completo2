@@ -2211,6 +2211,86 @@ export function createApiApp() {
   });
 
   /** Upload de imagem ou vídeo para a TV (Storage público). Multipart: file */
+  const TV_SHORT_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
+
+  function mapTvMediaRow(row: Record<string, unknown>) {
+    return {
+      id: String(row.id),
+      tvScope: parseTvScope(row.tv_scope),
+      mediaType: row.media_type === "image" ? ("image" as const) : ("video" as const),
+      title: row.title != null ? String(row.title) : null,
+      fileName: String(row.file_name ?? ""),
+      mediaUrl: String(row.media_url ?? ""),
+      sizeBytes: Number(row.size_bytes ?? 0),
+      createdAt: String(row.created_at ?? ""),
+    };
+  }
+
+  app.get("/api/tv/media", async (req, res) => {
+    try {
+      const scope = tvScopeFromRequest(req);
+      if (!WORKSHOP_ID || !supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("workshop_tv_media")
+        .select("id, tv_scope, media_type, title, file_name, media_url, size_bytes, created_at")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("tv_scope", scope)
+        .order("created_at", { ascending: false });
+      if (error) {
+        if (isMissingRelationError(error.message)) {
+          return res.json({ items: [] });
+        }
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json({ items: (data ?? []).map((row) => mapTvMediaRow(row as Record<string, unknown>)) });
+    } catch (err: any) {
+      console.error("[API] GET /api/tv/media:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
+  app.delete("/api/tv/media/:id", async (req, res) => {
+    try {
+      if (!WORKSHOP_ID || !supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const id = String(req.params.id ?? "").trim();
+      if (!id) return res.status(400).json({ error: "ID inválido." });
+      const { data: row, error: fetchErr } = await supabaseAdmin
+        .from("workshop_tv_media")
+        .select("id, storage_path")
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (fetchErr) {
+        if (isMissingRelationError(fetchErr.message)) {
+          return res.status(404).json({ error: "Mídia não encontrada." });
+        }
+        return res.status(500).json({ error: fetchErr.message });
+      }
+      if (!row) return res.status(404).json({ error: "Mídia não encontrada." });
+      const storagePath = String((row as { storage_path?: string }).storage_path ?? "").trim();
+      if (storagePath) {
+        const { error: storageErr } = await supabaseAdmin.storage.from(TV_PATIO_BUCKET).remove([storagePath]);
+        if (storageErr) {
+          console.warn("[API] DELETE tv/media storage:", storageErr.message);
+        }
+      }
+      const { error: delErr } = await supabaseAdmin
+        .from("workshop_tv_media")
+        .delete()
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (delErr) return res.status(500).json({ error: delErr.message });
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] DELETE /api/tv/media/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
   app.post("/api/tv/media/upload", tvMediaUpload.single("file"), async (req, res) => {
     try {
       if (!WORKSHOP_ID) {
@@ -2227,6 +2307,12 @@ export function createApiApp() {
       if (!mime.startsWith("image/") && !mime.startsWith("video/")) {
         return res.status(400).json({ error: "Apenas arquivos de imagem ou vídeo são permitidos." });
       }
+      if (mime.startsWith("video/") && file.buffer.length > TV_SHORT_VIDEO_MAX_BYTES) {
+        return res.status(400).json({
+          error: `Vídeo muito grande. Envie vídeos curtos de até ${Math.round(TV_SHORT_VIDEO_MAX_BYTES / (1024 * 1024))} MB.`,
+        });
+      }
+      const scope = tvScopeFromRequest(req);
       let ext = path.extname(file.originalname || "").replace(/^\./, "").toLowerCase();
       if (!ext || !/^[a-z0-9]{2,8}$/.test(ext)) {
         const map: Record<string, string> = {
@@ -2251,7 +2337,35 @@ export function createApiApp() {
       const {
         data: { publicUrl },
       } = supabaseAdmin.storage.from(TV_PATIO_BUCKET).getPublicUrl(objectPath);
-      return res.json({ url: publicUrl });
+
+      const mediaType = mime.startsWith("video/") ? "video" : "image";
+      const fileName = String(file.originalname || `arquivo.${ext}`).trim() || `arquivo.${ext}`;
+      const titleBase = fileName.replace(/\.[^.]+$/, "").trim();
+
+      let mediaId: string | undefined;
+      const { data: mediaRow, error: mediaInsertErr } = await supabaseAdmin
+        .from("workshop_tv_media")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          tv_scope: scope,
+          media_type: mediaType,
+          title: titleBase || null,
+          file_name: fileName,
+          media_url: publicUrl,
+          storage_path: objectPath,
+          size_bytes: file.buffer.length,
+        })
+        .select("id")
+        .single();
+      if (mediaInsertErr) {
+        if (!isMissingRelationError(mediaInsertErr.message)) {
+          console.error("[API] TV media library insert:", mediaInsertErr);
+        }
+      } else if (mediaRow?.id) {
+        mediaId = String(mediaRow.id);
+      }
+
+      return res.json({ url: publicUrl, mediaId });
     } catch (err: any) {
       console.error("[API] POST /api/tv/media/upload:", err);
       return res.status(500).json({ error: err?.message ?? "Erro no upload." });

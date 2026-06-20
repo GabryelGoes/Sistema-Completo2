@@ -3395,11 +3395,35 @@ export async function deleteTvSlide(id: string): Promise<void> {
   }
 }
 
-/** Upload de imagem ou vídeo para o Storage da TV (retorna URL pública). */
-export async function uploadTvPatioMedia(file: File): Promise<{ url: string }> {
+/** Vídeos curtos enviados à nuvem (máx. 50 MB). */
+export const TV_SHORT_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
+export const TV_SHORT_VIDEO_MAX_MB = 50;
+
+export interface TvMediaItem {
+  id: string;
+  tvScope: TvScope;
+  mediaType: "video" | "image";
+  title: string | null;
+  fileName: string;
+  mediaUrl: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export function formatTvMediaSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "—";
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Upload de imagem ou vídeo para o Storage da TV (retorna URL pública e registra na biblioteca). */
+export async function uploadTvPatioMedia(
+  file: File,
+  scope: TvScope = "patio"
+): Promise<{ url: string; mediaId?: string }> {
   const fd = new FormData();
   fd.append("file", file);
-  const response = await fetch(`${API_BASE}/tv/media/upload`, {
+  const response = await fetch(`${API_BASE}/tv/media/upload?${tvScopeQuery(scope)}`, {
     method: "POST",
     body: fd,
   });
@@ -3407,7 +3431,26 @@ export async function uploadTvPatioMedia(file: File): Promise<{ url: string }> {
   if (!response.ok) {
     throw new Error((data as { error?: string }).error || "Falha no upload do arquivo.");
   }
-  return data as { url: string };
+  return data as { url: string; mediaId?: string };
+}
+
+export async function listTvMedia(scope: TvScope = "patio"): Promise<TvMediaItem[]> {
+  const response = await fetch(`${API_BASE}/tv/media?${tvScopeQuery(scope)}`, { cache: "no-store" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((data as { error?: string }).error || "Falha ao carregar biblioteca de mídia.");
+  }
+  return Array.isArray((data as { items?: TvMediaItem[] }).items)
+    ? ((data as { items: TvMediaItem[] }).items ?? [])
+    : [];
+}
+
+export async function deleteTvMedia(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/tv/media/${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao excluir mídia.");
+  }
 }
 
 /** Marcador em foto de entrada (% da largura/altura da imagem). */
