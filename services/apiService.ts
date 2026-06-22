@@ -4,6 +4,8 @@ import type { ServiceOrderStatus } from "../constants/serviceOrderStages";
 import type { ExternalRepair } from "../constants/labBench";
 import { API_BASE } from "./apiConfig";
 import "./httpClient";
+import { getSupabaseBrowser } from "./supabaseBrowser";
+import { isTvVideoFile } from "../utils/tvMediaFile";
 
 async function readResponseJson<T>(response: Response, emptyMessage: string, invalidMessage: string): Promise<T> {
   const text = await response.text();
@@ -3399,6 +3401,20 @@ export async function deleteTvSlide(id: string): Promise<void> {
 export const TV_SHORT_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
 export const TV_SHORT_VIDEO_MAX_MB = 50;
 
+const TV_PATIO_STORAGE_BUCKET =
+  (import.meta.env.VITE_SUPABASE_TV_PATIO_BUCKET as string | undefined)?.trim() || "tv-patio";
+
+async function readTvApiError(response: Response, fallback: string): Promise<string> {
+  const data = await response.json().catch(() => ({} as { error?: string }));
+  if (typeof data.error === "string" && data.error.trim()) return data.error.trim();
+  if (response.status === 413) {
+    return "Arquivo muito grande para enviar pelo servidor. Tente novamente após atualizar o app.";
+  }
+  if (response.status === 401) return "Sessão expirada. Faça login novamente.";
+  if (response.status >= 500) return "Erro no servidor ao enviar o arquivo. Tente de novo em instantes.";
+  return fallback;
+}
+
 export interface TvMediaItem {
   id: string;
   tvScope: TvScope;
@@ -3416,23 +3432,24 @@ export function formatTvMediaSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Upload de imagem ou vídeo para o Storage da TV (retorna URL pública e registra na biblioteca). */
+/** Upload de imagem ou vídeo para o Storage da TV (direto ao Supabase, sem limite da Vercel). */
 export async function uploadTvPatioMedia(
   file: File,
   scope: TvScope = "patio"
 ): Promise<{ url: string; mediaId?: string }> {
-  const fd = new FormData();
-  fd.append("file", file, file.name || "video.mp4");
-  const path = `/tv/media/upload?${tvScopeQuery(scope)}`;
-  const url =
-    API_BASE.startsWith("/") && typeof window !== "undefined"
-      ? new URL(`${API_BASE.replace(/\/$/, "")}${path}`, window.location.origin).href
-      : `${API_BASE.replace(/\/$/, "")}${path}`;
-  let response: Response;
+  const fileName = file.name || (isTvVideoFile(file) ? "video.mp4" : "imagem.jpg");
+  const scopeQs = tvScopeQuery(scope);
+
+  let initResponse: Response;
   try {
-    response = await fetch(url, {
+    initResponse = await fetch(`${API_BASE}/tv/media/upload-init?${scopeQs}`, {
       method: "POST",
-      body: fd,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fileName,
+        fileSize: file.size,
+        contentType: file.type || undefined,
+      }),
       cache: "no-store",
     });
   } catch (e) {
@@ -3441,18 +3458,85 @@ export async function uploadTvPatioMedia(
       (String(e.message).includes("fetch") || String(e.message).includes("NetworkError"));
     if (isNetwork) {
       throw new Error(
-        "Não foi possível enviar o vídeo. Verifique a conexão e se a API está acessível (/api/health)."
+        "Não foi possível conectar à API. Verifique a internet e se /api/health responde."
       );
     }
     throw e;
   }
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error((data as { error?: string }).error || "Falha no upload do arquivo.");
+
+  if (!initResponse.ok) {
+    throw new Error(await readTvApiError(initResponse, "Falha ao preparar o upload."));
   }
-  const result = data as { url?: string; mediaId?: string };
+
+  const init = (await initResponse.json()) as {
+    path?: string;
+    token?: string;
+    signedUrl?: string;
+    mime?: string;
+    mediaType?: "video" | "image";
+  };
+  if (!init.path || !init.token) {
+    throw new Error("Resposta inválida ao preparar o upload.");
+  }
+
+  const supabase = getSupabaseBrowser();
+  if (supabase) {
+    const { error: uploadError } = await supabase.storage
+      .from(TV_PATIO_STORAGE_BUCKET)
+      .uploadToSignedUrl(init.path, init.token, file, {
+        contentType: init.mime || file.type || undefined,
+      });
+    if (uploadError) {
+      throw new Error(uploadError.message || "Falha ao enviar arquivo ao Storage.");
+    }
+  } else if (init.signedUrl) {
+    const putResponse = await fetch(init.signedUrl, {
+      method: "PUT",
+      body: file,
+      headers: init.mime ? { "Content-Type": init.mime } : undefined,
+    });
+    if (!putResponse.ok) {
+      throw new Error(
+        `Falha ao enviar ao Storage (${putResponse.status}). Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no build.`
+      );
+    }
+  } else {
+    throw new Error(
+      "Upload direto indisponível. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no build do app."
+    );
+  }
+
+  let completeResponse: Response;
+  try {
+    completeResponse = await fetch(`${API_BASE}/tv/media/upload-complete?${scopeQs}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        storagePath: init.path,
+        fileName,
+        fileSize: file.size,
+        mime: init.mime || file.type || "",
+        mediaType: init.mediaType,
+      }),
+      cache: "no-store",
+    });
+  } catch (e) {
+    const isNetwork =
+      e instanceof TypeError &&
+      (String(e.message).includes("fetch") || String(e.message).includes("NetworkError"));
+    if (isNetwork) {
+      throw new Error("Arquivo enviado ao Storage, mas falhou ao registrar na biblioteca. Tente recarregar.");
+    }
+    throw e;
+  }
+
+  if (!completeResponse.ok) {
+    throw new Error(await readTvApiError(completeResponse, "Falha ao finalizar o upload."));
+  }
+
+  const result = (await completeResponse.json()) as { url?: string; mediaId?: string };
   if (!result.url) {
-    throw new Error("Upload concluído mas o servidor não retornou a URL do vídeo.");
+    throw new Error("Upload concluído mas o servidor não retornou a URL do arquivo.");
   }
   return { url: result.url, mediaId: result.mediaId };
 }

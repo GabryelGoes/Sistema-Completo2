@@ -2211,8 +2211,59 @@ export function createApiApp() {
     }
   });
 
-  /** Upload de imagem ou vídeo para a TV (Storage público). Multipart: file */
+  /** Upload de imagem ou vídeo para a TV (Storage público). */
   const TV_SHORT_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
+  const TV_IMAGE_MAX_BYTES = 100 * 1024 * 1024;
+
+  function tvMediaExtensionFromMime(mime: string, originalName: string): string {
+    let ext = path.extname(originalName).replace(/^\./, "").toLowerCase();
+    if (ext && /^[a-z0-9]{2,8}$/.test(ext)) return ext;
+    const map: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+      "image/gif": "gif",
+      "video/mp4": "mp4",
+      "video/webm": "webm",
+      "video/quicktime": "mov",
+      "video/3gpp": "3gp",
+      "video/x-msvideo": "avi",
+    };
+    return map[mime] || "bin";
+  }
+
+  async function insertTvMediaLibraryRow(params: {
+    scope: ReturnType<typeof parseTvScope>;
+    mediaType: "video" | "image";
+    fileName: string;
+    storagePath: string;
+    publicUrl: string;
+    sizeBytes: number;
+  }): Promise<string | undefined> {
+    if (!WORKSHOP_ID || !supabaseAdmin) return undefined;
+    const titleBase = params.fileName.replace(/\.[^.]+$/, "").trim();
+    const { data: mediaRow, error: mediaInsertErr } = await supabaseAdmin
+      .from("workshop_tv_media")
+      .insert({
+        workshop_id: WORKSHOP_ID,
+        tv_scope: params.scope,
+        media_type: params.mediaType,
+        title: titleBase || null,
+        file_name: params.fileName,
+        media_url: params.publicUrl,
+        storage_path: params.storagePath,
+        size_bytes: params.sizeBytes,
+      })
+      .select("id")
+      .single();
+    if (mediaInsertErr) {
+      if (!isMissingRelationError(mediaInsertErr.message)) {
+        console.error("[API] TV media library insert:", mediaInsertErr);
+      }
+      return undefined;
+    }
+    return mediaRow?.id ? String(mediaRow.id) : undefined;
+  }
 
   function mapTvMediaRow(row: Record<string, unknown>) {
     return {
@@ -2292,6 +2343,115 @@ export function createApiApp() {
     }
   });
 
+  /** Passo 1: URL assinada para upload direto ao Storage (contorna limite de body na Vercel). */
+  app.post("/api/tv/media/upload-init", async (req, res) => {
+    try {
+      if (!WORKSHOP_ID || !supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const body = (req.body ?? {}) as {
+        fileName?: unknown;
+        fileSize?: unknown;
+        contentType?: unknown;
+      };
+      const fileName = String(body.fileName ?? "").trim() || "arquivo.mp4";
+      const fileSize = Number(body.fileSize ?? 0);
+      if (!Number.isFinite(fileSize) || fileSize <= 0) {
+        return res.status(400).json({ error: "Tamanho do arquivo inválido." });
+      }
+      const resolved = resolveTvUploadMime(String(body.contentType ?? ""), fileName);
+      if (!resolved.kind) {
+        return res.status(400).json({
+          error: "Apenas arquivos de imagem ou vídeo são permitidos (MP4, MOV, WebM, JPG, PNG, etc.).",
+        });
+      }
+      if (resolved.kind === "video" && fileSize > TV_SHORT_VIDEO_MAX_BYTES) {
+        return res.status(400).json({
+          error: `Vídeo muito grande. Envie vídeos curtos de até ${Math.round(TV_SHORT_VIDEO_MAX_BYTES / (1024 * 1024))} MB.`,
+        });
+      }
+      if (resolved.kind === "image" && fileSize > TV_IMAGE_MAX_BYTES) {
+        return res.status(400).json({ error: "Imagem muito grande. Máximo 100 MB." });
+      }
+      const ext = tvMediaExtensionFromMime(resolved.mime, fileName);
+      const objectPath = `${WORKSHOP_ID}/tv/${crypto.randomUUID()}.${ext}`;
+      const { data, error } = await supabaseAdmin.storage
+        .from(TV_PATIO_BUCKET)
+        .createSignedUploadUrl(objectPath);
+      if (error || !data) {
+        console.error("[API] TV signed upload URL:", error);
+        return res.status(500).json({
+          error:
+            error?.message ??
+            "Não foi possível preparar o upload. Verifique se o bucket tv-patio existe no Supabase.",
+        });
+      }
+      const {
+        data: { publicUrl },
+      } = supabaseAdmin.storage.from(TV_PATIO_BUCKET).getPublicUrl(objectPath);
+      return res.json({
+        path: data.path,
+        token: data.token,
+        signedUrl: data.signedUrl,
+        publicUrl,
+        mime: resolved.mime,
+        mediaType: resolved.kind,
+      });
+    } catch (err: any) {
+      console.error("[API] POST /api/tv/media/upload-init:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro ao preparar upload." });
+    }
+  });
+
+  /** Passo 3: registra mídia na biblioteca após upload direto ao Storage. */
+  app.post("/api/tv/media/upload-complete", async (req, res) => {
+    try {
+      if (!WORKSHOP_ID || !supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const scope = tvScopeFromRequest(req);
+      const body = (req.body ?? {}) as {
+        storagePath?: unknown;
+        fileName?: unknown;
+        fileSize?: unknown;
+        mime?: unknown;
+        mediaType?: unknown;
+      };
+      const storagePath = String(body.storagePath ?? "").trim();
+      const expectedPrefix = `${WORKSHOP_ID}/tv/`;
+      if (!storagePath.startsWith(expectedPrefix)) {
+        return res.status(400).json({ error: "Caminho de armazenamento inválido." });
+      }
+      const fileName = String(body.fileName ?? "").trim() || path.basename(storagePath);
+      const fileSize = Number(body.fileSize ?? 0);
+      const mime = String(body.mime ?? "");
+      const resolved = resolveTvUploadMime(mime, fileName);
+      const mediaType =
+        body.mediaType === "image" || body.mediaType === "video"
+          ? body.mediaType
+          : resolved.kind;
+      if (mediaType !== "image" && mediaType !== "video") {
+        return res.status(400).json({ error: "Tipo de mídia inválido." });
+      }
+      const {
+        data: { publicUrl },
+      } = supabaseAdmin.storage.from(TV_PATIO_BUCKET).getPublicUrl(storagePath);
+      const mediaId = await insertTvMediaLibraryRow({
+        scope,
+        mediaType,
+        fileName,
+        storagePath,
+        publicUrl,
+        sizeBytes: Number.isFinite(fileSize) && fileSize > 0 ? fileSize : 0,
+      });
+      return res.json({ url: publicUrl, mediaId });
+    } catch (err: any) {
+      console.error("[API] POST /api/tv/media/upload-complete:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro ao finalizar upload." });
+    }
+  });
+
+  /** Legado: multipart pelo servidor (imagens pequenas / dev local). Vídeos grandes devem usar upload-init. */
   app.post(
     "/api/tv/media/upload",
     (req, res, next) => {
