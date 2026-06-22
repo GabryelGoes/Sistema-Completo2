@@ -43,6 +43,7 @@ import { TvChimeBannerCard } from './TvChimeBannerCard';
 import { TvPatioPreview } from './TvPatioPreview';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
+import { isTvImageFile, isTvVideoFile, TV_VIDEO_ACCEPT } from '../utils/tvMediaFile';
 
 const SLIDE_TYPES: { value: TvSlideType; label: string; hint: string }[] = [
   { value: 'notice', label: 'Aviso', hint: 'Texto em destaque' },
@@ -80,10 +81,12 @@ function formatMediaDate(iso: string): string {
 }
 
 interface TvCloudVideoBlockProps {
+  fileInputId: string;
   currentUrl: string;
   onSelectUrl: (url: string) => void;
-  onUploadClick: () => void;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   uploading: boolean;
+  uploadFeedback: { tone: 'error' | 'success'; text: string } | null;
   videos: TvMediaItem[];
   libraryLoading: boolean;
   onDeleteVideo: (item: TvMediaItem) => void;
@@ -91,10 +94,12 @@ interface TvCloudVideoBlockProps {
 }
 
 function TvCloudVideoBlock({
+  fileInputId,
   currentUrl,
   onSelectUrl,
-  onUploadClick,
+  onFileChange,
   uploading,
+  uploadFeedback,
   videos,
   libraryLoading,
   onDeleteVideo,
@@ -102,11 +107,11 @@ function TvCloudVideoBlock({
 }: TvCloudVideoBlockProps) {
   return (
     <div className="space-y-3">
-      <button
-        type="button"
-        onClick={onUploadClick}
-        disabled={uploading}
-        className="flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-[#007AFF]/45 bg-blue-50/60 py-8 text-[15px] font-semibold text-[#007AFF] hover:border-[#007AFF]/70 hover:bg-blue-50 transition-colors disabled:opacity-50"
+      <label
+        htmlFor={fileInputId}
+        className={`flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-[#007AFF]/45 bg-blue-50/60 py-8 text-[15px] font-semibold text-[#007AFF] hover:border-[#007AFF]/70 hover:bg-blue-50 transition-colors ${
+          uploading ? 'pointer-events-none opacity-50' : 'cursor-pointer'
+        }`}
       >
         <span className="inline-flex items-center gap-2">
           {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudUpload className="w-5 h-5" />}
@@ -115,63 +120,80 @@ function TvCloudVideoBlock({
         <span className="text-[11px] font-normal text-[#007AFF]/80">
           Até {TV_SHORT_VIDEO_MAX_MB} MB · salvo na nuvem, sem pasta no PC
         </span>
-      </button>
+      </label>
+      <input
+        id={fileInputId}
+        type="file"
+        accept={TV_VIDEO_ACCEPT}
+        className="sr-only"
+        disabled={uploading}
+        onChange={onFileChange}
+      />
 
-      {(libraryLoading || videos.length > 0) && (
-        <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50/80 p-3">
-          <p className={tvMediaLabel}>Biblioteca de vídeos enviados</p>
-          {libraryLoading ? (
-            <p className="flex items-center gap-2 text-[12px] text-zinc-500">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Carregando…
-            </p>
-          ) : (
-            <ul className="max-h-44 space-y-2 overflow-y-auto">
-              {videos.map((v) => {
-                const selected = currentUrl.trim() === v.mediaUrl;
-                return (
-                  <li
-                    key={v.id}
-                    className={`flex items-center gap-2 rounded-xl border px-2.5 py-2 ${
-                      selected ? 'border-[#007AFF]/50 bg-[#007AFF]/10' : 'border-zinc-200/80 bg-white/90'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onSelectUrl(v.mediaUrl)}
-                      className="min-w-0 flex-1 text-left"
-                    >
-                      <span className="flex items-center gap-1.5 text-[13px] font-medium text-zinc-900 truncate">
-                        <Film className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-                        {v.title || v.fileName}
-                      </span>
-                      <span className="text-[10px] text-zinc-500">
-                        {formatTvMediaSize(v.sizeBytes)} · {formatMediaDate(v.createdAt)}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      title="Excluir da biblioteca"
-                      disabled={deletingId === v.id}
-                      onClick={() => onDeleteVideo(v)}
-                      className="shrink-0 rounded-lg p-1.5 text-red-600 hover:bg-red-500/10 disabled:opacity-40"
-                    >
-                      {deletingId === v.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {!libraryLoading && videos.length === 0 && (
-            <p className="text-[12px] text-zinc-500">Nenhum vídeo na biblioteca ainda. Envie o primeiro acima.</p>
-          )}
-        </div>
+      {uploadFeedback && (
+        <p
+          className={`rounded-2xl px-3 py-2 text-[12px] font-medium ${
+            uploadFeedback.tone === 'error'
+              ? 'bg-red-50 text-red-700 border border-red-200'
+              : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+          }`}
+        >
+          {uploadFeedback.text}
+        </p>
       )}
+
+      <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50/80 p-3">
+        <p className={tvMediaLabel}>Biblioteca de vídeos enviados</p>
+        {libraryLoading ? (
+          <p className="flex items-center gap-2 text-[12px] text-zinc-500">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Carregando…
+          </p>
+        ) : videos.length > 0 ? (
+          <ul className="max-h-44 space-y-2 overflow-y-auto">
+            {videos.map((v) => {
+              const selected = currentUrl.trim() === v.mediaUrl;
+              return (
+                <li
+                  key={v.id}
+                  className={`flex items-center gap-2 rounded-xl border px-2.5 py-2 ${
+                    selected ? 'border-[#007AFF]/50 bg-[#007AFF]/10' : 'border-zinc-200/80 bg-white/90'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSelectUrl(v.mediaUrl)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <span className="flex items-center gap-1.5 text-[13px] font-medium text-zinc-900 truncate">
+                      <Film className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                      {v.title || v.fileName}
+                    </span>
+                    <span className="text-[10px] text-zinc-500">
+                      {formatTvMediaSize(v.sizeBytes)} · {formatMediaDate(v.createdAt)}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    title="Excluir da biblioteca"
+                    disabled={deletingId === v.id}
+                    onClick={() => onDeleteVideo(v)}
+                    className="shrink-0 rounded-lg p-1.5 text-red-600 hover:bg-red-500/10 disabled:opacity-40"
+                  >
+                    {deletingId === v.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-[12px] text-zinc-500">Nenhum vídeo na biblioteca ainda. Envie o primeiro acima.</p>
+        )}
+      </div>
 
       <div>
         <label className={tvMediaLabel}>Ou cole uma URL (YouTube, link direto)</label>
@@ -237,13 +259,14 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const [previewTab, setPreviewTab] = useState<'draft' | 'library' | 'chimes'>('draft');
   const [libraryPreviewId, setLibraryPreviewId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoFileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
-  const editVideoFileInputRef = useRef<HTMLInputElement>(null);
 
   const [mediaLibrary, setMediaLibrary] = useState<TvMediaItem[]>([]);
   const [mediaLibraryLoading, setMediaLibraryLoading] = useState(false);
   const [deletingMediaId, setDeletingMediaId] = useState<string | null>(null);
+  const [uploadFeedback, setUploadFeedback] = useState<{ tone: 'error' | 'success'; text: string } | null>(
+    null
+  );
 
   const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{
@@ -331,6 +354,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       setChimeFiringPreviewInTv(null);
       setChimePreviewPickId(null);
       setChimeSectionExpanded(false);
+      setUploadFeedback(null);
       if (chimeBannerTimerRef.current) {
         window.clearTimeout(chimeBannerTimerRef.current);
         chimeBannerTimerRef.current = null;
@@ -688,17 +712,21 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (!file || !dataReady) return;
+    if (!file) return;
     setUploading(true);
     setError(null);
+    setUploadFeedback(null);
     try {
       const { url } = await uploadTvPatioMedia(file, tvScope);
       setNewMediaUrl(url);
-      if (file.type.startsWith('video/')) setNewType('video');
-      else if (file.type.startsWith('image/')) setNewType('image');
+      if (isTvVideoFile(file)) setNewType('video');
+      else if (isTvImageFile(file)) setNewType('image');
       await loadMediaLibrary();
+      setUploadFeedback({ tone: 'success', text: `Arquivo enviado: ${file.name}` });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha no upload');
+      const msg = err instanceof Error ? err.message : 'Falha no upload';
+      setError(msg);
+      setUploadFeedback({ tone: 'error', text: msg });
     } finally {
       setUploading(false);
     }
@@ -710,26 +738,42 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   ) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (!file || !dataReady) return;
-    if (!file.type.startsWith('video/')) {
-      setError('Escolha um arquivo de vídeo (MP4, WebM, etc.).');
+    if (!file) return;
+    if (!isTvVideoFile(file)) {
+      const msg = 'Escolha um vídeo (MP4, MOV, WebM, etc.).';
+      setError(msg);
+      setUploadFeedback({ tone: 'error', text: msg });
+      return;
+    }
+    if (file.size > TV_SHORT_VIDEO_MAX_MB * 1024 * 1024) {
+      const msg = `Vídeo muito grande (${formatTvMediaSize(file.size)}). Máximo ${TV_SHORT_VIDEO_MAX_MB} MB.`;
+      setError(msg);
+      setUploadFeedback({ tone: 'error', text: msg });
       return;
     }
     setUploading(true);
     setError(null);
+    setUploadFeedback(null);
     try {
       const { url } = await uploadTvPatioMedia(file, tvScope);
       if (target === 'new') {
         setNewMediaUrl(url);
         setNewType('video');
+        setPreviewTab('draft');
       } else {
         setEditForm((prev) =>
           prev ? { ...prev, mediaUrl: url, slideType: 'video' as TvSlideType } : prev
         );
       }
       await loadMediaLibrary();
+      setUploadFeedback({
+        tone: 'success',
+        text: `Vídeo enviado com sucesso (${formatTvMediaSize(file.size)}). Adicione à rotação ou salve o slide.`,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha no upload');
+      const msg = err instanceof Error ? err.message : 'Falha no upload';
+      setError(msg);
+      setUploadFeedback({ tone: 'error', text: msg });
     } finally {
       setUploading(false);
     }
@@ -823,21 +867,25 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const handleEditFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (!file || !dataReady) return;
+    if (!file) return;
     setUploading(true);
     setError(null);
+    setUploadFeedback(null);
     try {
       const { url } = await uploadTvPatioMedia(file, tvScope);
       setEditForm((prev) => {
         if (!prev) return prev;
         const next = { ...prev, mediaUrl: url };
-        if (file.type.startsWith('video/')) return { ...next, slideType: 'video' as TvSlideType };
-        if (file.type.startsWith('image/')) return { ...next, slideType: 'image' as TvSlideType };
+        if (isTvVideoFile(file)) return { ...next, slideType: 'video' as TvSlideType };
+        if (isTvImageFile(file)) return { ...next, slideType: 'image' as TvSlideType };
         return next;
       });
       await loadMediaLibrary();
+      setUploadFeedback({ tone: 'success', text: `Arquivo enviado: ${file.name}` });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha no upload');
+      const msg = err instanceof Error ? err.message : 'Falha no upload';
+      setError(msg);
+      setUploadFeedback({ tone: 'error', text: msg });
     } finally {
       setUploading(false);
     }
@@ -1682,25 +1730,18 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                     {(newType === 'image' || newType === 'video') && (
                       <div className="space-y-3">
                         {newType === 'video' ? (
-                          <>
-                            <input
-                              ref={videoFileInputRef}
-                              type="file"
-                              accept="video/*"
-                              className="hidden"
-                              onChange={(e) => void handleVideoFileChange(e, 'new')}
-                            />
-                            <TvCloudVideoBlock
-                              currentUrl={newMediaUrl}
-                              onSelectUrl={setNewMediaUrl}
-                              onUploadClick={() => videoFileInputRef.current?.click()}
-                              uploading={uploading}
-                              videos={cloudVideos}
-                              libraryLoading={mediaLibraryLoading}
-                              onDeleteVideo={(item) => void handleDeleteMedia(item)}
-                              deletingId={deletingMediaId}
-                            />
-                          </>
+                          <TvCloudVideoBlock
+                            fileInputId="tv-new-video-upload"
+                            currentUrl={newMediaUrl}
+                            onSelectUrl={setNewMediaUrl}
+                            onFileChange={(e) => void handleVideoFileChange(e, 'new')}
+                            uploading={uploading}
+                            uploadFeedback={uploadFeedback}
+                            videos={cloudVideos}
+                            libraryLoading={mediaLibraryLoading}
+                            onDeleteVideo={(item) => void handleDeleteMedia(item)}
+                            deletingId={deletingMediaId}
+                          />
                         ) : (
                           <>
                             <input
@@ -2056,27 +2097,20 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             {(editForm.slideType === 'image' || editForm.slideType === 'video') && (
                               <div className="space-y-3">
                                 {editForm.slideType === 'video' ? (
-                                  <>
-                                    <input
-                                      ref={editVideoFileInputRef}
-                                      type="file"
-                                      accept="video/*"
-                                      className="hidden"
-                                      onChange={(e) => void handleVideoFileChange(e, 'edit')}
-                                    />
-                                    <TvCloudVideoBlock
-                                      currentUrl={editForm.mediaUrl}
-                                      onSelectUrl={(url) =>
-                                        setEditForm((f) => (f ? { ...f, mediaUrl: url } : f))
-                                      }
-                                      onUploadClick={() => editVideoFileInputRef.current?.click()}
-                                      uploading={uploading}
-                                      videos={cloudVideos}
-                                      libraryLoading={mediaLibraryLoading}
-                                      onDeleteVideo={(item) => void handleDeleteMedia(item)}
-                                      deletingId={deletingMediaId}
-                                    />
-                                  </>
+                                  <TvCloudVideoBlock
+                                    fileInputId={`tv-edit-video-upload-${editingSlideId}`}
+                                    currentUrl={editForm.mediaUrl}
+                                    onSelectUrl={(url) =>
+                                      setEditForm((f) => (f ? { ...f, mediaUrl: url } : f))
+                                    }
+                                    onFileChange={(e) => void handleVideoFileChange(e, 'edit')}
+                                    uploading={uploading}
+                                    uploadFeedback={uploadFeedback}
+                                    videos={cloudVideos}
+                                    libraryLoading={mediaLibraryLoading}
+                                    onDeleteVideo={(item) => void handleDeleteMedia(item)}
+                                    deletingId={deletingMediaId}
+                                  />
                                 ) : (
                                   <>
                                     <input

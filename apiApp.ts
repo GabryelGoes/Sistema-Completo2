@@ -28,6 +28,7 @@ import { normalizeTvChimeConfig } from "./utils/tvChimeSchedule.js";
 import { parseModuleKind, parseModuleVehicleKind } from "./utils/moduleMetadata.js";
 import { SYSTEM_NOTIFICATION_IDS } from "./constants/systemNotificationTypes.js";
 import { buildWorkshopPartsAnalytics } from "./utils/workshopPartsAnalytics.js";
+import { resolveTvUploadMime } from "./utils/tvMediaFile.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -2291,7 +2292,24 @@ export function createApiApp() {
     }
   });
 
-  app.post("/api/tv/media/upload", tvMediaUpload.single("file"), async (req, res) => {
+  app.post(
+    "/api/tv/media/upload",
+    (req, res, next) => {
+      tvMediaUpload.single("file")(req, res, (err: unknown) => {
+        if (err) {
+          const code = (err as { code?: string }).code;
+          if (code === "LIMIT_FILE_SIZE") {
+            return res.status(400).json({
+              error: "Arquivo muito grande. Vídeos curtos até 50 MB; imagens até 100 MB.",
+            });
+          }
+          const msg = err instanceof Error ? err.message : "Falha ao receber o arquivo.";
+          return res.status(400).json({ error: msg });
+        }
+        next();
+      });
+    },
+    async (req, res) => {
     try {
       if (!WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
@@ -2303,17 +2321,21 @@ export function createApiApp() {
       if (!file?.buffer) {
         return res.status(400).json({ error: "Envie um arquivo (imagem ou vídeo)." });
       }
-      const mime = String(file.mimetype || "");
-      if (!mime.startsWith("image/") && !mime.startsWith("video/")) {
-        return res.status(400).json({ error: "Apenas arquivos de imagem ou vídeo são permitidos." });
+      const originalName = String(file.originalname || "").trim();
+      const resolved = resolveTvUploadMime(String(file.mimetype || ""), originalName);
+      if (!resolved.kind) {
+        return res.status(400).json({
+          error: "Apenas arquivos de imagem ou vídeo são permitidos (MP4, MOV, WebM, JPG, PNG, etc.).",
+        });
       }
-      if (mime.startsWith("video/") && file.buffer.length > TV_SHORT_VIDEO_MAX_BYTES) {
+      const mime = resolved.mime;
+      if (resolved.kind === "video" && file.buffer.length > TV_SHORT_VIDEO_MAX_BYTES) {
         return res.status(400).json({
           error: `Vídeo muito grande. Envie vídeos curtos de até ${Math.round(TV_SHORT_VIDEO_MAX_BYTES / (1024 * 1024))} MB.`,
         });
       }
       const scope = tvScopeFromRequest(req);
-      let ext = path.extname(file.originalname || "").replace(/^\./, "").toLowerCase();
+      let ext = path.extname(originalName).replace(/^\./, "").toLowerCase();
       if (!ext || !/^[a-z0-9]{2,8}$/.test(ext)) {
         const map: Record<string, string> = {
           "image/jpeg": "jpg",
@@ -2323,6 +2345,8 @@ export function createApiApp() {
           "video/mp4": "mp4",
           "video/webm": "webm",
           "video/quicktime": "mov",
+          "video/3gpp": "3gp",
+          "video/x-msvideo": "avi",
         };
         ext = map[mime] || "bin";
       }
@@ -2338,8 +2362,8 @@ export function createApiApp() {
         data: { publicUrl },
       } = supabaseAdmin.storage.from(TV_PATIO_BUCKET).getPublicUrl(objectPath);
 
-      const mediaType = mime.startsWith("video/") ? "video" : "image";
-      const fileName = String(file.originalname || `arquivo.${ext}`).trim() || `arquivo.${ext}`;
+      const mediaType = resolved.kind;
+      const fileName = originalName || `arquivo.${ext}`;
       const titleBase = fileName.replace(/\.[^.]+$/, "").trim();
 
       let mediaId: string | undefined;
@@ -2370,7 +2394,8 @@ export function createApiApp() {
       console.error("[API] POST /api/tv/media/upload:", err);
       return res.status(500).json({ error: err?.message ?? "Erro no upload." });
     }
-  });
+  }
+  );
 
   function normalizePlacaInput(raw: unknown): string {
     return String(raw ?? "")

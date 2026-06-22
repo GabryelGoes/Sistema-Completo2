@@ -3422,16 +3422,39 @@ export async function uploadTvPatioMedia(
   scope: TvScope = "patio"
 ): Promise<{ url: string; mediaId?: string }> {
   const fd = new FormData();
-  fd.append("file", file);
-  const response = await fetch(`${API_BASE}/tv/media/upload?${tvScopeQuery(scope)}`, {
-    method: "POST",
-    body: fd,
-  });
+  fd.append("file", file, file.name || "video.mp4");
+  const path = `/tv/media/upload?${tvScopeQuery(scope)}`;
+  const url =
+    API_BASE.startsWith("/") && typeof window !== "undefined"
+      ? new URL(`${API_BASE.replace(/\/$/, "")}${path}`, window.location.origin).href
+      : `${API_BASE.replace(/\/$/, "")}${path}`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      body: fd,
+      cache: "no-store",
+    });
+  } catch (e) {
+    const isNetwork =
+      e instanceof TypeError &&
+      (String(e.message).includes("fetch") || String(e.message).includes("NetworkError"));
+    if (isNetwork) {
+      throw new Error(
+        "Não foi possível enviar o vídeo. Verifique a conexão e se a API está acessível (/api/health)."
+      );
+    }
+    throw e;
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error((data as { error?: string }).error || "Falha no upload do arquivo.");
   }
-  return data as { url: string; mediaId?: string };
+  const result = data as { url?: string; mediaId?: string };
+  if (!result.url) {
+    throw new Error("Upload concluído mas o servidor não retornou a URL do vídeo.");
+  }
+  return { url: result.url, mediaId: result.mediaId };
 }
 
 export async function listTvMedia(scope: TvScope = "patio"): Promise<TvMediaItem[]> {
