@@ -523,6 +523,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     return enabledChimeAlerts[0]?.id ?? null;
   }, [chimePreviewPickId, enabledChimeAlerts]);
 
+  const cloudVideos = useMemo(
+    () => mediaLibrary.filter((m) => m.mediaType === 'video'),
+    [mediaLibrary]
+  );
+
   useEffect(() => {
     if (previewTab !== 'chimes') setChimeFiringPreviewInTv(null);
   }, [previewTab]);
@@ -657,11 +662,6 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       setLoading(false);
     }
   };
-
-  const cloudVideos = useMemo(
-    () => mediaLibrary.filter((m) => m.mediaType === 'video'),
-    [mediaLibrary]
-  );
 
   const handleDeleteMedia = async (item: TvMediaItem) => {
     if (

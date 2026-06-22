@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import type { TrelloCard } from '../../types';
 import {
+  ALL_BENCH_SLOTS,
   LAB_BENCH_SLOT_COUNT,
   firstFreeBenchSlot,
   statusUsesBench,
