@@ -149,8 +149,8 @@ function TvVideoMediaBlock({
       <div className="rounded-2xl border border-[#007AFF]/25 bg-blue-50/60 px-3 py-2.5">
         <p className="text-[13px] font-semibold text-zinc-900">Vídeos na rotação desta página</p>
         <p className="mt-1 text-[11px] leading-relaxed text-zinc-600">
-          Adicione quantos vídeos quiser. Na TV, cada vez que a paginação chegar neste slide, será exibido o
-          próximo da lista (ex.: 2 telas de veículos → 3ª tela = vídeo 1, depois vídeo 2, e assim por diante).
+          Adicione quantos vídeos quiser no mesmo slide. Na TV: páginas do pátio → slide de vídeo (1º arquivo) →
+          páginas do pátio → mesmo slide (2º arquivo) → e assim por diante, alternando a cada volta.
         </p>
       </div>
 
