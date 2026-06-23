@@ -792,6 +792,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       openPrimaryVideoSlide();
       return;
     }
+    if (newType === 'video' && newMediaPlaylist.length === 0) {
+      setError('Adicione pelo menos um vídeo na rotação antes de salvar.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -1044,6 +1048,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         setError('Só é permitido 1 slide de vídeo neste modo.');
         return;
       }
+    }
+    if (editForm.slideType === 'video' && normalizeMediaPlaylist(editForm).length === 0) {
+      setError('O slide de vídeo precisa de pelo menos um arquivo na rotação.');
+      return;
     }
     setLoading(true);
     setError(null);

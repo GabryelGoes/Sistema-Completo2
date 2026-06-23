@@ -1875,6 +1875,44 @@ export function createApiApp() {
     return count ?? 0;
   }
 
+  const TV_SLIDE_COLUMNS_BASE =
+    "id, slide_type, title, body, media_url, duration_seconds, sort_order, is_active, goal_current, goal_target, goal_label, play_sound, goal_show_values, pin_immediate, media_object_fit";
+
+  function isSchemaColumnMissing(error: unknown, column: string): boolean {
+    const m = String((error as { message?: string })?.message ?? "").toLowerCase();
+    const c = column.toLowerCase();
+    return m.includes(c) && (m.includes("does not exist") || m.includes("schema cache"));
+  }
+
+  async function selectTvSlideRows(
+    scope: TvScope,
+    opts: { activeOnly?: boolean } = {}
+  ): Promise<{ data: Record<string, unknown>[] | null; error: { message: string } | null }> {
+    if (!supabaseAdmin || !WORKSHOP_ID) {
+      return { data: [], error: null };
+    }
+    const run = (columns: string) => {
+      let q = supabaseAdmin
+        .from("workshop_tv_slides")
+        .select(columns)
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("tv_scope", scope)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (opts.activeOnly) q = q.eq("is_active", true);
+      return q;
+    };
+    let { data, error } = await run(`${TV_SLIDE_COLUMNS_BASE}, media_playlist`);
+    if (error && isSchemaColumnMissing(error, "media_playlist")) {
+      console.warn("[API] TV slides: coluna media_playlist ausente — usando media_url.");
+      ({ data, error } = await run(TV_SLIDE_COLUMNS_BASE));
+    }
+    return {
+      data: (data ?? null) as Record<string, unknown>[] | null,
+      error: error ? { message: error.message } : null,
+    };
+  }
+
   async function fetchTvChimeScheduleNormalized(scope: TvScope) {
     if (!supabaseAdmin || !WORKSHOP_ID) {
       return normalizeTvChimeConfig(null);
@@ -1904,16 +1942,7 @@ export function createApiApp() {
     if (!supabaseAdmin || !WORKSHOP_ID) {
       return { slides: [], weeklyGoal: null, chimeSchedule: normalizeTvChimeConfig(null) };
     }
-    const { data: slideRows, error: slideErr } = await supabaseAdmin
-      .from("workshop_tv_slides")
-      .select(
-        "id, slide_type, title, body, media_url, media_playlist, duration_seconds, sort_order, is_active, goal_current, goal_target, goal_label, play_sound, goal_show_values, pin_immediate, media_object_fit"
-      )
-      .eq("workshop_id", WORKSHOP_ID)
-      .eq("tv_scope", scope)
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true });
+    const { data: slideRows, error: slideErr } = await selectTvSlideRows(scope, { activeOnly: true });
 
     if (slideErr) {
       console.error("[API] TV slides:", slideErr);
@@ -1963,13 +1992,7 @@ export function createApiApp() {
       if (!supabaseAdmin) {
         return res.status(500).json({ error: "Supabase não configurado." });
       }
-      const { data: slideRows, error } = await supabaseAdmin
-        .from("workshop_tv_slides")
-        .select("*")
-        .eq("workshop_id", WORKSHOP_ID)
-        .eq("tv_scope", scope)
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true });
+      const { data: slideRows, error } = await selectTvSlideRows(scope);
       if (error) {
         return res.status(500).json({ error: error.message });
       }
@@ -2189,11 +2212,15 @@ export function createApiApp() {
         pin_immediate: false,
         media_object_fit: slideType === "image" || slideType === "video" ? mediaObjectFit : "cover",
       };
-      const { data, error } = await supabaseAdmin.from("workshop_tv_slides").insert(insert).select("id").single();
-      if (error) {
-        return res.status(500).json({ error: error.message });
+      let insertResult = await supabaseAdmin.from("workshop_tv_slides").insert(insert).select("id").single();
+      if (insertResult.error && isSchemaColumnMissing(insertResult.error, "media_playlist")) {
+        const { media_playlist: _drop, ...legacyInsert } = insert;
+        insertResult = await supabaseAdmin.from("workshop_tv_slides").insert(legacyInsert).select("id").single();
       }
-      return res.status(201).json({ id: data?.id });
+      if (insertResult.error) {
+        return res.status(500).json({ error: insertResult.error.message });
+      }
+      return res.status(201).json({ id: insertResult.data?.id });
     } catch (err: any) {
       console.error("[API] POST /api/tv/slides:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
@@ -2220,7 +2247,44 @@ export function createApiApp() {
         updates.body = buildTvBodyWithFullscreen(rawBody, mediaFullscreen);
       }
       if (s.mediaUrl !== undefined || s.mediaPlaylist !== undefined) {
-        const { mediaUrl, mediaPlaylist } = resolveSlideMediaFields(s);
+        let mediaInput: Record<string, unknown> = { ...s };
+        if (s.mediaUrl === undefined || s.mediaPlaylist === undefined) {
+          let currentRow: { media_url?: string | null; media_playlist?: unknown } | null = null;
+          let curResult = await supabaseAdmin
+            .from("workshop_tv_slides")
+            .select("media_url, media_playlist")
+            .eq("id", id)
+            .eq("workshop_id", WORKSHOP_ID)
+            .maybeSingle();
+          if (curResult.error && isSchemaColumnMissing(curResult.error, "media_playlist")) {
+            curResult = await supabaseAdmin
+              .from("workshop_tv_slides")
+              .select("media_url")
+              .eq("id", id)
+              .eq("workshop_id", WORKSHOP_ID)
+              .maybeSingle();
+          }
+          currentRow = (curResult.data as typeof currentRow) ?? null;
+          if (currentRow) {
+            const curPlaylist = parseMediaPlaylist(currentRow.media_playlist);
+            const curUrl =
+              currentRow.media_url != null && String(currentRow.media_url).trim()
+                ? String(currentRow.media_url).trim()
+                : null;
+            mediaInput = {
+              mediaUrl: s.mediaUrl !== undefined ? s.mediaUrl : curUrl,
+              mediaPlaylist:
+                s.mediaPlaylist !== undefined
+                  ? s.mediaPlaylist
+                  : curPlaylist.length > 0
+                    ? curPlaylist
+                    : curUrl
+                      ? [curUrl]
+                      : [],
+            };
+          }
+        }
+        const { mediaUrl, mediaPlaylist } = resolveSlideMediaFields(mediaInput);
         updates.media_url = mediaUrl;
         updates.media_playlist = mediaPlaylist;
       }
@@ -2268,13 +2332,25 @@ export function createApiApp() {
         }
       }
 
-      const { error } = await supabaseAdmin
+      let updateResult = await supabaseAdmin
         .from("workshop_tv_slides")
         .update(updates)
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID);
-      if (error) {
-        return res.status(500).json({ error: error.message });
+      if (
+        updateResult.error &&
+        isSchemaColumnMissing(updateResult.error, "media_playlist") &&
+        "media_playlist" in updates
+      ) {
+        const { media_playlist: _drop, ...legacyUpdates } = updates;
+        updateResult = await supabaseAdmin
+          .from("workshop_tv_slides")
+          .update(legacyUpdates)
+          .eq("id", id)
+          .eq("workshop_id", WORKSHOP_ID);
+      }
+      if (updateResult.error) {
+        return res.status(500).json({ error: updateResult.error.message });
       }
       return res.json({ ok: true });
     } catch (err: any) {
