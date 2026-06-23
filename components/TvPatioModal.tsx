@@ -698,10 +698,6 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const applyVideoLayoutMode = async (next: TvVideoLayoutMode) => {
     if (next === videoLayoutMode) return;
     if (next === 'single_rotate' && videoSlides.length > 1) {
-      const ok = window.confirm(
-        `Existem ${videoSlides.length} slides de vídeo. Deseja juntar tudo em um único slide? Os vídeos vão alternar na mesma página da TV.`
-      );
-      if (!ok) return;
       await mergeVideoSlidesIntoOne();
     }
     setVideoSettingsSaving(true);
@@ -723,6 +719,69 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       return;
     }
     startEdit(primaryVideoSlide);
+  };
+
+  const saveVideoPlaylist = async (slideId: string, playlist: string[], feedbackText?: string) => {
+    const saved = mediaPlaylistForSave(playlist);
+    if (!saved.mediaUrl) {
+      setError('Adicione pelo menos um vídeo na rotação.');
+      return;
+    }
+    setError(null);
+    try {
+      await updateTvSlide(slideId, {
+        slideType: 'video',
+        mediaPlaylist: saved.mediaPlaylist,
+        mediaUrl: saved.mediaUrl,
+      });
+      await load();
+      setEditForm((f) =>
+        editingSlideId === slideId && f
+          ? { ...f, mediaPlaylist: saved.mediaPlaylist, mediaUrl: saved.mediaUrl ?? '' }
+          : f
+      );
+      setUploadFeedback({
+        tone: 'success',
+        text: feedbackText ?? `${saved.mediaPlaylist.length} vídeo(s) na rotação — salvo automaticamente.`,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao salvar vídeos.');
+      throw e;
+    }
+  };
+
+  const resolveVideoSlideId = (target: 'new' | 'edit' | 'primary'): string | null => {
+    if (target === 'primary') return primaryVideoSlide?.id ?? null;
+    if (target === 'edit') return editingSlideId;
+    if (isSingleVideoMode && primaryVideoSlide) return primaryVideoSlide.id;
+    return null;
+  };
+
+  const appendVideoAndSave = async (
+    url: string,
+    target: 'new' | 'edit' | 'primary',
+    successText?: string
+  ) => {
+    const slideId = resolveVideoSlideId(target);
+    if (slideId) {
+      const slide = slides.find((s) => s.id === slideId) ?? primaryVideoSlide;
+      const base = slide ? normalizeMediaPlaylist(slide) : [];
+      const next = addVideoToPlaylist(base, url);
+      if (slide && editingSlideId !== slideId) {
+        startEdit(slide);
+      } else {
+        setEditForm((f) => (f ? { ...f, mediaPlaylist: next, slideType: 'video' } : f));
+      }
+      await saveVideoPlaylist(slideId, next, successText);
+      return;
+    }
+    setNewMediaPlaylist((list) => addVideoToPlaylist(list, url));
+    setNewType('video');
+    setPreviewTab('draft');
+    setUploadFeedback({
+      tone: 'success',
+      text: successText ?? 'Vídeo adicionado. Toque em «Adicionar à rotação» para criar o slide.',
+    });
   };
 
   useEffect(() => {
@@ -923,31 +982,13 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     }
   };
 
-  const handlePickPcVideo = async (target: 'new' | 'edit') => {
+  const handlePickPcVideo = async (target: 'new' | 'edit' | 'primary') => {
     setUploading(true);
     setError(null);
     setUploadFeedback(null);
     try {
       const { fileName, mediaUrl } = await selectPcVideoForTvSlide();
-      if (target === 'new') {
-        setNewMediaPlaylist((list) => addVideoToPlaylist(list, mediaUrl));
-        setNewType('video');
-        setPreviewTab('draft');
-      } else {
-        setEditForm((prev) =>
-          prev
-            ? {
-                ...prev,
-                mediaPlaylist: addVideoToPlaylist(prev.mediaPlaylist, mediaUrl),
-                slideType: 'video' as TvSlideType,
-              }
-            : prev
-        );
-      }
-      setUploadFeedback({
-        tone: 'success',
-        text: `Vídeo "${fileName}" adicionado à rotação. Na TV, toque em Selecionar vídeo na primeira exibição de cada arquivo local.`,
-      });
+      await appendVideoAndSave(mediaUrl, target, `Vídeo "${fileName}" adicionado à rotação.`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Não foi possível configurar o vídeo';
       if (msg !== 'Seleção cancelada.') {
@@ -961,7 +1002,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
   const handleVideoFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    target: 'new' | 'edit'
+    target: 'new' | 'edit' | 'primary'
   ) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -984,26 +1025,12 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setUploadFeedback(null);
     try {
       const { url } = await uploadTvPatioMedia(file, tvScope);
-      if (target === 'new') {
-        setNewMediaPlaylist((list) => addVideoToPlaylist(list, url));
-        setNewType('video');
-        setPreviewTab('draft');
-      } else {
-        setEditForm((prev) =>
-          prev
-            ? {
-                ...prev,
-                mediaPlaylist: addVideoToPlaylist(prev.mediaPlaylist, url),
-                slideType: 'video' as TvSlideType,
-              }
-            : prev
-        );
-      }
       await loadMediaLibrary();
-      setUploadFeedback({
-        tone: 'success',
-        text: `Vídeo enviado (${formatTvMediaSize(file.size)}) e adicionado à rotação.`,
-      });
+      await appendVideoAndSave(
+        url,
+        target,
+        `Vídeo enviado (${formatTvMediaSize(file.size)}) e adicionado à rotação.`
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Falha no upload';
       setError(msg);
@@ -2061,6 +2088,28 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                     {(newType === 'image' || newType === 'video') && (
                       <div className="space-y-3">
                         {newType === 'video' ? (
+                          isSingleVideoMode && primaryVideoSlide ? (
+                            <div className="space-y-2">
+                              <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-900">
+                                Slide de vídeo já criado. Adicione mais arquivos abaixo — cada um é salvo na hora.
+                              </p>
+                              <TvVideoMediaBlock
+                                cloudFileInputId="tv-primary-video-cloud"
+                                playlist={normalizeMediaPlaylist(primaryVideoSlide)}
+                                onPlaylistChange={(urls) =>
+                                  void saveVideoPlaylist(primaryVideoSlide.id, urls)
+                                }
+                                onPickPcVideo={() => void handlePickPcVideo('primary')}
+                                onCloudFileChange={(e) => void handleVideoFileChange(e, 'primary')}
+                                uploading={uploading}
+                                uploadFeedback={uploadFeedback}
+                                videos={cloudVideos}
+                                libraryLoading={mediaLibraryLoading}
+                                onDeleteVideo={(item) => void handleDeleteMedia(item)}
+                                deletingId={deletingMediaId}
+                              />
+                            </div>
+                          ) : (
                           <TvVideoMediaBlock
                             cloudFileInputId="tv-new-video-cloud"
                             playlist={newMediaPlaylist}
@@ -2074,6 +2123,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             onDeleteVideo={(item) => void handleDeleteMedia(item)}
                             deletingId={deletingMediaId}
                           />
+                          )
                         ) : (
                           <>
                             <input
@@ -2244,6 +2294,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                           className={iosInput}
                         />
                       </div>
+                      {!(newType === 'video' && isSingleVideoMode && primaryVideoSlide) && (
                       <button
                         type="button"
                         onClick={() => void addSlide()}
@@ -2254,6 +2305,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         Adicionar à rotação
                         <ChevronRight className="w-4 h-4 opacity-60" />
                       </button>
+                      )}
                     </div>
                   </div>
                 </section>
@@ -2435,9 +2487,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                   <TvVideoMediaBlock
                                     cloudFileInputId={`tv-edit-video-cloud-${editingSlideId}`}
                                     playlist={editForm.mediaPlaylist}
-                                    onPlaylistChange={(urls) =>
-                                      setEditForm((f) => (f ? { ...f, mediaPlaylist: urls } : f))
-                                    }
+                                    onPlaylistChange={(urls) => {
+                                      setEditForm((f) => (f ? { ...f, mediaPlaylist: urls } : f));
+                                      if (editingSlideId) void saveVideoPlaylist(editingSlideId, urls);
+                                    }}
                                     onPickPcVideo={() => void handlePickPcVideo('edit')}
                                     onCloudFileChange={(e) => void handleVideoFileChange(e, 'edit')}
                                     uploading={uploading}
