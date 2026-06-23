@@ -25,6 +25,7 @@ import {
   type ExternalRepair,
 } from "./constants/labBench.js";
 import { normalizeTvChimeConfig } from "./utils/tvChimeSchedule.js";
+import { normalizeTvVideoLayoutMode, normalizeTvVideoSettings } from "./utils/tvVideoSettings.js";
 import { parseModuleKind, parseModuleVehicleKind } from "./utils/moduleMetadata.js";
 import { SYSTEM_NOTIFICATION_IDS } from "./constants/systemNotificationTypes.js";
 import { buildWorkshopPartsAnalytics } from "./utils/workshopPartsAnalytics.js";
@@ -1841,6 +1842,39 @@ export function createApiApp() {
     };
   }
 
+  async function fetchTvVideoSettingsNormalized(scope: TvScope) {
+    if (!supabaseAdmin || !WORKSHOP_ID) {
+      return normalizeTvVideoSettings(null);
+    }
+    const { data, error } = await supabaseAdmin
+      .from("workshop_tv_video_settings")
+      .select("layout_mode")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("tv_scope", scope)
+      .maybeSingle();
+    if (error && (error as { code?: string }).code !== "PGRST116") {
+      console.error("[API] TV video settings:", error.message);
+    }
+    return normalizeTvVideoSettings(
+      data ? { layoutMode: (data as { layout_mode?: string }).layout_mode } : null
+    );
+  }
+
+  async function countVideoSlides(scope: TvScope): Promise<number> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return 0;
+    const { count, error } = await supabaseAdmin
+      .from("workshop_tv_slides")
+      .select("id", { count: "exact", head: true })
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("tv_scope", scope)
+      .eq("slide_type", "video");
+    if (error) {
+      console.error("[API] TV count video slides:", error.message);
+      return 0;
+    }
+    return count ?? 0;
+  }
+
   async function fetchTvChimeScheduleNormalized(scope: TvScope) {
     if (!supabaseAdmin || !WORKSHOP_ID) {
       return normalizeTvChimeConfig(null);
@@ -1961,8 +1995,9 @@ export function createApiApp() {
         : null;
 
       const chimeSchedule = await fetchTvChimeScheduleNormalized(scope);
+      const videoSettings = await fetchTvVideoSettingsNormalized(scope);
       res.setHeader("Cache-Control", "no-store");
-      return res.json({ slides, weeklyGoal, chimeSchedule, tvScope: scope });
+      return res.json({ slides, weeklyGoal, chimeSchedule, videoSettings, tvScope: scope });
     } catch (err: any) {
       console.error("[API] GET /api/tv/manage:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
@@ -2025,6 +2060,39 @@ export function createApiApp() {
     }
   });
 
+  app.put("/api/tv/video-settings", async (req, res) => {
+    try {
+      const scope = tvScopeFromRequest(req);
+      if (!WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const body =
+        req.body && typeof req.body === "object" && !Array.isArray(req.body)
+          ? (req.body as Record<string, unknown>)
+          : {};
+      const layoutMode = normalizeTvVideoLayoutMode(body.layoutMode ?? body.layout_mode);
+      const { error } = await supabaseAdmin.from("workshop_tv_video_settings").upsert(
+        {
+          workshop_id: WORKSHOP_ID,
+          tv_scope: scope,
+          layout_mode: layoutMode,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "workshop_id,tv_scope" }
+      );
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json({ ok: true, videoSettings: normalizeTvVideoSettings({ layoutMode }) });
+    } catch (err: any) {
+      console.error("[API] PUT /api/tv/video-settings:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro" });
+    }
+  });
+
   app.put("/api/tv/chime-schedule", async (req, res) => {
     try {
       const scope = tvScopeFromRequest(req);
@@ -2082,13 +2150,25 @@ export function createApiApp() {
         return res.status(400).json({ error: "Dados inválidos." });
       }
       const s = slide as Record<string, unknown>;
+      const scope = parseTvScope(s.tvScope ?? (req.body as { tvScope?: unknown })?.tvScope ?? req.query?.scope);
       const slideType = String(s.slideType ?? "notice");
       if (!["notice", "image", "video", "goal", "alert"].includes(slideType)) {
         return res.status(400).json({ error: "slideType inválido." });
       }
+      if (slideType === "video") {
+        const videoSettings = await fetchTvVideoSettingsNormalized(scope);
+        if (videoSettings.layoutMode === "single_rotate") {
+          const videoCount = await countVideoSlides(scope);
+          if (videoCount >= 1) {
+            return res.status(400).json({
+              error:
+                "Modo «um slide de vídeo»: já existe um slide de vídeo. Adicione mais arquivos na playlist desse slide ou mude a configuração para «vários slides».",
+            });
+          }
+        }
+      }
       const mediaFullscreen = s.mediaFullscreen === true;
       const mediaObjectFit = normalizeTvMediaObjectFit(s.mediaObjectFit);
-      const scope = parseTvScope(s.tvScope ?? (req.body as { tvScope?: unknown })?.tvScope ?? req.query?.scope);
       const { mediaUrl, mediaPlaylist } = resolveSlideMediaFields(s);
       const insert = {
         workshop_id: WORKSHOP_ID,

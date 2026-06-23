@@ -25,6 +25,12 @@ import {
 } from "../utils/imageUpload";
 import type { BudgetPartFields } from "../utils/budgetPartStock";
 import { normalizeTvChimeConfig, type TvChimeScheduleConfig } from "@/utils/tvChimeSchedule";
+import {
+  DEFAULT_TV_VIDEO_SETTINGS,
+  normalizeTvVideoSettings,
+  type TvVideoLayoutMode,
+  type TvVideoSettings,
+} from "@/utils/tvVideoSettings";
 
 export type { TvChimeAlert, TvChimeKind, TvChimeSoundPreset } from "@/utils/tvChimeSchedule";
 
@@ -3258,10 +3264,14 @@ function tvScopeQuery(scope: TvScope): string {
   return `scope=${encodeURIComponent(scope)}`;
 }
 
+export type { TvVideoLayoutMode, TvVideoSettings } from "../utils/tvVideoSettings";
+export { DEFAULT_TV_VIDEO_SETTINGS, normalizeTvVideoSettings } from "../utils/tvVideoSettings";
+
 export async function getTvManage(scope: TvScope = "patio"): Promise<{
   slides: TvSlide[];
   weeklyGoal: TvWeeklyGoal | null;
   chimeSchedule: TvChimeScheduleConfig;
+  videoSettings: TvVideoSettings;
 }> {
   const response = await fetch(`${API_BASE}/tv/manage?${tvScopeQuery(scope)}`, { cache: 'no-store' });
   if (!response.ok) {
@@ -3272,12 +3282,29 @@ export async function getTvManage(scope: TvScope = "patio"): Promise<{
     slides: TvSlide[];
     weeklyGoal: TvWeeklyGoal | null;
     chimeSchedule?: unknown;
+    videoSettings?: unknown;
   };
   return {
     slides: d.slides ?? [],
     weeklyGoal: d.weeklyGoal ?? null,
     chimeSchedule: normalizeTvChimeConfig(d.chimeSchedule ?? null),
+    videoSettings: normalizeTvVideoSettings(d.videoSettings ?? null),
   };
+}
+
+export async function putTvVideoSettings(
+  layoutMode: TvVideoLayoutMode,
+  scope: TvScope = "patio"
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/tv/video-settings?${tvScopeQuery(scope)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ layoutMode }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao salvar configuração de vídeos.");
+  }
 }
 
 export async function putTvWeeklyGoal(

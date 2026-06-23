@@ -30,6 +30,7 @@ import {
   createTvSlide,
   deleteTvSlide,
   updateTvSlide,
+  putTvVideoSettings,
   uploadTvPatioMedia,
   listTvMedia,
   deleteTvMedia,
@@ -51,6 +52,8 @@ import {
   selectPcVideoForTvSlide,
 } from '../utils/tvLocalVideoAdmin';
 import { mediaPlaylistForSave, normalizeMediaPlaylist } from '../utils/tvSlideVideo';
+import type { TvVideoLayoutMode } from '../utils/tvVideoSettings';
+import { DEFAULT_TV_VIDEO_SETTINGS } from '../utils/tvVideoSettings';
 
 function videoUrlLabel(url: string): string {
   if (isLocalVideoMediaUrl(url)) return localVideoMediaFileName(url);
@@ -328,6 +331,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slides, setSlides] = useState<TvSlide[]>([]);
+  const [videoLayoutMode, setVideoLayoutMode] = useState<TvVideoLayoutMode>(
+    DEFAULT_TV_VIDEO_SETTINGS.layoutMode
+  );
+  const [videoSettingsSaving, setVideoSettingsSaving] = useState(false);
   const [weeklyLabel, setWeeklyLabel] = useState('Meta semanal');
   /** Texto livre evita "0" colado ao digitar em input type=number. */
   const [weeklyCurrentStr, setWeeklyCurrentStr] = useState('');
@@ -417,6 +424,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     try {
       const data = await getTvManage(tvScope);
       setSlides(data.slides);
+      setVideoLayoutMode(data.videoSettings?.layoutMode ?? DEFAULT_TV_VIDEO_SETTINGS.layoutMode);
       setChimeConfig(data.chimeSchedule);
       if (data.weeklyGoal) {
         setWeeklyLabel(data.weeklyGoal.label);
@@ -654,6 +662,69 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     [mediaLibrary]
   );
 
+  const videoSlides = useMemo(() => slides.filter((s) => s.slideType === 'video'), [slides]);
+  const primaryVideoSlide = videoSlides[0] ?? null;
+  const isSingleVideoMode = videoLayoutMode === 'single_rotate';
+
+  const mergeVideoSlidesIntoOne = async () => {
+    if (videoSlides.length <= 1) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const first = videoSlides[0];
+      const urls: string[] = [];
+      for (const s of videoSlides) {
+        for (const u of normalizeMediaPlaylist(s)) {
+          if (!urls.includes(u)) urls.push(u);
+        }
+      }
+      const saved = mediaPlaylistForSave(urls);
+      await updateTvSlide(first.id, {
+        slideType: 'video',
+        mediaPlaylist: saved.mediaPlaylist,
+        mediaUrl: saved.mediaUrl,
+      });
+      for (const s of videoSlides.slice(1)) {
+        await deleteTvSlide(s.id);
+      }
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao unir slides de vídeo.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyVideoLayoutMode = async (next: TvVideoLayoutMode) => {
+    if (next === videoLayoutMode) return;
+    if (next === 'single_rotate' && videoSlides.length > 1) {
+      const ok = window.confirm(
+        `Existem ${videoSlides.length} slides de vídeo. Deseja juntar tudo em um único slide? Os vídeos vão alternar na mesma página da TV.`
+      );
+      if (!ok) return;
+      await mergeVideoSlidesIntoOne();
+    }
+    setVideoSettingsSaving(true);
+    setError(null);
+    try {
+      await putTvVideoSettings(next, tvScope);
+      setVideoLayoutMode(next);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao salvar configuração de vídeos.');
+    } finally {
+      setVideoSettingsSaving(false);
+    }
+  };
+
+  const openPrimaryVideoSlide = () => {
+    if (!primaryVideoSlide) {
+      setNewType('video');
+      setPreviewTab('draft');
+      return;
+    }
+    startEdit(primaryVideoSlide);
+  };
+
   useEffect(() => {
     if (previewTab !== 'chimes') setChimeFiringPreviewInTv(null);
   }, [previewTab]);
@@ -716,6 +787,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   };
 
   const addSlide = async () => {
+    if (newType === 'video' && isSingleVideoMode && primaryVideoSlide) {
+      setError('Só é permitido 1 slide de vídeo neste modo. Edite o slide existente para adicionar mais arquivos.');
+      openPrimaryVideoSlide();
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -962,6 +1038,13 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
   const saveEdit = async () => {
     if (!editingSlideId || !editForm) return;
+    if (editForm.slideType === 'video' && isSingleVideoMode) {
+      const otherVideo = slides.find((s) => s.slideType === 'video' && s.id !== editingSlideId);
+      if (otherVideo) {
+        setError('Só é permitido 1 slide de vídeo neste modo.');
+        return;
+      }
+    }
     setLoading(true);
     setError(null);
     try {
@@ -1835,6 +1918,67 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                   ) : null}
                 </section>
 
+                {/* Configuração de vídeos */}
+                <section className={`${iosCard} p-5 sm:p-6`}>
+                  <p className={iosLabel}>Vídeos na paginação da TV</p>
+                  <p className="mb-3 text-[12px] leading-relaxed text-zinc-600">
+                    No modo padrão, existe <span className="font-semibold">apenas 1 página de vídeo</span> na rotação.
+                    Vários arquivos entram na playlist desse slide e alternam a cada volta.
+                  </p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      disabled={videoSettingsSaving || loading}
+                      onClick={() => void applyVideoLayoutMode('single_rotate')}
+                      className={`rounded-2xl border px-3 py-3 text-left transition-all ${
+                        isSingleVideoMode
+                          ? 'border-[#007AFF] bg-blue-50 shadow-sm'
+                          : 'border-zinc-200 bg-zinc-50 hover:border-zinc-300'
+                      }`}
+                    >
+                      <p className="text-[13px] font-semibold text-zinc-900">Um slide (recomendado)</p>
+                      <p className="mt-1 text-[11px] text-zinc-600">1 página na TV · vídeos alternam na playlist</p>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={videoSettingsSaving || loading}
+                      onClick={() => void applyVideoLayoutMode('multiple_slides')}
+                      className={`rounded-2xl border px-3 py-3 text-left transition-all ${
+                        !isSingleVideoMode
+                          ? 'border-[#007AFF] bg-blue-50 shadow-sm'
+                          : 'border-zinc-200 bg-zinc-50 hover:border-zinc-300'
+                      }`}
+                    >
+                      <p className="text-[13px] font-semibold text-zinc-900">Vários slides de vídeo</p>
+                      <p className="mt-1 text-[11px] text-zinc-600">Cada slide de vídeo é uma página separada na rotação</p>
+                    </button>
+                  </div>
+                  {isSingleVideoMode && primaryVideoSlide && (
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5">
+                      <p className="text-[12px] text-emerald-900">
+                        Slide de vídeo ativo · {normalizeMediaPlaylist(primaryVideoSlide).length} vídeo(s) na rotação
+                      </p>
+                      <button
+                        type="button"
+                        onClick={openPrimaryVideoSlide}
+                        className="shrink-0 rounded-xl bg-emerald-700 px-3 py-2 text-[12px] font-bold text-white"
+                      >
+                        Gerenciar vídeos e ordem
+                      </button>
+                    </div>
+                  )}
+                  {isSingleVideoMode && !primaryVideoSlide && (
+                    <p className="mt-3 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2">
+                      Ainda não há slide de vídeo. Crie um abaixo (tipo Vídeo) — será o único na paginação.
+                    </p>
+                  )}
+                  {!isSingleVideoMode && videoSlides.length > 0 && (
+                    <p className="mt-3 text-[12px] text-zinc-600">
+                      {videoSlides.length} slide(s) de vídeo na fila. Use as setas em cada slide para mudar a ordem das páginas.
+                    </p>
+                  )}
+                </section>
+
                 {/* Novo slide */}
                 <section className={`${iosCard} p-5 sm:p-6`}>
                   <p className={iosLabel}>Novo slide</p>
@@ -1842,30 +1986,45 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                     <span className="font-semibold text-zinc-800">Fluxo rápido:</span> escolha o tipo, preencha apenas o que aparecer e toque em <span className="font-semibold">Adicionar à rotação</span>.
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
-                    {SLIDE_TYPES.map((t) => (
+                    {SLIDE_TYPES.map((t) => {
+                      const videoLocked =
+                        t.value === 'video' && isSingleVideoMode && !!primaryVideoSlide;
+                      return (
                       <button
                         key={t.value}
                         type="button"
                         onClick={() => {
+                          if (videoLocked) {
+                            openPrimaryVideoSlide();
+                            setUploadFeedback({
+                              tone: 'success',
+                              text: 'Edite o slide de vídeo existente para adicionar ou reordenar arquivos.',
+                            });
+                            return;
+                          }
                           setNewType(t.value);
                           if (t.value === 'image' || t.value === 'video') setNewMediaFullscreen(true);
                         }}
                         className={`rounded-2xl px-2 py-3 text-center transition-all ${
                           newType === t.value
                             ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30'
-                            : 'bg-zinc-100/90 text-zinc-700 hover:bg-zinc-200/80'
+                            : videoLocked
+                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                              : 'bg-zinc-100/90 text-zinc-700 hover:bg-zinc-200/80'
                         }`}
                       >
-                        <span className="block text-[12px] font-semibold leading-tight">{t.label}</span>
+                        <span className="block text-[12px] font-semibold leading-tight">
+                          {videoLocked ? 'Vídeo (editar)' : t.label}
+                        </span>
                         <span
                           className={`block text-[9px] mt-1 leading-tight ${
-                            newType === t.value ? 'text-white/80' : 'text-zinc-500'
+                            newType === t.value ? 'text-white/80' : videoLocked ? 'text-emerald-700' : 'text-zinc-500'
                           }`}
                         >
-                          {t.hint}
+                          {videoLocked ? '1 slide · playlist' : t.hint}
                         </span>
                       </button>
-                    ))}
+                    );})}
                   </div>
                   <div className="mb-4 rounded-2xl bg-zinc-100/80 px-3 py-2 text-[12px] text-zinc-600">
                     <span className="font-semibold text-zinc-800">Tipo selecionado:</span>{' '}
