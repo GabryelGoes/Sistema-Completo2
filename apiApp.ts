@@ -1793,6 +1793,54 @@ export function createApiApp() {
     return "cover";
   }
 
+  function parseMediaPlaylist(raw: unknown): string[] {
+    if (!Array.isArray(raw)) return [];
+    return raw.map((u) => String(u).trim()).filter(Boolean);
+  }
+
+  function resolveSlideMediaFields(s: Record<string, unknown>): {
+    mediaUrl: string | null;
+    mediaPlaylist: string[];
+  } {
+    const playlist =
+      s.mediaPlaylist !== undefined ? parseMediaPlaylist(s.mediaPlaylist) : null;
+    const mediaUrlRaw =
+      s.mediaUrl != null && String(s.mediaUrl).trim() ? String(s.mediaUrl).trim() : null;
+    if (playlist && playlist.length > 0) {
+      return { mediaUrl: playlist[0], mediaPlaylist: playlist };
+    }
+    return {
+      mediaUrl: mediaUrlRaw,
+      mediaPlaylist: mediaUrlRaw ? [mediaUrlRaw] : [],
+    };
+  }
+
+  function mapTvSlideFromRow(row: Record<string, unknown>) {
+    const parsed = parseTvBodyAndFullscreen(row.body);
+    const rowPlaylist = parseMediaPlaylist(row.media_playlist);
+    const mediaUrl =
+      row.media_url != null && String(row.media_url).trim() ? String(row.media_url).trim() : null;
+    const mediaPlaylist = rowPlaylist.length > 0 ? rowPlaylist : mediaUrl ? [mediaUrl] : [];
+    return {
+      id: row.id,
+      slideType: row.slide_type,
+      title: row.title ?? "",
+      body: parsed.body,
+      mediaUrl: mediaPlaylist[0] ?? mediaUrl,
+      mediaPlaylist,
+      durationSeconds: row.duration_seconds ?? 10,
+      sortOrder: row.sort_order ?? 0,
+      goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
+      goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
+      goalLabel: row.goal_label ?? null,
+      playSound: (row as { play_sound?: boolean }).play_sound === true,
+      goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
+      pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
+      mediaFullscreen: parsed.mediaFullscreen,
+      mediaObjectFit: normalizeTvMediaObjectFit((row as { media_object_fit?: unknown }).media_object_fit),
+    };
+  }
+
   async function fetchTvChimeScheduleNormalized(scope: TvScope) {
     if (!supabaseAdmin || !WORKSHOP_ID) {
       return normalizeTvChimeConfig(null);
@@ -1825,7 +1873,7 @@ export function createApiApp() {
     const { data: slideRows, error: slideErr } = await supabaseAdmin
       .from("workshop_tv_slides")
       .select(
-        "id, slide_type, title, body, media_url, duration_seconds, sort_order, is_active, goal_current, goal_target, goal_label, play_sound, goal_show_values, pin_immediate, media_object_fit"
+        "id, slide_type, title, body, media_url, media_playlist, duration_seconds, sort_order, is_active, goal_current, goal_target, goal_label, play_sound, goal_show_values, pin_immediate, media_object_fit"
       )
       .eq("workshop_id", WORKSHOP_ID)
       .eq("tv_scope", scope)
@@ -1837,28 +1885,7 @@ export function createApiApp() {
       console.error("[API] TV slides:", slideErr);
     }
 
-    const slides = (slideRows ?? []).map((row: Record<string, unknown>) => {
-      const parsed = parseTvBodyAndFullscreen(row.body);
-      /** Respeita o botão "Mídia em tela cheia" configurado no app (não força mais sempre true). */
-      const mediaFullscreen = parsed.mediaFullscreen;
-      return {
-        id: row.id,
-        slideType: row.slide_type,
-        title: row.title ?? "",
-        body: parsed.body,
-        mediaUrl: row.media_url ?? null,
-        durationSeconds: row.duration_seconds ?? 10,
-        sortOrder: row.sort_order ?? 0,
-        goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
-        goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
-        goalLabel: row.goal_label ?? null,
-        playSound: (row as { play_sound?: boolean }).play_sound === true,
-        goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
-        pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
-        mediaFullscreen,
-        mediaObjectFit: normalizeTvMediaObjectFit((row as { media_object_fit?: unknown }).media_object_fit),
-      };
-    });
+    const slides = (slideRows ?? []).map((row: Record<string, unknown>) => mapTvSlideFromRow(row));
 
     const { data: goalRow } = await supabaseAdmin
       .from("workshop_tv_weekly_goal")
@@ -1912,27 +1939,10 @@ export function createApiApp() {
       if (error) {
         return res.status(500).json({ error: error.message });
       }
-      const slides = (slideRows ?? []).map((row: Record<string, unknown>) => {
-        const parsed = parseTvBodyAndFullscreen(row.body);
-        return {
-          id: row.id,
-          slideType: row.slide_type,
-          title: row.title ?? "",
-          body: parsed.body,
-          mediaUrl: row.media_url ?? null,
-          durationSeconds: row.duration_seconds ?? 10,
-          sortOrder: row.sort_order ?? 0,
-          isActive: row.is_active === true,
-          goalCurrent: row.goal_current != null ? Number(row.goal_current) : null,
-          goalTarget: row.goal_target != null ? Number(row.goal_target) : null,
-          goalLabel: row.goal_label ?? null,
-          playSound: (row as { play_sound?: boolean }).play_sound === true,
-          goalShowValues: (row as { goal_show_values?: boolean }).goal_show_values === true,
-          pinImmediate: (row as { pin_immediate?: boolean }).pin_immediate === true,
-          mediaFullscreen: parsed.mediaFullscreen,
-          mediaObjectFit: normalizeTvMediaObjectFit((row as { media_object_fit?: unknown }).media_object_fit),
-        };
-      });
+      const slides = (slideRows ?? []).map((row: Record<string, unknown>) => ({
+        ...mapTvSlideFromRow(row),
+        isActive: row.is_active === true,
+      }));
 
       const { data: goalRow } = await supabaseAdmin
         .from("workshop_tv_weekly_goal")
@@ -2079,13 +2089,15 @@ export function createApiApp() {
       const mediaFullscreen = s.mediaFullscreen === true;
       const mediaObjectFit = normalizeTvMediaObjectFit(s.mediaObjectFit);
       const scope = parseTvScope(s.tvScope ?? (req.body as { tvScope?: unknown })?.tvScope ?? req.query?.scope);
+      const { mediaUrl, mediaPlaylist } = resolveSlideMediaFields(s);
       const insert = {
         workshop_id: WORKSHOP_ID,
         tv_scope: scope,
         slide_type: slideType,
         title: s.title != null ? String(s.title) : null,
         body: buildTvBodyWithFullscreen(s.body, mediaFullscreen),
-        media_url: s.mediaUrl != null && String(s.mediaUrl).trim() ? String(s.mediaUrl).trim() : null,
+        media_url: mediaUrl,
+        media_playlist: mediaPlaylist,
         duration_seconds: Math.min(300, Math.max(3, Number(s.durationSeconds) || 10)),
         sort_order: Number.isFinite(Number(s.sortOrder)) ? Number(s.sortOrder) : 0,
         is_active: s.isActive !== false,
@@ -2127,7 +2139,11 @@ export function createApiApp() {
         const mediaFullscreen = s.mediaFullscreen === true;
         updates.body = buildTvBodyWithFullscreen(rawBody, mediaFullscreen);
       }
-      if (s.mediaUrl !== undefined) updates.media_url = s.mediaUrl != null && String(s.mediaUrl).trim() ? String(s.mediaUrl).trim() : null;
+      if (s.mediaUrl !== undefined || s.mediaPlaylist !== undefined) {
+        const { mediaUrl, mediaPlaylist } = resolveSlideMediaFields(s);
+        updates.media_url = mediaUrl;
+        updates.media_playlist = mediaPlaylist;
+      }
       if (s.durationSeconds != null) updates.duration_seconds = Math.min(300, Math.max(3, Number(s.durationSeconds) || 10));
       if (s.sortOrder != null) updates.sort_order = Number(s.sortOrder);
       if (s.goalCurrent !== undefined) updates.goal_current = s.goalCurrent != null ? Number(s.goalCurrent) : null;

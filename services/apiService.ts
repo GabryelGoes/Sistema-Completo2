@@ -3223,6 +3223,8 @@ export interface TvSlide {
   title: string;
   body: string;
   mediaUrl: string | null;
+  /** Vários vídeos no mesmo slot: a TV alterna a cada vez que esta página aparece na rotação. */
+  mediaPlaylist?: string[];
   durationSeconds: number;
   sortOrder: number;
   isActive?: boolean;

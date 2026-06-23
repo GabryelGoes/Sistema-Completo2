@@ -50,6 +50,23 @@ import {
   localVideoMediaFileName,
   selectPcVideoForTvSlide,
 } from '../utils/tvLocalVideoAdmin';
+import { mediaPlaylistForSave, normalizeMediaPlaylist } from '../utils/tvSlideVideo';
+
+function videoUrlLabel(url: string): string {
+  if (isLocalVideoMediaUrl(url)) return localVideoMediaFileName(url);
+  try {
+    const name = new URL(url).pathname.split('/').pop();
+    return name || url;
+  } catch {
+    return url.length > 48 ? `${url.slice(0, 45)}…` : url;
+  }
+}
+
+function addVideoToPlaylist(playlist: string[], url: string): string[] {
+  const trimmed = url.trim();
+  if (!trimmed || playlist.includes(trimmed)) return playlist;
+  return [...playlist, trimmed];
+}
 
 const SLIDE_TYPES: { value: TvSlideType; label: string; hint: string }[] = [
   { value: 'notice', label: 'Aviso', hint: 'Texto em destaque' },
@@ -87,8 +104,8 @@ function formatMediaDate(iso: string): string {
 }
 
 interface TvVideoMediaBlockProps {
-  currentUrl: string;
-  onSelectUrl: (url: string) => void;
+  playlist: string[];
+  onPlaylistChange: (urls: string[]) => void;
   onPickPcVideo: () => void;
   cloudFileInputId: string;
   onCloudFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -101,8 +118,8 @@ interface TvVideoMediaBlockProps {
 }
 
 function TvVideoMediaBlock({
-  currentUrl,
-  onSelectUrl,
+  playlist,
+  onPlaylistChange,
   onPickPcVideo,
   cloudFileInputId,
   onCloudFileChange,
@@ -113,34 +130,94 @@ function TvVideoMediaBlock({
   onDeleteVideo,
   deletingId,
 }: TvVideoMediaBlockProps) {
-  const localRef = isLocalVideoMediaUrl(currentUrl);
-  const localName = localRef ? localVideoMediaFileName(currentUrl) : '';
+  const [linkDraft, setLinkDraft] = useState('');
+
+  const removeAt = (index: number) => onPlaylistChange(playlist.filter((_, i) => i !== index));
+  const move = (index: number, dir: -1 | 1) => {
+    const next = index + dir;
+    if (next < 0 || next >= playlist.length) return;
+    const copy = [...playlist];
+    [copy[index], copy[next]] = [copy[next], copy[index]];
+    onPlaylistChange(copy);
+  };
 
   return (
     <div className="space-y-3">
+      <div className="rounded-2xl border border-[#007AFF]/25 bg-blue-50/60 px-3 py-2.5">
+        <p className="text-[13px] font-semibold text-zinc-900">Vídeos na rotação desta página</p>
+        <p className="mt-1 text-[11px] leading-relaxed text-zinc-600">
+          Adicione quantos vídeos quiser. Na TV, cada vez que a paginação chegar neste slide, será exibido o
+          próximo da lista (ex.: 2 telas de veículos → 3ª tela = vídeo 1, depois vídeo 2, e assim por diante).
+        </p>
+      </div>
+
+      {playlist.length > 0 ? (
+        <ul className="space-y-2">
+          {playlist.map((url, index) => (
+            <li
+              key={`${url}-${index}`}
+              className="flex items-center gap-2 rounded-2xl border border-zinc-200/90 bg-white px-2.5 py-2"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-[11px] font-black text-white">
+                {index + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-semibold text-zinc-900">{videoUrlLabel(url)}</p>
+                {isLocalVideoMediaUrl(url) && (
+                  <p className="truncate text-[10px] text-emerald-700">Pasta do PC · {localVideoMediaFileName(url)}</p>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => move(index, -1)}
+                  disabled={index === 0}
+                  className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+                  title="Subir"
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => move(index, 1)}
+                  disabled={index === playlist.length - 1}
+                  className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+                  title="Descer"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeAt(index)}
+                  className="rounded-lg p-1.5 text-red-500 hover:bg-red-50"
+                  title="Remover"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-4 text-center text-[12px] text-zinc-500">
+          Nenhum vídeo na rotação. Adicione pelo botão abaixo ou pela nuvem.
+        </p>
+      )}
+
       <button
         type="button"
         onClick={onPickPcVideo}
         disabled={uploading}
-        className={`flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-emerald-500/50 bg-emerald-50/70 py-10 text-[16px] font-semibold text-emerald-900 hover:border-emerald-600 hover:bg-emerald-50 transition-colors ${
+        className={`flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-emerald-500/50 bg-emerald-50/70 py-8 text-[15px] font-semibold text-emerald-900 hover:border-emerald-600 hover:bg-emerald-50 transition-colors ${
           uploading ? 'opacity-50' : ''
         }`}
       >
         <span className="inline-flex items-center gap-2">
-          {uploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <HardDrive className="w-6 h-6" />}
-          {uploading ? 'Configurando vídeo…' : 'Selecionar vídeo no computador'}
+          {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <HardDrive className="w-5 h-5" />}
+          {uploading ? 'Configurando vídeo…' : 'Adicionar vídeo do computador'}
         </span>
-        <span className="text-[12px] font-normal text-emerald-800/85">
-          Um clique: escolha o arquivo e pronto (sem limite de tamanho)
-        </span>
+        <span className="text-[11px] font-normal text-emerald-800/85">Um clique por vídeo · sem limite de tamanho</span>
       </button>
-
-      {localRef && localName && (
-        <p className="rounded-2xl border border-emerald-300/60 bg-emerald-50 px-3 py-2.5 text-[13px] text-emerald-900">
-          <span className="font-semibold">Vídeo configurado:</span>{' '}
-          <code className="font-mono text-[12px]">{localName}</code>
-        </p>
-      )}
 
       {uploadFeedback && (
         <p
@@ -181,13 +258,22 @@ function TvVideoMediaBlock({
           ) : videos.length > 0 ? (
             <ul className="max-h-36 space-y-1.5 overflow-y-auto">
               {videos.map((v) => (
-                <li key={v.id}>
+                <li key={v.id} className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => onSelectUrl(v.mediaUrl)}
-                    className="w-full rounded-xl border border-zinc-200/80 bg-white px-2.5 py-2 text-left text-[12px] font-medium text-zinc-800 truncate"
+                    onClick={() => onPlaylistChange(addVideoToPlaylist(playlist, v.mediaUrl))}
+                    className="min-w-0 flex-1 rounded-xl border border-zinc-200/80 bg-white px-2.5 py-2 text-left text-[12px] font-medium text-zinc-800 truncate"
                   >
-                    {v.title || v.fileName}
+                    + {v.title || v.fileName}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteVideo(v)}
+                    disabled={deletingId === v.id}
+                    className="shrink-0 rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-40"
+                    title="Excluir da biblioteca"
+                  >
+                    {deletingId === v.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                   </button>
                 </li>
               ))}
@@ -200,13 +286,25 @@ function TvVideoMediaBlock({
         <summary className="cursor-pointer text-[12px] font-semibold text-zinc-700">
           Ou link da internet (YouTube, etc.)
         </summary>
-        <input
-          value={localRef ? '' : currentUrl}
-          onChange={(e) => onSelectUrl(e.target.value)}
-          disabled={localRef}
-          className="mt-3 w-full rounded-2xl border border-zinc-200/90 bg-white px-4 py-3 text-[15px] disabled:opacity-50"
-          placeholder="https://..."
-        />
+        <div className="mt-3 flex gap-2">
+          <input
+            value={linkDraft}
+            onChange={(e) => setLinkDraft(e.target.value)}
+            className="min-w-0 flex-1 rounded-2xl border border-zinc-200/90 bg-white px-4 py-3 text-[14px]"
+            placeholder="https://..."
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (!linkDraft.trim()) return;
+              onPlaylistChange(addVideoToPlaylist(playlist, linkDraft));
+              setLinkDraft('');
+            }}
+            className="shrink-0 rounded-2xl bg-zinc-900 px-4 py-3 text-[13px] font-bold text-white"
+          >
+            Adicionar
+          </button>
+        </div>
       </details>
     </div>
   );
@@ -240,6 +338,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const [newTitle, setNewTitle] = useState('');
   const [newBody, setNewBody] = useState('');
   const [newMediaUrl, setNewMediaUrl] = useState('');
+  const [newMediaPlaylist, setNewMediaPlaylist] = useState<string[]>([]);
   const [newDuration, setNewDuration] = useState(10);
   const [newGoalCurrent, setNewGoalCurrent] = useState(0);
   const [newGoalTarget, setNewGoalTarget] = useState(100000);
@@ -267,6 +366,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     title: string;
     body: string;
     mediaUrl: string;
+    mediaPlaylist: string[];
     durationSeconds: number;
     goalLabel: string;
     goalCurrent: number;
@@ -394,13 +494,15 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         mediaFullscreen: false,
       };
     }
-    if ((newType === 'image' || newType === 'video') && !newMediaUrl.trim()) return null;
+    if ((newType === 'image' && !newMediaUrl.trim()) || (newType === 'video' && newMediaPlaylist.length === 0)) return null;
+    const videoMedia = newType === 'video' ? mediaPlaylistForSave(newMediaPlaylist) : null;
     return {
       id: 'draft',
       slideType: newType,
       title: newTitle,
       body: newBody,
-      mediaUrl: newMediaUrl.trim() || null,
+      mediaUrl: newType === 'video' ? videoMedia!.mediaUrl : newMediaUrl.trim() || null,
+      mediaPlaylist: newType === 'video' ? videoMedia!.mediaPlaylist : undefined,
       durationSeconds: newDuration,
       sortOrder: 0,
       goalCurrent: null,
@@ -416,6 +518,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     newTitle,
     newBody,
     newMediaUrl,
+    newMediaPlaylist,
     newDuration,
     newGoalCurrent,
     newGoalTarget,
@@ -440,12 +543,18 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       editForm
     ) {
       const isGoal = editForm.slideType === 'goal';
+      const videoMedia =
+        editForm.slideType === 'video' ? mediaPlaylistForSave(editForm.mediaPlaylist) : null;
       return {
         id: libraryPreviewId,
         slideType: editForm.slideType,
         title: editForm.title,
         body: editForm.body,
-        mediaUrl: editForm.mediaUrl.trim() || null,
+        mediaUrl:
+          editForm.slideType === 'video'
+            ? videoMedia!.mediaUrl
+            : editForm.mediaUrl.trim() || null,
+        mediaPlaylist: editForm.slideType === 'video' ? videoMedia!.mediaPlaylist : undefined,
         durationSeconds: Math.min(300, Math.max(3, Number(editForm.durationSeconds) || 10)),
         sortOrder: 0,
         goalCurrent: isGoal ? editForm.goalCurrent : null,
@@ -610,12 +719,14 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setLoading(true);
     setError(null);
     try {
+      const videoMedia = newType === 'video' ? mediaPlaylistForSave(newMediaPlaylist) : null;
       await createTvSlide(
         {
           slideType: newType,
           title: newTitle,
           body: newBody,
-          mediaUrl: newMediaUrl.trim() || null,
+          mediaUrl: newType === 'video' ? videoMedia!.mediaUrl : newMediaUrl.trim() || null,
+          mediaPlaylist: newType === 'video' ? videoMedia!.mediaPlaylist : undefined,
           durationSeconds: Math.min(300, Math.max(3, newDuration)),
           sortOrder: slides.length,
           isActive: true,
@@ -632,6 +743,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       setNewTitle('');
       setNewBody('');
       setNewMediaUrl('');
+      setNewMediaPlaylist([]);
       setNewMediaFullscreen(true);
       setNewMediaObjectFit('cover');
       await load();
@@ -692,8 +804,14 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setError(null);
     try {
       await deleteTvMedia(item.id);
-      if (newMediaUrl.trim() === item.mediaUrl) setNewMediaUrl('');
-      setEditForm((f) => (f?.mediaUrl.trim() === item.mediaUrl ? { ...f, mediaUrl: '' } : f));
+      if (newMediaPlaylist.includes(item.mediaUrl)) {
+        setNewMediaPlaylist((list) => list.filter((u) => u !== item.mediaUrl));
+      }
+      setEditForm((f) =>
+        f?.mediaPlaylist.includes(item.mediaUrl)
+          ? { ...f, mediaPlaylist: f.mediaPlaylist.filter((u) => u !== item.mediaUrl), mediaUrl: f.mediaUrl === item.mediaUrl ? '' : f.mediaUrl }
+          : f
+      );
       await loadMediaLibrary();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao excluir vídeo');
@@ -732,17 +850,23 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     try {
       const { fileName, mediaUrl } = await selectPcVideoForTvSlide();
       if (target === 'new') {
-        setNewMediaUrl(mediaUrl);
+        setNewMediaPlaylist((list) => addVideoToPlaylist(list, mediaUrl));
         setNewType('video');
         setPreviewTab('draft');
       } else {
         setEditForm((prev) =>
-          prev ? { ...prev, mediaUrl, slideType: 'video' as TvSlideType } : prev
+          prev
+            ? {
+                ...prev,
+                mediaPlaylist: addVideoToPlaylist(prev.mediaPlaylist, mediaUrl),
+                slideType: 'video' as TvSlideType,
+              }
+            : prev
         );
       }
       setUploadFeedback({
         tone: 'success',
-        text: `Pronto! Vídeo "${fileName}" configurado. Na TV, toque em Selecionar vídeo na primeira exibição.`,
+        text: `Vídeo "${fileName}" adicionado à rotação. Na TV, toque em Selecionar vídeo na primeira exibição de cada arquivo local.`,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Não foi possível configurar o vídeo';
@@ -781,18 +905,24 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     try {
       const { url } = await uploadTvPatioMedia(file, tvScope);
       if (target === 'new') {
-        setNewMediaUrl(url);
+        setNewMediaPlaylist((list) => addVideoToPlaylist(list, url));
         setNewType('video');
         setPreviewTab('draft');
       } else {
         setEditForm((prev) =>
-          prev ? { ...prev, mediaUrl: url, slideType: 'video' as TvSlideType } : prev
+          prev
+            ? {
+                ...prev,
+                mediaPlaylist: addVideoToPlaylist(prev.mediaPlaylist, url),
+                slideType: 'video' as TvSlideType,
+              }
+            : prev
         );
       }
       await loadMediaLibrary();
       setUploadFeedback({
         tone: 'success',
-        text: `Vídeo enviado com sucesso (${formatTvMediaSize(file.size)}). Adicione à rotação ou salve o slide.`,
+        text: `Vídeo enviado (${formatTvMediaSize(file.size)}) e adicionado à rotação.`,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Falha no upload';
@@ -804,12 +934,14 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   };
 
   const startEdit = (s: TvSlide) => {
+    const playlist = normalizeMediaPlaylist(s);
     setEditingSlideId(s.id);
     setEditForm({
       slideType: s.slideType,
       title: s.title,
       body: s.body,
       mediaUrl: s.mediaUrl ?? '',
+      mediaPlaylist: playlist,
       durationSeconds: s.durationSeconds,
       goalLabel: s.goalLabel ?? '',
       goalCurrent: s.goalCurrent ?? 0,
@@ -834,11 +966,19 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setError(null);
     try {
       const isGoal = editForm.slideType === 'goal';
+      const videoMedia =
+        editForm.slideType === 'video' ? mediaPlaylistForSave(editForm.mediaPlaylist) : null;
       const patch: Partial<Omit<TvSlide, 'id'>> = {
         slideType: editForm.slideType,
         title: editForm.title,
         body: editForm.body,
-        mediaUrl: editForm.mediaUrl.trim() ? editForm.mediaUrl.trim() : null,
+        mediaUrl:
+          editForm.slideType === 'video'
+            ? videoMedia!.mediaUrl
+            : editForm.mediaUrl.trim()
+              ? editForm.mediaUrl.trim()
+              : null,
+        mediaPlaylist: editForm.slideType === 'video' ? videoMedia!.mediaPlaylist : undefined,
         durationSeconds: Math.min(300, Math.max(3, Number(editForm.durationSeconds) || 10)),
         mediaFullscreen: (editForm.slideType === 'image' || editForm.slideType === 'video') ? editForm.mediaFullscreen : false,
       };
@@ -1756,8 +1896,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         {newType === 'video' ? (
                           <TvVideoMediaBlock
                             cloudFileInputId="tv-new-video-cloud"
-                            currentUrl={newMediaUrl}
-                            onSelectUrl={setNewMediaUrl}
+                            playlist={newMediaPlaylist}
+                            onPlaylistChange={setNewMediaPlaylist}
                             onPickPcVideo={() => void handlePickPcVideo('new')}
                             onCloudFileChange={(e) => void handleVideoFileChange(e, 'new')}
                             uploading={uploading}
@@ -1982,6 +2122,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             <p className="font-medium text-zinc-900 truncate text-[15px]">{s.title || '(sem título)'}</p>
                             <p className="text-[11px] text-zinc-500">
                               {s.durationSeconds}s · ordem {s.sortOrder ?? idx} · {s.isActive === false ? 'pausado' : 'ativo'}
+                              {s.slideType === 'video' && normalizeMediaPlaylist(s).length > 1
+                                ? ` · ${normalizeMediaPlaylist(s).length} vídeos na rotação`
+                                : ''}
                             </p>
                           </button>
                           <div className="flex shrink-0 flex-wrap items-center gap-1.5 justify-end">
@@ -2124,9 +2267,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                 {editForm.slideType === 'video' ? (
                                   <TvVideoMediaBlock
                                     cloudFileInputId={`tv-edit-video-cloud-${editingSlideId}`}
-                                    currentUrl={editForm.mediaUrl}
-                                    onSelectUrl={(url) =>
-                                      setEditForm((f) => (f ? { ...f, mediaUrl: url } : f))
+                                    playlist={editForm.mediaPlaylist}
+                                    onPlaylistChange={(urls) =>
+                                      setEditForm((f) => (f ? { ...f, mediaPlaylist: urls } : f))
                                     }
                                     onPickPcVideo={() => void handlePickPcVideo('edit')}
                                     onCloudFileChange={(e) => void handleVideoFileChange(e, 'edit')}
