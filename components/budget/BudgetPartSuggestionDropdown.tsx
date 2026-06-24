@@ -1,6 +1,8 @@
 import React from 'react';
-import { Eye } from 'lucide-react';
+import { Eye, Image as ImageIcon } from 'lucide-react';
 import type { WorkshopPart } from '../../services/apiService';
+import { PartPhotoImg } from '../ui/PartPhotoImg';
+import { getWorkshopPartCoverUrl } from '../../utils/workshopPartPhotoSlots';
 
 export type BudgetSuggestionBoxPosition = {
   top: number;
@@ -39,7 +41,7 @@ export const BudgetPartSuggestionDropdown: React.FC<BudgetPartSuggestionDropdown
     <>
       <div className="fixed inset-0 z-[215] bg-transparent" onClick={onClose} aria-hidden />
       <div
-        className="fixed z-[216] max-h-[min(220px,38vh)] overflow-hidden overflow-y-auto rounded-[14px] border border-sky-200/80 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(14,116,144,0.2)]"
+        className="fixed z-[216] max-h-[min(260px,40vh)] overflow-hidden overflow-y-auto rounded-[14px] border border-sky-200/80 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(14,116,144,0.2)]"
         style={{
           top: position.top,
           left: position.left,
@@ -53,7 +55,9 @@ export const BudgetPartSuggestionDropdown: React.FC<BudgetPartSuggestionDropdown
         role="listbox"
         aria-label="Sugestões de peças do estoque"
       >
-        {suggestions.map((part) => (
+        {suggestions.map((part) => {
+          const cover = getWorkshopPartCoverUrl(part);
+          return (
           <div key={part.id} role="option" className="flex w-full items-center gap-2 px-2 py-1.5">
             <button
               type="button"
@@ -62,8 +66,15 @@ export const BudgetPartSuggestionDropdown: React.FC<BudgetPartSuggestionDropdown
                 handleSelect(part);
               }}
               onClick={() => handleSelect(part)}
-              className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2 py-2 text-left text-[14px] text-slate-800 transition-colors hover:bg-sky-50 active:bg-sky-100"
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1 text-left text-[14px] text-slate-800 transition-colors hover:bg-sky-50 active:bg-sky-100"
             >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-sky-200/70 bg-white">
+                {cover ? (
+                  <PartPhotoImg src={cover} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <ImageIcon className="h-4 w-4 text-sky-300" strokeWidth={1.75} aria-hidden />
+                )}
+              </div>
               <span className="min-w-0 flex-1 truncate font-medium">{part.name}</span>
               <span className="shrink-0 text-[11px] font-semibold text-amber-800/90">
                 Estoque{part.stock_qty != null ? ` · ${part.stock_qty}` : ''}
@@ -81,7 +92,8 @@ export const BudgetPartSuggestionDropdown: React.FC<BudgetPartSuggestionDropdown
               </button>
             ) : null}
           </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );
