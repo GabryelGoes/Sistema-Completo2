@@ -71,6 +71,10 @@ export type WorkshopPartDetailViewProps = {
   loading?: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  /** Oculta editar/excluir (ex.: visualização rápida no orçamento). */
+  readOnly?: boolean;
+  /** Ações extras no rodapé (ex.: usar peça no orçamento). */
+  footerExtra?: React.ReactNode;
 };
 
 export function WorkshopPartDetailView({
@@ -83,6 +87,8 @@ export function WorkshopPartDetailView({
   loading,
   onEdit,
   onDelete,
+  readOnly = false,
+  footerExtra,
 }: WorkshopPartDetailViewProps) {
   const unit = part.unit_of_measure ?? 'UN';
   const stockStatus = getWorkshopPartStockStatus(part);
@@ -429,6 +435,8 @@ export function WorkshopPartDetailView({
           <Printer className="h-5 w-5" />
           Imprimir ficha
         </button>
+        {footerExtra ? <div>{footerExtra}</div> : null}
+        {!readOnly ? (
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           <button
             type="button"
@@ -447,6 +455,7 @@ export function WorkshopPartDetailView({
             Editar produto
           </button>
         </div>
+        ) : null}
       </div>
 
       {previewImages ? (

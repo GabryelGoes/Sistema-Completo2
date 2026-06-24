@@ -172,6 +172,7 @@ import { BudgetVerificationPanel } from '../budget/BudgetVerificationPanel';
 import { BudgetVerifiedSeal } from '../budget/BudgetVerifiedSeal';
 import { BudgetLineReorderButtons } from '../budget/BudgetLineReorderButtons';
 import { BudgetPartSuggestionDropdown } from '../budget/BudgetPartSuggestionDropdown';
+import { WorkshopPartQuickViewModal } from '../budget/WorkshopPartQuickViewModal';
 import {
   budgetReadFooterBtnClass,
   budgetReadFooterPrimaryClass,
@@ -1327,9 +1328,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [verifyingBudgetId, setVerifyingBudgetId] = useState<string | null>(null);
   /** Orçamento em conferência no modal do veículo (quando há mais de um). */
   const [conferenceBudgetId, setConferenceBudgetId] = useState<string | null>(null);
+  const [budgetPartQuickView, setBudgetPartQuickView] = useState<WorkshopPart | null>(null);
   const closeBudgetModal = useCallback(() => {
     setIsBudgetOpen(false);
     setEditingBudget(null);
+    setBudgetPartQuickView(null);
+    setSuggestionsForPartId(null);
+    setSuggestionsForServiceId(null);
     setBudgetDiagnosis('');
     setBudgetServices([{ id: String(Date.now()), description: '', laborHours: null }]);
     setBudgetParts([{ id: String(Date.now() + 1), description: '', quantity: '1' }]);
@@ -3716,6 +3721,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!q) return [];
     return workshopParts.filter(p => normalizeText(p.name).includes(q)).slice(0, 6);
   };
+
+  const budgetPartQuickViewCatalogNumber = useMemo(() => {
+    if (!budgetPartQuickView) return undefined;
+    const idx = workshopParts.findIndex((p) => p.id === budgetPartQuickView.id);
+    return idx >= 0 ? idx + 1 : undefined;
+  }, [budgetPartQuickView, workshopParts]);
 
   useEffect(() => {
     const update = () => {
@@ -9488,10 +9499,26 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       }
                       onClose={() => setSuggestionsForPartId(null)}
                       onKeepOpen={keepPartSuggestionsOpen}
+                      onOpenPartDetails={(part) => {
+                        keepPartSuggestionsOpen();
+                        setBudgetPartQuickView(part);
+                      }}
                       onSelect={(part) => {
                         if (suggestionsForPartId) applyPartSuggestion(suggestionsForPartId, part);
                       }}
                     />
+
+                    {budgetPartQuickView ? (
+                      <WorkshopPartQuickViewModal
+                        part={budgetPartQuickView}
+                        catalogNumber={budgetPartQuickViewCatalogNumber}
+                        onClose={() => setBudgetPartQuickView(null)}
+                        onUseInBudget={(part) => {
+                          if (suggestionsForPartId) applyPartSuggestion(suggestionsForPartId, part);
+                          setBudgetPartQuickView(null);
+                        }}
+                      />
+                    ) : null}
 
                     <div>
                       <p className={budgetModalFieldLabel}>Observações</p>
