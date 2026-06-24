@@ -32,3 +32,9 @@ export function workshopPartPhotosToSlots(
 export function workshopPartToPhotoSlots(part: WorkshopPart): PartPhotoSlot[] {
   return workshopPartPhotosToSlots(part.photos ?? [], part.photo_url);
 }
+
+/** URL da capa (primeira foto) para miniaturas em listas e orçamento. */
+export function getWorkshopPartCoverUrl(part: Pick<WorkshopPart, 'photos' | 'photo_url'>): string | null {
+  const slot = workshopPartToPhotoSlots(part as WorkshopPart)[0];
+  return slot?.previewUrl?.trim() || null;
+}
