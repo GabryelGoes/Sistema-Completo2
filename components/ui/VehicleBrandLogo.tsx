@@ -1,5 +1,9 @@
 import React from 'react';
-import { getVehicleBrandLogoScale, getVehicleBrandLogoUrl } from '../../utils/vehicleBrandLogo';
+import {
+  getVehicleBrandLogoBoxScale,
+  getVehicleBrandLogoScale,
+  getVehicleBrandLogoUrl,
+} from '../../utils/vehicleBrandLogo';
 
 export type VehicleBrandLogoSize = 'card' | 'cardPc' | 'modal' | 'modalPc';
 
@@ -30,19 +34,23 @@ export const VehicleBrandLogo: React.FC<VehicleBrandLogoProps> = ({
 
   const label = title ?? (brand?.trim() || 'Marca do veículo');
   const scale = getVehicleBrandLogoScale(brand);
+  const boxScale = getVehicleBrandLogoBoxScale(brand);
   const base = BASE_PX[size];
 
   return (
     <div
-      className={`inline-flex shrink-0 items-center justify-center ${className}`}
-      style={{ width: base.w * scale, height: base.h * scale }}
+      className={`inline-flex shrink-0 items-center justify-center overflow-visible ${className}`}
+      style={{
+        width: base.w * scale * boxScale.w,
+        height: base.h * scale * boxScale.h,
+      }}
       title={label}
       aria-label={label}
     >
       <img
         src={src}
         alt=""
-        className="max-h-full max-w-full object-contain object-center"
+        className="h-full w-full object-contain object-center"
         draggable={false}
         loading="lazy"
       />

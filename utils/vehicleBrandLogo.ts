@@ -95,7 +95,20 @@ export const BRAND_LOGO_SIZE_SCALE: Partial<Record<VehicleBrandLogoSlug, number>
   chevrolet: 1.6,
   'land-rover': 1.2,
   ford: 1.1,
+  honda: 1.25,
 };
+
+/** Ajuste da caixa 5:4 para logos mais largas (evita corte visual). */
+export const BRAND_LOGO_BOX_SCALE: Partial<Record<VehicleBrandLogoSlug, { w: number; h: number }>> = {
+  fiat: { w: 1.45, h: 1.05 },
+  chevrolet: { w: 1.35, h: 1 },
+};
+
+export function getVehicleBrandLogoBoxScale(brand?: string | null): { w: number; h: number } {
+  const slug = resolveVehicleBrandLogoSlug(brand);
+  if (!slug) return { w: 1, h: 1 };
+  return BRAND_LOGO_BOX_SCALE[slug] ?? { w: 1, h: 1 };
+}
 
 export function getVehicleBrandLogoScale(brand?: string | null): number {
   const slug = resolveVehicleBrandLogoSlug(brand);

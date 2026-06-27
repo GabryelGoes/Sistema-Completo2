@@ -5191,29 +5191,31 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div className="min-w-0">
                 {/* Nome do carro (fonte um pouco menor); portrait: −15% via escala */}
                 <div
-                  className={`relative min-w-0 ${
-                    !isModuleMode ? (isPcLayout ? 'pr-14' : 'pr-11 sm:pr-12') : ''
-                  } ${boardPanoramic ? 'mb-[calc(0.25rem*1.6146)] portrait:mb-1' : 'mb-1.5 portrait:mb-1'}`}
+                  className={`flex min-w-0 items-start gap-2 ${
+                    boardPanoramic ? 'mb-[calc(0.25rem*1.6146)] portrait:mb-1' : 'mb-1.5 portrait:mb-1'
+                  }`}
                 >
+                  <div className="min-w-0 flex-1">
+                    <h3
+                      className={`font-vehicle ${getPatioBoardModelTitleClass(model, boardPanoramic, true)} font-bold text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tight break-words portrait:inline-block portrait:w-full portrait:origin-top-left portrait:scale-[0.85] ${vehicleCardTitleShadow}`}
+                    >
+                      {model}
+                    </h3>
+                    {!isModuleMode && (card.vehicleColor ?? '').trim() ? (
+                      <p
+                        className="mt-1 max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400/75 dark:text-zinc-500/85"
+                        title={`Cor: ${(card.vehicleColor ?? '').trim()}`}
+                      >
+                        {(card.vehicleColor ?? '').trim()}
+                      </p>
+                    ) : null}
+                  </div>
                   {!isModuleMode ? (
                     <VehicleBrandLogo
                       brand={card.vehicleBrand}
                       size={isPcLayout ? 'cardPc' : 'card'}
-                      className="absolute right-0 top-0 z-[1]"
+                      className="shrink-0"
                     />
-                  ) : null}
-                  <h3
-                    className={`font-vehicle ${getPatioBoardModelTitleClass(model, boardPanoramic, true)} font-bold text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tight break-words portrait:inline-block portrait:w-full portrait:origin-top-left portrait:scale-[0.85] ${vehicleCardTitleShadow}`}
-                  >
-                    {model}
-                  </h3>
-                  {!isModuleMode && (card.vehicleColor ?? '').trim() ? (
-                    <p
-                      className="mt-1 max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400/75 dark:text-zinc-500/85"
-                      title={`Cor: ${(card.vehicleColor ?? '').trim()}`}
-                    >
-                      {(card.vehicleColor ?? '').trim()}
-                    </p>
                   ) : null}
                 </div>
 
