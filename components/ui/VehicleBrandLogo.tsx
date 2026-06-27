@@ -1,15 +1,14 @@
 import React from 'react';
-import { getVehicleBrandLogoUrl } from '../../utils/vehicleBrandLogo';
+import { getVehicleBrandLogoScale, getVehicleBrandLogoUrl } from '../../utils/vehicleBrandLogo';
 
 export type VehicleBrandLogoSize = 'card' | 'cardPc' | 'modal' | 'modalPc';
 
-const SIZE_CLASS: Record<VehicleBrandLogoSize, string> = {
-  card: 'h-8 w-10',
-  /** Card no Pátio (modo PC): +20% em relação ao card padrão */
-  cardPc: 'h-[2.4rem] w-[3rem]',
-  modal: 'h-9 w-11',
-  /** Modal de veículo (modo PC): +60% em relação ao modal padrão */
-  modalPc: 'h-[3.6rem] w-[4.4rem]',
+/** Caixa base 5:4 em pixels (antes da escala por marca). */
+const BASE_PX: Record<VehicleBrandLogoSize, { h: number; w: number }> = {
+  card: { h: 32, w: 40 },
+  cardPc: { h: 38.4, w: 48 },
+  modal: { h: 36, w: 44 },
+  modalPc: { h: 57.6, w: 70.4 },
 };
 
 interface VehicleBrandLogoProps {
@@ -30,10 +29,13 @@ export const VehicleBrandLogo: React.FC<VehicleBrandLogoProps> = ({
   if (!src) return null;
 
   const label = title ?? (brand?.trim() || 'Marca do veículo');
+  const scale = getVehicleBrandLogoScale(brand);
+  const base = BASE_PX[size];
 
   return (
     <div
-      className={`inline-flex shrink-0 items-center justify-center ${SIZE_CLASS[size]} ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center ${className}`}
+      style={{ width: base.w * scale, height: base.h * scale }}
       title={label}
       aria-label={label}
     >

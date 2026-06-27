@@ -1,8 +1,7 @@
 /** Marcas com arquivo em /public/brands/{slug}.png */
 export const VEHICLE_BRAND_LOGO_SLUGS = [
   'amg', 'audi', 'bmw', 'byd', 'chery', 'chevrolet', 'citroen', 'dodge', 'ferrari', 'fiat',
-  'ford', 'geely', 'gm', 'gwm', 'honda', 'hummer', 'hyundai', 'iveco', 'jeep', 'kia',
-  'lamborghini', 'land-rover', 'mercedes-benz', 'mini', 'mitsubishi', 'nissan', 'peugeot',
+  'ford', 'geely', 'gm', 'gwm', 'honda', 'hummer', 'hyundai', 'iveco',   'jeep', 'kia', 'lamborghini', 'land-rover', 'lifan', 'mercedes-benz', 'mini', 'mitsubishi', 'nissan', 'peugeot',
   'porsche', 'ram', 'renault', 'subaru', 'suzuki', 'tesla', 'toyota', 'volkswagen', 'volvo', 'yamaha',
 ] as const;
 
@@ -16,6 +15,7 @@ const BRAND_ALIASES: Record<string, VehicleBrandLogoSlug> = {
   bmw: 'bmw',
   byd: 'byd',
   chery: 'chery',
+  'caoa chery': 'chery',
   chevrolet: 'chevrolet',
   chevy: 'chevrolet',
   gm: 'gm',
@@ -37,6 +37,7 @@ const BRAND_ALIASES: Record<string, VehicleBrandLogoSlug> = {
   iveco: 'iveco',
   jeep: 'jeep',
   kia: 'kia',
+  lifan: 'lifan',
   lamborghini: 'lamborghini',
   'land rover': 'land-rover',
   'land-rover': 'land-rover',
@@ -86,4 +87,18 @@ export function resolveVehicleBrandLogoSlug(brand?: string | null): VehicleBrand
 export function getVehicleBrandLogoUrl(brand?: string | null): string | null {
   const slug = resolveVehicleBrandLogoSlug(brand);
   return slug ? `/brands/${slug}.png` : null;
+}
+
+/** Escala extra por marca (1 = padrão). */
+export const BRAND_LOGO_SIZE_SCALE: Partial<Record<VehicleBrandLogoSlug, number>> = {
+  gm: 1.25,
+  chevrolet: 1.6,
+  'land-rover': 1.2,
+  ford: 1.1,
+};
+
+export function getVehicleBrandLogoScale(brand?: string | null): number {
+  const slug = resolveVehicleBrandLogoSlug(brand);
+  if (!slug) return 1;
+  return BRAND_LOGO_SIZE_SCALE[slug] ?? 1;
 }
