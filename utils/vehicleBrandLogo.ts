@@ -92,7 +92,7 @@ export function getVehicleBrandLogoUrl(brand?: string | null): string | null {
 /** Escala extra por marca (1 = padrão). */
 export const BRAND_LOGO_SIZE_SCALE: Partial<Record<VehicleBrandLogoSlug, number>> = {
   gm: 1.25,
-  chevrolet: 1.6,
+  chevrolet: 1.04,
   'land-rover': 1.2,
   ford: 1.1,
   honda: 1.25,
@@ -100,7 +100,7 @@ export const BRAND_LOGO_SIZE_SCALE: Partial<Record<VehicleBrandLogoSlug, number>
 
 /** Ajuste da caixa 5:4 para logos mais largas (evita corte visual). */
 export const BRAND_LOGO_BOX_SCALE: Partial<Record<VehicleBrandLogoSlug, { w: number; h: number }>> = {
-  fiat: { w: 1.45, h: 1.05 },
+  fiat: { w: 0.8, h: 0.58 },
   chevrolet: { w: 1.35, h: 1 },
 };
 
