@@ -100,7 +100,7 @@ export const BRAND_LOGO_SIZE_SCALE: Partial<Record<VehicleBrandLogoSlug, number>
 
 /** Ajuste da caixa 5:4 para logos mais largas (evita corte visual). */
 export const BRAND_LOGO_BOX_SCALE: Partial<Record<VehicleBrandLogoSlug, { w: number; h: number }>> = {
-  fiat: { w: 0.8, h: 0.58 },
+  fiat: { w: 1.04, h: 0.754 },
   chevrolet: { w: 1.35, h: 1 },
 };
 
