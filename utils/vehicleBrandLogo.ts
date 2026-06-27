@@ -3,7 +3,7 @@ export const VEHICLE_BRAND_LOGO_SLUGS = [
   'amg', 'audi', 'bmw', 'byd', 'chery', 'chevrolet', 'citroen', 'dodge', 'ferrari', 'fiat',
   'ford', 'geely', 'gm', 'gwm', 'honda', 'hummer', 'hyundai', 'iveco', 'jeep', 'kia',
   'lamborghini', 'land-rover', 'mercedes-benz', 'mini', 'mitsubishi', 'nissan', 'peugeot',
-  'porsche', 'renault', 'subaru', 'suzuki', 'tesla', 'toyota', 'volkswagen', 'volvo', 'yamaha',
+  'porsche', 'ram', 'renault', 'subaru', 'suzuki', 'tesla', 'toyota', 'volkswagen', 'volvo', 'yamaha',
 ] as const;
 
 export type VehicleBrandLogoSlug = (typeof VEHICLE_BRAND_LOGO_SLUGS)[number];
@@ -23,6 +23,7 @@ const BRAND_ALIASES: Record<string, VehicleBrandLogoSlug> = {
   citroen: 'citroen',
   citroën: 'citroen',
   dodge: 'dodge',
+  ram: 'ram',
   ferrari: 'ferrari',
   fiat: 'fiat',
   ford: 'ford',
