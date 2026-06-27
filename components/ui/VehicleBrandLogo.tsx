@@ -1,11 +1,15 @@
 import React from 'react';
 import { getVehicleBrandLogoUrl } from '../../utils/vehicleBrandLogo';
 
-export type VehicleBrandLogoSize = 'card' | 'modal';
+export type VehicleBrandLogoSize = 'card' | 'cardPc' | 'modal' | 'modalPc';
 
 const SIZE_CLASS: Record<VehicleBrandLogoSize, string> = {
   card: 'h-8 w-10',
+  /** Card no Pátio (modo PC): +20% em relação ao card padrão */
+  cardPc: 'h-[2.4rem] w-[3rem]',
   modal: 'h-9 w-11',
+  /** Modal de veículo (modo PC): +60% em relação ao modal padrão */
+  modalPc: 'h-[3.6rem] w-[4.4rem]',
 };
 
 interface VehicleBrandLogoProps {

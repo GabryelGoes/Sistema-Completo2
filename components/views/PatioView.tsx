@@ -5192,13 +5192,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {/* Nome do carro (fonte um pouco menor); portrait: −15% via escala */}
                 <div
                   className={`relative min-w-0 ${
-                    !isModuleMode ? 'pr-11 sm:pr-12' : ''
+                    !isModuleMode ? (isPcLayout ? 'pr-14' : 'pr-11 sm:pr-12') : ''
                   } ${boardPanoramic ? 'mb-[calc(0.25rem*1.6146)] portrait:mb-1' : 'mb-1.5 portrait:mb-1'}`}
                 >
                   {!isModuleMode ? (
                     <VehicleBrandLogo
                       brand={card.vehicleBrand}
-                      size="card"
+                      size={isPcLayout ? 'cardPc' : 'card'}
                       className="absolute right-0 top-0 z-[1]"
                     />
                   ) : null}
@@ -6520,16 +6520,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           )}
                           </div>
                           {isPatioPcModal && !isModuleMode ? (
-                            <div className="inline-flex shrink-0 origin-right scale-[1.08] items-center justify-center gap-2">
-                              <VehicleBrandLogo
-                                brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
-                                size="modal"
-                              />
+                            <div className="inline-flex shrink-0 origin-right scale-[1.08] flex-col items-center justify-center gap-1.5">
                               <MercosulPlateMockup
                                 plate={selectedCardTitleParts?.plateOrModule || '---'}
                                 blurPlates={blurPlates}
                                 size="modal"
                                 selectable
+                              />
+                              <VehicleBrandLogo
+                                brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
+                                size="modalPc"
                               />
                             </div>
                           ) : null}
