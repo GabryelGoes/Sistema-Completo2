@@ -185,6 +185,7 @@ import {
 import { LabBenchSlotEditor } from '../lab/LabBenchSlotEditor';
 import type { ExternalRepair } from '../../constants/labBench';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
+import { VehicleBrandLogo } from '../ui/VehicleBrandLogo';
 import { ReceptionArchivedHistoryHubCard, boardCardToArchivedHistoryHubOrder } from '../reception/ReceptionArchivedHistoryHubCard';
 import { archivedHistoryModalShell } from '../reception/archivedHistoryModalShell';
 import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAuthorizationSheetModal';
@@ -5189,7 +5190,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
               {/* Layout: 1) nome do carro  2) cliente  3) técnico | placa */}
               <div className="min-w-0">
                 {/* Nome do carro (fonte um pouco menor); portrait: −15% via escala */}
-                <div className={boardPanoramic ? 'mb-[calc(0.25rem*1.6146)] portrait:mb-1' : 'mb-1.5 portrait:mb-1'}>
+                <div
+                  className={`relative min-w-0 ${
+                    !isModuleMode ? 'pr-11 sm:pr-12' : ''
+                  } ${boardPanoramic ? 'mb-[calc(0.25rem*1.6146)] portrait:mb-1' : 'mb-1.5 portrait:mb-1'}`}
+                >
+                  {!isModuleMode ? (
+                    <VehicleBrandLogo
+                      brand={card.vehicleBrand}
+                      size="card"
+                      className="absolute right-0 top-0 z-[1]"
+                    />
+                  ) : null}
                   <h3
                     className={`font-vehicle ${getPatioBoardModelTitleClass(model, boardPanoramic, true)} font-bold text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tight break-words portrait:inline-block portrait:w-full portrait:origin-top-left portrait:scale-[0.85] ${vehicleCardTitleShadow}`}
                   >
@@ -5691,7 +5703,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         ) : null}
                         <div className="mt-3 flex flex-col gap-3 text-zinc-700 dark:text-zinc-300 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-6 lg:gap-y-2">
                          {!isModuleMode && (
-                           <div className="flex shrink-0 items-center">
+                           <div className="flex shrink-0 items-center gap-2">
+                              <VehicleBrandLogo
+                                brand={selectedHistoryCard?.vehicleBrand}
+                                size="modal"
+                              />
                               <MercosulPlateMockup
                                 plate={historyCardTitleParts?.plateOrModule || '---'}
                                 blurPlates={blurPlates}
@@ -6504,7 +6520,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           )}
                           </div>
                           {isPatioPcModal && !isModuleMode ? (
-                            <div className="inline-flex shrink-0 origin-right scale-[1.08] items-center justify-center">
+                            <div className="inline-flex shrink-0 origin-right scale-[1.08] items-center justify-center gap-2">
+                              <VehicleBrandLogo
+                                brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
+                                size="modal"
+                              />
                               <MercosulPlateMockup
                                 plate={selectedCardTitleParts?.plateOrModule || '---'}
                                 blurPlates={blurPlates}
@@ -6528,7 +6548,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {selectedCardTitleParts?.vehicle}
                           </h1>
                           {!isModuleMode && !isPatioPcModal ? (
-                            <div className="inline-flex shrink-0 origin-right scale-[1.2] portrait:scale-[0.936] items-center justify-center">
+                            <div className="inline-flex shrink-0 origin-right scale-[1.2] portrait:scale-[0.936] items-center justify-center gap-2">
+                              <VehicleBrandLogo
+                                brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
+                                size="modal"
+                              />
                               <MercosulPlateMockup
                                 plate={selectedCardTitleParts?.plateOrModule || '---'}
                                 blurPlates={blurPlates}
