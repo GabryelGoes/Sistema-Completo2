@@ -6521,20 +6521,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </span>
                           )}
                           </div>
-                          {isPatioPcModal && !isModuleMode ? (
-                            <div className="inline-flex shrink-0 origin-right scale-[1.08] flex-col items-center justify-center gap-1.5">
-                              <MercosulPlateMockup
-                                plate={selectedCardTitleParts?.plateOrModule || '---'}
-                                blurPlates={blurPlates}
-                                size="modal"
-                                selectable
-                              />
-                              <VehicleBrandLogo
-                                brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
-                                size="modalPc"
-                              />
-                            </div>
-                          ) : null}
                         </div>
                         {!isModuleMode &&
                         (serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand)?.trim() ? (
@@ -6544,11 +6530,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         ) : null}
                         <div className={`${isPatioPcModal ? 'mt-1' : 'mt-0.5'} flex min-w-0 items-end gap-3`}>
                           <h1
-                            className={`${patioVehicleVm.title} ${vehicleModalTitleShadow}`}
+                            className={`${patioVehicleVm.title} min-w-0 flex-1 ${vehicleModalTitleShadow}`}
                             title={selectedCardTitleParts?.vehicle}
                           >
                             {selectedCardTitleParts?.vehicle}
                           </h1>
+                          {!isModuleMode && isPatioPcModal ? (
+                            <div className="inline-flex shrink-0 origin-right scale-[1.08] items-center justify-center gap-2">
+                              <VehicleBrandLogo
+                                brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
+                                size="modalPc"
+                              />
+                              <MercosulPlateMockup
+                                plate={selectedCardTitleParts?.plateOrModule || '---'}
+                                blurPlates={blurPlates}
+                                size="modal"
+                                selectable
+                              />
+                            </div>
+                          ) : null}
                           {!isModuleMode && !isPatioPcModal ? (
                             <div className="inline-flex shrink-0 origin-right scale-[1.2] portrait:scale-[0.936] items-center justify-center gap-2">
                               <VehicleBrandLogo
