@@ -17,7 +17,7 @@ import {
   BarChart3,
   Printer,
 } from 'lucide-react';
-import { iosModalShell, iosModalClose, iosModalInsetCard, SETTINGS_CHILD_MODAL_Z } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosModalInsetCard, SETTINGS_CHILD_MODAL_Z, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 
 import {
@@ -31,7 +31,7 @@ import { RegistrationPortal } from './ui/RegistrationPortal';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import {
-  desktopShellNestedOverlayClass,
+  desktopShellPortaledChildOverlayClass,
   desktopShellViewportOverlayClass,
 } from '../utils/desktopShellOverlay';
 import { IosModalHeader } from './ui/IosModalHeader';
@@ -1543,8 +1543,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       <div
         className={
           isDesktopShell
-            ? `${desktopShellNestedOverlayClass(isDesktopShell)} flex min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-zinc-950`
-            : 'fixed inset-0 z-[115] flex items-center justify-center bg-black/50 p-2 sm:p-4'
+            ? `${desktopShellPortaledChildOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z)} flex min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-zinc-950`
+            : `${desktopShellPortaledChildOverlayClass(false, NESTED_STOCK_OVERLAY_Z)} flex items-center justify-center bg-black/50 p-2 sm:p-4`
         }
         onClick={isDesktopShell ? undefined : handleRegistrationBackdropClick}
         role="presentation"
@@ -1641,8 +1641,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         <div
           className={
             isDesktopShell
-              ? `${desktopShellNestedOverlayClass(isDesktopShell)} flex min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-zinc-950`
-              : 'fixed inset-0 z-[115] flex items-center justify-center bg-black/50 p-2 sm:p-4'
+              ? `${desktopShellPortaledChildOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z)} flex min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-zinc-950`
+              : `${desktopShellPortaledChildOverlayClass(false, NESTED_STOCK_OVERLAY_Z)} flex items-center justify-center bg-black/50 p-2 sm:p-4`
           }
           onClick={isDesktopShell ? undefined : handleViewBackdropClick}
           role="presentation"
@@ -1733,8 +1733,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     ) : null}
 
     {isCategoriesModalOpen && (
+      <RegistrationPortal>
       <div
-        className={`${desktopShellNestedOverlayClass(isDesktopShell, 'z-[118]')} flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-[12px]`}
+        className={`${desktopShellPortaledChildOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z)} flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-[12px]`}
         onClick={closeCategoriesModal}
         role="presentation"
       >
@@ -1856,6 +1857,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           </div>
         </div>
       </div>
+      </RegistrationPortal>
     )}
     </ModalPortal>
     </>

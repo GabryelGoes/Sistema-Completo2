@@ -18,6 +18,9 @@ export const iosModalOverlay =
 /** Hub de configurações no PC usa z-[100]; modais filhos precisam ficar acima. */
 export const SETTINGS_CHILD_MODAL_Z = 'z-[125]';
 
+/** Cadastro/visualização do estoque (portal no body) — acima do modal principal z-[125]. */
+export const NESTED_STOCK_OVERLAY_Z = 'z-[135]';
+
 const iosModalOverlayAppearance =
   'flex items-center justify-center p-3 sm:p-6 bg-black/45 backdrop-blur-[20px]';
 
