@@ -2167,6 +2167,69 @@ export async function verifyServiceOrderBudget(
   return mapApiBudgetToSaved(data);
 }
 
+// ---------- Técnicos por serviço (fechamento ao finalizar) ----------
+
+export type ServiceTechnicianClosingLine = {
+  id?: string;
+  description: string;
+  technicianId: string;
+  budgetId?: string | null;
+};
+
+export async function getServiceOrderServiceTechnicians(
+  serviceOrderId: string
+): Promise<{
+  lines: ServiceTechnicianClosingLine[];
+  approvedServices: { description: string; budgetId?: string | null }[];
+}> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/service-technicians`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar técnicos dos serviços (${response.status})`);
+  }
+  const data = await response.json();
+  return {
+    lines: (data.lines ?? []).map((l: Record<string, unknown>) => ({
+      id: typeof l.id === "string" ? l.id : undefined,
+      description: String(l.description ?? ""),
+      technicianId: String(l.technicianId ?? l.technician_id ?? ""),
+      budgetId:
+        typeof l.budgetId === "string"
+          ? l.budgetId
+          : typeof l.budget_id === "string"
+            ? l.budget_id
+            : null,
+    })),
+    approvedServices: (data.approvedServices ?? data.approved_services ?? []).map(
+      (s: Record<string, unknown>) => ({
+        description: String(s.description ?? ""),
+        budgetId:
+          typeof s.budgetId === "string"
+            ? s.budgetId
+            : typeof s.budget_id === "string"
+              ? s.budget_id
+              : null,
+      })
+    ),
+  };
+}
+
+export async function saveServiceOrderServiceTechnicians(
+  serviceOrderId: string,
+  lines: ServiceTechnicianClosingLine[],
+  recordedByName: string
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/service-technicians`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ lines, recordedByName }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao salvar técnicos dos serviços (${response.status})`);
+  }
+}
+
 export async function deleteServiceOrderBudget(
   serviceOrderId: string,
   budgetId: string

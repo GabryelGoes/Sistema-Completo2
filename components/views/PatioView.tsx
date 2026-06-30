@@ -189,6 +189,7 @@ import { VehicleBrandLogo } from '../ui/VehicleBrandLogo';
 import { ReceptionArchivedHistoryHubCard, boardCardToArchivedHistoryHubOrder } from '../reception/ReceptionArchivedHistoryHubCard';
 import { archivedHistoryModalShell } from '../reception/archivedHistoryModalShell';
 import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAuthorizationSheetModal';
+import { ServiceTechnicianClosingModal } from '../patio/ServiceTechnicianClosingModal';
 import { getVehiclePhotoPublicUrl } from '../../utils/vehicleStoragePublicUrl';
 
 /** ID sintético até `getServiceOrderById` responder — não usar em chamadas à API. */
@@ -1356,6 +1357,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [partSuggestionBoxPosition, setPartSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   // Card em transição de COLUNA (Status)
   const [cardInTransition, setCardInTransition] = useState<BoardCard | null>(null);
+  /** Abre fechamento de técnicos por serviço antes de ir para FINALIZADO. */
+  const [serviceTechClosing, setServiceTechClosing] = useState<BoardCard | null>(null);
   const [isMoving, setIsMoving] = useState(false);
   /** Overlay de “a mover etapa” no cartão (modal ou arrastar no modo Trello). */
   const [stageChangingCardId, setStageChangingCardId] = useState<string | null>(null);
@@ -1592,6 +1595,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const selectedCardTitleParts = selectedCard ? parsePatioCardTitle(selectedCard.name) : null;
   const historyCardTitleParts = selectedHistoryCard ? parsePatioCardTitle(selectedHistoryCard.name) : null;
   const cardInTransitionTitleParts = cardInTransition ? parsePatioCardTitle(cardInTransition.name) : null;
+  const serviceTechClosingTitleParts = serviceTechClosing ? parsePatioCardTitle(serviceTechClosing.name) : null;
 
   const closePatioPrimaryOverlays = useCallback(() => {
     setPreviewImages(null);
@@ -2650,8 +2654,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setCardInTransition(card);
   };
 
-  const performStageChangeForCard = async (card: BoardCard, newListId: string) => {
+  const performStageChangeForCard = async (
+    card: BoardCard,
+    newListId: string,
+    options?: { skipServiceTechGate?: boolean }
+  ) => {
     if (!newListId || card.idList === newListId) return;
+
+    if (
+      !options?.skipServiceTechGate &&
+      !isModuleMode &&
+      newListId === 'FINALIZADO' &&
+      card.idList !== 'FINALIZADO'
+    ) {
+      setCardInTransition(null);
+      setServiceTechClosing(card);
+      return;
+    }
+
     setStageChangingCardId(card.id);
     setIsMoving(true);
     try {
@@ -9575,6 +9595,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
         </ModalPortal>
       )}
+
+      {/* Fechamento: técnicos por serviço antes de FINALIZADO */}
+      {serviceTechClosing && patioPortalsVisible ? (
+        <ServiceTechnicianClosingModal
+          open
+          serviceOrderId={serviceTechClosing.id}
+          vehicleLabel={serviceTechClosingTitleParts?.vehicle ?? serviceTechClosing.name}
+          technicians={systemTechnicians}
+          recordedByName={commentAuthorName}
+          onClose={() => setServiceTechClosing(null)}
+          onConfirmed={async () => {
+            const card = serviceTechClosing;
+            setServiceTechClosing(null);
+            await performStageChangeForCard(card, 'FINALIZADO', { skipServiceTechGate: true });
+          }}
+        />
+      ) : null}
 
       {/* MODAL DE SELEÇÃO DE ETAPA (MOVE) — portal em body para ficar acima da TabBar */}
       {cardInTransition && patioPortalsVisible && (

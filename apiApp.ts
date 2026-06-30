@@ -30,6 +30,10 @@ import { parseModuleKind, parseModuleVehicleKind } from "./utils/moduleMetadata.
 import { SYSTEM_NOTIFICATION_IDS } from "./constants/systemNotificationTypes.js";
 import { buildWorkshopPartsAnalytics } from "./utils/workshopPartsAnalytics.js";
 import { resolveTvUploadMime } from "./utils/tvMediaFile.js";
+import {
+  collectApprovedServicesFromBudgets,
+  validateServiceTechnicianLines,
+} from "./utils/serviceOrderServiceTechnicians.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -3925,6 +3929,193 @@ export function createApiApp() {
     }
   });
 
+  async function loadApprovedServicesForOrder(serviceOrderId: string) {
+    const { data: budgets, error } = await supabaseAdmin!
+      .from("budgets")
+      .select("id, services")
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID);
+    if (error) throw error;
+    return collectApprovedServicesFromBudgets((budgets ?? []) as { id: string; services?: { description?: string; approved?: boolean }[] }[]);
+  }
+
+  async function loadServiceTechnicianRows(serviceOrderId: string) {
+    const { data, error } = await supabaseAdmin!
+      .from("service_order_service_technicians")
+      .select("id, description, technician_id, budget_id, sort_order")
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .order("sort_order", { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  }
+
+  async function assertServiceTechniciansCompleteForFinalize(serviceOrderId: string) {
+    const approved = await loadApprovedServicesForOrder(serviceOrderId);
+    const rows = await loadServiceTechnicianRows(serviceOrderId);
+    return validateServiceTechnicianLines(
+      rows.map((r) => ({
+        description: String(r.description ?? ""),
+        technicianId: String(r.technician_id ?? ""),
+      })),
+      approved
+    );
+  }
+
+  async function validateTechnicianIds(technicianIds: string[]) {
+    const unique = [...new Set(technicianIds.filter(Boolean))];
+    if (unique.length === 0) return { ok: false as const, error: "Nenhum técnico informado." };
+    const { data, error } = await supabaseAdmin!
+      .from("workshop_system_users")
+      .select("id")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("is_technician", true)
+      .in("id", unique);
+    if (error) throw error;
+    if ((data ?? []).length !== unique.length) {
+      return { ok: false as const, error: "Um ou mais técnicos são inválidos." };
+    }
+    return { ok: true as const };
+  }
+
+  // Técnicos por serviço (fechamento ao finalizar veículo)
+  app.get("/api/service-orders/:id/service-technicians", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { id: serviceOrderId } = req.params;
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (!so) return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      if (so.order_type === "module") {
+        return res.status(400).json({ error: "Apenas OS de veículo." });
+      }
+
+      const approvedServices = await loadApprovedServicesForOrder(serviceOrderId);
+      const rows = await loadServiceTechnicianRows(serviceOrderId);
+
+      return res.json({
+        lines: rows.map((r) => ({
+          id: r.id,
+          description: r.description,
+          technicianId: r.technician_id,
+          budgetId: r.budget_id,
+        })),
+        approvedServices: approvedServices.map((s) => ({
+          description: s.description,
+          budgetId: s.budgetId,
+        })),
+      });
+    } catch (err: unknown) {
+      console.error("[API] GET service-technicians:", err);
+      const msg = err instanceof Error ? err.message : "Erro";
+      if (/service_order_service_technicians/i.test(msg) && /does not exist|relation/i.test(msg)) {
+        return res.status(500).json({
+          error: "Tabela de técnicos por serviço não configurada. Aplique a migration no Supabase.",
+        });
+      }
+      return res.status(500).json({ error: msg });
+    }
+  });
+
+  app.put("/api/service-orders/:id/service-technicians", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { id: serviceOrderId } = req.params;
+      const rawLines = Array.isArray(req.body?.lines) ? req.body.lines : [];
+      const recordedByName =
+        typeof req.body?.recordedByName === "string" ? req.body.recordedByName.trim().slice(0, 200) : "";
+
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (!so) return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      if (so.order_type === "module") {
+        return res.status(400).json({ error: "Apenas OS de veículo." });
+      }
+
+      const lines = rawLines
+        .map((row: unknown) => {
+          if (!row || typeof row !== "object") return null;
+          const r = row as Record<string, unknown>;
+          return {
+            description: typeof r.description === "string" ? r.description.trim() : "",
+            technicianId:
+              typeof r.technicianId === "string"
+                ? r.technicianId.trim()
+                : typeof r.technician_id === "string"
+                  ? r.technician_id.trim()
+                  : "",
+            budgetId:
+              typeof r.budgetId === "string"
+                ? r.budgetId
+                : typeof r.budget_id === "string"
+                  ? r.budget_id
+                  : null,
+          };
+        })
+        .filter(Boolean) as { description: string; technicianId: string; budgetId: string | null }[];
+
+      const approved = await loadApprovedServicesForOrder(serviceOrderId);
+      const validation = validateServiceTechnicianLines(lines, approved);
+      if (!validation.ok) {
+        return res.status(400).json({ error: validation.error });
+      }
+
+      const techCheck = await validateTechnicianIds(lines.map((l) => l.technicianId));
+      if (!techCheck.ok) {
+        return res.status(400).json({ error: techCheck.error });
+      }
+
+      const { error: delError } = await supabaseAdmin
+        .from("service_order_service_technicians")
+        .delete()
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (delError) throw delError;
+
+      const now = new Date().toISOString();
+      const payload = lines.map((line, index) => ({
+        workshop_id: WORKSHOP_ID,
+        service_order_id: serviceOrderId,
+        description: line.description,
+        technician_id: line.technicianId,
+        budget_id: line.budgetId,
+        sort_order: index,
+        recorded_at: now,
+        recorded_by_name: recordedByName,
+      }));
+
+      if (payload.length > 0) {
+        const { error: insError } = await supabaseAdmin
+          .from("service_order_service_technicians")
+          .insert(payload);
+        if (insError) throw insError;
+      }
+
+      return res.json({ ok: true });
+    } catch (err: unknown) {
+      console.error("[API] PUT service-technicians:", err);
+      const msg = err instanceof Error ? err.message : "Erro";
+      if (/service_order_service_technicians/i.test(msg) && /does not exist|relation/i.test(msg)) {
+        return res.status(500).json({
+          error: "Tabela de técnicos por serviço não configurada. Aplique a migration no Supabase.",
+        });
+      }
+      return res.status(500).json({ error: msg });
+    }
+  });
+
   // Listar orçamentos de uma OS
   app.get("/api/service-orders/:id/budgets", async (req, res) => {
     try {
@@ -7019,6 +7210,29 @@ export function createApiApp() {
           const merged: ExternalRepair = { ...(prevExternal ?? {}) };
           if (!merged.returnedAt) merged.returnedAt = today;
           updatePayload.external_repair = merged;
+        }
+      }
+
+      if (
+        updatePayload.status === "FINALIZADO" &&
+        effectiveOrderType === "vehicle" &&
+        previous &&
+        String((previous as { status?: string }).status ?? "") !== "FINALIZADO"
+      ) {
+        try {
+          const techCheck = await assertServiceTechniciansCompleteForFinalize(id);
+          if (!techCheck.ok) {
+            return res.status(400).json({ error: techCheck.error });
+          }
+        } catch (finalizeCheckErr: unknown) {
+          const msg = finalizeCheckErr instanceof Error ? finalizeCheckErr.message : "Erro";
+          if (/service_order_service_technicians/i.test(msg) && /does not exist|relation/i.test(msg)) {
+            return res.status(500).json({
+              error: "Tabela de técnicos por serviço não configurada. Aplique a migration no Supabase.",
+            });
+          }
+          console.error("[API] Validação técnicos por serviço:", finalizeCheckErr);
+          return res.status(500).json({ error: msg });
         }
       }
 
