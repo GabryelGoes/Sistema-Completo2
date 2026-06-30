@@ -1,14 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Loader2, Plus, Trash2, User, Wrench, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, Loader2, Plus, Trash2, User, Wrench, X } from 'lucide-react';
 import { ModalPortal } from '../ui/ModalPortal';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
+import { MechanicIcon } from '../ui/MechanicIcon';
+import { useDesktopShellLayout } from '../ui/DesktopShellContext';
 import {
-  iosAccentPrimaryButton,
   iosLabel,
   iosModalClose,
   iosModalInsetCard,
   iosModalShell,
-  iosModalOverlay,
+  iosPrimaryButton,
+  resolveIosModalOverlayClass,
 } from '../ui/iosModalStyles';
 import {
   getServiceOrderServiceTechnicians,
@@ -17,6 +19,7 @@ import {
   type SystemUserTechnician,
 } from '../../services/apiService';
 import { validateServiceTechnicianLines } from '../../utils/serviceOrderServiceTechnicians';
+import { capitalizeFirst } from '../../utils/personNameFormat';
 
 export type ServiceTechnicianClosingModalProps = {
   open: boolean;
@@ -30,6 +33,39 @@ export type ServiceTechnicianClosingModalProps = {
 
 type DraftLine = ServiceTechnicianClosingLine & { key: string };
 
+type TechOption = {
+  id: string;
+  name: string;
+  style: string;
+  photo_url: string | null;
+};
+
+const defaultTechStyle = 'bg-zinc-600 text-white border-zinc-600';
+
+function accentColorToStyle(accent: string | null | undefined): string {
+  const c = (accent || 'zinc').toLowerCase();
+  const map: Record<string, string> = {
+    blue: 'bg-blue-600 text-white border-blue-600',
+    emerald: 'bg-emerald-600 text-white border-emerald-600',
+    violet: 'bg-violet-600 text-white border-violet-600',
+    amber: 'bg-amber-500 text-white border-amber-500',
+    rose: 'bg-rose-600 text-white border-rose-600',
+    cyan: 'bg-cyan-600 text-white border-cyan-600',
+    orange: 'bg-orange-500 text-white border-orange-500',
+    zinc: 'bg-zinc-600 text-white border-zinc-600',
+  };
+  return map[c] ?? map.zinc;
+}
+
+function mapTechnicians(technicians: SystemUserTechnician[]): TechOption[] {
+  return technicians.map((t) => ({
+    id: t.id,
+    name: capitalizeFirst((t.display_name || t.username || '').trim() || t.username),
+    style: accentColorToStyle(t.accent_color) || defaultTechStyle,
+    photo_url: t.photo_url ?? null,
+  }));
+}
+
 function newDraftLine(partial?: Partial<ServiceTechnicianClosingLine>): DraftLine {
   return {
     key: `line-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -38,6 +74,118 @@ function newDraftLine(partial?: Partial<ServiceTechnicianClosingLine>): DraftLin
     budgetId: partial?.budgetId ?? null,
   };
 }
+
+type DesktopTechnicianPickerProps = {
+  value: string;
+  options: TechOption[];
+  onChange: (technicianId: string) => void;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+const DesktopTechnicianPicker: React.FC<DesktopTechnicianPickerProps> = ({
+  value,
+  options,
+  onChange,
+  isOpen,
+  onOpenChange,
+}) => {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selected = options.find((t) => t.id === value);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) onOpenChange(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+    };
+  }, [isOpen, onOpenChange]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => onOpenChange(!isOpen)}
+        className="flex w-full items-center gap-2.5 rounded-lg border border-zinc-200/90 bg-white py-2 pl-3 pr-9 text-left text-[14px] text-zinc-900 transition-colors hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:border-white/20"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+      >
+        {selected ? (
+          <>
+            <div
+              className={`relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/25 bg-black/15 shadow-inner ${selected.style}`}
+            >
+              {selected.photo_url ? (
+                <img
+                  src={selected.photo_url}
+                  alt=""
+                  className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
+                />
+              ) : (
+                <MechanicIcon className="relative z-[1] h-3.5 w-3.5 opacity-95" />
+              )}
+            </div>
+            <span className="min-w-0 flex-1 truncate font-medium">{selected.name}</span>
+          </>
+        ) : (
+          <>
+            <User className="h-4 w-4 shrink-0 text-zinc-400" />
+            <span className="text-zinc-500 dark:text-zinc-400">Selecione o técnico</span>
+          </>
+        )}
+        <ChevronDown
+          className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {isOpen ? (
+        <div
+          role="listbox"
+          className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-56 overflow-y-auto overscroll-contain rounded-xl border border-zinc-200/90 bg-white p-1.5 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.18)] custom-scrollbar dark:border-white/10 dark:bg-zinc-900"
+        >
+          {options.length === 0 ? (
+            <p className="px-3 py-2.5 text-[13px] text-zinc-500 dark:text-zinc-400">Nenhum técnico cadastrado.</p>
+          ) : (
+            options.map((tech) => {
+              const isSelected = tech.id === value;
+              return (
+                <button
+                  key={tech.id}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  onClick={() => {
+                    onChange(tech.id);
+                    onOpenChange(false);
+                  }}
+                  className={`group mb-1 flex w-full items-center gap-2.5 rounded-[12px] border-2 p-2.5 text-left text-[14px] font-semibold leading-snug transition-all duration-200 last:mb-0 hover:brightness-[1.06] active:scale-[0.99] ${tech.style} ${isSelected ? 'ring-2 ring-[#007AFF]/50 ring-offset-1 ring-offset-white dark:ring-offset-zinc-900' : ''}`}
+                >
+                  <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/25 bg-black/15 shadow-inner">
+                    {tech.photo_url ? (
+                      <img
+                        src={tech.photo_url}
+                        alt=""
+                        className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
+                      />
+                    ) : (
+                      <MechanicIcon className="relative z-[1] h-4 w-4 opacity-95" />
+                    )}
+                  </div>
+                  <span className="min-w-0 flex-1 truncate">{tech.name}</span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+};
 
 export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingModalProps> = ({
   open,
@@ -48,11 +196,15 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
   onClose,
   onConfirmed,
 }) => {
+  const isDesktopShell = useDesktopShellLayout();
+  const techOptions = useMemo(() => mapTechnicians(technicians), [technicians]);
+
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [approvedServices, setApprovedServices] = useState<{ description: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [openPickerKey, setOpenPickerKey] = useState<string | null>(null);
 
   const loadDraft = useCallback(async () => {
     if (!open || !serviceOrderId) return;
@@ -84,6 +236,7 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
       setLines([]);
       setApprovedServices([]);
       setError(null);
+      setOpenPickerKey(null);
       return;
     }
     void loadDraft();
@@ -118,13 +271,19 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
     }
   };
 
+  const serviceCardClass = isDesktopShell
+    ? 'rounded-[22px] border border-zinc-200/80 bg-zinc-100 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.06)] dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]'
+    : iosModalInsetCard;
+
+  const modalWidthClass = isDesktopShell ? 'max-w-3xl' : 'max-w-lg';
+
   return (
     <ModalPortal>
       <div
-        className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}
+        className={`${resolveIosModalOverlayClass(isDesktopShell)} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}
       >
         <div
-          className={`relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-lg min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+          className={`relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full ${modalWidthClass} min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="service-tech-closing-title"
@@ -139,7 +298,11 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
             <X className="h-5 w-5" />
           </button>
 
-          <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+          <div
+            className={`shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8 ${
+              isDesktopShell ? 'bg-white dark:bg-transparent' : ''
+            }`}
+          >
             <div className="flex items-start gap-3 pr-10">
               <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
                 <Wrench className="h-6 w-6" />
@@ -174,7 +337,7 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
             ) : (
               <div className="space-y-3">
                 {lines.map((line, index) => (
-                  <div key={line.key} className={`${iosModalInsetCard} p-3.5 sm:p-4`}>
+                  <div key={line.key} className={`${serviceCardClass} p-3.5 sm:p-4`}>
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <span className={iosLabel}>Serviço {index + 1}</span>
                       {lines.length > 1 ? (
@@ -199,27 +362,41 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
                       placeholder="Descrição do serviço"
                       className="mb-2.5 w-full rounded-lg border border-zinc-200/90 bg-white px-3 py-2 text-[14px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 dark:border-white/10 dark:bg-white/5 dark:text-white"
                     />
-                    <div className="relative">
-                      <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                      <select
+                    {isDesktopShell ? (
+                      <DesktopTechnicianPicker
                         value={line.technicianId}
-                        onChange={(e) =>
+                        options={techOptions}
+                        isOpen={openPickerKey === line.key}
+                        onOpenChange={(next) => setOpenPickerKey(next ? line.key : null)}
+                        onChange={(technicianId) =>
                           setLines((prev) =>
-                            prev.map((l) =>
-                              l.key === line.key ? { ...l, technicianId: e.target.value } : l
-                            )
+                            prev.map((l) => (l.key === line.key ? { ...l, technicianId } : l))
                           )
                         }
-                        className="w-full appearance-none rounded-lg border border-zinc-200/90 bg-white py-2 pl-9 pr-8 text-[14px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 dark:border-white/10 dark:bg-white/5 dark:text-white"
-                      >
-                        <option value="">Selecione o técnico</option>
-                        {technicians.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.display_name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                      />
+                    ) : (
+                      <div className="relative">
+                        <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                        <select
+                          value={line.technicianId}
+                          onChange={(e) =>
+                            setLines((prev) =>
+                              prev.map((l) =>
+                                l.key === line.key ? { ...l, technicianId: e.target.value } : l
+                              )
+                            )
+                          }
+                          className="w-full appearance-none rounded-lg border border-zinc-200/90 bg-white py-2 pl-9 pr-8 text-[14px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                        >
+                          <option value="">Selecione o técnico</option>
+                          {techOptions.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 ))}
 
@@ -241,7 +418,11 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
             ) : null}
           </div>
 
-          <div className="shrink-0 border-t border-zinc-200/60 bg-white px-6 py-4 dark:border-white/[0.07] dark:bg-zinc-950 sm:px-8">
+          <div
+            className={`shrink-0 border-t border-zinc-200/60 px-6 py-4 dark:border-white/[0.07] dark:bg-zinc-950 sm:px-8 ${
+              isDesktopShell ? 'bg-white dark:bg-zinc-950' : 'bg-white'
+            }`}
+          >
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
@@ -255,7 +436,7 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
                 type="button"
                 onClick={() => void handleConfirm()}
                 disabled={saving || loading}
-                className={`${iosAccentPrimaryButton} inline-flex min-h-[46px] items-center justify-center gap-2 px-5`}
+                className={`${iosPrimaryButton} inline-flex min-h-[46px] items-center justify-center gap-2 px-5`}
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Salvar e finalizar
