@@ -26,6 +26,7 @@ import {
   BudgetHubStageBoard,
   BudgetHubVehicleGroup,
   BudgetsHubEmptyState,
+  BudgetsHubScopeToggle,
   BudgetsHubStatsStrip,
   BudgetsHubViewSwitcher,
 } from './budgets/BudgetsHubUi';
@@ -366,45 +367,18 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
 
       <main className={mainPad}>
         <div className={`mx-auto w-full ${mainMaxW} space-y-3 lg:mx-0`}>
-          <div
-            className={`flex rounded-2xl border p-1 ${
-              isLabScope
-                ? 'border-violet-500/30 bg-violet-500/10 dark:border-violet-400/25 dark:bg-violet-500/15'
-                : 'border-amber-500/30 bg-amber-500/10 dark:border-amber-400/25 dark:bg-amber-500/15'
-            }`}
-            role="tablist"
-            aria-label="Origem dos orçamentos"
-          >
-            {(
-              [
-                { id: 'patio' as const, label: 'Pátio' },
-                { id: 'laboratory' as const, label: 'Laboratório' },
-              ] as const
-            ).map((tab) => {
-              const active = hubScope === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => handleHubScopeChange(tab.id)}
-                  className={`flex-1 rounded-xl px-3 py-2.5 text-[14px] font-semibold transition ${
-                    active
-                      ? tab.id === 'laboratory'
-                        ? 'bg-violet-600 text-white shadow-sm'
-                        : 'bg-amber-600 text-white shadow-sm'
-                      : 'text-zinc-700 hover:bg-white/50 dark:text-zinc-200 dark:hover:bg-white/10'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
           {!loading && !error && scopedItems.length > 0 ? (
-            <BudgetsHubStatsStrip stats={stats} desktopShell={desktopShell} />
-          ) : null}
+            <BudgetsHubStatsStrip
+              stats={stats}
+              desktopShell={desktopShell}
+              hubScope={hubScope}
+              onHubScopeChange={handleHubScopeChange}
+            />
+          ) : (
+            <div className="mb-4 flex justify-end">
+              <BudgetsHubScopeToggle scope={hubScope} onChange={handleHubScopeChange} />
+            </div>
+          )}
           <BudgetsHubViewSwitcher mode={viewMode} onModeChange={handleViewModeChange} desktopShell={desktopShell} />
           {renderContent()}
         </div>

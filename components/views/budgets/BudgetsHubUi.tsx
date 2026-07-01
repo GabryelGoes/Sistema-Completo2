@@ -19,8 +19,57 @@ import { getStageConfig, getStageStyle } from '../../../constants/serviceOrderSt
 import { useDragScroll } from '../../../hooks/useDragScroll';
 import { iosLabel, iosPageGlass, iosPageGlassOrcamentosVehicleCard } from '../../ui/iosModalStyles';
 import { desktopOnmotorCard, desktopStatChip } from '../../ui/desktopCardStyles';
-import type { BudgetsHubViewMode, StageKanbanColumn, VehicleBudgetGroup } from '../../../utils/budgetsHubViews';
+import type { BudgetsHubScope, BudgetsHubViewMode, StageKanbanColumn, VehicleBudgetGroup } from '../../../utils/budgetsHubViews';
 import { BUDGETS_HUB_VIEW_MODES, budgetOrderFlow } from '../../../utils/budgetsHubViews';
+
+/** Toggle compacto Pátio / Laboratório (ao lado dos chips de estatísticas). */
+export function BudgetsHubScopeToggle({
+  scope,
+  onChange,
+}: {
+  scope: BudgetsHubScope;
+  onChange: (scope: BudgetsHubScope) => void;
+}) {
+  const isLab = scope === 'laboratory';
+  return (
+    <div
+      className={`inline-flex shrink-0 self-center rounded-lg border p-0.5 ${
+        isLab
+          ? 'border-violet-400/35 bg-violet-500/10 dark:border-violet-400/25 dark:bg-violet-500/15'
+          : 'border-amber-400/35 bg-amber-500/10 dark:border-amber-400/25 dark:bg-amber-500/15'
+      }`}
+      role="tablist"
+      aria-label="Origem dos orçamentos"
+    >
+      {(
+        [
+          { id: 'patio' as const, label: 'Pátio' },
+          { id: 'laboratory' as const, label: 'Lab.' },
+        ] as const
+      ).map((tab) => {
+        const active = scope === tab.id;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(tab.id)}
+            className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-[0.06em] transition ${
+              active
+                ? tab.id === 'laboratory'
+                  ? 'bg-violet-600 text-white shadow-sm'
+                  : 'bg-amber-600 text-white shadow-sm'
+                : 'text-zinc-600 hover:bg-white/60 dark:text-zinc-300 dark:hover:bg-white/10'
+            }`}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 /** Etiqueta Pátio ou Laboratório no orçamento / veículo. */
 export function BudgetOrderOriginBadge({
@@ -175,6 +224,8 @@ export function BudgetsHubViewSwitcher({
 export function BudgetsHubStatsStrip({
   stats,
   desktopShell,
+  hubScope,
+  onHubScopeChange,
 }: {
   stats: {
     totalBudgets: number;
@@ -188,6 +239,8 @@ export function BudgetsHubStatsStrip({
     unverifiedCount: number;
   };
   desktopShell?: boolean;
+  hubScope?: BudgetsHubScope;
+  onHubScopeChange?: (scope: BudgetsHubScope) => void;
 }) {
   const chip = (label: string, value: number, accent?: string) => (
     <div
@@ -206,7 +259,7 @@ export function BudgetsHubStatsStrip({
     </div>
   );
   return (
-    <div className="mb-4 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
+    <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
       {chip('Orçamentos', stats.totalBudgets)}
       {chip('OS ativas', stats.totalVehicles)}
       {chip('Pátio', stats.patioBudgets, 'text-[#0058c7] dark:text-[#8cc8ff]')}
@@ -216,6 +269,9 @@ export function BudgetsHubStatsStrip({
       {chip('Em serviço', stats.inServiceCount, 'text-blue-700 dark:text-blue-300')}
       {chip('Pendentes', stats.awaitingCount, 'text-amber-700 dark:text-amber-300')}
       {chip('Sem verificação', stats.unverifiedCount, 'text-orange-700 dark:text-orange-300')}
+      {hubScope != null && onHubScopeChange ? (
+        <BudgetsHubScopeToggle scope={hubScope} onChange={onHubScopeChange} />
+      ) : null}
     </div>
   );
 }
