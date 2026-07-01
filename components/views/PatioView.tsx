@@ -195,10 +195,10 @@ import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAutho
 import { ServiceTechnicianClosingModal } from '../patio/ServiceTechnicianClosingModal';
 import { LabEvaluationSection } from '../lab/LabEvaluationSection';
 import {
-  LAB_VALVE_CLEANING_SERVICE_LABEL,
   loadLastLabProductKind,
   saveLastLabProductKind,
 } from '../../utils/labStandardServices';
+import type { LabQuickService } from '../../utils/labQuickServices';
 import { getVehiclePhotoPublicUrl } from '../../utils/vehicleStoragePublicUrl';
 
 /** ID sintético até `getServiceOrderById` responder — não usar em chamadas à API. */
@@ -1152,7 +1152,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [labServiceLinksDraft, setLabServiceLinksDraft] = useState<LabServiceLink[]>([]);
   const [labServiceLinksSaving, setLabServiceLinksSaving] = useState(false);
   const [creatingLabService, setCreatingLabService] = useState(false);
-  const [quickSendingValveCleaning, setQuickSendingValveCleaning] = useState(false);
+  const [quickSendingServiceId, setQuickSendingServiceId] = useState<string | null>(null);
   const [newLabServiceMode, setNewLabServiceMode] = useState<"budget" | "manual">("manual");
   const [newLabBudgetRef, setNewLabBudgetRef] = useState<string>("");
   const [newLabManualLabel, setNewLabManualLabel] = useState("");
@@ -3539,22 +3539,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  const handleQuickValveCleaningFromPatio = async () => {
+  const handleQuickSendFromPatio = async (preset: LabQuickService) => {
     if (!newLabProductKind) {
       const last = loadLastLabProductKind();
       if (last) setNewLabProductKind(last as ModuleKind);
     }
     const kind = newLabProductKind || loadLastLabProductKind();
     if (!kind) {
-      alert("Selecione o tipo de produto antes do envio rápido de limpeza.");
+      alert('Selecione o tipo de produto antes do envio rápido.');
       return;
     }
     if (!newLabProductKind) setNewLabProductKind(kind as ModuleKind);
-    setQuickSendingValveCleaning(true);
+    setQuickSendingServiceId(preset.id);
     try {
-      await handleCreateLabServiceFromVehicle(LAB_VALVE_CLEANING_SERVICE_LABEL);
+      await handleCreateLabServiceFromVehicle(preset.label);
     } finally {
-      setQuickSendingValveCleaning(false);
+      setQuickSendingServiceId(null);
     }
   };
 
@@ -6282,8 +6282,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
               otherProductKindId={OTHER_MODULE_KIND_ID}
               budgetServiceOptions={budgetServiceOptions}
               onCreateLabService={() => void handleCreateLabServiceFromVehicle()}
-              onQuickSendValveCleaning={() => void handleQuickValveCleaningFromPatio()}
-              quickSendingValveCleaning={quickSendingValveCleaning}
+              onQuickSendService={(preset) => void handleQuickSendFromPatio(preset)}
+              quickSendingServiceId={quickSendingServiceId}
               creatingLabService={creatingLabService}
               labServiceLinksSaving={labServiceLinksSaving}
               labServiceLinksDraft={labServiceLinksDraft}

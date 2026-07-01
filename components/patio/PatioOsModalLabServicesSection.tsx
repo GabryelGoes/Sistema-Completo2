@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Wrench, Plus, Loader2, Trash2, ArrowRight, ChevronDown } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
 import { uiOsModalCardSectionTitle, uiOsModalSectionIconWrap } from '../ui/appTypography';
-import { LAB_VALVE_CLEANING_SERVICE_LABEL } from '../../utils/labStandardServices';
+import { LabQuickServiceButtons } from '../lab/LabQuickServiceButtons';
+import {
+  getLabQuickServices,
+  LAB_QUICK_SERVICES_CHANGED_EVENT,
+  type LabQuickService,
+} from '../../utils/labQuickServices';
 
 export type LabBudgetServiceOption = { key: string; label: string };
 
@@ -37,9 +42,9 @@ export type PatioOsModalLabServicesSectionProps = {
   getStageStyleClass: (status: string) => string;
   onOpenLaboratoryOrder?: (laboratoryOrderId: string) => void;
   onRemoveLabServiceLink: (linkId: string) => void;
-  /** Atalho: envia limpeza de válvulas ao lab (pátio já sabe o serviço). */
-  onQuickSendValveCleaning?: () => void;
-  quickSendingValveCleaning?: boolean;
+  /** Envio rápido com rótulo de um preset configurado. */
+  onQuickSendService?: (preset: LabQuickService) => void;
+  quickSendingServiceId?: string | null;
   /** Em tablet/mobile: cabeçalho clicável, conteúdo recolhido por padrão. */
   collapsible?: boolean;
   defaultExpanded?: boolean;
@@ -73,16 +78,28 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   getStageStyleClass,
   onOpenLaboratoryOrder,
   onRemoveLabServiceLink,
-  onQuickSendValveCleaning,
-  quickSendingValveCleaning = false,
+  onQuickSendService,
+  quickSendingServiceId = null,
   collapsible = false,
   defaultExpanded = false,
 }) => {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [manualProductName, setManualProductName] = useState(false);
+  const [quickServices, setQuickServices] = useState<LabQuickService[]>(() => getLabQuickServices());
   const isOpen = !collapsible || expanded;
   const listProductKindOptions = productKindOptions.filter((opt) => opt.value !== otherProductKindId);
   const linkedCount = labServiceLinksDraft.length;
+
+  const reloadQuickServices = useCallback(() => {
+    setQuickServices(getLabQuickServices());
+  }, []);
+
+  useEffect(() => {
+    reloadQuickServices();
+    const onChange = () => reloadQuickServices();
+    window.addEventListener(LAB_QUICK_SERVICES_CHANGED_EVENT, onChange);
+    return () => window.removeEventListener(LAB_QUICK_SERVICES_CHANGED_EVENT, onChange);
+  }, [reloadQuickServices]);
 
   const toggleManualProductName = (checked: boolean) => {
     setManualProductName(checked);
@@ -145,24 +162,14 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
 
         {isOpen ? (
         <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
-          {onQuickSendValveCleaning ? (
-            <button
-              type="button"
-              onClick={onQuickSendValveCleaning}
-              disabled={creatingLabService || labServiceLinksSaving || quickSendingValveCleaning}
-              className="w-full rounded-xl border-2 border-violet-500/35 bg-violet-600 px-4 py-3 text-center text-white shadow-md shadow-violet-500/20 transition hover:brightness-105 active:scale-[0.99] disabled:opacity-55"
-            >
-              {quickSendingValveCleaning ? (
-                <Loader2 className="mx-auto h-5 w-5 animate-spin" />
-              ) : (
-                <>
-                  <span className="block text-[14px] font-semibold leading-snug">{LAB_VALVE_CLEANING_SERVICE_LABEL}</span>
-                  <span className="mt-1 block text-[11px] font-medium text-white/85">
-                    Envio rápido ao laboratório (selecione o tipo de produto abaixo se ainda não estiver preenchido)
-                  </span>
-                </>
-              )}
-            </button>
+          {onQuickSendService ? (
+            <LabQuickServiceButtons
+              services={quickServices}
+              onSelect={onQuickSendService}
+              disabled={creatingLabService || labServiceLinksSaving}
+              loadingId={quickSendingServiceId}
+              hint="Envio rápido ao laboratório — selecione o tipo de produto abaixo se ainda não estiver preenchido."
+            />
           ) : null}
 
           <div className="space-y-2">

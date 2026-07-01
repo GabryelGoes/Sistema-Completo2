@@ -7,9 +7,9 @@ import {
   getLabQuickServices,
   isAbsModuleKind,
   LAB_QUICK_SERVICES_CHANGED_EVENT,
-  LAB_QUICK_SERVICE_COLOR_CLASSES,
   type LabQuickService,
 } from '../../utils/labQuickServices';
+import { LabQuickServiceButtons } from './LabQuickServiceButtons';
 import { isLabEvaluationOpen } from '../../utils/labStandardServices';
 import {
   BudgetPartsEditor,
@@ -229,24 +229,13 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
             </p>
 
             {showAbsPresets ? (
-              <div className="flex flex-wrap gap-2">
-                {quickServices
-                  .filter((p) => p.absOnly)
-                  .map((preset) => {
-                    const color = LAB_QUICK_SERVICE_COLOR_CLASSES[preset.color];
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => addPreset(preset)}
-                        disabled={saving}
-                        className={`rounded-xl border-2 px-3.5 py-2.5 text-[13px] font-semibold shadow-md transition active:scale-[0.98] disabled:opacity-55 ${color.btn} ${color.btnHover}`}
-                      >
-                        {preset.label}
-                      </button>
-                    );
-                  })}
-              </div>
+              <LabQuickServiceButtons
+                services={quickServices}
+                filter={(p) => p.absOnly}
+                onSelect={addPreset}
+                disabled={saving}
+                hint="Serviços rápidos configurados para módulos ABS."
+              />
             ) : null}
 
             <div className="rounded-xl border border-zinc-200/80 bg-white/90 p-3 dark:border-white/[0.1] dark:bg-zinc-950/50">
