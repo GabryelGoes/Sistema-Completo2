@@ -4116,6 +4116,111 @@ export function createApiApp() {
     }
   });
 
+  // Relatório: serviços executados por técnico (fechamento no Pátio)
+  app.get("/api/reports/technician-services", async (_req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+
+      const { data: rows, error } = await supabaseAdmin
+        .from("service_order_service_technicians")
+        .select(
+          `
+          id,
+          description,
+          technician_id,
+          recorded_at,
+          service_order_id,
+          service_orders (
+            id,
+            os_number,
+            plate,
+            vehicle_brand,
+            vehicle_model,
+            status,
+            updated_at,
+            order_type
+          )
+        `
+        )
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("recorded_at", { ascending: false });
+
+      if (error) {
+        const msg = error.message ?? "";
+        if (/service_order_service_technicians/i.test(msg) && /does not exist|relation/i.test(msg)) {
+          return res.json({ items: [] });
+        }
+        throw error;
+      }
+
+      const techIds = [
+        ...new Set(
+          (rows ?? [])
+            .map((r: { technician_id?: string | null }) => r.technician_id)
+            .filter((id): id is string => typeof id === "string" && !!id)
+        ),
+      ];
+      const techNames = await mapTechnicianUsersByIds(techIds);
+
+      const items = (rows ?? [])
+        .map((row: Record<string, unknown>) => {
+          const rawSo = row.service_orders as
+            | {
+                id: string;
+                os_number?: number | null;
+                plate?: string | null;
+                vehicle_brand?: string | null;
+                vehicle_model?: string | null;
+                status?: string | null;
+                updated_at?: string | null;
+                order_type?: string | null;
+              }
+            | {
+                id: string;
+                os_number?: number | null;
+                plate?: string | null;
+                vehicle_brand?: string | null;
+                vehicle_model?: string | null;
+                status?: string | null;
+                updated_at?: string | null;
+                order_type?: string | null;
+              }[]
+            | null
+            | undefined;
+          const so = Array.isArray(rawSo) ? rawSo[0] : rawSo;
+          if (!so?.id) return null;
+          if (String(so.order_type ?? "vehicle").trim().toLowerCase() === "module") return null;
+
+          const techId = String(row.technician_id ?? "");
+          const isArchived = so.status === CANCELLED_STATUS;
+
+          return {
+            lineId: String(row.id ?? ""),
+            description: String(row.description ?? "").trim(),
+            technicianId: techId,
+            technicianName: techNames[techId] || "Técnico",
+            recordedAt: String(row.recorded_at ?? ""),
+            serviceOrderId: so.id,
+            osNumber: so.os_number ?? null,
+            plate: so.plate ?? null,
+            vehicleBrand: so.vehicle_brand ?? null,
+            vehicleModel: so.vehicle_model ?? null,
+            orderStatus: String(so.status ?? ""),
+            archivedAt: isArchived && so.updated_at ? String(so.updated_at) : null,
+          };
+        })
+        .filter(Boolean);
+
+      return res.json({ items });
+    } catch (err: unknown) {
+      console.error("[API] GET /api/reports/technician-services:", err);
+      const msg = err instanceof Error ? err.message : "Erro";
+      return res.status(500).json({ error: msg });
+    }
+  });
+
   // Listar orçamentos de uma OS
   app.get("/api/service-orders/:id/budgets", async (req, res) => {
     try {

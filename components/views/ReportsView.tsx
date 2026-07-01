@@ -6,6 +6,8 @@ import {
   ChevronLeft,
   ChevronRight,
   CircuitBoard,
+  ClipboardList,
+  ExternalLink,
   FileText,
   Printer,
   RefreshCw,
@@ -15,9 +17,11 @@ import {
   Users,
   Wrench,
 } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { DeleteServiceOrderModal } from '../DeleteServiceOrderModal';
 import { ReportServiceOrderDetailModal } from '../ReportServiceOrderDetailModal';
-import { getServiceOrders, type ServiceOrderListItem } from '../../services/apiService';
+import { getServiceOrders, getTechnicianServicesReport, type ServiceOrderListItem, type TechnicianServiceReportItem } from '../../services/apiService';
 import { getStageConfig, getStageStyle, CANCELLED_STATUS } from '../../constants/serviceOrderStages';
 import {
   type ReportPeriodMode,
@@ -31,7 +35,11 @@ import {
   ordersEnteredInPeriod,
   ordersWarrantyInPeriod,
   reportTechnicianResponsibility,
+  buildTechnicianServicesReport,
+  formatTechnicianServiceOsLabel,
+  formatTechnicianServiceVehicleLabel,
   formatPlateDisplay,
+  type TechnicianServicesReportGroup,
 } from '../../utils/workshopReports';
 import {
   downloadFullWorkshopReportPdf,
@@ -53,7 +61,7 @@ const DEFAULT_SETTINGS: ReportsSettings = {
   weekStartsOn: 'monday',
 };
 
-type ReportSection = 'entradas' | 'fluxo' | 'tecnicos' | 'garantia' | 'laboratorio';
+type ReportSection = 'entradas' | 'fluxo' | 'tecnicos' | 'servicos_tecnico' | 'garantia' | 'laboratorio';
 
 const SECTIONS: { id: ReportSection; label: string; hint: string; icon: React.ReactNode }[] = [
   { id: 'entradas', label: 'Entradas', hint: 'Veículos que entraram no período', icon: <Car className="h-4 w-4" /> },
@@ -64,6 +72,12 @@ const SECTIONS: { id: ReportSection; label: string; hint: string; icon: React.Re
     icon: <ArrowLeftRight className="h-4 w-4" />,
   },
   { id: 'tecnicos', label: 'Por técnico', hint: 'Responsáveis na data de entrada', icon: <Users className="h-4 w-4" /> },
+  {
+    id: 'servicos_tecnico',
+    label: 'Serviços por técnico',
+    hint: 'Serviços executados registrados no fechamento da OS',
+    icon: <ClipboardList className="h-4 w-4" />,
+  },
   { id: 'garantia', label: 'Garantia', hint: 'Marcadas como garantia ou etapa Garantia', icon: <Shield className="h-4 w-4" /> },
   {
     id: 'laboratorio',
@@ -126,6 +140,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
   const [referenceDate, setReferenceDate] = useState(() => new Date());
   const [activeSection, setActiveSection] = useState<ReportSection>('entradas');
   const [rawOrders, setRawOrders] = useState<ServiceOrderListItem[] | null>(null);
+  const [techServicesRaw, setTechServicesRaw] = useState<TechnicianServiceReportItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ServiceOrderListItem | null>(null);
@@ -163,6 +178,11 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
     [vehicleOrders, range.start, range.end]
   );
 
+  const servicosTecnico = useMemo(
+    () => buildTechnicianServicesReport(techServicesRaw, range.start, range.end, hiddenOrderIds),
+    [techServicesRaw, range.start, range.end, hiddenOrderIds]
+  );
+
   const garantia = useMemo(
     () => ordersWarrantyInPeriod(vehicleOrders, range.start, range.end),
     [vehicleOrders, range.start, range.end]
@@ -188,10 +208,11 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
       entradas: entradas.length,
       fluxo: fluxo.length,
       tecnicos: tecnicos.reduce((sum, t) => sum + t.count, 0),
+      servicos_tecnico: servicosTecnico.reduce((sum, t) => sum + t.count, 0),
       garantia: garantia.length,
       laboratorio: modulosEntradas.length + modulosFluxo.length + modulosGarantia.length,
     }),
-    [entradas.length, fluxo.length, tecnicos, garantia.length, modulosEntradas.length, modulosFluxo.length, modulosGarantia.length]
+    [entradas.length, fluxo.length, tecnicos, servicosTecnico, garantia.length, modulosEntradas.length, modulosFluxo.length, modulosGarantia.length]
   );
 
   const pdfMeta = useMemo(
@@ -227,11 +248,16 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
     setLoading(true);
     setError(null);
     try {
-      const data = await getServiceOrders();
+      const [data, techSvc] = await Promise.all([
+        getServiceOrders(),
+        getTechnicianServicesReport().catch(() => ({ items: [] as TechnicianServiceReportItem[] })),
+      ]);
       setRawOrders(data);
+      setTechServicesRaw(techSvc.items ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Não foi possível carregar as ordens.');
       setRawOrders([]);
+      setTechServicesRaw([]);
     } finally {
       setLoading(false);
     }
@@ -271,6 +297,18 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
   const openOrderDetail = useCallback((order: ServiceOrderListItem) => {
     setDetailOrder(order);
   }, []);
+
+  const openOrderById = useCallback(
+    (serviceOrderId: string) => {
+      const fromList = visibleOrders.find((o) => o.id === serviceOrderId);
+      if (fromList) {
+        setDetailOrder(fromList);
+        return;
+      }
+      setDetailOrder({ id: serviceOrderId } as ServiceOrderListItem);
+    },
+    [visibleOrders]
+  );
 
   const handleConfirmHideFromReports = useCallback(() => {
     if (!deleteTarget) return;
@@ -739,6 +777,26 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               )}
             </div>
           </div>
+        ) : activeSection === 'servicos_tecnico' ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                Serviços executados por técnico
+                <span className="ml-2 rounded-full bg-violet-500/15 px-2.5 py-0.5 text-[13px] font-bold text-violet-800 dark:text-violet-200">
+                  {sectionCounts.servicos_tecnico}
+                </span>
+              </h2>
+            </div>
+            <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
+              Serviços registrados no <strong>fechamento da OS</strong> (ao finalizar no Pátio), com data de registro no
+              período. A <strong>entrega</strong> corresponde à data de arquivamento do veículo.
+            </p>
+            <TechnicianServicesReportBlock
+              groups={servicosTecnico}
+              blurPlates={blurPlates}
+              onOpenOrder={openOrderById}
+            />
+          </div>
         ) : activeSection === 'garantia' ? (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1045,6 +1103,95 @@ function OrderTable({
         </tbody>
       </table>
     </div>
+    </div>
+  );
+}
+
+function formatReportDeliveryDate(iso: string | null): string {
+  if (!iso) return 'Em aberto';
+  try {
+    return format(parseISO(iso), 'dd/MM/yyyy', { locale: ptBR });
+  } catch {
+    return '—';
+  }
+}
+
+function TechnicianServicesReportBlock({
+  groups,
+  blurPlates,
+  onOpenOrder,
+}: {
+  groups: TechnicianServicesReportGroup[];
+  blurPlates: boolean;
+  onOpenOrder: (serviceOrderId: string) => void;
+}) {
+  if (groups.length === 0) {
+    return <p className="py-12 text-center text-[14px] text-zinc-500">Nenhum serviço registrado no período.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {groups.map((group) => (
+        <div
+          key={group.technicianId}
+          className="rounded-2xl border border-zinc-200/70 bg-white/50 p-4 dark:border-white/[0.08] dark:bg-zinc-950/35"
+        >
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <span className="text-[15px] font-semibold text-zinc-900 dark:text-white">{group.displayName}</span>
+            <span className="rounded-full bg-violet-500/15 px-3 py-0.5 text-[13px] font-bold text-violet-800 dark:text-violet-200">
+              {group.count} {group.count === 1 ? 'serviço' : 'serviços'}
+            </span>
+          </div>
+          <div className="max-h-[min(70vh,560px)] overflow-auto rounded-xl border border-zinc-200/60 dark:border-white/[0.06]">
+            <table className="w-full min-w-[720px] border-separate border-spacing-0 text-left text-[13px]">
+              <thead className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm dark:bg-zinc-900/95">
+                <tr className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Serviço</th>
+                  <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Veículo</th>
+                  <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Placa</th>
+                  <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">OS</th>
+                  <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 dark:border-white/[0.08]">Entrega</th>
+                  <th className="border-b border-zinc-200/80 px-3 pb-2 pt-2 text-right dark:border-white/[0.08]">
+                    Ações
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.services.map((service) => (
+                  <tr
+                    key={service.lineId}
+                    className="border-b border-zinc-100/80 transition hover:bg-zinc-50/80 dark:border-white/[0.04] dark:hover:bg-white/[0.03]"
+                  >
+                    <td className="px-3 py-2.5 font-medium text-zinc-900 dark:text-zinc-100">{service.description || '—'}</td>
+                    <td className="px-3 py-2.5 text-zinc-700 dark:text-zinc-300">
+                      {formatTechnicianServiceVehicleLabel(service)}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-[12px] text-zinc-600 dark:text-zinc-400">
+                      {formatPlateDisplay(service.plate, blurPlates)}
+                    </td>
+                    <td className="px-3 py-2.5 font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">
+                      {formatTechnicianServiceOsLabel(service)}
+                    </td>
+                    <td className="px-3 py-2.5 text-zinc-600 dark:text-zinc-400">
+                      {formatReportDeliveryDate(service.archivedAt)}
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => onOpenOrder(service.serviceOrderId)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200/90 bg-sky-500/10 px-2.5 py-1.5 text-[12px] font-semibold text-sky-900 transition hover:bg-sky-500/20 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:bg-sky-500/20"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Abrir OS
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

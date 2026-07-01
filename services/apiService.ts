@@ -2214,6 +2214,57 @@ export async function getServiceOrderServiceTechnicians(
   };
 }
 
+export type TechnicianServiceReportItem = {
+  lineId: string;
+  description: string;
+  technicianId: string;
+  technicianName: string;
+  recordedAt: string;
+  serviceOrderId: string;
+  osNumber: number | null;
+  plate: string | null;
+  vehicleBrand: string | null;
+  vehicleModel: string | null;
+  orderStatus: string;
+  archivedAt: string | null;
+};
+
+export async function getTechnicianServicesReport(): Promise<{ items: TechnicianServiceReportItem[] }> {
+  const response = await fetch(`${API_BASE}/reports/technician-services`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar serviços por técnico (${response.status})`);
+  }
+  const data = await response.json();
+  const items = Array.isArray(data.items) ? data.items : [];
+  return {
+    items: items.map((row: Record<string, unknown>) => ({
+      lineId: String(row.lineId ?? row.line_id ?? row.id ?? ''),
+      description: String(row.description ?? ''),
+      technicianId: String(row.technicianId ?? row.technician_id ?? ''),
+      technicianName: String(row.technicianName ?? row.technician_name ?? 'Técnico'),
+      recordedAt: String(row.recordedAt ?? row.recorded_at ?? ''),
+      serviceOrderId: String(row.serviceOrderId ?? row.service_order_id ?? ''),
+      osNumber:
+        typeof row.osNumber === 'number'
+          ? row.osNumber
+          : typeof row.os_number === 'number'
+            ? row.os_number
+            : null,
+      plate: typeof row.plate === 'string' ? row.plate : null,
+      vehicleBrand: typeof row.vehicleBrand === 'string' ? row.vehicleBrand : typeof row.vehicle_brand === 'string' ? row.vehicle_brand : null,
+      vehicleModel: typeof row.vehicleModel === 'string' ? row.vehicleModel : typeof row.vehicle_model === 'string' ? row.vehicle_model : null,
+      orderStatus: String(row.orderStatus ?? row.order_status ?? ''),
+      archivedAt:
+        typeof row.archivedAt === 'string'
+          ? row.archivedAt
+          : typeof row.archived_at === 'string'
+            ? row.archived_at
+            : null,
+    })),
+  };
+}
+
 export async function saveServiceOrderServiceTechnicians(
   serviceOrderId: string,
   lines: ServiceTechnicianClosingLine[],

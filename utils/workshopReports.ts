@@ -9,7 +9,7 @@ import {
   format,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { ServiceOrderListItem } from '../services/apiService';
+import type { ServiceOrderListItem, TechnicianServiceReportItem } from '../services/apiService';
 import { CANCELLED_STATUS } from '../constants/serviceOrderStages';
 
 export type ReportPeriodMode = 'week' | 'month';
@@ -147,6 +147,57 @@ export type TechnicianCountRow = {
   count: number;
   orders: ServiceOrderListItem[];
 };
+
+export type TechnicianServicesReportGroup = {
+  technicianId: string;
+  displayName: string;
+  count: number;
+  services: TechnicianServiceReportItem[];
+};
+
+export function buildTechnicianServicesReport(
+  items: TechnicianServiceReportItem[],
+  start: Date,
+  end: Date,
+  hiddenOrderIds?: Set<string>
+): TechnicianServicesReportGroup[] {
+  const filtered = items.filter((item) => {
+    if (hiddenOrderIds?.has(item.serviceOrderId)) return false;
+    return isDateInRange(item.recordedAt, start, end);
+  });
+
+  const map = new Map<string, { displayName: string; services: TechnicianServiceReportItem[] }>();
+  for (const item of filtered) {
+    const key = item.technicianId || '__none__';
+    const name = item.technicianName?.trim() || 'Técnico';
+    if (!map.has(key)) {
+      map.set(key, { displayName: name, services: [] });
+    }
+    map.get(key)!.services.push(item);
+  }
+
+  const rows: TechnicianServicesReportGroup[] = [...map.entries()].map(([technicianId, v]) => ({
+    technicianId,
+    displayName: v.displayName,
+    count: v.services.length,
+    services: v.services.sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)),
+  }));
+
+  rows.sort((a, b) => b.count - a.count || a.displayName.localeCompare(b.displayName, 'pt-BR'));
+  return rows;
+}
+
+export function formatTechnicianServiceVehicleLabel(item: TechnicianServiceReportItem): string {
+  const label = [item.vehicleBrand, item.vehicleModel].filter(Boolean).join(' ').trim();
+  return label || '—';
+}
+
+export function formatTechnicianServiceOsLabel(item: TechnicianServiceReportItem): string {
+  if (item.osNumber != null && Number.isFinite(item.osNumber)) {
+    return `#${item.osNumber}`;
+  }
+  return item.serviceOrderId.slice(0, 8).toUpperCase();
+}
 
 export function reportTechnicianResponsibility(
   orders: ServiceOrderListItem[],
