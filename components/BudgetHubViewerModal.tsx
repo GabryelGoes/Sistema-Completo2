@@ -24,6 +24,7 @@ import {
   budgetReadFooterBtnClass,
   budgetReadFooterPrimaryClass,
   budgetReadModalBackdropClass,
+  budgetReadModalBackdropStackedClass,
   budgetReadModalFooterClass,
   budgetReadModalHeaderClass,
   budgetReadModalScrollClass,
@@ -36,6 +37,8 @@ export interface BudgetHubViewerModalProps {
   onClose: () => void;
   canApproveBudgetItems?: boolean;
   actorOptions?: ServiceOrderUpdateActor;
+  /** Use quando o modal abre sobre outro diálogo (ex.: detalhe da OS em relatórios). */
+  stacked?: boolean;
 }
 
 export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
@@ -44,6 +47,7 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
   onClose,
   canApproveBudgetItems = false,
   actorOptions,
+  stacked = false,
 }) => {
   const [detail, setDetail] = useState<ServiceOrderDetail | null>(null);
   const [budgets, setBudgets] = useState<SavedBudgetFromApi[]>([]);
@@ -156,9 +160,11 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
   const diagAuthSubtitleKm =
     mileageKm != null && String(mileageKm).trim() !== "" ? `Km ${String(mileageKm).trim()}` : null;
 
+  const backdropClass = stacked ? budgetReadModalBackdropStackedClass : budgetReadModalBackdropClass;
+
   return (
     <ModalPortal>
-      <div className={budgetReadModalBackdropClass}>
+      <div className={backdropClass}>
         <div className={budgetReadModalShellClass} style={{ colorScheme: "light" }}>
           <div className={budgetReadModalHeaderClass}>
             <div className="min-w-0 flex-1 pr-2">

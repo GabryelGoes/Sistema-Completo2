@@ -3,6 +3,10 @@
 export const budgetReadModalBackdropClass =
   'fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/55 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] backdrop-blur-sm animate-modal-backdrop';
 
+/** Acima de modais de detalhe de OS em relatórios (z-[280]) e PDF embutido (z-[290]). */
+export const budgetReadModalBackdropStackedClass =
+  'fixed inset-0 z-[295] flex items-center justify-center bg-slate-900/55 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] backdrop-blur-sm animate-modal-backdrop';
+
 export const budgetReadModalShellClass =
   'relative flex min-h-0 w-full max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] flex-col overflow-hidden rounded-2xl border border-sky-100/95 bg-[#fafcfe] shadow-[0_28px_90px_-32px_rgba(14,116,144,0.38),0_12px_32px_-16px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,1)] animate-modal-sheet';
 

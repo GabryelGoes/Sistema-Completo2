@@ -371,6 +371,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
           serviceOrderId={order.id}
           budgetId={budgetViewerId}
           onClose={() => setBudgetViewerId(null)}
+          stacked
         />
       ) : null}
     </>
