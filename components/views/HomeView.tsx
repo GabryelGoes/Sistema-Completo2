@@ -8,11 +8,13 @@ import {
   ExternalLink,
   Sparkles,
   Package,
+  Wrench,
   X,
 } from 'lucide-react';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { WorkshopServicesModal } from '../WorkshopServicesModal';
 import { LabProductTypesModal } from '../LabProductTypesModal';
+import { LabQuickServicesModal } from '../LabQuickServicesModal';
 import { WorkshopPartsModal } from '../WorkshopPartsModal';
 import { PatioChecklistsModal } from '../PatioChecklistsModal';
 import { ChangePasswordsModal } from '../ChangePasswordsModal';
@@ -241,6 +243,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const hubCardClass = desktopShell ? desktopHomeHubCard : iosCard;
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
   const [isLabProductTypesOpen, setIsLabProductTypesOpen] = useState(false);
+  const [isLabQuickServicesOpen, setIsLabQuickServicesOpen] = useState(false);
   const [isChangePasswordsOpen, setIsChangePasswordsOpen] = useState(false);
   const [isTechnicianProfileOpen, setIsTechnicianProfileOpen] = useState(false);
   const [isAdminProfileOpen, setIsAdminProfileOpen] = useState(false);
@@ -464,6 +467,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isSystemNotificationsOpen ||
       isServicesModalOpen ||
       isLabProductTypesOpen ||
+      isLabQuickServicesOpen ||
       isPartsModalOpen ||
       isPatioChecklistsOpen ||
       isChangePasswordsOpen ||
@@ -477,6 +481,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isSystemNotificationsOpen,
       isServicesModalOpen,
       isLabProductTypesOpen,
+      isLabQuickServicesOpen,
       isPartsModalOpen,
       isPatioChecklistsOpen,
       isChangePasswordsOpen,
@@ -498,6 +503,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isPatioChecklistsOpen, () => setIsPatioChecklistsOpen(false));
   useBrowserBackLayer(isServicesModalOpen, () => setIsServicesModalOpen(false));
   useBrowserBackLayer(isLabProductTypesOpen, () => setIsLabProductTypesOpen(false));
+  useBrowserBackLayer(isLabQuickServicesOpen, () => setIsLabQuickServicesOpen(false));
   useBrowserBackLayer(isSystemUsersOpen, () => setIsSystemUsersOpen(false));
   useBrowserBackLayer(Boolean(technicianId) && isTechnicianProfileOpen, () => setIsTechnicianProfileOpen(false));
   useBrowserBackLayer(!onOpenTvPatio && isTvPatioOpen, () => setIsTvPatioOpen(false));
@@ -1215,6 +1221,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               }
                             />
                           )}
+                          {canManageLabProductTypes && (
+                            <SettingsRow
+                              onClick={() => setIsLabQuickServicesOpen(true)}
+                              title="Serviços rápidos do laboratório"
+                              subtitle="Botões da avaliação técnica (módulos ABS)"
+                              icon={
+                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                                  <Wrench />
+                                </IosAccentIconSquircle>
+                              }
+                            />
+                          )}
                         </div>
                         <div className="space-y-0.5 lg:border-l lg:border-zinc-200/60 lg:pl-2 dark:lg:border-white/[0.06]">
                           {(showFullAdminHub || !!perms.access_checklists_patio) && (
@@ -1393,6 +1411,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <SystemNotificationsModal isOpen={isSystemNotificationsOpen} onClose={() => setIsSystemNotificationsOpen(false)} />
           <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
           <LabProductTypesModal isOpen={isLabProductTypesOpen} onClose={() => setIsLabProductTypesOpen(false)} />
+          <LabQuickServicesModal isOpen={isLabQuickServicesOpen} onClose={() => setIsLabQuickServicesOpen(false)} />
           {!onOpenPartsStock ? (
             <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
           ) : null}

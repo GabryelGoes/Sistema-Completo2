@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { Check, X } from 'lucide-react';
 import type { BudgetPartFields } from '../../utils/budgetPartStock';
+import type { BudgetServiceLine } from '../../services/apiService';
+import { formatSuggestedValueBrl } from '../../utils/budgetServiceFields';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
@@ -8,9 +10,11 @@ import { budgetReadBodyTextClass, budgetReadSectionTitleClass } from './budgetRe
 
 export type BudgetReadModalBodyProps = {
   diagnosis: string;
-  services: { description: string; approved?: boolean; labor_hours?: number | null }[];
+  services: BudgetServiceLine[];
   parts: BudgetPartFields[];
   observations: string;
+  /** Exibe valor sugerido e flags internas (hub / orçamentista). */
+  showInternalFields?: boolean;
 };
 
 export const BudgetReadModalBody: React.FC<BudgetReadModalBodyProps> = ({
@@ -18,6 +22,7 @@ export const BudgetReadModalBody: React.FC<BudgetReadModalBodyProps> = ({
   services,
   parts,
   observations,
+  showInternalFields = false,
 }) => {
   const approvalContrast = useMemo(
     () => budgetHasExplicitApprovalDecisions(services, parts),
@@ -55,6 +60,16 @@ export const BudgetReadModalBody: React.FC<BudgetReadModalBodyProps> = ({
                   </span>
                 ) : null}
                 <span className={approvalContrast && s.approved === true ? 'font-medium' : ''}>{s.description}</span>
+                {showInternalFields && s.suggested_value != null && Number.isFinite(Number(s.suggested_value)) ? (
+                  <span className="rounded-md bg-violet-100 px-1.5 py-0.5 text-[11px] font-semibold text-violet-800 dark:bg-violet-500/20 dark:text-violet-200">
+                    Sugestão: {formatSuggestedValueBrl(Number(s.suggested_value))}
+                  </span>
+                ) : null}
+                {showInternalFields && s.outsourced ? (
+                  <span className="rounded-md bg-zinc-200/80 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+                    Terceirizado
+                  </span>
+                ) : null}
                 {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
                   <span className="text-[13px] font-semibold tabular-nums text-slate-600">
                     ({formatLaborLabel(Number(s.labor_hours))})

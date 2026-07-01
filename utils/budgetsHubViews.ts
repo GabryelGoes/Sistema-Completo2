@@ -14,6 +14,36 @@ export function isLaboratoryBudget(item: Pick<PatioVehicleBudgetAggregateItem, '
   return item.orderType === 'module';
 }
 
+export type BudgetsHubScope = 'patio' | 'laboratory';
+
+export const BUDGETS_HUB_SCOPE_STORAGE_KEY = 'rda_budgets_hub_scope_v1';
+
+export function readStoredBudgetsHubScope(): BudgetsHubScope {
+  try {
+    const v = localStorage.getItem(BUDGETS_HUB_SCOPE_STORAGE_KEY);
+    return v === 'laboratory' ? 'laboratory' : 'patio';
+  } catch {
+    return 'patio';
+  }
+}
+
+export function storeBudgetsHubScope(scope: BudgetsHubScope): void {
+  try {
+    localStorage.setItem(BUDGETS_HUB_SCOPE_STORAGE_KEY, scope);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function filterBudgetsByHubScope(
+  items: PatioVehicleBudgetAggregateItem[],
+  scope: BudgetsHubScope
+): PatioVehicleBudgetAggregateItem[] {
+  return items.filter((it) =>
+    scope === 'laboratory' ? isLaboratoryBudget(it) : !isLaboratoryBudget(it)
+  );
+}
+
 export type BudgetsHubViewMode =
   | 'vehicles'
   | 'recent'

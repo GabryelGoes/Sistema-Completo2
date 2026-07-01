@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Calculator, CheckCircle2, Eye, Printer, RefreshCw, X } from "lucide-react";
+import { Calculator, CheckCircle2, Eye, Printer, RefreshCw, X, ArrowRightCircle } from "lucide-react";
 import { ModalPortal } from "./ui/ModalPortal";
 import {
   budgetChronologicalNumber,
@@ -7,6 +7,7 @@ import {
   getServiceOrderBudgets,
   getServiceOrderById,
   isBudgetVerified,
+  updateServiceOrderStatus,
   type SavedBudgetFromApi,
   type ServiceOrderDetail,
   type ServiceOrderUpdateActor,
@@ -48,6 +49,7 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [diagAuthSheetOpen, setDiagAuthSheetOpen] = useState(false);
+  const [markingApproved, setMarkingApproved] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +93,40 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
 
   const isModuleMode = detail?.order_type === "module";
   const mileageKm = detail?.mileage_km ?? null;
+
+  const hasApprovedItems = useMemo(() => {
+    if (!budget) return false;
+    return (
+      budget.services.some((s) => s.approved === true) || budget.parts.some((p) => p.approved === true)
+    );
+  }, [budget]);
+
+  const canMarkOrderBudgetApproved =
+    Boolean(detail) &&
+    detail?.status === "AGUARDANDO_APROVACAO" &&
+    hasApprovedItems &&
+    canApproveBudgetItems;
+
+  const handleMarkOrderBudgetApproved = async () => {
+    if (!detail || !canMarkOrderBudgetApproved) return;
+    if (
+      !window.confirm(
+        "Confirmar que o cliente aprovou o orçamento? A OS será movida para Orçamento aprovado."
+      )
+    ) {
+      return;
+    }
+    setMarkingApproved(true);
+    try {
+      const updated = await updateServiceOrderStatus(serviceOrderId, "ORCAMENTO_APROVADO", actorOptions);
+      setDetail((prev) => (prev ? { ...prev, status: updated.status } : prev));
+      window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
+    } catch (e: unknown) {
+      alert((e as Error)?.message ?? "Não foi possível atualizar a etapa da OS.");
+    } finally {
+      setMarkingApproved(false);
+    }
+  };
 
   const diagAuthSheetSrc = useMemo(() => {
     const p = detail?.diagnostic_authorization_signature_path;
@@ -162,6 +198,7 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
                   services={budget.services}
                   parts={budget.parts}
                   observations={budget.observations}
+                  showInternalFields
                 />
               </div>
             )}
@@ -200,6 +237,17 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
                       className="inline-flex items-center gap-2 rounded-xl border border-brand-yellow/50 bg-brand-yellow/10 px-5 py-2.5 text-sm font-medium text-zinc-900 shadow-sm transition-colors hover:bg-brand-yellow/20"
                     >
                       <CheckCircle2 className="h-4 w-4" /> Aprovar itens
+                    </button>
+                  ) : null}
+                  {canMarkOrderBudgetApproved ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleMarkOrderBudgetApproved()}
+                      disabled={markingApproved}
+                      className="inline-flex items-center gap-2 rounded-xl border border-orange-500/50 bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-600 disabled:opacity-55"
+                    >
+                      <ArrowRightCircle className="h-4 w-4" />
+                      {markingApproved ? "Atualizando…" : "Orçamento aprovado"}
                     </button>
                   ) : null}
                   <button type="button" onClick={onClose} className={budgetReadFooterPrimaryClass}>

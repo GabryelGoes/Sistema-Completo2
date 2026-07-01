@@ -1962,7 +1962,7 @@ interface ApiBudget {
   service_order_id: string;
   card_name: string | null;
   diagnosis: string;
-  services: { description: string; approved?: boolean; labor_hours?: number | null }[];
+  services: BudgetServiceLine[];
   parts: BudgetPartFields[];
   observations: string;
   created_at: string;
@@ -1970,6 +1970,19 @@ interface ApiBudget {
   verified_at?: string | null;
   verified_by_name?: string | null;
 }
+
+/** Linha de serviço no orçamento (campos extras para avaliação do lab). */
+export type BudgetServiceLine = {
+  description: string;
+  approved?: boolean;
+  labor_hours?: number | null;
+  outsourced?: boolean;
+  suggested_value?: number | null;
+  lab_preset_id?: string | null;
+  pre_approved?: boolean;
+  source?: string;
+  line_observations?: string;
+};
 
 /** Orçamento no formato do frontend (SavedBudget). approved = aprovado (true) ou reprovado (false) pelo admin. */
 export interface SavedBudgetFromApi {
@@ -1980,7 +1993,7 @@ export interface SavedBudgetFromApi {
   serviceOrderId: string;
   cardName: string;
   diagnosis: string;
-  services: { description: string; approved?: boolean; labor_hours?: number | null }[];
+  services: BudgetServiceLine[];
   parts: BudgetPartFields[];
   observations: string;
   /** Conferência por usuário de acesso total. */
@@ -2240,15 +2253,28 @@ export type TechnicianServiceReportItem = {
 export async function saveServiceOrderLabEvaluation(
   serviceOrderId: string,
   params: {
-    service: string;
+    services: {
+      description: string;
+      labPresetId?: string | null;
+      outsourced?: boolean;
+      preApproved?: boolean;
+      suggestedValue?: number | null;
+      lineObservations?: string;
+    }[];
+    parts?: BudgetPartFields[];
+    observations?: string;
     evaluatedByName: string;
-    nextStatus?: 'EM_SERVICO' | 'AGUARDANDO_APROVACAO' | 'AVALIACAO_TECNICA';
   }
 ): Promise<ServiceOrderDetail> {
   const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/lab-evaluation`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
+    body: JSON.stringify({
+      services: params.services,
+      parts: params.parts ?? [],
+      observations: params.observations ?? '',
+      evaluatedByName: params.evaluatedByName,
+    }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -3253,6 +3279,15 @@ export interface WorkshopSettings {
   appAppearance?: WorkshopAppAppearance | null;
   /** Tipos de produto do laboratório configuráveis (id + rótulo). */
   labProductKinds?: { id: string; label: string }[];
+  /** Serviços rápidos da avaliação técnica (módulos ABS). */
+  labQuickServices?: {
+    id: string;
+    label: string;
+    color: string;
+    sortOrder: number;
+    absOnly: boolean;
+    allowPreApproval?: boolean;
+  }[];
 }
 
 export async function getWorkshopSettings(): Promise<WorkshopSettings> {
@@ -3272,6 +3307,14 @@ export async function updateWorkshopSettings(
     vehicleDeletePassword?: string;
     appAppearance?: WorkshopAppAppearance | null;
     labProductKinds?: { id: string; label: string }[];
+    labQuickServices?: {
+      id: string;
+      label: string;
+      color: string;
+      sortOrder: number;
+      absOnly: boolean;
+      allowPreApproval?: boolean;
+    }[];
   }
 ): Promise<WorkshopSettings> {
   const response = await fetch(`${API_BASE}/workshop-settings`, {

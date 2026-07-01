@@ -63,6 +63,12 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
         description: s.description,
         approved: approvalServices[i] ?? false,
         labor_hours: s.labor_hours ?? null,
+        outsourced: s.outsourced,
+        suggested_value: s.suggested_value ?? null,
+        lab_preset_id: s.lab_preset_id ?? null,
+        pre_approved: s.pre_approved,
+        source: s.source,
+        line_observations: s.line_observations,
       }));
       const parts = budget.parts.map((p, i) => {
         const row: BudgetPartFields = {

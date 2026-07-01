@@ -1,5 +1,7 @@
-/** Serviço padrão mais frequente no laboratório. */
-export const LAB_VALVE_CLEANING_SERVICE_LABEL = 'Limpeza e desobstrução das válvulas';
+/** @deprecated Use preset em labQuickServices — mantido para links legados. */
+export const LAB_VALVE_CLEANING_SERVICE_LABEL = 'Limpeza de Válvulas';
+
+export { LAB_VALVE_CLEANING_PRESET_ID, getLabQuickServices, isAbsModuleKind } from './labQuickServices';
 
 export const LAB_LAST_PRODUCT_KIND_KEY = 'lab_last_product_kind_v1';
 

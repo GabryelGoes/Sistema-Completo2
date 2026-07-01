@@ -14,8 +14,12 @@ import {
   buildVehicleGroups,
   buildVehicleGroupsForView,
   computeBudgetsHubStats,
+  filterBudgetsByHubScope,
+  readStoredBudgetsHubScope,
   readStoredBudgetsHubView,
+  storeBudgetsHubScope,
   storeBudgetsHubView,
+  type BudgetsHubScope,
   type BudgetsHubViewMode,
 } from '../../utils/budgetsHubViews';
 import {
@@ -67,6 +71,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<BudgetsHubViewMode>(() => readStoredBudgetsHubView());
+  const [hubScope, setHubScope] = useState<BudgetsHubScope>(() => readStoredBudgetsHubScope());
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [pendingBudgetHighlightIds, setPendingBudgetHighlightIds] = useState<Set<string>>(() => new Set());
   const [pulseByBudgetId, setPulseByBudgetId] = useState<Record<string, 'created' | 'edited'>>({});
@@ -85,6 +90,13 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     setViewMode(mode);
     storeBudgetsHubView(mode);
   }, []);
+
+  const handleHubScopeChange = useCallback((scope: BudgetsHubScope) => {
+    setHubScope(scope);
+    storeBudgetsHubScope(scope);
+  }, []);
+
+  const scopedItems = useMemo(() => filterBudgetsByHubScope(items, hubScope), [items, hubScope]);
 
   const load = useCallback(async (opts?: { silent?: boolean; skipNotifierIngest?: boolean }) => {
     const reqId = ++loadRequestGenRef.current;
@@ -192,9 +204,9 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     return () => window.clearTimeout(t);
   }, [pulseByBudgetId]);
 
-  const stats = useMemo(() => computeBudgetsHubStats(items), [items]);
-  const allGroups = useMemo(() => buildVehicleGroups(items), [items]);
-  const groupsForView = useMemo(() => buildVehicleGroupsForView(items, viewMode), [items, viewMode]);
+  const stats = useMemo(() => computeBudgetsHubStats(scopedItems), [scopedItems]);
+  const allGroups = useMemo(() => buildVehicleGroups(scopedItems), [scopedItems]);
+  const groupsForView = useMemo(() => buildVehicleGroupsForView(scopedItems, viewMode), [scopedItems, viewMode]);
 
   const kanbanColumns = useMemo(() => buildStageKanbanColumns(allGroups), [allGroups]);
 
@@ -251,11 +263,15 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     if (error) {
       return <div className={`${iosPageGlass} p-6 text-[15px] text-red-600 dark:text-red-400`}>{error}</div>;
     }
-    if (items.length === 0) {
+    if (scopedItems.length === 0) {
       return (
         <BudgetsHubEmptyState
-          message="Nenhum orçamento no pátio"
-              hint="Os orçamentos de veículos (Pátio) e módulos (Laboratório) em etapas ativas aparecerão aqui automaticamente."
+          message={hubScope === 'laboratory' ? 'Nenhum orçamento no laboratório' : 'Nenhum orçamento no pátio'}
+          hint={
+            hubScope === 'laboratory'
+              ? 'Orçamentos de módulos em etapas ativas aparecerão aqui — inclusive os vindos da avaliação técnica.'
+              : 'Orçamentos de veículos em etapas ativas aparecerão aqui automaticamente.'
+          }
         />
       );
     }
@@ -309,22 +325,30 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     );
   };
 
+  const isLabScope = hubScope === 'laboratory';
+  const headerTheme = isLabScope
+    ? 'border-violet-500/25 bg-violet-500/[0.06] dark:border-violet-400/20 dark:bg-violet-500/10'
+    : 'border-amber-500/25 bg-amber-500/[0.06] dark:border-amber-400/20 dark:bg-amber-500/10';
+  const scopeAccent = isLabScope ? 'text-violet-800 dark:text-violet-200' : 'text-amber-900 dark:text-amber-200';
+
   return (
     <div className={`flex min-h-min flex-col bg-light-page dark:bg-black ${desktopShell ? 'min-h-full' : ''}`}>
-      <header className="budgets-hub-page-header shrink-0 border-b border-zinc-200/80 bg-white/80 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl dark:border-white/[0.08] dark:bg-zinc-950/80 lg:px-6">
+      <header className={`budgets-hub-page-header shrink-0 border-b px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl lg:px-6 ${headerTheme} ${isLabScope ? 'border-violet-500/20 dark:border-violet-400/15' : 'border-amber-500/20 dark:border-amber-400/15'}`}>
         <div className={`mx-auto flex w-full ${mainMaxW} items-start gap-3 lg:mx-0`}>
           <div className="app-view-page-chrome ml-[6.5%] flex min-w-0 flex-1 items-start gap-3 pt-0.5 lg:ml-0">
             <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
               <img src="/icons/orcamentos-ios.png" alt="" className="h-full w-full object-cover" />
             </IosAccentIconSquircle>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
-                Pátio
+              <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${scopeAccent}`}>
+                {isLabScope ? 'Laboratório' : 'Pátio'}
               </p>
               <h1 className="text-[1.35rem] font-semibold tracking-tight text-zinc-900 dark:text-white">Orçamentos</h1>
               <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-zinc-600 dark:text-zinc-400">
-                <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                <span className="truncate">Orçamentos do Pátio e do Laboratório</span>
+                <Sparkles className={`h-3.5 w-3.5 shrink-0 ${isLabScope ? 'text-violet-500' : 'text-amber-500'}`} strokeWidth={2} />
+                <span className="truncate">
+                  {isLabScope ? 'Módulos e avaliações técnicas' : 'Veículos da oficina'}
+                </span>
               </p>
             </div>
           </div>
@@ -341,8 +365,44 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
       </header>
 
       <main className={mainPad}>
-        <div className={`mx-auto w-full ${mainMaxW} space-y-1 lg:mx-0`}>
-          {!loading && !error && items.length > 0 ? (
+        <div className={`mx-auto w-full ${mainMaxW} space-y-3 lg:mx-0`}>
+          <div
+            className={`flex rounded-2xl border p-1 ${
+              isLabScope
+                ? 'border-violet-500/30 bg-violet-500/10 dark:border-violet-400/25 dark:bg-violet-500/15'
+                : 'border-amber-500/30 bg-amber-500/10 dark:border-amber-400/25 dark:bg-amber-500/15'
+            }`}
+            role="tablist"
+            aria-label="Origem dos orçamentos"
+          >
+            {(
+              [
+                { id: 'patio' as const, label: 'Pátio' },
+                { id: 'laboratory' as const, label: 'Laboratório' },
+              ] as const
+            ).map((tab) => {
+              const active = hubScope === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => handleHubScopeChange(tab.id)}
+                  className={`flex-1 rounded-xl px-3 py-2.5 text-[14px] font-semibold transition ${
+                    active
+                      ? tab.id === 'laboratory'
+                        ? 'bg-violet-600 text-white shadow-sm'
+                        : 'bg-amber-600 text-white shadow-sm'
+                      : 'text-zinc-700 hover:bg-white/50 dark:text-zinc-200 dark:hover:bg-white/10'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+          {!loading && !error && scopedItems.length > 0 ? (
             <BudgetsHubStatsStrip stats={stats} desktopShell={desktopShell} />
           ) : null}
           <BudgetsHubViewSwitcher mode={viewMode} onModeChange={handleViewModeChange} desktopShell={desktopShell} />

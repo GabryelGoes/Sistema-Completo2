@@ -3524,13 +3524,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  const handleLabEvaluationConfirm = useCallback(
-    async (service: string, nextStatus: 'EM_SERVICO' | 'AGUARDANDO_APROVACAO') => {
+  const handleLabEvaluationSubmit = useCallback(
+    async (payload: import('../lab/LabEvaluationSection').LabEvaluationSubmitPayload) => {
       if (!selectedCard) return;
       const updated = await saveServiceOrderLabEvaluation(selectedCard.id, {
-        service,
+        ...payload,
         evaluatedByName: commentAuthorName,
-        nextStatus,
       });
       setServiceOrderDetail(updated);
       const newStatus = updated.status as ServiceOrderStatus;
@@ -3538,6 +3537,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setCards((prev) =>
         prev.map((c) => (c.id === selectedCard.id ? { ...c, idList: newStatus } : c))
       );
+      window.dispatchEvent(new CustomEvent('rda-patio-budgets-changed'));
       void fetchDataRef.current(true);
     },
     [selectedCard, commentAuthorName]
@@ -7551,11 +7551,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             insetCardClass={vi}
                             inputClass={vin}
                             orderStatus={serviceOrderDetail.status}
+                            moduleKind={serviceOrderDetail.module_kind}
                             evaluatedService={serviceOrderDetail.lab_evaluated_service}
                             evaluatedAt={serviceOrderDetail.lab_evaluated_at}
                             evaluatedByName={serviceOrderDetail.lab_evaluated_by_name}
                             evaluatedByDisplayName={commentAuthorName}
-                            onConfirmEvaluation={handleLabEvaluationConfirm}
+                            onSubmitEvaluation={handleLabEvaluationSubmit}
                           />
                         ) : null}
 

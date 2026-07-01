@@ -1214,6 +1214,71 @@ export function createApiApp() {
     }
   }
 
+  const DEFAULT_LAB_QUICK_SERVICES = [
+    { id: "limpeza_valvulas", label: "Limpeza de Válvulas", color: "violet", sortOrder: 0, absOnly: true, allowPreApproval: true },
+    { id: "reparo_modulo_eletronico", label: "Reparo Módulo Eletrônico", color: "sky", sortOrder: 1, absOnly: true },
+    { id: "substituicao_modulo_hidraulico", label: "Substituição Módulo Hidráulico", color: "amber", sortOrder: 2, absOnly: true },
+    { id: "substituicao_modulo_eletronico", label: "Substituição Módulo Eletrônico", color: "indigo", sortOrder: 3, absOnly: true },
+    { id: "reparo_valvulas_hidraulicas", label: "Reparo das Válvulas Hidráulicas", color: "teal", sortOrder: 4, absOnly: true },
+    { id: "revisao_completa", label: "Revisão Completa", color: "rose", sortOrder: 5, absOnly: true },
+    { id: "teste_bancada", label: "Teste em Bancada", color: "emerald", sortOrder: 6, absOnly: true },
+  ];
+
+  const LAB_QUICK_SERVICE_COLORS = new Set(["violet", "sky", "amber", "indigo", "teal", "rose", "emerald"]);
+
+  function normalizeLabQuickServices(list: any): {
+    id: string;
+    label: string;
+    color: string;
+    sortOrder: number;
+    absOnly: boolean;
+    allowPreApproval: boolean;
+  }[] {
+    if (!Array.isArray(list) || list.length === 0) return [...DEFAULT_LAB_QUICK_SERVICES];
+    const seen = new Set<string>();
+    const cleaned: {
+      id: string;
+      label: string;
+      color: string;
+      sortOrder: number;
+      absOnly: boolean;
+      allowPreApproval: boolean;
+    }[] = [];
+    for (const item of list) {
+      const label = String(item?.label ?? "").trim();
+      let id = slugifyKindId(String(item?.id ?? "") || label);
+      if (!id || !label) continue;
+      if (seen.has(id)) {
+        let n = 2;
+        while (seen.has(`${id}_${n}`)) n += 1;
+        id = `${id}_${n}`;
+      }
+      seen.add(id);
+      const colorRaw = String(item?.color ?? "violet").trim();
+      const color = LAB_QUICK_SERVICE_COLORS.has(colorRaw) ? colorRaw : "violet";
+      cleaned.push({
+        id,
+        label,
+        color,
+        sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : cleaned.length,
+        absOnly: item?.absOnly !== false,
+        allowPreApproval: item?.allowPreApproval === true,
+      });
+    }
+    cleaned.sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label, "pt-BR"));
+    return cleaned.length ? cleaned : [...DEFAULT_LAB_QUICK_SERVICES];
+  }
+
+  function parseLabQuickServicesValue(raw: string | null | undefined) {
+    const s = (raw ?? "").trim();
+    if (!s) return [...DEFAULT_LAB_QUICK_SERVICES];
+    try {
+      return normalizeLabQuickServices(JSON.parse(s));
+    } catch {
+      return [...DEFAULT_LAB_QUICK_SERVICES];
+    }
+  }
+
   app.get("/api/workshop-settings", async (_req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -1248,6 +1313,7 @@ export function createApiApp() {
         vehicleDeletePassword: map.vehicle_delete_password || "",
         appAppearance,
         labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
+        labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
       });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop-settings:", err);
@@ -1362,6 +1428,7 @@ export function createApiApp() {
         vehicleDeletePassword,
         appAppearance,
         labProductKinds,
+        labQuickServices,
       } = req.body || {};
 
       // Chaves sensíveis (senha de gerência, PIN do pátio, senha de exclusão, acessos e perfil
@@ -1424,6 +1491,13 @@ export function createApiApp() {
           updated_at: new Date().toISOString(),
         });
       }
+      if (Array.isArray(labQuickServices)) {
+        updates.push({
+          key: "lab_quick_services",
+          value: JSON.stringify(normalizeLabQuickServices(labQuickServices)),
+          updated_at: new Date().toISOString(),
+        });
+      }
       if (updates.length === 0) {
         return res.status(400).json({ error: "Nada para atualizar." });
       }
@@ -1452,6 +1526,7 @@ export function createApiApp() {
           "vehicle_delete_password",
           "app_appearance",
           "lab_product_kinds",
+          "lab_quick_services",
         ]);
       const map = (data || []).reduce((acc: Record<string, string>, r: { key: string; value: string | null }) => {
         acc[r.key] = r.value ?? "";
@@ -1477,6 +1552,7 @@ export function createApiApp() {
         vehicleDeletePassword: map.vehicle_delete_password || "",
         appAppearance: appAppearanceOut,
         labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
+        labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
       });
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/workshop-settings:", err);
@@ -4116,7 +4192,7 @@ export function createApiApp() {
     }
   });
 
-  // Avaliação técnica do laboratório — serviço decidido pelo técnico (sem orçamento completo).
+  // Avaliação técnica do laboratório — cria orçamento e move etapa da OS.
   app.post("/api/service-orders/:id/lab-evaluation", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -4124,22 +4200,22 @@ export function createApiApp() {
       }
 
       const { id: serviceOrderId } = req.params;
-      const service =
-        typeof req.body?.service === "string" ? req.body.service.trim().slice(0, 500) : "";
       const evaluatedByName =
         typeof req.body?.evaluatedByName === "string"
           ? req.body.evaluatedByName.trim().slice(0, 200)
           : "";
-      const nextStatus =
-        typeof req.body?.nextStatus === "string" ? req.body.nextStatus.trim() : "";
+      const observations =
+        typeof req.body?.observations === "string" ? req.body.observations.trim().slice(0, 4000) : "";
+      const rawServices = Array.isArray(req.body?.services) ? req.body.services : [];
+      const rawParts = Array.isArray(req.body?.parts) ? req.body.parts : [];
 
-      if (!service) {
-        return res.status(400).json({ error: "Informe o serviço concluído na avaliação." });
+      if (rawServices.length === 0) {
+        return res.status(400).json({ error: "Adicione pelo menos um serviço à avaliação." });
       }
 
       const { data: so, error: fetchErr } = await supabaseAdmin
         .from("service_orders")
-        .select("id, order_type, status, lab_evaluated_service")
+        .select("id, order_type, status, lab_evaluated_service, lab_evaluated_at, plate, vehicle_model, customers(name)")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -4151,6 +4227,10 @@ export function createApiApp() {
         return res.status(400).json({ error: "Avaliação técnica disponível apenas para OS de laboratório." });
       }
 
+      if (String(so.lab_evaluated_at ?? "").trim() || String(so.lab_evaluated_service ?? "").trim()) {
+        return res.status(400).json({ error: "Esta OS já possui avaliação técnica registrada." });
+      }
+
       const openStatuses = ["AGUARDANDO_AVALIACAO", "AVALIACAO_TECNICA"];
       const currentStatus = String(so.status ?? "");
       if (!openStatuses.includes(currentStatus)) {
@@ -4160,22 +4240,165 @@ export function createApiApp() {
         });
       }
 
-      const allowedNext = ["EM_SERVICO", "AGUARDANDO_APROVACAO", "AVALIACAO_TECNICA"];
-      const statusUpdate =
-        nextStatus && allowedNext.includes(nextStatus) && ALL_STATUSES.includes(nextStatus)
-          ? nextStatus
-          : "EM_SERVICO";
+      type NormLine = {
+        description: string;
+        lab_preset_id: string | null;
+        outsourced: boolean;
+        pre_approved: boolean;
+        suggested_value: number | null;
+        line_observations: string;
+      };
+
+      const normLines: NormLine[] = [];
+      for (const row of rawServices) {
+        const description =
+          typeof row?.description === "string" ? row.description.trim().slice(0, 500) : "";
+        if (!description) continue;
+        const labPresetId =
+          typeof row?.labPresetId === "string" && row.labPresetId.trim()
+            ? row.labPresetId.trim().slice(0, 48)
+            : typeof row?.lab_preset_id === "string" && row.lab_preset_id.trim()
+              ? row.lab_preset_id.trim().slice(0, 48)
+              : null;
+        const preApproved = row?.preApproved === true || row?.pre_approved === true;
+        let suggested: number | null = null;
+        const sv = row?.suggestedValue ?? row?.suggested_value;
+        if (sv != null && sv !== "" && Number.isFinite(Number(sv))) {
+          suggested = Math.max(0, Number(sv));
+        }
+        normLines.push({
+          description,
+          lab_preset_id: labPresetId,
+          outsourced: row?.outsourced === true,
+          pre_approved: preApproved,
+          suggested_value: suggested,
+          line_observations:
+            typeof row?.lineObservations === "string"
+              ? row.lineObservations.trim().slice(0, 1000)
+              : typeof row?.line_observations === "string"
+                ? row.line_observations.trim().slice(0, 1000)
+                : "",
+        });
+      }
+
+      if (normLines.length === 0) {
+        return res.status(400).json({ error: "Informe ao menos um serviço válido." });
+      }
+
+      const budgetServices = normLines.map((line) => ({
+        description: line.description,
+        labor_hours: null,
+        approved: line.pre_approved ? true : undefined,
+        outsourced: line.outsourced,
+        suggested_value: line.suggested_value,
+        lab_preset_id: line.lab_preset_id,
+        pre_approved: line.pre_approved,
+        source: "lab_evaluation",
+        line_observations: line.line_observations || undefined,
+      }));
+
+      const budgetParts = rawParts
+        .map((p: Record<string, unknown>) => {
+          const description = typeof p?.description === "string" ? p.description.trim() : "";
+          if (!description) return null;
+          const row: Record<string, unknown> = {
+            description: description.slice(0, 500),
+            quantity: typeof p?.quantity === "string" ? p.quantity.trim().slice(0, 32) || "1" : "1",
+          };
+          if (p?.fromStock === true) {
+            row.fromStock = true;
+            if (typeof p?.workshopPartId === "string" && p.workshopPartId.trim()) {
+              row.workshopPartId = p.workshopPartId.trim();
+            }
+          }
+          return row;
+        })
+        .filter(Boolean);
+
+      const isPreApprovedCleaningOnly =
+        normLines.length === 1 &&
+        normLines[0].pre_approved === true &&
+        normLines[0].lab_preset_id === "limpeza_valvulas";
+
+      const statusUpdate = isPreApprovedCleaningOnly ? "EM_SERVICO" : "AGUARDANDO_APROVACAO";
+
+      const evalSummary =
+        normLines.length === 1
+          ? normLines[0].description
+          : `Avaliação técnica (${normLines.length} serviços)`;
+
+      const cardName =
+        normLines.length === 1 ? normLines[0].description : `Avaliação técnica — ${normLines.length} serviços`;
+
+      const customerNameBudget =
+        so.customers && typeof so.customers === "object" && "name" in so.customers
+          ? String((so.customers as { name: string }).name ?? "")
+          : "";
+
+      const budgetPayload = {
+        workshop_id: WORKSHOP_ID,
+        service_order_id: serviceOrderId,
+        card_name: cardName,
+        diagnosis: "",
+        services: budgetServices,
+        parts: budgetParts,
+        observations,
+      };
+
+      let { data: budgetData, error: budgetError } = await supabaseAdmin.rpc("create_budget_with_stock", {
+        p_workshop_id: WORKSHOP_ID,
+        p_service_order_id: serviceOrderId,
+        p_card_name: budgetPayload.card_name,
+        p_diagnosis: budgetPayload.diagnosis,
+        p_services: budgetPayload.services,
+        p_parts: budgetPayload.parts,
+        p_observations: budgetPayload.observations,
+      });
+
+      if (budgetError && isMissingRpcFunctionError(budgetError.message || "")) {
+        const stockDelta = aggregateBudgetParts(budgetPayload.parts);
+        await applyStockDeltaByPartName(stockDelta);
+        const legacy = await supabaseAdmin
+          .from("budgets")
+          .insert(budgetPayload)
+          .select(await budgetRowSelect())
+          .single();
+        budgetData = legacy.data;
+        budgetError = legacy.error;
+        if (budgetError) {
+          try {
+            await applyStockDeltaByPartName(invertDeltaMap(stockDelta));
+          } catch (rollbackErr) {
+            console.error("[API] Falha no rollback de estoque (lab-evaluation):", rollbackErr);
+          }
+        }
+      }
+
+      if (budgetError) {
+        const message = budgetError.message || "Erro ao criar orçamento da avaliação.";
+        if (message.toLowerCase().includes("estoque insuficiente")) {
+          return res.status(400).json({ error: message });
+        }
+        console.error("[API] lab-evaluation budget:", budgetError);
+        return res.status(500).json({ error: message });
+      }
+
+      const createdBudget = Array.isArray(budgetData) ? budgetData[0] : budgetData;
+      const budgetId = createdBudget?.id ? String(createdBudget.id) : null;
 
       const now = new Date().toISOString();
       const updatePayload: Record<string, unknown> = {
-        lab_evaluated_service: service,
+        lab_evaluated_service: evalSummary,
         lab_evaluated_at: now,
         lab_evaluated_by_name: evaluatedByName || "Técnico",
         status: statusUpdate,
         updated_at: now,
       };
+      if (budgetId) {
+        updatePayload.lab_evaluation_budget_id = budgetId;
+      }
 
-      const { data, error } = await supabaseAdmin
+      let { data, error } = await supabaseAdmin
         .from("service_orders")
         .update(updatePayload)
         .eq("id", serviceOrderId)
@@ -4185,15 +4408,53 @@ export function createApiApp() {
 
       if (error) {
         const msg = error.message ?? "";
-        if (/lab_evaluated_/i.test(msg) && /does not exist|column/i.test(msg)) {
-          return res.status(500).json({
-            error: "Colunas de avaliação do laboratório não configuradas. Aplique a migration no Supabase.",
-          });
+        if (/lab_evaluated_|lab_evaluation_budget/i.test(msg) && /does not exist|column/i.test(msg)) {
+          delete updatePayload.lab_evaluation_budget_id;
+          const retry = await supabaseAdmin
+            .from("service_orders")
+            .update(updatePayload)
+            .eq("id", serviceOrderId)
+            .eq("workshop_id", WORKSHOP_ID)
+            .select("*, customers(*)")
+            .single();
+          data = retry.data;
+          error = retry.error;
         }
-        throw error;
+        if (error) {
+          if (/lab_evaluated_/i.test(msg) && /does not exist|column/i.test(msg)) {
+            return res.status(500).json({
+              error: "Colunas de avaliação do laboratório não configuradas. Aplique a migration no Supabase.",
+            });
+          }
+          throw error;
+        }
       }
 
-      return res.json(data);
+      const budgetNotifyPayload = {
+        service_order_id: serviceOrderId,
+        vehicle_plate: so?.plate ?? null,
+        vehicle_model: so?.vehicle_model ?? null,
+        customer_name: customerNameBudget || null,
+        budget_id: budgetId,
+        source: "lab_evaluation",
+      };
+      const technicianIds = await getTechnicianRecipientIdsForSystemType("budget_created");
+      for (const techId of technicianIds) {
+        await supabaseAdmin
+          .from("notifications")
+          .insert({
+            workshop_id: WORKSHOP_ID,
+            type: "budget_created",
+            payload: budgetNotifyPayload,
+            target_type: "technician",
+            target_slug: techId,
+          })
+          .then(({ error: e }) => {
+            if (e) console.error("[API] Notificação budget_created (lab-evaluation):", e);
+          });
+      }
+
+      return res.json({ ...(data ?? {}), lab_evaluation_budget_id: budgetId });
     } catch (err: unknown) {
       console.error("[API] POST lab-evaluation:", err);
       const msg = err instanceof Error ? err.message : "Erro";
