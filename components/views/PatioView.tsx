@@ -1174,10 +1174,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [selectedCard?.id]);
 
   useEffect(() => {
-    if (!selectedCard?.id || isModuleMode) return;
+    if (!selectedCard?.id || orderType === 'module') return;
     const last = loadLastLabProductKind();
     if (last) setNewLabProductKind(last as ModuleKind);
-  }, [selectedCard?.id, isModuleMode]);
+  }, [selectedCard?.id, orderType]);
 
   /** Hidrata o formulário só ao expandir a secção (não a cada sync da OS). */
   useEffect(() => {
