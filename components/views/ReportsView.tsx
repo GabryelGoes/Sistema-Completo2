@@ -21,6 +21,7 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DeleteServiceOrderModal } from '../DeleteServiceOrderModal';
 import { ReportServiceOrderDetailModal } from '../ReportServiceOrderDetailModal';
+import { FinalizedVehicleServicesReportBlock } from '../reports/FinalizedVehicleServicesReportBlock';
 import { getServiceOrders, getTechnicianServicesReport, type ServiceOrderListItem, type TechnicianServiceReportItem } from '../../services/apiService';
 import { getStageConfig, getStageStyle, CANCELLED_STATUS } from '../../constants/serviceOrderStages';
 import {
@@ -36,6 +37,7 @@ import {
   ordersWarrantyInPeriod,
   reportTechnicianResponsibility,
   buildTechnicianServicesReport,
+  buildFinalizedVehicleServicesReport,
   formatTechnicianServiceOsLabel,
   formatTechnicianServiceVehicleLabel,
   formatPlateDisplay,
@@ -61,7 +63,7 @@ const DEFAULT_SETTINGS: ReportsSettings = {
   weekStartsOn: 'monday',
 };
 
-type ReportSection = 'entradas' | 'fluxo' | 'tecnicos' | 'servicos_tecnico' | 'garantia' | 'laboratorio';
+type ReportSection = 'entradas' | 'fluxo' | 'tecnicos' | 'servicos_tecnico' | 'veiculos_entregues' | 'garantia' | 'laboratorio';
 
 const SECTIONS: { id: ReportSection; label: string; hint: string; icon: React.ReactNode }[] = [
   { id: 'entradas', label: 'Entradas', hint: 'Veículos que entraram no período', icon: <Car className="h-4 w-4" /> },
@@ -77,6 +79,12 @@ const SECTIONS: { id: ReportSection; label: string; hint: string; icon: React.Re
     label: 'Serviços por técnico',
     hint: 'Serviços executados registrados no fechamento da OS',
     icon: <ClipboardList className="h-4 w-4" />,
+  },
+  {
+    id: 'veiculos_entregues',
+    label: 'Por veículo entregue',
+    hint: 'Cada veículo finalizado com serviço e técnico indicado',
+    icon: <Car className="h-4 w-4" />,
   },
   { id: 'garantia', label: 'Garantia', hint: 'Marcadas como garantia ou etapa Garantia', icon: <Shield className="h-4 w-4" /> },
   {
@@ -183,6 +191,11 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
     [techServicesRaw, range.start, range.end, hiddenOrderIds]
   );
 
+  const veiculosEntregues = useMemo(
+    () => buildFinalizedVehicleServicesReport(techServicesRaw, range.start, range.end, hiddenOrderIds),
+    [techServicesRaw, range.start, range.end, hiddenOrderIds]
+  );
+
   const garantia = useMemo(
     () => ordersWarrantyInPeriod(vehicleOrders, range.start, range.end),
     [vehicleOrders, range.start, range.end]
@@ -209,10 +222,11 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
       fluxo: fluxo.length,
       tecnicos: tecnicos.reduce((sum, t) => sum + t.count, 0),
       servicos_tecnico: servicosTecnico.reduce((sum, t) => sum + t.count, 0),
+      veiculos_entregues: veiculosEntregues.length,
       garantia: garantia.length,
       laboratorio: modulosEntradas.length + modulosFluxo.length + modulosGarantia.length,
     }),
-    [entradas.length, fluxo.length, tecnicos, servicosTecnico, garantia.length, modulosEntradas.length, modulosFluxo.length, modulosGarantia.length]
+    [entradas.length, fluxo.length, tecnicos, servicosTecnico, veiculosEntregues.length, garantia.length, modulosEntradas.length, modulosFluxo.length, modulosGarantia.length]
   );
 
   const pdfMeta = useMemo(
@@ -793,6 +807,27 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
             </p>
             <TechnicianServicesReportBlock
               groups={servicosTecnico}
+              blurPlates={blurPlates}
+              onOpenOrder={openOrderById}
+            />
+          </div>
+        ) : activeSection === 'veiculos_entregues' ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                Serviços por veículo entregue
+                <span className="ml-2 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[13px] font-bold text-emerald-800 dark:text-emerald-200">
+                  {sectionCounts.veiculos_entregues}
+                </span>
+              </h2>
+            </div>
+            <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
+              Veículos <strong>entregues (arquivados)</strong> ou <strong>finalizados</strong> no período, com cada
+              serviço executado e o <strong>técnico indicado no fechamento</strong> da OS. Abra a OS para ver os
+              orçamentos — o nome do técnico também aparece abaixo de cada serviço.
+            </p>
+            <FinalizedVehicleServicesReportBlock
+              groups={veiculosEntregues}
               blurPlates={blurPlates}
               onOpenOrder={openOrderById}
             />

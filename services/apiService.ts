@@ -2194,6 +2194,7 @@ export type ServiceTechnicianClosingLine = {
   id?: string;
   description: string;
   technicianId: string;
+  technicianName?: string | null;
   budgetId?: string | null;
 };
 
@@ -2214,6 +2215,12 @@ export async function getServiceOrderServiceTechnicians(
       id: typeof l.id === "string" ? l.id : undefined,
       description: String(l.description ?? ""),
       technicianId: String(l.technicianId ?? l.technician_id ?? ""),
+      technicianName:
+        typeof l.technicianName === "string"
+          ? l.technicianName
+          : typeof l.technician_name === "string"
+            ? l.technician_name
+            : null,
       budgetId:
         typeof l.budgetId === "string"
           ? l.budgetId
@@ -2240,6 +2247,7 @@ export type TechnicianServiceReportItem = {
   description: string;
   technicianId: string;
   technicianName: string;
+  budgetId: string | null;
   recordedAt: string;
   serviceOrderId: string;
   osNumber: number | null;
@@ -2297,6 +2305,12 @@ export async function getTechnicianServicesReport(): Promise<{ items: Technician
       description: String(row.description ?? ''),
       technicianId: String(row.technicianId ?? row.technician_id ?? ''),
       technicianName: String(row.technicianName ?? row.technician_name ?? 'Técnico'),
+      budgetId:
+        typeof row.budgetId === 'string'
+          ? row.budgetId
+          : typeof row.budget_id === 'string'
+            ? row.budget_id
+            : null,
       recordedAt: String(row.recordedAt ?? row.recorded_at ?? ''),
       serviceOrderId: String(row.serviceOrderId ?? row.service_order_id ?? ''),
       osNumber:

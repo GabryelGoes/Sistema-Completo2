@@ -4075,11 +4075,21 @@ export function createApiApp() {
       const approvedServices = await loadApprovedServicesForOrder(serviceOrderId);
       const rows = await loadServiceTechnicianRows(serviceOrderId);
 
+      const techIds = [
+        ...new Set(
+          rows
+            .map((r) => String(r.technician_id ?? "").trim())
+            .filter(Boolean)
+        ),
+      ];
+      const techNames = await mapTechnicianUsersByIds(techIds);
+
       return res.json({
         lines: rows.map((r) => ({
           id: r.id,
           description: r.description,
           technicianId: r.technician_id,
+          technicianName: techNames[String(r.technician_id ?? "")] || "Técnico",
           budgetId: r.budget_id,
         })),
         approvedServices: approvedServices.map((s) => ({
@@ -4476,6 +4486,7 @@ export function createApiApp() {
           id,
           description,
           technician_id,
+          budget_id,
           recorded_at,
           service_order_id,
           service_orders (
@@ -4547,6 +4558,10 @@ export function createApiApp() {
             description: String(row.description ?? "").trim(),
             technicianId: techId,
             technicianName: techNames[techId] || "Técnico",
+            budgetId:
+              typeof row.budget_id === "string" && row.budget_id.trim()
+                ? row.budget_id.trim()
+                : null,
             recordedAt: String(row.recorded_at ?? ""),
             serviceOrderId: so.id,
             osNumber: so.os_number ?? null,

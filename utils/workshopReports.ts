@@ -199,6 +199,98 @@ export function formatTechnicianServiceOsLabel(item: TechnicianServiceReportItem
   return item.serviceOrderId.slice(0, 8).toUpperCase();
 }
 
+export type FinalizedVehicleServiceLine = {
+  lineId: string;
+  description: string;
+  technicianId: string;
+  technicianName: string;
+  recordedAt: string;
+  budgetId: string | null;
+};
+
+export type FinalizedVehicleReportGroup = {
+  serviceOrderId: string;
+  osNumber: number | null;
+  plate: string | null;
+  vehicleBrand: string | null;
+  vehicleModel: string | null;
+  orderStatus: string;
+  archivedAt: string | null;
+  sortAt: string;
+  services: FinalizedVehicleServiceLine[];
+};
+
+function finalizedVehicleSortKey(item: TechnicianServiceReportItem): string {
+  return item.archivedAt || item.recordedAt || '';
+}
+
+function finalizedVehicleInPeriod(
+  item: TechnicianServiceReportItem,
+  start: Date,
+  end: Date
+): boolean {
+  if (item.archivedAt && isDateInRange(item.archivedAt, start, end)) return true;
+  if (item.orderStatus === 'FINALIZADO' && isDateInRange(item.recordedAt, start, end)) return true;
+  return false;
+}
+
+/** Agrupa serviços executados por veículo entregue/finalizado no período. */
+export function buildFinalizedVehicleServicesReport(
+  items: TechnicianServiceReportItem[],
+  start: Date,
+  end: Date,
+  hiddenOrderIds?: Set<string>
+): FinalizedVehicleReportGroup[] {
+  const filtered = items.filter((item) => {
+    if (hiddenOrderIds?.has(item.serviceOrderId)) return false;
+    return finalizedVehicleInPeriod(item, start, end);
+  });
+
+  const map = new Map<string, FinalizedVehicleReportGroup>();
+
+  for (const item of filtered) {
+    const oid = item.serviceOrderId;
+    if (!map.has(oid)) {
+      map.set(oid, {
+        serviceOrderId: oid,
+        osNumber: item.osNumber,
+        plate: item.plate,
+        vehicleBrand: item.vehicleBrand,
+        vehicleModel: item.vehicleModel,
+        orderStatus: item.orderStatus,
+        archivedAt: item.archivedAt,
+        sortAt: finalizedVehicleSortKey(item),
+        services: [],
+      });
+    }
+    const group = map.get(oid)!;
+    if (item.archivedAt && (!group.archivedAt || item.archivedAt > group.archivedAt)) {
+      group.archivedAt = item.archivedAt;
+      group.sortAt = item.archivedAt;
+    }
+    group.services.push({
+      lineId: item.lineId,
+      description: item.description,
+      technicianId: item.technicianId,
+      technicianName: item.technicianName,
+      recordedAt: item.recordedAt,
+      budgetId: item.budgetId ?? null,
+    });
+  }
+
+  const rows = [...map.values()];
+  for (const g of rows) {
+    g.services.sort((a, b) => a.description.localeCompare(b.description, 'pt-BR'));
+  }
+  rows.sort((a, b) => b.sortAt.localeCompare(a.sortAt));
+  return rows;
+}
+
+export function formatFinalizedVehicleTitle(group: FinalizedVehicleReportGroup): string {
+  const model = [group.vehicleBrand, group.vehicleModel].filter(Boolean).join(' ').trim();
+  return model || 'Veículo';
+}
+
 export function reportTechnicianResponsibility(
   orders: ServiceOrderListItem[],
   start: Date,

@@ -57,6 +57,7 @@ import {
   budgetLastActivityMs,
   budgetChronologicalNumber,
   saveServiceOrderLabEvaluation,
+  getServiceOrderServiceTechnicians,
   ServiceOrderListItem,
   type WorkshopService,
   type WorkshopPart,
@@ -145,6 +146,7 @@ import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { moveItemInList } from '../../utils/moveItemInList';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { resolveBudgetPartStockFlags, type BudgetPartFields } from '../../utils/budgetPartStock';
+import { buildBudgetServiceTechnicianNames } from '../../utils/budgetServiceTechnicians';
 import { parseReferenceLinksFromApi } from '../../utils/vehicleReferenceLinks';
 import { capitalizeFirst, firstTwoNames } from '../../utils/personNameFormat';
 import { getPatioBoardModelTitleClass } from '../../utils/patioBoardModelTitle';
@@ -1342,6 +1344,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [sendingBudget, setSendingBudget] = useState(false);
   const [savedBudgets, setSavedBudgets] = useState<SavedBudget[]>([]);
   const [viewingBudget, setViewingBudget] = useState<SavedBudget | null>(null);
+  const [budgetViewTechLines, setBudgetViewTechLines] = useState<
+    Awaited<ReturnType<typeof getServiceOrderServiceTechnicians>>['lines']
+  >([]);
   const [editingBudget, setEditingBudget] = useState<SavedBudget | null>(null);
   const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
   const [verifyingBudgetId, setVerifyingBudgetId] = useState<string | null>(null);
@@ -1427,6 +1432,35 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const remindersStorageKey = orderType === 'module' ? 'patio-reminders-module' : 'patio-reminders-vehicle';
   const isModuleMode = orderType === 'module';
   const flowKind: ServiceOrderFlowKind = isModuleMode ? 'module' : 'vehicle';
+
+  useEffect(() => {
+    const orderId = selectedCard?.id ?? selectedHistoryCard?.id;
+    if (!viewingBudget || !orderId || isModuleMode) {
+      setBudgetViewTechLines([]);
+      return;
+    }
+    let cancelled = false;
+    void getServiceOrderServiceTechnicians(orderId)
+      .then((res) => {
+        if (!cancelled) setBudgetViewTechLines(res.lines);
+      })
+      .catch(() => {
+        if (!cancelled) setBudgetViewTechLines([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [viewingBudget?.id, selectedCard?.id, selectedHistoryCard?.id, isModuleMode]);
+
+  const viewingBudgetTechnicianNames = useMemo(() => {
+    if (!viewingBudget || isModuleMode || budgetViewTechLines.length === 0) return undefined;
+    return buildBudgetServiceTechnicianNames(
+      budgetViewTechLines,
+      viewingBudget.id,
+      viewingBudget.services
+    );
+  }, [viewingBudget, isModuleMode, budgetViewTechLines]);
+
   const boardStages = useMemo(() => getServiceOrderStages(flowKind), [flowKind]);
   const [diagnosticAuthSheetOpen, setDiagnosticAuthSheetOpen] = useState(false);
   const diagnosticAuthSheetContext = useMemo(() => {
@@ -9221,6 +9255,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 services={viewingBudget.services}
                 parts={viewingBudget.parts}
                 observations={viewingBudget.observations}
+                serviceTechnicianNames={viewingBudgetTechnicianNames}
               />
             </div>
             <div className={budgetReadModalFooterClass}>

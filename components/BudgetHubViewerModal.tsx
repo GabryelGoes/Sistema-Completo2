@@ -6,12 +6,14 @@ import {
   budgetLastActivityMs,
   getServiceOrderBudgets,
   getServiceOrderById,
+  getServiceOrderServiceTechnicians,
   isBudgetVerified,
   updateServiceOrderStatus,
   type SavedBudgetFromApi,
   type ServiceOrderDetail,
   type ServiceOrderUpdateActor,
 } from "../services/apiService";
+import { buildBudgetServiceTechnicianNames } from "../utils/budgetServiceTechnicians";
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from "../utils/budgetPrintWithDetail";
 import { DiagnosticAuthorizationSheetModal } from "./diagnostic/DiagnosticAuthorizationSheetModal";
 import { getVehiclePhotoPublicUrl } from "../utils/vehicleStoragePublicUrl";
@@ -50,6 +52,9 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [diagAuthSheetOpen, setDiagAuthSheetOpen] = useState(false);
   const [markingApproved, setMarkingApproved] = useState(false);
+  const [serviceTechLines, setServiceTechLines] = useState<
+    Awaited<ReturnType<typeof getServiceOrderServiceTechnicians>>["lines"]
+  >([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +62,7 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
     setError(null);
     setDetail(null);
     setBudgets([]);
+    setServiceTechLines([]);
     void (async () => {
       try {
         const [d, list] = await Promise.all([
@@ -66,6 +72,14 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
         if (cancelled) return;
         setDetail(d);
         setBudgets(list);
+        if (d.order_type !== "module") {
+          try {
+            const tech = await getServiceOrderServiceTechnicians(serviceOrderId);
+            if (!cancelled) setServiceTechLines(tech.lines);
+          } catch {
+            if (!cancelled) setServiceTechLines([]);
+          }
+        }
       } catch (e: unknown) {
         if (!cancelled) {
           setError((e as Error)?.message ?? "Não foi possível carregar o orçamento.");
@@ -89,9 +103,14 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
     [budgets, budgetId]
   );
 
-  const isVerified = budget ? isBudgetVerified(budget) : false;
-
   const isModuleMode = detail?.order_type === "module";
+
+  const serviceTechnicianNames = useMemo(() => {
+    if (!budget || isModuleMode || serviceTechLines.length === 0) return undefined;
+    return buildBudgetServiceTechnicianNames(serviceTechLines, budget.id, budget.services);
+  }, [budget, isModuleMode, serviceTechLines]);
+
+  const isVerified = budget ? isBudgetVerified(budget) : false;
   const mileageKm = detail?.mileage_km ?? null;
 
   const hasApprovedItems = useMemo(() => {
@@ -199,6 +218,7 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
                   parts={budget.parts}
                   observations={budget.observations}
                   showInternalFields
+                  serviceTechnicianNames={serviceTechnicianNames}
                 />
               </div>
             )}
