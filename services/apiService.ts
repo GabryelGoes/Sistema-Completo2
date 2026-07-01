@@ -125,6 +125,10 @@ export interface ServiceOrderListItem {
   bench_queued_at?: string | null;
   /** Dados do conserto em terceiros. */
   external_repair?: ExternalRepair | null;
+  /** Avaliação técnica do laboratório — serviço decidido pelo técnico. */
+  lab_evaluated_service?: string | null;
+  lab_evaluated_at?: string | null;
+  lab_evaluated_by_name?: string | null;
   diagnostic_authorization_signed_at?: string | null;
   diagnostic_authorization_signature_path?: string | null;
   created_at: string;
@@ -168,6 +172,10 @@ export interface ServiceOrderDetail {
   bench_queued_at?: string | null;
   /** Dados do conserto em terceiros. */
   external_repair?: ExternalRepair | null;
+  /** Avaliação técnica do laboratório — serviço decidido pelo técnico. */
+  lab_evaluated_service?: string | null;
+  lab_evaluated_at?: string | null;
+  lab_evaluated_by_name?: string | null;
   diagnostic_authorization_signed_at?: string | null;
   diagnostic_authorization_signature_path?: string | null;
   created_at: string;
@@ -2228,6 +2236,26 @@ export type TechnicianServiceReportItem = {
   orderStatus: string;
   archivedAt: string | null;
 };
+
+export async function saveServiceOrderLabEvaluation(
+  serviceOrderId: string,
+  params: {
+    service: string;
+    evaluatedByName: string;
+    nextStatus?: 'EM_SERVICO' | 'AGUARDANDO_APROVACAO' | 'AVALIACAO_TECNICA';
+  }
+): Promise<ServiceOrderDetail> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/lab-evaluation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao registrar avaliação (${response.status})`);
+  }
+  return response.json();
+}
 
 export async function getTechnicianServicesReport(): Promise<{ items: TechnicianServiceReportItem[] }> {
   const response = await fetch(`${API_BASE}/reports/technician-services`);

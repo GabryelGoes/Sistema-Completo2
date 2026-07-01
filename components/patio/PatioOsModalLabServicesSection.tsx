@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Wrench, Plus, Loader2, Trash2, ArrowRight, ChevronDown } from 'lucide-react';
+import { Wrench, Plus, Loader2, Trash2, ArrowRight, ChevronDown, Sparkles } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
 import { uiOsModalCardSectionTitle, uiOsModalSectionIconWrap } from '../ui/appTypography';
+import { LAB_VALVE_CLEANING_SERVICE_LABEL } from '../../utils/labStandardServices';
 
 export type LabBudgetServiceOption = { key: string; label: string };
 
@@ -36,6 +37,9 @@ export type PatioOsModalLabServicesSectionProps = {
   getStageStyleClass: (status: string) => string;
   onOpenLaboratoryOrder?: (laboratoryOrderId: string) => void;
   onRemoveLabServiceLink: (linkId: string) => void;
+  /** Atalho: envia limpeza de válvulas ao lab (pátio já sabe o serviço). */
+  onQuickSendValveCleaning?: () => void;
+  quickSendingValveCleaning?: boolean;
   /** Em tablet/mobile: cabeçalho clicável, conteúdo recolhido por padrão. */
   collapsible?: boolean;
   defaultExpanded?: boolean;
@@ -69,6 +73,8 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   getStageStyleClass,
   onOpenLaboratoryOrder,
   onRemoveLabServiceLink,
+  onQuickSendValveCleaning,
+  quickSendingValveCleaning = false,
   collapsible = false,
   defaultExpanded = false,
 }) => {
@@ -139,6 +145,27 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
 
         {isOpen ? (
         <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+          {onQuickSendValveCleaning ? (
+            <button
+              type="button"
+              onClick={onQuickSendValveCleaning}
+              disabled={creatingLabService || labServiceLinksSaving || quickSendingValveCleaning}
+              className="flex w-full items-center gap-3 rounded-xl border-2 border-violet-500/35 bg-violet-600 px-4 py-3 text-left text-white shadow-md shadow-violet-500/20 transition hover:brightness-105 active:scale-[0.99] disabled:opacity-55"
+            >
+              {quickSendingValveCleaning ? (
+                <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+              ) : (
+                <Sparkles className="h-5 w-5 shrink-0 opacity-95" />
+              )}
+              <span className="min-w-0">
+                <span className="block text-[13px] font-bold leading-snug">{LAB_VALVE_CLEANING_SERVICE_LABEL}</span>
+                <span className="block text-[11px] font-medium text-white/85">
+                  Envio rápido ao laboratório (selecione o tipo de produto abaixo se ainda não estiver preenchido)
+                </span>
+              </span>
+            </button>
+          ) : null}
+
           <div className="space-y-2">
             <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-zinc-200/80 bg-white/90 px-3 py-2.5 dark:border-white/[0.1] dark:bg-zinc-950/50">
               <input

@@ -2832,7 +2832,7 @@ export function createApiApp() {
 
   // ----------------- ORDENS DE SERVIÇO -----------------
   const SERVICE_ORDERS_LIST_SELECT =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, vehicle_observations, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, bench_slot, bench_slot_at, bench_queued_at, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, vehicle_observations, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, lab_evaluated_service, lab_evaluated_at, lab_evaluated_by_name, bench_slot, bench_slot_at, bench_queued_at, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   /** Fallback quando migrações recentes ainda não foram aplicadas no projeto Supabase. */
   const SERVICE_ORDERS_LIST_SELECT_MINIMAL =
     "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
@@ -4112,6 +4112,91 @@ export function createApiApp() {
           error: "Tabela de técnicos por serviço não configurada. Aplique a migration no Supabase.",
         });
       }
+      return res.status(500).json({ error: msg });
+    }
+  });
+
+  // Avaliação técnica do laboratório — serviço decidido pelo técnico (sem orçamento completo).
+  app.post("/api/service-orders/:id/lab-evaluation", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+
+      const { id: serviceOrderId } = req.params;
+      const service =
+        typeof req.body?.service === "string" ? req.body.service.trim().slice(0, 500) : "";
+      const evaluatedByName =
+        typeof req.body?.evaluatedByName === "string"
+          ? req.body.evaluatedByName.trim().slice(0, 200)
+          : "";
+      const nextStatus =
+        typeof req.body?.nextStatus === "string" ? req.body.nextStatus.trim() : "";
+
+      if (!service) {
+        return res.status(400).json({ error: "Informe o serviço concluído na avaliação." });
+      }
+
+      const { data: so, error: fetchErr } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type, status, lab_evaluated_service")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+
+      if (fetchErr || !so) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if (String(so.order_type ?? "vehicle") !== "module") {
+        return res.status(400).json({ error: "Avaliação técnica disponível apenas para OS de laboratório." });
+      }
+
+      const openStatuses = ["AGUARDANDO_AVALIACAO", "AVALIACAO_TECNICA"];
+      const currentStatus = String(so.status ?? "");
+      if (!openStatuses.includes(currentStatus)) {
+        return res.status(400).json({
+          error:
+            "Avaliação só pode ser registrada com a OS em Aguardando avaliação ou Avaliação técnica.",
+        });
+      }
+
+      const allowedNext = ["EM_SERVICO", "AGUARDANDO_APROVACAO", "AVALIACAO_TECNICA"];
+      const statusUpdate =
+        nextStatus && allowedNext.includes(nextStatus) && ALL_STATUSES.includes(nextStatus)
+          ? nextStatus
+          : "EM_SERVICO";
+
+      const now = new Date().toISOString();
+      const updatePayload: Record<string, unknown> = {
+        lab_evaluated_service: service,
+        lab_evaluated_at: now,
+        lab_evaluated_by_name: evaluatedByName || "Técnico",
+        status: statusUpdate,
+        updated_at: now,
+      };
+
+      const { data, error } = await supabaseAdmin
+        .from("service_orders")
+        .update(updatePayload)
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("*, customers(*)")
+        .single();
+
+      if (error) {
+        const msg = error.message ?? "";
+        if (/lab_evaluated_/i.test(msg) && /does not exist|column/i.test(msg)) {
+          return res.status(500).json({
+            error: "Colunas de avaliação do laboratório não configuradas. Aplique a migration no Supabase.",
+          });
+        }
+        throw error;
+      }
+
+      return res.json(data);
+    } catch (err: unknown) {
+      console.error("[API] POST lab-evaluation:", err);
+      const msg = err instanceof Error ? err.message : "Erro";
       return res.status(500).json({ error: msg });
     }
   });

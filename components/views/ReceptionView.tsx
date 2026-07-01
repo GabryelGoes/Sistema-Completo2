@@ -65,6 +65,7 @@ import {
   type ModuleVehicleKind,
 } from '../../utils/moduleMetadata';
 import { LabBenchIntakeHint } from '../lab/LabBenchIntakeHint';
+import { saveLastLabProductKind, loadLastLabProductKind } from '../../utils/labStandardServices';
 import {
   FIRST_STAGE,
   LABORATORY_SERVICE_ORDER_STAGES,
@@ -327,6 +328,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     if (receptionMode !== 'module' || !isReceptionTabActive) return;
     setLabBenchHintRefreshKey((k) => k + 1);
   }, [receptionMode, isReceptionTabActive]);
+
+  useEffect(() => {
+    if (receptionMode !== 'module') return;
+    const last = loadLastLabProductKind();
+    if (last) setModuleKind(last as ModuleKind);
+  }, [receptionMode]);
 
   // Refs — fotos: câmera (capture) vs galeria (múltiplas)
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -596,12 +603,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setStatus({ step: 'error', message: 'Informe um telefone válido (mínimo 8 dígitos).' });
       return;
     }
-    if (!issueTrim) {
+
+    const isModule = receptionMode === 'module';
+    if (!issueTrim && !isModule) {
       setStatus({ step: 'error', message: 'Preencha a queixa do cliente.' });
       return;
     }
 
-    const isModule = receptionMode === 'module';
     if (isModule) {
       if (!moduleKind) {
         setStatus({
@@ -667,7 +675,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       });
       const intakeCustomer: Customer = {
         ...customer,
-        issueDescription: customer.issueDescription,
+        issueDescription: isModule
+          ? issueTrim || 'Produto recebido — aguardando avaliação técnica.'
+          : customer.issueDescription,
         moduleKind: isModule && moduleKind ? moduleKind : undefined,
         moduleVehicleKind: isModule && moduleVehicleKind ? moduleVehicleKind : undefined,
         moduleProductOther:
@@ -688,7 +698,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             receptionMode === 'module' ? moduleIntakeStatus : undefined
           );
 
-      // Fotos opcionais (câmera/galeria) — envio sequencial com compressão no cliente (uploadServiceOrderPhoto)
+      if (isModule && moduleKind) {
+        saveLastLabProductKind(moduleKind === 'outro' ? 'outro' : moduleKind);
+      }
+
+      // Fotos opcionais
       if (serviceOrder?.id && intakePhotos.length > 0) {
         const photosSnapshot = [...intakePhotos];
         for (let i = 0; i < photosSnapshot.length; i++) {
@@ -1538,12 +1552,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     </div>
                     <div className="relative">
                       <TextArea
-                        label="Queixa do cliente"
+                        label="Motivo da entrada (opcional)"
                         name="issueDescription"
-                        placeholder="Descreva o problema relatado pelo cliente..."
+                        placeholder="Ex.: cliente relatou falha no ABS, peça veio de outra oficina… Se vazio, fica aguardando avaliação técnica."
                         value={customer.issueDescription}
                         onChange={handleInputChange}
-                        required
                       />
                     </div>
                     <div>

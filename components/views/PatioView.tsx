@@ -56,6 +56,7 @@ import {
   deleteWorkshopReminderRemote,
   budgetLastActivityMs,
   budgetChronologicalNumber,
+  saveServiceOrderLabEvaluation,
   ServiceOrderListItem,
   type WorkshopService,
   type WorkshopPart,
@@ -190,6 +191,12 @@ import { ReceptionArchivedHistoryHubCard, boardCardToArchivedHistoryHubOrder } f
 import { archivedHistoryModalShell } from '../reception/archivedHistoryModalShell';
 import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAuthorizationSheetModal';
 import { ServiceTechnicianClosingModal } from '../patio/ServiceTechnicianClosingModal';
+import { LabEvaluationSection } from '../lab/LabEvaluationSection';
+import {
+  LAB_VALVE_CLEANING_SERVICE_LABEL,
+  loadLastLabProductKind,
+  saveLastLabProductKind,
+} from '../../utils/labStandardServices';
 import { getVehiclePhotoPublicUrl } from '../../utils/vehicleStoragePublicUrl';
 
 /** ID sintético até `getServiceOrderById` responder — não usar em chamadas à API. */
@@ -445,6 +452,9 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     bench_slot_at: (detail as ServiceOrderDetail & { bench_slot_at?: string | null }).bench_slot_at ?? null,
     bench_queued_at: (detail as ServiceOrderDetail & { bench_queued_at?: string | null }).bench_queued_at ?? null,
     external_repair: (detail as ServiceOrderDetail & { external_repair?: unknown }).external_repair as never ?? null,
+    lab_evaluated_service: detail.lab_evaluated_service ?? null,
+    lab_evaluated_at: detail.lab_evaluated_at ?? null,
+    lab_evaluated_by_name: detail.lab_evaluated_by_name ?? null,
     diagnostic_authorization_signed_at: detail.diagnostic_authorization_signed_at ?? null,
     diagnostic_authorization_signature_path: detail.diagnostic_authorization_signature_path ?? null,
     created_at: detail.created_at,
@@ -1140,7 +1150,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [labServiceLinksDraft, setLabServiceLinksDraft] = useState<LabServiceLink[]>([]);
   const [labServiceLinksSaving, setLabServiceLinksSaving] = useState(false);
   const [creatingLabService, setCreatingLabService] = useState(false);
-  const [newLabServiceMode, setNewLabServiceMode] = useState<"budget" | "manual">("budget");
+  const [quickSendingValveCleaning, setQuickSendingValveCleaning] = useState(false);
+  const [newLabServiceMode, setNewLabServiceMode] = useState<"budget" | "manual">("manual");
   const [newLabBudgetRef, setNewLabBudgetRef] = useState<string>("");
   const [newLabManualLabel, setNewLabManualLabel] = useState("");
   const [newLabServiceDetails, setNewLabServiceDetails] = useState("");
@@ -1161,6 +1172,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setPcOsModalTab('dados');
     }
   }, [selectedCard?.id]);
+
+  useEffect(() => {
+    if (!selectedCard?.id || isModuleMode) return;
+    const last = loadLastLabProductKind();
+    if (last) setNewLabProductKind(last as ModuleKind);
+  }, [selectedCard?.id, isModuleMode]);
 
   /** Hidrata o formulário só ao expandir a secção (não a cada sync da OS). */
   useEffect(() => {
@@ -3404,15 +3421,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
     [actorOptions, selectedCard]
   );
 
-  const handleCreateLabServiceFromVehicle = async () => {
+  const handleCreateLabServiceFromVehicle = async (overrideServiceLabel?: string) => {
     if (!selectedCard || !serviceOrderDetail?.customers?.id) return;
     if (serviceOrderDetail.customers.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID) return;
 
     const selectedBudgetService = budgetServiceOptions.find((x) => x.key === newLabBudgetRef);
     const serviceLabel =
-      newLabServiceMode === "budget"
+      (overrideServiceLabel ?? '').trim() ||
+      (newLabServiceMode === "budget"
         ? selectedBudgetService?.label?.trim() ?? ""
-        : newLabManualLabel.trim();
+        : newLabManualLabel.trim());
     if (!serviceLabel) {
       alert("Informe o serviço a enviar para o laboratório.");
       return;
@@ -3426,6 +3444,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
       alert("Informe o nome do produto.");
       return;
     }
+
+    saveLastLabProductKind(
+      newLabProductKind === OTHER_MODULE_KIND_ID ? OTHER_MODULE_KIND_ID : newLabProductKind
+    );
 
     const serviceDetails = newLabServiceDetails.trim();
     const patioOsRef = serviceOrderDetail.os_number ?? "—";
@@ -3454,13 +3476,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
           newLabProductKind === OTHER_MODULE_KIND_ID ? newLabProductOther.trim() || null : null,
         issueDescription,
       });
+      const linkSource = overrideServiceLabel ? "manual" : newLabServiceMode;
       const next: LabServiceLink[] = [
         ...labServiceLinksDraft,
         {
           id: crypto.randomUUID(),
           serviceLabel,
           serviceDetails: serviceDetails || null,
-          source: newLabServiceMode,
+          source: linkSource,
           sourceBudgetId: selectedBudgetService?.budgetId ?? null,
           sourceBudgetItemIndex: selectedBudgetService?.serviceIndex ?? null,
           laboratoryOrderId: created.id,
@@ -3471,14 +3494,54 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setNewLabManualLabel("");
       setNewLabBudgetRef("");
       setNewLabServiceDetails("");
-      setNewLabProductKind("");
-      setNewLabProductOther("");
+      if (!overrideServiceLabel) {
+        setNewLabProductKind("");
+        setNewLabProductOther("");
+      }
     } catch (err: any) {
       alert(err?.message ?? "Não foi possível criar o serviço no laboratório.");
     } finally {
       setCreatingLabService(false);
     }
   };
+
+  const handleQuickValveCleaningFromPatio = async () => {
+    if (!newLabProductKind) {
+      const last = loadLastLabProductKind();
+      if (last) setNewLabProductKind(last as ModuleKind);
+    }
+    const kind = newLabProductKind || loadLastLabProductKind();
+    if (!kind) {
+      alert("Selecione o tipo de produto antes do envio rápido de limpeza.");
+      return;
+    }
+    if (!newLabProductKind) setNewLabProductKind(kind as ModuleKind);
+    setQuickSendingValveCleaning(true);
+    try {
+      await handleCreateLabServiceFromVehicle(LAB_VALVE_CLEANING_SERVICE_LABEL);
+    } finally {
+      setQuickSendingValveCleaning(false);
+    }
+  };
+
+  const handleLabEvaluationConfirm = useCallback(
+    async (service: string, nextStatus: 'EM_SERVICO' | 'AGUARDANDO_APROVACAO') => {
+      if (!selectedCard) return;
+      const updated = await saveServiceOrderLabEvaluation(selectedCard.id, {
+        service,
+        evaluatedByName: commentAuthorName,
+        nextStatus,
+      });
+      setServiceOrderDetail(updated);
+      const newStatus = updated.status as ServiceOrderStatus;
+      setSelectedCard((prev) => (prev ? { ...prev, idList: newStatus } : prev));
+      setCards((prev) =>
+        prev.map((c) => (c.id === selectedCard.id ? { ...c, idList: newStatus } : c))
+      );
+      void fetchDataRef.current(true);
+    },
+    [selectedCard, commentAuthorName]
+  );
 
   const handleRemoveLabServiceLink = async (linkId: string) => {
     const next = labServiceLinksDraft.filter((l) => l.id !== linkId);
@@ -6185,6 +6248,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
               otherProductKindId={OTHER_MODULE_KIND_ID}
               budgetServiceOptions={budgetServiceOptions}
               onCreateLabService={() => void handleCreateLabServiceFromVehicle()}
+              onQuickSendValveCleaning={() => void handleQuickValveCleaningFromPatio()}
+              quickSendingValveCleaning={quickSendingValveCleaning}
               creatingLabService={creatingLabService}
               labServiceLinksSaving={labServiceLinksSaving}
               labServiceLinksDraft={labServiceLinksDraft}
@@ -7480,6 +7545,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                         </div>
                         </div>
+
+                        {isModuleMode && serviceOrderDetail ? (
+                          <LabEvaluationSection
+                            insetCardClass={vi}
+                            inputClass={vin}
+                            orderStatus={serviceOrderDetail.status}
+                            evaluatedService={serviceOrderDetail.lab_evaluated_service}
+                            evaluatedAt={serviceOrderDetail.lab_evaluated_at}
+                            evaluatedByName={serviceOrderDetail.lab_evaluated_by_name}
+                            evaluatedByDisplayName={commentAuthorName}
+                            onConfirmEvaluation={handleLabEvaluationConfirm}
+                          />
+                        ) : null}
 
                         {!isModuleMode ? (
                           <div>
