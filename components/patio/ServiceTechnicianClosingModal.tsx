@@ -18,7 +18,7 @@ import {
   type ServiceTechnicianClosingLine,
   type SystemUserTechnician,
 } from '../../services/apiService';
-import { validateServiceTechnicianLines } from '../../utils/serviceOrderServiceTechnicians';
+import { validateServiceTechnicianLines, mergeServiceTechnicianDraftLines } from '../../utils/serviceOrderServiceTechnicians';
 import { capitalizeFirst } from '../../utils/personNameFormat';
 
 export type ServiceTechnicianClosingModalProps = {
@@ -262,15 +262,20 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
     setError(null);
     try {
       const data = await getServiceOrderServiceTechnicians(serviceOrderId);
-      setApprovedServices(data.approvedServices ?? []);
+      const approved = data.approvedServices ?? [];
+      setApprovedServices(approved);
+      const merged = mergeServiceTechnicianDraftLines(
+        data.lines.map((l) => ({
+          description: l.description,
+          technicianId: l.technicianId,
+          budgetId: l.budgetId ?? null,
+        })),
+        approved
+      );
       const initial =
-        data.lines.length > 0
-          ? data.lines.map((l) => newDraftLine(l))
-          : (data.approvedServices?.length ?? 0) > 0
-            ? data.approvedServices.map((s) =>
-                newDraftLine({ description: s.description, technicianId: '', budgetId: s.budgetId ?? null })
-              )
-            : [newDraftLine()];
+        merged.length > 0
+          ? merged.map((l) => newDraftLine(l))
+          : [newDraftLine()];
       setLines(initial);
     } catch (e) {
       setError((e as Error)?.message ?? 'Não foi possível carregar os serviços.');
@@ -373,6 +378,13 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
               Para mover o veículo para <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Finalizado</strong>,
               indique quem executou cada serviço aprovado no orçamento.
             </p>
+            {approvedServices.length > 0 ? (
+              <p className="mb-4 rounded-xl border border-sky-500/25 bg-sky-500/10 px-3 py-2.5 text-[12px] leading-relaxed text-sky-900 dark:text-sky-200">
+                {approvedServices.length === 1
+                  ? '1 serviço aprovado no orçamento — confirme o técnico responsável.'
+                  : `${approvedServices.length} serviços aprovados no orçamento — confirme o técnico de cada um.`}
+              </p>
+            ) : null}
 
             {loading ? (
               <div className="flex justify-center py-12">

@@ -32,6 +32,7 @@ import { buildWorkshopPartsAnalytics } from "./utils/workshopPartsAnalytics.js";
 import { resolveTvUploadMime } from "./utils/tvMediaFile.js";
 import {
   collectApprovedServicesFromBudgets,
+  mergeServiceTechnicianDraftLines,
   validateServiceTechnicianLines,
 } from "./utils/serviceOrderServiceTechnicians.js";
 
@@ -4075,22 +4076,28 @@ export function createApiApp() {
       const approvedServices = await loadApprovedServicesForOrder(serviceOrderId);
       const rows = await loadServiceTechnicianRows(serviceOrderId);
 
+      const savedLines = rows.map((r) => ({
+        description: String(r.description ?? ""),
+        technicianId: String(r.technician_id ?? ""),
+        budgetId: r.budget_id ?? null,
+      }));
+      const draftLines = mergeServiceTechnicianDraftLines(savedLines, approvedServices);
+
       const techIds = [
         ...new Set(
-          rows
-            .map((r) => String(r.technician_id ?? "").trim())
+          draftLines
+            .map((l) => l.technicianId.trim())
             .filter(Boolean)
         ),
       ];
       const techNames = await mapTechnicianUsersByIds(techIds);
 
       return res.json({
-        lines: rows.map((r) => ({
-          id: r.id,
-          description: r.description,
-          technicianId: r.technician_id,
-          technicianName: techNames[String(r.technician_id ?? "")] || "Técnico",
-          budgetId: r.budget_id,
+        lines: draftLines.map((l) => ({
+          description: l.description,
+          technicianId: l.technicianId,
+          technicianName: l.technicianId ? techNames[l.technicianId] || "Técnico" : "",
+          budgetId: l.budgetId,
         })),
         approvedServices: approvedServices.map((s) => ({
           description: s.description,

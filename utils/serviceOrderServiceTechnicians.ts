@@ -49,6 +49,59 @@ export function collectApprovedServicesFromBudgets(
   return out;
 }
 
+/** Monta rascunho do fechamento: orçamento aprovado manda; técnicos já salvos são reaproveitados. */
+export function mergeServiceTechnicianDraftLines(
+  savedLines: ServiceTechnicianLineInput[],
+  approvedServices: { description: string; budgetId?: string | null }[]
+): ServiceTechnicianLineInput[] {
+  const saved = savedLines
+    .map((l) => ({
+      description: (l.description ?? '').trim(),
+      technicianId: (l.technicianId ?? '').trim(),
+      budgetId: l.budgetId ?? null,
+    }))
+    .filter((l) => l.description || l.technicianId);
+
+  if (approvedServices.length === 0) {
+    if (saved.length > 0) return saved;
+    return [{ description: '', technicianId: '', budgetId: null }];
+  }
+
+  const consumed = new Set<number>();
+
+  return approvedServices.map((svc) => {
+    const svcKey = normalizeServiceDescription(svc.description);
+    let matchIdx = -1;
+
+    for (let i = 0; i < saved.length; i++) {
+      if (consumed.has(i)) continue;
+      const row = saved[i];
+      const descMatch = normalizeServiceDescription(row.description) === svcKey;
+      const budgetMatch =
+        svc.budgetId != null && row.budgetId != null && row.budgetId === svc.budgetId;
+      if (descMatch || budgetMatch) {
+        matchIdx = i;
+        break;
+      }
+    }
+
+    if (matchIdx >= 0) {
+      consumed.add(matchIdx);
+      return {
+        description: svc.description,
+        technicianId: saved[matchIdx].technicianId,
+        budgetId: svc.budgetId ?? null,
+      };
+    }
+
+    return {
+      description: svc.description,
+      technicianId: '',
+      budgetId: svc.budgetId ?? null,
+    };
+  });
+}
+
 export function validateServiceTechnicianLines(
   lines: ServiceTechnicianLineInput[],
   approvedServices: { description: string }[]
