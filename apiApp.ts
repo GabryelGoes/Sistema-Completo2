@@ -31,16 +31,14 @@ import { SYSTEM_NOTIFICATION_IDS } from "./constants/systemNotificationTypes.js"
 import { buildWorkshopPartsAnalytics } from "./utils/workshopPartsAnalytics.js";
 import { resolveTvUploadMime } from "./utils/tvMediaFile.js";
 import {
-  collectApprovedServicesFromBudgets,
-  mergeServiceTechnicianDraftLines,
-  validateServiceTechnicianLines,
-} from "./utils/serviceOrderServiceTechnicians.js";
-import {
   aggregateFinalizeStockParts,
   collectApprovedPartsFromBudgets,
+  collectApprovedServicesFromBudgets,
   mergeFinalizeStockDraftLines,
+  mergeServiceTechnicianDraftLines,
   parseFinalizePartQuantity,
-} from "./utils/serviceOrderFinalizeStock.js";
+  validateServiceTechnicianLines,
+} from "./utils/serviceOrderServiceTechnicians.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -2919,6 +2917,9 @@ export function createApiApp() {
   /** Fallback quando migrações recentes ainda não foram aplicadas no projeto Supabase. */
   const SERVICE_ORDERS_LIST_SELECT_MINIMAL =
     "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+  /** Último fallback — só colunas essenciais quando migrações parciais quebram o select reduzido. */
+  const SERVICE_ORDERS_LIST_SELECT_CORE =
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, plate, mileage_km, delivery_date, issue_description, status, assigned_technician, order_type, vehicle_category, created_at, updated_at";
   /** Histórico arquivado — sem textos/JSON pesados (ai_analysis, anexos, etc.). */
   const SERVICE_ORDERS_ARCHIVE_LIST_SELECT =
     "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, status, assigned_technician, garantia_tag, order_type, vehicle_category, created_at, updated_at";
@@ -3022,16 +3023,26 @@ export function createApiApp() {
     orderType?: string;
   }): Promise<Record<string, unknown>[]> {
     const { primary, fallback } = resolveServiceOrdersListSelect(filters.status);
-    try {
-      return await fetchAllServiceOrderRowsWithSelect(primary, filters);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err ?? "");
-      if (/column|does not exist|42703/i.test(msg)) {
-        console.warn("[API] Select de service_orders falhou; usando select reduzido:", msg);
-        return await fetchAllServiceOrderRowsWithSelect(fallback, filters);
+    const selects = [primary, fallback, SERVICE_ORDERS_LIST_SELECT_CORE];
+    let lastErr: unknown = null;
+
+    for (let i = 0; i < selects.length; i++) {
+      const select = selects[i];
+      try {
+        return await fetchAllServiceOrderRowsWithSelect(select, filters);
+      } catch (err: unknown) {
+        lastErr = err;
+        const hasFallback = i < selects.length - 1;
+        if (!hasFallback) break;
+        const msg = err instanceof Error ? err.message : String(err ?? "");
+        console.warn(
+          `[API] Select de service_orders falhou (${i + 1}/${selects.length}); tentando fallback:`,
+          msg
+        );
       }
-      throw err;
     }
+
+    throw lastErr ?? new Error("Falha ao listar ordens de serviço.");
   }
 
   app.get("/api/service-orders", async (req, res) => {

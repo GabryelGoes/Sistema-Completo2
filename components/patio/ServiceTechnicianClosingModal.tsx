@@ -22,7 +22,7 @@ import {
   type WorkshopPart,
 } from '../../services/apiService';
 import { validateServiceTechnicianLines, mergeServiceTechnicianDraftLines } from '../../utils/serviceOrderServiceTechnicians';
-import { mergeFinalizeStockDraftLines } from '../../utils/serviceOrderFinalizeStock';
+import { mergeFinalizeStockDraftLines } from '../../utils/serviceOrderServiceTechnicians';
 import {
   BudgetPartsEditor,
   mapBudgetPartRowsToPayload,

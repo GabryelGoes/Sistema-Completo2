@@ -2,16 +2,21 @@
  * Handler Vercel: encaminha todas as requisições /api/* para o app Express (apiApp).
  * O rewrite envia /api/:path* → /api?__path=:path*; aqui reconstruímos req.url para o Express.
  */
-import { createApiApp } from "../apiApp.js";
+import type { IncomingMessage, ServerResponse } from "http";
 
-let app: ReturnType<typeof createApiApp> | null = null;
+let app: Awaited<ReturnType<typeof loadApp>> | null = null;
 
-function getApp() {
-  if (!app) app = createApiApp();
+async function loadApp() {
+  const mod = await import("../apiApp.js");
+  return mod.createApiApp();
+}
+
+async function getApp() {
+  if (!app) app = await loadApp();
   return app;
 }
 
-function fixReqUrl(req: import("http").IncomingMessage) {
+function fixReqUrl(req: IncomingMessage) {
   const url = req.url || "";
   const q = url.indexOf("?");
   const search = q >= 0 ? url.slice(q) : "";
@@ -24,7 +29,25 @@ function fixReqUrl(req: import("http").IncomingMessage) {
   }
 }
 
-export default function handler(req: import("http").IncomingMessage, res: import("http").ServerResponse) {
-  fixReqUrl(req);
-  return getApp()(req, res);
+function sendJsonError(res: ServerResponse, status: number, message: string) {
+  if (res.headersSent) return;
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.end(JSON.stringify({ error: message }));
+}
+
+export default async function handler(req: IncomingMessage, res: ServerResponse) {
+  try {
+    fixReqUrl(req);
+    const application = await getApp();
+    const result = application(req, res);
+    if (result && typeof (result as Promise<unknown>).then === "function") {
+      await result;
+    }
+  } catch (err: unknown) {
+    console.error("[Vercel API handler]", err);
+    const message =
+      err instanceof Error ? err.message : typeof err === "string" ? err : "Erro interno do servidor";
+    sendJsonError(res, 500, message);
+  }
 }
