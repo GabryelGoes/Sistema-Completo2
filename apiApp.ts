@@ -35,6 +35,12 @@ import {
   mergeServiceTechnicianDraftLines,
   validateServiceTechnicianLines,
 } from "./utils/serviceOrderServiceTechnicians.js";
+import {
+  aggregateFinalizeStockParts,
+  collectApprovedPartsFromBudgets,
+  mergeFinalizeStockDraftLines,
+  parseFinalizePartQuantity,
+} from "./utils/serviceOrderFinalizeStock.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -4006,6 +4012,29 @@ export function createApiApp() {
     }
   });
 
+  async function loadApprovedPartsForOrder(serviceOrderId: string) {
+    const { data: budgets, error } = await supabaseAdmin!
+      .from("budgets")
+      .select("id, parts")
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID);
+    if (error) throw error;
+    return collectApprovedPartsFromBudgets(
+      (budgets ?? []) as { id: string; parts?: { description?: string; quantity?: string; approved?: boolean; workshopPartId?: string; fromStock?: boolean }[] }[]
+    );
+  }
+
+  async function loadFinalizeStockRows(serviceOrderId: string) {
+    const { data, error } = await supabaseAdmin!
+      .from("service_order_finalize_stock_lines")
+      .select("description, quantity, workshop_part_id, budget_id, sort_order")
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .order("sort_order", { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  }
+
   async function loadApprovedServicesForOrder(serviceOrderId: string) {
     const { data: budgets, error } = await supabaseAdmin!
       .from("budgets")
@@ -4064,7 +4093,7 @@ export function createApiApp() {
       const { id: serviceOrderId } = req.params;
       const { data: so } = await supabaseAdmin
         .from("service_orders")
-        .select("id, order_type")
+        .select("id, order_type, finalize_stock_applied_at")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -4074,7 +4103,17 @@ export function createApiApp() {
       }
 
       const approvedServices = await loadApprovedServicesForOrder(serviceOrderId);
+      const approvedStockParts = await loadApprovedPartsForOrder(serviceOrderId);
       const rows = await loadServiceTechnicianRows(serviceOrderId);
+      let stockRows: Awaited<ReturnType<typeof loadFinalizeStockRows>> = [];
+      try {
+        stockRows = await loadFinalizeStockRows(serviceOrderId);
+      } catch (stockLoadErr: unknown) {
+        const stockMsg = stockLoadErr instanceof Error ? stockLoadErr.message : String(stockLoadErr);
+        if (!/service_order_finalize_stock_lines/i.test(stockMsg) || !/does not exist|relation/i.test(stockMsg)) {
+          throw stockLoadErr;
+        }
+      }
 
       const savedLines = rows.map((r) => ({
         description: String(r.description ?? ""),
@@ -4082,6 +4121,14 @@ export function createApiApp() {
         budgetId: r.budget_id ?? null,
       }));
       const draftLines = mergeServiceTechnicianDraftLines(savedLines, approvedServices);
+
+      const savedStockLines = stockRows.map((r) => ({
+        description: String(r.description ?? ""),
+        quantity: String(r.quantity ?? "1"),
+        workshopPartId: r.workshop_part_id ?? null,
+        budgetId: r.budget_id ?? null,
+      }));
+      const draftStockParts = mergeFinalizeStockDraftLines(savedStockLines, approvedStockParts);
 
       const techIds = [
         ...new Set(
@@ -4103,6 +4150,9 @@ export function createApiApp() {
           description: s.description,
           budgetId: s.budgetId,
         })),
+        stockParts: draftStockParts,
+        approvedStockParts: approvedStockParts,
+        stockAlreadyApplied: Boolean((so as { finalize_stock_applied_at?: string | null }).finalize_stock_applied_at),
       });
     } catch (err: unknown) {
       console.error("[API] GET service-technicians:", err);
@@ -4110,6 +4160,11 @@ export function createApiApp() {
       if (/service_order_service_technicians/i.test(msg) && /does not exist|relation/i.test(msg)) {
         return res.status(500).json({
           error: "Tabela de técnicos por serviço não configurada. Aplique a migration no Supabase.",
+        });
+      }
+      if (/service_order_finalize_stock_lines/i.test(msg) && /does not exist|relation/i.test(msg)) {
+        return res.status(500).json({
+          error: "Tabela de peças do fechamento não configurada. Aplique a migration no Supabase.",
         });
       }
       return res.status(500).json({ error: msg });
@@ -4126,9 +4181,11 @@ export function createApiApp() {
       const recordedByName =
         typeof req.body?.recordedByName === "string" ? req.body.recordedByName.trim().slice(0, 200) : "";
 
+      const rawStockParts = Array.isArray(req.body?.stockParts) ? req.body.stockParts : [];
+
       const { data: so } = await supabaseAdmin
         .from("service_orders")
-        .select("id, order_type")
+        .select("id, order_type, finalize_stock_applied_at")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -4158,6 +4215,40 @@ export function createApiApp() {
           };
         })
         .filter(Boolean) as { description: string; technicianId: string; budgetId: string | null }[];
+
+      const stockParts = rawStockParts
+        .map((row: unknown) => {
+          if (!row || typeof row !== "object") return null;
+          const r = row as Record<string, unknown>;
+          const description = typeof r.description === "string" ? r.description.trim() : "";
+          if (!description) return null;
+          const quantityRaw =
+            typeof r.quantity === "string" || typeof r.quantity === "number"
+              ? r.quantity
+              : "1";
+          return {
+            description,
+            quantity: String(parseFinalizePartQuantity(quantityRaw)),
+            workshopPartId:
+              typeof r.workshopPartId === "string"
+                ? r.workshopPartId
+                : typeof r.workshop_part_id === "string"
+                  ? r.workshop_part_id
+                  : null,
+            budgetId:
+              typeof r.budgetId === "string"
+                ? r.budgetId
+                : typeof r.budget_id === "string"
+                  ? r.budget_id
+                  : null,
+          };
+        })
+        .filter(Boolean) as {
+        description: string;
+        quantity: string;
+        workshopPartId: string | null;
+        budgetId: string | null;
+      }[];
 
       const approved = await loadApprovedServicesForOrder(serviceOrderId);
       const validation = validateServiceTechnicianLines(lines, approved);
@@ -4196,7 +4287,52 @@ export function createApiApp() {
         if (insError) throw insError;
       }
 
-      return res.json({ ok: true });
+      const { error: delStockError } = await supabaseAdmin
+        .from("service_order_finalize_stock_lines")
+        .delete()
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (delStockError) throw delStockError;
+
+      const stockPayload = stockParts.map((line, index) => ({
+        workshop_id: WORKSHOP_ID,
+        service_order_id: serviceOrderId,
+        description: line.description,
+        quantity: parseFinalizePartQuantity(line.quantity),
+        workshop_part_id: line.workshopPartId,
+        budget_id: line.budgetId,
+        sort_order: index,
+      }));
+
+      if (stockPayload.length > 0) {
+        const { error: insStockError } = await supabaseAdmin
+          .from("service_order_finalize_stock_lines")
+          .insert(stockPayload);
+        if (insStockError) throw insStockError;
+      }
+
+      const stockAlreadyApplied = Boolean(
+        (so as { finalize_stock_applied_at?: string | null }).finalize_stock_applied_at
+      );
+      if (!stockAlreadyApplied && stockParts.length > 0) {
+        const stockDelta = aggregateFinalizeStockParts(stockParts);
+        await applyStockDeltaByPartName(stockDelta);
+        const { error: markStockError } = await supabaseAdmin
+          .from("service_orders")
+          .update({ finalize_stock_applied_at: now })
+          .eq("id", serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID);
+        if (markStockError) throw markStockError;
+      } else if (!stockAlreadyApplied && stockParts.length === 0) {
+        const { error: markStockError } = await supabaseAdmin
+          .from("service_orders")
+          .update({ finalize_stock_applied_at: now })
+          .eq("id", serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID);
+        if (markStockError) throw markStockError;
+      }
+
+      return res.json({ ok: true, stockApplied: !stockAlreadyApplied });
     } catch (err: unknown) {
       console.error("[API] PUT service-technicians:", err);
       const msg = err instanceof Error ? err.message : "Erro";
@@ -4204,6 +4340,14 @@ export function createApiApp() {
         return res.status(500).json({
           error: "Tabela de técnicos por serviço não configurada. Aplique a migration no Supabase.",
         });
+      }
+      if (/service_order_finalize_stock_lines/i.test(msg) && /does not exist|relation/i.test(msg)) {
+        return res.status(500).json({
+          error: "Tabela de peças do fechamento não configurada. Aplique a migration no Supabase.",
+        });
+      }
+      if (msg.toLowerCase().includes("estoque insuficiente")) {
+        return res.status(400).json({ error: msg });
       }
       return res.status(500).json({ error: msg });
     }
@@ -4373,8 +4517,6 @@ export function createApiApp() {
       });
 
       if (budgetError && isMissingRpcFunctionError(budgetError.message || "")) {
-        const stockDelta = aggregateBudgetParts(budgetPayload.parts);
-        await applyStockDeltaByPartName(stockDelta);
         const legacy = await supabaseAdmin
           .from("budgets")
           .insert(budgetPayload)
@@ -4382,13 +4524,6 @@ export function createApiApp() {
           .single();
         budgetData = legacy.data;
         budgetError = legacy.error;
-        if (budgetError) {
-          try {
-            await applyStockDeltaByPartName(invertDeltaMap(stockDelta));
-          } catch (rollbackErr) {
-            console.error("[API] Falha no rollback de estoque (lab-evaluation):", rollbackErr);
-          }
-        }
       }
 
       if (budgetError) {
@@ -4693,9 +4828,6 @@ export function createApiApp() {
       });
 
       if (error && isMissingRpcFunctionError(error.message || "")) {
-        // Fallback de compatibilidade (caso a migration RPC ainda não tenha sido aplicada no banco)
-        const stockDelta = aggregateBudgetParts(payload.parts);
-        await applyStockDeltaByPartName(stockDelta);
         const legacy = await supabaseAdmin
           .from("budgets")
           .insert(payload)
@@ -4703,13 +4835,6 @@ export function createApiApp() {
           .single();
         data = legacy.data;
         error = legacy.error;
-        if (error) {
-          try {
-            await applyStockDeltaByPartName(invertDeltaMap(stockDelta));
-          } catch (rollbackErr) {
-            console.error("[API] Falha no rollback de estoque (fallback criar orçamento):", rollbackErr);
-          }
-        }
       }
 
       if (error) {
@@ -4817,31 +4942,6 @@ export function createApiApp() {
       });
 
       if (error && isMissingRpcFunctionError(error.message || "")) {
-        // Fallback de compatibilidade (caso a migration RPC ainda não tenha sido aplicada no banco)
-        const currentBudgetRes = await supabaseAdmin
-          .from("budgets")
-          .select("id, parts")
-          .eq("id", budgetId)
-          .eq("service_order_id", serviceOrderId)
-          .eq("workshop_id", WORKSHOP_ID)
-          .single();
-        const currentBudget = currentBudgetRes.data;
-        if (currentBudgetRes.error || !currentBudget) {
-          return res.status(404).json({ error: "Orçamento não encontrado." });
-        }
-
-        const oldParts = aggregateBudgetParts((currentBudget as { parts?: unknown }).parts);
-        const newParts = aggregateBudgetParts(updatePayload.parts);
-        const stockDelta = new Map<string, number>();
-        const allNames = new Set<string>([...oldParts.keys(), ...newParts.keys()]);
-        allNames.forEach((name) => {
-          const oldQty = oldParts.get(name) ?? 0;
-          const newQty = newParts.get(name) ?? 0;
-          const delta = newQty - oldQty;
-          if (Math.abs(delta) > 0) stockDelta.set(name, delta);
-        });
-
-        await applyStockDeltaByPartName(stockDelta);
         const legacy = await supabaseAdmin
           .from("budgets")
           .update(updatePayload)
@@ -4852,13 +4952,6 @@ export function createApiApp() {
           .single();
         data = legacy.data;
         error = legacy.error;
-        if (error) {
-          try {
-            await applyStockDeltaByPartName(invertDeltaMap(stockDelta));
-          } catch (rollbackErr) {
-            console.error("[API] Falha no rollback de estoque (fallback editar orçamento):", rollbackErr);
-          }
-        }
       }
 
       if (error) {

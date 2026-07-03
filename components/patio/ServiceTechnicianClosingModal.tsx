@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Plus, Trash2, User, Wrench, X } from 'lucide-react';
+import { Loader2, Package, Plus, Trash2, User, Wrench, X } from 'lucide-react';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
@@ -14,11 +14,20 @@ import {
 } from '../ui/iosModalStyles';
 import {
   getServiceOrderServiceTechnicians,
+  getWorkshopParts,
   saveServiceOrderServiceTechnicians,
+  type FinalizeStockPartLine,
   type ServiceTechnicianClosingLine,
   type SystemUserTechnician,
+  type WorkshopPart,
 } from '../../services/apiService';
 import { validateServiceTechnicianLines, mergeServiceTechnicianDraftLines } from '../../utils/serviceOrderServiceTechnicians';
+import { mergeFinalizeStockDraftLines } from '../../utils/serviceOrderFinalizeStock';
+import {
+  BudgetPartsEditor,
+  mapBudgetPartRowsToPayload,
+  type BudgetPartRow,
+} from '../budget/BudgetPartsEditor';
 import { capitalizeFirst } from '../../utils/personNameFormat';
 
 export type ServiceTechnicianClosingModalProps = {
@@ -91,6 +100,22 @@ function newDraftLine(partial?: Partial<ServiceTechnicianClosingLine>): DraftLin
     budgetId: partial?.budgetId ?? null,
   };
 }
+
+function stockLineToPartRow(line: FinalizeStockPartLine, index: number): BudgetPartRow {
+  return {
+    id: `stock-${index}-${line.description}`,
+    description: line.description,
+    quantity: line.quantity || '1',
+    fromStock: Boolean(line.workshopPartId),
+    workshopPartId: line.workshopPartId ?? undefined,
+  };
+}
+
+const stockPartsInsetClass =
+  'rounded-xl border border-zinc-200/80 bg-white/90 dark:border-white/[0.1] dark:bg-zinc-950/50';
+
+const stockPartsInputClass =
+  'w-full rounded-lg border border-zinc-200/90 bg-white px-3 py-2 text-[14px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 dark:border-white/10 dark:bg-white/5 dark:text-white';
 
 type TechnicianFieldProps = {
   value: string;
@@ -243,7 +268,11 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
   const techOptions = useMemo(() => mapTechnicians(technicians), [technicians]);
 
   const [lines, setLines] = useState<DraftLine[]>([]);
+  const [stockPartRows, setStockPartRows] = useState<BudgetPartRow[]>([]);
   const [approvedServices, setApprovedServices] = useState<{ description: string }[]>([]);
+  const [approvedStockParts, setApprovedStockParts] = useState<FinalizeStockPartLine[]>([]);
+  const [stockAlreadyApplied, setStockAlreadyApplied] = useState(false);
+  const [workshopParts, setWorkshopParts] = useState<WorkshopPart[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -263,7 +292,10 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
     try {
       const data = await getServiceOrderServiceTechnicians(serviceOrderId);
       const approved = data.approvedServices ?? [];
+      const approvedParts = data.approvedStockParts ?? [];
       setApprovedServices(approved);
+      setApprovedStockParts(approvedParts);
+      setStockAlreadyApplied(data.stockAlreadyApplied);
       const merged = mergeServiceTechnicianDraftLines(
         data.lines.map((l) => ({
           description: l.description,
@@ -277,10 +309,24 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
           ? merged.map((l) => newDraftLine(l))
           : [newDraftLine()];
       setLines(initial);
+
+      const mergedStock = mergeFinalizeStockDraftLines(
+        (data.stockParts ?? []).map((p) => ({
+          description: p.description,
+          quantity: p.quantity,
+          workshopPartId: p.workshopPartId ?? null,
+          budgetId: p.budgetId ?? null,
+        })),
+        approvedParts
+      );
+      setStockPartRows(mergedStock.map((p, i) => stockLineToPartRow(p, i)));
     } catch (e) {
       setError((e as Error)?.message ?? 'Não foi possível carregar os serviços.');
       setLines([newDraftLine()]);
       setApprovedServices([]);
+      setApprovedStockParts([]);
+      setStockPartRows([]);
+      setStockAlreadyApplied(false);
     } finally {
       setLoading(false);
     }
@@ -289,11 +335,17 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
   useEffect(() => {
     if (!open) {
       setLines([]);
+      setStockPartRows([]);
       setApprovedServices([]);
+      setApprovedStockParts([]);
+      setStockAlreadyApplied(false);
       setError(null);
       setOpenPickerKey(null);
       return;
     }
+    void getWorkshopParts()
+      .then(setWorkshopParts)
+      .catch(() => setWorkshopParts([]));
     void loadDraft();
   }, [open, loadDraft]);
 
@@ -317,7 +369,8 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
     setSaving(true);
     setError(null);
     try {
-      await saveServiceOrderServiceTechnicians(serviceOrderId, payload, recordedByName);
+      const stockPayload = mapBudgetPartRowsToPayload(stockPartRows);
+      await saveServiceOrderServiceTechnicians(serviceOrderId, payload, recordedByName, stockPayload);
       await onConfirmed();
     } catch (e) {
       setError((e as Error)?.message ?? 'Erro ao salvar técnicos dos serviços.');
@@ -376,13 +429,26 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-6 py-5 dark:bg-black/25 custom-scrollbar sm:px-8">
             <p className="mb-4 text-[13px] leading-relaxed text-zinc-600 dark:text-zinc-400">
               Para mover o veículo para <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Finalizado</strong>,
-              indique quem executou cada serviço aprovado no orçamento.
+              confirme os técnicos dos serviços aprovados e revise as peças que serão abatidas do estoque.
             </p>
             {approvedServices.length > 0 ? (
               <p className="mb-4 rounded-xl border border-sky-500/25 bg-sky-500/10 px-3 py-2.5 text-[12px] leading-relaxed text-sky-900 dark:text-sky-200">
                 {approvedServices.length === 1
                   ? '1 serviço aprovado no orçamento — confirme o técnico responsável.'
                   : `${approvedServices.length} serviços aprovados no orçamento — confirme o técnico de cada um.`}
+              </p>
+            ) : null}
+
+            {stockAlreadyApplied ? (
+              <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[12px] leading-relaxed text-amber-950 dark:text-amber-200">
+                O estoque desta OS já foi abatido anteriormente. Você pode ajustar a lista abaixo, mas o saldo não será
+                alterado novamente.
+              </p>
+            ) : approvedStockParts.length > 0 ? (
+              <p className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2.5 text-[12px] leading-relaxed text-amber-950 dark:text-amber-200">
+                {approvedStockParts.length === 1
+                  ? '1 peça aprovada será abatida do estoque ao confirmar.'
+                  : `${approvedStockParts.length} peças aprovadas serão abatidas do estoque ao confirmar.`}
               </p>
             ) : null}
 
@@ -434,6 +500,30 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
                   <Plus className="h-4 w-4" />
                   Adicionar serviço
                 </button>
+
+                <div className={`${serviceCardClass} p-3.5 sm:p-4`}>
+                  <div className="mb-3 flex items-center gap-2">
+                    <Package className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <span className={iosLabel}>Peças do estoque</span>
+                  </div>
+                  <p className="mb-3 text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+                    Peças aprovadas no orçamento vinculadas ao catálogo. Ajuste quantidades ou remova itens antes de
+                    finalizar.
+                  </p>
+                  <BudgetPartsEditor
+                    parts={stockPartRows}
+                    onChange={setStockPartRows}
+                    workshopParts={workshopParts}
+                    inputClass={stockPartsInputClass}
+                    insetClass={stockPartsInsetClass}
+                    disabled={saving}
+                  />
+                  {stockPartRows.length === 0 ? (
+                    <p className="mt-2 text-[12px] italic text-zinc-500 dark:text-zinc-400">
+                      Nenhuma peça para abater. Use o botão abaixo para incluir manualmente, se necessário.
+                    </p>
+                  ) : null}
+                </div>
               </div>
             )}
 

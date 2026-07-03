@@ -2198,11 +2198,21 @@ export type ServiceTechnicianClosingLine = {
   budgetId?: string | null;
 };
 
+export type FinalizeStockPartLine = {
+  description: string;
+  quantity: string;
+  workshopPartId?: string | null;
+  budgetId?: string | null;
+};
+
 export async function getServiceOrderServiceTechnicians(
   serviceOrderId: string
 ): Promise<{
   lines: ServiceTechnicianClosingLine[];
   approvedServices: { description: string; budgetId?: string | null }[];
+  stockParts: FinalizeStockPartLine[];
+  approvedStockParts: FinalizeStockPartLine[];
+  stockAlreadyApplied: boolean;
 }> {
   const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/service-technicians`);
   if (!response.ok) {
@@ -2239,6 +2249,41 @@ export async function getServiceOrderServiceTechnicians(
               : null,
       })
     ),
+    stockParts: (data.stockParts ?? data.stock_parts ?? []).map((p: Record<string, unknown>) => ({
+      description: String(p.description ?? ""),
+      quantity: String(p.quantity ?? "1"),
+      workshopPartId:
+        typeof p.workshopPartId === "string"
+          ? p.workshopPartId
+          : typeof p.workshop_part_id === "string"
+            ? p.workshop_part_id
+            : null,
+      budgetId:
+        typeof p.budgetId === "string"
+          ? p.budgetId
+          : typeof p.budget_id === "string"
+            ? p.budget_id
+            : null,
+    })),
+    approvedStockParts: (data.approvedStockParts ?? data.approved_stock_parts ?? []).map(
+      (p: Record<string, unknown>) => ({
+        description: String(p.description ?? ""),
+        quantity: String(p.quantity ?? "1"),
+        workshopPartId:
+          typeof p.workshopPartId === "string"
+            ? p.workshopPartId
+            : typeof p.workshop_part_id === "string"
+              ? p.workshop_part_id
+              : null,
+        budgetId:
+          typeof p.budgetId === "string"
+            ? p.budgetId
+            : typeof p.budget_id === "string"
+              ? p.budget_id
+              : null,
+      })
+    ),
+    stockAlreadyApplied: Boolean(data.stockAlreadyApplied ?? data.stock_already_applied),
   };
 }
 
@@ -2336,12 +2381,13 @@ export async function getTechnicianServicesReport(): Promise<{ items: Technician
 export async function saveServiceOrderServiceTechnicians(
   serviceOrderId: string,
   lines: ServiceTechnicianClosingLine[],
-  recordedByName: string
+  recordedByName: string,
+  stockParts: FinalizeStockPartLine[] = []
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/service-technicians`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ lines, recordedByName }),
+    body: JSON.stringify({ lines, recordedByName, stockParts }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
