@@ -167,6 +167,29 @@ function parseCorsAllowedOrigins(): string[] {
   return [...new Set([...patio, ...extra, ...devDefaults])];
 }
 
+/** Assinatura do conteúdo do orçamento sem flags `approved` (aprovação do cliente não invalida verificação). */
+function budgetContentWithoutApprovals(row: {
+  card_name?: unknown;
+  diagnosis?: unknown;
+  observations?: unknown;
+  services?: unknown;
+  parts?: unknown;
+}): string {
+  const stripApproval = (arr: unknown) =>
+    (Array.isArray(arr) ? arr : []).map((item) => {
+      if (!item || typeof item !== "object") return item;
+      const { approved: _approved, ...rest } = item as Record<string, unknown>;
+      return rest;
+    });
+  return JSON.stringify({
+    card_name: row.card_name ?? null,
+    diagnosis: String(row.diagnosis ?? ""),
+    observations: String(row.observations ?? ""),
+    services: stripApproval(row.services),
+    parts: stripApproval(row.parts),
+  });
+}
+
 export function createApiApp() {
   const app = express();
   const WORKSHOP_ID = process.env.WORKSHOP_ID;
@@ -4927,11 +4950,21 @@ export function createApiApp() {
 
       const { data: prevBudgetRow } = await supabaseAdmin
         .from("budgets")
-        .select("services, parts")
+        .select("services, parts, diagnosis, observations, card_name, verified_at, verified_by_name")
         .eq("id", budgetId)
         .eq("service_order_id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .maybeSingle();
+
+      const prevContentSig = budgetContentWithoutApprovals(prevBudgetRow ?? {});
+      const nextContentSig = budgetContentWithoutApprovals({
+        card_name: cardName ?? null,
+        diagnosis: typeof diagnosis === "string" ? diagnosis : "",
+        observations: typeof observations === "string" ? observations : "",
+        services: Array.isArray(services) ? services : [],
+        parts: Array.isArray(parts) ? parts : [],
+      });
+      const shouldInvalidateVerification = prevContentSig !== nextContentSig;
 
       const updatePayload: Record<string, unknown> = {
         card_name: cardName ?? null,
@@ -4982,18 +5015,34 @@ export function createApiApp() {
         return res.status(404).json({ error: "Orçamento não encontrado." });
       }
 
-      // Edição invalida o selo de verificação (quando a migration já foi aplicada).
+      // Edição de conteúdo (não só aprovação do cliente) invalida o selo de verificação.
       if (await hasBudgetVerifyColumns()) {
-        const cleared = await supabaseAdmin
-          .from("budgets")
-          .update({ verified_at: null, verified_by_name: null })
-          .eq("id", budgetId)
-          .eq("service_order_id", serviceOrderId)
-          .eq("workshop_id", WORKSHOP_ID)
-          .select(await budgetRowSelect())
-          .single();
-        if (!cleared.error && cleared.data) {
-          updated = cleared.data;
+        if (shouldInvalidateVerification) {
+          const cleared = await supabaseAdmin
+            .from("budgets")
+            .update({ verified_at: null, verified_by_name: null })
+            .eq("id", budgetId)
+            .eq("service_order_id", serviceOrderId)
+            .eq("workshop_id", WORKSHOP_ID)
+            .select(await budgetRowSelect())
+            .single();
+          if (!cleared.error && cleared.data) {
+            updated = cleared.data;
+          }
+        } else if (
+          prevBudgetRow &&
+          (prevBudgetRow as { verified_at?: string | null }).verified_at
+        ) {
+          const reselect = await supabaseAdmin
+            .from("budgets")
+            .select(await budgetRowSelect())
+            .eq("id", budgetId)
+            .eq("service_order_id", serviceOrderId)
+            .eq("workshop_id", WORKSHOP_ID)
+            .single();
+          if (!reselect.error && reselect.data) {
+            updated = reselect.data;
+          }
         }
       }
 
@@ -5089,7 +5138,7 @@ export function createApiApp() {
         });
       }
 
-      return res.json(data);
+      return res.json(withBudgetVerifyDefaults((data ?? {}) as Record<string, unknown>));
     } catch (err: any) {
       console.error("[API] Erro em POST /api/service-orders/:id/budgets/:budgetId/verify:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
