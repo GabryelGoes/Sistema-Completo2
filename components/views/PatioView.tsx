@@ -193,6 +193,7 @@ import { ReceptionArchivedHistoryHubCard, boardCardToArchivedHistoryHubOrder } f
 import { archivedHistoryModalShell } from '../reception/archivedHistoryModalShell';
 import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAuthorizationSheetModal';
 import { ServiceTechnicianClosingModal } from '../patio/ServiceTechnicianClosingModal';
+import { BudgetApprovalModal } from '../budget/BudgetApprovalModal';
 import { LabEvaluationSection } from '../lab/LabEvaluationSection';
 import {
   loadLastLabProductKind,
@@ -346,6 +347,8 @@ interface PatioViewProps {
   };
   /** Admin ou usuário com acesso total — conferir orçamentos e aplicar selo. */
   canVerifyBudgets?: boolean;
+  /** Aprovar/reprovar itens do orçamento (modal de aprovação). */
+  canApproveBudgetItems?: boolean;
   /** Pátio: abrir uma OS específica no Laboratório (troca de aba + modal). */
   onOpenLaboratoryOrder?: (serviceOrderId: string) => void;
   /** Atualiza contagem de veículos/módulos ativos (ex.: barra superior no modo PC). */
@@ -1098,6 +1101,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   orderType = 'vehicle',
   patioPermissions,
   canVerifyBudgets = false,
+  canApproveBudgetItems = false,
   isAppTabActive = true,
   suppressVehiclePortals = false,
   onOpenLaboratoryOrder,
@@ -1108,6 +1112,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
     patioPermissions === undefined ? true : patioPermissions[key] === true;
   const canVerifyBudgetsEffective =
     patioPermissions === undefined ? true : canVerifyBudgets === true;
+  const canApproveBudgetItemsEffective =
+    patioPermissions === undefined ? true : canApproveBudgetItems === true;
   const [lists, setLists] = useState<TrelloList[]>([]);
   const [cards, setCards] = useState<TrelloCard[]>([]);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
@@ -1381,6 +1387,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [cardInTransition, setCardInTransition] = useState<BoardCard | null>(null);
   /** Abre fechamento de técnicos por serviço antes de ir para FINALIZADO. */
   const [serviceTechClosing, setServiceTechClosing] = useState<BoardCard | null>(null);
+  /** Veículo aguardando aprovação de itens antes de ir para Orçamento aprovado. */
+  const [budgetApprovalGate, setBudgetApprovalGate] = useState<{
+    card: BoardCard;
+    budget: SavedBudget;
+  } | null>(null);
+  const [budgetApprovalGateLoading, setBudgetApprovalGateLoading] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
   /** Overlay de “a mover etapa” no cartão (modal ou arrastar no modo Trello). */
   const [stageChangingCardId, setStageChangingCardId] = useState<string | null>(null);
@@ -2705,10 +2717,42 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setCardInTransition(card);
   };
 
+  const beginBudgetApprovalGateForCard = async (card: BoardCard) => {
+    if (!canApproveBudgetItemsEffective) {
+      alert(
+        'Você não tem permissão para aprovar itens do orçamento. Peça a um supervisor para mover este veículo para Orçamento aprovado.'
+      );
+      return;
+    }
+    setBudgetApprovalGateLoading(true);
+    try {
+      const budgets = await getServiceOrderBudgets(card.id);
+      if (!budgets.length) {
+        alert('Cadastre um orçamento antes de mover o veículo para Orçamento aprovado.');
+        return;
+      }
+      const sorted = [...budgets].sort(
+        (a, b) => budgetLastActivityMs(b) - budgetLastActivityMs(a)
+      );
+      const budget = sorted.find(
+        (b) => (b.services?.length ?? 0) > 0 || (b.parts?.length ?? 0) > 0
+      );
+      if (!budget) {
+        alert('O orçamento precisa ter pelo menos um serviço ou peça para aprovação.');
+        return;
+      }
+      setBudgetApprovalGate({ card, budget });
+    } catch (err: unknown) {
+      alert((err as Error)?.message ?? 'Não foi possível carregar os orçamentos deste veículo.');
+    } finally {
+      setBudgetApprovalGateLoading(false);
+    }
+  };
+
   const performStageChangeForCard = async (
     card: BoardCard,
     newListId: string,
-    options?: { skipServiceTechGate?: boolean }
+    options?: { skipServiceTechGate?: boolean; skipBudgetApprovalGate?: boolean }
   ) => {
     if (!newListId || card.idList === newListId) return;
 
@@ -2720,6 +2764,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
     ) {
       setCardInTransition(null);
       setServiceTechClosing(card);
+      return;
+    }
+
+    if (
+      !options?.skipBudgetApprovalGate &&
+      !isModuleMode &&
+      newListId === 'ORCAMENTO_APROVADO' &&
+      card.idList !== 'ORCAMENTO_APROVADO'
+    ) {
+      setCardInTransition(null);
+      await beginBudgetApprovalGateForCard(card);
       return;
     }
 
@@ -9725,6 +9780,43 @@ export const PatioView: React.FC<PatioViewProps> = ({
             await performStageChangeForCard(card, 'FINALIZADO', { skipServiceTechGate: true });
           }}
         />
+      ) : null}
+
+      {budgetApprovalGate && patioPortalsVisible ? (
+        <BudgetApprovalModal
+          open
+          budget={budgetApprovalGate.budget}
+          serviceOrderId={budgetApprovalGate.card.id}
+          requireAtLeastOneApproved
+          gateHint="Para mover o veículo para Orçamento aprovado, ligue os itens que o cliente aprovou. É necessário aprovar pelo menos um serviço ou peça."
+          onClose={() => setBudgetApprovalGate(null)}
+          onSaved={async (updated) => {
+            const card = budgetApprovalGate.card;
+            setSavedBudgets((prev) =>
+              prev.map((b) => (b.id === updated.id ? { ...b, ...updated } : b))
+            );
+            setViewingBudget((prev) =>
+              prev?.id === updated.id ? { ...prev, ...updated } : prev
+            );
+            setBudgetApprovalGate(null);
+            await performStageChangeForCard(card, 'ORCAMENTO_APROVADO', {
+              skipBudgetApprovalGate: true,
+            });
+          }}
+          actorOptions={actorOptions}
+          headerIcon={<Calculator className="h-5 w-5" />}
+        />
+      ) : null}
+
+      {budgetApprovalGateLoading && patioPortalsVisible ? (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[235] flex items-center justify-center bg-black/35 p-6 backdrop-blur-sm">
+            <div className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 text-sm font-medium text-zinc-800 shadow-xl dark:bg-zinc-900 dark:text-zinc-100">
+              <Loader2 className="h-5 w-5 animate-spin text-[#007AFF]" />
+              Carregando orçamento…
+            </div>
+          </div>
+        </ModalPortal>
       ) : null}
 
       {/* MODAL DE SELEÇÃO DE ETAPA (MOVE) — portal em body para ficar acima da TabBar */}

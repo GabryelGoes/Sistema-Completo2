@@ -29,6 +29,10 @@ export type BudgetApprovalModalProps = {
   onSaved: (updated: SavedBudgetFromApi) => void;
   actorOptions?: ServiceOrderUpdateActor;
   headerIcon?: React.ReactNode;
+  /** Exige ao menos um item aprovado antes de salvar (ex.: mudança para etapa Orçamento aprovado). */
+  requireAtLeastOneApproved?: boolean;
+  /** Texto de apoio quando `requireAtLeastOneApproved` (substitui o hint padrão). */
+  gateHint?: string;
 };
 
 export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
@@ -39,6 +43,8 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
   onSaved,
   actorOptions,
   headerIcon,
+  requireAtLeastOneApproved = false,
+  gateHint,
 }) => {
   const [approvalServices, setApprovalServices] = useState<boolean[]>([]);
   const [approvalParts, setApprovalParts] = useState<boolean[]>([]);
@@ -56,7 +62,14 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
 
   if (!open || !budget) return null;
 
+  const hasAtLeastOneApproved =
+    approvalServices.some(Boolean) || approvalParts.some(Boolean);
+
   const handleSave = async () => {
+    if (requireAtLeastOneApproved && !hasAtLeastOneApproved) {
+      alert('Aprove pelo menos um serviço ou peça para continuar.');
+      return;
+    }
     setSaving(true);
     try {
       const services = budget.services.map((s, i) => ({
@@ -127,7 +140,8 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
                 </h2>
                 <p className="mt-1 flex items-start gap-1.5 text-[13px] leading-snug text-zinc-600 dark:text-zinc-400">
                   <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                  Ligue = aprovado, desligue = reprovado. O técnico verá ✓ ou ✗ em cada item.
+                  {gateHint ??
+                    'Ligue = aprovado, desligue = reprovado. O técnico verá ✓ ou ✗ em cada item.'}
                 </p>
               </div>
             </div>
@@ -227,11 +241,15 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
             <button
               type="button"
               onClick={() => void handleSave()}
-              disabled={saving}
+              disabled={saving || (requireAtLeastOneApproved && !hasAtLeastOneApproved)}
               className={`${iosAccentPrimaryButton} flex flex-1 items-center justify-center gap-2 py-3 text-[15px] disabled:opacity-50`}
             >
               {saving ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
-              {saving ? 'Salvando…' : 'Salvar aprovação'}
+              {saving
+                ? 'Salvando…'
+                : requireAtLeastOneApproved
+                  ? 'Aprovar e mudar etapa'
+                  : 'Salvar aprovação'}
             </button>
           </div>
         </div>

@@ -847,6 +847,7 @@ export default function App() {
               onActiveCardsCountChange={setPatioActiveCount}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
+              canApproveBudgetItems={canApproveBudgetItemsApp}
             />
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
@@ -1133,6 +1134,7 @@ export default function App() {
             onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
             onActiveCardsCountChange={setPatioActiveCount}
             canVerifyBudgets={canVerifyBudgetsApp}
+            canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
           />
         </KeepAliveTabPanel>

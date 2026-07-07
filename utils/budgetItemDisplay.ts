@@ -2,6 +2,14 @@
  * True quando já houve pelo menos uma aprovação ou reprovação explícita em algum item
  * (antes disso o orçamento inteiro é exibido “normal”, sem linhas apagadas).
  */
+/** Pelo menos um serviço ou peça marcado como aprovado. */
+export function budgetHasApprovedItem(
+  services: { approved?: boolean }[],
+  parts: { approved?: boolean }[]
+): boolean {
+  return services.some((s) => s.approved === true) || parts.some((p) => p.approved === true);
+}
+
 export function budgetHasExplicitApprovalDecisions(
   services: { approved?: boolean }[],
   parts: { approved?: boolean }[]
