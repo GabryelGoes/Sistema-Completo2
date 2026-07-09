@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { ChangePasswordsModal } from './components/ChangePasswordsModal';
@@ -6,15 +6,18 @@ import { type TabId } from './components/TabBar';
 import { NotificationCenter, type NotificationCenterProps } from './components/NotificationCenter';
 import { CommentPopUp } from './components/CommentPopUp';
 import { playNotificationSound } from './utils/notificationSound';
-import { ReceptionView } from './components/views/ReceptionView';
-import { PatioView } from './components/views/PatioView';
-import { AgendaView } from './components/views/AgendaView';
 import { HomeView, type HomeAppId } from './components/views/HomeView';
 import { BudgetHubViewerModal } from './components/BudgetHubViewerModal';
-import { BudgetsHubView } from './components/views/BudgetsHubView';
-import { ReportsView } from './components/views/ReportsView';
-import { ErrorBulletinView } from './components/views/ErrorBulletinView';
-import { QualityRadarView } from './components/views/QualityRadarView';
+import {
+  LazyAgendaView,
+  LazyBudgetsHubView,
+  LazyErrorBulletinView,
+  LazyPatioView,
+  LazyQualityRadarView,
+  LazyReceptionView,
+  LazyReportsView,
+} from './components/views/lazyViews';
+import { ViewLoadingFallback } from './components/ui/ViewLoadingFallback';
 import { usePatioBudgetsHubNotifier } from './hooks/usePatioBudgetsHubNotifier';
 import { LoginView, getStoredAuth, setStoredAuth, clearStoredAuth } from './components/views/LoginView';
 import { useOrientation } from './components/views/useOrientation';
@@ -41,8 +44,6 @@ import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame
 import { useDesktopShell } from './hooks/useDesktopShell';
 import { PublicVehicleAccompanimentPage } from './components/public/PublicVehicleAccompanimentPage';
 import { VehicleAccompanimentModal } from './components/VehicleAccompanimentModal';
-import { WorkshopPartsModal } from './components/WorkshopPartsModal';
-import { TvPatioModal } from './components/TvPatioModal';
 import { AdminProfileModal } from './components/AdminProfileModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import {
@@ -55,6 +56,17 @@ import {
 } from './utils/desktopShellOverlayModules';
 
 type ShellProfileModal = 'user' | 'admin' | null;
+
+const LazyWorkshopPartsModal = lazy(() =>
+  import('./components/WorkshopPartsModal').then((m) => ({ default: m.WorkshopPartsModal }))
+);
+const LazyTvPatioModal = lazy(() =>
+  import('./components/TvPatioModal').then((m) => ({ default: m.TvPatioModal }))
+);
+
+function LazyTabBoundary({ label, children }: { label: string; children: React.ReactNode }) {
+  return <Suspense fallback={<ViewLoadingFallback label={label} />}>{children}</Suspense>;
+}
 
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
@@ -272,6 +284,24 @@ export default function App() {
   const canDeleteOrdersInReports = Boolean(authSession);
   const [userTab, setUserTab] = useState<TabId>('home');
   const activeAppTab: TabId = isLimitedSystemUser ? userTab : currentTab;
+  const showMobileBackgroundNotifications =
+    !isDesktopShell && activeAppTab !== 'patio' && activeAppTab !== 'laboratorio';
+
+  useEffect(() => {
+    if (!authSession || isDesktopShell) return;
+    const prefetchHeavyViews = () => {
+      void import('./components/views/PatioView');
+      void import('./components/views/ReceptionView');
+      void import('./components/views/AgendaView');
+      void import('./components/views/BudgetsHubView');
+    };
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(prefetchHeavyViews, { timeout: 3500 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = window.setTimeout(prefetchHeavyViews, 1800);
+    return () => window.clearTimeout(timer);
+  }, [authSession, isDesktopShell]);
 
   const desktopTopbarCountLabel = useMemo(() => {
     if (!isDesktopShell || shellOverlayTopbar) return undefined;
@@ -757,14 +787,16 @@ export default function App() {
             visitedTabs={visitedUserTabs}
             className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
           >
-            <BudgetsHubView
+            <LazyTabBoundary label="Orçamentos">
+              <LazyBudgetsHubView
               blurPlates={cinematographicMode}
               isHubTabActive={userTab === 'orcamentos'}
               onOpenBudgetInPatio={handleOpenBudgetFromHub}
               onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
               onClearHubBadge={patioBudgetsHub.clearBadge}
               consumePendingHubBudgetHighlights={patioBudgetsHub.consumePendingHubBudgetHighlights}
-            />
+              />
+            </LazyTabBoundary>
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
             tabId="relatorios"
@@ -772,7 +804,9 @@ export default function App() {
             visitedTabs={visitedUserTabs}
             className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
           >
-            <ReportsView blurPlates={cinematographicMode} canDeleteOrders={canDeleteOrdersInReports} />
+            <LazyTabBoundary label="Relatórios">
+              <LazyReportsView blurPlates={cinematographicMode} canDeleteOrders={canDeleteOrdersInReports} />
+            </LazyTabBoundary>
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
             tabId="boletim_erros"
@@ -780,7 +814,9 @@ export default function App() {
             visitedTabs={visitedUserTabs}
             className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
           >
-            <ErrorBulletinView authSession={authSession} />
+            <LazyTabBoundary label="Boletim técnico">
+              <LazyErrorBulletinView authSession={authSession} />
+            </LazyTabBoundary>
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
             tabId="radar_qualidade"
@@ -788,7 +824,9 @@ export default function App() {
             visitedTabs={visitedUserTabs}
             className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
           >
-            <QualityRadarView authSession={authSession} />
+            <LazyTabBoundary label="Radar de Qualidade">
+              <LazyQualityRadarView authSession={authSession} />
+            </LazyTabBoundary>
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
             tabId="reception"
@@ -796,7 +834,8 @@ export default function App() {
             visitedTabs={visitedUserTabs}
             className="flex-1 min-h-0 w-full flex flex-col overflow-y-auto p-0"
           >
-            <ReceptionView
+            <LazyTabBoundary label="Recepção">
+              <LazyReceptionView
               initialData={prefillData}
               onDataLoaded={() => setPrefillData(null)}
               forcedMode={receptionForcedMode}
@@ -812,7 +851,8 @@ export default function App() {
                 actorTechnicianSlug: authSession.userId,
                 actorTechnicianName: authSession.displayName ?? authSession.username,
               }}
-            />
+              />
+            </LazyTabBoundary>
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
             tabId="agenda"
@@ -820,7 +860,8 @@ export default function App() {
             visitedTabs={visitedUserTabs}
             className="flex-1 min-h-0 w-full overflow-y-auto p-0"
           >
-            <AgendaView
+            <LazyTabBoundary label="Agenda">
+              <LazyAgendaView
               appointments={appointments}
               setAppointments={setAppointments}
               blurPlates={cinematographicMode}
@@ -828,7 +869,8 @@ export default function App() {
               onChegouAoPatioNavigateToReception={handleOpenReceptionFromAgenda}
               pendingDetailAppointmentId={agendaPendingDetailAppointmentId}
               onPendingDetailAppointmentConsumed={clearAgendaPendingDetailAppointment}
-            />
+              />
+            </LazyTabBoundary>
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
             tabId="patio"
@@ -836,7 +878,8 @@ export default function App() {
             visitedTabs={visitedUserTabs}
             className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
           >
-            <PatioView
+            <LazyTabBoundary label="Pátio">
+              <LazyPatioView
               onUseCustomerData={handleUseCustomerData}
               onCreateRegistration={handleCreateRegistrationFromArea}
               commentAuthorName={authSession.displayName ?? 'Usuário'}
@@ -848,7 +891,8 @@ export default function App() {
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
               canApproveBudgetItems={canApproveBudgetItemsApp}
-            />
+              />
+            </LazyTabBoundary>
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
             tabId="laboratorio"
@@ -856,7 +900,8 @@ export default function App() {
             visitedTabs={visitedUserTabs}
             className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
           >
-            <PatioView
+            <LazyTabBoundary label="Laboratório">
+              <LazyPatioView
               orderType="module"
               onUseCustomerData={handleUseCustomerData}
               onCreateRegistration={handleCreateRegistrationFromArea}
@@ -870,9 +915,10 @@ export default function App() {
               onActiveCardsCountChange={setLaboratorioActiveCount}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
-            />
+              />
+            </LazyTabBoundary>
           </KeepAliveTabPanel>
-        {!isDesktopShell ? (
+        {showMobileBackgroundNotifications ? (
           <div className="sr-only" aria-hidden="true">
             <NotificationCenter
               theme={theme}
@@ -918,8 +964,16 @@ export default function App() {
           onClose={closeVehicleAccompaniment}
           initialServiceOrderId={vehicleAccompanimentPresetId}
         />
-        <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
-        <TvPatioModal isOpen={isTvPatioModalOpen} onClose={() => setIsTvPatioModalOpen(false)} />
+        {isPartsModalOpen ? (
+          <Suspense fallback={null}>
+            <LazyWorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
+          </Suspense>
+        ) : null}
+        {isTvPatioModalOpen ? (
+          <Suspense fallback={null}>
+            <LazyTvPatioModal isOpen={isTvPatioModalOpen} onClose={() => setIsTvPatioModalOpen(false)} />
+          </Suspense>
+        ) : null}
         {authSession.role === 'user' ? (
           <UserProfileModal
             isOpen={shellProfileModal === 'user'}
@@ -1035,14 +1089,16 @@ export default function App() {
           visitedTabs={visitedTabs}
           className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
         >
-          <BudgetsHubView
+          <LazyTabBoundary label="Orçamentos">
+            <LazyBudgetsHubView
             blurPlates={cinematographicMode}
             isHubTabActive={currentTab === 'orcamentos'}
             onOpenBudgetInPatio={handleOpenBudgetFromHub}
             onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
             onClearHubBadge={patioBudgetsHub.clearBadge}
             consumePendingHubBudgetHighlights={patioBudgetsHub.consumePendingHubBudgetHighlights}
-          />
+            />
+          </LazyTabBoundary>
         </KeepAliveTabPanel>
 
         <KeepAliveTabPanel
@@ -1051,7 +1107,9 @@ export default function App() {
           visitedTabs={visitedTabs}
           className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
         >
-          <ReportsView blurPlates={cinematographicMode} canDeleteOrders={canDeleteOrdersInReports} />
+          <LazyTabBoundary label="Relatórios">
+            <LazyReportsView blurPlates={cinematographicMode} canDeleteOrders={canDeleteOrdersInReports} />
+          </LazyTabBoundary>
         </KeepAliveTabPanel>
 
         <KeepAliveTabPanel
@@ -1060,7 +1118,9 @@ export default function App() {
           visitedTabs={visitedTabs}
           className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
         >
-          <ErrorBulletinView authSession={authSession} />
+          <LazyTabBoundary label="Boletim técnico">
+            <LazyErrorBulletinView authSession={authSession} />
+          </LazyTabBoundary>
         </KeepAliveTabPanel>
 
         <KeepAliveTabPanel
@@ -1069,7 +1129,9 @@ export default function App() {
           visitedTabs={visitedTabs}
           className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
         >
-          <QualityRadarView authSession={authSession} />
+          <LazyTabBoundary label="Radar de Qualidade">
+            <LazyQualityRadarView authSession={authSession} />
+          </LazyTabBoundary>
         </KeepAliveTabPanel>
 
         <KeepAliveTabPanel
@@ -1078,7 +1140,8 @@ export default function App() {
           visitedTabs={visitedTabs}
           className="flex-1 min-h-0 w-full flex flex-col overflow-y-auto p-0"
         >
-          <ReceptionView
+          <LazyTabBoundary label="Recepção">
+            <LazyReceptionView
             initialData={prefillData}
             onDataLoaded={() => setPrefillData(null)}
             forcedMode={receptionForcedMode}
@@ -1098,7 +1161,8 @@ export default function App() {
                     actorTechnicianName: authSession?.displayName ?? authSession?.username,
                   }
             }
-          />
+            />
+          </LazyTabBoundary>
         </KeepAliveTabPanel>
 
         <KeepAliveTabPanel
@@ -1107,7 +1171,8 @@ export default function App() {
           visitedTabs={visitedTabs}
           className="flex-1 min-h-0 w-full overflow-y-auto p-0"
         >
-          <AgendaView
+          <LazyTabBoundary label="Agenda">
+            <LazyAgendaView
             appointments={appointments}
             setAppointments={setAppointments}
             blurPlates={cinematographicMode}
@@ -1115,7 +1180,8 @@ export default function App() {
             onChegouAoPatioNavigateToReception={handleOpenReceptionFromAgenda}
             pendingDetailAppointmentId={agendaPendingDetailAppointmentId}
             onPendingDetailAppointmentConsumed={clearAgendaPendingDetailAppointment}
-          />
+            />
+          </LazyTabBoundary>
         </KeepAliveTabPanel>
 
         <KeepAliveTabPanel
@@ -1124,7 +1190,8 @@ export default function App() {
           visitedTabs={visitedTabs}
           className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
         >
-          <PatioView
+          <LazyTabBoundary label="Pátio">
+            <LazyPatioView
             onUseCustomerData={handleUseCustomerData}
             onCreateRegistration={handleCreateRegistrationFromArea}
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
@@ -1136,7 +1203,8 @@ export default function App() {
             canVerifyBudgets={canVerifyBudgetsApp}
             canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
-          />
+            />
+          </LazyTabBoundary>
         </KeepAliveTabPanel>
 
         <KeepAliveTabPanel
@@ -1145,7 +1213,8 @@ export default function App() {
           visitedTabs={visitedTabs}
           className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
         >
-          <PatioView
+          <LazyTabBoundary label="Laboratório">
+            <LazyPatioView
             orderType="module"
             onUseCustomerData={handleUseCustomerData}
             onCreateRegistration={handleCreateRegistrationFromArea}
@@ -1158,7 +1227,8 @@ export default function App() {
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={handleLaboratoryOrderHandled}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
-          />
+            />
+          </LazyTabBoundary>
         </KeepAliveTabPanel>
 
       {/* Global Modals */}
@@ -1187,8 +1257,16 @@ export default function App() {
         onClose={closeVehicleAccompaniment}
         initialServiceOrderId={vehicleAccompanimentPresetId}
       />
-      <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
-      <TvPatioModal isOpen={isTvPatioModalOpen} onClose={() => setIsTvPatioModalOpen(false)} />
+      {isPartsModalOpen ? (
+        <Suspense fallback={null}>
+          <LazyWorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
+        </Suspense>
+      ) : null}
+      {isTvPatioModalOpen ? (
+        <Suspense fallback={null}>
+          <LazyTvPatioModal isOpen={isTvPatioModalOpen} onClose={() => setIsTvPatioModalOpen(false)} />
+        </Suspense>
+      ) : null}
       {authSession?.role === 'admin' ? (
         <AdminProfileModal
           isOpen={shellProfileModal === 'admin'}
@@ -1211,7 +1289,7 @@ export default function App() {
       ) : null}
 
       {/* Central de notificações (mobile/tablet): no PC o sino fica na barra superior do shell. */}
-      {!isDesktopShell ? (
+      {showMobileBackgroundNotifications ? (
         <div className="sr-only" aria-hidden="true">
           <NotificationCenter
             theme={theme}

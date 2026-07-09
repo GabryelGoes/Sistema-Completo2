@@ -28,7 +28,7 @@ export function KeepAliveTabPanel({
       hidden={!active}
       inert={active ? undefined : true}
       aria-hidden={!active}
-      className={active ? [className, 'overscroll-none'].filter(Boolean).join(' ') : undefined}
+      className={active ? [className, 'overscroll-contain'].filter(Boolean).join(' ') : undefined}
     >
       {children}
     </div>

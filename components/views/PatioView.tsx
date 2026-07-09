@@ -1713,8 +1713,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   fetchRemindersRef.current = fetchReminders;
 
   useEffect(() => {
+    if (!isAppTabActive) return;
     fetchReminders();
-  }, [fetchReminders]);
+  }, [fetchReminders, isAppTabActive]);
 
   /** Com aba visível: polling curto como antes (Realtime + isto = sensação “ao vivo”). */
   useEffect(() => {
@@ -2496,12 +2497,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   // Carregar templates de checklist do Pátio (criados pelo admin)
   useEffect(() => {
+    if (!isAppTabActive) return;
     let cancelled = false;
     getChecklistTemplates()
       .then((list) => { if (!cancelled) setChecklistTemplates(list); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [isAppTabActive]);
 
   // Ao abrir o modal de checklist, carregar estado da OS
   useEffect(() => {
@@ -5052,11 +5054,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 : null}
             </div>
             <div className="flex shrink-0 items-center">
-              <NotificationCenter
-                theme="light"
-                forTechnician={actorOptions?.actor === 'technician'}
-                technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
-              />
+              {isAppTabActive ? (
+                <NotificationCenter
+                  theme="light"
+                  forTechnician={actorOptions?.actor === 'technician'}
+                  technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
+                />
+              ) : null}
             </div>
             <div className={`shrink-0 ${headerActionsOneLine ? 'self-center' : 'hidden portrait:block'}`}>
               <button

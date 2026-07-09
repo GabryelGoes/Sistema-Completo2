@@ -91,7 +91,7 @@ export function AuthenticatedAppFrame({
     <div
       className="h-full min-h-0 flex flex-col bg-light-page dark:bg-black relative overflow-hidden font-sans text-zinc-900 dark:text-white transition-colors duration-300"
     >
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-brand-yellow/5 rounded-full blur-[120px] pointer-events-none z-0" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[min(800px,100vw)] h-[420px] bg-brand-yellow/8 rounded-full pointer-events-none z-0" />
       <OverlayPageNavBar visible={currentTab !== 'home'} onBack={onBackFromOverlay} />
       <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">{children}</main>
     </div>

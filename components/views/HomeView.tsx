@@ -107,6 +107,12 @@ const iosCard =
   'shadow-[0_10px_36px_-8px_rgba(63,63,70,0.22),0_4px_20px_-6px_rgba(82,82,91,0.14),0_1px_3px_rgba(63,63,70,0.08)] ' +
   'dark:shadow-[0_14px_40px_-10px_rgba(0,0,0,0.46),0_6px_28px_-8px_rgba(0,0,0,0.32),0_2px_12px_-4px_rgba(0,0,0,0.24)]';
 
+/** Cartões da home mobile sem backdrop-blur (melhor FPS em GPU fraca). */
+const mobileHubTileCard =
+  'rounded-[22px] border border-zinc-200/85 dark:border-white/[0.08] bg-white dark:bg-zinc-900 ' +
+  'shadow-[0_4px_20px_-8px_rgba(63,63,70,0.18),0_1px_3px_rgba(63,63,70,0.08)] ' +
+  'dark:shadow-[0_8px_28px_-10px_rgba(0,0,0,0.42),0_2px_10px_-4px_rgba(0,0,0,0.28)]';
+
 const iosSectionTitle =
   'text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-950 dark:text-zinc-400 mb-1';
 
@@ -242,7 +248,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenPartsStock,
   onOpenTvPatio,
 }) => {
-  const hubCardClass = desktopShell ? desktopHomeHubCard : iosCard;
+  const hubCardClass = desktopShell ? desktopHomeHubCard : mobileHubTileCard;
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
   const [isLabProductTypesOpen, setIsLabProductTypesOpen] = useState(false);
   const [isLabQuickServicesOpen, setIsLabQuickServicesOpen] = useState(false);
@@ -310,6 +316,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     moved: boolean;
     pointerId: number;
   } | null>(null);
+  const quickTapMoveCleanupRef = useRef<(() => void) | null>(null);
   const lastQuickReorderTargetRef = useRef<QuickTileId | null>(null);
   const quickReorderCandidateRef = useRef<QuickTileId | null>(null);
   const quickReorderCandidateHitsRef = useRef(0);
@@ -659,6 +666,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   }, []);
 
   useEffect(() => {
+    if (!draggingQuickId) return;
+
     const handlePointerMove = (event: PointerEvent) => {
       setQuickDragVisual((prev) => {
         if (!prev) return prev;
@@ -669,9 +678,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         };
       });
 
-      if (!draggingQuickId) return;
       if (dragFrameRef.current != null) return;
-        dragFrameRef.current = window.requestAnimationFrame(() => {
+      dragFrameRef.current = window.requestAnimationFrame(() => {
         dragFrameRef.current = null;
         const gridRoot = quickAppsGridRef.current;
         if (!gridRoot) return;
@@ -770,9 +778,42 @@ export const HomeView: React.FC<HomeViewProps> = ({
     []
   );
 
-  const resetQuickTapSession = useCallback(() => {
-    quickTapSessionRef.current = null;
+  const detachQuickTapMoveListener = useCallback(() => {
+    quickTapMoveCleanupRef.current?.();
+    quickTapMoveCleanupRef.current = null;
   }, []);
+
+  const resetQuickTapSession = useCallback(() => {
+    detachQuickTapMoveListener();
+    quickTapSessionRef.current = null;
+  }, [detachQuickTapMoveListener]);
+
+  const attachQuickTapMoveListener = useCallback(() => {
+    detachQuickTapMoveListener();
+    const onPointerMove = (event: PointerEvent) => {
+      const session = quickTapSessionRef.current;
+      if (!session || session.moved || session.pointerId !== event.pointerId) return;
+      const dx = event.clientX - session.startX;
+      const dy = event.clientY - session.startY;
+      if (
+        Math.abs(dx) > QUICK_TAP_MOVE_THRESHOLD_PX ||
+        Math.abs(dy) > QUICK_TAP_MOVE_THRESHOLD_PX
+      ) {
+        session.moved = true;
+        clearLongPressTimer();
+        detachQuickTapMoveListener();
+      }
+    };
+    const onEnd = () => detachQuickTapMoveListener();
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerup', onEnd, { once: true });
+    window.addEventListener('pointercancel', onEnd, { once: true });
+    quickTapMoveCleanupRef.current = () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onEnd);
+      window.removeEventListener('pointercancel', onEnd);
+    };
+  }, [clearLongPressTimer, detachQuickTapMoveListener]);
 
   const handleQuickCardPointerDown = useCallback(
     (appId: QuickTileId, event: React.PointerEvent<HTMLButtonElement>) => {
@@ -797,13 +838,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
         return;
       }
 
+      attachQuickTapMoveListener();
+
       longPressTimerRef.current = window.setTimeout(() => {
         longPressTriggeredRef.current = true;
         setIsQuickEditMode(true);
         beginQuickDrag(appId, rect, pointer);
       }, LONG_PRESS_MS);
     },
-    [beginQuickDrag, clearLongPressTimer, isQuickEditMode]
+    [attachQuickTapMoveListener, beginQuickDrag, clearLongPressTimer, isQuickEditMode]
   );
 
   const handleQuickCardPointerUp = useCallback(
@@ -835,24 +878,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
     longPressTriggeredRef.current = false;
   }, [clearLongPressTimer, endQuickDrag, resetQuickTapSession]);
-
-  useEffect(() => {
-    const onPointerMove = (event: PointerEvent) => {
-      const session = quickTapSessionRef.current;
-      if (!session || session.moved || session.pointerId !== event.pointerId) return;
-      const dx = event.clientX - session.startX;
-      const dy = event.clientY - session.startY;
-      if (
-        Math.abs(dx) > QUICK_TAP_MOVE_THRESHOLD_PX ||
-        Math.abs(dy) > QUICK_TAP_MOVE_THRESHOLD_PX
-      ) {
-        session.moved = true;
-        clearLongPressTimer();
-      }
-    };
-    window.addEventListener('pointermove', onPointerMove, { passive: true });
-    return () => window.removeEventListener('pointermove', onPointerMove);
-  }, [clearLongPressTimer]);
 
   const toggleQuickTileSize = useCallback((appId: QuickTileId) => {
     setQuickLayout((prev) => {
@@ -887,14 +912,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
     >
       {!desktopShell ? (
         <>
-      <div className="fixed inset-0 -z-10 bg-gradient-to-b from-zinc-200/90 via-zinc-100 to-zinc-200/85 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950" />
-      <div className="fixed inset-0 -z-10 pointer-events-none opacity-35 dark:opacity-25 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(251,191,36,0.18),transparent),radial-gradient(ellipse_60%_40%_at_100%_0%,rgba(56,189,248,0.1),transparent),radial-gradient(ellipse_50%_35%_at_0%_100%,rgba(167,139,250,0.08),transparent)]" />
-      <div className="fixed inset-0 -z-10 pointer-events-none backdrop-blur-[2px]" />
+      <div className="fixed inset-0 -z-10 bg-gradient-to-b from-zinc-200 via-zinc-100 to-zinc-200/90 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950" />
+      <div className="fixed inset-0 -z-10 pointer-events-none opacity-30 dark:opacity-20 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(251,191,36,0.16),transparent),radial-gradient(ellipse_60%_40%_at_100%_0%,rgba(56,189,248,0.08),transparent)]" />
         </>
       ) : null}
 
       {!desktopShell ? (
-      <header className="relative z-10 pt-[max(0.5rem,env(safe-area-inset-top))] pb-4 px-4 sm:px-6 border-b border-zinc-200/70 dark:border-white/[0.08] bg-white/70 dark:bg-zinc-950/60 backdrop-blur-2xl shadow-[0_1px_0_0_rgba(255,255,255,0.55)_inset] dark:shadow-none">
+      <header className="relative z-10 pt-[max(0.5rem,env(safe-area-inset-top))] pb-4 px-4 sm:px-6 border-b border-zinc-200/70 dark:border-white/[0.08] bg-white/95 dark:bg-zinc-950/95 shadow-[0_1px_0_0_rgba(255,255,255,0.55)_inset] dark:shadow-none">
         <div className="max-w-xl lg:max-w-5xl mx-auto flex items-center justify-between gap-3 min-w-0">
           <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
             <div className="relative shrink-0">

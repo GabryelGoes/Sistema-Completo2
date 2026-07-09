@@ -168,7 +168,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     });
   }, [load]);
 
-  usePatioBudgetsHubLiveSync(syncFromRealtime, { enabled: true });
+  usePatioBudgetsHubLiveSync(syncFromRealtime, { enabled: isHubTabActive });
 
   useEffect(() => {
     if (!isHubTabActive) return;
