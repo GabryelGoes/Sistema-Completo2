@@ -115,6 +115,8 @@ const QUICK_APPS_LAYOUT_KEY = 'app_home_quick_apps_layout_v1';
 const LONG_PRESS_MS = 420;
 const QUICK_REORDER_HYSTERESIS_HITS = 2;
 const QUICK_TARGET_PADDING_PX = 18;
+/** Distância mínima (px) para tratar o gesto como rolagem em vez de toque no módulo. */
+const QUICK_TAP_MOVE_THRESHOLD_PX = 10;
 
 const OPERATIONAL_APPS: {
   id: HomeAppId;
@@ -301,6 +303,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [quickDragVisual, setQuickDragVisual] = useState<QuickDragVisual | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
+  const quickTapSessionRef = useRef<{
+    appId: QuickTileId;
+    startX: number;
+    startY: number;
+    moved: boolean;
+    pointerId: number;
+  } | null>(null);
   const lastQuickReorderTargetRef = useRef<QuickTileId | null>(null);
   const quickReorderCandidateRef = useRef<QuickTileId | null>(null);
   const quickReorderCandidateHitsRef = useRef(0);
@@ -761,14 +770,29 @@ export const HomeView: React.FC<HomeViewProps> = ({
     []
   );
 
+  const resetQuickTapSession = useCallback(() => {
+    quickTapSessionRef.current = null;
+  }, []);
+
   const handleQuickCardPointerDown = useCallback(
     (appId: QuickTileId, event: React.PointerEvent<HTMLButtonElement>) => {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+
       longPressTriggeredRef.current = false;
       clearLongPressTimer();
       const rect = event.currentTarget.getBoundingClientRect();
       const pointer = { clientX: event.clientX, clientY: event.clientY };
 
+      quickTapSessionRef.current = {
+        appId,
+        startX: pointer.clientX,
+        startY: pointer.clientY,
+        moved: false,
+        pointerId: event.pointerId,
+      };
+
       if (isQuickEditMode) {
+        event.currentTarget.setPointerCapture(event.pointerId);
         beginQuickDrag(appId, rect, pointer);
         return;
       }
@@ -778,7 +802,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
         setIsQuickEditMode(true);
         beginQuickDrag(appId, rect, pointer);
       }, LONG_PRESS_MS);
-      event.currentTarget.setPointerCapture(event.pointerId);
     },
     [beginQuickDrag, clearLongPressTimer, isQuickEditMode]
   );
@@ -786,7 +809,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const handleQuickCardPointerUp = useCallback(
     (app: { id: QuickTileId; onOpen: () => void }) => {
       clearLongPressTimer();
-      const shouldOpen = !isQuickEditMode && !longPressTriggeredRef.current;
+      const session = quickTapSessionRef.current;
+      const shouldOpen =
+        !isQuickEditMode &&
+        !longPressTriggeredRef.current &&
+        session?.appId === app.id &&
+        !session.moved;
       if (shouldOpen) {
         openAfterInputCycle(() => app.onOpen());
       }
@@ -794,9 +822,37 @@ export const HomeView: React.FC<HomeViewProps> = ({
         endQuickDrag();
       }
       longPressTriggeredRef.current = false;
+      resetQuickTapSession();
     },
-    [clearLongPressTimer, endQuickDrag, isQuickEditMode, openAfterInputCycle]
+    [clearLongPressTimer, endQuickDrag, isQuickEditMode, openAfterInputCycle, resetQuickTapSession]
   );
+
+  const handleQuickCardPointerCancel = useCallback(() => {
+    clearLongPressTimer();
+    resetQuickTapSession();
+    if (!longPressTriggeredRef.current) {
+      endQuickDrag();
+    }
+    longPressTriggeredRef.current = false;
+  }, [clearLongPressTimer, endQuickDrag, resetQuickTapSession]);
+
+  useEffect(() => {
+    const onPointerMove = (event: PointerEvent) => {
+      const session = quickTapSessionRef.current;
+      if (!session || session.moved || session.pointerId !== event.pointerId) return;
+      const dx = event.clientX - session.startX;
+      const dy = event.clientY - session.startY;
+      if (
+        Math.abs(dx) > QUICK_TAP_MOVE_THRESHOLD_PX ||
+        Math.abs(dy) > QUICK_TAP_MOVE_THRESHOLD_PX
+      ) {
+        session.moved = true;
+        clearLongPressTimer();
+      }
+    };
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    return () => window.removeEventListener('pointermove', onPointerMove);
+  }, [clearLongPressTimer]);
 
   const toggleQuickTileSize = useCallback((appId: QuickTileId) => {
     setQuickLayout((prev) => {
@@ -967,7 +1023,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         className={
           desktopShell
             ? 'relative z-10 flex-1 w-full'
-            : 'relative z-10 flex-1 px-4 sm:px-6 pb-28 max-w-xl lg:max-w-5xl mx-auto w-full'
+            : 'relative z-10 flex-1 px-4 sm:px-6 pb-28 max-w-xl lg:max-w-5xl mx-auto w-full touch-pan-y'
         }
       >
         <section className={desktopShell ? 'pb-6' : 'pt-5 pb-6 lg:pt-6'}>
@@ -995,7 +1051,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <div
                 ref={quickAppsGridRef}
                 onPointerUp={() => endQuickDrag()}
-                className={`relative isolate z-0 grid gap-3 ${quickGridColsClass} ${isQuickEditMode ? 'touch-none select-none' : ''}`}
+                className={`relative isolate z-0 grid gap-3 ${quickGridColsClass} ${isQuickEditMode ? 'touch-none select-none' : 'touch-pan-y'}`}
               >
                 {orderedOperationalApps.map((app) => {
                   const isWide = (quickLayout.sizes[app.id] ?? 'normal') === 'wide';
@@ -1005,9 +1061,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       key={app.id}
                       data-quick-app-id={app.id}
                       type="button"
-                      style={{ touchAction: 'manipulation' }}
+                      style={{ touchAction: isQuickEditMode ? 'none' : 'pan-y' }}
                       onPointerDown={(event) => handleQuickCardPointerDown(app.id, event)}
                       onPointerUp={() => handleQuickCardPointerUp(app)}
+                      onPointerCancel={handleQuickCardPointerCancel}
                       onPointerLeave={clearLongPressTimer}
                       onContextMenu={(event) => {
                         event.preventDefault();

@@ -698,7 +698,7 @@ export default function App() {
             tabId="home"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="flex-1 min-h-0 overflow-y-auto p-0"
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-0 touch-pan-y [-webkit-overflow-scrolling:touch]"
           >
             <HomeView
               desktopShell={isDesktopShell}
@@ -991,7 +991,7 @@ export default function App() {
           tabId="home"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex-1 min-h-0 overflow-y-auto p-0"
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-0 touch-pan-y [-webkit-overflow-scrolling:touch]"
         >
           <HomeView
             desktopShell={isDesktopShell}
