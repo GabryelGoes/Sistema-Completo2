@@ -389,9 +389,42 @@ export function createApiApp() {
     return s || "arquivo";
   }
 
-  /** Assinatura do termo de diagnóstico fica no Storage da OS mas não deve aparecer como anexo da ficha. */
   function isDiagnosticAuthorizationSignatureFileName(name: string): boolean {
     return /AUTORIZACAO_DIAGNOSTICO/i.test(String(name || ""));
+  }
+
+  const SERVICE_ORDER_PHOTO_MAX_BYTES = 20 * 1024 * 1024;
+
+  function resolveServiceOrderPhotoContentType(fileName: string, rawType?: unknown): string {
+    const type = String(rawType ?? "").trim().toLowerCase();
+    if (type && type !== "application/octet-stream") return type;
+    const n = fileName.toLowerCase();
+    if (n.endsWith(".pdf")) return "application/pdf";
+    if (n.endsWith(".png")) return "image/png";
+    if (/\.jpe?g$/.test(n)) return "image/jpeg";
+    if (n.endsWith(".webp")) return "image/webp";
+    if (n.endsWith(".gif")) return "image/gif";
+    if (n.endsWith(".heic") || n.endsWith(".heif")) return "image/heic";
+    if (n.endsWith(".doc")) return "application/msword";
+    if (n.endsWith(".docx")) {
+      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    }
+    if (n.endsWith(".xls")) return "application/vnd.ms-excel";
+    if (n.endsWith(".xlsx")) {
+      return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    }
+    if (n.endsWith(".txt")) return "text/plain";
+    return "application/octet-stream";
+  }
+
+  async function assertServiceOrderInWorkshop(serviceOrderId: string): Promise<boolean> {
+    if (!supabaseAdmin || !WORKSHOP_ID || !serviceOrderId) return false;
+    const { data: serviceOrder, error } = await supabaseAdmin
+      .from("service_orders")
+      .select("id, workshop_id")
+      .eq("id", serviceOrderId)
+      .single();
+    return !error && !!serviceOrder && serviceOrder.workshop_id === WORKSHOP_ID;
   }
 
   // CORS: TV (Patio-View), CORS_ALLOWED_ORIGINS e dev — necessário se o front chama API em outro host (VITE_API_BASE).
@@ -3537,9 +3570,145 @@ export function createApiApp() {
   });
 
   // Upload de fotos vinculadas a uma OS (armazenadas no Storage do Supabase)
+  /** Passo 1: URL assinada — upload direto ao Storage (contorna multipart quebrado na Vercel). */
+  app.post("/api/service-orders/:id/photos/upload-init", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const serviceOrderId = reqOrderId(req);
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "ID da OS inválido." });
+      }
+
+      const body = (req.body ?? {}) as {
+        fileName?: unknown;
+        fileSize?: unknown;
+        contentType?: unknown;
+      };
+      const fileName = String(body.fileName ?? "").trim() || "arquivo";
+      const fileSize = Number(body.fileSize ?? 0);
+      if (!Number.isFinite(fileSize) || fileSize <= 0) {
+        return res.status(400).json({ error: "Tamanho do arquivo inválido." });
+      }
+      if (fileSize > SERVICE_ORDER_PHOTO_MAX_BYTES) {
+        return res.status(400).json({
+          error: `Arquivo muito grande. Limite ${Math.round(SERVICE_ORDER_PHOTO_MAX_BYTES / (1024 * 1024))} MB.`,
+        });
+      }
+
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      const bucket = VEHICLE_PHOTOS_BUCKET;
+      const safeName = sanitizeVehiclePhotoFileName(fileName);
+      const pathInBucket = `${WORKSHOP_ID}/${serviceOrderId}/${Date.now()}_${safeName}`;
+      const contentType = resolveServiceOrderPhotoContentType(safeName, body.contentType);
+
+      const { data, error } = await supabaseAdmin.storage
+        .from(bucket)
+        .createSignedUploadUrl(pathInBucket);
+
+      if (error || !data) {
+        console.error("[API] OS photo signed upload URL:", error);
+        return res.status(500).json({
+          error:
+            error?.message ??
+            "Não foi possível preparar o upload. Verifique o bucket vehicle-photos no Supabase.",
+        });
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabaseAdmin.storage.from(bucket).getPublicUrl(pathInBucket);
+
+      const storedName = pathInBucket.split("/").pop() || safeName;
+
+      return res.json({
+        path: data.path,
+        token: data.token,
+        signedUrl: data.signedUrl,
+        publicUrl,
+        contentType,
+        name: storedName,
+      });
+    } catch (err: any) {
+      console.error("[API] POST /api/service-orders/:id/photos/upload-init:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro ao preparar upload." });
+    }
+  });
+
+  /** Passo 3: confirma upload direto e atualiza timestamp da OS. */
+  app.post("/api/service-orders/:id/photos/upload-complete", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const serviceOrderId = reqOrderId(req);
+      const objectPath =
+        typeof req.body?.path === "string" ? req.body.path.trim() : "";
+
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "ID da OS inválido." });
+      }
+      if (!objectPath) {
+        return res.status(400).json({ error: "Corpo inválido: envie path." });
+      }
+
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      const folderPath = `${WORKSHOP_ID}/${serviceOrderId}`;
+      if (!objectPath.startsWith(`${folderPath}/`)) {
+        return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
+      }
+
+      const bucket = VEHICLE_PHOTOS_BUCKET;
+      const storedName = objectPath.split("/").pop() || "arquivo";
+      const {
+        data: { publicUrl },
+      } = supabaseAdmin.storage.from(bucket).getPublicUrl(objectPath);
+
+      await touchServiceOrderUpdatedAt(serviceOrderId);
+
+      return res.status(201).json({
+        url: publicUrl,
+        path: objectPath,
+        name: storedName,
+      });
+    } catch (err: any) {
+      console.error("[API] POST /api/service-orders/:id/photos/upload-complete:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro ao finalizar upload." });
+    }
+  });
+
+  /** Legado / dev local: multipart pelo servidor. */
   app.post(
     "/api/service-orders/:id/photos",
-    upload.single("file"),
+    (req, res, next) => {
+      upload.single("file")(req, res, (err: unknown) => {
+        if (err) {
+          const multerErr = err as { code?: string; message?: string };
+          if (multerErr.code === "LIMIT_FILE_SIZE") {
+            return res.status(413).json({ error: "Arquivo muito grande." });
+          }
+          return res
+            .status(400)
+            .json({ error: multerErr.message || "Falha ao processar o arquivo enviado." });
+        }
+        next();
+      });
+    },
     async (req, res) => {
       try {
         if (!supabaseAdmin || !WORKSHOP_ID) {

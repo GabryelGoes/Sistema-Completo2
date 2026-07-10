@@ -1496,6 +1496,169 @@ export async function getServiceOrderPhotos(id: string): Promise<ServiceOrderPho
 /** Limite seguro do corpo no Vercel (serverless ~4,5 MB); evita "Failed to fetch" por corte abrupto. */
 const UPLOAD_MAX_BYTES = 3.5 * 1024 * 1024;
 
+const VEHICLE_PHOTOS_STORAGE_BUCKET =
+  (import.meta.env.VITE_SUPABASE_VEHICLE_PHOTOS_BUCKET as string | undefined)?.trim() ||
+  "vehicle-photos";
+
+async function readServiceOrderPhotoApiError(response: Response, fallback: string): Promise<string> {
+  const data = await response.json().catch(() => ({} as { error?: string }));
+  if (typeof data.error === "string" && data.error.trim()) return data.error.trim();
+  if (response.status === 413) {
+    return "Arquivo muito grande para enviar. Tente reduzir o tamanho.";
+  }
+  return fallback;
+}
+
+async function uploadServiceOrderPhotoMultipart(
+  id: string,
+  uploadBlob: File,
+  name: string
+): Promise<ServiceOrderPhoto> {
+  const formData = new FormData();
+  formData.append("file", uploadBlob, name);
+  const path = `/service-orders/${id}/photos`;
+  const url =
+    API_BASE.startsWith("/") && typeof window !== "undefined"
+      ? new URL(`${API_BASE.replace(/\/$/, "")}${path}`, window.location.origin).href
+      : `${API_BASE.replace(/\/$/, "")}${path}`;
+  const sameOrigin =
+    typeof window !== "undefined" && url.startsWith(`${window.location.origin}/`);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      body: formData,
+      cache: "no-store",
+      ...(sameOrigin ? ({ mode: "same-origin" } as const) : {}),
+    });
+  } catch (e) {
+    const isNetwork =
+      e instanceof TypeError &&
+      (String(e.message).includes("fetch") || String(e.message).includes("NetworkError"));
+    if (isNetwork) {
+      const hasViteBase =
+        typeof import.meta.env.VITE_API_BASE === "string" &&
+        import.meta.env.VITE_API_BASE.trim() !== "";
+      const healthHint =
+        typeof window !== "undefined"
+          ? ` Abra no navegador: ${window.location.origin}/api/health — se não carregar JSON, a API não está acessível neste endereço.`
+          : "";
+      throw new Error(
+        hasViteBase
+          ? `Não foi possível enviar o arquivo (rede ou bloqueio entre domínios). Confira CORS_ALLOWED_ORIGINS na Vercel e se a página HTTPS não chama API em HTTP.${healthHint}`
+          : `Não foi possível enviar o arquivo. Verifique Wi‑Fi, VPN e firewall.${healthHint} Se você instalou o app como PWA, abra também pelo Chrome e atualize (Ctrl+F5). Em deploy com domínio próprio, pode ser necessário definir VITE_API_BASE=https://seu-dominio.com/api no build do front.`
+      );
+    }
+    throw e;
+  }
+  if (!response.ok) {
+    throw new Error(await readServiceOrderPhotoApiError(response, `Falha ao enviar foto (${response.status})`));
+  }
+  return response.json();
+}
+
+/** Upload direto ao Storage (contorna limite e falhas de multipart na Vercel). */
+async function uploadServiceOrderPhotoDirect(
+  id: string,
+  uploadBlob: File,
+  name: string
+): Promise<ServiceOrderPhoto> {
+  let initResponse: Response;
+  try {
+    initResponse = await fetch(`${API_BASE}/service-orders/${id}/photos/upload-init`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fileName: name,
+        fileSize: uploadBlob.size,
+        contentType: uploadBlob.type || undefined,
+      }),
+      cache: "no-store",
+    });
+  } catch (e) {
+    const isNetwork =
+      e instanceof TypeError &&
+      (String(e.message).includes("fetch") || String(e.message).includes("NetworkError"));
+    if (isNetwork) {
+      throw new Error("Não foi possível conectar à API para enviar o anexo. Verifique a internet.");
+    }
+    throw e;
+  }
+
+  if (initResponse.status === 404) {
+    return uploadServiceOrderPhotoMultipart(id, uploadBlob, name);
+  }
+  if (!initResponse.ok) {
+    throw new Error(
+      await readServiceOrderPhotoApiError(initResponse, "Falha ao preparar o envio do anexo.")
+    );
+  }
+
+  const init = (await initResponse.json()) as {
+    path?: string;
+    token?: string;
+    signedUrl?: string;
+    contentType?: string;
+  };
+  if (!init.path || !init.token) {
+    throw new Error("Resposta inválida ao preparar o envio do anexo.");
+  }
+
+  const contentType = init.contentType || uploadBlob.type || undefined;
+  const supabase = getSupabaseBrowser();
+  if (supabase) {
+    const { error: uploadError } = await supabase.storage
+      .from(VEHICLE_PHOTOS_STORAGE_BUCKET)
+      .uploadToSignedUrl(init.path, init.token, uploadBlob, { contentType });
+    if (uploadError) {
+      throw new Error(uploadError.message || "Falha ao enviar arquivo ao Storage.");
+    }
+  } else if (init.signedUrl) {
+    const putResponse = await fetch(init.signedUrl, {
+      method: "PUT",
+      body: uploadBlob,
+      headers: contentType ? { "Content-Type": contentType } : undefined,
+    });
+    if (!putResponse.ok) {
+      throw new Error(
+        `Falha ao enviar ao Storage (${putResponse.status}). Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no build.`
+      );
+    }
+  } else {
+    throw new Error(
+      "Upload direto indisponível. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no build do app."
+    );
+  }
+
+  let completeResponse: Response;
+  try {
+    completeResponse = await fetch(`${API_BASE}/service-orders/${id}/photos/upload-complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: init.path }),
+      cache: "no-store",
+    });
+  } catch (e) {
+    const isNetwork =
+      e instanceof TypeError &&
+      (String(e.message).includes("fetch") || String(e.message).includes("NetworkError"));
+    if (isNetwork) {
+      throw new Error(
+        "Arquivo enviado ao Storage, mas falhou ao confirmar na OS. Atualize a lista de anexos."
+      );
+    }
+    throw e;
+  }
+
+  if (!completeResponse.ok) {
+    throw new Error(
+      await readServiceOrderPhotoApiError(completeResponse, "Falha ao finalizar o envio do anexo.")
+    );
+  }
+
+  return completeResponse.json();
+}
+
 export async function uploadServiceOrderPhoto(
   id: string,
   file: Blob,
@@ -1529,46 +1692,8 @@ export async function uploadServiceOrderPhoto(
               ? "application/pdf"
               : "application/octet-stream"),
         });
-  const formData = new FormData();
-  formData.append("file", uploadBlob, name);
-  const path = `/service-orders/${id}/photos`;
-  const url =
-    API_BASE.startsWith("/") && typeof window !== "undefined"
-      ? new URL(`${API_BASE.replace(/\/$/, "")}${path}`, window.location.origin).href
-      : `${API_BASE.replace(/\/$/, "")}${path}`;
-  let response: Response;
-  const sameOrigin =
-    typeof window !== "undefined" && url.startsWith(`${window.location.origin}/`);
-  try {
-    response = await fetch(url, {
-      method: "POST",
-      body: formData,
-      cache: "no-store",
-      ...(sameOrigin ? ({ mode: "same-origin" } as const) : {}),
-    });
-  } catch (e) {
-    const isNetwork =
-      e instanceof TypeError && (String(e.message).includes("fetch") || String(e.message).includes("NetworkError"));
-    if (isNetwork) {
-      const hasViteBase =
-        typeof import.meta.env.VITE_API_BASE === "string" && import.meta.env.VITE_API_BASE.trim() !== "";
-      const healthHint =
-        typeof window !== "undefined"
-          ? ` Abra no navegador: ${window.location.origin}/api/health — se não carregar JSON, a API não está acessível neste endereço.`
-          : "";
-      throw new Error(
-        hasViteBase
-          ? `Não foi possível enviar o arquivo (rede ou bloqueio entre domínios). Confira CORS_ALLOWED_ORIGINS na Vercel e se a página HTTPS não chama API em HTTP.${healthHint}`
-          : `Não foi possível enviar o arquivo. Verifique Wi‑Fi, VPN e firewall.${healthHint} Se você instalou o app como PWA, abra também pelo Chrome e atualize (Ctrl+F5). Em deploy com domínio próprio, pode ser necessário definir VITE_API_BASE=https://seu-dominio.com/api no build do front.`
-      );
-    }
-    throw e;
-  }
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Falha ao enviar foto (${response.status})`);
-  }
-  return response.json();
+
+  return uploadServiceOrderPhotoDirect(id, uploadBlob, name);
 }
 
 export async function renameServiceOrderPhoto(
