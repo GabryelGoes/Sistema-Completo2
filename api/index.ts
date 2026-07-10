@@ -36,6 +36,16 @@ function sendJsonError(res: ServerResponse, status: number, message: string) {
   res.end(JSON.stringify({ error: message }));
 }
 
+/**
+ * Deixa o corpo da requisição intacto para o Express/multer (multipart quebra na Vercel
+ * quando o parser padrão consome o stream antes do multer).
+ */
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   try {
     fixReqUrl(req);

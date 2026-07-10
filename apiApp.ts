@@ -427,6 +427,37 @@ export function createApiApp() {
     return !error && !!serviceOrder && serviceOrder.workshop_id === WORKSHOP_ID;
   }
 
+  /** Corpo JSON já parseado pelo Express ou ainda como string/Buffer (Vercel com bodyParser desligado). */
+  function parseRequestJsonBody(req: express.Request): Record<string, unknown> {
+    const body = req.body;
+    if (body && typeof body === "object" && !Buffer.isBuffer(body)) {
+      return body as Record<string, unknown>;
+    }
+    if (typeof body === "string" && body.trim()) {
+      try {
+        return JSON.parse(body) as Record<string, unknown>;
+      } catch {
+        return {};
+      }
+    }
+    if (Buffer.isBuffer(body)) {
+      try {
+        return JSON.parse(body.toString("utf8")) as Record<string, unknown>;
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  }
+
+  function serviceOrderPhotoFolderPath(serviceOrderId: string): string {
+    return `${WORKSHOP_ID}/${serviceOrderId}`;
+  }
+
+  function assertServiceOrderPhotoPath(serviceOrderId: string, objectPath: string): boolean {
+    return objectPath.startsWith(`${serviceOrderPhotoFolderPath(serviceOrderId)}/`);
+  }
+
   // CORS: TV (Patio-View), CORS_ALLOWED_ORIGINS e dev — necessário se o front chama API em outro host (VITE_API_BASE).
   app.use((req, res, next) => {
     const origin = req.headers.origin;
@@ -3585,10 +3616,11 @@ export function createApiApp() {
         return res.status(400).json({ error: "ID da OS inválido." });
       }
 
-      const body = (req.body ?? {}) as {
+      const body = parseRequestJsonBody(req) as {
         fileName?: unknown;
         fileSize?: unknown;
         contentType?: unknown;
+        replacePath?: unknown;
       };
       const fileName = String(body.fileName ?? "").trim() || "arquivo";
       const fileSize = Number(body.fileSize ?? 0);
@@ -3607,12 +3639,25 @@ export function createApiApp() {
 
       const bucket = VEHICLE_PHOTOS_BUCKET;
       const safeName = sanitizeVehiclePhotoFileName(fileName);
-      const pathInBucket = `${WORKSHOP_ID}/${serviceOrderId}/${Date.now()}_${safeName}`;
-      const contentType = resolveServiceOrderPhotoContentType(safeName, body.contentType);
+      const replacePath =
+        typeof body.replacePath === "string" ? body.replacePath.trim() : "";
+      let pathInBucket: string;
+      if (replacePath) {
+        if (!assertServiceOrderPhotoPath(serviceOrderId, replacePath)) {
+          return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
+        }
+        pathInBucket = replacePath;
+      } else {
+        pathInBucket = `${serviceOrderPhotoFolderPath(serviceOrderId)}/${Date.now()}_${safeName}`;
+      }
+      const contentType = resolveServiceOrderPhotoContentType(
+        replacePath ? replacePath.split("/").pop() || safeName : safeName,
+        body.contentType
+      );
 
       const { data, error } = await supabaseAdmin.storage
         .from(bucket)
-        .createSignedUploadUrl(pathInBucket);
+        .createSignedUploadUrl(pathInBucket, { upsert: !!replacePath });
 
       if (error || !data) {
         console.error("[API] OS photo signed upload URL:", error);
@@ -3654,8 +3699,9 @@ export function createApiApp() {
       }
 
       const serviceOrderId = reqOrderId(req);
+      const completeBody = parseRequestJsonBody(req);
       const objectPath =
-        typeof req.body?.path === "string" ? req.body.path.trim() : "";
+        typeof completeBody.path === "string" ? completeBody.path.trim() : "";
 
       if (!serviceOrderId) {
         return res.status(400).json({ error: "ID da OS inválido." });
@@ -3668,7 +3714,7 @@ export function createApiApp() {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
 
-      const folderPath = `${WORKSHOP_ID}/${serviceOrderId}`;
+      const folderPath = serviceOrderPhotoFolderPath(serviceOrderId);
       if (!objectPath.startsWith(`${folderPath}/`)) {
         return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
       }
@@ -3722,7 +3768,11 @@ export function createApiApp() {
         const file = req.file;
 
         if (!file) {
-          return res.status(400).json({ error: "Arquivo não enviado." });
+          return res.status(400).json({
+            error: process.env.VERCEL
+              ? "O servidor não recebeu o arquivo (upload multipart indisponível na nuvem). Atualize o app — o envio deve ir direto ao Storage via /photos/upload-init."
+              : "Arquivo não enviado.",
+          });
         }
 
         if (!serviceOrderId) {
@@ -4108,7 +4158,7 @@ export function createApiApp() {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
 
-      const folderPath = `${WORKSHOP_ID}/${serviceOrderId}`;
+      const folderPath = serviceOrderPhotoFolderPath(serviceOrderId);
       if (!objectPath.startsWith(`${folderPath}/`)) {
         return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
       }

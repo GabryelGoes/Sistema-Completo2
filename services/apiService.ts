@@ -1561,7 +1561,8 @@ async function uploadServiceOrderPhotoMultipart(
 async function uploadServiceOrderPhotoDirect(
   id: string,
   uploadBlob: File,
-  name: string
+  name: string,
+  replacePath?: string
 ): Promise<ServiceOrderPhoto> {
   let initResponse: Response;
   try {
@@ -1572,6 +1573,7 @@ async function uploadServiceOrderPhotoDirect(
         fileName: name,
         fileSize: uploadBlob.size,
         contentType: uploadBlob.type || undefined,
+        ...(replacePath ? { replacePath } : {}),
       }),
       cache: "no-store",
     });
@@ -1585,7 +1587,7 @@ async function uploadServiceOrderPhotoDirect(
     throw e;
   }
 
-  if (initResponse.status === 404) {
+  if (initResponse.status === 404 && import.meta.env.DEV) {
     return uploadServiceOrderPhotoMultipart(id, uploadBlob, name);
   }
   if (!initResponse.ok) {
@@ -1745,18 +1747,13 @@ export async function rotateServiceOrderPhoto(
     toSend === file
       ? normalizedName
       : normalizedName.replace(/\.\w+$/i, ".jpg") || "photo.jpg";
-  const formData = new FormData();
-  formData.append("file", toSend, name);
-  formData.append("path", path);
-  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/photos/rotate`, {
-    method: "POST",
-    body: formData,
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Falha ao girar foto (${response.status})`);
-  }
-  return response.json();
+  const uploadBlob =
+    toSend instanceof File
+      ? toSend
+      : new File([toSend], name, {
+          type: file.type || "image/jpeg",
+        });
+  return uploadServiceOrderPhotoDirect(serviceOrderId, uploadBlob, name, path);
 }
 
 // ---------- Comentários do modal do veículo ----------
