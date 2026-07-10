@@ -19,9 +19,9 @@ async function readResponseJson<T>(response: Response, emptyMessage: string, inv
   }
 }
 import {
-  compressImageForUpload,
   isAttachmentImageFile,
-  normalizeAttachmentFileName,
+  isIosUploadDevice,
+  prepareServiceOrderUploadPayload,
 } from "../utils/imageUpload";
 import type { BudgetPartFields } from "../utils/budgetPartStock";
 import { normalizeTvChimeConfig, type TvChimeScheduleConfig } from "@/utils/tvChimeSchedule";
@@ -1511,10 +1511,11 @@ async function readServiceOrderPhotoApiError(response: Response, fallback: strin
 
 async function uploadServiceOrderPhotoMultipart(
   id: string,
-  uploadBlob: File,
+  uploadBlob: Blob,
   name: string
 ): Promise<ServiceOrderPhoto> {
   const formData = new FormData();
+  // Safari iOS: não usar `new File([blob])` — append Blob + nome evita envio vazio.
   formData.append("file", uploadBlob, name);
   const path = `/service-orders/${id}/photos`;
   const url =
@@ -1560,9 +1561,10 @@ async function uploadServiceOrderPhotoMultipart(
 /** Upload direto ao Storage (contorna limite e falhas de multipart na Vercel). */
 async function uploadServiceOrderPhotoDirect(
   id: string,
-  uploadBlob: File,
+  uploadBlob: Blob,
   name: string,
-  replacePath?: string
+  replacePath?: string,
+  contentTypeHint?: string
 ): Promise<ServiceOrderPhoto> {
   let initResponse: Response;
   try {
@@ -1572,7 +1574,7 @@ async function uploadServiceOrderPhotoDirect(
       body: JSON.stringify({
         fileName: name,
         fileSize: uploadBlob.size,
-        contentType: uploadBlob.type || undefined,
+        contentType: contentTypeHint || uploadBlob.type || undefined,
         ...(replacePath ? { replacePath } : {}),
       }),
       cache: "no-store",
@@ -1606,9 +1608,11 @@ async function uploadServiceOrderPhotoDirect(
     throw new Error("Resposta inválida ao preparar o envio do anexo.");
   }
 
-  const contentType = init.contentType || uploadBlob.type || undefined;
+  const contentType = init.contentType || contentTypeHint || uploadBlob.type || undefined;
+  // No iOS, PUT direto no signedUrl é mais confiável que FormData do cliente Supabase.
+  const preferSignedUrlPut = isIosUploadDevice() && !!init.signedUrl;
   const supabase = getSupabaseBrowser();
-  if (supabase) {
+  if (supabase && !preferSignedUrlPut) {
     const { error: uploadError } = await supabase.storage
       .from(VEHICLE_PHOTOS_STORAGE_BUCKET)
       .uploadToSignedUrl(init.path, init.token, uploadBlob, { contentType });
@@ -1666,36 +1670,21 @@ export async function uploadServiceOrderPhoto(
   file: Blob,
   fileName: string
 ): Promise<ServiceOrderPhoto> {
-  const normalizedName = normalizeAttachmentFileName(file, fileName);
-  const skipCompress =
-    file.type === "image/jpeg" && file.size <= 3 * 1024 * 1024;
-  const toSend = skipCompress
-    ? file
-    : await compressImageForUpload(file, 3 * 1024 * 1024);
-  if (toSend.size > UPLOAD_MAX_BYTES) {
-    const isImage = isAttachmentImageFile(file, normalizedName);
+  const { blob, name, contentType } = await prepareServiceOrderUploadPayload(
+    file,
+    fileName,
+    3 * 1024 * 1024
+  );
+  if (blob.size > UPLOAD_MAX_BYTES) {
+    const isImage = isAttachmentImageFile(file, name);
     throw new Error(
       isImage
-        ? `Arquivo muito grande (${Math.max(1, Math.round(toSend.size / 1024 / 1024))} MB). Limite para envio é ~3,5 MB. Tente outra imagem ou reduza a resolução.`
-        : `Arquivo muito grande (${Math.max(1, Math.round(toSend.size / 1024 / 1024))} MB). Limite para envio é ~3,5 MB.`
+        ? `Arquivo muito grande (${Math.max(1, Math.round(blob.size / 1024 / 1024))} MB). Limite para envio é ~3,5 MB. Tente outra imagem ou reduza a resolução.`
+        : `Arquivo muito grande (${Math.max(1, Math.round(blob.size / 1024 / 1024))} MB). Limite para envio é ~3,5 MB.`
     );
   }
-  const name =
-    toSend === file
-      ? normalizedName
-      : normalizedName.replace(/\.\w+$/i, ".jpg") || "photo.jpg";
-  const uploadBlob =
-    toSend instanceof File
-      ? toSend
-      : new File([toSend], name, {
-          type:
-            file.type ||
-            (/\.pdf$/i.test(name)
-              ? "application/pdf"
-              : "application/octet-stream"),
-        });
 
-  return uploadServiceOrderPhotoDirect(id, uploadBlob, name);
+  return uploadServiceOrderPhotoDirect(id, blob, name, undefined, contentType);
 }
 
 export async function renameServiceOrderPhoto(
@@ -1737,23 +1726,12 @@ export async function rotateServiceOrderPhoto(
   file: Blob,
   fileName: string
 ): Promise<ServiceOrderPhoto> {
-  const normalizedName = normalizeAttachmentFileName(file, fileName);
-  const skipCompress =
-    file.type === "image/jpeg" && file.size <= 3 * 1024 * 1024;
-  const toSend = skipCompress
-    ? file
-    : await compressImageForUpload(file, 3 * 1024 * 1024);
-  const name =
-    toSend === file
-      ? normalizedName
-      : normalizedName.replace(/\.\w+$/i, ".jpg") || "photo.jpg";
-  const uploadBlob =
-    toSend instanceof File
-      ? toSend
-      : new File([toSend], name, {
-          type: file.type || "image/jpeg",
-        });
-  return uploadServiceOrderPhotoDirect(serviceOrderId, uploadBlob, name, path);
+  const { blob, name, contentType } = await prepareServiceOrderUploadPayload(
+    file,
+    fileName,
+    3 * 1024 * 1024
+  );
+  return uploadServiceOrderPhotoDirect(serviceOrderId, blob, name, path, contentType);
 }
 
 // ---------- Comentários do modal do veículo ----------

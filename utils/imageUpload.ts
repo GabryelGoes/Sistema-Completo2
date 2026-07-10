@@ -42,13 +42,88 @@ export function normalizeAttachmentFileName(blob: Blob, fileName: string): strin
   return name || "arquivo";
 }
 
-function isImageType(blob: Blob): boolean {
+function isImageType(blob: Blob, fileName = ""): boolean {
   if (blob.type.startsWith("image/")) return true;
-  // Tablets/Android às vezes enviam screenshot com type vazio ou genérico; inferir pela extensão.
-  if (blob instanceof File && blob.name) {
-    return /\.(png|jpe?g|gif|webp|heic|heif|bmp)$/i.test(blob.name);
+  const name = fileName || (blob instanceof File ? blob.name : "");
+  return /\.(png|jpe?g|gif|webp|heic|heif|bmp)$/i.test(name);
+}
+
+/** iPhone / iPad (inclui PWA no Safari). */
+export function isIosUploadDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return (
+    /iPad|iPhone|iPod/i.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
+function inferAttachmentMimeFromName(name: string): string {
+  const n = name.toLowerCase();
+  if (n.endsWith(".pdf")) return "application/pdf";
+  if (/\.jpe?g$/.test(n)) return "image/jpeg";
+  if (n.endsWith(".png")) return "image/png";
+  if (n.endsWith(".webp")) return "image/webp";
+  if (n.endsWith(".gif")) return "image/gif";
+  if (n.endsWith(".heic")) return "image/heic";
+  if (n.endsWith(".heif")) return "image/heif";
+  return "";
+}
+
+/**
+ * Safari no iOS envia arquivos vazios quando o corpo vem de `new File([blob], …)` ou
+ * quando a foto ainda está no iCloud. Lê o binário em memória antes do upload.
+ */
+export async function materializeBlobForUpload(blob: Blob, fileName = ""): Promise<Blob> {
+  if (blob.size === 0) {
+    throw new Error(
+      "Arquivo vazio. No iPhone, aguarde a foto baixar do iCloud e tente novamente."
+    );
   }
-  return false;
+  const fromPicker = blob instanceof File;
+  const shouldMaterialize = isIosUploadDevice() || !fromPicker;
+  if (!shouldMaterialize) return blob;
+  try {
+    const buffer = await blob.arrayBuffer();
+    if (buffer.byteLength === 0) {
+      throw new Error(
+        "Não foi possível ler o arquivo no iPhone. Escolha outra foto ou aguarde o download do iCloud."
+      );
+    }
+    const type =
+      blob.type || inferAttachmentMimeFromName(fileName) || "application/octet-stream";
+    return new Blob([buffer], { type });
+  } catch (e) {
+    if (e instanceof Error && /iPhone|iCloud|vazio/i.test(e.message)) throw e;
+    return blob;
+  }
+}
+
+export type ServiceOrderUploadPayload = {
+  blob: Blob;
+  name: string;
+  contentType: string;
+};
+
+/** Comprime (se imagem), normaliza nome e prepara Blob seguro para upload — sem `new File()` no Safari. */
+export async function prepareServiceOrderUploadPayload(
+  file: Blob,
+  fileName: string,
+  maxSizeBytes: number = DEFAULT_MAX_BYTES
+): Promise<ServiceOrderUploadPayload> {
+  const normalizedName = normalizeAttachmentFileName(file, fileName);
+  const skipCompress = file.type === "image/jpeg" && file.size <= maxSizeBytes;
+  let blob = skipCompress
+    ? file
+    : await compressImageForUpload(file, maxSizeBytes, normalizedName);
+  const name =
+    blob === file
+      ? normalizedName
+      : normalizedName.replace(/\.\w+$/i, ".jpg") || "photo.jpg";
+  blob = await materializeBlobForUpload(blob, name);
+  const contentType =
+    blob.type || inferAttachmentMimeFromName(name) || "application/octet-stream";
+  return { blob, name, contentType };
 }
 
 /**
@@ -57,9 +132,10 @@ function isImageType(blob: Blob): boolean {
  */
 export function compressImageForUpload(
   blob: Blob,
-  maxSizeBytes: number = DEFAULT_MAX_BYTES
+  maxSizeBytes: number = DEFAULT_MAX_BYTES,
+  fileName = ""
 ): Promise<Blob> {
-  if (!isImageType(blob) || blob.size <= maxSizeBytes) {
+  if (!isImageType(blob, fileName) || blob.size <= maxSizeBytes) {
     return Promise.resolve(blob);
   }
 

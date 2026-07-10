@@ -4,7 +4,7 @@
  * - HTML: rede primeiro; cache só como fallback offline.
  * - Nome do cache versionado para limpar caches antigos após deploy.
  */
-const CACHE_VERSION = 'rei-do-abs-v6';
+const CACHE_VERSION = 'rei-do-abs-v7';
 const CACHE_NAME = `static-${CACHE_VERSION}`;
 
 /** Só pré-cache de assets que não mudam o shell do app; evita travar index.html antigo. */
@@ -77,7 +77,34 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Demais recursos (JS/CSS com hash, imagens): cache primeiro, depois rede
+  // JS/CSS: rede primeiro (iPhone PWA costuma ficar com bundle antigo em cache-first)
+  let isScriptOrStyle = false;
+  try {
+    const dest = event.request.destination;
+    isScriptOrStyle =
+      dest === 'script' ||
+      dest === 'style' ||
+      /\.(js|mjs|css)(\?|$)/i.test(new URL(url).pathname);
+  } catch {
+    isScriptOrStyle = /\.(js|mjs|css)(\?|$)/i.test(url);
+  }
+
+  if (isScriptOrStyle) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Demais recursos estáticos (imagens, fontes): cache primeiro, depois rede
   event.respondWith(
     caches.match(event.request).then((response) => {
       return (
