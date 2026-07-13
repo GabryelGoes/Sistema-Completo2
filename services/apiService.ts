@@ -1493,8 +1493,10 @@ export async function getServiceOrderPhotos(id: string): Promise<ServiceOrderPho
   );
 }
 
-/** Limite seguro do corpo no Vercel (serverless ~4,5 MB); evita "Failed to fetch" por corte abrupto. */
-const UPLOAD_MAX_BYTES = 3.5 * 1024 * 1024;
+/** Upload direto ao Storage — limite maior que multipart na Vercel (servidor aceita até 20 MB). */
+const UPLOAD_MAX_BYTES = 8 * 1024 * 1024;
+/** Alvo de compressão no cliente (fotos de iPhone Pro costumam vir com 10–25 MB). */
+const UPLOAD_COMPRESS_TARGET_BYTES = 3 * 1024 * 1024;
 
 const VEHICLE_PHOTOS_STORAGE_BUCKET =
   (import.meta.env.VITE_SUPABASE_VEHICLE_PHOTOS_BUCKET as string | undefined)?.trim() ||
@@ -1673,14 +1675,14 @@ export async function uploadServiceOrderPhoto(
   const { blob, name, contentType } = await prepareServiceOrderUploadPayload(
     file,
     fileName,
-    3 * 1024 * 1024
+    UPLOAD_COMPRESS_TARGET_BYTES
   );
   if (blob.size > UPLOAD_MAX_BYTES) {
     const isImage = isAttachmentImageFile(file, name);
     throw new Error(
       isImage
-        ? `Arquivo muito grande (${Math.max(1, Math.round(blob.size / 1024 / 1024))} MB). Limite para envio é ~3,5 MB. Tente outra imagem ou reduza a resolução.`
-        : `Arquivo muito grande (${Math.max(1, Math.round(blob.size / 1024 / 1024))} MB). Limite para envio é ~3,5 MB.`
+        ? `Arquivo muito grande (${Math.max(1, Math.round(blob.size / 1024 / 1024))} MB). Limite para envio é ~8 MB. Tente outra imagem ou reduza a resolução.`
+        : `Arquivo muito grande (${Math.max(1, Math.round(blob.size / 1024 / 1024))} MB). Limite para envio é ~8 MB.`
     );
   }
 
@@ -1729,7 +1731,7 @@ export async function rotateServiceOrderPhoto(
   const { blob, name, contentType } = await prepareServiceOrderUploadPayload(
     file,
     fileName,
-    3 * 1024 * 1024
+    UPLOAD_COMPRESS_TARGET_BYTES
   );
   return uploadServiceOrderPhotoDirect(serviceOrderId, blob, name, path, contentType);
 }

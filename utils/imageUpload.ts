@@ -8,8 +8,12 @@ import { storageThumbnailUrl } from "./storageThumbnailUrl";
 /** Corpo máx. ~4,5 MB no Vercel; multipart deixa margem para boundary. */
 const DEFAULT_MAX_BYTES = 3 * 1024 * 1024; // 3 MB — alvo seguro antes do upload
 const MAX_DIMENSION = 1920;
+/** iPhone Pro (48 MP) estoura memória do canvas — começar menor. */
+const IOS_LARGE_PHOTO_BYTES = 5 * 1024 * 1024;
+const IOS_COMPRESS_DIMENSIONS = [1600, 1280, 1024, 800] as const;
+const DEFAULT_COMPRESS_DIMENSIONS = [MAX_DIMENSION, 1600, 1280, 1024, 800] as const;
 const JPEG_QUALITY_START = 0.88;
-const JPEG_QUALITY_MIN = 0.5;
+const JPEG_QUALITY_MIN = 0.45;
 
 export function isAttachmentImageFile(blob: Blob, fileName = ""): boolean {
   if (blob.type.startsWith("image/")) return true;
@@ -112,10 +116,17 @@ export async function prepareServiceOrderUploadPayload(
   maxSizeBytes: number = DEFAULT_MAX_BYTES
 ): Promise<ServiceOrderUploadPayload> {
   const normalizedName = normalizeAttachmentFileName(file, fileName);
-  const skipCompress = file.type === "image/jpeg" && file.size <= maxSizeBytes;
+  const isImage = isImageType(file, normalizedName);
+  const skipCompress =
+    isImage &&
+    !isIosUploadDevice() &&
+    file.type === "image/jpeg" &&
+    file.size <= maxSizeBytes;
   let blob = skipCompress
     ? file
-    : await compressImageForUpload(file, maxSizeBytes, normalizedName);
+    : isImage
+      ? await compressImageForUpload(file, maxSizeBytes, normalizedName)
+      : file;
   const name =
     blob === file
       ? normalizedName
@@ -126,84 +137,175 @@ export async function prepareServiceOrderUploadPayload(
   return { blob, name, contentType };
 }
 
+function scaleToMaxDimension(
+  width: number,
+  height: number,
+  maxDimension: number
+): { width: number; height: number } {
+  if (width <= maxDimension && height <= maxDimension) {
+    return { width, height };
+  }
+  if (width > height) {
+    return {
+      width: maxDimension,
+      height: Math.max(1, Math.round((height * maxDimension) / width)),
+    };
+  }
+  return {
+    width: Math.max(1, Math.round((width * maxDimension) / height)),
+    height: maxDimension,
+  };
+}
+
+function canvasToJpegBlob(
+  canvas: HTMLCanvasElement,
+  maxSizeBytes: number
+): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    let quality = JPEG_QUALITY_START;
+
+    const tryExport = (): void => {
+      canvas.toBlob(
+        (result) => {
+          if (!result) {
+            resolve(null);
+            return;
+          }
+          if (result.size <= maxSizeBytes || quality <= JPEG_QUALITY_MIN) {
+            resolve(result);
+            return;
+          }
+          quality -= 0.1;
+          if (quality < JPEG_QUALITY_MIN) {
+            resolve(result);
+            return;
+          }
+          tryExport();
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+
+    tryExport();
+  });
+}
+
+function compressImageElementToJpeg(
+  img: CanvasImageSource & { naturalWidth?: number; naturalHeight?: number },
+  maxSizeBytes: number,
+  maxDimension: number
+): Promise<Blob | null> {
+  const sourceW = "naturalWidth" in img ? img.naturalWidth : 0;
+  const sourceH = "naturalHeight" in img ? img.naturalHeight : 0;
+  if (!sourceW || !sourceH) return Promise.resolve(null);
+
+  const { width, height } = scaleToMaxDimension(sourceW, sourceH, maxDimension);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return Promise.resolve(null);
+  ctx.drawImage(img, 0, 0, width, height);
+  return canvasToJpegBlob(canvas, maxSizeBytes);
+}
+
+function loadImageFromBlob(blob: Blob): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Falha ao decodificar imagem."));
+    };
+    img.src = url;
+  });
+}
+
+async function compressWithCreateImageBitmap(
+  blob: Blob,
+  maxSizeBytes: number,
+  maxDimension: number
+): Promise<Blob | null> {
+  if (typeof createImageBitmap !== "function") return null;
+  let bitmap: ImageBitmap | null = null;
+  try {
+    bitmap = await createImageBitmap(blob);
+    const { width, height } = scaleToMaxDimension(
+      bitmap.width,
+      bitmap.height,
+      maxDimension
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    return await canvasToJpegBlob(canvas, maxSizeBytes);
+  } catch {
+    return null;
+  } finally {
+    bitmap?.close();
+  }
+}
+
+function compressDimensionsForBlob(blob: Blob, fileName: string): readonly number[] {
+  if (
+    isIosUploadDevice() &&
+    (blob.size > IOS_LARGE_PHOTO_BYTES || /\.heic|\.heif$/i.test(fileName))
+  ) {
+    return IOS_COMPRESS_DIMENSIONS;
+  }
+  if (blob.size > IOS_LARGE_PHOTO_BYTES) {
+    return DEFAULT_COMPRESS_DIMENSIONS;
+  }
+  return DEFAULT_COMPRESS_DIMENSIONS;
+}
+
+const LARGE_PHOTO_USER_HINT =
+  "Não foi possível reduzir a foto neste aparelho. Tente outra imagem, aguarde o download do iCloud ou em Ajustes > Câmera > Formatos escolha «Mais compatível» (JPEG).";
+
 /**
- * Redimensiona e comprime um Blob/File de imagem para ficar sob maxSizeBytes.
- * Se não for imagem ou já estiver pequeno, devolve o mesmo blob.
+ * Redimensiona e comprime imagem para ficar sob maxSizeBytes.
+ * iPhone Pro (48 MP / HEIC): tenta várias resoluções — nunca devolve o original gigante em silêncio.
  */
-export function compressImageForUpload(
+export async function compressImageForUpload(
   blob: Blob,
   maxSizeBytes: number = DEFAULT_MAX_BYTES,
   fileName = ""
 ): Promise<Blob> {
   if (!isImageType(blob, fileName) || blob.size <= maxSizeBytes) {
-    return Promise.resolve(blob);
+    return blob;
   }
 
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
+  const dimensions = compressDimensionsForBlob(blob, fileName);
+  let best: Blob | null = null;
 
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const w = img.naturalWidth;
-      const h = img.naturalHeight;
-      let width = w;
-      let height = h;
-      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-        if (width > height) {
-          height = Math.round((height * MAX_DIMENSION) / width);
-          width = MAX_DIMENSION;
-        } else {
-          width = Math.round((width * MAX_DIMENSION) / height);
-          height = MAX_DIMENSION;
-        }
-      }
+  for (const maxDim of dimensions) {
+    try {
+      const img = await loadImageFromBlob(blob);
+      const compressed = await compressImageElementToJpeg(img, maxSizeBytes, maxDim);
+      if (!compressed) continue;
+      if (compressed.size <= maxSizeBytes) return compressed;
+      if (!best || compressed.size < best.size) best = compressed;
+    } catch {
+      // canvas/Image pode falhar em fotos enormes — tenta createImageBitmap
+    }
 
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        resolve(blob);
-        return;
-      }
-      ctx.drawImage(img, 0, 0, width, height);
+    const viaBitmap = await compressWithCreateImageBitmap(blob, maxSizeBytes, maxDim);
+    if (!viaBitmap) continue;
+    if (viaBitmap.size <= maxSizeBytes) return viaBitmap;
+    if (!best || viaBitmap.size < best.size) best = viaBitmap;
+  }
 
-      let quality = JPEG_QUALITY_START;
+  if (best && best.size < blob.size) return best;
 
-      const tryExport = (): void => {
-        canvas.toBlob(
-          (result) => {
-            if (!result) {
-              resolve(blob);
-              return;
-            }
-            if (result.size <= maxSizeBytes || quality <= JPEG_QUALITY_MIN) {
-              resolve(result);
-              return;
-            }
-            quality -= 0.12;
-            if (quality < JPEG_QUALITY_MIN) {
-              resolve(result);
-              return;
-            }
-            tryExport();
-          },
-          "image/jpeg",
-          quality
-        );
-      };
-
-      tryExport();
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      resolve(blob);
-    };
-
-    img.src = url;
-  });
+  throw new Error(LARGE_PHOTO_USER_HINT);
 }
 
 /** Baixa imagem para processamento no cliente (preserva cache-bust em URLs do Storage). */
