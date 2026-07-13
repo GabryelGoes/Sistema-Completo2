@@ -7939,6 +7939,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         ref={filesInputRef}
                                         className="hidden"
                                         multiple
+                                        accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
                                         onChange={handleFilesInputChange}
                                     />
                                     <button
