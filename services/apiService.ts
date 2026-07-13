@@ -20,7 +20,6 @@ async function readResponseJson<T>(response: Response, emptyMessage: string, inv
 }
 import {
   isAttachmentImageFile,
-  isIosUploadDevice,
   prepareServiceOrderUploadPayload,
 } from "../utils/imageUpload";
 import type { BudgetPartFields } from "../utils/budgetPartStock";
@@ -1504,7 +1503,13 @@ const VEHICLE_PHOTOS_STORAGE_BUCKET =
 
 async function readServiceOrderPhotoApiError(response: Response, fallback: string): Promise<string> {
   const data = await response.json().catch(() => ({} as { error?: string }));
-  if (typeof data.error === "string" && data.error.trim()) return data.error.trim();
+  if (typeof data.error === "string" && data.error.trim()) {
+    const msg = data.error.trim();
+    if (/arquivo não enviado/i.test(msg)) {
+      return "Não foi possível enviar o arquivo. Atualize o app (feche e abra de novo no iPhone) — a versão antiga não suporta anexos na nuvem.";
+    }
+    return msg;
+  }
   if (response.status === 413) {
     return "Arquivo muito grande para enviar. Tente reduzir o tamanho.";
   }
@@ -1611,31 +1616,42 @@ async function uploadServiceOrderPhotoDirect(
   }
 
   const contentType = init.contentType || contentTypeHint || uploadBlob.type || undefined;
-  // No iOS, PUT direto no signedUrl é mais confiável que FormData do cliente Supabase.
-  const preferSignedUrlPut = isIosUploadDevice() && !!init.signedUrl;
-  const supabase = getSupabaseBrowser();
-  if (supabase && !preferSignedUrlPut) {
-    const { error: uploadError } = await supabase.storage
-      .from(VEHICLE_PHOTOS_STORAGE_BUCKET)
-      .uploadToSignedUrl(init.path, init.token, uploadBlob, { contentType });
-    if (uploadError) {
-      throw new Error(uploadError.message || "Falha ao enviar arquivo ao Storage.");
+  // PUT direto na URL assinada evita FormData do cliente Supabase (quebrado no Safari iOS).
+  const uploadBody = uploadBlob;
+
+  async function putToSignedUrl(): Promise<void> {
+    if (!init.signedUrl) {
+      throw new Error(
+        "Upload direto indisponível. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no build do app."
+      );
     }
-  } else if (init.signedUrl) {
     const putResponse = await fetch(init.signedUrl, {
       method: "PUT",
-      body: uploadBlob,
+      body: uploadBody,
       headers: contentType ? { "Content-Type": contentType } : undefined,
     });
     if (!putResponse.ok) {
       throw new Error(
-        `Falha ao enviar ao Storage (${putResponse.status}). Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no build.`
+        `Falha ao enviar ao Storage (${putResponse.status}). Verifique conexão e variáveis VITE_SUPABASE_* no build.`
       );
     }
+  }
+
+  if (init.signedUrl) {
+    await putToSignedUrl();
   } else {
-    throw new Error(
-      "Upload direto indisponível. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no build do app."
-    );
+    const supabase = getSupabaseBrowser();
+    if (!supabase) {
+      throw new Error(
+        "Upload direto indisponível. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no build do app."
+      );
+    }
+    const { error: uploadError } = await supabase.storage
+      .from(VEHICLE_PHOTOS_STORAGE_BUCKET)
+      .uploadToSignedUrl(init.path, init.token, uploadBody, { contentType });
+    if (uploadError) {
+      throw new Error(uploadError.message || "Falha ao enviar arquivo ao Storage.");
+    }
   }
 
   let completeResponse: Response;

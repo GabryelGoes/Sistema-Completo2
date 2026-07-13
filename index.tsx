@@ -28,9 +28,33 @@ root.render(
 // PWA Service Worker Registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
+    navigator.serviceWorker
+      .register('/service-worker.js')
       .then((registration) => {
         if (import.meta.env.DEV) console.log('SW registered:', registration);
+
+        const activateWaitingWorker = (worker: ServiceWorker) => {
+          worker.postMessage({ type: 'SKIP_WAITING' });
+          worker.addEventListener('statechange', () => {
+            if (worker.state === 'activated') {
+              window.location.reload();
+            }
+          });
+        };
+
+        if (registration.waiting) {
+          activateWaitingWorker(registration.waiting);
+        }
+
+        registration.addEventListener('updatefound', () => {
+          const installing = registration.installing;
+          if (!installing) return;
+          installing.addEventListener('statechange', () => {
+            if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+              activateWaitingWorker(installing);
+            }
+          });
+        });
       })
       .catch((registrationError) => {
         if (import.meta.env.DEV) console.warn('SW registration failed:', registrationError);
