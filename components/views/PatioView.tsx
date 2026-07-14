@@ -9,6 +9,10 @@ import { ReminderIcon } from '../ui/ReminderIcon';
 import { NotificationCenter } from '../NotificationCenter';
 import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer, type LabServiceLink, type VehicleReferenceLink } from '../../types';
 import {
+  getServiceOrdersWarm,
+  getSystemUserTechniciansWarm,
+} from '../../services/boardWarmup';
+import {
   getServiceOrders,
   getServiceOrderById,
   updateServiceOrderStatus,
@@ -42,7 +46,6 @@ import {
   updateServiceOrderComment,
   getWorkshopServices,
   getWorkshopParts,
-  getSystemUserTechnicians,
   updateCustomer,
   deleteServiceOrderWithPassword,
   consultPlacaFipe,
@@ -2037,20 +2040,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   /** Evita corridas: várias chamadas em paralelo (Realtime + poll 15s + carga inicial) podiam aplicar respostas fora de ordem e “sumir” cards. */
   const patioBoardFetchChainRef = useRef(Promise.resolve());
+  /** Já mostrou o quadro uma vez — ao voltar na aba, atualiza em background sem spinner. */
+  const hasBoardLoadedRef = useRef(false);
 
   const fetchDataImpl = async (isBackground = false) => {
-    if (!isBackground) {
+    const showBlockingLoader = !isBackground && !hasBoardLoadedRef.current;
+    if (showBlockingLoader) {
       setError(null);
       setInitialLoading(true);
     }
     try {
-      const orders = await getServiceOrders(undefined, orderType);
-      let technicians: SystemUserTechnician[] = [];
-      try {
-        technicians = await getSystemUserTechnicians();
-      } catch (_) {
-        // Nenhum usuário marcado como técnico ainda
-      }
+      const fetchOrders = isBackground
+        ? getServiceOrders(undefined, orderType)
+        : getServiceOrdersWarm(undefined, orderType);
+      const [orders, technicians] = await Promise.all([
+        fetchOrders,
+        getSystemUserTechniciansWarm().catch(() => [] as SystemUserTechnician[]),
+      ]);
+
       setSystemTechnicians(technicians);
       setLists(boardListsFromStages(boardStages));
       const nameMap = buildTechnicianNameMap(technicians);
@@ -2085,11 +2092,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
       );
       setAllMembers([]);
       setError(null);
+      hasBoardLoadedRef.current = true;
     } catch (err: any) {
-      if (!isBackground) setError(err?.message ?? 'Erro ao carregar ordens.');
+      if (showBlockingLoader) setError(err?.message ?? 'Erro ao carregar ordens.');
       else console.error('Erro na sincronização:', err);
     } finally {
-      if (!isBackground) setInitialLoading(false);
+      if (showBlockingLoader) setInitialLoading(false);
     }
   };
 
@@ -2482,12 +2490,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [selectedCard?.id]);
 
   /**
-   * Carga inicial ao focar a aba + refresh periódico (15s) como no comportamento original,
-   * além do Supabase Realtime em `usePatioBoardLiveSync`.
+   * Carga inicial ao focar a aba + refresh periódico (15s).
+   * Se o quadro já carregou (KeepAlive), só atualiza em background — sem spinner.
    */
   useEffect(() => {
     if (!isAppTabActive) return;
-    fetchDataRef.current(false);
+    fetchDataRef.current(hasBoardLoadedRef.current);
     const intervalId = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       fetchDataRef.current(true);
