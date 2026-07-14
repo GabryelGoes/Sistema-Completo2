@@ -156,6 +156,11 @@ export default function App() {
   const handleDesktopTabChange = useCallback(
     (tab: TabId, setTab: React.Dispatch<React.SetStateAction<TabId>>) => {
       dismissDesktopShellOverlays();
+      if (tab === 'patio') {
+        void import('./services/boardWarmup').then((m) => m.warmPatioOrLaboratoryBoard('vehicle'));
+      } else if (tab === 'laboratorio') {
+        void import('./services/boardWarmup').then((m) => m.warmPatioOrLaboratoryBoard('module'));
+      }
       setTab(tab);
     },
     [dismissDesktopShellOverlays]
@@ -288,20 +293,26 @@ export default function App() {
     !isDesktopShell && activeAppTab !== 'patio' && activeAppTab !== 'laboratorio';
 
   useEffect(() => {
-    if (!authSession || isDesktopShell) return;
+    if (!authSession) return;
     const prefetchHeavyViews = () => {
-      void import('./components/views/PatioView');
+      void import('./services/boardWarmup').then((m) => {
+        m.prefetchPatioViewChunk();
+        // Aquenta Pátio e Laboratório em idle — abertura no toque fica bem mais rápida.
+        m.warmPatioOrLaboratoryBoard('vehicle');
+        m.warmPatioOrLaboratoryBoard('module');
+      });
       void import('./components/views/ReceptionView');
       void import('./components/views/AgendaView');
       void import('./components/views/BudgetsHubView');
     };
+    // Prefetch cedo (mesmo no desktop): PatioView é o maior chunk e era a maior espera no clique.
     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      const id = window.requestIdleCallback(prefetchHeavyViews, { timeout: 3500 });
+      const id = window.requestIdleCallback(prefetchHeavyViews, { timeout: 900 });
       return () => window.cancelIdleCallback(id);
     }
-    const timer = window.setTimeout(prefetchHeavyViews, 1800);
+    const timer = window.setTimeout(prefetchHeavyViews, 400);
     return () => window.clearTimeout(timer);
-  }, [authSession, isDesktopShell]);
+  }, [authSession]);
 
   const desktopTopbarCountLabel = useMemo(() => {
     if (!isDesktopShell || shellOverlayTopbar) return undefined;
@@ -551,6 +562,11 @@ export default function App() {
       setIsSettingsOpen(true);
       return;
     }
+    if (app === 'patio') {
+      void import('./services/boardWarmup').then((m) => m.warmPatioOrLaboratoryBoard('vehicle'));
+    } else if (app === 'laboratorio') {
+      void import('./services/boardWarmup').then((m) => m.warmPatioOrLaboratoryBoard('module'));
+    }
     if (app === 'reception') {
       setReturnTabAfterReception(null);
       setAgendaIntakeSourceAppointmentId(null);
@@ -749,6 +765,15 @@ export default function App() {
                 if (app === 'settings') {
                   setIsSettingsOpen(true);
                   return;
+                }
+                if (app === 'patio') {
+                  void import('./services/boardWarmup').then((m) =>
+                    m.warmPatioOrLaboratoryBoard('vehicle')
+                  );
+                } else if (app === 'laboratorio') {
+                  void import('./services/boardWarmup').then((m) =>
+                    m.warmPatioOrLaboratoryBoard('module')
+                  );
                 }
                 setUserTab(app as TabId);
               }}
