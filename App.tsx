@@ -39,6 +39,7 @@ import { setLabQuickServices } from './utils/labQuickServices';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
 import { OverlayPageNavBar } from './components/ui/OverlayPageNavBar';
 import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
+import { shouldIgnoreAppTabPopstate } from './utils/modalHistoryGuard';
 import { DesktopEscapeCloseBridge } from './components/ui/DesktopEscapeCloseBridge';
 import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame';
 import { useDesktopShell } from './hooks/useDesktopShell';
@@ -633,10 +634,8 @@ export default function App() {
   useEffect(() => {
     if (!authSession) return;
     const handlePopState = () => {
-      const w = window as Window & { __rdaModalBackHandledAt?: number };
-      if (w.__rdaModalBackHandledAt && Date.now() - w.__rdaModalBackHandledAt < 120) {
-        return;
-      }
+      // Fechamento de modal sincroniza history.back/go — no iOS o evento chega atrasado.
+      if (shouldIgnoreAppTabPopstate()) return;
       if (activeAppTab === 'reception') {
         handleOverlayCloseOrBack();
         return;

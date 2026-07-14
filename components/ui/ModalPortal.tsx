@@ -1,40 +1,30 @@
 import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
-import { useCallback, useContext, useEffect } from 'react';
-import { useBrowserBackLayer } from './BackNavigationContext';
+import { useContext, useEffect } from 'react';
 import { ModalLayerContext } from './ModalLayerContext';
 
-const escapeAsBack = () => {
-  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-};
-
 /**
- * Renderiza filhos em `document.body` para não ficarem presos ao empilhamento do `main` (`z-10`).
- * Sem portal, `z-[100]` dentro do conteúdo perde para a TabBar irmã (`z-40` fora do `main`).
- * A TabBar usa `z-40`; modais em portal devem usar pelo menos `z-[100]`.
- * Ao montar, registra na camada global para ocultar a barra inferior de navegação.
- * Gesto “voltar” do sistema: via {@link useBrowserBackLayer} (pilha central no app).
+ * Renderiza filhos em `document.body` (z-index acima da TabBar).
+ * Registra a camada de UI para ocultar a barra inferior.
+ *
+ * Histórico / gesto voltar: NÃO fica aqui — use `useBrowserBackLayer` no pai do modal
+ * (ou no próprio modal). Assim o X não dispara `history.back()` duplicado (lento no iPhone).
  */
 export function ModalPortal({
   children,
-  manageBackLayer = true,
+  /** @deprecated Ignorado — histórico fica no useBrowserBackLayer. Mantido por compatibilidade. */
+  manageBackLayer: _manageBackLayer = true,
 }: {
   children: ReactNode;
-  /** false quando o pai já registra useBrowserBackLayer (evita pilha duplicada). */
   manageBackLayer?: boolean;
 }) {
   const ctx = useContext(ModalLayerContext);
-  const onBack = useCallback(() => {
-    escapeAsBack();
-  }, []);
 
   useEffect(() => {
     if (!ctx) return;
     ctx.register();
     return () => ctx.unregister();
   }, [ctx]);
-
-  useBrowserBackLayer(manageBackLayer, onBack);
 
   if (typeof document === 'undefined') return null;
   return createPortal(children, document.body);
