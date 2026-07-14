@@ -1669,7 +1669,45 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsVehicleEditOpen(false);
     setIsDeleteVehicleOpen(false);
     setIsVehicleCategoryModalOpen(false);
+    setHistoryServiceOrderDetail(null);
+    setHistorySavedBudgets([]);
+    setHistoryCardDetails(null);
   }, []);
+
+  const patioVehicleOverlayRef = useRef<HTMLDivElement | null>(null);
+  const patioHistoryDetailOverlayRef = useRef<HTMLDivElement | null>(null);
+  const vehicleModalClosePendingRef = useRef(false);
+
+  /** Esconde o DOM na hora (iPhone) e só depois desmonta a árvore pesada do React. */
+  const closePatioPrimaryOverlaysFast = useCallback(() => {
+    const hide = (el: HTMLElement | null) => {
+      if (!el) return;
+      el.style.setProperty('display', 'none', 'important');
+      el.style.setProperty('visibility', 'hidden', 'important');
+      el.style.setProperty('pointer-events', 'none', 'important');
+      el.setAttribute('aria-hidden', 'true');
+    };
+    hide(patioVehicleOverlayRef.current);
+    hide(patioHistoryDetailOverlayRef.current);
+    // Força o browser a aplicar o hide antes de ceder à thread (desmontagem React).
+    void patioVehicleOverlayRef.current?.getBoundingClientRect();
+    void patioHistoryDetailOverlayRef.current?.getBoundingClientRect();
+
+    if (vehicleModalClosePendingRef.current) {
+      closePatioPrimaryOverlays();
+      return;
+    }
+    vehicleModalClosePendingRef.current = true;
+    const finish = () => {
+      closePatioPrimaryOverlays();
+      vehicleModalClosePendingRef.current = false;
+    };
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.setTimeout(finish, 0);
+      });
+    });
+  }, [closePatioPrimaryOverlays]);
 
   const patioPrimaryOverlayOpen = !!(selectedCard || selectedHistoryCard);
   const patioPrimaryOverlayShown = patioPrimaryOverlayOpen && patioPortalsVisible;
@@ -1683,7 +1721,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       window.dispatchEvent(new CustomEvent('patio-vehicle-sheet-open', { detail: { open: false, source } }));
     };
   }, [patioPrimaryOverlayShown, isModuleMode]);
-  useBrowserBackLayer(patioPrimaryOverlayShown, closePatioPrimaryOverlays);
+  useBrowserBackLayer(patioPrimaryOverlayShown, closePatioPrimaryOverlaysFast);
   /** Pilha acima do modal do veículo: gesto voltar fecha só o orçamento e mantém a ficha aberta. */
   useBrowserBackLayer(isBudgetOpen && patioPortalsVisible, closeBudgetModal);
   useBrowserBackLayer(isPatioHeaderToolsOpen && patioPortalsVisible, () => setIsPatioHeaderToolsOpen(false));
@@ -5841,9 +5879,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* --- DETALHES DO CARD ARQUIVADO — portal em body para ficar acima da TabBar --- */}
       {selectedHistoryCard && patioPortalsVisible && (
          <ModalPortal>
-         <div className={patioHistoryModalOverlayClass}>
+         <div ref={patioHistoryDetailOverlayRef} className={patioHistoryModalOverlayClass}>
             <div
-              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${isPatioPcModal ? 'animate-modal-wp-app' : 'animate-in zoom-in-95 duration-200'}`}
+              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${isPatioPcModal && !isSmartphone ? 'animate-modal-wp-app' : ''}`}
             >
                <div className={`shrink-0 border-b border-zinc-200/60 dark:border-white/[0.07] ${isPatioPcModal ? 'px-10 py-4 xl:px-14' : 'px-4 py-3 sm:px-6'}`}>
                   <div className="flex flex-wrap items-center justify-end gap-2">
@@ -5865,11 +5903,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedHistoryCard(null);
-                      setHistoryServiceOrderDetail(null);
-                      setHistorySavedBudgets([]);
-                    }}
+                    onClick={closePatioPrimaryOverlaysFast}
                     className={patioVehicleVm.closeBtn}
                     aria-label="Fechar"
                   >
@@ -6575,8 +6609,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
           ) : null;
         return (
         <ModalPortal>
-        <div className={patioVehicleModalOverlayClass}>
-           <div className={`${patioVehicleVm.shell} animate-modal-wp-app ${modalRingClass}`}>
+        <div ref={patioVehicleOverlayRef} className={patioVehicleModalOverlayClass}>
+           <div className={`${patioVehicleVm.shell} ${isSmartphone ? '' : 'animate-modal-wp-app'} ${modalRingClass}`}>
               
               <div className={`absolute z-20 flex items-center gap-2 ${isPatioPcModal ? 'top-4 right-5 xl:right-6' : 'top-4 right-4'}`}>
                 {isModuleMode && serviceOrderDetail && !loadingDetails ? (
@@ -6602,7 +6636,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 )}
                 <button
                   type="button"
-                  onClick={() => setSelectedCard(null)}
+                  onClick={closePatioPrimaryOverlaysFast}
                   className={patioVehicleVm.closeBtn}
                   aria-label="Fechar"
                 >

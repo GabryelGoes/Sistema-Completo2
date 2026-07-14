@@ -134,9 +134,9 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
   if (!isPc) {
     return {
       overlay:
-        'fixed inset-0 z-[100] flex items-center justify-center overscroll-none touch-pan-y bg-black/35 dark:bg-black/45 backdrop-blur-[20px] animate-in fade-in duration-200 p-1.5 pt-[max(0.45rem,env(safe-area-inset-top))] pb-[max(0.45rem,env(safe-area-inset-bottom))] sm:p-3',
+        'fixed inset-0 z-[100] flex items-center justify-center overscroll-none touch-pan-y bg-black/50 dark:bg-black/60 p-1.5 pt-[max(0.45rem,env(safe-area-inset-top))] pb-[max(0.45rem,env(safe-area-inset-bottom))] sm:p-3',
       shell:
-        'relative flex h-[min(97vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-0.35rem))] w-full max-w-[99vw] xl:max-w-[98vw] 2xl:max-w-[97vw] min-h-0 flex-col overflow-hidden rounded-[1.5rem] sm:rounded-[1.625rem] border border-zinc-300/90 bg-[#F2F2F7] shadow-[0_2px_16px_-4px_rgba(0,0,0,0.1)] backdrop-blur-none dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]',
+        'relative flex h-[min(97vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-0.35rem))] w-full max-w-[99vw] xl:max-w-[98vw] 2xl:max-w-[97vw] min-h-0 flex-col overflow-hidden rounded-[1.5rem] sm:rounded-[1.625rem] border border-zinc-300/90 bg-[#F2F2F7] shadow-[0_2px_16px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.07] dark:bg-zinc-900 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]',
       scroll: 'min-h-0 flex-1 overflow-y-auto overscroll-none custom-scrollbar',
       header: 'border-b border-zinc-200/50 p-8 pb-8 dark:border-white/[0.06] md:px-12 md:pb-10',
       headerInner: 'mb-6 flex flex-col gap-3',
@@ -205,7 +205,7 @@ export function getPatioHistoryModalLayout(isPc: boolean): {
   if (!isPc) {
     return {
       overlay:
-        'fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-[12px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200',
+        'fixed inset-0 z-[100] flex items-center justify-center bg-black/55 dark:bg-black/65 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6',
       shell:
         'relative flex h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[90rem] min-h-0 flex-col overflow-hidden',
       closeBtn: iosModalClose,

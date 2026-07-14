@@ -164,27 +164,35 @@ body {
 @keyframes modal-wp-app-in {
   from {
     opacity: 0;
-    transform: perspective(1200px) translateY(36px) scale(0.82) rotateX(-10deg);
-    filter: saturate(0.85) blur(1px);
+    transform: translateY(18px) scale(0.98);
   }
 
   to {
     opacity: 1;
-    transform: perspective(1200px) translateY(0) scale(1) rotateX(0deg);
-    filter: saturate(1) blur(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 .animate-modal-wp-app {
-  transform-origin: center 86%;
-  animation: modal-wp-app-in 0.48s cubic-bezier(0.2, 0.85, 0.22, 1) both;
-  will-change: transform, opacity, filter;
+  transform-origin: center bottom;
+  animation: modal-wp-app-in 0.28s cubic-bezier(0.2, 0.85, 0.22, 1) both;
+}
+
+/* iPhone/Android: animação pesada (filter/blur/will-change) atrasava o X do modal do veículo. */
+@media (pointer: coarse) {
+  .animate-modal-wp-app {
+    animation: none;
+    transform: none;
+    filter: none;
+    will-change: auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-modal-wp-app {
-    animation: modal-sheet-in 0.2s ease-out both;
+    animation: none;
     filter: none;
+    transform: none;
   }
 }
 
