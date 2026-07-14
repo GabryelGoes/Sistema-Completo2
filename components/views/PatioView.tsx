@@ -1688,6 +1688,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useBrowserBackLayer(isBudgetOpen && patioPortalsVisible, closeBudgetModal);
   useBrowserBackLayer(isPatioHeaderToolsOpen && patioPortalsVisible, () => setIsPatioHeaderToolsOpen(false));
   useBrowserBackLayer(isRemindersOpen && patioPortalsVisible, () => setIsRemindersOpen(false));
+  useBrowserBackLayer(externalRepairModalOpen && patioPortalsVisible, () => setExternalRepairModalOpen(false));
+  useBrowserBackLayer(benchQueueModalOpen && patioPortalsVisible, () => setBenchQueueModalOpen(false));
+  useBrowserBackLayer(!!budgetApprovalGate && patioPortalsVisible, () => setBudgetApprovalGate(null));
+  useBrowserBackLayer(isVehicleCategoryModalOpen && patioPortalsVisible, () => setIsVehicleCategoryModalOpen(false));
+  useBrowserBackLayer(!!previewImages && patioPortalsVisible, () => setPreviewImages(null));
+  useBrowserBackLayer(!!activeChecklistCardId && patioPortalsVisible, () => {
+    setActiveChecklistCardId(null);
+    setActiveChecklistTemplateId(null);
+  });
 
   const fetchReminders = useCallback(async () => {
     setRemindersLoading(true);
@@ -1964,6 +1973,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [patioPlateSearchApiInfo, setPatioPlateSearchApiInfo] = useState<PlacaFipeLookupResult | null>(null);
   const [isPatioPlateSearchModalOpen, setIsPatioPlateSearchModalOpen] = useState(false);
   const patioPlateSearchInputRef = useRef<HTMLInputElement>(null);
+
+  useBrowserBackLayer(isPatioPlateSearchModalOpen && patioPortalsVisible, () => {
+    setIsPatioPlateSearchModalOpen(false);
+    setPatioPlateSearchMessage(null);
+  });
+  useBrowserBackLayer(isDeleteVehicleOpen && patioPortalsVisible, () => {
+    setIsDeleteVehicleOpen(false);
+    setDeleteVehicleError(null);
+    setDeleteVehiclePassword('');
+  });
+  useBrowserBackLayer(isVehicleEditOpen && patioPortalsVisible, () => setIsVehicleEditOpen(false));
 
   useEffect(() => {
     if (!isDeleteVehicleOpen) {
