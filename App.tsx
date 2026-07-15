@@ -37,7 +37,6 @@ import { applyAccentToRoot, DEFAULT_ACCENT } from './utils/appAppearance';
 import { setLabProductKinds } from './utils/moduleMetadata';
 import { setLabQuickServices } from './utils/labQuickServices';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
-import { OverlayPageNavBar } from './components/ui/OverlayPageNavBar';
 import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
 import { DesktopEscapeCloseBridge } from './components/ui/DesktopEscapeCloseBridge';
 import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame';
@@ -379,6 +378,15 @@ export default function App() {
     else setCurrentTab('home');
   }, [returnTabAfterReception, agendaIntakeSourceAppointmentId, isLimitedSystemUser, userAllowedTabs]);
 
+  const receptionCloseLabel =
+    returnTabAfterReception === 'patio'
+      ? 'Voltar ao Pátio'
+      : returnTabAfterReception === 'laboratorio'
+        ? 'Voltar ao Laboratório'
+        : returnTabAfterReception === 'agenda'
+          ? 'Voltar à Agenda'
+          : 'Fechar';
+
   const handleReceptionIntakeSuccess = useCallback(
     async (orderType: 'vehicle' | 'module') => {
       if (agendaIntakeSourceAppointmentId) {
@@ -708,6 +716,7 @@ export default function App() {
         currentTab={userTab}
         onTabChange={(tab) => handleDesktopTabChange(tab, setUserTab)}
         onBackFromOverlay={handleOverlayCloseOrBack}
+        overlayBackLabel={userTab === 'reception' ? receptionCloseLabel : 'Fechar'}
         allowedTabs={userAllowedTabs}
         desktopSidebarAccess={desktopSidebarAccess}
         onDesktopSidebarAction={handleDesktopSidebarAction}
@@ -842,6 +851,8 @@ export default function App() {
               initialModuleStatus={receptionInitialModuleStatus}
               blurPlates={cinematographicMode}
               hidePageChrome={isDesktopShell}
+              onClose={handleOverlayCloseOrBack}
+              closeLabel={receptionCloseLabel}
               onUseCustomerData={handleUseCustomerData}
               onIntakeSuccess={handleReceptionIntakeSuccess}
               onReceptionModeChangeForBack={syncReturnTabFromReceptionMode}
@@ -1019,6 +1030,7 @@ export default function App() {
       currentTab={currentTab}
       onTabChange={(tab) => handleDesktopTabChange(tab, setCurrentTab)}
       onBackFromOverlay={handleOverlayCloseOrBack}
+      overlayBackLabel={currentTab === 'reception' ? receptionCloseLabel : 'Fechar'}
       allowedTabs={adminAllowedTabs}
       desktopSidebarAccess={desktopSidebarAccess}
       onDesktopSidebarAction={handleDesktopSidebarAction}
@@ -1148,6 +1160,8 @@ export default function App() {
             initialModuleStatus={receptionInitialModuleStatus}
             blurPlates={cinematographicMode}
             hidePageChrome={isDesktopShell}
+            onClose={handleOverlayCloseOrBack}
+            closeLabel={receptionCloseLabel}
             onUseCustomerData={handleUseCustomerData}
             onIntakeSuccess={handleReceptionIntakeSuccess}
             onReceptionModeChangeForBack={syncReturnTabFromReceptionMode}
