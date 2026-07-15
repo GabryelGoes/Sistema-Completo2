@@ -129,6 +129,14 @@ interface ReceptionViewProps {
   isReceptionTabActive?: boolean;
   /** Embutido no modal "Chegou ao pátio" (agenda): oculta o cabeçalho da página Recepção. */
   hidePageChrome?: boolean;
+  /**
+   * Fecha a página Recepção (volta ao Pátio / Laboratório / Agenda / Início).
+   * Exibe um X visível — necessário no fluxo “criar veículo/produto” e no shell de desktop
+   * (onde o cabeçalho e a seta de voltar do mobile não aparecem).
+   */
+  onClose?: () => void;
+  /** Texto do aria-label / title do botão fechar (ex.: "Voltar ao Pátio"). */
+  closeLabel?: string;
 }
 
 function attachmentMimeType(name: string): string {
@@ -181,6 +189,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   onReceptionModeChangeForBack,
   isReceptionTabActive = true,
   hidePageChrome = false,
+  onClose,
+  closeLabel = 'Fechar',
 }) => {
   const desktopShell = useDesktopShellLayout();
   const useShellPageScroll = hidePageChrome || desktopShell;
@@ -1096,6 +1106,20 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       }`}
     >
 
+      {hidePageChrome && onClose ? (
+        <div className="mb-3 flex justify-end pt-1 sm:mb-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/80 bg-white/90 text-zinc-700 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.22)] transition-all hover:bg-white active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:bg-zinc-900"
+            aria-label={closeLabel}
+            title={closeLabel}
+          >
+            <X className="h-5 w-5" strokeWidth={2.25} />
+          </button>
+        </div>
+      ) : null}
+
       {!hidePageChrome ? (
       <>
       {/* Cabeçalho — mesmo padrão da página Agenda */}
@@ -1133,6 +1157,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             <History className="w-4 h-4 text-[#007AFF] dark:text-[#7ab8ff]" />
             {receptionMode === 'module' ? 'Histórico do laboratório' : 'Histórico de veículos'}
           </button>
+          {onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-zinc-200/80 bg-white/65 text-zinc-700 shadow-[0_8px_22px_-8px_rgba(0,0,0,0.1),0_4px_12px_-6px_rgba(0,0,0,0.07)] backdrop-blur-xl transition-all hover:bg-white/90 active:scale-[0.98] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/10"
+              aria-label={closeLabel}
+              title={closeLabel}
+            >
+              <X className="h-5 w-5" strokeWidth={2.25} />
+            </button>
+          ) : null}
         </div>
       </header>
       </>
