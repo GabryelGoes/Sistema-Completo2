@@ -1098,9 +1098,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
       {!hidePageChrome ? (
       <>
-      {/* Cabeçalho — mesmo padrão da página Agenda */}
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
-        <div className="app-view-page-chrome flex items-center gap-3 sm:gap-4 min-w-0 ml-[8%]">
+      {/* Cabeçalho mobile: título alinhado ao Histórico; espaço à esquerda para o botão Voltar */}
+      <header className="mb-5 flex items-center justify-between gap-3 sm:mb-6 lg:mb-8">
+        <div
+          className={`app-view-page-chrome flex min-w-0 items-center gap-3 sm:gap-3.5 ${
+            desktopShell ? '' : 'pl-[3.25rem] sm:pl-14'
+          }`}
+        >
           <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
             <img
               src={receptionMode === 'module' ? '/icons/laboratorio-ios.png' : '/icons/recepcao-ios.png'}
@@ -1108,32 +1112,24 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               className="h-full w-full object-cover"
             />
           </IosAccentIconSquircle>
-          <div className="min-w-0">
-            <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
-              {receptionMode === 'module' ? 'Cadastro de produto' : 'Recepção'}
-            </h1>
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
-              <Sparkles className="w-3.5 h-3.5 text-[#007AFF] dark:text-[#7ab8ff] shrink-0" strokeWidth={2} />
-              <span>
-                {receptionMode === 'module'
-                  ? 'Laboratório — tipo de produto, bancada e ficha do cliente'
-                  : 'Cadastro de clientes e veículos'}
-              </span>
-            </p>
-          </div>
+          <h1 className="min-w-0 truncate text-[22px] font-semibold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
+            {receptionMode === 'module' ? 'Cadastro de produto' : 'Recepção'}
+          </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto justify-end">
-          <button
-            type="button"
-            onClick={() => setIsHistoryOpen(true)}
-            className="inline-flex items-center gap-2 py-2.5 px-4 rounded-2xl text-sm font-semibold border border-zinc-200/80 dark:border-white/[0.1] bg-white/65 dark:bg-white/[0.06] backdrop-blur-xl text-zinc-800 dark:text-zinc-100 hover:bg-white/90 dark:hover:bg-white/10 shadow-[0_8px_22px_-8px_rgba(0,0,0,0.1),0_4px_12px_-6px_rgba(0,0,0,0.07),0_1px_4px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_20px_-4px_rgba(0,0,0,0.08)] transition-all active:scale-[0.98] shrink-0"
-            title="Consultar histórico de veículos arquivados"
-          >
-            <History className="w-4 h-4 text-[#007AFF] dark:text-[#7ab8ff]" />
-            {receptionMode === 'module' ? 'Histórico do laboratório' : 'Histórico de veículos'}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsHistoryOpen(true)}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200/80 bg-white/70 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-800 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.1)] backdrop-blur-xl transition-all hover:bg-white/90 active:scale-[0.98] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/10 sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px]"
+          title={
+            receptionMode === 'module'
+              ? 'Consultar histórico de módulos arquivados'
+              : 'Consultar histórico de veículos arquivados'
+          }
+        >
+          <History className="h-3.5 w-3.5 text-[#007AFF] dark:text-[#7ab8ff] sm:h-4 sm:w-4" />
+          Histórico
+        </button>
       </header>
       </>
       ) : null}
