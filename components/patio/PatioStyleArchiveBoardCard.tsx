@@ -143,8 +143,8 @@ export function PatioStyleArchiveBoardCard({
                 <div
                   className={`mb-0 flex max-w-full items-center gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] portrait:rounded-xl portrait:border-zinc-200/55 ${
                     boardPanoramic
-                      ? 'px-2 py-[calc(0.25rem*1.6146)] portrait:px-1.5 portrait:py-1'
-                      : 'px-3 py-1.5 portrait:px-2 portrait:py-1'
+                      ? 'min-h-[2.35rem] px-2.5 py-2 portrait:min-h-[2.1rem] portrait:px-2 portrait:py-1.5'
+                      : 'min-h-[2.6rem] px-3 py-2.5 portrait:min-h-[2.35rem] portrait:px-2.5 portrait:py-2'
                   }`}
                 >
                   <User
@@ -162,57 +162,56 @@ export function PatioStyleArchiveBoardCard({
                   </span>
                 </div>
               ) : null}
-              {!isModuleMode ? (
-                <div
-                  className={`flex justify-end ${
-                    hasCustomer ? (boardPanoramic ? 'mt-1.5' : 'mt-2') : 'mt-0.5'
-                  }`}
-                >
-                  <MercosulPlateMockup
-                    plate={plate}
-                    blurPlates={blurPlates}
-                    size={boardPanoramic ? 'cardCompact' : 'cardGrid'}
-                  />
-                </div>
-              ) : null}
 
-              <div className={`flex min-w-0 items-start gap-2 sm:gap-3 ${boardPanoramic ? 'mt-2.5' : 'mt-3.5'}`}>
+              <div
+                className={`flex min-w-0 items-center justify-between gap-2 ${
+                  hasCustomer ? (boardPanoramic ? 'mt-1.5' : 'mt-2') : 'mt-0.5'
+                }`}
+              >
                 <div className="min-w-0 flex-1">
                   <div
                     className={`
-                    inline-flex max-w-full cursor-default items-center justify-start gap-1.5 rounded-2xl border px-3 transition-none
-                    ${boardPanoramic ? 'py-[calc(0.375rem*1.6146)]' : 'py-1.5'}
+                    inline-flex max-w-full cursor-default items-center justify-start gap-1.5 rounded-2xl border px-2.5 py-1.5 transition-none
                     border-zinc-200/60 dark:border-white/5 bg-light-card/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200
                   `}
                   >
                     {hasMechanic ? (
                       <div
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-transparent shadow-md portrait:h-[1.6rem] portrait:w-[1.6rem] portrait:rounded-lg ${mechanicSquircleClassName}`}
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-transparent shadow-md portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg ${mechanicSquircleClassName}`}
                       >
                         <Wrench
-                          className="h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:h-[0.8rem] portrait:w-[0.8rem]"
+                          className="h-3.5 w-3.5 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:h-[0.75rem] portrait:w-[0.75rem]"
                           strokeWidth={2.35}
                           aria-hidden
                         />
                       </div>
                     ) : (
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-zinc-100/80 dark:border-white/10 dark:bg-white/[0.06] portrait:h-[1.6rem] portrait:w-[1.6rem] portrait:rounded-lg">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-zinc-100/80 dark:border-white/10 dark:bg-white/[0.06] portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
                         <Wrench
-                          className="h-4 w-4 text-zinc-400 dark:text-zinc-500 portrait:h-[0.8rem] portrait:w-[0.8rem]"
+                          className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 portrait:h-[0.75rem] portrait:w-[0.75rem]"
                           strokeWidth={2.35}
                           aria-hidden
                         />
                       </div>
                     )}
                     <span
-                      className={`font-bold truncate ${
-                        boardPanoramic ? 'text-[1.049rem] portrait:text-[0.8392rem]' : 'text-[1.199rem] portrait:text-[0.9592rem]'
+                      className={`truncate font-bold ${
+                        boardPanoramic ? 'text-[0.95rem] portrait:text-[0.78rem]' : 'text-[1.05rem] portrait:text-[0.88rem]'
                       }`}
                     >
                       {hasMechanic ? capitalizeFirst(mechanic) : 'Sem técnico'}
                     </span>
                   </div>
                 </div>
+                {!isModuleMode ? (
+                  <div className="shrink-0">
+                    <MercosulPlateMockup
+                      plate={plate}
+                      blurPlates={blurPlates}
+                      size={boardPanoramic ? 'cardCompact' : 'cardGrid'}
+                    />
+                  </div>
+                ) : null}
               </div>
 
               {isModuleMode ? (

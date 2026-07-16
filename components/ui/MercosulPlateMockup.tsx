@@ -21,12 +21,12 @@ export function MercosulPlateMockup(props: {
   const isModal = size === 'modal';
 
   const w = isCompact
-    ? 'w-[118px]'
+    ? 'w-[112px]'
     : isCardGrid
-      ? 'w-[136px] sm:w-[148px]'
+      ? 'w-[128px] sm:w-[138px]'
       : isModal
         ? 'w-[188px] sm:w-[210px]'
-        : 'w-[168px] sm:w-[180px]';
+        : 'w-[160px] sm:w-[172px]';
 
   const bandText = isCompact
     ? 'text-[5.5px] tracking-[0.18em]'
@@ -38,46 +38,31 @@ export function MercosulPlateMockup(props: {
   const flagH = isCompact ? 8 : isCardGrid ? 9 : 10;
 
   const plateText = isCompact
-    ? 'text-[20px] tracking-[0.08em]'
+    ? 'text-[19px] tracking-[0.08em]'
     : isCardGrid
-      ? 'text-[26px] tracking-[0.1em] sm:text-[28px]'
+      ? 'text-[24px] tracking-[0.1em] sm:text-[26px]'
       : isModal
         ? 'text-[30px] tracking-[0.1em] sm:text-[34px]'
-        : 'text-[32px] tracking-[0.1em] sm:text-[36px]';
-
-  const qrBox = isCompact ? 'h-[9px] w-[9px]' : isCardGrid ? 'h-[11px] w-[11px]' : 'h-[12px] w-[12px]';
+        : 'text-[30px] tracking-[0.1em] sm:text-[34px]';
 
   const mockup = (
     <div
-      className={`${w} aspect-[400/130] relative grid grid-rows-[22%_78%] overflow-hidden rounded-[3px] border-[1.5px] border-[#1a1a1a] bg-white shadow-[0_2px_6px_-1px_rgba(0,0,0,0.28),0_1px_2px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] ${selectable ? 'select-text' : 'select-none'}`}
+      className={`${w} aspect-[400/130] relative grid grid-rows-[22%_78%] overflow-hidden rounded-[8px] border-[1.5px] border-[#1a1a1a] bg-white shadow-[0_2px_6px_-1px_rgba(0,0,0,0.28),0_1px_2px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] sm:rounded-[9px] ${selectable ? 'select-text' : 'select-none'}`}
       aria-hidden
     >
       {/* Filete interno metálico */}
-      <div className="pointer-events-none absolute inset-[1.5px] z-10 rounded-[1.5px] border border-black/15" />
+      <div className="pointer-events-none absolute inset-[1.5px] z-10 rounded-[6.5px] border border-black/15 sm:rounded-[7.5px]" />
 
       <div
         className={`relative z-[1] flex min-h-0 items-center justify-between bg-[#003399] ${
-          isCompact ? 'px-1' : 'px-1.5 sm:px-2'
+          isCompact ? 'px-1.5' : 'px-2 sm:px-2.5'
         }`}
       >
-        <div className={`flex shrink-0 items-center justify-center rounded-[1px] bg-white/95 ${qrBox}`}>
-          <div
-            className="grid h-[70%] w-[70%] grid-cols-3 grid-rows-3 gap-[0.5px]"
-            aria-hidden
-          >
-            {Array.from({ length: 9 }).map((_, i) => (
-              <span
-                key={i}
-                className={`bg-[#003399] ${i % 2 === 0 ? 'opacity-100' : 'opacity-35'}`}
-              />
-            ))}
-          </div>
-        </div>
         <span className={`font-semibold uppercase leading-none text-white ${bandText}`}>BRASIL</span>
         <BrazilFlagIcon
           width={flagW}
           height={flagH}
-          className="shrink-0 rounded-[1px] border border-white/40 shadow-sm"
+          className="shrink-0 rounded-[2px] border border-white/40 shadow-sm"
         />
       </div>
 
