@@ -1564,6 +1564,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     !isSmartphone && !isPortraitOrientation && (isDesktop || isTablet);
   /** Layout de PC (desktop ≥1024 ou shell OnMotor) — distinto de tablet. */
   const isPcLayout = desktopShell || (isDesktop && viewportWidth >= 1024);
+  /**
+   * Cabeçalho compacto com ações numa linha centralizada.
+   * Cobre tablets (qualquer orientação) e viewports ≥768 fora do shell PC —
+   * algumas proporções de tablet não caem só em `isTablet` pelo UA.
+   */
+  const patioHeaderActionsCentered = !desktopShell && (isTablet || viewportWidth >= 768);
   /** Cabeçalho do laboratório em uma única linha (apenas PC): botões da bancada embutidos. */
   const headerActionsOneLine = isModuleMode && isPcLayout;
   /** Tamanho dos botões de ação do cabeçalho — menores quando tudo fica numa linha (PC laboratório). */
@@ -5032,7 +5038,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
           ) : (
-            <div className={`flex w-full flex-col ${isTablet ? 'gap-4' : 'gap-3.5 sm:gap-4'}`}>
+            <div className={`flex w-full flex-col ${patioHeaderActionsCentered ? 'gap-4' : 'gap-3.5 sm:gap-4'}`}>
               <div className="app-view-page-chrome flex min-w-0 items-start gap-3 sm:gap-3.5">
                 <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
                   <img
@@ -5042,11 +5048,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   />
                 </IosAccentIconSquircle>
                 <div className="min-w-0 flex-1">
-                  <div className={`flex items-center gap-2 ${isTablet ? '' : 'justify-between'}`}>
+                  <div className={`flex items-center gap-2 ${patioHeaderActionsCentered ? '' : 'justify-between'}`}>
                     <h1 className="min-w-0 text-[24px] font-semibold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
                       {isModuleMode ? 'Laboratório' : 'Pátio'}
                     </h1>
-                    {!isTablet ? (
+                    {!patioHeaderActionsCentered ? (
                       <div className="flex shrink-0 items-center gap-2">
                         <div className="shrink-0">
                           <button
@@ -5087,7 +5093,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
               <div
                 className={`flex flex-wrap items-center gap-2 sm:gap-2.5 ${
-                  isTablet ? 'justify-center' : ''
+                  patioHeaderActionsCentered ? 'justify-center' : ''
                 }`}
               >
                 <button
@@ -5127,7 +5133,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
                   <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
                 </button>
-                {isTablet ? (
+                {patioHeaderActionsCentered ? (
                   <>
                     <div className="shrink-0">
                       <button
