@@ -141,39 +141,33 @@ export function PatioStyleArchiveBoardCard({
 
               {hasCustomer ? (
                 <div
-                  className={`mb-0 flex max-w-full items-center justify-between gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] portrait:rounded-xl portrait:gap-1.5 portrait:border-zinc-200/55 ${
+                  className={`mb-0 flex max-w-full items-center gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] portrait:rounded-xl portrait:border-zinc-200/55 ${
                     boardPanoramic
                       ? 'px-2 py-[calc(0.25rem*1.6146)] portrait:px-1.5 portrait:py-1'
                       : 'px-3 py-1.5 portrait:px-2 portrait:py-1'
                   }`}
                 >
-                  <div className="min-w-0 flex flex-1 items-center gap-2">
-                    <User
-                      className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`}
-                      strokeWidth={2}
-                    />
-                    <span
-                      className={`min-w-0 flex-1 truncate font-semibold text-zinc-700 dark:text-zinc-200 tracking-tight ${
-                        boardPanoramic
-                          ? 'text-[1.049rem] portrait:text-[0.8392rem]'
-                          : 'text-[1.199rem] portrait:text-[0.9592rem]'
-                      }`}
-                    >
-                      {customerLine}
-                    </span>
-                  </div>
-                  {!isModuleMode && (
-                    <div className="shrink-0">
-                      <MercosulPlateMockup
-                        plate={plate}
-                        blurPlates={blurPlates}
-                        size={boardPanoramic ? 'cardCompact' : 'cardGrid'}
-                      />
-                    </div>
-                  )}
+                  <User
+                    className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`}
+                    strokeWidth={2}
+                  />
+                  <span
+                    className={`min-w-0 flex-1 truncate font-semibold tracking-tight text-zinc-700 dark:text-zinc-200 ${
+                      boardPanoramic
+                        ? 'text-[1.049rem] portrait:text-[0.8392rem]'
+                        : 'text-[1.199rem] portrait:text-[0.9592rem]'
+                    }`}
+                  >
+                    {customerLine}
+                  </span>
                 </div>
-              ) : !isModuleMode ? (
-                <div className="mb-0 flex max-w-full justify-end">
+              ) : null}
+              {!isModuleMode ? (
+                <div
+                  className={`flex justify-end ${
+                    hasCustomer ? (boardPanoramic ? 'mt-1.5' : 'mt-2') : 'mt-0.5'
+                  }`}
+                >
                   <MercosulPlateMockup
                     plate={plate}
                     blurPlates={blurPlates}
