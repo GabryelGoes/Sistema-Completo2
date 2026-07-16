@@ -5092,8 +5092,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
 
               <div
-                className={`flex flex-wrap items-center gap-2 sm:gap-2.5 ${
-                  patioHeaderActionsCentered ? 'justify-center' : ''
+                className={`flex items-center gap-2 sm:gap-2.5 ${
+                  patioHeaderActionsCentered
+                    ? 'flex-nowrap justify-center overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden'
+                    : 'flex-wrap'
                 }`}
               >
                 <button
