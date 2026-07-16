@@ -776,7 +776,7 @@ export default function App() {
               systemUserPermissions={authSession.permissions}
               onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
-              globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
+              globalOverlayModalOpen={isSettingsOpen || isUserChangePasswordsOpen || isTvPatioModalOpen}
               patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
               onOpenVehicleAccompaniment={openVehicleAccompaniment}
             />
@@ -876,7 +876,7 @@ export default function App() {
             tabId="patio"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+            className="flex-1 min-h-0 overflow-y-auto p-0"
           >
             <LazyTabBoundary label="Pátio">
               <LazyPatioView
@@ -898,7 +898,7 @@ export default function App() {
             tabId="laboratorio"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+            className="flex-1 min-h-0 overflow-y-auto p-0"
           >
             <LazyTabBoundary label="Laboratório">
               <LazyPatioView
@@ -1077,7 +1077,7 @@ export default function App() {
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
             onOpenSettings={() => setIsSettingsOpen(true)}
-            globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
+            globalOverlayModalOpen={isSettingsOpen || isUserChangePasswordsOpen || isTvPatioModalOpen}
             patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
             onOpenVehicleAccompaniment={openVehicleAccompaniment}
           />
@@ -1188,7 +1188,7 @@ export default function App() {
           tabId="patio"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+          className="flex-1 min-h-0 overflow-y-auto p-0"
         >
           <LazyTabBoundary label="Pátio">
             <LazyPatioView
@@ -1211,7 +1211,7 @@ export default function App() {
           tabId="laboratorio"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+          className="flex-1 min-h-0 overflow-y-auto p-0"
         >
           <LazyTabBoundary label="Laboratório">
             <LazyPatioView

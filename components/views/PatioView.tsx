@@ -4671,6 +4671,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
       : 'veículos';
   const activeBoardCountContext = isModuleMode ? 'no laboratório' : 'no pátio';
 
+  const patioCompactActionBtn =
+    'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[13px] font-semibold text-zinc-800 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.98] dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:px-3.5';
+  const patioCompactCreateBtn = isModuleMode
+    ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#6d28d9]/80 bg-[#A855F7] px-3.5 py-2.5 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(168,85,247,0.55)] transition-all hover:brightness-110 active:scale-[0.98] sm:px-4'
+    : 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#0058c7]/70 bg-[#007AFF] px-3.5 py-2.5 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(0,122,255,0.5)] transition-all hover:brightness-110 active:scale-[0.98] sm:px-4';
+
   const patioActiveCountBadge = (
     <span
       className="patio-active-count-badge inline-flex items-center gap-2 rounded-full border border-zinc-200/80 bg-white/90 px-3.5 py-1.5 text-[13px] font-semibold text-zinc-800 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.08)] tabular-nums dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-100 dark:shadow-none"
@@ -4680,11 +4686,207 @@ export const PatioView: React.FC<PatioViewProps> = ({
       <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-[#007AFF]/12 px-1.5 text-[12px] font-bold leading-none text-[#007AFF] dark:bg-[#0A84FF]/20 dark:text-[#7ab8ff]">
         {activeBoardCount}
       </span>
-      <span className="whitespace-nowrap">
-        {activeBoardCountUnit} {activeBoardCountContext}
-      </span>
+      <span className="whitespace-nowrap">{activeBoardCountUnit}</span>
     </span>
   );
+
+  const patioHeaderToolsMenu =
+    isPatioHeaderToolsOpen && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={patioHeaderToolsPopoverRef}
+            role="menu"
+            style={patioToolsPopoverStyle}
+            className="max-h-[min(70vh,calc(100dvh-5rem))] overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200/90 bg-white py-2 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
+          >
+            {isModuleMode && (
+              <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Bancada</p>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                  onClick={() => {
+                    setBenchFullscreenOpen(true);
+                    setIsPatioHeaderToolsOpen(false);
+                  }}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet-200/80 bg-violet-50 dark:border-violet-500/30 dark:bg-violet-950/40">
+                    <LayoutGrid className="h-5 w-5 text-[#A855F7] dark:text-violet-300" strokeWidth={2.2} aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-semibold leading-snug">Visualizar bancada (tela cheia)</span>
+                    <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                      Abre o balcão ocupando toda a tela do laboratório
+                    </span>
+                  </span>
+                </button>
+              </div>
+            )}
+            <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Tamanho dos cartões</p>
+              <button
+                type="button"
+                role="menuitem"
+                aria-pressed={boardPanoramic}
+                className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
+                  boardPanoramic ? 'text-[#007AFF] dark:text-[#64B5FF]' : 'text-zinc-800 dark:text-zinc-100'
+                }`}
+                onClick={() => {
+                  setBoardPanoramic((prev) => {
+                    const next = !prev;
+                    try {
+                      localStorage.setItem(boardPanoramicStorageKey, next ? '1' : '0');
+                    } catch (_) {}
+                    return next;
+                  });
+                  setIsPatioHeaderToolsOpen(false);
+                }}
+              >
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
+                    boardPanoramic
+                      ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
+                      : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
+                  }`}
+                >
+                  {boardPanoramic ? (
+                    <ZoomIn className="h-5 w-5 drop-shadow-sm" strokeWidth={2.2} aria-hidden />
+                  ) : (
+                    <ZoomOut className="h-5 w-5 drop-shadow-sm" strokeWidth={2.2} aria-hidden />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-semibold leading-snug">
+                    {boardPanoramic ? 'Ampliar cartões' : 'Encolher cartões'}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                    {boardPanoramic
+                      ? 'Voltar ao tamanho padrão da grade'
+                      : 'Modo compacto: 3 colunas em retrato; em paisagem larga, até 5 por fileira'}
+                  </span>
+                </span>
+              </button>
+            </div>
+            <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Visualização do quadro</p>
+              <div className="flex flex-col gap-1">
+                {(
+                  [
+                    { mode: 'standard' as const, icon: LayoutGrid, title: 'Padrão', desc: 'Grade na ordem das etapas do fluxo' },
+                    { mode: 'trello' as const, icon: Columns3, title: 'Estilo Trello', desc: 'Colunas por etapa — arraste o cartão para mudar a fase' },
+                    { mode: 'by_mechanic' as const, icon: Users, title: 'Por mecânico', desc: 'Colunas por técnico atribuído' },
+                    { mode: 'recent_first' as const, icon: SortDesc, title: 'Recentes primeiro', desc: 'Mesma grade, OS alteradas recentemente no topo' },
+                  ] as const
+                ).map(({ mode, icon: Icon, title, desc }) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="menuitem"
+                    className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
+                      boardLayoutMode === mode ? 'text-[#007AFF] dark:text-[#64B5FF]' : 'text-zinc-800 dark:text-zinc-100'
+                    }`}
+                    onClick={() => {
+                      setBoardLayoutModePersist(mode);
+                      setIsPatioHeaderToolsOpen(false);
+                    }}
+                  >
+                    <span
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
+                        boardLayoutMode === mode
+                          ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
+                          : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5 drop-shadow-sm" strokeWidth={2.1} aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold leading-snug">{title}</span>
+                      <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">{desc}</span>
+                    </span>
+                    {boardLayoutMode === mode ? (
+                      <Check className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} aria-hidden />
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {!isModuleMode ? (
+              <div className="border-b border-zinc-100 px-3 py-2 dark:border-white/[0.07]">
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Buscar placa</p>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                  onClick={() => {
+                    setPatioPlateSearchMessage(null);
+                    setPatioPlateSearchInPatioCards([]);
+                    setPatioPlateSearchApiInfo(null);
+                    setIsPatioPlateSearchModalOpen(true);
+                    setIsPatioHeaderToolsOpen(false);
+                  }}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
+                    <Search className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-semibold leading-snug">Consulta completa por placa</span>
+                    <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                      Inclui dados PlacaFipe se o veículo não estiver no pátio
+                    </span>
+                  </span>
+                </button>
+              </div>
+            ) : (
+              <div className="border-b border-zinc-100 px-3 py-2 dark:border-white/[0.07]">
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Atualizar lista</p>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                  onClick={() => {
+                    void fetchData(false);
+                    setIsPatioHeaderToolsOpen(false);
+                  }}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
+                    <RefreshCw className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-semibold leading-snug">Recarregar laboratório</span>
+                    <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                      Buscar novamente os módulos na oficina
+                    </span>
+                  </span>
+                </button>
+              </div>
+            )}
+            <div className="px-3 pt-2">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Histórico</p>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                onClick={() => {
+                  setIsHistoryOpen(true);
+                  setIsPatioHeaderToolsOpen(false);
+                }}
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
+                  <History className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-semibold leading-snug">OS arquivadas</span>
+                  <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                    Consultar entregas e veículos já finalizados
+                  </span>
+                </span>
+              </button>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
 
   return (
     <div className="relative min-h-full w-full animate-in pb-32 fade-in duration-500">
@@ -4694,393 +4896,234 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <div className="absolute bottom-1/4 left-0 h-[220px] w-[320px] -translate-x-1/3 rounded-full bg-[#007AFF]/[0.04] blur-[80px] dark:bg-[#007AFF]/[0.06]" />
       </div>
 
-      <div className="relative z-0 mx-auto max-w-[100rem] overflow-visible px-3 pt-2 sm:px-5 md:px-6 md:pt-3">
-        {/* Cabeçalho — mesmo padrão Recepção/Agenda: sem painel vidro em volta; ícone = tile da Home (Pátio / Laboratório) */}
-        <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-6 pb-0.5 sm:mb-8' : 'mb-6 sm:mb-8'}`}>
-          <div className={`w-full gap-y-4 md:gap-x-3 ${headerActionsOneLine ? 'flex flex-nowrap items-center md:justify-between' : 'grid grid-cols-1 items-center md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'}`}>
-            {desktopShell ? (
+      <div className="relative z-0 mx-auto max-w-[100rem] overflow-visible px-3 pt-3 sm:px-4 md:px-6 md:pt-6">
+        {/* Cabeçalho — mesmo respiro superior da Agenda (pt-3 / md:pt-6) */}
+        <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-6 pb-0.5 sm:mb-8' : 'mb-6 lg:mb-8'}`}>
+          {desktopShell ? (
+            <div
+              className={`w-full gap-y-4 md:gap-x-3 ${
+                headerActionsOneLine
+                  ? 'flex flex-nowrap items-center md:justify-between'
+                  : 'grid grid-cols-1 items-center md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'
+              }`}
+            >
               <div className="flex min-w-0 items-center md:justify-self-start">{patioActiveCountBadge}</div>
-            ) : (
-              <div className="app-view-page-chrome flex min-w-0 items-center gap-3 sm:gap-4 md:justify-self-start">
-                {isModuleMode ? (
-                  <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-                    <img src="/icons/laboratorio-ios.png" alt="" className="h-full w-full object-cover" />
-                  </IosAccentIconSquircle>
-                ) : (
-                  <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-                    <img src="/icons/patio-ios.png" alt="" className="h-full w-full object-cover" />
-                  </IosAccentIconSquircle>
-                )}
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
-                      {isModuleMode ? 'Laboratório' : 'Pátio'}
-                    </h1>
-                    {patioActiveCountBadge}
+              <div className={`flex justify-center md:justify-self-center md:px-2 ${headerActionsOneLine ? 'hidden' : ''}`}>
+                <button
+                  type="button"
+                  onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                  className={patioCompactCreateBtn}
+                >
+                  <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
+                  <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
+                </button>
+              </div>
+              <div
+                className={
+                  headerActionsOneLine
+                    ? 'min-w-0 flex-1 overflow-x-auto overflow-y-visible pb-1.5 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]'
+                    : 'flex w-full min-w-0 flex-wrap items-center justify-end gap-2 overflow-visible md:w-auto md:justify-self-end'
+                }
+              >
+                <div
+                  className={
+                    headerActionsOneLine
+                      ? 'flex w-max min-w-full flex-nowrap items-center justify-end gap-1.5 py-1'
+                      : 'contents'
+                  }
+                >
+                  {headerActionsOneLine && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setBenchQueueModalOpen(true)}
+                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border border-violet-200/90 bg-violet-50/90 font-semibold text-violet-900 shadow-sm transition-all hover:bg-violet-100/90 active:scale-[0.98] dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100 ${headerPillSize}`}
+                      >
+                        <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
+                        <span className="tracking-tight">Fila da bancada</span>
+                        {benchQueueCount > 0 ? (
+                          <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
+                            {benchQueueCount}
+                          </span>
+                        ) : null}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExternalRepairModalOpen(true)}
+                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border border-purple-200/90 bg-purple-50/90 font-semibold text-purple-900 shadow-sm transition-all hover:bg-purple-100/90 active:scale-[0.98] dark:border-purple-500/35 dark:bg-purple-950/40 dark:text-purple-100 ${headerPillSize}`}
+                      >
+                        <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
+                        <span className="tracking-tight">Conserto externo</span>
+                        {externalRepairCards.length > 0 ? (
+                          <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
+                            {externalRepairCards.length}
+                          </span>
+                        ) : null}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleBenchPanelToggle}
+                        aria-expanded={benchPanelOpen}
+                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-white/80 font-semibold text-zinc-700 shadow-sm transition-all hover:border-[#A855F7]/40 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 ${headerPillSize}`}
+                      >
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
+                          strokeWidth={2.2}
+                          aria-hidden
+                        />
+                        <span className="tracking-tight">Bancada do laboratório</span>
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReminderSaveError(null);
+                      setIsRemindersOpen(true);
+                    }}
+                    className={`${patioCompactActionBtn} ${headerActionsOneLine ? headerPillSize : ''}`}
+                  >
+                    {remindersBadgeCount > 0 && (
+                      <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
+                        {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
+                      </span>
+                    )}
+                    <ReminderIcon className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                    <span>Lembretes</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsHistoryOpen(true)}
+                    className={`${patioCompactActionBtn} ${headerActionsOneLine ? headerPillSize : ''}`}
+                    title={
+                      isModuleMode
+                        ? 'Consultar histórico de módulos arquivados'
+                        : 'Consultar histórico de veículos arquivados'
+                    }
+                  >
+                    <History className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                    <span>Histórico</span>
+                  </button>
+                  <div className="shrink-0">
+                    <button
+                      type="button"
+                      ref={patioHeaderToolsTriggerRef}
+                      onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
+                      aria-expanded={isPatioHeaderToolsOpen}
+                      aria-haspopup="menu"
+                      aria-label="Mais opções"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
+                    >
+                      <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+                    </button>
+                    {patioHeaderToolsMenu}
                   </div>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                    {isModuleMode ? 'Módulos ativos no quadro' : 'Veículos ativos no quadro'}
+                  {headerActionsOneLine ? (
+                    <button
+                      type="button"
+                      onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                      className={patioCompactCreateBtn}
+                    >
+                      <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
+                      <span>Criar módulo</span>
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex w-full flex-col gap-4">
+              {/* Espaço à esquerda para o botão Voltar/Fechar fixo (igual Recepção) */}
+              <div className="app-view-page-chrome flex min-w-0 items-start gap-3 pl-[3.25rem] sm:gap-3.5 sm:pl-14">
+                <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
+                  <img
+                    src={isModuleMode ? '/icons/laboratorio-ios.png' : '/icons/patio-ios.png'}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                </IosAccentIconSquircle>
+                <div className="min-w-0 flex-1">
+                  <h1 className="min-w-0 text-[24px] font-semibold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
+                    {isModuleMode ? 'Laboratório' : 'Pátio'}
+                  </h1>
+                  <p
+                    className="mt-1.5 text-[13px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400 sm:text-[14px]"
+                    aria-live="polite"
+                  >
+                    {activeBoardCount} {activeBoardCountUnit}
                   </p>
                 </div>
               </div>
-            )}
 
-            <div className={`flex justify-center portrait:hidden md:justify-self-center md:px-2 ${headerActionsOneLine ? 'hidden' : ''}`}>
-              <button
-                type="button"
-                onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
-                className={`relative inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-bold tracking-tight text-white ring-0 ring-offset-0 transition-all duration-200 hover:brightness-110 active:translate-y-0.5 active:shadow-[0_2px_0_0_rgba(0,0,0,0.15)] dark:text-white dark:ring-1 dark:ring-white/20 dark:ring-offset-1 dark:ring-offset-zinc-900 dark:hover:brightness-110 sm:min-h-[40px] sm:px-5 sm:py-2.5 sm:text-[14px] ${
-                  isModuleMode
-                    ? 'border border-[#6d28d9] bg-[#A855F7] shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_8px_28px_-6px_rgba(168,85,247,0.5),0_4px_16px_-4px_rgba(0,0,0,0.15)] hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_10px_32px_-4px_rgba(168,85,247,0.55)] dark:border-violet-300/45 dark:bg-[#A855F7] dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_8px_32px_-6px_rgba(167,139,250,0.48),0_4px_20px_-6px_rgba(0,0,0,0.45)]'
-                    : 'border border-[#0058c7] bg-[#007AFF] shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_8px_28px_-6px_rgba(0,122,255,0.45),0_4px_16px_-4px_rgba(0,0,0,0.15)] hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_10px_32px_-4px_rgba(0,122,255,0.5)] dark:border-[#0A84FF]/80 dark:bg-[#0A84FF] dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_8px_32px_-6px_rgba(10,132,255,0.4),0_4px_20px_-6px_rgba(0,0,0,0.45)]'
-                }`}
-              >
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white">
-                  <Plus className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden />
-                </span>
-                <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
-              </button>
-            </div>
-
-            <div
-              className={
-                headerActionsOneLine
-                  ? 'min-w-0 flex-1 overflow-x-auto overflow-y-visible pb-1.5 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]'
-                  : 'flex w-full min-w-0 flex-wrap items-center justify-center gap-2 overflow-visible portrait:justify-end md:w-auto md:justify-self-end md:justify-end'
-              }
-            >
-            <div
-              className={
-                headerActionsOneLine
-                  ? 'flex w-max min-w-full flex-nowrap items-center justify-end gap-1.5 py-1'
-                  : 'contents'
-              }
-            >
-            {headerActionsOneLine && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setBenchQueueModalOpen(true)}
-                  className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-violet-200/90 bg-violet-50/90 font-semibold text-violet-900 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-violet-400/60 hover:bg-violet-100/90 active:scale-[0.98] dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:border-violet-400/50 ${headerPillSize}`}
-                >
-                  <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                  <span className="tracking-tight">Fila da bancada</span>
-                  {benchQueueCount > 0 ? (
-                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
-                      {benchQueueCount}
-                    </span>
-                  ) : null}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setExternalRepairModalOpen(true)}
-                  className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-purple-200/90 bg-purple-50/90 font-semibold text-purple-900 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-purple-400/60 hover:bg-purple-100/90 active:scale-[0.98] dark:border-purple-500/35 dark:bg-purple-950/40 dark:text-purple-100 dark:hover:border-purple-400/50 ${headerPillSize}`}
-                >
-                  <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                  <span className="tracking-tight">Conserto externo</span>
-                  {externalRepairCards.length > 0 ? (
-                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
-                      {externalRepairCards.length}
-                    </span>
-                  ) : null}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleBenchPanelToggle}
-                  aria-expanded={benchPanelOpen}
-                  className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/80 font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#A855F7]/40 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white ${headerPillSize}`}
-                >
-                  <ChevronDown
-                    className={`h-4 w-4 shrink-0 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
-                    strokeWidth={2.2}
-                    aria-hidden
-                  />
-                  <span className="tracking-tight">Bancada do laboratório</span>
-                  {benchQueueCount > 0 ? (
-                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      {benchQueueCount}
-                    </span>
-                  ) : unassignedBenchCount > 0 ? (
-                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      {unassignedBenchCount}
-                    </span>
-                  ) : null}
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setReminderSaveError(null);
-                setIsRemindersOpen(true);
-              }}
-              className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/80 font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white ${headerPillSize}`}
-            >
-              {remindersBadgeCount > 0 && (
-                <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1.5 text-[11px] font-bold leading-none text-white shadow-sm dark:border-zinc-900">
-                  {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
-                </span>
-              )}
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/15 text-[#007AFF]">
-                <ReminderIcon className="h-3.5 w-3.5" strokeWidth={2} />
-              </span>
-              <span className="tracking-tight">Lembretes</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsHistoryOpen(true)}
-              className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/80 font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white ${headerPillSize}`}
-              title={
-                isModuleMode
-                  ? 'Consultar histórico de módulos arquivados'
-                  : 'Consultar histórico de veículos arquivados'
-              }
-            >
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/15 text-[#007AFF]">
-                <History className="h-3.5 w-3.5" strokeWidth={2} />
-              </span>
-              <span className="tracking-tight">
-                {isModuleMode ? 'Histórico de módulos' : 'Histórico de veículos'}
-              </span>
-            </button>
-            <div className="shrink-0">
-              <button
-                type="button"
-                ref={patioHeaderToolsTriggerRef}
-                onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
-                aria-expanded={isPatioHeaderToolsOpen}
-                aria-haspopup="menu"
-                aria-label="Mais opções: visualização do quadro, tamanho dos cartões, busca e histórico"
-                className={`flex shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-[#64B5FF] ${headerActionsOneLine ? 'h-10 w-10' : 'h-12 w-12'}`}
-              >
-                <MoreHorizontal className={headerActionsOneLine ? 'h-5 w-5' : 'h-6 w-6'} strokeWidth={2.2} aria-hidden />
-              </button>
-              {isPatioHeaderToolsOpen && typeof document !== 'undefined'
-                ? createPortal(
-                <div
-                  ref={patioHeaderToolsPopoverRef}
-                  role="menu"
-                  style={patioToolsPopoverStyle}
-                  className="max-h-[min(70vh,calc(100dvh-5rem))] overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200/90 bg-white py-2 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
-                >
-                  {isModuleMode && (
-                    <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
-                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Bancada</p>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
-                        onClick={() => {
-                          setBenchFullscreenOpen(true);
-                          setIsPatioHeaderToolsOpen(false);
-                        }}
-                      >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet-200/80 bg-violet-50 dark:border-violet-500/30 dark:bg-violet-950/40">
-                          <LayoutGrid className="h-5 w-5 text-[#A855F7] dark:text-violet-300" strokeWidth={2.2} aria-hidden />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[14px] font-semibold leading-snug">Visualizar bancada (tela cheia)</span>
-                          <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                            Abre o balcão ocupando toda a tela do laboratório
-                          </span>
-                        </span>
-                      </button>
-                    </div>
-                  )}
-                  <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
-                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Tamanho dos cartões</p>
+              {/* Lembretes, Histórico, Criar, ⋯ e sino — uma linha centralizada */}
+              <div className="w-full overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+                <div className="mx-auto flex w-max min-w-full flex-nowrap items-center justify-center gap-2 sm:gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReminderSaveError(null);
+                      setIsRemindersOpen(true);
+                    }}
+                    className={patioCompactActionBtn}
+                  >
+                    {remindersBadgeCount > 0 && (
+                      <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
+                        {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
+                      </span>
+                    )}
+                    <ReminderIcon className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                    <span>Lembretes</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsHistoryOpen(true)}
+                    className={patioCompactActionBtn}
+                    title={
+                      isModuleMode
+                        ? 'Consultar histórico de módulos arquivados'
+                        : 'Consultar histórico de veículos arquivados'
+                    }
+                  >
+                    <History className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                    <span>Histórico</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                    className={patioCompactCreateBtn}
+                  >
+                    <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
+                    <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
+                  </button>
+                  <div className="shrink-0">
                     <button
                       type="button"
-                      role="menuitem"
-                      aria-pressed={boardPanoramic}
-                      className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
-                        boardPanoramic ? 'text-[#007AFF] dark:text-[#64B5FF]' : 'text-zinc-800 dark:text-zinc-100'
-                      }`}
-                      onClick={() => {
-                        setBoardPanoramic((prev) => {
-                          const next = !prev;
-                          try {
-                            localStorage.setItem(boardPanoramicStorageKey, next ? '1' : '0');
-                          } catch (_) {}
-                          return next;
-                        });
-                        setIsPatioHeaderToolsOpen(false);
-                      }}
+                      ref={patioHeaderToolsTriggerRef}
+                      onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
+                      aria-expanded={isPatioHeaderToolsOpen}
+                      aria-haspopup="menu"
+                      aria-label="Mais opções"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
                     >
-                      <span
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
-                          boardPanoramic
-                            ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
-                            : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
-                        }`}
-                      >
-                        {boardPanoramic ? (
-                          <ZoomIn className="h-5 w-5 drop-shadow-sm" strokeWidth={2.2} aria-hidden />
-                        ) : (
-                          <ZoomOut className="h-5 w-5 drop-shadow-sm" strokeWidth={2.2} aria-hidden />
-                        )}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[14px] font-semibold leading-snug">
-                          {boardPanoramic ? 'Ampliar cartões' : 'Encolher cartões'}
-                        </span>
-                        <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                          {boardPanoramic
-                            ? 'Voltar ao tamanho padrão da grade'
-                            : 'Modo compacto: 3 colunas em retrato; em paisagem larga, até 5 por fileira'}
-                        </span>
-                      </span>
+                      <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
                     </button>
+                    {patioHeaderToolsMenu}
                   </div>
-                  <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
-                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Visualização do quadro</p>
-                    <div className="flex flex-col gap-1">
-                      {(
-                        [
-                          { mode: 'standard' as const, icon: LayoutGrid, title: 'Padrão', desc: 'Grade na ordem das etapas do fluxo' },
-                          { mode: 'trello' as const, icon: Columns3, title: 'Estilo Trello', desc: 'Colunas por etapa — arraste o cartão para mudar a fase' },
-                          { mode: 'by_mechanic' as const, icon: Users, title: 'Por mecânico', desc: 'Colunas por técnico atribuído' },
-                          { mode: 'recent_first' as const, icon: SortDesc, title: 'Recentes primeiro', desc: 'Mesma grade, OS alteradas recentemente no topo' },
-                        ] as const
-                      ).map(({ mode, icon: Icon, title, desc }) => (
-                        <button
-                          key={mode}
-                          type="button"
-                          role="menuitem"
-                          className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
-                            boardLayoutMode === mode ? 'text-[#007AFF] dark:text-[#64B5FF]' : 'text-zinc-800 dark:text-zinc-100'
-                          }`}
-                          onClick={() => {
-                            setBoardLayoutModePersist(mode);
-                            setIsPatioHeaderToolsOpen(false);
-                          }}
-                        >
-                          <span
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
-                              boardLayoutMode === mode
-                                ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
-                                : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
-                            }`}
-                          >
-                            <Icon className="h-5 w-5 drop-shadow-sm" strokeWidth={2.1} aria-hidden />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-[14px] font-semibold leading-snug">{title}</span>
-                            <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">{desc}</span>
-                          </span>
-                          {boardLayoutMode === mode ? (
-                            <Check className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} aria-hidden />
-                          ) : null}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {!isModuleMode ? (
-                    <div className="border-b border-zinc-100 px-3 py-2 dark:border-white/[0.07]">
-                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Buscar placa</p>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
-                        onClick={() => {
-                          setPatioPlateSearchMessage(null);
-                          setPatioPlateSearchInPatioCards([]);
-                          setPatioPlateSearchApiInfo(null);
-                          setIsPatioPlateSearchModalOpen(true);
-                          setIsPatioHeaderToolsOpen(false);
-                        }}
-                      >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
-                          <Search className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[14px] font-semibold leading-snug">Buscar no pátio</span>
-                          <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                            Localizar veículo pela placa na lista atual
-                          </span>
-                        </span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="border-b border-zinc-100 px-3 py-2 dark:border-white/[0.07]">
-                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Atualizar lista</p>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
-                        onClick={() => {
-                          void fetchData(false);
-                          setIsPatioHeaderToolsOpen(false);
-                        }}
-                      >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
-                          <RefreshCw className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[14px] font-semibold leading-snug">Recarregar laboratório</span>
-                          <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                            Buscar novamente os módulos na oficina
-                          </span>
-                        </span>
-                      </button>
-                    </div>
-                  )}
-                  <div className="px-3 pt-2">
-                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Histórico</p>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
-                      onClick={() => {
-                        setIsHistoryOpen(true);
-                        setIsPatioHeaderToolsOpen(false);
-                      }}
-                    >
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
-                        <History className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[14px] font-semibold leading-snug">OS arquivadas</span>
-                        <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                          Consultar entregas e veículos já finalizados
-                        </span>
-                      </span>
-                    </button>
-                  </div>
-                </div>,
-                document.body
-              )
-                : null}
+                  {isAppTabActive ? (
+                    <NotificationCenter
+                      theme="light"
+                      forTechnician={actorOptions?.actor === 'technician'}
+                      technicianSlug={
+                        actorOptions?.actor === 'technician'
+                          ? actorOptions?.actorTechnicianSlug
+                          : undefined
+                      }
+                    />
+                  ) : null}
+                </div>
+              </div>
             </div>
-            <div className="flex shrink-0 items-center">
-              {isAppTabActive ? (
-                <NotificationCenter
-                  theme="light"
-                  forTechnician={actorOptions?.actor === 'technician'}
-                  technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
-                />
-              ) : null}
-            </div>
-            <div className={`shrink-0 ${headerActionsOneLine ? 'self-center' : 'hidden portrait:block'}`}>
-              <button
-                type="button"
-                onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
-                className={`relative inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-bold tracking-tight text-white ring-0 ring-offset-0 transition-all duration-200 hover:brightness-110 active:translate-y-px active:shadow-[0_2px_0_0_rgba(0,0,0,0.15)] dark:text-white dark:ring-1 dark:ring-white/20 dark:ring-offset-1 dark:ring-offset-zinc-900 dark:hover:brightness-110 sm:min-h-[40px] sm:px-5 sm:py-2.5 sm:text-[14px] ${
-                  isModuleMode
-                    ? 'border border-[#6d28d9] bg-[#A855F7] shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_8px_28px_-6px_rgba(168,85,247,0.5),0_4px_16px_-4px_rgba(0,0,0,0.15)] hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_10px_32px_-4px_rgba(168,85,247,0.55)] dark:border-violet-300/45 dark:bg-[#A855F7] dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_8px_32px_-6px_rgba(167,139,250,0.48),0_4px_20px_-6px_rgba(0,0,0,0.45)]'
-                    : 'border border-[#0058c7] bg-[#007AFF] shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_8px_28px_-6px_rgba(0,122,255,0.45),0_4px_16px_-4px_rgba(0,0,0,0.15)] hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_10px_32px_-4px_rgba(0,122,255,0.5)] dark:border-[#0A84FF]/80 dark:bg-[#0A84FF] dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_8px_32px_-6px_rgba(10,132,255,0.4),0_4px_20px_-6px_rgba(0,0,0,0.45)]'
-                }`}
-              >
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white">
-                  <Plus className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden />
-                </span>
-                <span>{isModuleMode ? 'Cadastrar produto' : 'Criar veículo'}</span>
-              </button>
-            </div>
-            </div>
-          </div>
-          </div>
+          )}
         </header>
       </div>
 
@@ -5168,7 +5211,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
           return ia - ib;
         };
         const sortedCardsList =
-          boardLayoutMode === 'recent_first' ? [...cards].sort(byRecentGlobal) : [...cards].sort(byStage);
+          boardLayoutMode === 'recent_first'
+            ? [...cards].sort(byRecentGlobal)
+            : [...cards].sort(byStage);
         const stageColumnsSorted = [...boardStages].sort((a, b) => a.pos - b.pos);
         const techIdsKnown = new Set(TECHNICIANS.map((t) => t.id));
         const showMechanicOtherCol = cards.some((c) => {
@@ -5203,7 +5248,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const gridClassName = `relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
           boardPanoramic
             ? 'grid-cols-2 gap-2.5 portrait:grid-cols-3 portrait:gap-2 sm:gap-3 md:portrait:grid-cols-3 md:landscape:grid-cols-5 md:gap-3 lg:gap-3.5 2xl:gap-4'
-            : 'grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 landscape:lg:grid-cols-4'
+            : 'grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5 landscape:lg:grid-cols-4'
         }`;
         const zoomOuterClass =
           'origin-top will-change-[zoom] motion-safe:transition-[zoom] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]';
@@ -5395,42 +5440,39 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ) : null}
                 </div>
 
-                {/* Cliente + placa na mesma linha (placa fixa à direita, nome truncado) */}
-                {customerName && (
+                {/* Cliente */}
+                {customerName ? (
                   <div
-                    className={`mb-0 flex max-w-full items-center justify-between gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] portrait:rounded-xl portrait:gap-1.5 portrait:border-zinc-200/55 ${
+                    className={`mb-0 flex max-w-full items-center gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] portrait:rounded-xl portrait:border-zinc-200/55 ${
                       boardPanoramic
-                        ? 'px-2 py-[calc(0.25rem*1.6146)] portrait:px-1.5 portrait:py-1'
-                        : 'px-3 py-1.5 portrait:px-2 portrait:py-1'
+                        ? 'min-h-[2.35rem] px-2.5 py-2 portrait:min-h-[2.1rem] portrait:px-2 portrait:py-1.5'
+                        : 'min-h-[2.6rem] px-3 py-2.5 portrait:min-h-[2.35rem] portrait:px-2.5 portrait:py-2'
                     }`}
                   >
-                    <div className="min-w-0 flex flex-1 items-center gap-2">
-                      <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
-                      <span
-                        className={`min-w-0 flex-1 truncate font-semibold text-zinc-700 dark:text-zinc-200 tracking-tight ${
-                          boardPanoramic
-                            ? 'text-[1.049rem] portrait:text-[0.8392rem]'
-                            : 'text-[1.199rem] portrait:text-[0.9592rem]'
-                        }`}
-                      >
-                        {firstTwoNames(customerName)}
-                      </span>
-                    </div>
-                    {!isModuleMode && (
-                      <div className="shrink-0">
-                        <MercosulPlateMockup
-                          plate={plate}
-                          blurPlates={blurPlates}
-                          size={boardPanoramic ? 'cardCompact' : 'cardGrid'}
-                        />
-                      </div>
-                    )}
+                    <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
+                    <span
+                      className={`min-w-0 flex-1 truncate font-semibold tracking-tight text-zinc-700 dark:text-zinc-200 ${
+                        boardPanoramic
+                          ? 'text-[1.049rem] portrait:text-[0.8392rem]'
+                          : 'text-[1.199rem] portrait:text-[0.9592rem]'
+                      }`}
+                    >
+                      {firstTwoNames(customerName)}
+                    </span>
                   </div>
-                )}
+                ) : null}
 
-                {/* Técnico — afastado do bloco cliente/placa */}
+                {/* Técnico + placa na mesma linha */}
                 <div
-                  className={`flex min-w-0 items-start gap-2 sm:gap-3 ${boardPanoramic ? 'mt-2.5' : 'mt-3.5'}`}
+                  className={`flex min-w-0 items-center justify-between gap-2 ${
+                    customerName
+                      ? boardPanoramic
+                        ? 'mt-1.5'
+                        : 'mt-2'
+                      : boardPanoramic
+                        ? 'mt-0.5'
+                        : 'mt-1'
+                  }`}
                 >
                   <div className="min-w-0 flex-1">
                     <button
@@ -5438,40 +5480,50 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       disabled={!canAssignMember}
                       onClick={(e) => { e.stopPropagation(); canAssignMember && setCardForMemberAssignment(card); }}
                       className={`
-                        inline-flex items-center justify-start gap-1.5 px-3 ${boardPanoramic ? 'py-[calc(0.375rem*1.6146)]' : 'py-1.5'} rounded-2xl border transition-all max-w-full
+                        inline-flex max-w-full items-center justify-start gap-1.5 rounded-2xl border px-2.5 transition-all
+                        ${boardPanoramic ? 'py-1.5' : 'py-1.5'}
                         ${canAssignMember
-                          ? 'border-light-border dark:border-white/10 bg-light-card dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-200 cursor-pointer hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] active:scale-[0.97]'
-                          : 'border-zinc-200/60 dark:border-white/5 bg-light-card/80 dark:bg-white/[0.04] text-zinc-500 cursor-default'}
+                          ? 'cursor-pointer border-light-border bg-light-card text-zinc-700 hover:bg-zinc-200/90 active:scale-[0.97] dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
+                          : 'cursor-default border-zinc-200/60 bg-light-card/80 text-zinc-500 dark:border-white/5 dark:bg-white/[0.04]'}
                       `}
                     >
                       {hasMechanic ? (
                         <div
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md portrait:h-[1.6rem] portrait:w-[1.6rem] portrait:rounded-lg ${getMechanicButtonStyle(mechanic!, member?.id)}`}
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl shadow-md portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg ${getMechanicButtonStyle(mechanic!, member?.id)}`}
                         >
                           <Wrench
-                            className="h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:h-[0.8rem] portrait:w-[0.8rem]"
+                            className="h-3.5 w-3.5 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:h-[0.75rem] portrait:w-[0.75rem]"
                             strokeWidth={2.35}
                             aria-hidden
                           />
                         </div>
                       ) : canAssignMember ? (
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12 portrait:h-[1.6rem] portrait:w-[1.6rem] portrait:rounded-lg">
-                          <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff] portrait:h-[0.8rem] portrait:w-[0.8rem]" strokeWidth={2.35} aria-hidden />
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12 portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
+                          <Wrench className="h-3.5 w-3.5 text-[#007AFF] dark:text-[#7ab8ff] portrait:h-[0.75rem] portrait:w-[0.75rem]" strokeWidth={2.35} aria-hidden />
                         </div>
                       ) : (
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-zinc-100/80 dark:border-white/10 dark:bg-white/[0.06] portrait:h-[1.6rem] portrait:w-[1.6rem] portrait:rounded-lg">
-                          <Wrench className="h-4 w-4 text-zinc-400 dark:text-zinc-500 portrait:h-[0.8rem] portrait:w-[0.8rem]" strokeWidth={2.35} aria-hidden />
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-zinc-100/80 dark:border-white/10 dark:bg-white/[0.06] portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
+                          <Wrench className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 portrait:h-[0.75rem] portrait:w-[0.75rem]" strokeWidth={2.35} aria-hidden />
                         </div>
                       )}
                       <span
-                        className={`font-bold truncate ${
-                          boardPanoramic ? 'text-[1.049rem] portrait:text-[0.8392rem]' : 'text-[1.199rem] portrait:text-[0.9592rem]'
+                        className={`truncate font-bold ${
+                          boardPanoramic ? 'text-[0.95rem] portrait:text-[0.78rem]' : 'text-[1.05rem] portrait:text-[0.88rem]'
                         } ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}
                       >
                         {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : 'Sem técnico')}
                       </span>
                     </button>
                   </div>
+                  {!isModuleMode ? (
+                    <div className="shrink-0">
+                      <MercosulPlateMockup
+                        plate={plate}
+                        blurPlates={blurPlates}
+                        size={boardPanoramic ? 'cardCompact' : 'cardGrid'}
+                      />
+                    </div>
+                  ) : null}
                 </div>
                 {isModuleMode &&
                 (typeof card.benchSlot === 'number' ||
