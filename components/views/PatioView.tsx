@@ -1572,8 +1572,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     : 'gap-2 px-4 py-2.5 text-sm sm:px-5 sm:py-3';
   /** Menu ⋯ do cabeçalho: zoom da grade, busca/atualizar, histórico (portal em body para ficar acima dos cards). */
   const [isPatioHeaderToolsOpen, setIsPatioHeaderToolsOpen] = useState(false);
-  /** Filtro rápido do quadro (mobile/tablet) — placa, modelo ou cliente. */
-  const [boardQuickFilter, setBoardQuickFilter] = useState('');
   const patioHeaderToolsTriggerRef = useRef<HTMLButtonElement>(null);
   const patioHeaderToolsPopoverRef = useRef<HTMLDivElement>(null);
   const [patioToolsPopoverStyle, setPatioToolsPopoverStyle] = useState<React.CSSProperties>({});
@@ -4692,15 +4690,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     </span>
   );
 
-  const normalizeBoardQuickFilter = (raw: string) =>
-    String(raw || '')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '');
-
-  const boardQuickFilterNormalized = normalizeBoardQuickFilter(boardQuickFilter);
-
   const patioHeaderToolsMenu =
     isPatioHeaderToolsOpen && typeof document !== 'undefined'
       ? createPortal(
@@ -5044,72 +5033,54 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
           ) : (
             <div className="flex w-full flex-col gap-3.5 sm:gap-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="app-view-page-chrome flex min-w-0 items-center gap-3 sm:gap-3.5">
-                  <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-                    <img
-                      src={isModuleMode ? '/icons/laboratorio-ios.png' : '/icons/patio-ios.png'}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  </IosAccentIconSquircle>
-                  <div className="min-w-0">
-                    <h1 className="text-[24px] font-semibold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
+              <div className="app-view-page-chrome flex min-w-0 items-start gap-3 sm:gap-3.5">
+                <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
+                  <img
+                    src={isModuleMode ? '/icons/laboratorio-ios.png' : '/icons/patio-ios.png'}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                </IosAccentIconSquircle>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <h1 className="min-w-0 text-[24px] font-semibold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
                       {isModuleMode ? 'Laboratório' : 'Pátio'}
                     </h1>
-                    <p
-                      className="mt-1.5 text-[13px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400 sm:text-[14px]"
-                      aria-live="polite"
-                    >
-                      {activeBoardCount} {activeBoardCountUnit}
-                    </p>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <div className="shrink-0">
+                        <button
+                          type="button"
+                          ref={patioHeaderToolsTriggerRef}
+                          onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
+                          aria-expanded={isPatioHeaderToolsOpen}
+                          aria-haspopup="menu"
+                          aria-label="Mais opções"
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300 sm:h-11 sm:w-11"
+                        >
+                          <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+                        </button>
+                        {patioHeaderToolsMenu}
+                      </div>
+                      {isAppTabActive ? (
+                        <NotificationCenter
+                          theme="light"
+                          forTechnician={actorOptions?.actor === 'technician'}
+                          technicianSlug={
+                            actorOptions?.actor === 'technician'
+                              ? actorOptions?.actorTechnicianSlug
+                              : undefined
+                          }
+                        />
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-                <div className="flex shrink-0 items-center pt-0.5">
-                  {isAppTabActive ? (
-                    <NotificationCenter
-                      theme="light"
-                      forTechnician={actorOptions?.actor === 'technician'}
-                      technicianSlug={
-                        actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined
-                      }
-                    />
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="relative">
-                <Search
-                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
-                  strokeWidth={2.2}
-                  aria-hidden
-                />
-                <input
-                  type="search"
-                  value={boardQuickFilter}
-                  onChange={(e) => setBoardQuickFilter(e.target.value)}
-                  placeholder={
-                    isModuleMode
-                      ? 'Pesquisar produto ou cliente'
-                      : 'Pesquisar placa, modelo ou cliente'
-                  }
-                  className="w-full rounded-2xl border border-zinc-200/90 bg-white py-3 pl-10 pr-10 text-[14px] font-medium text-zinc-900 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.08)] outline-none transition-shadow placeholder:text-zinc-400 focus:border-[#007AFF]/45 focus:shadow-[0_0_0_3px_rgba(0,122,255,0.12)] dark:border-white/[0.1] dark:bg-zinc-900/70 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-[#0A84FF]/50"
-                  aria-label={
-                    isModuleMode
-                      ? 'Pesquisar produto ou cliente no laboratório'
-                      : 'Pesquisar placa, modelo ou cliente no pátio'
-                  }
-                />
-                {boardQuickFilter ? (
-                  <button
-                    type="button"
-                    onClick={() => setBoardQuickFilter('')}
-                    className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-200"
-                    aria-label="Limpar pesquisa"
+                  <p
+                    className="mt-1.5 text-[13px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400 sm:text-[14px]"
+                    aria-live="polite"
                   >
-                    <X className="h-4 w-4" strokeWidth={2.25} />
-                  </button>
-                ) : null}
+                    {activeBoardCount} {activeBoardCountUnit}
+                  </p>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
@@ -5150,20 +5121,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
                   <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
                 </button>
-                <div className="shrink-0">
-                  <button
-                    type="button"
-                    ref={patioHeaderToolsTriggerRef}
-                    onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
-                    aria-expanded={isPatioHeaderToolsOpen}
-                    aria-haspopup="menu"
-                    aria-label="Mais opções"
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
-                  >
-                    <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
-                  </button>
-                  {patioHeaderToolsMenu}
-                </div>
               </div>
             </div>
           )}
@@ -5238,15 +5195,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. (z-0 para dropdown do cabeçalho z-50 ficar acima) */}
       <div className="relative z-0 mx-auto w-full max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3">
       {(() => {
-        const visibleCards = !boardQuickFilterNormalized
-          ? cards
-          : cards.filter((c) => {
-              const parts = parsePatioCardTitle(c.name);
-              const hay = normalizeBoardQuickFilter(
-                `${parts.vehicle} ${parts.plateOrModule} ${parts.customer} ${c.name} ${c.vehicleBrand ?? ''} ${c.vehicleColor ?? ''}`
-              );
-              return hay.includes(boardQuickFilterNormalized);
-            });
         const stageOrder = boardStages.map((s) => s.id);
         const byStage = (a: TrelloCard, b: TrelloCard) => {
           const ia = stageOrder.indexOf(a.idList);
@@ -5264,11 +5212,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
         };
         const sortedCardsList =
           boardLayoutMode === 'recent_first'
-            ? [...visibleCards].sort(byRecentGlobal)
-            : [...visibleCards].sort(byStage);
+            ? [...cards].sort(byRecentGlobal)
+            : [...cards].sort(byStage);
         const stageColumnsSorted = [...boardStages].sort((a, b) => a.pos - b.pos);
         const techIdsKnown = new Set(TECHNICIANS.map((t) => t.id));
-        const showMechanicOtherCol = visibleCards.some((c) => {
+        const showMechanicOtherCol = cards.some((c) => {
           const mid = c.members?.[0]?.id;
           return Boolean(mid && !techIdsKnown.has(mid));
         });
@@ -5285,7 +5233,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           { key: '__none__', label: 'Sem técnico', style: defaultTechStyle, photo: null },
         ];
         const cardsInMechanicCol = (colKey: string): TrelloCard[] => {
-          const base = [...visibleCards].sort(byStage);
+          const base = [...cards].sort(byStage);
           if (colKey === '__none__') return base.filter((c) => !c.members?.length);
           if (colKey === '__other__')
             return base.filter((c) => {
@@ -5295,7 +5243,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           return base.filter((c) => c.members?.[0]?.id === colKey);
         };
         const cardsForStageColumn = (listId: string) =>
-          [...visibleCards].filter((c) => c.idList === listId).sort(byStage);
+          [...cards].filter((c) => c.idList === listId).sort(byStage);
 
         const gridClassName = `relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
           boardPanoramic
@@ -5799,7 +5747,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         );
       })()}
 
-      {cards.length === 0 ? (
+      {cards.length === 0 && (
           <div className={`${iosPageGlass} ring-1 ring-white/40 dark:ring-white/[0.06] flex flex-col items-center justify-center py-16 text-center sm:py-20`}>
             <div className="mb-5">
               {isModuleMode ? (
@@ -5820,24 +5768,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               Quando houver OS ativas, aparecem aqui em cartões de vidro.
             </p>
           </div>
-      ) : boardQuickFilterNormalized &&
-        cards.filter((c) => {
-          const parts = parsePatioCardTitle(c.name);
-          const hay = normalizeBoardQuickFilter(
-            `${parts.vehicle} ${parts.plateOrModule} ${parts.customer} ${c.name} ${c.vehicleBrand ?? ''} ${c.vehicleColor ?? ''}`
-          );
-          return hay.includes(boardQuickFilterNormalized);
-        }).length === 0 ? (
-          <div className={`${iosPageGlass} ring-1 ring-white/40 dark:ring-white/[0.06] flex flex-col items-center justify-center py-14 text-center sm:py-16`}>
-            <Search className="mb-3 h-10 w-10 text-zinc-300 dark:text-zinc-600" strokeWidth={1.5} />
-            <p className="text-[16px] font-semibold tracking-tight text-zinc-900 dark:text-white">
-              Nenhum resultado para “{boardQuickFilter.trim()}”
-            </p>
-            <p className="mt-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-              Tente outra placa, modelo ou nome do cliente.
-            </p>
-          </div>
-      ) : null}
+      )}
       </div>
 
       {/* --- MODAL DE HISTÓRICO (BUSCA) — portal em body para ficar acima da TabBar --- */}
