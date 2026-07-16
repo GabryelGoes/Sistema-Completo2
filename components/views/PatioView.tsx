@@ -1564,12 +1564,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     !isSmartphone && !isPortraitOrientation && (isDesktop || isTablet);
   /** Layout de PC (desktop ≥1024 ou shell OnMotor) — distinto de tablet. */
   const isPcLayout = desktopShell || (isDesktop && viewportWidth >= 1024);
-  /**
-   * Cabeçalho compacto com ações numa linha centralizada.
-   * Cobre tablets (qualquer orientação) e viewports ≥768 fora do shell PC —
-   * algumas proporções de tablet não caem só em `isTablet` pelo UA.
-   */
-  const patioHeaderActionsCentered = !desktopShell && (isTablet || viewportWidth >= 768);
   /** Cabeçalho do laboratório em uma única linha (apenas PC): botões da bancada embutidos. */
   const headerActionsOneLine = isModuleMode && isPcLayout;
   /** Tamanho dos botões de ação do cabeçalho — menores quando tudo fica numa linha (PC laboratório). */
@@ -5038,8 +5032,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
           ) : (
-            <div className={`flex w-full flex-col ${patioHeaderActionsCentered ? 'gap-4' : 'gap-3.5 sm:gap-4'}`}>
-              <div className="app-view-page-chrome flex min-w-0 items-start gap-3 sm:gap-3.5">
+            <div className="flex w-full flex-col gap-4">
+              {/* Espaço à esquerda para o botão Voltar/Fechar fixo (igual Recepção) */}
+              <div className="app-view-page-chrome flex min-w-0 items-start gap-3 pl-[3.25rem] sm:gap-3.5 sm:pl-14">
                 <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
                   <img
                     src={isModuleMode ? '/icons/laboratorio-ios.png' : '/icons/patio-ios.png'}
@@ -5048,40 +5043,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   />
                 </IosAccentIconSquircle>
                 <div className="min-w-0 flex-1">
-                  <div className={`flex items-center gap-2 ${patioHeaderActionsCentered ? '' : 'justify-between'}`}>
-                    <h1 className="min-w-0 text-[24px] font-semibold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
-                      {isModuleMode ? 'Laboratório' : 'Pátio'}
-                    </h1>
-                    {!patioHeaderActionsCentered ? (
-                      <div className="flex shrink-0 items-center gap-2">
-                        <div className="shrink-0">
-                          <button
-                            type="button"
-                            ref={patioHeaderToolsTriggerRef}
-                            onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
-                            aria-expanded={isPatioHeaderToolsOpen}
-                            aria-haspopup="menu"
-                            aria-label="Mais opções"
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
-                          >
-                            <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
-                          </button>
-                          {patioHeaderToolsMenu}
-                        </div>
-                        {isAppTabActive ? (
-                          <NotificationCenter
-                            theme="light"
-                            forTechnician={actorOptions?.actor === 'technician'}
-                            technicianSlug={
-                              actorOptions?.actor === 'technician'
-                                ? actorOptions?.actorTechnicianSlug
-                                : undefined
-                            }
-                          />
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
+                  <h1 className="min-w-0 text-[24px] font-semibold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
+                    {isModuleMode ? 'Laboratório' : 'Pátio'}
+                  </h1>
                   <p
                     className="mt-1.5 text-[13px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400 sm:text-[14px]"
                     aria-live="polite"
@@ -5091,79 +5055,72 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               </div>
 
-              <div
-                className={`flex items-center gap-2 sm:gap-2.5 ${
-                  patioHeaderActionsCentered
-                    ? 'flex-nowrap justify-center overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden'
-                    : 'flex-wrap'
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReminderSaveError(null);
-                    setIsRemindersOpen(true);
-                  }}
-                  className={patioCompactActionBtn}
-                >
-                  {remindersBadgeCount > 0 && (
-                    <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
-                      {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
-                    </span>
-                  )}
-                  <ReminderIcon className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
-                  <span>Lembretes</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsHistoryOpen(true)}
-                  className={patioCompactActionBtn}
-                  title={
-                    isModuleMode
-                      ? 'Consultar histórico de módulos arquivados'
-                      : 'Consultar histórico de veículos arquivados'
-                  }
-                >
-                  <History className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
-                  <span>Histórico</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
-                  className={patioCompactCreateBtn}
-                >
-                  <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
-                  <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
-                </button>
-                {patioHeaderActionsCentered ? (
-                  <>
-                    <div className="shrink-0">
-                      <button
-                        type="button"
-                        ref={patioHeaderToolsTriggerRef}
-                        onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
-                        aria-expanded={isPatioHeaderToolsOpen}
-                        aria-haspopup="menu"
-                        aria-label="Mais opções"
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
-                      >
-                        <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
-                      </button>
-                      {patioHeaderToolsMenu}
-                    </div>
-                    {isAppTabActive ? (
-                      <NotificationCenter
-                        theme="light"
-                        forTechnician={actorOptions?.actor === 'technician'}
-                        technicianSlug={
-                          actorOptions?.actor === 'technician'
-                            ? actorOptions?.actorTechnicianSlug
-                            : undefined
-                        }
-                      />
-                    ) : null}
-                  </>
-                ) : null}
+              {/* Lembretes, Histórico, Criar, ⋯ e sino — uma linha centralizada */}
+              <div className="w-full overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+                <div className="mx-auto flex w-max min-w-full flex-nowrap items-center justify-center gap-2 sm:gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReminderSaveError(null);
+                      setIsRemindersOpen(true);
+                    }}
+                    className={patioCompactActionBtn}
+                  >
+                    {remindersBadgeCount > 0 && (
+                      <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
+                        {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
+                      </span>
+                    )}
+                    <ReminderIcon className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                    <span>Lembretes</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsHistoryOpen(true)}
+                    className={patioCompactActionBtn}
+                    title={
+                      isModuleMode
+                        ? 'Consultar histórico de módulos arquivados'
+                        : 'Consultar histórico de veículos arquivados'
+                    }
+                  >
+                    <History className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                    <span>Histórico</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                    className={patioCompactCreateBtn}
+                  >
+                    <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
+                    <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
+                  </button>
+                  <div className="shrink-0">
+                    <button
+                      type="button"
+                      ref={patioHeaderToolsTriggerRef}
+                      onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
+                      aria-expanded={isPatioHeaderToolsOpen}
+                      aria-haspopup="menu"
+                      aria-label="Mais opções"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
+                    >
+                      <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+                    </button>
+                    {patioHeaderToolsMenu}
+                  </div>
+                  {isAppTabActive ? (
+                    <NotificationCenter
+                      theme="light"
+                      forTechnician={actorOptions?.actor === 'technician'}
+                      technicianSlug={
+                        actorOptions?.actor === 'technician'
+                          ? actorOptions?.actorTechnicianSlug
+                          : undefined
+                      }
+                    />
+                  ) : null}
+                </div>
               </div>
             </div>
           )}
