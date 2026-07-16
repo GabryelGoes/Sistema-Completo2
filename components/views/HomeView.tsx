@@ -261,21 +261,78 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
   const [isSystemNotificationsOpen, setIsSystemNotificationsOpen] = useState(false);
+  /** Bloqueia toques no hub logo após abrir (evita click-through do tile da Home nas linhas filhas). */
+  const [settingsHubInputGuard, setSettingsHubInputGuard] = useState(false);
+  const settingsHubGuardTimerRef = useRef<number | null>(null);
+  const settingsHubClickSwallowRef = useRef<((e: Event) => void) | null>(null);
+
+  const clearSettingsHubInputGuard = useCallback(() => {
+    if (settingsHubGuardTimerRef.current != null) {
+      window.clearTimeout(settingsHubGuardTimerRef.current);
+      settingsHubGuardTimerRef.current = null;
+    }
+    if (settingsHubClickSwallowRef.current) {
+      document.removeEventListener('click', settingsHubClickSwallowRef.current, true);
+      document.removeEventListener('pointerup', settingsHubClickSwallowRef.current, true);
+      settingsHubClickSwallowRef.current = null;
+    }
+    setSettingsHubInputGuard(false);
+  }, []);
+
+  const closeAllSettingsChildModals = useCallback(() => {
+    setIsServicesModalOpen(false);
+    setIsLabProductTypesOpen(false);
+    setIsLabQuickServicesOpen(false);
+    setIsChangePasswordsOpen(false);
+    setIsTechnicianProfileOpen(false);
+    setIsAdminProfileOpen(false);
+    setIsSystemUsersOpen(false);
+    setIsUserProfileOpen(false);
+    setIsPatioChecklistsOpen(false);
+    setIsSystemNotificationsOpen(false);
+  }, []);
+
   const setSettingsHubOpen = useCallback(
     (open: boolean) => {
+      if (!open) {
+        clearSettingsHubInputGuard();
+        closeAllSettingsChildModals();
+      }
       onSettingsHubOpenChange?.(open);
     },
-    [onSettingsHubOpenChange]
+    [onSettingsHubOpenChange, clearSettingsHubInputGuard, closeAllSettingsChildModals]
   );
+
+  /** Abre só o hub, sem deixar o toque da Home “passar” para Usuários/Tema/etc. */
+  const openSettingsHubSafely = useCallback(() => {
+    closeAllSettingsChildModals();
+    clearSettingsHubInputGuard();
+    setSettingsHubInputGuard(true);
+
+    const swallow = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    settingsHubClickSwallowRef.current = swallow;
+    // O `click` sintético após o toque na Home cai nas linhas do hub que acabaram de montar
+    document.addEventListener('click', swallow, true);
+
+    onSettingsHubOpenChange?.(true);
+
+    settingsHubGuardTimerRef.current = window.setTimeout(() => {
+      clearSettingsHubInputGuard();
+    }, 450);
+  }, [clearSettingsHubInputGuard, closeAllSettingsChildModals, onSettingsHubOpenChange]);
+
   const isHomeSettingsHubOpen = settingsHubOpenProp;
 
   useEffect(() => {
     if (!settingsHubOpenerRef) return;
-    settingsHubOpenerRef.current = () => setSettingsHubOpen(true);
+    settingsHubOpenerRef.current = () => openSettingsHubSafely();
     return () => {
       settingsHubOpenerRef.current = null;
     };
-  }, [settingsHubOpenerRef, setSettingsHubOpen]);
+  }, [settingsHubOpenerRef, openSettingsHubSafely]);
 
   useEffect(() => {
     if (!settingsHubCloserRef) return;
@@ -284,6 +341,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
       settingsHubCloserRef.current = null;
     };
   }, [settingsHubCloserRef, setSettingsHubOpen]);
+
+  useEffect(() => () => clearSettingsHubInputGuard(), [clearSettingsHubInputGuard]);
 
   const [isHeaderProfileMenuOpen, setIsHeaderProfileMenuOpen] = useState(false);
   const headerProfileTriggerRef = useRef<HTMLButtonElement>(null);
@@ -413,9 +472,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         setIsAdminProfileOpen(true);
         return;
       }
-      setSettingsHubOpen(true);
+      openSettingsHubSafely();
     });
-  }, [isSystemUser, isTechnician, technicianId, openAfterInputCycle]);
+  }, [isSystemUser, isTechnician, technicianId, openAfterInputCycle, openSettingsHubSafely]);
 
   const handleHeaderProfileClick = useCallback(() => {
     setIsHeaderProfileMenuOpen((prev) => !prev);
@@ -553,7 +612,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       icon: (
         <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-full w-full object-cover" />
       ),
-      onOpen: () => setSettingsHubOpen(true),
+      onOpen: () => openSettingsHubSafely(),
     };
     const extraTiles: {
       id: QuickTileId;
@@ -616,7 +675,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
       });
     }
     return [...baseTiles, ...extraTiles, settingsTile];
-  }, [onOpenApp, onOpenVehicleAccompaniment, onOpenPartsStock, onOpenTvPatio, operationalForView, perms, showFullAdminHub]);
+  }, [
+    onOpenApp,
+    onOpenVehicleAccompaniment,
+    onOpenPartsStock,
+    onOpenTvPatio,
+    openSettingsHubSafely,
+    operationalForView,
+    perms,
+    showFullAdminHub,
+  ]);
   const operationalById = useMemo(
     () =>
       Object.fromEntries(quickTilesForView.map((tile) => [tile.id, tile])) as Record<
@@ -1172,7 +1240,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {isHomeSettingsHubOpen ? (
         <SettingsHubShell>
           <div
-            className={`${desktopShell ? desktopShellViewportOverlayClass(true) : 'fixed inset-0 z-[110]'} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black`}
+            className={`${desktopShell ? desktopShellViewportOverlayClass(true) : 'fixed inset-0 z-[110]'} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black ${settingsHubInputGuard ? '[&_*]:pointer-events-none' : ''}`}
             role="dialog"
             aria-modal="true"
             aria-label="Configurações"

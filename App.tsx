@@ -733,7 +733,14 @@ export default function App() {
             <HomeView
               desktopShell={isDesktopShell}
               settingsHubOpen={settingsHubOpen}
-              onSettingsHubOpenChange={setSettingsHubOpen}
+              onSettingsHubOpenChange={(open) => {
+                setSettingsHubOpen(open);
+                if (open) {
+                  // Só o hub — não manter Tema/Preferências aberto por cima
+                  setIsSettingsOpen(false);
+                  setIsUserChangePasswordsOpen(false);
+                }
+              }}
               settingsHubOpenerRef={homeSettingsHubOpenerRef}
               settingsHubCloserRef={homeSettingsHubCloserRef}
               onOpenPartsStock={() => setIsPartsModalOpen(true)}
@@ -1050,7 +1057,14 @@ export default function App() {
           <HomeView
             desktopShell={isDesktopShell}
             settingsHubOpen={settingsHubOpen}
-            onSettingsHubOpenChange={setSettingsHubOpen}
+            onSettingsHubOpenChange={(open) => {
+              setSettingsHubOpen(open);
+              if (open) {
+                // Só o hub — não manter Tema/Preferências aberto por cima
+                setIsSettingsOpen(false);
+                setIsUserChangePasswordsOpen(false);
+              }
+            }}
             settingsHubOpenerRef={homeSettingsHubOpenerRef}
             settingsHubCloserRef={homeSettingsHubCloserRef}
             onOpenPartsStock={() => setIsPartsModalOpen(true)}
