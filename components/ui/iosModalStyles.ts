@@ -15,7 +15,7 @@ export function iosSquircleBackgroundFromHex(hex: string): CSSProperties {
 export const iosModalOverlay =
   'fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/45 backdrop-blur-[20px]';
 
-/** Hub de configurações no PC usa z-[100]; modais filhos precisam ficar acima. */
+/** Hub de configurações usa z-[110] (mobile/tablet) ou z-[100] (PC); filhos precisam ficar acima. */
 export const SETTINGS_CHILD_MODAL_Z = 'z-[125]';
 
 /** Cadastro/visualização do estoque (portal no body) — acima do modal principal z-[125]. */
@@ -24,14 +24,17 @@ export const NESTED_STOCK_OVERLAY_Z = 'z-[135]';
 const iosModalOverlayAppearance =
   'flex items-center justify-center p-3 sm:p-6 bg-black/45 backdrop-blur-[20px]';
 
-/** Overlay de modal iOS; no PC ancora na viewport do shell e acima do hub de configurações. */
+/**
+ * Overlay de modal iOS acima do hub de Configurações.
+ * Sempre aplica `zClass` (padrão z-[125]); no PC ancora na viewport do shell.
+ */
 export function resolveIosModalOverlayClass(
   isDesktopShell: boolean,
   zClass = SETTINGS_CHILD_MODAL_Z,
 ): string {
   return isDesktopShell
     ? `${desktopShellViewportOverlayClass(true, zClass)} ${iosModalOverlayAppearance}`
-    : iosModalOverlay;
+    : `fixed inset-0 ${zClass} ${iosModalOverlayAppearance}`;
 }
 
 /** Painel principal do modal (bordas ~2rem). Acrescente max-w-*, h-* conforme necessário. */
