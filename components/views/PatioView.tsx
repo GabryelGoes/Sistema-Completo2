@@ -5248,7 +5248,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const gridClassName = `relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
           boardPanoramic
             ? 'grid-cols-2 gap-2.5 portrait:grid-cols-3 portrait:gap-2 sm:gap-3 md:portrait:grid-cols-3 md:landscape:grid-cols-5 md:gap-3 lg:gap-3.5 2xl:gap-4'
-            : 'grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 lg:gap-5 landscape:lg:grid-cols-4'
+            : 'grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5 landscape:lg:grid-cols-4'
         }`;
         const zoomOuterClass =
           'origin-top will-change-[zoom] motion-safe:transition-[zoom] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]';
