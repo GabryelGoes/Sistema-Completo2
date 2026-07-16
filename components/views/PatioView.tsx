@@ -1565,11 +1565,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Layout de PC (desktop ≥1024 ou shell OnMotor) — distinto de tablet. */
   const isPcLayout = desktopShell || (isDesktop && viewportWidth >= 1024);
   /**
-   * Cabeçalho compacto com ações numa linha centralizada.
-   * Cobre tablets (qualquer orientação) e viewports ≥768 fora do shell PC —
-   * algumas proporções de tablet não caem só em `isTablet` pelo UA.
+   * Cabeçalho compacto com ações numa linha centralizada (tablet).
+   * Respeita smartphone forçado nas Configurações (não usa só a largura da tela).
    */
-  const patioHeaderActionsCentered = !desktopShell && (isTablet || viewportWidth >= 768);
+  const patioHeaderActionsCentered =
+    !desktopShell && !isSmartphone && (isTablet || viewportWidth >= 768);
   /** Cabeçalho do laboratório em uma única linha (apenas PC): botões da bancada embutidos. */
   const headerActionsOneLine = isModuleMode && isPcLayout;
   /** Tamanho dos botões de ação do cabeçalho — menores quando tudo fica numa linha (PC laboratório). */

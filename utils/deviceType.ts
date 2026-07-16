@@ -2,16 +2,45 @@
 
 export type DeviceType = 'desktop' | 'tablet' | 'smartphone';
 
+/** Preferência manual nas Configurações; `auto` usa a detecção automática. */
+export type DeviceTypeOverride = DeviceType | 'auto';
+
 export const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
   desktop: 'PC',
   tablet: 'Tablet',
   smartphone: 'Smartphone',
 };
 
+export const DEVICE_TYPE_OVERRIDE_STORAGE_KEY = 'onmotor-device-type-override';
+
 /** Largura mínima (px) para tratar como tablet no fallback por viewport. */
 export const TABLET_MIN_WIDTH = 768;
 /** Largura mínima (px) para tratar como PC no fallback por viewport. */
 export const DESKTOP_MIN_WIDTH = 1024;
+
+export function getDeviceTypeOverride(): DeviceTypeOverride {
+  if (typeof localStorage === 'undefined') return 'auto';
+  try {
+    const v = localStorage.getItem(DEVICE_TYPE_OVERRIDE_STORAGE_KEY);
+    if (v === 'smartphone' || v === 'tablet' || v === 'desktop') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'auto';
+}
+
+export function saveDeviceTypeOverride(value: DeviceTypeOverride): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    if (value === 'auto') {
+      localStorage.removeItem(DEVICE_TYPE_OVERRIDE_STORAGE_KEY);
+    } else {
+      localStorage.setItem(DEVICE_TYPE_OVERRIDE_STORAGE_KEY, value);
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 function ua(): string {
   if (typeof navigator === 'undefined') return '';
@@ -42,7 +71,7 @@ function classifyByViewportWidth(width: number): DeviceType {
 }
 
 /**
- * Detecta PC, tablet ou smartphone.
+ * Detecta PC, tablet ou smartphone (só heurística automática).
  * UA de telefone/tablet tem prioridade; senão usa a largura da janela.
  */
 export function detectDeviceType(viewportWidth?: number): DeviceType {
@@ -51,6 +80,15 @@ export function detectDeviceType(viewportWidth?: number): DeviceType {
   if (isTabletUserAgent()) return 'tablet';
   const w = viewportWidth ?? window.innerWidth;
   return classifyByViewportWidth(w);
+}
+
+/**
+ * Tipo efetivo: preferência manual das Configurações, senão detecção automática.
+ */
+export function resolveDeviceType(viewportWidth?: number): DeviceType {
+  const override = getDeviceTypeOverride();
+  if (override !== 'auto') return override;
+  return detectDeviceType(viewportWidth);
 }
 
 export function isCoarsePointer(): boolean {
