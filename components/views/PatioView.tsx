@@ -5032,7 +5032,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
           ) : (
-            <div className="flex w-full flex-col gap-3.5 sm:gap-4">
+            <div className={`flex w-full flex-col ${isTablet ? 'gap-4' : 'gap-3.5 sm:gap-4'}`}>
               <div className="app-view-page-chrome flex min-w-0 items-start gap-3 sm:gap-3.5">
                 <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
                   <img
@@ -5042,37 +5042,39 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   />
                 </IosAccentIconSquircle>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className={`flex items-center gap-2 ${isTablet ? '' : 'justify-between'}`}>
                     <h1 className="min-w-0 text-[24px] font-semibold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
                       {isModuleMode ? 'Laboratório' : 'Pátio'}
                     </h1>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <div className="shrink-0">
-                        <button
-                          type="button"
-                          ref={patioHeaderToolsTriggerRef}
-                          onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
-                          aria-expanded={isPatioHeaderToolsOpen}
-                          aria-haspopup="menu"
-                          aria-label="Mais opções"
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300 sm:h-11 sm:w-11"
-                        >
-                          <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
-                        </button>
-                        {patioHeaderToolsMenu}
+                    {!isTablet ? (
+                      <div className="flex shrink-0 items-center gap-2">
+                        <div className="shrink-0">
+                          <button
+                            type="button"
+                            ref={patioHeaderToolsTriggerRef}
+                            onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
+                            aria-expanded={isPatioHeaderToolsOpen}
+                            aria-haspopup="menu"
+                            aria-label="Mais opções"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
+                          >
+                            <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+                          </button>
+                          {patioHeaderToolsMenu}
+                        </div>
+                        {isAppTabActive ? (
+                          <NotificationCenter
+                            theme="light"
+                            forTechnician={actorOptions?.actor === 'technician'}
+                            technicianSlug={
+                              actorOptions?.actor === 'technician'
+                                ? actorOptions?.actorTechnicianSlug
+                                : undefined
+                            }
+                          />
+                        ) : null}
                       </div>
-                      {isAppTabActive ? (
-                        <NotificationCenter
-                          theme="light"
-                          forTechnician={actorOptions?.actor === 'technician'}
-                          technicianSlug={
-                            actorOptions?.actor === 'technician'
-                              ? actorOptions?.actorTechnicianSlug
-                              : undefined
-                          }
-                        />
-                      ) : null}
-                    </div>
+                    ) : null}
                   </div>
                   <p
                     className="mt-1.5 text-[13px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400 sm:text-[14px]"
@@ -5083,7 +5085,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+              <div
+                className={`flex flex-wrap items-center gap-2 sm:gap-2.5 ${
+                  isTablet ? 'justify-center' : ''
+                }`}
+              >
                 <button
                   type="button"
                   onClick={() => {
@@ -5121,6 +5127,35 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
                   <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
                 </button>
+                {isTablet ? (
+                  <>
+                    <div className="shrink-0">
+                      <button
+                        type="button"
+                        ref={patioHeaderToolsTriggerRef}
+                        onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
+                        aria-expanded={isPatioHeaderToolsOpen}
+                        aria-haspopup="menu"
+                        aria-label="Mais opções"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
+                      >
+                        <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+                      </button>
+                      {patioHeaderToolsMenu}
+                    </div>
+                    {isAppTabActive ? (
+                      <NotificationCenter
+                        theme="light"
+                        forTechnician={actorOptions?.actor === 'technician'}
+                        technicianSlug={
+                          actorOptions?.actor === 'technician'
+                            ? actorOptions?.actorTechnicianSlug
+                            : undefined
+                        }
+                      />
+                    ) : null}
+                  </>
+                ) : null}
               </div>
             </div>
           )}
