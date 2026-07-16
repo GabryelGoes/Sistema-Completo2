@@ -31,6 +31,7 @@ import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../ser
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverlay';
+import { clearHomeHubOpenGuard, openHomeHubSafely } from '../../utils/homeHubOpenGuard';
 import { ModalPortal } from '../ui/ModalPortal';
 import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
 import { desktopHomeHubCard } from '../ui/desktopCardStyles';
@@ -261,23 +262,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
   const [isSystemNotificationsOpen, setIsSystemNotificationsOpen] = useState(false);
-  /** Bloqueia toques no hub logo após abrir (evita click-through do tile da Home nas linhas filhas). */
-  const [settingsHubInputGuard, setSettingsHubInputGuard] = useState(false);
-  const settingsHubGuardTimerRef = useRef<number | null>(null);
-  const settingsHubClickSwallowRef = useRef<((e: Event) => void) | null>(null);
-
-  const clearSettingsHubInputGuard = useCallback(() => {
-    if (settingsHubGuardTimerRef.current != null) {
-      window.clearTimeout(settingsHubGuardTimerRef.current);
-      settingsHubGuardTimerRef.current = null;
-    }
-    if (settingsHubClickSwallowRef.current) {
-      document.removeEventListener('click', settingsHubClickSwallowRef.current, true);
-      document.removeEventListener('pointerup', settingsHubClickSwallowRef.current, true);
-      settingsHubClickSwallowRef.current = null;
-    }
-    setSettingsHubInputGuard(false);
-  }, []);
 
   const closeAllSettingsChildModals = useCallback(() => {
     setIsServicesModalOpen(false);
@@ -295,44 +279,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const setSettingsHubOpen = useCallback(
     (open: boolean) => {
       if (!open) {
-        clearSettingsHubInputGuard();
         closeAllSettingsChildModals();
       }
       onSettingsHubOpenChange?.(open);
     },
-    [onSettingsHubOpenChange, clearSettingsHubInputGuard, closeAllSettingsChildModals]
+    [onSettingsHubOpenChange, closeAllSettingsChildModals]
   );
 
-  /** Abre só o hub, sem deixar o toque da Home “passar” para Usuários/Tema/etc. */
-  const openSettingsHubSafely = useCallback(() => {
+  /** Abre só o hub de Configurações (sem itens filhos). */
+  const openSettingsHubOnly = useCallback(() => {
     closeAllSettingsChildModals();
-    clearSettingsHubInputGuard();
-    setSettingsHubInputGuard(true);
-
-    const swallow = (e: Event) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-    settingsHubClickSwallowRef.current = swallow;
-    // O `click` sintético após o toque na Home cai nas linhas do hub que acabaram de montar
-    document.addEventListener('click', swallow, true);
-
     onSettingsHubOpenChange?.(true);
-
-    settingsHubGuardTimerRef.current = window.setTimeout(() => {
-      clearSettingsHubInputGuard();
-    }, 450);
-  }, [clearSettingsHubInputGuard, closeAllSettingsChildModals, onSettingsHubOpenChange]);
+  }, [closeAllSettingsChildModals, onSettingsHubOpenChange]);
 
   const isHomeSettingsHubOpen = settingsHubOpenProp;
 
   useEffect(() => {
     if (!settingsHubOpenerRef) return;
-    settingsHubOpenerRef.current = () => openSettingsHubSafely();
+    settingsHubOpenerRef.current = () => openHomeHubSafely(() => openSettingsHubOnly());
     return () => {
       settingsHubOpenerRef.current = null;
     };
-  }, [settingsHubOpenerRef, openSettingsHubSafely]);
+  }, [settingsHubOpenerRef, openSettingsHubOnly]);
 
   useEffect(() => {
     if (!settingsHubCloserRef) return;
@@ -342,8 +310,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     };
   }, [settingsHubCloserRef, setSettingsHubOpen]);
 
-  useEffect(() => () => clearSettingsHubInputGuard(), [clearSettingsHubInputGuard]);
-
+  useEffect(() => () => clearHomeHubOpenGuard(), []);
   const [isHeaderProfileMenuOpen, setIsHeaderProfileMenuOpen] = useState(false);
   const headerProfileTriggerRef = useRef<HTMLButtonElement>(null);
   const headerProfileMenuRef = useRef<HTMLDivElement>(null);
@@ -452,9 +419,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         : 'Hub de configurações'
       : 'Nome e foto da gerência';
 
-  /** Abre após o ciclo de eventos: evita “click-through” (o `click` após `pointerup` atingir linhas do hub que acabou de montar). */
+  /** Abre após o ciclo de eventos + guarda contra click-through nos hubs. */
   const openAfterInputCycle = useCallback((fn: () => void) => {
-    window.setTimeout(fn, 0);
+    openHomeHubSafely(fn);
   }, []);
 
   const openHeaderProfileEditor = useCallback(() => {
@@ -472,9 +439,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         setIsAdminProfileOpen(true);
         return;
       }
-      openSettingsHubSafely();
+      openSettingsHubOnly();
     });
-  }, [isSystemUser, isTechnician, technicianId, openAfterInputCycle, openSettingsHubSafely]);
+  }, [isSystemUser, isTechnician, technicianId, openAfterInputCycle, openSettingsHubOnly]);
 
   const handleHeaderProfileClick = useCallback(() => {
     setIsHeaderProfileMenuOpen((prev) => !prev);
@@ -612,7 +579,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       icon: (
         <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-full w-full object-cover" />
       ),
-      onOpen: () => openSettingsHubSafely(),
+      onOpen: () => openSettingsHubOnly(),
     };
     const extraTiles: {
       id: QuickTileId;
@@ -680,7 +647,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     onOpenVehicleAccompaniment,
     onOpenPartsStock,
     onOpenTvPatio,
-    openSettingsHubSafely,
+    openSettingsHubOnly,
     operationalForView,
     perms,
     showFullAdminHub,
@@ -927,7 +894,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         session?.appId === app.id &&
         !session.moved;
       if (shouldOpen) {
-        openAfterInputCycle(() => app.onOpen());
+        // Guarda no pointerup (antes do click sintético) e só então monta o hub/modal
+        openHomeHubSafely(() => app.onOpen());
       }
       if (!longPressTriggeredRef.current) {
         endQuickDrag();
@@ -935,7 +903,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       longPressTriggeredRef.current = false;
       resetQuickTapSession();
     },
-    [clearLongPressTimer, endQuickDrag, isQuickEditMode, openAfterInputCycle, resetQuickTapSession]
+    [clearLongPressTimer, endQuickDrag, isQuickEditMode, resetQuickTapSession]
   );
 
   const handleQuickCardPointerCancel = useCallback(() => {
@@ -1240,7 +1208,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {isHomeSettingsHubOpen ? (
         <SettingsHubShell>
           <div
-            className={`${desktopShell ? desktopShellViewportOverlayClass(true) : 'fixed inset-0 z-[110]'} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black ${settingsHubInputGuard ? '[&_*]:pointer-events-none' : ''}`}
+            data-home-hub-overlay=""
+            className={`${desktopShell ? desktopShellViewportOverlayClass(true) : 'fixed inset-0 z-[110]'} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black`}
             role="dialog"
             aria-modal="true"
             aria-label="Configurações"
