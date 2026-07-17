@@ -1414,6 +1414,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // Estado para arquivamento (Entregue)
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [removingGarantiaId, setRemovingGarantiaId] = useState<string | null>(null);
+  const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
+  const [unarchiveError, setUnarchiveError] = useState<string | null>(null);
 
   // Estados para HISTÓRICO (Search & Use)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
