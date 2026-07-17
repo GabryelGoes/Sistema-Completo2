@@ -8058,11 +8058,15 @@ export function createApiApp() {
         }
       }
 
+      // Fechamento (técnicos por serviço) só na primeira finalização do fluxo ativo.
+      // Desarquivar (CANCELLED → FINALIZADO) não deve exigir isso de novo.
+      const previousStatusForFinalize = String((previous as { status?: string } | null)?.status ?? "");
       if (
         updatePayload.status === "FINALIZADO" &&
         effectiveOrderType === "vehicle" &&
         previous &&
-        String((previous as { status?: string }).status ?? "") !== "FINALIZADO"
+        previousStatusForFinalize !== "FINALIZADO" &&
+        previousStatusForFinalize !== CANCELLED_STATUS
       ) {
         try {
           const techCheck = await assertServiceTechniciansCompleteForFinalize(id);
