@@ -2632,6 +2632,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const handleOpenHistoryCardDetails = (card: TrelloCard) => {
     setSelectedHistoryCard(card);
+    setUnarchiveError(null);
     setVehicleObservationsEditValue('');
     setLastSavedVehicleObservations('');
     setIsEditingVehicleObservations(false);
@@ -4067,6 +4068,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const handleUnarchive = async (card: BoardCard) => {
+    if (unarchivingId) return;
+    setUnarchiveError(null);
+    setUnarchivingId(card.id);
     try {
       await updateServiceOrderStatus(
         card.id,
@@ -4074,11 +4078,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
         actorOptions
       );
       setSelectedHistoryCard(null);
+      setHistoryServiceOrderDetail(null);
+      setHistorySavedBudgets([]);
       setArchivedCards((prev) => prev.filter((c) => c.id !== card.id));
-      fetchData(true);
-      if (historySearchPlate.trim()) handleSearchHistory(historySearchPlate);
+      setRecentArchivedCards((prev) => prev.filter((c) => c.id !== card.id));
+      await fetchData(true);
+      if (historySearchPlate.trim()) {
+        void handleSearchHistory(historySearchPlate);
+      }
     } catch (e: any) {
-      alert(e?.message ?? "Erro ao desarquivar.");
+      setUnarchiveError(e?.message ?? 'Erro ao desarquivar.');
+    } finally {
+      setUnarchivingId(null);
     }
   };
 
@@ -5939,15 +5950,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleUnarchive(selectedHistoryCard)}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-5 py-2.5 text-[15px] font-semibold text-white shadow-md transition-transform hover:opacity-95 active:scale-[0.98] dark:bg-white/12 dark:text-white"
+                    disabled={unarchivingId === selectedHistoryCard.id}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-5 py-2.5 text-[15px] font-semibold text-white shadow-md transition-transform hover:opacity-95 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-55 dark:bg-white/12 dark:text-white"
                   >
-                    <ArchiveRestore className="h-4 w-4" />
-                    Desarquivar
+                    {unarchivingId === selectedHistoryCard.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <ArchiveRestore className="h-4 w-4" />
+                    )}
+                    {unarchivingId === selectedHistoryCard.id ? 'Desarquivando…' : 'Desarquivar'}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleUseRegistration(selectedHistoryCard)}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-[#007AFF] px-5 py-2.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform hover:opacity-95 active:scale-[0.98]"
+                    disabled={unarchivingId === selectedHistoryCard.id}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-[#007AFF] px-5 py-2.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform hover:opacity-95 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-55"
                   >
                     <Copy className="h-4 w-4" />
                     Usar cadastro
@@ -5955,6 +5972,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      setUnarchiveError(null);
                       setSelectedHistoryCard(null);
                       setHistoryServiceOrderDetail(null);
                       setHistorySavedBudgets([]);
@@ -5965,6 +5983,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     <X className="h-5 w-5" />
                   </button>
                   </div>
+                  {unarchiveError ? (
+                    <div
+                      role="alert"
+                      className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-[13px] font-medium text-rose-800 dark:border-rose-500/35 dark:bg-rose-950/40 dark:text-rose-100"
+                    >
+                      {unarchiveError}
+                    </div>
+                  ) : null}
                </div>
 
                <div className="min-h-0 flex-1 overflow-y-auto overscroll-none custom-scrollbar">
