@@ -4977,6 +4977,50 @@ export function createApiApp() {
     }
   });
 
+  // Excluir uma linha de serviço do relatório (fechamento / técnicos por serviço)
+  app.delete("/api/reports/technician-services/:lineId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const lineId = String(req.params.lineId || "").trim();
+      if (!lineId) {
+        return res.status(400).json({ error: "ID do serviço inválido." });
+      }
+
+      const { data: existing, error: findError } = await supabaseAdmin
+        .from("service_order_service_technicians")
+        .select("id")
+        .eq("id", lineId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+
+      if (findError) {
+        const msg = findError.message ?? "";
+        if (/service_order_service_technicians/i.test(msg) && /does not exist|relation/i.test(msg)) {
+          return res.status(404).json({ error: "Serviço não encontrado." });
+        }
+        throw findError;
+      }
+      if (!existing?.id) {
+        return res.status(404).json({ error: "Serviço não encontrado no relatório." });
+      }
+
+      const { error: delError } = await supabaseAdmin
+        .from("service_order_service_technicians")
+        .delete()
+        .eq("id", lineId)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (delError) throw delError;
+
+      return res.status(204).send();
+    } catch (err: unknown) {
+      console.error("[API] DELETE /api/reports/technician-services/:lineId:", err);
+      const msg = err instanceof Error ? err.message : "Erro";
+      return res.status(500).json({ error: msg });
+    }
+  });
+
   // Listar orçamentos de uma OS
   app.get("/api/service-orders/:id/budgets", async (req, res) => {
     try {

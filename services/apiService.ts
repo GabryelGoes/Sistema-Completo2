@@ -2496,6 +2496,19 @@ export async function getTechnicianServicesReport(): Promise<{ items: Technician
   };
 }
 
+/** Remove uma linha de serviço do relatório (fechamento / técnicos por serviço). */
+export async function deleteTechnicianServiceReportLine(lineId: string): Promise<void> {
+  const id = String(lineId || '').trim();
+  if (!id) throw new Error('ID do serviço inválido.');
+  const response = await fetch(`${API_BASE}/reports/technician-services/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir serviço do relatório (${response.status})`);
+  }
+}
+
 export async function saveServiceOrderServiceTechnicians(
   serviceOrderId: string,
   lines: ServiceTechnicianClosingLine[],
