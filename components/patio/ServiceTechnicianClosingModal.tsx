@@ -430,6 +430,7 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
             <p className="mb-4 text-[13px] leading-relaxed text-zinc-600 dark:text-zinc-400">
               Para mover o veículo para <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Finalizado</strong>,
               confirme os técnicos dos serviços aprovados e revise as peças que serão abatidas do estoque.
+              Serviços e peças adicionados aqui entram no orçamento do veículo já aprovados.
             </p>
             {approvedServices.length > 0 ? (
               <p className="mb-4 rounded-xl border border-sky-500/25 bg-sky-500/10 px-3 py-2.5 text-[12px] leading-relaxed text-sky-900 dark:text-sky-200">

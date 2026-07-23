@@ -9782,6 +9782,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
           onConfirmed={async () => {
             const card = serviceTechClosing;
             setServiceTechClosing(null);
+            try {
+              const budgets = await getServiceOrderBudgets(card.id);
+              setSavedBudgets(budgets);
+              setViewingBudget((prev) => {
+                if (!prev) return null;
+                return budgets.find((b) => b.id === prev.id) ?? null;
+              });
+            } catch (e) {
+              console.error('reload budgets after service-tech closing', e);
+            }
+            window.dispatchEvent(new CustomEvent('rda-patio-budgets-changed'));
             await performStageChangeForCard(card, 'FINALIZADO', { skipServiceTechGate: true });
           }}
         />

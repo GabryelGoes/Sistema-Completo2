@@ -308,3 +308,231 @@ export function aggregateFinalizeStockParts(
   }
   return agg;
 }
+
+export type ClosingBudgetServiceItem = {
+  description: string;
+  approved?: boolean;
+  labor_hours?: number | null;
+  [key: string]: unknown;
+};
+
+export type ClosingBudgetPartItem = {
+  description: string;
+  quantity?: string | number;
+  approved?: boolean;
+  fromStock?: boolean;
+  workshopPartId?: string;
+  [key: string]: unknown;
+};
+
+export type ClosingBudgetRow = {
+  id: string;
+  services?: ClosingBudgetServiceItem[] | null;
+  parts?: ClosingBudgetPartItem[] | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type ClosingExtraServiceInput = {
+  description: string;
+};
+
+export type ClosingExtraPartInput = {
+  description: string;
+  quantity: string;
+  workshopPartId?: string | null;
+  fromStock?: boolean;
+};
+
+/**
+ * Garante que serviços/peças informados no fechamento (“Técnicos por serviço”)
+ * existam no orçamento da OS e estejam aprovados.
+ * Não cria duplicatas por descrição; marca como aprovado se já existir.
+ */
+export function planClosingItemsBudgetSync(
+  budgets: ClosingBudgetRow[],
+  closingServices: ClosingExtraServiceInput[],
+  closingParts: ClosingExtraPartInput[]
+): {
+  updatedBudgets: Array<{
+    id: string;
+    services: ClosingBudgetServiceItem[];
+    parts: ClosingBudgetPartItem[];
+  }>;
+  newBudget: {
+    services: ClosingBudgetServiceItem[];
+    parts: ClosingBudgetPartItem[];
+  } | null;
+  serviceBudgetIds: Record<string, string>;
+  partBudgetIds: Record<string, string>;
+} {
+  const clones = budgets.map((b) => {
+    const rawServices = b.services as unknown;
+    const rawParts = b.parts as unknown;
+    const servicesArr: ClosingBudgetServiceItem[] = Array.isArray(rawServices)
+      ? rawServices.map((s) => ({ ...(s as ClosingBudgetServiceItem) }))
+      : typeof rawServices === 'string'
+        ? (() => {
+            try {
+              const parsed = JSON.parse(rawServices);
+              return Array.isArray(parsed)
+                ? parsed.map((s) => ({ ...(s as ClosingBudgetServiceItem) }))
+                : [];
+            } catch {
+              return [];
+            }
+          })()
+        : [];
+    const partsArr: ClosingBudgetPartItem[] = Array.isArray(rawParts)
+      ? rawParts.map((p) => ({ ...(p as ClosingBudgetPartItem) }))
+      : typeof rawParts === 'string'
+        ? (() => {
+            try {
+              const parsed = JSON.parse(rawParts);
+              return Array.isArray(parsed)
+                ? parsed.map((p) => ({ ...(p as ClosingBudgetPartItem) }))
+                : [];
+            } catch {
+              return [];
+            }
+          })()
+        : [];
+    return {
+      id: b.id,
+      created_at: b.created_at ?? null,
+      updated_at: b.updated_at ?? null,
+      services: servicesArr,
+      parts: partsArr,
+      dirty: false,
+    };
+  });
+
+  const serviceBudgetIds: Record<string, string> = {};
+  const partBudgetIds: Record<string, string> = {};
+  const pendingServices: ClosingBudgetServiceItem[] = [];
+  const pendingParts: ClosingBudgetPartItem[] = [];
+
+  const pickTargetBudget = () => {
+    if (clones.length === 0) return null;
+    return [...clones].sort((a, b) => {
+      const ta = new Date(String(a.updated_at || a.created_at || 0)).getTime();
+      const tb = new Date(String(b.updated_at || b.created_at || 0)).getTime();
+      return tb - ta;
+    })[0];
+  };
+
+  for (const svc of closingServices) {
+    const description = (svc.description ?? '').trim();
+    if (!description) continue;
+    const key = normalizeServiceDescription(description);
+    let matched: { budgetId: string; index: number } | null = null;
+
+    for (const budget of clones) {
+      const idx = budget.services.findIndex(
+        (row) => normalizeServiceDescription(String(row.description ?? '')) === key
+      );
+      if (idx >= 0) {
+        matched = { budgetId: budget.id, index: idx };
+        break;
+      }
+    }
+
+    if (matched) {
+      const budget = clones.find((b) => b.id === matched!.budgetId)!;
+      const row = budget.services[matched.index];
+      if (row.approved !== true) {
+        row.approved = true;
+        budget.dirty = true;
+      }
+      serviceBudgetIds[key] = budget.id;
+    } else {
+      pendingServices.push({ description, approved: true, labor_hours: null });
+    }
+  }
+
+  for (const part of closingParts) {
+    const description = (part.description ?? '').trim();
+    if (!description) continue;
+    const key = normalizeBudgetPartName(description);
+    let matched: { budgetId: string; index: number } | null = null;
+
+    for (const budget of clones) {
+      const idx = budget.parts.findIndex(
+        (row) => normalizeBudgetPartName(String(row.description ?? '')) === key
+      );
+      if (idx >= 0) {
+        matched = { budgetId: budget.id, index: idx };
+        break;
+      }
+    }
+
+    if (matched) {
+      const budget = clones.find((b) => b.id === matched!.budgetId)!;
+      const row = budget.parts[matched.index];
+      let changed = false;
+      if (row.approved !== true) {
+        row.approved = true;
+        changed = true;
+      }
+      const qty = formatFinalizePartQuantity(parseFinalizePartQuantity(part.quantity));
+      if (String(row.quantity ?? '') !== qty && qty) {
+        row.quantity = qty;
+        changed = true;
+      }
+      if (part.workshopPartId && row.workshopPartId !== part.workshopPartId) {
+        row.workshopPartId = part.workshopPartId;
+        row.fromStock = true;
+        changed = true;
+      } else if (part.fromStock === true && row.fromStock !== true) {
+        row.fromStock = true;
+        changed = true;
+      }
+      if (changed) budget.dirty = true;
+      partBudgetIds[key] = budget.id;
+    } else {
+      pendingParts.push({
+        description,
+        quantity: formatFinalizePartQuantity(parseFinalizePartQuantity(part.quantity)),
+        approved: true,
+        fromStock: Boolean(part.fromStock || part.workshopPartId),
+        ...(part.workshopPartId ? { workshopPartId: part.workshopPartId } : {}),
+      });
+    }
+  }
+
+  if (pendingServices.length > 0 || pendingParts.length > 0) {
+    const target = pickTargetBudget();
+    if (!target) {
+      return {
+        updatedBudgets: clones
+          .filter((b) => b.dirty)
+          .map((b) => ({ id: b.id, services: b.services, parts: b.parts })),
+        newBudget: {
+          services: pendingServices,
+          parts: pendingParts,
+        },
+        serviceBudgetIds,
+        partBudgetIds,
+      };
+    }
+
+    for (const svc of pendingServices) {
+      target.services.push(svc);
+      serviceBudgetIds[normalizeServiceDescription(svc.description)] = target.id;
+    }
+    for (const part of pendingParts) {
+      target.parts.push(part);
+      partBudgetIds[normalizeBudgetPartName(part.description)] = target.id;
+    }
+    target.dirty = true;
+  }
+
+  return {
+    updatedBudgets: clones
+      .filter((b) => b.dirty)
+      .map((b) => ({ id: b.id, services: b.services, parts: b.parts })),
+    newBudget: null,
+    serviceBudgetIds,
+    partBudgetIds,
+  };
+}
