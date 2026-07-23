@@ -325,22 +325,25 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
     [visibleOrders]
   );
 
-  const handleDeleteTechnicianService = useCallback(async (service: TechnicianServiceReportItem) => {
-    const label = service.description?.trim() || 'este serviço';
-    const ok = window.confirm(
-      `Excluir “${label}” do relatório de serviços por técnico?\n\nIsso remove o registro do fechamento. O orçamento da OS não é alterado.`
-    );
-    if (!ok) return;
-    setDeletingServiceLineId(service.lineId);
-    try {
-      await deleteTechnicianServiceReportLine(service.lineId);
-      setTechServicesRaw((prev) => prev.filter((row) => row.lineId !== service.lineId));
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Não foi possível excluir o serviço do relatório.');
-    } finally {
-      setDeletingServiceLineId(null);
-    }
-  }, []);
+  const handleDeleteTechnicianService = useCallback(
+    async (service: Pick<TechnicianServiceReportItem, 'lineId' | 'description'>) => {
+      const label = service.description?.trim() || 'este serviço';
+      const ok = window.confirm(
+        `Excluir “${label}” do relatório de serviços por técnico?\n\nIsso remove o registro do fechamento. O orçamento da OS não é alterado.`
+      );
+      if (!ok) return;
+      setDeletingServiceLineId(service.lineId);
+      try {
+        await deleteTechnicianServiceReportLine(service.lineId);
+        setTechServicesRaw((prev) => prev.filter((row) => row.lineId !== service.lineId));
+      } catch (e) {
+        alert(e instanceof Error ? e.message : 'Não foi possível excluir o serviço do relatório.');
+      } finally {
+        setDeletingServiceLineId(null);
+      }
+    },
+    []
+  );
 
   const handleConfirmHideFromReports = useCallback(() => {
     if (!deleteTarget) return;
@@ -1188,7 +1191,7 @@ function TechnicianServicesReportBlock({
   onOpenOrder: (serviceOrderId: string) => void;
   canDelete?: boolean;
   deletingLineId?: string | null;
-  onDeleteService?: (service: TechnicianServiceReportItem) => void;
+  onDeleteService?: (service: Pick<TechnicianServiceReportItem, 'lineId' | 'description'>) => void;
 }) {
   if (groups.length === 0) {
     return <p className="py-12 text-center text-[14px] text-zinc-500">Nenhum serviço registrado no período.</p>;

@@ -36,7 +36,7 @@ export function FinalizedVehicleServicesReportBlock({
   onOpenOrder: (serviceOrderId: string) => void;
   canDelete?: boolean;
   deletingLineId?: string | null;
-  onDeleteService?: (service: TechnicianServiceReportItem) => void;
+  onDeleteService?: (service: Pick<TechnicianServiceReportItem, 'lineId' | 'description'>) => void;
 }) {
   if (groups.length === 0) {
     return (
