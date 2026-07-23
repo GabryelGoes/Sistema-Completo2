@@ -9782,6 +9782,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           onConfirmed={async () => {
             const card = serviceTechClosing;
             setServiceTechClosing(null);
+            window.dispatchEvent(new CustomEvent('rda-patio-budgets-changed'));
             await performStageChangeForCard(card, 'FINALIZADO', { skipServiceTechGate: true });
           }}
         />
