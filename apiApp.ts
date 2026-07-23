@@ -4605,6 +4605,10 @@ export function createApiApp() {
         if (updBudgetError) throw updBudgetError;
       }
 
+      if (closingSync.updatedBudgets.length > 0 || closingSync.newBudget) {
+        await touchServiceOrderUpdatedAt(serviceOrderId);
+      }
+
       const resolveServiceBudgetId = (description: string, existing: string | null) => {
         if (existing) return existing;
         return closingSync.serviceBudgetIds[normalizeServiceDescription(description)] ?? null;
@@ -4684,7 +4688,16 @@ export function createApiApp() {
         if (markStockError) throw markStockError;
       }
 
-      return res.json({ ok: true, stockApplied: !stockAlreadyApplied });
+      return res.json({
+        ok: true,
+        stockApplied: !stockAlreadyApplied,
+        budgetSync: {
+          updatedBudgetIds: closingSync.updatedBudgets.map((b) => b.id),
+          createdBudget: Boolean(closingSync.newBudget),
+          servicesLinked: lines.length,
+          partsLinked: stockParts.length,
+        },
+      });
     } catch (err: unknown) {
       console.error("[API] PUT service-technicians:", err);
       const msg = err instanceof Error ? err.message : "Erro";

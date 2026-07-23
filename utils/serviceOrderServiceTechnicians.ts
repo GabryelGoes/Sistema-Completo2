@@ -366,18 +366,46 @@ export function planClosingItemsBudgetSync(
   serviceBudgetIds: Record<string, string>;
   partBudgetIds: Record<string, string>;
 } {
-  const clones = budgets.map((b) => ({
-    id: b.id,
-    created_at: b.created_at ?? null,
-    updated_at: b.updated_at ?? null,
-    services: Array.isArray(b.services)
-      ? b.services.map((s) => ({ ...s }))
-      : ([] as ClosingBudgetServiceItem[]),
-    parts: Array.isArray(b.parts)
-      ? b.parts.map((p) => ({ ...p }))
-      : ([] as ClosingBudgetPartItem[]),
-    dirty: false,
-  }));
+  const clones = budgets.map((b) => {
+    const rawServices = b.services as unknown;
+    const rawParts = b.parts as unknown;
+    const servicesArr: ClosingBudgetServiceItem[] = Array.isArray(rawServices)
+      ? rawServices.map((s) => ({ ...(s as ClosingBudgetServiceItem) }))
+      : typeof rawServices === 'string'
+        ? (() => {
+            try {
+              const parsed = JSON.parse(rawServices);
+              return Array.isArray(parsed)
+                ? parsed.map((s) => ({ ...(s as ClosingBudgetServiceItem) }))
+                : [];
+            } catch {
+              return [];
+            }
+          })()
+        : [];
+    const partsArr: ClosingBudgetPartItem[] = Array.isArray(rawParts)
+      ? rawParts.map((p) => ({ ...(p as ClosingBudgetPartItem) }))
+      : typeof rawParts === 'string'
+        ? (() => {
+            try {
+              const parsed = JSON.parse(rawParts);
+              return Array.isArray(parsed)
+                ? parsed.map((p) => ({ ...(p as ClosingBudgetPartItem) }))
+                : [];
+            } catch {
+              return [];
+            }
+          })()
+        : [];
+    return {
+      id: b.id,
+      created_at: b.created_at ?? null,
+      updated_at: b.updated_at ?? null,
+      services: servicesArr,
+      parts: partsArr,
+      dirty: false,
+    };
+  });
 
   const serviceBudgetIds: Record<string, string> = {};
   const partBudgetIds: Record<string, string> = {};
