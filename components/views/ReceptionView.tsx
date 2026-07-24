@@ -1158,8 +1158,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             </button>
           </div>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-7">
-            {/* Dados do cliente — order-2: coluna direita no desktop; após veículo no mobile */}
-            <div className="order-2 space-y-6">
+            {/* Dados do cliente — no retrato (tablet/phone): primeiro; no desktop: coluna direita */}
+            <div className={`${receptionPortraitVertical ? 'order-1' : 'order-2'} space-y-6`}>
               <h2 className="border-b border-zinc-200/80 pb-2 text-[14px] font-bold uppercase tracking-[0.08em] text-zinc-700 dark:border-white/[0.08] dark:text-zinc-200">
                 Dados do cliente
               </h2>
@@ -1335,8 +1335,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               </div>
             </div>
 
-            {/* Veículo/módulo + queixa (foto e enviar ficam em order-3) — order-1: coluna esquerda no desktop */}
-            <div className="order-1 space-y-6">
+            {/* Veículo/módulo — no retrato: após cliente/queixa/autorização; no desktop: coluna esquerda */}
+            <div
+              className={`${
+                receptionPortraitVertical ? 'order-2 flex flex-col gap-6' : 'order-1 space-y-6'
+              }`}
+            >
+              {/* No retrato: dados do veículo por último entre os blocos desta coluna (order-4) */}
+              <div className={receptionPortraitVertical ? 'order-4 space-y-6' : 'contents'}>
               <div
                 className={`border-b border-zinc-200/80 pb-2 dark:border-white/[0.08] ${
                   receptionPortraitVertical ? 'flex items-end justify-between gap-2' : ''
@@ -1347,7 +1353,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     receptionPortraitVertical ? 'min-w-0 flex-1 leading-tight pr-1' : ''
                   }`}
                 >
-                  {receptionMode === 'vehicle' ? 'Veículo e atendimento' : 'Produto e atendimento'}
+                  {receptionMode === 'vehicle'
+                    ? receptionPortraitVertical
+                      ? 'Dados do veículo'
+                      : 'Veículo e atendimento'
+                    : 'Produto e atendimento'}
                 </h2>
                 {receptionPortraitVertical ? (
                   <button
@@ -1671,8 +1681,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </div>
                 </div>
               )}
+              </div>
 
               {receptionMode === 'vehicle' && (
+                <div className={receptionPortraitVertical ? 'order-3' : undefined}>
                 <div className="rounded-[22px] border border-[#007AFF]/20 bg-gradient-to-br from-[#007AFF]/[0.06] via-white to-zinc-50/90 p-4 shadow-[0_12px_32px_-12px_rgba(0,122,255,0.22),0_6px_18px_-10px_rgba(0,122,255,0.14),0_3px_10px_-5px_rgba(0,0,0,0.06)] dark:border-[#007AFF]/25 dark:from-[#007AFF]/12 dark:via-zinc-950/40 dark:to-zinc-950/20 dark:shadow-[0_8px_28px_-14px_rgba(0,122,255,0.25)] sm:p-5">
                   <div className="flex gap-3">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#007AFF]/30 bg-white shadow-[0_5px_14px_-6px_rgba(0,0,0,0.1),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:border-[#007AFF]/35 dark:bg-zinc-900/80 dark:shadow-sm">
@@ -1714,10 +1726,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     ) : null}
                   </div>
                 </div>
+                </div>
               )}
 
               {receptionMode === 'vehicle' && (
-                <div className="relative">
+                <div className={`relative ${receptionPortraitVertical ? 'order-2' : ''}`}>
                   <TextArea
                     label="Queixa do cliente"
                     name="issueDescription"
@@ -1729,6 +1742,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 </div>
               )}
 
+              <div className={receptionPortraitVertical ? 'order-5 space-y-6' : 'contents'}>
               <div className="h-px bg-zinc-200/80 dark:bg-white/[0.08]" />
 
               <div className="space-y-3">
@@ -1804,6 +1818,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </p>
                 ) : null}
               </div>
+              </div>
 
             </div>
           </div>
@@ -1812,7 +1827,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               type="submit"
               className="group relative flex min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-[0_14px_34px_-10px_rgba(37,99,235,0.32),0_6px_18px_-8px_rgba(37,99,235,0.22),0_2px_8px_-4px_rgba(0,0,0,0.08)] transition-all hover:opacity-95 active:scale-[0.98] dark:shadow-lg dark:shadow-blue-500/25"
             >
-              Criar ficha
+              Criar Ficha
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </button>
           </div>
