@@ -4691,14 +4691,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const activeBoardCountContext = isModuleMode ? 'no laboratório' : 'no pátio';
 
   const patioCompactActionBtn = patioHeaderActionsCentered
-    ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-2.5 py-2 text-[12.5px] font-semibold text-zinc-800 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.98] dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:px-3 sm:py-2.5 sm:text-[13px]'
+    ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-zinc-200/90 bg-white px-3 py-2 text-[13px] font-semibold text-zinc-800 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.98] dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-100 dark:hover:bg-zinc-900'
     : 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[13px] font-semibold text-zinc-800 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.98] dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:px-3.5';
   const patioCompactCreateBtn = isModuleMode
     ? patioHeaderActionsCentered
-      ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#6d28d9]/80 bg-[#A855F7] px-3 py-2 text-[12.5px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(168,85,247,0.55)] transition-all hover:brightness-110 active:scale-[0.98] sm:px-3.5 sm:py-2.5 sm:text-[13px]'
+      ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#6d28d9]/80 bg-[#A855F7] px-4 py-2 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(168,85,247,0.55)] transition-all hover:brightness-110 active:scale-[0.98]'
       : 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#6d28d9]/80 bg-[#A855F7] px-3.5 py-2.5 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(168,85,247,0.55)] transition-all hover:brightness-110 active:scale-[0.98] sm:px-4'
     : patioHeaderActionsCentered
-      ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#0058c7]/70 bg-[#007AFF] px-3 py-2 text-[12.5px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(0,122,255,0.5)] transition-all hover:brightness-110 active:scale-[0.98] sm:px-3.5 sm:py-2.5 sm:text-[13px]'
+      ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#0058c7]/70 bg-[#007AFF] px-4 py-2 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(0,122,255,0.5)] transition-all hover:brightness-110 active:scale-[0.98]'
       : 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#0058c7]/70 bg-[#007AFF] px-3.5 py-2.5 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(0,122,255,0.5)] transition-all hover:brightness-110 active:scale-[0.98] sm:px-4';
 
   const patioActiveCountBadge = (
@@ -4711,6 +4711,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
         {activeBoardCount}
       </span>
       <span className="whitespace-nowrap">{activeBoardCountUnit}</span>
+    </span>
+  );
+
+  /** Contagem discreta ao lado do título no tablet (ex.: “17 veículos”). */
+  const patioTabletCountChip = (
+    <span
+      className="inline-flex shrink-0 items-center rounded-md border border-[#007AFF]/35 bg-[#007AFF]/[0.07] px-2 py-0.5 text-[12px] font-semibold tabular-nums tracking-tight text-[#007AFF] dark:border-[#64B5FF]/40 dark:bg-[#0A84FF]/15 dark:text-[#8cc8ff]"
+      aria-live="polite"
+      aria-label={`${activeBoardCount} ${activeBoardCountUnit} ${activeBoardCountContext}`}
+    >
+      {activeBoardCount} {activeBoardCountUnit}
     </span>
   );
 
@@ -5076,12 +5087,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <h1 className="shrink-0 text-[24px] font-semibold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
                         {isModuleMode ? 'Laboratório' : 'Pátio'}
                       </h1>
-                      <p
-                        className="min-w-0 truncate text-[13px] font-medium leading-none tabular-nums text-zinc-500 dark:text-zinc-400 sm:text-[14px]"
-                        aria-live="polite"
-                      >
-                        {activeBoardCount} {activeBoardCountUnit} {activeBoardCountContext}
-                      </p>
+                      {patioHeaderActionsCentered ? (
+                        patioTabletCountChip
+                      ) : (
+                        <p
+                          className="min-w-0 truncate text-[13px] font-medium leading-none tabular-nums text-zinc-500 dark:text-zinc-400 sm:text-[14px]"
+                          aria-live="polite"
+                        >
+                          {activeBoardCount} {activeBoardCountUnit} {activeBoardCountContext}
+                        </p>
+                      )}
                     </div>
                     {!patioHeaderActionsCentered ? (
                       <div className="flex shrink-0 items-center gap-2">
@@ -5116,52 +5131,49 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               </div>
 
-              <div
-                className={
-                  patioHeaderActionsCentered
-                    ? 'flex w-full flex-nowrap items-center justify-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:gap-2.5'
-                    : 'flex flex-wrap items-center gap-2 sm:gap-2.5'
-                }
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReminderSaveError(null);
-                    setIsRemindersOpen(true);
-                  }}
-                  className={patioCompactActionBtn}
-                >
-                  {remindersBadgeCount > 0 && (
-                    <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
-                      {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
-                    </span>
-                  )}
-                  <ReminderIcon className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
-                  <span>Lembretes</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsHistoryOpen(true)}
-                  className={patioCompactActionBtn}
-                  title={
-                    isModuleMode
-                      ? 'Consultar histórico de módulos arquivados'
-                      : 'Consultar histórico de veículos arquivados'
-                  }
-                >
-                  <History className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
-                  <span>Histórico</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
-                  className={patioCompactCreateBtn}
-                >
-                  <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
-                  <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
-                </button>
-                {patioHeaderActionsCentered ? (
-                  <>
+              {patioHeaderActionsCentered ? (
+                /* Tablet: Lembretes | Histórico | Criar OS (centro da tela) | ⋯ | Notificações */
+                <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                  <div className="flex min-w-0 flex-nowrap items-center justify-end gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReminderSaveError(null);
+                        setIsRemindersOpen(true);
+                      }}
+                      className={patioCompactActionBtn}
+                    >
+                      {remindersBadgeCount > 0 && (
+                        <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
+                          {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
+                        </span>
+                      )}
+                      <ReminderIcon className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                      <span>Lembretes</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsHistoryOpen(true)}
+                      className={patioCompactActionBtn}
+                      title={
+                        isModuleMode
+                          ? 'Consultar histórico de módulos arquivados'
+                          : 'Consultar histórico de veículos arquivados'
+                      }
+                    >
+                      <History className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                      <span>Histórico</span>
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                    className={patioCompactCreateBtn}
+                  >
+                    <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
+                    <span>{isModuleMode ? 'Criar módulo' : 'Criar OS'}</span>
+                  </button>
+                  <div className="flex min-w-0 flex-nowrap items-center justify-start gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     <div className="shrink-0">
                       <button
                         type="button"
@@ -5170,26 +5182,68 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         aria-expanded={isPatioHeaderToolsOpen}
                         aria-haspopup="menu"
                         aria-label="Mais opções"
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
                       >
                         <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
                       </button>
                       {patioHeaderToolsMenu}
                     </div>
                     {isAppTabActive ? (
-                      <NotificationCenter
-                        theme="light"
-                        forTechnician={actorOptions?.actor === 'technician'}
-                        technicianSlug={
-                          actorOptions?.actor === 'technician'
-                            ? actorOptions?.actorTechnicianSlug
-                            : undefined
-                        }
-                      />
+                      <div className="shrink-0 [&_button]:!h-10 [&_button]:!w-10 [&_button]:!rounded-lg [&_button]:!shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)]">
+                        <NotificationCenter
+                          theme="light"
+                          forTechnician={actorOptions?.actor === 'technician'}
+                          technicianSlug={
+                            actorOptions?.actor === 'technician'
+                              ? actorOptions?.actorTechnicianSlug
+                              : undefined
+                          }
+                        />
+                      </div>
                     ) : null}
-                  </>
-                ) : null}
-              </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReminderSaveError(null);
+                      setIsRemindersOpen(true);
+                    }}
+                    className={patioCompactActionBtn}
+                  >
+                    {remindersBadgeCount > 0 && (
+                      <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
+                        {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
+                      </span>
+                    )}
+                    <ReminderIcon className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                    <span>Lembretes</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsHistoryOpen(true)}
+                    className={patioCompactActionBtn}
+                    title={
+                      isModuleMode
+                        ? 'Consultar histórico de módulos arquivados'
+                        : 'Consultar histórico de veículos arquivados'
+                    }
+                  >
+                    <History className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                    <span>Histórico</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                    className={patioCompactCreateBtn}
+                  >
+                    <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
+                    <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </header>
