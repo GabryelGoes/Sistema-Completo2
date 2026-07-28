@@ -6376,6 +6376,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const modalListName = resolveCardStageLabel(selectedCard);
         const modalStatusConfig = getStatusConfig(modalListName, modalStageStatus);
         const modalRingClass = (() => {
+          if (!patioVehicleVm.showStageRing) {
+            return '';
+          }
           if (selectedCard.garantiaTag) {
             return isPatioTabletPortrait
               ? 'ring-[5px] ring-inset ring-red-500 border border-red-500/35 shadow-[inset_0_0_24px_rgba(239,68,68,0.22)]'
@@ -6640,7 +6643,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <div className={patioVehicleModalOverlayClass}>
            <div className={`${patioVehicleVm.shell} animate-modal-wp-app ${modalRingClass}`}>
               
-              <div className={`absolute z-20 flex items-center gap-2 ${isPatioPcModal ? 'top-4 right-5 xl:right-6' : 'top-4 right-4'}`}>
+              <div className={`absolute z-20 flex items-center gap-2 ${
+                isPatioPcModal
+                  ? 'top-4 right-5 xl:right-6'
+                  : patioVehicleVm.mode === 'mobile'
+                    ? 'top-[max(0.75rem,env(safe-area-inset-top))] right-[max(0.75rem,env(safe-area-inset-right))]'
+                    : 'top-4 right-4'
+              }`}>
                 {isModuleMode && serviceOrderDetail && !loadingDetails ? (
                   <button
                     type="button"
@@ -6673,7 +6682,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
 
               {can('canDeleteCards') && isDeleteVehicleOpen && (
-                <div className={`absolute inset-0 z-30 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm ${isPatioPcModal ? 'rounded-none' : 'rounded-[1.5rem] sm:rounded-[1.625rem]'}`}>
+                <div className={`absolute inset-0 z-30 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm ${isPatioPcModal || patioVehicleVm.mode === 'mobile' ? 'rounded-none' : 'rounded-[1.5rem] sm:rounded-[1.625rem]'}`}>
                   <div className={`${vi} w-full max-w-sm p-6 shadow-xl`}>
                     <h3 className="mb-2 flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
                       <Trash2 className="h-5 w-5 text-red-500" />

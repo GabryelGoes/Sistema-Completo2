@@ -126,6 +126,34 @@ body {
   background: rgb(255 255 255 / 0.18);
 }
 
+/** Rolagem vertical minimalista — modal de veículo (mobile). */
+.patio-vm-scroll--minimal {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(0 0 0 / 0.18) transparent;
+}
+.dark .patio-vm-scroll--minimal {
+  scrollbar-color: rgb(255 255 255 / 0.16) transparent;
+}
+.patio-vm-scroll--minimal::-webkit-scrollbar {
+  width: 3px;
+}
+.patio-vm-scroll--minimal::-webkit-scrollbar-track {
+  background: transparent;
+}
+.patio-vm-scroll--minimal::-webkit-scrollbar-thumb {
+  background: rgb(0 0 0 / 0.16);
+  border-radius: 9999px;
+}
+.patio-vm-scroll--minimal::-webkit-scrollbar-thumb:hover {
+  background: rgb(0 0 0 / 0.28);
+}
+.dark .patio-vm-scroll--minimal::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.14);
+}
+.dark .patio-vm-scroll--minimal::-webkit-scrollbar-thumb:hover {
+  background: rgb(255 255 255 / 0.24);
+}
+
 .font-vehicle {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
