@@ -7820,10 +7820,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 ) : null}
 
                                 <div
-                                  className={`max-h-[380px] overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50 ${
+                                  className={`max-h-[380px] overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50 ${
                                     isPatioTabletPortrait
-                                      ? 'grid grid-cols-2 gap-2'
-                                      : 'space-y-2.5'
+                                      ? 'grid grid-cols-2 gap-2.5 p-3'
+                                      : 'space-y-2.5 p-2.5'
                                   }`}
                                 >
                               {savedBudgets
@@ -7839,20 +7839,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   const dateStr = new Date(budgetLastActivityMs(budget)).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                                   const numero = budgetChronologicalNumber(sameOs, budget.id);
                                   const budgetVerified = isBudgetVerified(budget);
+                                  const ringRadius = isPatioTabletPortrait ? 'rounded-[14px]' : 'rounded-[18px]';
+                                  const innerRadius = isPatioTabletPortrait ? 'rounded-[12px]' : 'rounded-[16px]';
                                   return (
                                     <div
                                       key={budget.id}
-                                      className={`min-w-0 rounded-[18px] bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_6px_16px_-8px_rgba(0,122,255,0.33)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.32)]${
-                                        isPatioTabletPortrait ? ' rounded-[14px]' : ''
-                                      }`}
+                                      className={`min-w-0 overflow-hidden bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_6px_16px_-8px_rgba(0,122,255,0.33)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.32)] ${ringRadius}`}
                                     >
                                     <button
                                       type="button"
                                       onClick={() => openBudgetForView(budget)}
-                                      className={`group relative w-full overflow-hidden border border-white/85 bg-white/95 text-left shadow-[0_6px_16px_-8px_rgba(0,0,0,0.22)] ring-1 ring-transparent transition-all duration-200 hover:-translate-y-[1px] hover:border-white hover:shadow-[0_10px_22px_-8px_rgba(0,122,255,0.33)] hover:ring-[#007AFF]/20 active:translate-y-0 dark:border-white/[0.08] dark:bg-zinc-950/85 dark:shadow-[0_8px_20px_-10px_rgba(0,0,0,0.6)] dark:hover:border-[#93c5fd]/35 dark:hover:shadow-[0_12px_26px_-10px_rgba(59,130,246,0.28)] dark:hover:ring-[#7ab8ff]/20 ${
-                                        isPatioTabletPortrait
-                                          ? 'rounded-[12px] p-2.5'
-                                          : 'rounded-[16px] p-3.5'
+                                      className={`group relative w-full border border-white/85 bg-white/95 text-left shadow-[0_6px_16px_-8px_rgba(0,0,0,0.22)] ring-1 ring-transparent transition-[border-color,box-shadow,ring-color] duration-200 hover:border-white hover:shadow-[0_10px_22px_-8px_rgba(0,122,255,0.33)] hover:ring-[#007AFF]/20 dark:border-white/[0.08] dark:bg-zinc-950/85 dark:shadow-[0_8px_20px_-10px_rgba(0,0,0,0.6)] dark:hover:border-[#93c5fd]/35 dark:hover:shadow-[0_12px_26px_-10px_rgba(59,130,246,0.28)] dark:hover:ring-[#7ab8ff]/20 ${innerRadius} ${
+                                        isPatioTabletPortrait ? 'p-2.5' : 'p-3.5'
                                       }`}
                                     >
                                       <div className={`mb-2 flex items-center justify-between gap-1.5${isPatioTabletPortrait ? ' mb-1.5' : ' mb-2.5'}`}>
