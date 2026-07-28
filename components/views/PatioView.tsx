@@ -8342,10 +8342,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <div className="flex flex-col gap-8">
                                         {images.length > 0 && (
                                           <div className="order-2">
-                                            <div className="mb-2 flex min-w-0 items-center gap-2 pl-1.5 sm:gap-2.5 sm:pl-2">
-                                              <div className={uiOsModalSectionIconWrap}>
-                                                <ImageIcon className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
-                                              </div>
+                                            <div className="mb-2 flex min-w-0 items-center pl-1.5 sm:pl-2">
                                               <p className={uiOsModalCardSectionTitle}>
                                                 Fotos
                                               </p>
