@@ -332,12 +332,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     if (last) setModuleKind(last as ModuleKind);
   }, [receptionMode]);
 
-  // Refs — fotos (câmera e galeria aceitam várias de uma vez)
+  // Refs — fotos (câmera in-app + fallback file / galeria)
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const liveCameraVideoRef = useRef<HTMLVideoElement>(null);
+  const liveCameraCanvasRef = useRef<HTMLCanvasElement>(null);
+  const liveCameraStreamRef = useRef<MediaStream | null>(null);
 
   const [intakePhotos, setIntakePhotos] = useState<ReceptionIntakePhoto[]>([]);
   const [intakePhotoPreviewIndex, setIntakePhotoPreviewIndex] = useState<number | null>(null);
+  const [isLiveCameraOpen, setIsLiveCameraOpen] = useState(false);
+  const [liveCameraCapturing, setLiveCameraCapturing] = useState(false);
+  const [liveCameraFlash, setLiveCameraFlash] = useState(false);
   const [diagAuthSignModalOpen, setDiagAuthSignModalOpen] = useState(false);
   const [diagAuthSignatureBlob, setDiagAuthSignatureBlob] = useState<Blob | null>(null);
   const [diagAuthSignatureDataUrl, setDiagAuthSignatureDataUrl] = useState<string | null>(null);
@@ -590,6 +596,120 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     input.value = '';
   };
 
+  const stopLiveCamera = useCallback(() => {
+    if (liveCameraStreamRef.current) {
+      liveCameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      liveCameraStreamRef.current = null;
+    }
+    if (liveCameraVideoRef.current) {
+      liveCameraVideoRef.current.srcObject = null;
+    }
+    setIsLiveCameraOpen(false);
+    setLiveCameraCapturing(false);
+    setLiveCameraFlash(false);
+  }, []);
+
+  const openLiveCamera = useCallback(async () => {
+    if (intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      cameraInputRef.current?.click();
+      return;
+    }
+    setIsLiveCameraOpen(true);
+  }, [intakePhotos.length]);
+
+  useEffect(() => {
+    if (!isLiveCameraOpen) {
+      if (liveCameraStreamRef.current) {
+        liveCameraStreamRef.current.getTracks().forEach((track) => track.stop());
+        liveCameraStreamRef.current = null;
+      }
+      return;
+    }
+
+    let cancelled = false;
+    const init = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        liveCameraStreamRef.current = stream;
+        if (liveCameraVideoRef.current) {
+          liveCameraVideoRef.current.srcObject = stream;
+          try {
+            await liveCameraVideoRef.current.play();
+          } catch {
+            /* autoplay pode falhar; playsInline costuma bastar no iOS */
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao acessar a câmera:', err);
+        setIsLiveCameraOpen(false);
+        window.alert('Não foi possível abrir a câmera no app. Usando a câmera do sistema.');
+        cameraInputRef.current?.click();
+      }
+    };
+    void init();
+
+    return () => {
+      cancelled = true;
+      if (liveCameraStreamRef.current) {
+        liveCameraStreamRef.current.getTracks().forEach((track) => track.stop());
+        liveCameraStreamRef.current = null;
+      }
+    };
+  }, [isLiveCameraOpen]);
+
+  const captureLiveCameraPhoto = useCallback(() => {
+    if (liveCameraCapturing) return;
+    const video = liveCameraVideoRef.current;
+    const canvas = liveCameraCanvasRef.current;
+    if (!video || !canvas) return;
+    if (video.videoWidth <= 0 || video.videoHeight <= 0) return;
+    if (intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS) {
+      stopLiveCamera();
+      return;
+    }
+
+    setLiveCameraCapturing(true);
+    setLiveCameraFlash(true);
+    window.setTimeout(() => setLiveCameraFlash(false), 120);
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      setLiveCameraCapturing(false);
+      return;
+    }
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(
+      (blob) => {
+        setLiveCameraCapturing(false);
+        if (!blob) return;
+        const file = new File([blob], `recepcao_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        addIntakePhotosFromFiles([file]);
+      },
+      'image/jpeg',
+      0.88
+    );
+  }, [addIntakePhotosFromFiles, intakePhotos.length, liveCameraCapturing, stopLiveCamera]);
+
+  useEffect(() => {
+    if (isLiveCameraOpen && intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS) {
+      stopLiveCamera();
+    }
+  }, [intakePhotos.length, isLiveCameraOpen, stopLiveCamera]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -773,6 +893,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       return [];
     });
     setIntakePhotoPreviewIndex(null);
+    stopLiveCamera();
     setModuleKind('');
     setModuleVehicleKind('');
     setModuleProductOther('');
@@ -1780,7 +1901,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <button
                     type="button"
                     disabled={intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS}
-                    onClick={() => cameraInputRef.current?.click()}
+                    onClick={() => void openLiveCamera()}
                     className="flex min-h-[52px] flex-1 items-center justify-center gap-2.5 rounded-2xl border border-zinc-200/90 bg-white/50 py-3.5 text-zinc-700 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all hover:border-[#007AFF]/45 hover:bg-white/90 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]"
                   >
                     <Camera className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2} />
@@ -2490,6 +2611,51 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           initialIndex={Math.min(intakePhotoPreviewIndex, intakePhotos.length - 1)}
           onClose={() => setIntakePhotoPreviewIndex(null)}
         />
+      ) : null}
+
+      {isLiveCameraOpen ? (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[220] flex flex-col bg-black pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+            <div className="relative min-h-0 flex-1 bg-black">
+              <video
+                ref={liveCameraVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className="h-full w-full object-cover"
+              />
+              <canvas ref={liveCameraCanvasRef} className="hidden" />
+              {liveCameraFlash ? (
+                <div className="pointer-events-none absolute inset-0 bg-white/80" aria-hidden />
+              ) : null}
+              <button
+                type="button"
+                onClick={stopLiveCamera}
+                className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-md"
+                aria-label="Fechar câmera"
+              >
+                <X className="h-6 w-6" strokeWidth={2.25} />
+              </button>
+              <p className="pointer-events-none absolute left-4 top-5 rounded-full bg-black/50 px-3 py-1 text-[12px] font-semibold text-white backdrop-blur-md">
+                {intakePhotos.length}/{MAX_RECEPTION_INTAKE_PHOTOS} fotos
+              </p>
+              <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-3 px-4">
+                <p className="text-center text-[12px] font-medium text-white/85">
+                  Toque no botão para capturar — a foto é adicionada na hora
+                </p>
+                <button
+                  type="button"
+                  onClick={captureLiveCameraPhoto}
+                  disabled={liveCameraCapturing || intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS}
+                  className="flex h-[4.75rem] w-[4.75rem] items-center justify-center rounded-full border-4 border-white/80 bg-white shadow-lg transition-transform active:scale-95 disabled:opacity-50"
+                  aria-label="Capturar foto"
+                >
+                  <span className="h-14 w-14 rounded-full bg-[#007AFF]" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
       ) : null}
 
       <ProcessingOverlay 
