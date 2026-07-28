@@ -269,3 +269,13 @@ html[data-desktop-shell='true'] .agenda-form-modal-shell .agenda-modal-body-scro
   flex: 1 1 0% !important;
   min-height: 0 !important;
 }
+
+/**
+ * Enquanto a Home abre um hub/modal, bloqueia pointer-events no conteúdo montado
+ * para o click/touch sintético do mesmo gesto não acionar botões internos.
+ */
+html[data-home-hub-open-guard='1'] [data-home-hub-overlay],
+html[data-home-hub-open-guard='1'] [data-home-hub-overlay] *,
+html[data-home-hub-open-guard='1'] [data-modal-portal] * {
+  pointer-events: none !important;
+}

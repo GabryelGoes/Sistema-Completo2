@@ -2,28 +2,43 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   detectDeviceType,
   deviceTypeFlags,
+  getDeviceTypeOverride,
   isCoarsePointer,
+  resolveDeviceType,
+  saveDeviceTypeOverride,
   type DeviceType,
+  type DeviceTypeOverride,
 } from '../utils/deviceType';
 
 export type DeviceTypeState = ReturnType<typeof deviceTypeFlags> & {
   isTouch: boolean;
   viewportWidth: number;
+  /** Resultado só da heurística (ignora preferência manual). */
+  detectedDeviceType: DeviceType;
+  /** Preferência salva: `auto` | smartphone | tablet | desktop. */
+  deviceTypeOverride: DeviceTypeOverride;
+  setDeviceTypeOverride: (value: DeviceTypeOverride) => void;
   refresh: () => void;
 };
 
 type CoreState = ReturnType<typeof deviceTypeFlags> & {
   isTouch: boolean;
   viewportWidth: number;
+  detectedDeviceType: DeviceType;
+  deviceTypeOverride: DeviceTypeOverride;
 };
 
 function computeCore(): CoreState {
   const width = typeof window !== 'undefined' ? window.innerWidth : 0;
-  const type = detectDeviceType(width);
+  const override = getDeviceTypeOverride();
+  const detected = detectDeviceType(width);
+  const type = resolveDeviceType(width);
   return {
     ...deviceTypeFlags(type),
     isTouch: isCoarsePointer(),
     viewportWidth: width,
+    detectedDeviceType: detected,
+    deviceTypeOverride: override,
   };
 }
 
@@ -42,6 +57,13 @@ export function useDeviceType(): DeviceTypeState {
   });
 
   const refresh = useCallback(() => {
+    const next = computeCore();
+    syncDocumentDataset(next.deviceType, next.isTouch);
+    setCore(next);
+  }, []);
+
+  const setDeviceTypeOverride = useCallback((value: DeviceTypeOverride) => {
+    saveDeviceTypeOverride(value);
     const next = computeCore();
     syncDocumentDataset(next.deviceType, next.isTouch);
     setCore(next);
@@ -79,5 +101,8 @@ export function useDeviceType(): DeviceTypeState {
     }
   }, [refresh]);
 
-  return useMemo(() => ({ ...core, refresh }), [core, refresh]);
+  return useMemo(
+    () => ({ ...core, setDeviceTypeOverride, refresh }),
+    [core, setDeviceTypeOverride, refresh]
+  );
 }

@@ -40,6 +40,7 @@ import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { ModalPortal } from '../ui/ModalPortal';
 import { PdfViewerModal } from '../PdfViewerModal';
+import { Lightbox } from '../Lightbox';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { useTabletPhonePortraitFullscreen } from '../../hooks/useTabletPhonePortraitFullscreen';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
@@ -91,8 +92,6 @@ function newReceptionIntakePhotoId(): string {
 type ReceptionIntakePhoto = { id: string; file: Blob; url: string };
 
 const RECEPTION_MODE_KEY = 'app_reception_mode';
-const VEHICLE_CATEGORIES = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
-type VehicleCategory = (typeof VEHICLE_CATEGORIES)[number];
 
 /** Vidro do cartão principal da recepção — sombra extra só no claro. */
 const receptionPageGlass =
@@ -215,7 +214,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   });
 
   const [status, setStatus] = useState<ProcessingStatus>({ step: 'idle' });
-  const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory | ''>('');
   const [moduleKind, setModuleKind] = useState<ModuleKind | ''>('');
   const [moduleVehicleKind, setModuleVehicleKind] = useState<ModuleVehicleKind | ''>('');
   const [moduleProductOther, setModuleProductOther] = useState('');
@@ -316,7 +314,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setDiagAuthSignedAt(null);
       setDiagAuthSheetOpen(false);
       setDiagAuthSignModalOpen(false);
-      setVehicleCategory('');
     } else {
       setModuleKind('');
       setModuleVehicleKind('');
@@ -335,11 +332,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     if (last) setModuleKind(last as ModuleKind);
   }, [receptionMode]);
 
-  // Refs — fotos: câmera (capture) vs galeria (múltiplas)
+  // Refs — fotos (câmera in-app + fallback file / galeria)
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const liveCameraVideoRef = useRef<HTMLVideoElement>(null);
+  const liveCameraCanvasRef = useRef<HTMLCanvasElement>(null);
+  const liveCameraStreamRef = useRef<MediaStream | null>(null);
 
   const [intakePhotos, setIntakePhotos] = useState<ReceptionIntakePhoto[]>([]);
+  const [intakePhotoPreviewIndex, setIntakePhotoPreviewIndex] = useState<number | null>(null);
+  const [isLiveCameraOpen, setIsLiveCameraOpen] = useState(false);
+  const [liveCameraCapturing, setLiveCameraCapturing] = useState(false);
+  const [liveCameraFlash, setLiveCameraFlash] = useState(false);
   const [diagAuthSignModalOpen, setDiagAuthSignModalOpen] = useState(false);
   const [diagAuthSignatureBlob, setDiagAuthSignatureBlob] = useState<Blob | null>(null);
   const [diagAuthSignatureDataUrl, setDiagAuthSignatureDataUrl] = useState<string | null>(null);
@@ -535,7 +539,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   const removeIntakePhoto = useCallback((id: string) => {
     setIntakePhotos((prev) => {
-      const found = prev.find((p) => p.id === id);
+      const removeIdx = prev.findIndex((p) => p.id === id);
+      const found = removeIdx >= 0 ? prev[removeIdx] : undefined;
       if (found) {
         try {
           URL.revokeObjectURL(found.url);
@@ -543,7 +548,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           /* ignore */
         }
       }
-      return prev.filter((p) => p.id !== id);
+      const next = prev.filter((p) => p.id !== id);
+      setIntakePhotoPreviewIndex((openIdx) => {
+        if (openIdx == null || removeIdx < 0) return openIdx;
+        if (next.length === 0) return null;
+        if (openIdx > removeIdx) return openIdx - 1;
+        if (openIdx >= next.length) return next.length - 1;
+        return openIdx;
+      });
+      return next;
     });
   }, []);
 
@@ -569,7 +582,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     const input = e.target;
     const files = input.files;
     if (files && files.length > 0) {
-      addIntakePhotosFromFiles([files[0]]);
+      addIntakePhotosFromFiles(Array.from(files));
     }
     input.value = '';
   };
@@ -582,6 +595,120 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     }
     input.value = '';
   };
+
+  const stopLiveCamera = useCallback(() => {
+    if (liveCameraStreamRef.current) {
+      liveCameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      liveCameraStreamRef.current = null;
+    }
+    if (liveCameraVideoRef.current) {
+      liveCameraVideoRef.current.srcObject = null;
+    }
+    setIsLiveCameraOpen(false);
+    setLiveCameraCapturing(false);
+    setLiveCameraFlash(false);
+  }, []);
+
+  const openLiveCamera = useCallback(async () => {
+    if (intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      cameraInputRef.current?.click();
+      return;
+    }
+    setIsLiveCameraOpen(true);
+  }, [intakePhotos.length]);
+
+  useEffect(() => {
+    if (!isLiveCameraOpen) {
+      if (liveCameraStreamRef.current) {
+        liveCameraStreamRef.current.getTracks().forEach((track) => track.stop());
+        liveCameraStreamRef.current = null;
+      }
+      return;
+    }
+
+    let cancelled = false;
+    const init = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        liveCameraStreamRef.current = stream;
+        if (liveCameraVideoRef.current) {
+          liveCameraVideoRef.current.srcObject = stream;
+          try {
+            await liveCameraVideoRef.current.play();
+          } catch {
+            /* autoplay pode falhar; playsInline costuma bastar no iOS */
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao acessar a câmera:', err);
+        setIsLiveCameraOpen(false);
+        window.alert('Não foi possível abrir a câmera no app. Usando a câmera do sistema.');
+        cameraInputRef.current?.click();
+      }
+    };
+    void init();
+
+    return () => {
+      cancelled = true;
+      if (liveCameraStreamRef.current) {
+        liveCameraStreamRef.current.getTracks().forEach((track) => track.stop());
+        liveCameraStreamRef.current = null;
+      }
+    };
+  }, [isLiveCameraOpen]);
+
+  const captureLiveCameraPhoto = useCallback(() => {
+    if (liveCameraCapturing) return;
+    const video = liveCameraVideoRef.current;
+    const canvas = liveCameraCanvasRef.current;
+    if (!video || !canvas) return;
+    if (video.videoWidth <= 0 || video.videoHeight <= 0) return;
+    if (intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS) {
+      stopLiveCamera();
+      return;
+    }
+
+    setLiveCameraCapturing(true);
+    setLiveCameraFlash(true);
+    window.setTimeout(() => setLiveCameraFlash(false), 120);
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      setLiveCameraCapturing(false);
+      return;
+    }
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(
+      (blob) => {
+        setLiveCameraCapturing(false);
+        if (!blob) return;
+        const file = new File([blob], `recepcao_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        addIntakePhotosFromFiles([file]);
+      },
+      'image/jpeg',
+      0.88
+    );
+  }, [addIntakePhotosFromFiles, intakePhotos.length, liveCameraCapturing, stopLiveCamera]);
+
+  useEffect(() => {
+    if (isLiveCameraOpen && intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS) {
+      stopLiveCamera();
+    }
+  }, [intakePhotos.length, isLiveCameraOpen, stopLiveCamera]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -642,13 +769,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         return;
       }
     } else {
-      if (!vehicleCategory) {
-        setStatus({
-          step: 'error',
-          message: 'Selecione a categoria do veículo: Compacto, Médio/SUV, Pick-Up ou Premium.',
-        });
-        return;
-      }
       const p = normalizePlacaLocal(customer.plate);
       if (p.length < 7) {
         setStatus({
@@ -688,13 +808,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             intakeExistingCustomerId!,
             intakeCustomer,
             receptionMode,
-            receptionMode === 'vehicle' ? vehicleCategory : null,
             receptionMode === 'module' ? moduleIntakeStatus : undefined
           )
         : await saveReceptionIntake(
             intakeCustomer,
             receptionMode,
-            receptionMode === 'vehicle' ? vehicleCategory : null,
             receptionMode === 'module' ? moduleIntakeStatus : undefined
           );
 
@@ -774,7 +892,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       });
       return [];
     });
-    setVehicleCategory('');
+    setIntakePhotoPreviewIndex(null);
+    stopLiveCamera();
     setModuleKind('');
     setModuleVehicleKind('');
     setModuleProductOther('');
@@ -1098,9 +1217,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
       {!hidePageChrome ? (
       <>
-      {/* Cabeçalho — mesmo padrão da página Agenda */}
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8">
-        <div className="app-view-page-chrome flex items-center gap-3 sm:gap-4 min-w-0 ml-[8%]">
+      {/* Cabeçalho mobile: título alinhado ao Histórico; espaço à esquerda para o botão Voltar */}
+      <header className="mb-5 flex items-center justify-between gap-3 sm:mb-6 lg:mb-8">
+        <div
+          className={`app-view-page-chrome flex min-w-0 items-center gap-3 sm:gap-3.5 ${
+            desktopShell ? '' : 'pl-[3.25rem] sm:pl-14'
+          }`}
+        >
           <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
             <img
               src={receptionMode === 'module' ? '/icons/laboratorio-ios.png' : '/icons/recepcao-ios.png'}
@@ -1108,32 +1231,24 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               className="h-full w-full object-cover"
             />
           </IosAccentIconSquircle>
-          <div className="min-w-0">
-            <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
-              {receptionMode === 'module' ? 'Cadastro de produto' : 'Recepção'}
-            </h1>
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
-              <Sparkles className="w-3.5 h-3.5 text-[#007AFF] dark:text-[#7ab8ff] shrink-0" strokeWidth={2} />
-              <span>
-                {receptionMode === 'module'
-                  ? 'Laboratório — tipo de produto, bancada e ficha do cliente'
-                  : 'Cadastro de clientes e veículos'}
-              </span>
-            </p>
-          </div>
+          <h1 className="min-w-0 truncate text-[22px] font-semibold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
+            {receptionMode === 'module' ? 'Cadastro de produto' : 'Recepção'}
+          </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto justify-end">
-          <button
-            type="button"
-            onClick={() => setIsHistoryOpen(true)}
-            className="inline-flex items-center gap-2 py-2.5 px-4 rounded-2xl text-sm font-semibold border border-zinc-200/80 dark:border-white/[0.1] bg-white/65 dark:bg-white/[0.06] backdrop-blur-xl text-zinc-800 dark:text-zinc-100 hover:bg-white/90 dark:hover:bg-white/10 shadow-[0_8px_22px_-8px_rgba(0,0,0,0.1),0_4px_12px_-6px_rgba(0,0,0,0.07),0_1px_4px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_20px_-4px_rgba(0,0,0,0.08)] transition-all active:scale-[0.98] shrink-0"
-            title="Consultar histórico de veículos arquivados"
-          >
-            <History className="w-4 h-4 text-[#007AFF] dark:text-[#7ab8ff]" />
-            {receptionMode === 'module' ? 'Histórico do laboratório' : 'Histórico de veículos'}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsHistoryOpen(true)}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-200/80 bg-white/70 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-800 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.1)] backdrop-blur-xl transition-all hover:bg-white/90 active:scale-[0.98] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/10 sm:gap-2 sm:px-3 sm:py-2 sm:text-[13px]"
+          title={
+            receptionMode === 'module'
+              ? 'Consultar histórico de módulos arquivados'
+              : 'Consultar histórico de veículos arquivados'
+          }
+        >
+          <History className="h-3.5 w-3.5 text-[#007AFF] dark:text-[#7ab8ff] sm:h-4 sm:w-4" />
+          Histórico
+        </button>
       </header>
       </>
       ) : null}
@@ -1162,8 +1277,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             </button>
           </div>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-7">
-            {/* Dados do cliente — order-2: coluna direita no desktop; após veículo no mobile */}
-            <div className="order-2 space-y-6">
+            {/* Dados do cliente — no retrato (tablet/phone): primeiro; no desktop: coluna direita */}
+            <div className={`${receptionPortraitVertical ? 'order-1' : 'order-2'} space-y-6`}>
               <h2 className="border-b border-zinc-200/80 pb-2 text-[14px] font-bold uppercase tracking-[0.08em] text-zinc-700 dark:border-white/[0.08] dark:text-zinc-200">
                 Dados do cliente
               </h2>
@@ -1339,8 +1454,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               </div>
             </div>
 
-            {/* Veículo/módulo + queixa (foto e enviar ficam em order-3) — order-1: coluna esquerda no desktop */}
-            <div className="order-1 space-y-6">
+            {/* Veículo/módulo — no retrato: após cliente/queixa/autorização; no desktop: coluna esquerda */}
+            <div
+              className={`${
+                receptionPortraitVertical ? 'order-2 flex flex-col gap-6' : 'order-1 space-y-6'
+              }`}
+            >
+              {/* No retrato: dados do veículo por último entre os blocos desta coluna (order-4) */}
+              <div className={receptionPortraitVertical ? 'order-4 space-y-6' : 'contents'}>
               <div
                 className={`border-b border-zinc-200/80 pb-2 dark:border-white/[0.08] ${
                   receptionPortraitVertical ? 'flex items-end justify-between gap-2' : ''
@@ -1351,7 +1472,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     receptionPortraitVertical ? 'min-w-0 flex-1 leading-tight pr-1' : ''
                   }`}
                 >
-                  {receptionMode === 'vehicle' ? 'Veículo e atendimento' : 'Produto e atendimento'}
+                  {receptionMode === 'vehicle'
+                    ? receptionPortraitVertical
+                      ? 'Dados do veículo'
+                      : 'Veículo e atendimento'
+                    : 'Produto e atendimento'}
                 </h2>
                 {receptionPortraitVertical ? (
                   <button
@@ -1648,35 +1773,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 </div>
               )}
 
-              {receptionMode === 'vehicle' && (
-                <div>
-                  <label className={`${iosLabel} ml-1`}>
-                    Categoria do veículo <span className="text-red-500">*</span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {VEHICLE_CATEGORIES.map((category) => {
-                      const selected = vehicleCategory === category;
-                      return (
-                        <button
-                          key={category}
-                          type="button"
-                          onClick={() => setVehicleCategory(category)}
-                          className={`px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-all active:scale-[0.98] ${
-                            selected
-                              ? 'bg-[#007AFF] text-white border-[#007AFF]/85 shadow-[0_10px_26px_-8px_rgba(37,99,235,0.32),0_4px_14px_-6px_rgba(37,99,235,0.22)] dark:shadow-md dark:shadow-blue-500/25'
-                              : 'bg-white/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200 border-zinc-200/90 dark:border-white/[0.1] shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:shadow-none hover:border-[#007AFF]/45 backdrop-blur-sm'
-                          }`}
-                          aria-pressed={selected}
-                        >
-                          {category}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              </div>
 
               {receptionMode === 'vehicle' && (
+                <div className={receptionPortraitVertical ? 'order-3' : undefined}>
                 <div className="rounded-[22px] border border-[#007AFF]/20 bg-gradient-to-br from-[#007AFF]/[0.06] via-white to-zinc-50/90 p-4 shadow-[0_12px_32px_-12px_rgba(0,122,255,0.22),0_6px_18px_-10px_rgba(0,122,255,0.14),0_3px_10px_-5px_rgba(0,0,0,0.06)] dark:border-[#007AFF]/25 dark:from-[#007AFF]/12 dark:via-zinc-950/40 dark:to-zinc-950/20 dark:shadow-[0_8px_28px_-14px_rgba(0,122,255,0.25)] sm:p-5">
                   <div className="flex gap-3">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#007AFF]/30 bg-white shadow-[0_5px_14px_-6px_rgba(0,0,0,0.1),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:border-[#007AFF]/35 dark:bg-zinc-900/80 dark:shadow-sm">
@@ -1718,10 +1818,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     ) : null}
                   </div>
                 </div>
+                </div>
               )}
 
               {receptionMode === 'vehicle' && (
-                <div className="relative">
+                <div className={`relative ${receptionPortraitVertical ? 'order-2' : ''}`}>
                   <TextArea
                     label="Queixa do cliente"
                     name="issueDescription"
@@ -1733,6 +1834,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 </div>
               )}
 
+              <div className={receptionPortraitVertical ? 'order-5 space-y-6' : 'contents'}>
               <div className="h-px bg-zinc-200/80 dark:bg-white/[0.08]" />
 
               <div className="space-y-3">
@@ -1745,6 +1847,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   className="hidden"
                   accept="image/*"
                   capture="environment"
+                  multiple
                   onChange={handleCameraInputChange}
                 />
                 <input
@@ -1762,14 +1865,30 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         key={p.id}
                         className="motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200 relative h-[5.25rem] w-[5.25rem] shrink-0 snap-start overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-100 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.11),0_2px_8px_-4px_rgba(0,0,0,0.07)] dark:border-white/10 dark:bg-zinc-900/60 dark:shadow-sm sm:h-24 sm:w-24"
                       >
-                        <img src={p.url} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
-                        <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        <button
+                          type="button"
+                          onClick={() => setIntakePhotoPreviewIndex(idx)}
+                          className="absolute inset-0 z-0 block h-full w-full cursor-zoom-in"
+                          aria-label={`Visualizar foto ${idx + 1}`}
+                        >
+                          <img
+                            src={p.url}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </button>
+                        <span className="pointer-events-none absolute bottom-1 left-1 z-[1] rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">
                           {idx + 1}
                         </span>
                         <button
                           type="button"
-                          onClick={() => removeIntakePhoto(p.id)}
-                          className="absolute right-0.5 top-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-red-500/95 text-white shadow-md transition-transform hover:scale-105 active:scale-95"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeIntakePhoto(p.id);
+                          }}
+                          className="absolute right-0.5 top-0.5 z-[2] flex h-7 w-7 items-center justify-center rounded-full bg-red-500/95 text-white shadow-md transition-transform hover:scale-105 active:scale-95"
                           aria-label={`Remover foto ${idx + 1}`}
                         >
                           <X className="h-4 w-4" strokeWidth={2.5} />
@@ -1782,7 +1901,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <button
                     type="button"
                     disabled={intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS}
-                    onClick={() => cameraInputRef.current?.click()}
+                    onClick={() => void openLiveCamera()}
                     className="flex min-h-[52px] flex-1 items-center justify-center gap-2.5 rounded-2xl border border-zinc-200/90 bg-white/50 py-3.5 text-zinc-700 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all hover:border-[#007AFF]/45 hover:bg-white/90 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]"
                   >
                     <Camera className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2} />
@@ -1803,10 +1922,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 {intakePhotos.length > 0 ? (
                   <p className="text-center text-[11px] font-medium text-zinc-500 dark:text-zinc-400 sm:text-left">
                     {intakePhotos.length === 1
-                      ? '1 foto selecionada'
-                      : `${intakePhotos.length} fotos selecionadas`}
+                      ? '1 foto selecionada — toque para ampliar'
+                      : `${intakePhotos.length} fotos selecionadas — toque para ampliar`}
                   </p>
                 ) : null}
+              </div>
               </div>
 
             </div>
@@ -1816,7 +1936,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               type="submit"
               className="group relative flex min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-[0_14px_34px_-10px_rgba(37,99,235,0.32),0_6px_18px_-8px_rgba(37,99,235,0.22),0_2px_8px_-4px_rgba(0,0,0,0.08)] transition-all hover:opacity-95 active:scale-[0.98] dark:shadow-lg dark:shadow-blue-500/25"
             >
-              Criar ficha
+              Criar Ficha
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </button>
           </div>
@@ -2484,6 +2604,62 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       {previewPdf && (
         <PdfViewerModal src={previewPdf} onClose={() => setPreviewPdf(null)} />
       )}
+
+      {intakePhotoPreviewIndex != null && intakePhotos.length > 0 ? (
+        <Lightbox
+          images={intakePhotos.map((p) => p.url)}
+          initialIndex={Math.min(intakePhotoPreviewIndex, intakePhotos.length - 1)}
+          onClose={() => setIntakePhotoPreviewIndex(null)}
+        />
+      ) : null}
+
+      {isLiveCameraOpen ? (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[220] flex flex-col bg-black">
+            <div className="relative min-h-0 flex-1 bg-black">
+              <video
+                ref={liveCameraVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className="h-full w-full object-cover"
+              />
+              <canvas ref={liveCameraCanvasRef} className="hidden" />
+              {liveCameraFlash ? (
+                <div className="pointer-events-none absolute inset-0 bg-white" aria-hidden />
+              ) : null}
+              <button
+                type="button"
+                onClick={stopLiveCamera}
+                className="absolute right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-10 flex h-10 w-10 items-center justify-center rounded-full text-white/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]"
+                aria-label="Fechar câmera"
+              >
+                <X className="h-7 w-7" strokeWidth={1.75} />
+              </button>
+              <div className="absolute inset-x-0 bottom-0 flex justify-center pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.25rem))] pt-10">
+                <button
+                  type="button"
+                  onClick={captureLiveCameraPhoto}
+                  disabled={liveCameraCapturing || intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS}
+                  className="group relative flex h-[76px] w-[76px] items-center justify-center rounded-full disabled:opacity-40"
+                  aria-label="Capturar foto"
+                >
+                  {/* Anel externo — estilo shutter do iPhone */}
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-full border-[4px] border-white"
+                  />
+                  {/* Disco interno branco que “afunda” ao tocar */}
+                  <span
+                    aria-hidden
+                    className="h-[62px] w-[62px] rounded-full bg-white transition-transform duration-100 ease-out group-active:scale-[0.88]"
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      ) : null}
 
       <ProcessingOverlay 
         status={status}

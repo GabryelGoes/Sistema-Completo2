@@ -733,7 +733,14 @@ export default function App() {
             <HomeView
               desktopShell={isDesktopShell}
               settingsHubOpen={settingsHubOpen}
-              onSettingsHubOpenChange={setSettingsHubOpen}
+              onSettingsHubOpenChange={(open) => {
+                setSettingsHubOpen(open);
+                if (open) {
+                  // Só o hub — não manter Tema/Preferências aberto por cima
+                  setIsSettingsOpen(false);
+                  setIsUserChangePasswordsOpen(false);
+                }
+              }}
               settingsHubOpenerRef={homeSettingsHubOpenerRef}
               settingsHubCloserRef={homeSettingsHubCloserRef}
               onOpenPartsStock={() => setIsPartsModalOpen(true)}
@@ -776,7 +783,7 @@ export default function App() {
               systemUserPermissions={authSession.permissions}
               onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
-              globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
+              globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
               patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
               onOpenVehicleAccompaniment={openVehicleAccompaniment}
             />
@@ -1050,7 +1057,14 @@ export default function App() {
           <HomeView
             desktopShell={isDesktopShell}
             settingsHubOpen={settingsHubOpen}
-            onSettingsHubOpenChange={setSettingsHubOpen}
+            onSettingsHubOpenChange={(open) => {
+              setSettingsHubOpen(open);
+              if (open) {
+                // Só o hub — não manter Tema/Preferências aberto por cima
+                setIsSettingsOpen(false);
+                setIsUserChangePasswordsOpen(false);
+              }
+            }}
             settingsHubOpenerRef={homeSettingsHubOpenerRef}
             settingsHubCloserRef={homeSettingsHubCloserRef}
             onOpenPartsStock={() => setIsPartsModalOpen(true)}
@@ -1077,7 +1091,7 @@ export default function App() {
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
             onOpenSettings={() => setIsSettingsOpen(true)}
-            globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
+            globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
             patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
             onOpenVehicleAccompaniment={openVehicleAccompaniment}
           />

@@ -31,6 +31,7 @@ import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../ser
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverlay';
+import { clearHomeHubOpenGuard, openHomeHubSafely } from '../../utils/homeHubOpenGuard';
 import { ModalPortal } from '../ui/ModalPortal';
 import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
 import { desktopHomeHubCard } from '../ui/desktopCardStyles';
@@ -261,21 +262,45 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
   const [isSystemNotificationsOpen, setIsSystemNotificationsOpen] = useState(false);
+
+  const closeAllSettingsChildModals = useCallback(() => {
+    setIsServicesModalOpen(false);
+    setIsLabProductTypesOpen(false);
+    setIsLabQuickServicesOpen(false);
+    setIsChangePasswordsOpen(false);
+    setIsTechnicianProfileOpen(false);
+    setIsAdminProfileOpen(false);
+    setIsSystemUsersOpen(false);
+    setIsUserProfileOpen(false);
+    setIsPatioChecklistsOpen(false);
+    setIsSystemNotificationsOpen(false);
+  }, []);
+
   const setSettingsHubOpen = useCallback(
     (open: boolean) => {
+      if (!open) {
+        closeAllSettingsChildModals();
+      }
       onSettingsHubOpenChange?.(open);
     },
-    [onSettingsHubOpenChange]
+    [onSettingsHubOpenChange, closeAllSettingsChildModals]
   );
+
+  /** Abre só o hub de Configurações (sem itens filhos). */
+  const openSettingsHubOnly = useCallback(() => {
+    closeAllSettingsChildModals();
+    onSettingsHubOpenChange?.(true);
+  }, [closeAllSettingsChildModals, onSettingsHubOpenChange]);
+
   const isHomeSettingsHubOpen = settingsHubOpenProp;
 
   useEffect(() => {
     if (!settingsHubOpenerRef) return;
-    settingsHubOpenerRef.current = () => setSettingsHubOpen(true);
+    settingsHubOpenerRef.current = () => openHomeHubSafely(() => openSettingsHubOnly());
     return () => {
       settingsHubOpenerRef.current = null;
     };
-  }, [settingsHubOpenerRef, setSettingsHubOpen]);
+  }, [settingsHubOpenerRef, openSettingsHubOnly]);
 
   useEffect(() => {
     if (!settingsHubCloserRef) return;
@@ -285,6 +310,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     };
   }, [settingsHubCloserRef, setSettingsHubOpen]);
 
+  useEffect(() => () => clearHomeHubOpenGuard(), []);
   const [isHeaderProfileMenuOpen, setIsHeaderProfileMenuOpen] = useState(false);
   const headerProfileTriggerRef = useRef<HTMLButtonElement>(null);
   const headerProfileMenuRef = useRef<HTMLDivElement>(null);
@@ -393,9 +419,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         : 'Hub de configurações'
       : 'Nome e foto da gerência';
 
-  /** Abre após o ciclo de eventos: evita “click-through” (o `click` após `pointerup` atingir linhas do hub que acabou de montar). */
+  /** Abre após o ciclo de eventos + guarda contra click-through nos hubs. */
   const openAfterInputCycle = useCallback((fn: () => void) => {
-    window.setTimeout(fn, 0);
+    openHomeHubSafely(fn);
   }, []);
 
   const openHeaderProfileEditor = useCallback(() => {
@@ -413,9 +439,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         setIsAdminProfileOpen(true);
         return;
       }
-      setSettingsHubOpen(true);
+      openSettingsHubOnly();
     });
-  }, [isSystemUser, isTechnician, technicianId, openAfterInputCycle]);
+  }, [isSystemUser, isTechnician, technicianId, openAfterInputCycle, openSettingsHubOnly]);
 
   const handleHeaderProfileClick = useCallback(() => {
     setIsHeaderProfileMenuOpen((prev) => !prev);
@@ -553,7 +579,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       icon: (
         <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-full w-full object-cover" />
       ),
-      onOpen: () => setSettingsHubOpen(true),
+      onOpen: () => openSettingsHubOnly(),
     };
     const extraTiles: {
       id: QuickTileId;
@@ -616,7 +642,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
       });
     }
     return [...baseTiles, ...extraTiles, settingsTile];
-  }, [onOpenApp, onOpenVehicleAccompaniment, onOpenPartsStock, onOpenTvPatio, operationalForView, perms, showFullAdminHub]);
+  }, [
+    onOpenApp,
+    onOpenVehicleAccompaniment,
+    onOpenPartsStock,
+    onOpenTvPatio,
+    openSettingsHubOnly,
+    operationalForView,
+    perms,
+    showFullAdminHub,
+  ]);
   const operationalById = useMemo(
     () =>
       Object.fromEntries(quickTilesForView.map((tile) => [tile.id, tile])) as Record<
@@ -859,7 +894,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         session?.appId === app.id &&
         !session.moved;
       if (shouldOpen) {
-        openAfterInputCycle(() => app.onOpen());
+        // Guarda no pointerup (antes do click sintético) e só então monta o hub/modal
+        openHomeHubSafely(() => app.onOpen());
       }
       if (!longPressTriggeredRef.current) {
         endQuickDrag();
@@ -867,7 +903,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       longPressTriggeredRef.current = false;
       resetQuickTapSession();
     },
-    [clearLongPressTimer, endQuickDrag, isQuickEditMode, openAfterInputCycle, resetQuickTapSession]
+    [clearLongPressTimer, endQuickDrag, isQuickEditMode, resetQuickTapSession]
   );
 
   const handleQuickCardPointerCancel = useCallback(() => {
@@ -1172,6 +1208,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {isHomeSettingsHubOpen ? (
         <SettingsHubShell>
           <div
+            data-home-hub-overlay=""
             className={`${desktopShell ? desktopShellViewportOverlayClass(true) : 'fixed inset-0 z-[110]'} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black`}
             role="dialog"
             aria-modal="true"
