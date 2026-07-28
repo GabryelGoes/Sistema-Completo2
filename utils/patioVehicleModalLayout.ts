@@ -192,10 +192,11 @@ export function getPatioVehicleModalLayout(
     return {
       mode: 'tabletPortrait',
       overlay:
-        'fixed inset-0 z-[100] flex items-center justify-center overscroll-none touch-pan-y bg-black/35 dark:bg-black/45 backdrop-blur-[20px] animate-in fade-in duration-200 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]',
+        'fixed inset-0 z-[100] flex flex-col overscroll-none touch-pan-y bg-[#F2F2F7] dark:bg-zinc-950 animate-in fade-in duration-200 p-0',
       shell:
-        'relative flex h-[min(96vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-0.5rem))] w-full max-w-[min(640px,96vw)] min-h-0 flex-col overflow-hidden rounded-[1.25rem] border border-zinc-300/90 bg-[#F2F2F7] shadow-[0_4px_24px_-6px_rgba(0,0,0,0.14)] backdrop-blur-none dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]',
-      scroll: 'min-h-0 flex-1 overflow-y-auto overscroll-none custom-scrollbar',
+        'relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] pb-[env(safe-area-inset-bottom)] shadow-none dark:bg-zinc-950',
+      scroll:
+        'patio-vm-scroll patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none',
       header: 'border-b border-zinc-200/50 px-4 pb-4 pt-4 dark:border-white/[0.06]',
       headerInner: 'mb-4 flex flex-col gap-2.5',
       headerTitlePad: '',
@@ -219,12 +220,12 @@ export function getPatioVehicleModalLayout(
       openHintLabel: 'Toque para abrir',
       sectionTitle: '',
       commentsList:
-        'custom-scrollbar max-h-[min(380px,48vh)] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-3.5 dark:bg-black/25 sm:space-y-4',
+        'patio-vm-scroll--minimal max-h-[min(380px,48vh)] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-3.5 dark:bg-black/25 sm:space-y-4',
       customerMetaLabel: 'Dados da ficha',
       technicianMetaLabel: 'Técnico',
       deliveryDateMetaLabel: 'Entrega',
       hideOsBadge: true,
-      showStageRing: true,
+      showStageRing: false,
       isMetaPcLike: true,
       compact: COMPACT_TABLET_PORTRAIT,
     };

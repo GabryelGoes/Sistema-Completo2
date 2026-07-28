@@ -6380,18 +6380,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             return '';
           }
           if (selectedCard.garantiaTag) {
-            return isPatioTabletPortrait
-              ? 'ring-[5px] ring-inset ring-red-500 border border-red-500/35 shadow-[inset_0_0_24px_rgba(239,68,68,0.22)]'
-              : 'ring-2 ring-red-500 ring-offset-2 ring-offset-[#F2F2F7] dark:ring-offset-[#0a0a0a] border-2 border-red-500/30';
-          }
-          if (isPatioTabletPortrait) {
-            const thickInset = modalStatusConfig.ringClass
-              .replace(/\bring-2\b/g, 'ring-[5px]')
-              .replace(/\bring-offset-2\b/g, '')
-              .replace(/\bring-offset-\S+/g, '')
-              .replace(/\s+/g, ' ')
-              .trim();
-            return `${thickInset} ring-inset border border-zinc-300/70 shadow-[inset_0_0_26px_rgba(0,0,0,0.12)] dark:border-white/[0.08] dark:shadow-[inset_0_0_28px_rgba(0,0,0,0.38)]`;
+            return 'ring-2 ring-red-500 ring-offset-2 ring-offset-[#F2F2F7] dark:ring-offset-[#0a0a0a] border-2 border-red-500/30';
           }
           return `${modalStatusConfig.ringClass} border border-zinc-300/70 dark:border-white/[0.08]`;
         })();
@@ -6646,7 +6635,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div className={`absolute z-20 flex items-center gap-2 ${
                 isPatioPcModal
                   ? 'top-4 right-5 xl:right-6'
-                  : patioVehicleVm.mode === 'mobile'
+                  : patioVehicleVm.mode === 'mobile' || patioVehicleVm.mode === 'tabletPortrait'
                     ? 'top-[max(0.75rem,env(safe-area-inset-top))] right-[max(0.75rem,env(safe-area-inset-right))]'
                     : 'top-4 right-4'
               }`}>
@@ -6682,7 +6671,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
 
               {can('canDeleteCards') && isDeleteVehicleOpen && (
-                <div className={`absolute inset-0 z-30 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm ${isPatioPcModal || patioVehicleVm.mode === 'mobile' ? 'rounded-none' : 'rounded-[1.5rem] sm:rounded-[1.625rem]'}`}>
+                <div className={`absolute inset-0 z-30 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm ${isPatioPcModal || patioVehicleVm.mode === 'mobile' || patioVehicleVm.mode === 'tabletPortrait' ? 'rounded-none' : 'rounded-[1.5rem] sm:rounded-[1.625rem]'}`}>
                   <div className={`${vi} w-full max-w-sm p-6 shadow-xl`}>
                     <h3 className="mb-2 flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
                       <Trash2 className="h-5 w-5 text-red-500" />
