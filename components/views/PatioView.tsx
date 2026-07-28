@@ -6923,8 +6923,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </p>
                                 <p className={c.bodyText}>{selectedCardTitleParts?.customer || '—'}</p>
                               </div>
-                              {(isPatioPcModal || can('canEditFicha') || !isPatioPcModal) && (
-                                <ChevronRight
+                              <ChevronRight
                                   strokeWidth={2.25}
                                   className={`${c.chevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff] ${
                                     isPatioPcModal && isDadosFichaExpanded
@@ -6933,7 +6932,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   }`}
                                   aria-hidden
                                 />
-                              )}
                             </div>
                           </button>
                           {isModuleMode ? (
@@ -7030,7 +7028,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               aria-hidden
                             />
                             <div className={c.splitRow}>
-                              <div className={`flex min-w-0 shrink items-center gap-1.5${isPatioVmMetaPcLike ? ' max-w-[5.25rem]' : ''}`}>
+                              <div className={`flex min-w-0 shrink items-center gap-1.5${isPatioPcModal ? ' max-w-[5.25rem]' : isPatioTabletPortrait ? ' max-w-[5.75rem]' : ''}`}>
                                 <div className={c.iconSquircle}>
                                   <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
                                 </div>
@@ -7821,7 +7819,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </button>
                                 ) : null}
 
-                                <div className="max-h-[380px] space-y-2.5 overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50">
+                                <div
+                                  className={`max-h-[380px] overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50 ${
+                                    isPatioTabletPortrait
+                                      ? 'grid grid-cols-2 gap-2'
+                                      : 'space-y-2.5'
+                                  }`}
+                                >
                               {savedBudgets
                                 .filter((b) => b.serviceOrderId === selectedCard.id)
                                 .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
@@ -7838,45 +7842,51 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   return (
                                     <div
                                       key={budget.id}
-                                      className="rounded-[18px] bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_6px_16px_-8px_rgba(0,122,255,0.33)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.32)]"
+                                      className={`min-w-0 rounded-[18px] bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_6px_16px_-8px_rgba(0,122,255,0.33)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.32)]${
+                                        isPatioTabletPortrait ? ' rounded-[14px]' : ''
+                                      }`}
                                     >
                                     <button
                                       type="button"
                                       onClick={() => openBudgetForView(budget)}
-                                      className="group relative w-full overflow-hidden rounded-[16px] border border-white/85 bg-white/95 p-3.5 text-left shadow-[0_6px_16px_-8px_rgba(0,0,0,0.22)] ring-1 ring-transparent transition-all duration-200 hover:-translate-y-[1px] hover:border-white hover:shadow-[0_10px_22px_-8px_rgba(0,122,255,0.33)] hover:ring-[#007AFF]/20 active:translate-y-0 dark:border-white/[0.08] dark:bg-zinc-950/85 dark:shadow-[0_8px_20px_-10px_rgba(0,0,0,0.6)] dark:hover:border-[#93c5fd]/35 dark:hover:shadow-[0_12px_26px_-10px_rgba(59,130,246,0.28)] dark:hover:ring-[#7ab8ff]/20"
+                                      className={`group relative w-full overflow-hidden border border-white/85 bg-white/95 text-left shadow-[0_6px_16px_-8px_rgba(0,0,0,0.22)] ring-1 ring-transparent transition-all duration-200 hover:-translate-y-[1px] hover:border-white hover:shadow-[0_10px_22px_-8px_rgba(0,122,255,0.33)] hover:ring-[#007AFF]/20 active:translate-y-0 dark:border-white/[0.08] dark:bg-zinc-950/85 dark:shadow-[0_8px_20px_-10px_rgba(0,0,0,0.6)] dark:hover:border-[#93c5fd]/35 dark:hover:shadow-[0_12px_26px_-10px_rgba(59,130,246,0.28)] dark:hover:ring-[#7ab8ff]/20 ${
+                                        isPatioTabletPortrait
+                                          ? 'rounded-[12px] p-2.5'
+                                          : 'rounded-[16px] p-3.5'
+                                      }`}
                                     >
-                                      <div className="mb-2.5 flex items-center justify-between gap-2">
-                                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-100">
+                                      <div className={`mb-2 flex items-center justify-between gap-1.5${isPatioTabletPortrait ? ' mb-1.5' : ' mb-2.5'}`}>
+                                        <span className={`font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-100 ${isPatioTabletPortrait ? 'text-[10px]' : 'text-xs'}`}>
                                           Orçamento {numero}
                                         </span>
                                         {budgetVerified ? (
-                                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700 dark:bg-emerald-500/18 dark:text-emerald-300">
+                                          <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/12 font-bold uppercase tracking-[0.08em] text-emerald-700 dark:bg-emerald-500/18 dark:text-emerald-300 ${isPatioTabletPortrait ? 'px-1.5 py-0.5 text-[8px]' : 'px-2 py-0.5 text-[10px]'}`}>
                                             Verificado
                                           </span>
                                         ) : (
-                                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-amber-800 dark:bg-amber-500/18 dark:text-amber-200">
+                                          <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/12 font-bold uppercase tracking-[0.08em] text-amber-800 dark:bg-amber-500/18 dark:text-amber-200 ${isPatioTabletPortrait ? 'px-1.5 py-0.5 text-[8px]' : 'px-2 py-0.5 text-[10px]'}`}>
                                             Aguardando
                                           </span>
                                         )}
                                       </div>
-                                      <p className="mb-2 line-clamp-2 text-[13px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
+                                      <p className={`mb-2 line-clamp-2 font-semibold leading-snug text-zinc-900 dark:text-zinc-100 ${isPatioTabletPortrait ? 'mb-1.5 text-[11px]' : 'text-[13px]'}`}>
                                         {preview}
                                       </p>
-                                      <div className="mb-2 flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
+                                      <div className={`mb-2 flex items-center gap-2 text-zinc-600 dark:text-zinc-400 ${isPatioTabletPortrait ? 'mb-1.5 text-[10px]' : 'text-[11px]'}`}>
                                         <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
                                         <span>·</span>
                                         <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
                                       </div>
-                                      <div className="flex items-center justify-between gap-2 border-t border-zinc-200/80 pt-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:border-white/[0.08] dark:text-zinc-400">
-                                        <span>{dateStr}</span>
-                                        <span className="text-[#007AFF] dark:text-[#93c5fd]">{patioVehicleVm.openHintLabel}</span>
+                                      <div className={`flex items-center justify-between gap-1 border-t border-zinc-200/80 font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:border-white/[0.08] dark:text-zinc-400 ${isPatioTabletPortrait ? 'pt-1.5 text-[8px]' : 'pt-2 text-[10px]'}`}>
+                                        <span className="min-w-0 truncate">{dateStr}</span>
+                                        <span className="shrink-0 text-[#007AFF] dark:text-[#93c5fd]">{patioVehicleVm.openHintLabel}</span>
                                       </div>
                                     </button>
                                     </div>
                                   );
                                 })}
                               {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
-                                <div className="rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-5 text-center dark:border-white/[0.12] dark:bg-white/[0.04]">
+                                <div className={`rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-5 text-center dark:border-white/[0.12] dark:bg-white/[0.04]${isPatioTabletPortrait ? ' col-span-2' : ''}`}>
                                   <Calculator className="mx-auto mb-2 h-9 w-9 text-[#007AFF]/75 dark:text-[#7ab8ff]" />
                                   <p className="mt-0.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nenhum orçamento</p>
                                   <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">Crie um orçamento pelo botão acima</p>
