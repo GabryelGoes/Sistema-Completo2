@@ -6782,6 +6782,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                         </div>
                         {!isModuleMode &&
+                        isPatioPcModal &&
                         (serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand)?.trim() ? (
                           <p className={patioVehicleVm.brandSubtitle}>
                             {(serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand || '').trim()}
@@ -6824,22 +6825,48 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           ) : null}
                         </div>
                         {!isModuleMode &&
-                        ((serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor)?.trim() ||
-                          (serviceOrderDetail?.vehicle_year ?? selectedCard.vehicleYear ?? '').trim()) ? (
-                          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
-                            {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor)?.trim() ? (
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
-                                {isPatioPcModal ? 'Cor: ' : 'Cor · '}
-                                {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '').trim()}
-                              </p>
-                            ) : null}
-                            {(serviceOrderDetail?.vehicle_year ?? selectedCard.vehicleYear ?? '').trim() ? (
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
-                                Ano: {(serviceOrderDetail?.vehicle_year ?? selectedCard.vehicleYear ?? '').trim()}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : null}
+                        (() => {
+                          const brandText = (
+                            serviceOrderDetail?.vehicle_brand ||
+                            selectedCard.vehicleBrand ||
+                            ''
+                          ).trim();
+                          const yearText = (
+                            serviceOrderDetail?.vehicle_year ??
+                            selectedCard.vehicleYear ??
+                            ''
+                          ).trim();
+                          const colorText = (
+                            serviceOrderDetail?.vehicle_color ||
+                            selectedCard.vehicleColor ||
+                            ''
+                          ).trim();
+                          const metaLineClass =
+                            'text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400';
+
+                          if (isPatioPcModal) {
+                            if (!colorText && !yearText) return null;
+                            return (
+                              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                                {colorText ? (
+                                  <p className={metaLineClass}>Cor: {colorText}</p>
+                                ) : null}
+                                {yearText ? (
+                                  <p className={metaLineClass}>Ano: {yearText}</p>
+                                ) : null}
+                              </div>
+                            );
+                          }
+
+                          if (!brandText && !yearText && !colorText) return null;
+                          return (
+                            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                              {brandText ? <p className={metaLineClass}>{brandText}</p> : null}
+                              {yearText ? <p className={metaLineClass}>Ano: {yearText}</p> : null}
+                              {colorText ? <p className={metaLineClass}>Cor · {colorText}</p> : null}
+                            </div>
+                          );
+                        })()}
                         </div>
                         {/* Cliente | Km | Data de entrega | Técnico */}
                         <div className={`${patioVehicleVm.headerMeta} ${c.grid}`}>

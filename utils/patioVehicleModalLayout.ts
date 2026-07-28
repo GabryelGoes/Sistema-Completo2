@@ -182,7 +182,7 @@ const COMPACT_TABLET_PORTRAIT: PatioVehicleModalCompact = {
 };
 
 const STAGE_PILL_BASE =
-  'inline-flex items-center gap-1.5 rounded-full font-black uppercase shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0a0a0a]';
+  'inline-flex items-center gap-1.5 font-black uppercase shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0a0a0a]';
 
 export function getPatioVehicleModalLayout(
   isPc: boolean,
@@ -203,10 +203,10 @@ export function getPatioVehicleModalLayout(
       headerMeta:
         'patio-vm-header-meta patio-vm-header-meta--tablet mt-2 grid w-full min-w-0 grid-cols-2 gap-2',
       title:
-        'font-vehicle min-w-0 flex-1 truncate text-[1.85rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white',
-      titlePlateRow: 'mt-1 flex min-w-0 items-end gap-2.5',
+        'font-vehicle min-w-0 flex-1 truncate text-[2.2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white',
+      titlePlateRow: 'mt-1 flex min-w-0 items-center gap-2.5',
       brandSubtitle: 'text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',
-      stagePill: `${STAGE_PILL_BASE} px-[1.125rem] py-2.5 text-[13px] tracking-[0.14em]`,
+      stagePill: `${STAGE_PILL_BASE} rounded-md px-3.5 py-2.5 text-[13px] tracking-[0.12em]`,
       brandLogoSize: 'modalTablet',
       plateMockupSize: 'modalTablet',
       body: 'grid grid-cols-1 gap-4 px-4 pb-5 pt-3',
@@ -245,10 +245,10 @@ export function getPatioVehicleModalLayout(
       headerTitlePad: '',
       headerMeta: 'flex flex-col gap-2',
       title:
-        'font-vehicle min-w-0 flex-1 truncate text-[2.79rem] md:text-[4.185rem] portrait:text-[2.74rem] portrait:md:text-[4.11rem] font-bold text-zinc-900 dark:text-white tracking-tight uppercase leading-none',
-      titlePlateRow: 'mt-0.5 flex min-w-0 items-end gap-3',
+        'font-vehicle min-w-0 flex-1 truncate text-[3.05rem] md:text-[4.4rem] portrait:text-[3rem] portrait:md:text-[4.3rem] font-bold text-zinc-900 dark:text-white tracking-tight uppercase leading-none',
+      titlePlateRow: 'mt-0.5 flex min-w-0 items-center gap-3',
       brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400',
-      stagePill: `${STAGE_PILL_BASE} px-4 py-2 text-[15px] sm:text-base tracking-widest portrait:scale-[0.78] portrait:origin-left`,
+      stagePill: `${STAGE_PILL_BASE} rounded-md px-3.5 py-2.5 text-[14px] sm:text-[15px] tracking-[0.12em]`,
       brandLogoSize: 'modal',
       plateMockupSize: 'modal',
       body: 'grid grid-cols-1 gap-6 p-8 pt-3 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:gap-7 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(232px,288px)]',
@@ -290,7 +290,7 @@ export function getPatioVehicleModalLayout(
       'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white xl:text-[2.35rem]',
     titlePlateRow: 'mt-1 flex min-w-0 items-end gap-3',
     brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',
-    stagePill: `${STAGE_PILL_BASE} px-4 py-2 text-[15px] tracking-widest`,
+    stagePill: `${STAGE_PILL_BASE} rounded-full px-4 py-2 text-[15px] tracking-widest`,
     brandLogoSize: 'modalPc',
     plateMockupSize: 'modal',
     body:
