@@ -29,7 +29,10 @@ export type PatioVehicleModalCompact = {
   fieldRow: string;
 };
 
+export type PatioVehicleModalMode = 'mobile' | 'tabletPortrait' | 'desktop';
+
 export type PatioVehicleModalLayout = {
+  mode: PatioVehicleModalMode;
   overlay: string;
   shell: string;
   scroll: string;
@@ -38,7 +41,11 @@ export type PatioVehicleModalLayout = {
   headerMeta: string;
   headerTitlePad: string;
   title: string;
+  titlePlateRow: string;
   brandSubtitle: string;
+  stagePill: string;
+  brandLogoSize: 'modal' | 'modalTablet' | 'modalPc';
+  plateMockupSize: 'modal' | 'modalTablet' | 'modalPc';
   body: string;
   mainCol: string;
   asideCol: string;
@@ -49,6 +56,11 @@ export type PatioVehicleModalLayout = {
   openHintLabel: string;
   sectionTitle: string;
   commentsList: string;
+  customerMetaLabel: string;
+  technicianMetaLabel: string;
+  deliveryDateMetaLabel: string;
+  hideOsBadge: boolean;
+  isMetaPcLike: boolean;
   compact: PatioVehicleModalCompact;
 };
 
@@ -130,9 +142,95 @@ const COMPACT_DESKTOP: PatioVehicleModalCompact = {
   fieldRow: 'ml-auto flex shrink-0 items-center gap-1',
 };
 
-export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayout {
+/** Tablet vertical (~653×1045): meta compacta em 2×2, tipografia calibrada. */
+const COMPACT_TABLET_PORTRAIT: PatioVehicleModalCompact = {
+  grid: 'gap-2',
+  row: 'patio-vm-meta-inner relative flex min-h-[3rem] items-center gap-2 px-2.5 py-2',
+  splitRow:
+    'patio-vm-meta-inner relative flex min-h-[3rem] w-full min-w-0 flex-row flex-nowrap items-center gap-1.5 px-2.5 py-2',
+  deliveryDateStack: '',
+  deliveryDateControlRow: '',
+  deliveryDateBar: '',
+  deliveryDateBarLabel: '',
+  dateInputBar: '',
+  iconSquircle:
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]',
+  iconGlyph: 'h-3.5 w-3.5 text-[#007AFF] dark:text-[#7ab8ff]',
+  titleText:
+    'truncate text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400',
+  bodyText: 'mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white',
+  assignHint: 'mt-0.5 truncate text-[12px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff]',
+  chevron: 'relative z-[1] h-3.5 w-3.5 shrink-0',
+  numericInput:
+    'patio-vm-meta-input patio-vm-meta-input--km h-8 w-[4.5rem] min-w-0 shrink-0 rounded-md border border-zinc-300/90 bg-zinc-50 px-2 py-1 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500',
+  dateInput:
+    'patio-vm-meta-input patio-vm-meta-input--date h-8 w-[7.75rem] min-w-0 shrink-0 rounded-md border border-zinc-300/90 bg-zinc-50 px-2 py-1 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white',
+  dateFieldWrap: '',
+  dateFieldLabel: '',
+  dateFieldRow: '',
+  saveBtn:
+    'inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-white shadow-md transition-all hover:brightness-105 disabled:opacity-50',
+  saveIcon: 'h-3.5 w-3.5',
+  salvo: 'sr-only',
+  mechanicWrap: 'flex h-8 w-8 shrink-0 items-center justify-center rounded-md shadow-md',
+  mechanicWrench:
+    'h-3.5 w-3.5 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))]',
+  emptyTech:
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12',
+  fieldRow: 'ml-auto flex shrink-0 items-center gap-1',
+};
+
+const STAGE_PILL_BASE =
+  'inline-flex items-center gap-1.5 rounded-full font-black uppercase shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0a0a0a]';
+
+export function getPatioVehicleModalLayout(
+  isPc: boolean,
+  isTabletPortrait = false
+): PatioVehicleModalLayout {
+  if (!isPc && isTabletPortrait) {
+    return {
+      mode: 'tabletPortrait',
+      overlay:
+        'fixed inset-0 z-[100] flex items-center justify-center overscroll-none touch-pan-y bg-black/35 dark:bg-black/45 backdrop-blur-[20px] animate-in fade-in duration-200 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]',
+      shell:
+        'relative flex h-[min(96vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-0.5rem))] w-full max-w-[min(640px,96vw)] min-h-0 flex-col overflow-hidden rounded-[1.25rem] border border-zinc-300/90 bg-[#F2F2F7] shadow-[0_4px_24px_-6px_rgba(0,0,0,0.14)] backdrop-blur-none dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]',
+      scroll: 'min-h-0 flex-1 overflow-y-auto overscroll-none custom-scrollbar',
+      header: 'border-b border-zinc-200/50 px-4 pb-4 pt-4 dark:border-white/[0.06]',
+      headerInner: 'mb-4 flex flex-col gap-2.5',
+      headerTitlePad: '',
+      headerMeta:
+        'patio-vm-header-meta patio-vm-header-meta--tablet mt-2 grid w-full min-w-0 grid-cols-2 gap-2',
+      title:
+        'font-vehicle min-w-0 flex-1 truncate text-[1.85rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white',
+      titlePlateRow: 'mt-1 flex min-w-0 items-end gap-2.5',
+      brandSubtitle: 'text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',
+      stagePill: `${STAGE_PILL_BASE} px-[1.125rem] py-2.5 text-[13px] tracking-[0.14em]`,
+      brandLogoSize: 'modalTablet',
+      plateMockupSize: 'modalTablet',
+      body: 'grid grid-cols-1 gap-4 px-4 pb-5 pt-3',
+      mainCol: 'min-w-0 space-y-4',
+      asideCol: 'min-w-0 space-y-5',
+      insetCard: iosVehicleModalInsetCard,
+      input: iosVehicleModalInput,
+      closeBtn:
+        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15',
+      assignHintLabel: 'Toque para atribuir',
+      openHintLabel: 'Toque para abrir',
+      sectionTitle: '',
+      commentsList:
+        'custom-scrollbar max-h-[min(380px,48vh)] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-3.5 dark:bg-black/25 sm:space-y-4',
+      customerMetaLabel: 'Dados da ficha',
+      technicianMetaLabel: 'Técnico',
+      deliveryDateMetaLabel: 'Entrega',
+      hideOsBadge: true,
+      isMetaPcLike: true,
+      compact: COMPACT_TABLET_PORTRAIT,
+    };
+  }
+
   if (!isPc) {
     return {
+      mode: 'mobile',
       overlay:
         'fixed inset-0 z-[100] flex items-center justify-center overscroll-none touch-pan-y bg-black/35 dark:bg-black/45 backdrop-blur-[20px] animate-in fade-in duration-200 p-1.5 pt-[max(0.45rem,env(safe-area-inset-top))] pb-[max(0.45rem,env(safe-area-inset-bottom))] sm:p-3',
       shell:
@@ -144,7 +242,11 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
       headerMeta: 'flex flex-col gap-2',
       title:
         'font-vehicle min-w-0 flex-1 truncate text-[2.79rem] md:text-[4.185rem] portrait:text-[2.74rem] portrait:md:text-[4.11rem] font-bold text-zinc-900 dark:text-white tracking-tight uppercase leading-none',
+      titlePlateRow: 'mt-0.5 flex min-w-0 items-end gap-3',
       brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400',
+      stagePill: `${STAGE_PILL_BASE} px-4 py-2 text-[15px] sm:text-base tracking-widest portrait:scale-[0.78] portrait:origin-left`,
+      brandLogoSize: 'modal',
+      plateMockupSize: 'modal',
       body: 'grid grid-cols-1 gap-6 p-8 pt-3 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:gap-7 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(232px,288px)]',
       mainCol: 'min-w-0 space-y-6',
       asideCol: 'min-w-0 space-y-8',
@@ -157,11 +259,17 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
       sectionTitle: '',
       commentsList:
         'custom-scrollbar max-h-[min(420px,52vh)] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-4 dark:bg-black/25 sm:p-5 sm:space-y-5 lg:max-h-[min(220px,32vh)] lg:space-y-3 lg:p-3',
+      customerMetaLabel: 'Cliente',
+      technicianMetaLabel: 'Técnico responsável',
+      deliveryDateMetaLabel: 'Data de entrega',
+      hideOsBadge: false,
+      isMetaPcLike: false,
       compact: COMPACT_MOBILE,
     };
   }
 
   return {
+    mode: 'desktop',
     overlay:
       'patio-vehicle-modal patio-vehicle-modal--desktop fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200',
     shell:
@@ -175,7 +283,11 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
       'patio-vm-header-meta patio-vm-header-meta--pc mt-2 grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4',
     title:
       'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white xl:text-[2.35rem]',
+    titlePlateRow: 'mt-1 flex min-w-0 items-end gap-3',
     brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',
+    stagePill: `${STAGE_PILL_BASE} px-4 py-2 text-[15px] tracking-widest`,
+    brandLogoSize: 'modalPc',
+    plateMockupSize: 'modal',
     body:
       'patio-vm-desktop-body mx-auto grid w-full max-w-[1680px] grid-cols-1 gap-5 px-6 pb-6 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] lg:items-start lg:gap-6 xl:px-8',
     mainCol: 'patio-vm-main-col min-w-0 space-y-5',
@@ -193,6 +305,11 @@ export function getPatioVehicleModalLayout(isPc: boolean): PatioVehicleModalLayo
       'text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1.5',
     commentsList:
       'custom-scrollbar max-h-none space-y-4 overflow-visible bg-[#F2F2F7]/80 p-3.5 dark:bg-black/25 sm:space-y-4',
+    customerMetaLabel: 'Cliente',
+    technicianMetaLabel: 'Técnico',
+    deliveryDateMetaLabel: 'Entrega',
+    hideOsBadge: false,
+    isMetaPcLike: true,
     compact: COMPACT_DESKTOP,
   };
 }

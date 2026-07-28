@@ -135,3 +135,52 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-aside-col {
   max-height: calc(100dvh - 4rem);
   overflow-y: auto;
 }
+
+/* Modal veículo — tablet vertical (~653×1045): faixa meta 2×2 */
+html[data-device='tablet'] .patio-vm-header-meta--tablet,
+.patio-vm-header-meta--tablet {
+  align-items: stretch;
+}
+
+html[data-device='tablet'] .patio-vm-header-meta--tablet > .patio-vm-meta-card,
+html[data-device='tablet'] .patio-vm-header-meta--tablet > .patio-vm-card,
+.patio-vm-header-meta--tablet > .patio-vm-meta-card,
+.patio-vm-header-meta--tablet > .patio-vm-card {
+  display: flex;
+  min-width: 0;
+  min-height: 3rem;
+}
+
+html[data-device='tablet'] .patio-vm-header-meta--tablet .patio-vm-meta-inner,
+.patio-vm-header-meta--tablet .patio-vm-meta-inner {
+  width: 100%;
+}
+
+html[data-device='tablet'] .patio-vm-header-meta--tablet .patio-vm-meta-input,
+.patio-vm-header-meta--tablet .patio-vm-meta-input {
+  box-sizing: border-box;
+  flex: none;
+}
+
+html[data-device='tablet'] .patio-vm-header-meta--tablet .patio-vm-meta-input--km,
+.patio-vm-header-meta--tablet .patio-vm-meta-input--km {
+  width: 4.5rem;
+  max-width: 4.5rem;
+}
+
+html[data-device='tablet'] .patio-vm-header-meta--tablet .patio-vm-meta-input--date,
+.patio-vm-header-meta--tablet .patio-vm-meta-input--date {
+  width: 7.75rem;
+  max-width: 7.75rem;
+}
+
+html[data-device='tablet'] .patio-vm-header-meta--tablet .patio-vm-meta-input--date::-webkit-calendar-picker-indicator,
+.patio-vm-header-meta--tablet .patio-vm-meta-input--date::-webkit-calendar-picker-indicator {
+  margin-left: 0;
+  padding: 0;
+}
+
+html[data-device='tablet'] .patio-vm-header-meta--tablet .patio-vm-meta-input--date::-webkit-datetime-edit,
+.patio-vm-header-meta--tablet .patio-vm-meta-input--date::-webkit-datetime-edit {
+  min-width: 0;
+}

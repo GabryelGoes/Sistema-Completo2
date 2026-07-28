@@ -5,13 +5,14 @@ import {
   getVehicleBrandLogoUrl,
 } from '../../utils/vehicleBrandLogo';
 
-export type VehicleBrandLogoSize = 'card' | 'cardPc' | 'modal' | 'modalPc';
+export type VehicleBrandLogoSize = 'card' | 'cardPc' | 'modal' | 'modalTablet' | 'modalPc';
 
 /** Caixa base 5:4 em pixels (antes da escala por marca). */
 const BASE_PX: Record<VehicleBrandLogoSize, { h: number; w: number }> = {
   card: { h: 32, w: 40 },
   cardPc: { h: 38.4, w: 48 },
   modal: { h: 36, w: 44 },
+  modalTablet: { h: 27, w: 33 },
   modalPc: { h: 57.6, w: 70.4 },
 };
 
