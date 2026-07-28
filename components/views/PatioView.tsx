@@ -8201,9 +8201,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
 
                             {serviceOrderDetail && (referenceLinksDraft.length > 0 || pendingReferenceLink) ? (
-                              <div className="order-1 px-3 py-2 sm:px-4 sm:py-2.5">
+                              <div className="order-1 px-4 py-3 sm:px-5 sm:py-3.5">
                                 <div
-                                  className={`${vi} overflow-hidden p-2.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-3`}
+                                  className={`${vi} overflow-hidden px-3.5 py-3 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:px-4 sm:py-3.5`}
                                 >
                                   <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
                                     <Link2 className="h-3.5 w-3.5" />
@@ -8601,10 +8601,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         )}
                                         {others.length > 0 && (
                                           <div className="order-1">
-                                            <div className="mb-2 flex min-w-0 items-center gap-2 pl-1.5 sm:gap-2.5 sm:pl-2">
-                                              <div className={uiOsModalSectionIconWrap}>
-                                                <FileText className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
-                                              </div>
+                                            <div className="mb-2 flex min-w-0 items-center pl-1.5 sm:pl-2">
                                               <p className={uiOsModalCardSectionTitle}>
                                                 Documentos
                                               </p>
