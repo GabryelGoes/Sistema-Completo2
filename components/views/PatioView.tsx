@@ -7145,18 +7145,56 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         }
                       >
                       {!isPatioPcModal ? (
-                        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/60 px-4 py-3 dark:border-white/[0.08]">
-                          <h2 className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">
-                            Dados da ficha
-                          </h2>
-                          <button
-                            type="button"
-                            onClick={() => setIsDadosFichaExpanded(false)}
-                            className={patioVehicleVm.closeBtn}
-                            aria-label="Fechar dados da ficha"
-                          >
-                            <X className="h-5 w-5" />
-                          </button>
+                        <div className="relative shrink-0 overflow-hidden border-b border-zinc-200/70 bg-white/90 dark:border-white/[0.08] dark:bg-zinc-950/40">
+                          <div
+                            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.10),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.10),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.16),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_52%)]"
+                            aria-hidden
+                          />
+                          <div className="relative flex items-start justify-between gap-3 px-4 py-3.5 sm:px-5 sm:py-4">
+                            <div className="flex min-w-0 flex-1 items-start gap-3">
+                              <div className={`${uiOsModalSectionIconWrap} mt-0.5`}>
+                                <FileText className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className={uiOsModalCardSectionTitle}>Dados da ficha</p>
+                                <p className="mt-1 truncate text-[13px] font-medium leading-snug text-zinc-600 dark:text-zinc-300">
+                                  {firstTwoNames(
+                                    serviceOrderDetail.customers?.name?.trim() ||
+                                      selectedCardTitleParts?.customer ||
+                                      'Cliente'
+                                  )}
+                                </p>
+                                {!isModuleMode &&
+                                ((serviceOrderDetail.vehicle_model ?? selectedCardTitleParts?.vehicle ?? '').trim() ||
+                                  (serviceOrderDetail.plate ?? selectedCardTitleParts?.plateOrModule ?? '').trim()) ? (
+                                  <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-400 dark:text-zinc-500">
+                                    {[
+                                      (serviceOrderDetail.vehicle_model ?? selectedCardTitleParts?.vehicle ?? '')
+                                        .trim()
+                                        .toUpperCase(),
+                                      (serviceOrderDetail.plate ?? selectedCardTitleParts?.plateOrModule ?? '')
+                                        .trim()
+                                        .toUpperCase(),
+                                    ]
+                                      .filter(Boolean)
+                                      .join(' · ')}
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setIsDadosFichaExpanded(false)}
+                              className={`${patioVehicleVm.closeBtn} -mr-0.5 -mt-0.5`}
+                              aria-label="Fechar dados da ficha"
+                            >
+                              <X className="h-5 w-5" />
+                            </button>
+                          </div>
+                          <div
+                            className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#007AFF]/35 to-transparent dark:via-[#7ab8ff]/30"
+                            aria-hidden
+                          />
                         </div>
                       ) : null}
                       <div
