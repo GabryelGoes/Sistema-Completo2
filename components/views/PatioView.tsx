@@ -6320,10 +6320,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                        const showImgThumb = !isPdf && isImage;
                                        const cardClass = `group block w-full overflow-hidden ${iosModalInsetCard} transition-all hover:border-[#007AFF]/35`;
                                        return isPdf ? (
-                                         <button
+                                         <a
                                            key={att.id}
-                                           type="button"
-                                           onClick={() => setPreviewPdf(att.url)}
+                                           href={att.url}
+                                           target="_blank"
+                                           rel="noopener noreferrer"
                                            className={cardClass}
                                          >
                                            <div className="relative flex h-24 items-center justify-center overflow-hidden bg-zinc-100/80 dark:bg-white/[0.04]">
@@ -6338,7 +6339,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                            <div className="border-t border-zinc-200/60 p-2 dark:border-white/[0.06] text-left">
                                               <p className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-200">{attachmentDisplayName(att.name)}</p>
                                            </div>
-                                         </button>
+                                         </a>
                                        ) : (
                                         <a
                                           key={att.id}
@@ -8716,12 +8717,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                           href={att.url}
                                                           target="_blank"
                                                           rel="noopener noreferrer"
-                                                          onClick={(e) => {
-                                                            if (isPdf) {
-                                                              e.preventDefault();
-                                                              setPreviewPdf(att.url);
-                                                            }
-                                                          }}
                                                           className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors min-w-0 flex-1"
                                                         >
                                                           {isLoadingThis ? (
