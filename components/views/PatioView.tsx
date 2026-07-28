@@ -1121,6 +1121,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [referenceLinksDraft, setReferenceLinksDraft] = useState<VehicleReferenceLink[]>([]);
   const [pendingReferenceLink, setPendingReferenceLink] = useState<{ label: string; url: string } | null>(null);
   const [referenceLinksSaving, setReferenceLinksSaving] = useState(false);
+  const [isAnexosAddMenuOpen, setIsAnexosAddMenuOpen] = useState(false);
+  const anexosAddMenuRef = useRef<HTMLDivElement>(null);
   /** Conserto externo (laboratório): rascunho do formulário no modal. */
   const [externalRepairDraft, setExternalRepairDraft] = useState<ExternalRepairDraft>(EMPTY_EXTERNAL_REPAIR_DRAFT);
   const [externalRepairSaving, setExternalRepairSaving] = useState(false);
@@ -1152,8 +1154,29 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setIsDadosFichaExpanded(false);
       setIsExternalRepairEditing(false);
       setPcOsModalTab('dados');
+      setIsAnexosAddMenuOpen(false);
     }
   }, [selectedCard?.id]);
+
+  useEffect(() => {
+    if (!isAnexosAddMenuOpen) return;
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (target && anexosAddMenuRef.current?.contains(target)) return;
+      setIsAnexosAddMenuOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsAnexosAddMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isAnexosAddMenuOpen]);
 
   useEffect(() => {
     if (!selectedCard?.id || orderType === 'module') return;
@@ -8025,19 +8048,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <>
                          {/* Anexos (fotos) + Documentos (arquivos) */}
                          <div className={`${vi} flex flex-col overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.1),0_2px_10px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_34px_-12px_rgba(0,0,0,0.45)]`}>
-                            <div className="border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div className="min-w-0">
-                                  <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+                            <div className="relative border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
+                            <div className="flex items-center justify-between gap-2 sm:gap-3">
+                                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
                                     <div className={uiOsModalSectionIconWrap}>
                                       <Paperclip className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                     </div>
                                     <p className={uiOsModalCardSectionTitle}>
                                       Anexos
                                     </p>
-                                  </div>
                                 </div>
-                                <div className="grid grid-cols-3 gap-2 sm:gap-2 sm:justify-items-end sm:shrink-0">
+                                <div className="relative shrink-0" ref={anexosAddMenuRef}>
                                     <input
                                         type="file"
                                         ref={cameraInputRef}
@@ -8064,52 +8085,89 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     />
                                     <button
                                         type="button"
-                                        onClick={() => cameraInputRef.current?.click()}
+                                        onClick={() => setIsAnexosAddMenuOpen((open) => !open)}
                                         disabled={isUploading}
-                                        className="flex items-center justify-center w-12 h-12 sm:w-10 sm:h-10 rounded-xl sm:rounded-lg bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Abrir câmera"
-                                        aria-label="Abrir câmera"
+                                        aria-expanded={isAnexosAddMenuOpen}
+                                        aria-haspopup="menu"
+                                        className="inline-flex shrink-0 items-center rounded-md bg-[#4FA8FF] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:bg-[#3397F8] active:scale-[0.98] disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
                                     >
-                                        <Camera className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
+                                      + Adicionar
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => galleryInputRef.current?.click()}
-                                        disabled={isUploading}
-                                        className="flex items-center justify-center w-12 h-12 sm:w-10 sm:h-10 rounded-xl sm:rounded-lg bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Abrir galeria"
-                                        aria-label="Abrir galeria"
-                                    >
-                                        <ImageIcon className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => filesInputRef.current?.click()}
-                                        disabled={isUploading}
-                                        className="flex items-center justify-center w-12 h-12 sm:w-10 sm:h-10 rounded-xl sm:rounded-lg bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Abrir arquivos"
-                                        aria-label="Abrir arquivos"
-                                    >
-                                        <FolderOpen className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
-                                    </button>
+                                    {isAnexosAddMenuOpen ? (
+                                      <div
+                                        role="menu"
+                                        className="absolute right-0 top-[calc(100%+0.4rem)] z-30 min-w-[11.5rem] overflow-hidden rounded-xl border border-zinc-200/90 bg-white py-1 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.28)] animate-in fade-in zoom-in-95 duration-150 dark:border-white/[0.1] dark:bg-zinc-900 dark:shadow-[0_16px_48px_-14px_rgba(0,0,0,0.65)]"
+                                      >
+                                        <button
+                                          type="button"
+                                          role="menuitem"
+                                          disabled={isUploading}
+                                          onClick={() => {
+                                            setIsAnexosAddMenuOpen(false);
+                                            cameraInputRef.current?.click();
+                                          }}
+                                          className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                        >
+                                          <Camera className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                          Câmera
+                                        </button>
+                                        <button
+                                          type="button"
+                                          role="menuitem"
+                                          disabled={isUploading}
+                                          onClick={() => {
+                                            setIsAnexosAddMenuOpen(false);
+                                            galleryInputRef.current?.click();
+                                          }}
+                                          className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                        >
+                                          <ImageIcon className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                          Galeria
+                                        </button>
+                                        <button
+                                          type="button"
+                                          role="menuitem"
+                                          disabled={isUploading}
+                                          onClick={() => {
+                                            setIsAnexosAddMenuOpen(false);
+                                            filesInputRef.current?.click();
+                                          }}
+                                          className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                        >
+                                          <FolderOpen className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                          Arquivos
+                                        </button>
+                                        {can('canEditFicha') ? (
+                                          <button
+                                            type="button"
+                                            role="menuitem"
+                                            disabled={pendingReferenceLink != null}
+                                            onClick={() => {
+                                              setIsAnexosAddMenuOpen(false);
+                                              setPendingReferenceLink({ label: '', url: '' });
+                                            }}
+                                            className="flex w-full items-center gap-2.5 border-t border-zinc-100 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.08] dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                          >
+                                            <Link2 className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                            Links
+                                          </button>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
                                 </div>
                             </div>
                             </div>
 
-                            {serviceOrderDetail && (referenceLinksDraft.length > 0 || pendingReferenceLink || can('canEditFicha')) && (
+                            {serviceOrderDetail && (referenceLinksDraft.length > 0 || pendingReferenceLink) ? (
                               <div className="order-1 px-3 py-2 sm:px-4 sm:py-2.5">
                                 <div
                                   className={`${vi} overflow-hidden p-2.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-3`}
                                 >
                                   <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
                                     <Link2 className="h-3.5 w-3.5" />
-                                    Links úteis
+                                    Links
                                   </h3>
-                                  {referenceLinksDraft.length === 0 && !pendingReferenceLink ? (
-                                    <p className="mb-2 text-[14px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                                      Nenhum link anexado.
-                                    </p>
-                                  ) : referenceLinksDraft.length > 0 ? (
+                                  {referenceLinksDraft.length > 0 ? (
                                     <ul className="space-y-2">
                                       {referenceLinksDraft.map((link) => {
                                         const href = link.url.trim().match(/^https?:\/\//i)
@@ -8191,8 +8249,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           className={vin}
                                         />
                                       </div>
-                                      {pendingReferenceLink.url.trim() ? (
-                                        <div className="flex justify-end">
+                                      <div className="flex flex-wrap justify-end gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => setPendingReferenceLink(null)}
+                                          className="inline-flex items-center rounded-xl border border-zinc-200/90 px-3 py-2 text-[13px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+                                        >
+                                          Cancelar
+                                        </button>
+                                        {pendingReferenceLink.url.trim() ? (
                                           <button
                                             type="button"
                                             onClick={() => void handleSaveReferenceLinks()}
@@ -8208,28 +8273,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             ) : (
                                               <Save className="h-4 w-4" />
                                             )}
-                                            Salvar links
+                                            Salvar link
                                           </button>
-                                        </div>
-                                      ) : null}
-                                    </div>
-                                  ) : null}
-                                  {can('canEditFicha') ? (
-                                    <div className={`${referenceLinksDraft.length > 0 || pendingReferenceLink ? 'mt-3' : ''}`}>
-                                      <button
-                                        type="button"
-                                        onClick={() => setPendingReferenceLink({ label: '', url: '' })}
-                                        disabled={pendingReferenceLink != null}
-                                        className="inline-flex items-center gap-1 rounded-xl border border-zinc-200/90 px-3 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-45 dark:border-white/[0.12] dark:hover:bg-white/[0.06]"
-                                      >
-                                        <Plus className="h-3.5 w-3.5" />
-                                        Adicionar link
-                                      </button>
+                                        ) : null}
+                                      </div>
                                     </div>
                                   ) : null}
                                 </div>
                               </div>
-                            )}
+                            ) : null}
 
                             <div className="order-2 space-y-3 pb-8 sm:pb-10">
                                {isUploading && (
