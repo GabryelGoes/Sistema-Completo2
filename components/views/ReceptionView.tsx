@@ -40,6 +40,7 @@ import { BrazilFlagIcon } from '../ui/BrazilFlagIcon';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { ModalPortal } from '../ui/ModalPortal';
 import { PdfViewerModal } from '../PdfViewerModal';
+import { Lightbox } from '../Lightbox';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { useTabletPhonePortraitFullscreen } from '../../hooks/useTabletPhonePortraitFullscreen';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
@@ -331,11 +332,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     if (last) setModuleKind(last as ModuleKind);
   }, [receptionMode]);
 
-  // Refs — fotos: câmera (capture) vs galeria (múltiplas)
+  // Refs — fotos (câmera e galeria aceitam várias de uma vez)
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [intakePhotos, setIntakePhotos] = useState<ReceptionIntakePhoto[]>([]);
+  const [intakePhotoPreviewIndex, setIntakePhotoPreviewIndex] = useState<number | null>(null);
   const [diagAuthSignModalOpen, setDiagAuthSignModalOpen] = useState(false);
   const [diagAuthSignatureBlob, setDiagAuthSignatureBlob] = useState<Blob | null>(null);
   const [diagAuthSignatureDataUrl, setDiagAuthSignatureDataUrl] = useState<string | null>(null);
@@ -531,7 +533,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   const removeIntakePhoto = useCallback((id: string) => {
     setIntakePhotos((prev) => {
-      const found = prev.find((p) => p.id === id);
+      const removeIdx = prev.findIndex((p) => p.id === id);
+      const found = removeIdx >= 0 ? prev[removeIdx] : undefined;
       if (found) {
         try {
           URL.revokeObjectURL(found.url);
@@ -539,7 +542,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           /* ignore */
         }
       }
-      return prev.filter((p) => p.id !== id);
+      const next = prev.filter((p) => p.id !== id);
+      setIntakePhotoPreviewIndex((openIdx) => {
+        if (openIdx == null || removeIdx < 0) return openIdx;
+        if (next.length === 0) return null;
+        if (openIdx > removeIdx) return openIdx - 1;
+        if (openIdx >= next.length) return next.length - 1;
+        return openIdx;
+      });
+      return next;
     });
   }, []);
 
@@ -565,7 +576,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     const input = e.target;
     const files = input.files;
     if (files && files.length > 0) {
-      addIntakePhotosFromFiles([files[0]]);
+      addIntakePhotosFromFiles(Array.from(files));
     }
     input.value = '';
   };
@@ -1712,8 +1723,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   ref={cameraInputRef}
                   type="file"
                   className="hidden"
-                  accept="image/*"
-                  capture="environment"
+                  accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
+                  multiple
                   onChange={handleCameraInputChange}
                 />
                 <input
@@ -1731,14 +1742,30 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         key={p.id}
                         className="motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200 relative h-[5.25rem] w-[5.25rem] shrink-0 snap-start overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-100 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.11),0_2px_8px_-4px_rgba(0,0,0,0.07)] dark:border-white/10 dark:bg-zinc-900/60 dark:shadow-sm sm:h-24 sm:w-24"
                       >
-                        <img src={p.url} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
-                        <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        <button
+                          type="button"
+                          onClick={() => setIntakePhotoPreviewIndex(idx)}
+                          className="absolute inset-0 z-0 block h-full w-full cursor-zoom-in"
+                          aria-label={`Visualizar foto ${idx + 1}`}
+                        >
+                          <img
+                            src={p.url}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </button>
+                        <span className="pointer-events-none absolute bottom-1 left-1 z-[1] rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">
                           {idx + 1}
                         </span>
                         <button
                           type="button"
-                          onClick={() => removeIntakePhoto(p.id)}
-                          className="absolute right-0.5 top-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-red-500/95 text-white shadow-md transition-transform hover:scale-105 active:scale-95"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeIntakePhoto(p.id);
+                          }}
+                          className="absolute right-0.5 top-0.5 z-[2] flex h-7 w-7 items-center justify-center rounded-full bg-red-500/95 text-white shadow-md transition-transform hover:scale-105 active:scale-95"
                           aria-label={`Remover foto ${idx + 1}`}
                         >
                           <X className="h-4 w-4" strokeWidth={2.5} />
@@ -1772,8 +1799,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 {intakePhotos.length > 0 ? (
                   <p className="text-center text-[11px] font-medium text-zinc-500 dark:text-zinc-400 sm:text-left">
                     {intakePhotos.length === 1
-                      ? '1 foto selecionada'
-                      : `${intakePhotos.length} fotos selecionadas`}
+                      ? '1 foto selecionada — toque para ampliar'
+                      : `${intakePhotos.length} fotos selecionadas — toque para ampliar`}
                   </p>
                 ) : null}
               </div>
@@ -2454,6 +2481,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       {previewPdf && (
         <PdfViewerModal src={previewPdf} onClose={() => setPreviewPdf(null)} />
       )}
+
+      {intakePhotoPreviewIndex != null && intakePhotos.length > 0 ? (
+        <Lightbox
+          images={intakePhotos.map((p) => p.url)}
+          initialIndex={Math.min(intakePhotoPreviewIndex, intakePhotos.length - 1)}
+          onClose={() => setIntakePhotoPreviewIndex(null)}
+        />
+      ) : null}
 
       <ProcessingOverlay 
         status={status}
