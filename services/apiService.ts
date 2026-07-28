@@ -1380,7 +1380,6 @@ export async function updateServiceOrderType(
   return response.json();
 }
 
-/** Atualiza a categoria do veículo (Compacto, Médio/SUV, Pick-Up, Premium). Só modo veículo. */
 /** Grava caminho da imagem da assinatura (Storage) e data/hora no servidor. */
 export async function updateServiceOrderDiagnosticAuthorization(
   id: string,
