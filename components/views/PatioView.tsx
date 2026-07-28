@@ -8203,10 +8203,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {serviceOrderDetail && (referenceLinksDraft.length > 0 || pendingReferenceLink) ? (
                               <div className="order-1 px-4 py-3 sm:px-5 sm:py-3.5">
                                 <div
-                                  className={`${vi} overflow-hidden px-3.5 py-3 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:px-4 sm:py-3.5`}
+                                  className={`${vi} overflow-hidden px-4 py-3.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:px-5 sm:py-4`}
                                 >
-                                  <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                                    <Link2 className="h-3.5 w-3.5" />
+                                  <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
                                     Links
                                   </h3>
                                   {referenceLinksDraft.length > 0 ? (
@@ -8325,7 +8324,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                             ) : null}
 
-                            <div className="order-2 space-y-3 pb-8 sm:pb-10">
+                            <div className="order-2 space-y-3 px-4 pb-8 sm:px-5 sm:pb-10">
                                {isUploading && (
                                   <div className="flex justify-center p-4">
                                      <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
@@ -8342,7 +8341,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <div className="flex flex-col gap-8">
                                         {images.length > 0 && (
                                           <div className="order-2">
-                                            <div className="mb-2 flex min-w-0 items-center pl-1.5 sm:pl-2">
+                                            <div className="mb-2 flex min-w-0 items-center">
                                               <p className={uiOsModalCardSectionTitle}>
                                                 Fotos
                                               </p>
@@ -8601,7 +8600,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         )}
                                         {others.length > 0 && (
                                           <div className="order-1">
-                                            <div className="mb-2 flex min-w-0 items-center pl-1.5 sm:pl-2">
+                                            <div className="mb-2 flex min-w-0 items-center">
                                               <p className={uiOsModalCardSectionTitle}>
                                                 Documentos
                                               </p>
