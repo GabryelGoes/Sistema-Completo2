@@ -7114,18 +7114,38 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           )}
                         </div>
 
-                        {/* Dados da ficha — PC: expande no cabeçalho; tablet/mobile: modal overlay */}
+                        {/* Dados da ficha — PC: expande no cabeçalho; tablet/mobile: modal (não tela cheia) */}
                         {serviceOrderDetail && isDadosFichaExpanded && (
                         <div
-                          ref={customerDataSectionRef}
                           className={
                             isPatioPcModal
                               ? 'mt-2 w-full'
-                              : 'fixed inset-0 z-[120] flex flex-col bg-[#F2F2F7] animate-in fade-in duration-200 dark:bg-zinc-950'
+                              : 'fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-[16px] animate-in fade-in duration-200 sm:p-5'
+                          }
+                          onClick={
+                            isPatioPcModal
+                              ? undefined
+                              : () => setIsDadosFichaExpanded(false)
                           }
                         >
+                      <div
+                        ref={customerDataSectionRef}
+                        role={isPatioPcModal ? undefined : 'dialog'}
+                        aria-modal={isPatioPcModal ? undefined : true}
+                        aria-label={isPatioPcModal ? undefined : 'Dados da ficha'}
+                        className={
+                          isPatioPcModal
+                            ? undefined
+                            : `relative flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[min(36rem,100%)] min-h-0 flex-col overflow-hidden ${iosVehicleModalShell} animate-in zoom-in-95 duration-200`
+                        }
+                        onClick={
+                          isPatioPcModal
+                            ? undefined
+                            : (e) => e.stopPropagation()
+                        }
+                      >
                       {!isPatioPcModal ? (
-                        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/60 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] dark:border-white/[0.08]">
+                        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/60 px-4 py-3 dark:border-white/[0.08]">
                           <h2 className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">
                             Dados da ficha
                           </h2>
@@ -7143,10 +7163,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         className={
                           isPatioPcModal
                             ? `${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`
-                            : 'patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none pb-[env(safe-area-inset-bottom)]'
+                            : 'patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none'
                         }
                       >
-                        <div className={`flex flex-col gap-6 bg-zinc-50/90 p-5 dark:bg-white/[0.02] sm:p-6${isPatioPcModal ? '' : ' min-h-full'}`}>
+                        <div className="flex flex-col gap-6 bg-zinc-50/90 p-5 dark:bg-white/[0.02] sm:p-6">
                           {can('canEditFicha') ? (
                             <>
                               <div className="order-1">
@@ -7569,6 +7589,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           )}
                         </div>
+                      </div>
                       </div>
                     </div>
                   )}
