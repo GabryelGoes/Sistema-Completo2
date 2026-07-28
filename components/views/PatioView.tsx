@@ -8607,9 +8607,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               <button
                                                 type="button"
                                                 className="mt-2 w-full rounded-xl border border-zinc-200/80 bg-zinc-50 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-200 dark:hover:bg-white/[0.08]"
-                                                onClick={() =>
-                                                  setVehicleModalPhotoVisibleCount((n) => n + VEHICLE_MODAL_PHOTOS_BATCH)
-                                                }
+                                                onClick={() => setVehicleModalPhotoVisibleCount(images.length)}
                                               >
                                                 Mostrar mais ({hiddenPhotoCount}{' '}
                                                 {hiddenPhotoCount === 1 ? 'foto' : 'fotos'})
