@@ -2615,7 +2615,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
       {isLiveCameraOpen ? (
         <ModalPortal>
-          <div className="fixed inset-0 z-[220] flex flex-col bg-black pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+          <div className="fixed inset-0 z-[220] flex flex-col bg-black">
             <div className="relative min-h-0 flex-1 bg-black">
               <video
                 ref={liveCameraVideoRef}
@@ -2626,31 +2626,34 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               />
               <canvas ref={liveCameraCanvasRef} className="hidden" />
               {liveCameraFlash ? (
-                <div className="pointer-events-none absolute inset-0 bg-white/80" aria-hidden />
+                <div className="pointer-events-none absolute inset-0 bg-white" aria-hidden />
               ) : null}
               <button
                 type="button"
                 onClick={stopLiveCamera}
-                className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-md"
+                className="absolute right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-10 flex h-10 w-10 items-center justify-center rounded-full text-white/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]"
                 aria-label="Fechar câmera"
               >
-                <X className="h-6 w-6" strokeWidth={2.25} />
+                <X className="h-7 w-7" strokeWidth={1.75} />
               </button>
-              <p className="pointer-events-none absolute left-4 top-5 rounded-full bg-black/50 px-3 py-1 text-[12px] font-semibold text-white backdrop-blur-md">
-                {intakePhotos.length}/{MAX_RECEPTION_INTAKE_PHOTOS} fotos
-              </p>
-              <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-3 px-4">
-                <p className="text-center text-[12px] font-medium text-white/85">
-                  Toque no botão para capturar — a foto é adicionada na hora
-                </p>
+              <div className="absolute inset-x-0 bottom-0 flex justify-center pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.25rem))] pt-10">
                 <button
                   type="button"
                   onClick={captureLiveCameraPhoto}
                   disabled={liveCameraCapturing || intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS}
-                  className="flex h-[4.75rem] w-[4.75rem] items-center justify-center rounded-full border-4 border-white/80 bg-white shadow-lg transition-transform active:scale-95 disabled:opacity-50"
+                  className="group relative flex h-[76px] w-[76px] items-center justify-center rounded-full disabled:opacity-40"
                   aria-label="Capturar foto"
                 >
-                  <span className="h-14 w-14 rounded-full bg-[#007AFF]" />
+                  {/* Anel externo — estilo shutter do iPhone */}
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-full border-[4px] border-white"
+                  />
+                  {/* Disco interno branco que “afunda” ao tocar */}
+                  <span
+                    aria-hidden
+                    className="h-[62px] w-[62px] rounded-full bg-white transition-transform duration-100 ease-out group-active:scale-[0.88]"
+                  />
                 </button>
               </div>
             </div>
