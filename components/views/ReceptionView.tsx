@@ -91,8 +91,6 @@ function newReceptionIntakePhotoId(): string {
 type ReceptionIntakePhoto = { id: string; file: Blob; url: string };
 
 const RECEPTION_MODE_KEY = 'app_reception_mode';
-const VEHICLE_CATEGORIES = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
-type VehicleCategory = (typeof VEHICLE_CATEGORIES)[number];
 
 /** Vidro do cartão principal da recepção — sombra extra só no claro. */
 const receptionPageGlass =
@@ -215,7 +213,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   });
 
   const [status, setStatus] = useState<ProcessingStatus>({ step: 'idle' });
-  const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory | ''>('');
   const [moduleKind, setModuleKind] = useState<ModuleKind | ''>('');
   const [moduleVehicleKind, setModuleVehicleKind] = useState<ModuleVehicleKind | ''>('');
   const [moduleProductOther, setModuleProductOther] = useState('');
@@ -316,7 +313,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setDiagAuthSignedAt(null);
       setDiagAuthSheetOpen(false);
       setDiagAuthSignModalOpen(false);
-      setVehicleCategory('');
     } else {
       setModuleKind('');
       setModuleVehicleKind('');
@@ -642,13 +638,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         return;
       }
     } else {
-      if (!vehicleCategory) {
-        setStatus({
-          step: 'error',
-          message: 'Selecione a categoria do veículo: Compacto, Médio/SUV, Pick-Up ou Premium.',
-        });
-        return;
-      }
       const p = normalizePlacaLocal(customer.plate);
       if (p.length < 7) {
         setStatus({
@@ -688,13 +677,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             intakeExistingCustomerId!,
             intakeCustomer,
             receptionMode,
-            receptionMode === 'vehicle' ? vehicleCategory : null,
             receptionMode === 'module' ? moduleIntakeStatus : undefined
           )
         : await saveReceptionIntake(
             intakeCustomer,
             receptionMode,
-            receptionMode === 'vehicle' ? vehicleCategory : null,
             receptionMode === 'module' ? moduleIntakeStatus : undefined
           );
 
@@ -774,7 +761,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       });
       return [];
     });
-    setVehicleCategory('');
     setModuleKind('');
     setModuleVehicleKind('');
     setModuleProductOther('');
@@ -1654,33 +1640,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 </div>
               )}
 
-              {receptionMode === 'vehicle' && (
-                <div>
-                  <label className={`${iosLabel} ml-1`}>
-                    Categoria do veículo <span className="text-red-500">*</span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {VEHICLE_CATEGORIES.map((category) => {
-                      const selected = vehicleCategory === category;
-                      return (
-                        <button
-                          key={category}
-                          type="button"
-                          onClick={() => setVehicleCategory(category)}
-                          className={`px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-all active:scale-[0.98] ${
-                            selected
-                              ? 'bg-[#007AFF] text-white border-[#007AFF]/85 shadow-[0_10px_26px_-8px_rgba(37,99,235,0.32),0_4px_14px_-6px_rgba(37,99,235,0.22)] dark:shadow-md dark:shadow-blue-500/25'
-                              : 'bg-white/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200 border-zinc-200/90 dark:border-white/[0.1] shadow-[0_5px_16px_-7px_rgba(0,0,0,0.09),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:shadow-none hover:border-[#007AFF]/45 backdrop-blur-sm'
-                          }`}
-                          aria-pressed={selected}
-                        >
-                          {category}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
               </div>
 
               {receptionMode === 'vehicle' && (

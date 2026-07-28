@@ -19,7 +19,6 @@ import {
   updateServiceOrderDeliveryDate,
   updateServiceOrderVehicleObservations,
   updateServiceOrderVehicle,
-  updateServiceOrderVehicleCategory,
   updateServiceOrderReferenceLinks,
   updateServiceOrderLabServiceLinks,
   updateServiceOrderBenchSlot,
@@ -387,25 +386,6 @@ function stripLegacyVehicleCategoryFromComplaint(text: string | null | undefined
   return text;
 }
 
-/** Lê categoria legada só do texto da queixa (OS antigas). */
-function parseLegacyVehicleCategoryFromIssue(issue: string | null | undefined): string | null {
-  if (!issue) return null;
-  const line = issue.split("\n")[0]?.trim() ?? "";
-  const prefix = "Categoria do veículo:";
-  if (!line.startsWith(prefix)) return null;
-  const cat = line.slice(prefix.length).trim();
-  return cat || null;
-}
-
-function resolveVehicleCategoryLabel(
-  dbCategory: string | null | undefined,
-  issue: string | null | undefined
-): string | null {
-  const c = (dbCategory ?? "").trim();
-  if (c) return c;
-  return parseLegacyVehicleCategoryFromIssue(issue);
-}
-
 /** Mesmo critério da Recepção — comparação de placa Mercosul / antiga. */
 function normalizePatioPlate(raw: string): string {
   return String(raw ?? '')
@@ -413,9 +393,6 @@ function normalizePatioPlate(raw: string): string {
     .toUpperCase()
     .slice(0, 8);
 }
-
-/** Mesmas opções da Recepção — categoria do veículo. */
-const VEHICLE_CATEGORIES_MODAL = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
 
 function buildTechnicianNameMap(technicians: SystemUserTechnician[]): Record<string, string> {
   const map: Record<string, string> = {};
@@ -484,10 +461,7 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     name,
     osNumber: o.os_number ?? null,
     desc: stripLegacyVehicleCategoryFromComplaint(o.issue_description || ''),
-    vehicleCategory:
-      orderType === "vehicle"
-        ? resolveVehicleCategoryLabel(o.vehicle_category ?? null, o.issue_description ?? null)
-        : null,
+    vehicleCategory: null,
     vehicleBrand: o.vehicle_brand ?? null,
     idList: o.status,
     url: '',
@@ -1396,8 +1370,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [isMoving, setIsMoving] = useState(false);
   /** Overlay de “a mover etapa” no cartão (modal ou arrastar no modo Trello). */
   const [stageChangingCardId, setStageChangingCardId] = useState<string | null>(null);
-  const [isVehicleCategoryModalOpen, setIsVehicleCategoryModalOpen] = useState(false);
-  const [savingVehicleCategory, setSavingVehicleCategory] = useState(false);
 
   // Card em transição de MEMBRO (Mecânico)
   const [cardForMemberAssignment, setCardForMemberAssignment] = useState<BoardCard | null>(null);
@@ -1676,7 +1648,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsBudgetOpen(false);
     setIsVehicleEditOpen(false);
     setIsDeleteVehicleOpen(false);
-    setIsVehicleCategoryModalOpen(false);
   }, []);
 
   const patioPrimaryOverlayOpen = !!(selectedCard || selectedHistoryCard);
@@ -2474,10 +2445,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setLabServiceLinksDraft(fromDetail);
   }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at, selectedCard?.labServiceLinks]);
 
-  useEffect(() => {
-    if (!selectedCardRef.current) setIsVehicleCategoryModalOpen(false);
-  }, [selectedCard?.id]);
-
   /** Atualiza os detalhes da OS no modal (serviceOrderDetail) sem fechar o modal nem mostrar loading. */
   const refreshModalDetails = React.useCallback(async () => {
     if (!selectedCard) return;
@@ -2821,24 +2788,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!cardInTransition || !newListId) return;
     await performStageChangeForCard(cardInTransition, newListId);
     setCardInTransition(null);
-  };
-
-  const handleSelectVehicleCategory = async (category: string) => {
-    if (!selectedCard) return;
-    setSavingVehicleCategory(true);
-    try {
-      await updateServiceOrderVehicleCategory(selectedCard.id, category, actorOptions);
-      const next = { ...selectedCard, vehicleCategory: category };
-      setSelectedCard(next);
-      setCards((prev) => prev.map((c) => (c.id === selectedCard.id ? next : c)));
-      setServiceOrderDetail((prev) => (prev ? { ...prev, vehicle_category: category } : null));
-      setIsVehicleCategoryModalOpen(false);
-      await refreshModalDetails();
-    } catch (err: any) {
-      alert(err?.message ?? "Erro ao salvar categoria.");
-    } finally {
-      setSavingVehicleCategory(false);
-    }
   };
 
   const handleRemoveGarantia = async () => {
@@ -6415,13 +6364,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const modalRingClass = selectedCard.garantiaTag
           ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-[#F2F2F7] dark:ring-offset-[#0a0a0a] border-2 border-red-500/30'
           : `${modalStatusConfig.ringClass} border border-zinc-300/70 dark:border-white/[0.08]`;
-        const headerVehicleCategoryLabel =
-          !isModuleMode
-            ? resolveVehicleCategoryLabel(
-                serviceOrderDetail?.vehicle_category ?? null,
-                serviceOrderDetail?.issue_description ?? null
-              ) ?? selectedCard.vehicleCategory ?? null
-            : null;
         const vi = patioVehicleVm.insetCard;
         const vin = patioVehicleVm.input;
         const c = patioVehicleVm.compact;
@@ -7248,17 +7190,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <div className="space-y-3">
                                 <div className="ml-0.5 flex flex-wrap items-center justify-between gap-2">
                                   <p className={iosLabel}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
-                                  {!isModuleMode && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setIsVehicleCategoryModalOpen(true)}
-                                      className="inline-flex items-center gap-1 rounded-lg border border-[#007AFF]/30 bg-[#007AFF]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#007AFF] transition-colors hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
-                                      title="Alterar categoria do veículo"
-                                    >
-                                      {headerVehicleCategoryLabel || 'Categoria'}
-                                      <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                    </button>
-                                  )}
                                 </div>
                                 <div className={`${vi} space-y-4 p-4 sm:p-5`}>
                                   {!isModuleMode && (
@@ -7427,17 +7358,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <div className="space-y-3">
                                 <div className="ml-0.5 flex flex-wrap items-center justify-between gap-2">
                                   <p className={iosLabel}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
-                                  {!isModuleMode && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setIsVehicleCategoryModalOpen(true)}
-                                      className="inline-flex items-center gap-1 rounded-lg border border-[#007AFF]/30 bg-[#007AFF]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#007AFF] transition-colors hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
-                                      title="Alterar categoria do veículo"
-                                    >
-                                      {headerVehicleCategoryLabel || 'Categoria'}
-                                      <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                    </button>
-                                  )}
                                 </div>
                                 <div className={`${vi} divide-y divide-zinc-200/60 overflow-hidden p-0 dark:divide-white/[0.06]`}>
                                   {!isModuleMode && serviceOrderDetail.vehicle_brand?.trim() ? (
@@ -10074,120 +9994,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
         </ModalPortal>
       )}
-
-      {/* MODAL CATEGORIA DO VEÍCULO — mesmo padrão do modal de etapas */}
-      {isVehicleCategoryModalOpen &&
-        selectedCard &&
-        !isModuleMode &&
-        patioPortalsVisible &&
-        (() => {
-          const currentCat =
-            resolveVehicleCategoryLabel(
-              serviceOrderDetail?.vehicle_category ?? null,
-              serviceOrderDetail?.issue_description ?? null
-            ) ?? selectedCard.vehicleCategory ?? null;
-          return (
-            <ModalPortal>
-            <div
-              className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}
-            >
-              <div
-                className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setIsVehicleCategoryModalOpen(false)}
-                  className={iosModalClose}
-                  aria-label="Fechar"
-                  disabled={savingVehicleCategory}
-                >
-                  <X className="h-5 w-5" />
-                </button>
-
-                <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
-                  <div className="flex items-start gap-3 pr-10">
-                    <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                      {patioOrLabModuleIcon}
-                    </IosAccentIconSquircle>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
-                        Pátio
-                      </p>
-                      <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">
-                        Categoria do veículo
-                      </h2>
-                      <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                        <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                        <span
-                          className={`font-vehicle min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200 ${vehicleModalSubtitleNameShadow}`}
-                        >
-                          {selectedCardTitleParts?.vehicle}
-                        </span>
-                        <span className="text-zinc-400 dark:text-zinc-500">—</span>
-                        <span>Toque na categoria desejada.</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
-                  <p className={iosLabel}>Categorias</p>
-                  {savingVehicleCategory && (
-                    <p className="mb-3 flex items-center gap-2 text-[13px] font-medium text-[#007AFF] dark:text-[#64B5FF]">
-                      <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
-                      Salvando…
-                    </p>
-                  )}
-                  <div className="space-y-2.5">
-                    {VEHICLE_CATEGORIES_MODAL.map((cat) => {
-                      const isCurrent = currentCat === cat;
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => handleSelectVehicleCategory(cat)}
-                          disabled={isCurrent || savingVehicleCategory}
-                          className={`
-                        group flex min-h-[52px] w-full items-center justify-between gap-3 rounded-[16px] border-2 px-4 py-3.5 text-left transition-all duration-200 sm:px-5
-                        ${
-                          isCurrent
-                            ? `${iosModalInsetCard} cursor-not-allowed border-zinc-200/80 opacity-75 shadow-none dark:border-white/[0.08]`
-                            : 'border-transparent bg-zinc-100/90 text-zinc-900 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.12)] hover:brightness-110 active:scale-[0.99] disabled:opacity-55 dark:bg-zinc-800/90 dark:text-zinc-100 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.35)]'
-                        }
-                      `}
-                        >
-                          <span className="text-[15px] font-semibold uppercase tracking-wide">{cat}</span>
-                          {isCurrent ? (
-                            <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                              <Check className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} />
-                              Atual
-                            </span>
-                          ) : (
-                            <ChevronRight
-                              className={`h-5 w-5 shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5 ${savingVehicleCategory ? 'opacity-30' : ''}`}
-                            />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="shrink-0 border-t border-zinc-200/60 px-4 py-3 dark:border-white/[0.07] sm:px-6">
-                  <button
-                    type="button"
-                    onClick={() => setIsVehicleCategoryModalOpen(false)}
-                    disabled={savingVehicleCategory}
-                    className="w-full rounded-xl py-3.5 text-[15px] font-semibold text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            </div>
-            </ModalPortal>
-          );
-        })()}
 
       {/* MODAL DE SELEÇÃO DE MECÂNICO — portal em body para ficar acima da TabBar */}
       {cardForMemberAssignment && patioPortalsVisible && (

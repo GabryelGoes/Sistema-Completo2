@@ -844,8 +844,6 @@ export async function createServiceOrder(params: {
   orderType?: ServiceOrderType;
   /** Laboratório: etapa inicial no quadro (padrão: aguardando avaliação). */
   status?: ServiceOrderStatus;
-  /** Só veículo: categoria escolhida na recepção */
-  vehicleCategory?: string | null;
   vehicleBrand?: string | null;
   vehicleColor?: string | null;
   vehicleYear?: string | null;
@@ -859,9 +857,6 @@ export async function createServiceOrder(params: {
     aiAnalysis: params.aiAnalysis ?? null,
     orderType,
   };
-  if (orderType === "vehicle" && params.vehicleCategory !== undefined) {
-    body.vehicleCategory = params.vehicleCategory?.trim() || null;
-  }
   if (orderType === "vehicle") {
     body.plate = (params.plate || '').toUpperCase();
     body.mileageKm = params.mileageKm ?? null;
@@ -901,7 +896,6 @@ export async function createServiceOrder(params: {
 export async function saveReceptionIntake(
   customer: Customer,
   orderType: ServiceOrderType = "vehicle",
-  vehicleCategory?: string | null,
   moduleInitialStatus?: ServiceOrderStatus
 ) {
   const createdCustomer = await createCustomer(customer);
@@ -921,7 +915,6 @@ export async function saveReceptionIntake(
     issueDescription: customer.issueDescription,
     aiAnalysis: customer.aiAnalysis,
     orderType,
-    vehicleCategory: orderType === "vehicle" ? vehicleCategory ?? null : null,
     vehicleBrand: orderType === "vehicle" ? customer.vehicleBrand?.trim() || null : undefined,
     vehicleColor: orderType === "vehicle" ? customer.vehicleColor?.trim() || null : undefined,
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
@@ -941,7 +934,6 @@ export async function saveReceptionIntakeForExistingCustomer(
   customerId: string,
   customer: Customer,
   orderType: ServiceOrderType = "vehicle",
-  vehicleCategory?: string | null,
   moduleInitialStatus?: ServiceOrderStatus
 ) {
   const createdServiceOrder = await createServiceOrder({
@@ -959,7 +951,6 @@ export async function saveReceptionIntakeForExistingCustomer(
     issueDescription: customer.issueDescription,
     aiAnalysis: customer.aiAnalysis,
     orderType,
-    vehicleCategory: orderType === "vehicle" ? vehicleCategory ?? null : null,
     vehicleBrand: orderType === "vehicle" ? customer.vehicleBrand?.trim() || null : undefined,
     vehicleColor: orderType === "vehicle" ? customer.vehicleColor?.trim() || null : undefined,
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
@@ -1408,32 +1399,6 @@ export async function updateServiceOrderDiagnosticAuthorization(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao registrar autorização de diagnóstico (${response.status})`);
-  }
-  return response.json();
-}
-
-export async function updateServiceOrderVehicleCategory(
-  id: string,
-  vehicleCategory: string | null,
-  options?: ServiceOrderUpdateActor
-): Promise<ApiServiceOrder> {
-  const body = mergeActorIntoBody(
-    {
-      vehicleCategory:
-        vehicleCategory == null || String(vehicleCategory).trim() === ""
-          ? null
-          : String(vehicleCategory).trim(),
-    },
-    options
-  );
-  const response = await fetch(`${API_BASE}/service-orders/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Falha ao atualizar categoria (${response.status})`);
   }
   return response.json();
 }
