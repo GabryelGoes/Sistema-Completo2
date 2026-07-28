@@ -8201,7 +8201,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
 
                             {serviceOrderDetail && (referenceLinksDraft.length > 0 || pendingReferenceLink) ? (
-                              <div className="order-1 px-4 py-3 sm:px-5 sm:py-3.5">
+                              <div className={`order-1 px-4 sm:px-5 ${isPatioPcModal ? 'py-3 sm:py-3.5' : 'pb-3 pt-5 sm:pb-3.5 sm:pt-6'}`}>
                                 <div
                                   className={`${vi} overflow-hidden px-4 py-3.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:px-5 sm:py-4`}
                                 >
@@ -8324,7 +8324,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                             ) : null}
 
-                            <div className="order-2 space-y-3 px-4 pb-8 sm:px-5 sm:pb-10">
+                            <div className={`order-2 space-y-3 px-4 sm:px-5 ${isPatioPcModal ? 'pb-8 sm:pb-10' : 'pb-8 pt-5 sm:pb-10 sm:pt-6'}`}>
                                {isUploading && (
                                   <div className="flex justify-center p-4">
                                      <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
