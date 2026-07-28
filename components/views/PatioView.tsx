@@ -1412,6 +1412,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [partSuggestionBoxPosition, setPartSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   // Card em transição de COLUNA (Status)
   const [cardInTransition, setCardInTransition] = useState<BoardCard | null>(null);
+  const moveModalCurrentStageRef = useRef<HTMLElement | null>(null);
   /** Abre fechamento de técnicos por serviço antes de ir para FINALIZADO. */
   const [serviceTechClosing, setServiceTechClosing] = useState<BoardCard | null>(null);
   /** Veículo aguardando aprovação de itens antes de ir para Orçamento aprovado. */
@@ -2761,6 +2762,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
     e?.stopPropagation();
     setCardInTransition(card);
   };
+
+  useLayoutEffect(() => {
+    if (!cardInTransition || !patioPortalsVisible) return;
+    const scrollCurrentStageIntoView = () => {
+      const el = moveModalCurrentStageRef.current;
+      if (!el) return;
+      el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+    };
+    const raf1 = window.requestAnimationFrame(() => {
+      scrollCurrentStageIntoView();
+      window.requestAnimationFrame(scrollCurrentStageIntoView);
+    });
+    const t = window.setTimeout(scrollCurrentStageIntoView, 80);
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.clearTimeout(t);
+    };
+  }, [cardInTransition?.id, cardInTransition?.idList, patioPortalsVisible]);
 
   const beginBudgetApprovalGateForCard = async (card: BoardCard) => {
     if (!canApproveBudgetItemsEffective) {
@@ -10084,6 +10103,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
               {isExternalRepairStatus(cardInTransition.idList) ? (
                 <div
+                  ref={(el) => {
+                    moveModalCurrentStageRef.current = el;
+                  }}
                   className={`mb-3 flex min-h-[54px] items-center justify-between gap-3 rounded-[16px] border-2 px-4 py-3.5 sm:min-h-[56px] sm:px-5 ${EXTERNAL_REPAIR_STAGE.style}`}
                 >
                   <span className="text-[16px] font-semibold uppercase leading-snug tracking-wide !text-white sm:text-[17px]">
@@ -10103,6 +10125,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     <button
                       key={list.id}
                       type="button"
+                      ref={
+                        isCurrent
+                          ? (el) => {
+                              moveModalCurrentStageRef.current = el;
+                            }
+                          : undefined
+                      }
                       onClick={() => handleMoveCard(list.id)}
                       disabled={isCurrent || isMoving}
                       className={`
