@@ -1724,7 +1724,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   ref={cameraInputRef}
                   type="file"
                   className="hidden"
-                  accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
+                  accept="image/*"
+                  capture="environment"
                   multiple
                   onChange={handleCameraInputChange}
                 />
