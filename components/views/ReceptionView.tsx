@@ -772,6 +772,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       });
       return [];
     });
+    setIntakePhotoPreviewIndex(null);
     setModuleKind('');
     setModuleVehicleKind('');
     setModuleProductOther('');
