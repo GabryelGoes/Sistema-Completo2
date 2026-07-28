@@ -1514,15 +1514,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
     isTablet;
 
   const handleJumpToCustomerNameEdit = useCallback(() => {
-    if (isPatioPcModal || isPatioTabletPortrait) {
+    if (isPatioPcModal) {
       setIsDadosFichaExpanded((v) => !v);
       setFocusCustomerNameAfterExpand(true);
       return;
     }
+    // Tablet / mobile: abre modal de dados da ficha, sem focar/selecionar o nome
+    setFocusCustomerNameAfterExpand(false);
     setIsDadosFichaExpanded(true);
-    setFocusCustomerNameAfterExpand(true);
-    customerDataSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [isPatioPcModal, isPatioTabletPortrait]);
+  }, [isPatioPcModal]);
 
   const patioVehicleVm = useMemo(
     () => getPatioVehicleModalLayout(isPatioPcModal, isPatioTabletPortrait),
@@ -3207,6 +3207,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   useEffect(() => {
+    if (!isPatioPcModal) return;
     if (!isDadosFichaExpanded || !focusCustomerNameAfterExpand || !can('canEditFicha')) return;
     const id = window.setTimeout(() => {
       customerNameInputRef.current?.focus();
@@ -3214,7 +3215,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setFocusCustomerNameAfterExpand(false);
     }, 80);
     return () => window.clearTimeout(id);
-  }, [isDadosFichaExpanded, focusCustomerNameAfterExpand, can]);
+  }, [isPatioPcModal, isDadosFichaExpanded, focusCustomerNameAfterExpand, can]);
 
   const persistReferenceLinks = async (links: VehicleReferenceLink[]) => {
     if (!selectedCard || !serviceOrderDetail) return;
@@ -6873,27 +6874,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <button
                             type="button"
                             onClick={handleJumpToCustomerNameEdit}
-                            disabled={!isPatioVmMetaPcLike && !can('canEditFicha')}
+                            disabled={false}
                             title={
-                              isPatioVmMetaPcLike
+                              isPatioPcModal
                                 ? can('canEditFicha')
                                   ? isDadosFichaExpanded
                                     ? 'Fechar dados da ficha'
                                     : 'Abrir dados da ficha'
                                   : 'Ver dados da ficha'
-                                : can('canEditFicha')
-                                  ? 'Editar nome do cliente em Dados da ficha'
-                                  : 'Dados do cliente'
+                                : 'Abrir dados da ficha'
                             }
                             aria-expanded={
-                              isPatioVmMetaPcLike ? isDadosFichaExpanded : undefined
+                              isPatioPcModal ? isDadosFichaExpanded : undefined
                             }
                             className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${
-                              isPatioVmMetaPcLike
+                              isPatioVmMetaPcLike || !isPatioPcModal
                                 ? 'patio-vm-meta-card cursor-pointer'
                                 : 'active:scale-[0.99]'
                             } hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${
-                              isPatioVmMetaPcLike && isDadosFichaExpanded
+                              isPatioPcModal && isDadosFichaExpanded
                                 ? 'border-[#007AFF]/40 ring-1 ring-[#007AFF]/15'
                                 : ''
                             } ${
@@ -6924,11 +6923,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </p>
                                 <p className={c.bodyText}>{selectedCardTitleParts?.customer || '—'}</p>
                               </div>
-                              {(isPatioVmMetaPcLike || can('canEditFicha')) && (
+                              {(isPatioPcModal || can('canEditFicha') || !isPatioPcModal) && (
                                 <ChevronRight
                                   strokeWidth={2.25}
                                   className={`${c.chevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff] ${
-                                    isPatioVmMetaPcLike && isDadosFichaExpanded
+                                    isPatioPcModal && isDadosFichaExpanded
                                       ? 'rotate-90'
                                       : ''
                                   }`}
@@ -7117,117 +7116,39 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           )}
                         </div>
 
-                        {/* Dados da ficha — no PC abre pelo card Cliente; no mobile mantém cabeçalho colapsável */}
-                        {serviceOrderDetail &&
-                        ((!isPatioPcModal && !isPatioTabletPortrait && showPcOsTab('dados')) || (isPatioVmMetaPcLike && isDadosFichaExpanded)) && (
-                        <div ref={customerDataSectionRef} className="mt-2 w-full">
-                      <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
-                        {!isPatioPcModal && !isPatioTabletPortrait ? (
-                        <div className="relative border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-zinc-950/25">
-                          <div
-                            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.14),transparent_52%)]"
-                            aria-hidden
-                          />
-                          <div
-                            className="pointer-events-none absolute -right-12 top-1/2 h-28 w-28 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/18 to-transparent opacity-70 blur-2xl dark:from-[#007AFF]/26"
-                            aria-hidden
-                          />
+                        {/* Dados da ficha — PC: expande no cabeçalho; tablet/mobile: modal overlay */}
+                        {serviceOrderDetail && isDadosFichaExpanded && (
+                        <div
+                          ref={customerDataSectionRef}
+                          className={
+                            isPatioPcModal
+                              ? 'mt-2 w-full'
+                              : 'fixed inset-0 z-[120] flex flex-col bg-[#F2F2F7] animate-in fade-in duration-200 dark:bg-zinc-950'
+                          }
+                        >
+                      {!isPatioPcModal ? (
+                        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/60 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] dark:border-white/[0.08]">
+                          <h2 className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">
+                            Dados da ficha
+                          </h2>
                           <button
                             type="button"
-                            onClick={() => setIsDadosFichaExpanded((v) => !v)}
-                            className="group relative flex min-h-0 w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-zinc-50/90 active:bg-zinc-100/85 dark:hover:bg-white/[0.06] dark:active:bg-white/[0.09] sm:gap-3 sm:px-4 sm:py-3"
+                            onClick={() => setIsDadosFichaExpanded(false)}
+                            className={patioVehicleVm.closeBtn}
+                            aria-label="Fechar dados da ficha"
                           >
-                            <div className="pointer-events-none absolute inset-y-2 left-2.5 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)] sm:left-3 sm:inset-y-2.5" aria-hidden />
-                            <div className="min-w-0 flex-1 pl-4 sm:pl-5">
-                              <p className={uiOsModalCardSectionTitle}>
-                                Dados da ficha
-                              </p>
-                              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                {isModuleMode ? (
-                                  <>
-                                    <span className="inline-flex max-w-full items-center rounded-lg border border-zinc-200/95 bg-white/90 px-2 py-0.5 text-[11px] font-bold tabular-nums tracking-tight text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_2px_8px_-4px_rgba(0,0,0,0.12)] dark:border-white/[0.12] dark:bg-white/[0.07] dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                                      <span className="mr-1.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500">
-                                        Ref.
-                                      </span>
-                                      <span className="truncate font-mono">
-                                        {(serviceOrderDetail.module_identification || '—').trim()}
-                                      </span>
-                                    </span>
-                                    {(serviceOrderDetail.vehicle_model ?? '').trim() ? (
-                                      <span className="inline-flex max-w-[min(100%,18rem)] items-center rounded-lg border border-zinc-200/90 bg-gradient-to-b from-zinc-50 to-zinc-100/90 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-tight text-zinc-900 shadow-sm dark:border-white/[0.1] dark:from-white/[0.09] dark:to-white/[0.04] dark:text-white">
-                                        {(serviceOrderDetail.vehicle_model ?? '').trim().toUpperCase()}
-                                      </span>
-                                    ) : null}
-                                    {serviceOrderDetail.module_kind ? (
-                                      <span className="inline-flex max-w-[min(100%,14rem)] items-center rounded-lg border border-violet-300/80 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100">
-                                        <span className="truncate">
-                                          {labProductDisplayLabel(
-                                            serviceOrderDetail.module_kind,
-                                            serviceOrderDetail.module_product_other
-                                          )}
-                                        </span>
-                                      </span>
-                                    ) : null}
-                                    {serviceOrderDetail.module_vehicle_kind ? (
-                                      <span className="inline-flex items-center rounded-lg border border-violet-300/80 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100">
-                                        {moduleVehicleKindLabel(serviceOrderDetail.module_vehicle_kind)}
-                                      </span>
-                                    ) : null}
-                                    {typeof serviceOrderDetail.bench_slot === 'number' ? (
-                                      <span className="inline-flex items-center rounded-lg border border-amber-300/80 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:border-amber-500/35 dark:bg-amber-950/40 dark:text-amber-100">
-                                        Bancada · Cx. {serviceOrderDetail.bench_slot}
-                                      </span>
-                                    ) : serviceOrderDetail.bench_queued_at ? (
-                                      <span className="inline-flex items-center rounded-lg border border-violet-400/80 bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-950 dark:border-violet-500/40 dark:bg-violet-950/50 dark:text-violet-100">
-                                        Na fila da bancada
-                                      </span>
-                                    ) : statusUsesBench(serviceOrderDetail.status) ? (
-                                      <span className="inline-flex items-center rounded-lg border border-amber-400/80 bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/50 dark:text-amber-100">
-                                        Sem compartimento
-                                      </span>
-                                    ) : null}
-                                    {serviceOrderDetail.created_at ? (
-                                      <span
-                                        className="inline-flex items-center rounded-lg border border-zinc-200/90 bg-zinc-50/95 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-zinc-700 dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-zinc-200"
-                                        title="Data e hora em que a OS foi criada"
-                                      >
-                                        <span className="mr-1.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500">
-                                          Criado
-                                        </span>
-                                        {formatServiceOrderCreatedAt(serviceOrderDetail.created_at)}
-                                      </span>
-                                    ) : null}
-                                  </>
-                                ) : (
-                                  <>
-                                    {(serviceOrderDetail.vehicle_model ?? '').trim() ? (
-                                      <span className="inline-flex max-w-[min(100%,16rem)] items-center rounded-lg border border-zinc-200/95 bg-white px-2 py-0.5 text-[11px] font-semibold uppercase leading-tight tracking-tight text-zinc-900 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-white">
-                                        {(serviceOrderDetail.vehicle_model ?? '').trim().toUpperCase()}
-                                      </span>
-                                    ) : null}
-                                    {(serviceOrderDetail.vehicle_color ?? '').trim() ? (
-                                      <span className="inline-flex items-center rounded-lg border border-zinc-200/80 bg-zinc-50/95 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-zinc-700 normal-case dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-zinc-300">
-                                        {(serviceOrderDetail.vehicle_color ?? '').trim().toLowerCase()}
-                                      </span>
-                                    ) : null}
-                                  </>
-                                )}
-                                <span className="inline-flex max-w-[min(100%,20rem)] items-center gap-1 rounded-lg border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2 py-0.5 text-[11px] font-semibold uppercase text-[#004999] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:shadow-none">
-                                  <User className="h-3 w-3 shrink-0 opacity-80" aria-hidden strokeWidth={2.5} />
-                                  <span className="truncate">{firstTwoNames(serviceOrderDetail.customers?.name?.trim() || 'Cliente').toUpperCase()}</span>
-                                </span>
-                              </div>
-                            </div>
-                            <ChevronRight
-                              strokeWidth={2.25}
-                              className={`relative z-[1] h-3.5 w-3.5 shrink-0 text-[#007AFF]/55 transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff] ${isDadosFichaExpanded ? 'rotate-90' : ''}`}
-                              aria-hidden
-                            />
+                            <X className="h-5 w-5" />
                           </button>
                         </div>
-                        ) : null}
-                        {isDadosFichaExpanded && (
-                        <div className="flex flex-col gap-6 bg-zinc-50/90 p-5 dark:bg-white/[0.02] sm:p-6">
+                      ) : null}
+                      <div
+                        className={
+                          isPatioPcModal
+                            ? `${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`
+                            : 'patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none pb-[env(safe-area-inset-bottom)]'
+                        }
+                      >
+                        <div className={`flex flex-col gap-6 bg-zinc-50/90 p-5 dark:bg-white/[0.02] sm:p-6${isPatioPcModal ? '' : ' min-h-full'}`}>
                           {can('canEditFicha') ? (
                             <>
                               <div className="order-1">
@@ -7650,7 +7571,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           )}
                         </div>
-                        )}
                       </div>
                     </div>
                   )}
@@ -7867,16 +7787,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 aria-hidden
                               />
 
-                              <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
-                                <div className={uiOsModalSectionIconWrap}>
-                                  <Calculator className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                              <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                                  <div className={uiOsModalSectionIconWrap}>
+                                    <Calculator className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                  </div>
+                                  <p className={uiOsModalCardSectionTitle}>
+                                    Orçamentos
+                                  </p>
                                 </div>
-                                <p className={uiOsModalCardSectionTitle}>
-                                  Orçamentos
-                                </p>
+                                {!isPatioPcModal ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openBudgetModal()}
+                                    className="inline-flex shrink-0 items-center rounded-md bg-[#4FA8FF] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:bg-[#3397F8] active:scale-[0.98] dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+                                  >
+                                    + Criar orçamento
+                                  </button>
+                                ) : null}
                               </div>
 
                               <div className="relative space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+                                {isPatioPcModal ? (
                                 <button
                                   type="button"
                                   onClick={() => openBudgetModal()}
@@ -7887,6 +7819,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <Calculator className="h-5 w-5 shrink-0 text-white transition-transform group-hover:scale-110 dark:text-[#007AFF]" strokeWidth={2.25} />
                                   </span>
                                 </button>
+                                ) : null}
 
                                 <div className="max-h-[380px] space-y-2.5 overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50">
                               {savedBudgets
