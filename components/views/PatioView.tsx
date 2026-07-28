@@ -1122,7 +1122,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [pendingReferenceLink, setPendingReferenceLink] = useState<{ label: string; url: string } | null>(null);
   const [referenceLinksSaving, setReferenceLinksSaving] = useState(false);
   const [isAnexosAddMenuOpen, setIsAnexosAddMenuOpen] = useState(false);
+  const [anexosAddMenuPos, setAnexosAddMenuPos] = useState<{ top: number; right: number } | null>(null);
   const anexosAddMenuRef = useRef<HTMLDivElement>(null);
+  const anexosAddMenuPanelRef = useRef<HTMLDivElement>(null);
   /** Conserto externo (laboratório): rascunho do formulário no modal. */
   const [externalRepairDraft, setExternalRepairDraft] = useState<ExternalRepairDraft>(EMPTY_EXTERNAL_REPAIR_DRAFT);
   const [externalRepairSaving, setExternalRepairSaving] = useState(false);
@@ -1162,7 +1164,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!isAnexosAddMenuOpen) return;
     const onPointerDown = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node | null;
-      if (target && anexosAddMenuRef.current?.contains(target)) return;
+      if (
+        target &&
+        (anexosAddMenuRef.current?.contains(target) || anexosAddMenuPanelRef.current?.contains(target))
+      ) {
+        return;
+      }
       setIsAnexosAddMenuOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1175,6 +1182,29 @@ export const PatioView: React.FC<PatioViewProps> = ({
       document.removeEventListener('mousedown', onPointerDown);
       document.removeEventListener('touchstart', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isAnexosAddMenuOpen]);
+
+  useLayoutEffect(() => {
+    if (!isAnexosAddMenuOpen) {
+      setAnexosAddMenuPos(null);
+      return;
+    }
+    const updatePos = () => {
+      const el = anexosAddMenuRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setAnexosAddMenuPos({
+        top: Math.min(rect.bottom + 6, window.innerHeight - 12),
+        right: Math.max(8, window.innerWidth - rect.right),
+      });
+    };
+    updatePos();
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, true);
+    return () => {
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos, true);
     };
   }, [isAnexosAddMenuOpen]);
 
@@ -8093,67 +8123,79 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     >
                                       + Adicionar
                                     </button>
-                                    {isAnexosAddMenuOpen ? (
-                                      <div
-                                        role="menu"
-                                        className="absolute right-0 top-[calc(100%+0.4rem)] z-30 min-w-[11.5rem] overflow-hidden rounded-xl border border-zinc-200/90 bg-white py-1 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.28)] animate-in fade-in zoom-in-95 duration-150 dark:border-white/[0.1] dark:bg-zinc-900 dark:shadow-[0_16px_48px_-14px_rgba(0,0,0,0.65)]"
-                                      >
-                                        <button
-                                          type="button"
-                                          role="menuitem"
-                                          disabled={isUploading}
-                                          onClick={() => {
-                                            setIsAnexosAddMenuOpen(false);
-                                            cameraInputRef.current?.click();
-                                          }}
-                                          className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
-                                        >
-                                          <Camera className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
-                                          Câmera
-                                        </button>
-                                        <button
-                                          type="button"
-                                          role="menuitem"
-                                          disabled={isUploading}
-                                          onClick={() => {
-                                            setIsAnexosAddMenuOpen(false);
-                                            galleryInputRef.current?.click();
-                                          }}
-                                          className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
-                                        >
-                                          <ImageIcon className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
-                                          Galeria
-                                        </button>
-                                        <button
-                                          type="button"
-                                          role="menuitem"
-                                          disabled={isUploading}
-                                          onClick={() => {
-                                            setIsAnexosAddMenuOpen(false);
-                                            filesInputRef.current?.click();
-                                          }}
-                                          className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
-                                        >
-                                          <FolderOpen className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
-                                          Arquivos
-                                        </button>
-                                        {can('canEditFicha') ? (
-                                          <button
-                                            type="button"
-                                            role="menuitem"
-                                            disabled={pendingReferenceLink != null}
-                                            onClick={() => {
-                                              setIsAnexosAddMenuOpen(false);
-                                              setPendingReferenceLink({ label: '', url: '' });
+                                    {isAnexosAddMenuOpen &&
+                                    anexosAddMenuPos &&
+                                    typeof document !== 'undefined'
+                                      ? createPortal(
+                                          <div
+                                            ref={anexosAddMenuPanelRef}
+                                            role="menu"
+                                            style={{
+                                              position: 'fixed',
+                                              top: anexosAddMenuPos.top,
+                                              right: anexosAddMenuPos.right,
+                                              zIndex: 400,
                                             }}
-                                            className="flex w-full items-center gap-2.5 border-t border-zinc-100 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.08] dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                            className="min-w-[11.5rem] overflow-hidden rounded-xl border border-zinc-200/90 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.35)] animate-in fade-in zoom-in-95 duration-150 dark:border-white/[0.1] dark:bg-zinc-900 dark:shadow-[0_20px_56px_-14px_rgba(0,0,0,0.7)]"
                                           >
-                                            <Link2 className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
-                                            Links
-                                          </button>
-                                        ) : null}
-                                      </div>
-                                    ) : null}
+                                            <button
+                                              type="button"
+                                              role="menuitem"
+                                              disabled={isUploading}
+                                              onClick={() => {
+                                                setIsAnexosAddMenuOpen(false);
+                                                cameraInputRef.current?.click();
+                                              }}
+                                              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                            >
+                                              <Camera className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                              Câmera
+                                            </button>
+                                            <button
+                                              type="button"
+                                              role="menuitem"
+                                              disabled={isUploading}
+                                              onClick={() => {
+                                                setIsAnexosAddMenuOpen(false);
+                                                galleryInputRef.current?.click();
+                                              }}
+                                              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                            >
+                                              <ImageIcon className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                              Galeria
+                                            </button>
+                                            <button
+                                              type="button"
+                                              role="menuitem"
+                                              disabled={isUploading}
+                                              onClick={() => {
+                                                setIsAnexosAddMenuOpen(false);
+                                                filesInputRef.current?.click();
+                                              }}
+                                              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                            >
+                                              <FolderOpen className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                              Arquivos
+                                            </button>
+                                            {can('canEditFicha') ? (
+                                              <button
+                                                type="button"
+                                                role="menuitem"
+                                                disabled={pendingReferenceLink != null}
+                                                onClick={() => {
+                                                  setIsAnexosAddMenuOpen(false);
+                                                  setPendingReferenceLink({ label: '', url: '' });
+                                                }}
+                                                className="flex w-full items-center gap-2.5 border-t border-zinc-100 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.08] dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                              >
+                                                <Link2 className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                                Links
+                                              </button>
+                                            ) : null}
+                                          </div>,
+                                          document.body
+                                        )
+                                      : null}
                                 </div>
                             </div>
                             </div>
