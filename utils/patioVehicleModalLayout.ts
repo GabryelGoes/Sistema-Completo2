@@ -203,7 +203,7 @@ export function getPatioVehicleModalLayout(
       headerMeta:
         'patio-vm-header-meta patio-vm-header-meta--tablet mt-2 grid w-full min-w-0 grid-cols-2 gap-2',
       title:
-        'font-vehicle min-w-0 flex-1 truncate text-[2.2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white',
+        'font-vehicle min-w-0 flex-1 truncate text-[2.53rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white',
       titlePlateRow: 'mt-1 flex min-w-0 items-center gap-2.5',
       brandSubtitle: 'text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',
       stagePill: `${STAGE_PILL_BASE} rounded-[16px] px-3.5 py-2.5 text-[13px] tracking-[0.12em]`,
