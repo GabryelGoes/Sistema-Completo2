@@ -6863,6 +6863,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </p>
                         ) : null}
                         <div className={`${patioVehicleVm.titlePlateRow}`}>
+                          {!isModuleMode && isPatioTabletPortrait ? (
+                            <VehicleBrandLogo
+                              brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
+                              size={patioVehicleVm.brandLogoSize}
+                            />
+                          ) : null}
                           <h1
                             className={`${patioVehicleVm.title} min-w-0 flex-1 ${vehicleModalTitleShadow}`}
                             title={selectedCardTitleParts?.vehicle}
@@ -6883,7 +6889,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               />
                             </div>
                           ) : null}
-                          {!isModuleMode && !isPatioPcModal ? (
+                          {!isModuleMode && isPatioTabletPortrait ? (
+                            <div className="inline-flex shrink-0 items-center justify-center">
+                              <MercosulPlateMockup
+                                plate={selectedCardTitleParts?.plateOrModule || '---'}
+                                blurPlates={blurPlates}
+                                size={patioVehicleVm.plateMockupSize}
+                                selectable
+                              />
+                            </div>
+                          ) : null}
+                          {!isModuleMode && !isPatioPcModal && !isPatioTabletPortrait ? (
                             <div className="inline-flex shrink-0 origin-right items-center justify-center gap-2">
                               <VehicleBrandLogo
                                 brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
