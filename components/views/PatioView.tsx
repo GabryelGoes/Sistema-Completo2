@@ -178,6 +178,7 @@ import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
 import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
 import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsModalPcTabBar';
 import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServicesSection';
+import { PatioBoardOriginIcon } from '../patio/PatioBoardOriginIcon';
 import { BudgetReadModalBody } from '../budget/BudgetReadModalBody';
 import { BudgetVerificationPanel } from '../budget/BudgetVerificationPanel';
 import { BudgetVerifiedSeal } from '../budget/BudgetVerifiedSeal';
@@ -5488,16 +5489,29 @@ export const PatioView: React.FC<PatioViewProps> = ({
           const hasLabReady = linkedLabServices.some(
             (l) => labLinkedStatusByOrderId[l.laboratoryOrderId] === "PRONTO_PRA_RETIRADA"
           );
+          const labModuleReady =
+            fromPatio &&
+            (card.idList === 'PRONTO_PRA_RETIRADA' || listNameLower.includes('pronto pra retirada'));
+          const showOriginCue = hasLabUndelivered || fromPatio;
+          const originReady = hasLabUndelivered ? hasLabReady : labModuleReady;
+          const originTint: 'violet' | 'amber' | 'green' | null = !showOriginCue
+            ? null
+            : originReady
+              ? 'green'
+              : hasLabUndelivered
+                ? 'violet'
+                : 'amber';
           const cardRingClass = isGarantia
             ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40'
-            : fromPatio
-              ? 'ring-2 ring-amber-500 ring-offset-0 border-amber-500/50 dark:ring-amber-400 dark:border-amber-400/50'
-              : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]';
-          const labCardGlowClass = hasLabUndelivered
-            ? hasLabReady
+            : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]';
+          const originGlowClass =
+            originTint === 'green'
               ? 'shadow-[0_0_22px_-4px_rgba(34,197,94,0.55),0_10px_28px_-12px_rgba(34,197,94,0.4)]'
-              : 'shadow-[0_0_22px_-4px_rgba(139,92,246,0.55),0_10px_28px_-12px_rgba(139,92,246,0.4)]'
-            : '';
+              : originTint === 'violet'
+                ? 'shadow-[0_0_22px_-4px_rgba(139,92,246,0.55),0_10px_28px_-12px_rgba(139,92,246,0.4)]'
+                : originTint === 'amber'
+                  ? 'shadow-[0_0_22px_-4px_rgba(245,158,11,0.55),0_10px_28px_-12px_rgba(245,158,11,0.4)]'
+                  : '';
 
           return (
             <div
@@ -5538,7 +5552,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 className={`
                   group relative flex h-auto min-h-0 w-full flex-col overflow-hidden
                   border bg-white/70 backdrop-blur-2xl dark:bg-zinc-900/40
-                  ${hasLabUndelivered ? labCardGlowClass : patioBoardGlassCardShadow}
+                  ${showOriginCue ? originGlowClass : patioBoardGlassCardShadow}
                   hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
                   active:scale-[0.99]
                   transition-[border-color,transform,box-shadow] duration-200 ease-out
@@ -5551,13 +5565,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ${cardRingClass}
                 `}
               >
-              {/* Filtro suave: violeta (no lab) / verde (pronto para retirada) */}
-              {hasLabUndelivered ? (
+              {/* Filtro suave: violeta (pátio→lab) / âmbar (lab←pátio) / verde (pronto) */}
+              {originTint ? (
                 <div
                   className={`pointer-events-none absolute inset-0 z-[1] rounded-[inherit] ${
-                    hasLabReady
+                    originTint === 'green'
                       ? 'bg-green-500/[0.14] dark:bg-green-400/[0.16]'
-                      : 'bg-violet-500/[0.14] dark:bg-violet-400/[0.16]'
+                      : originTint === 'violet'
+                        ? 'bg-violet-600/[0.22] dark:bg-violet-400/[0.16]'
+                        : 'bg-amber-500/[0.18] dark:bg-amber-400/[0.16]'
                   }`}
                   aria-hidden
                 />
@@ -5637,9 +5653,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
                 ) : null}
 
-                {/* Técnico + placa na mesma linha */}
+                {/* Técnico + ícone de origem (centro) + placa */}
                 <div
-                  className={`flex min-w-0 items-center justify-between gap-2 ${
+                  className={`grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 ${
                     customerName
                       ? boardPanoramic
                         ? 'mt-1.5'
@@ -5649,7 +5665,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         : 'mt-1'
                   }`}
                 >
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 justify-self-start">
                     <button
                       type="button"
                       disabled={!canAssignMember}
@@ -5690,36 +5706,26 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </span>
                     </button>
                   </div>
-                  {!isModuleMode ? (
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {hasLabUndelivered ? (
-                        <img
-                          src="/icons/laboratorio-ios.png"
-                          alt=""
-                          title={
-                            hasLabReady
-                              ? 'Peça pronta para retirada no laboratório'
-                              : 'Peça em andamento no laboratório'
-                          }
-                          className={`shrink-0 rounded-[9px] object-cover shadow-sm ring-1 ring-black/10 dark:ring-white/15 ${
-                            boardPanoramic
-                              ? 'h-8 w-8 portrait:h-7 portrait:w-7'
-                              : 'h-9 w-9 portrait:h-8 portrait:w-8'
-                          }`}
-                          aria-label={
-                            hasLabReady
-                              ? 'Peça pronta para retirada no laboratório'
-                              : 'Peça em andamento no laboratório'
-                          }
-                        />
-                      ) : null}
+                  <div className="flex justify-self-center">
+                    {showOriginCue ? (
+                      <PatioBoardOriginIcon
+                        kind={hasLabUndelivered ? 'laboratorio' : 'patio'}
+                        ready={originReady}
+                        size={boardPanoramic ? 'cardCompact' : 'card'}
+                      />
+                    ) : (
+                      <span className="inline-block w-0" aria-hidden />
+                    )}
+                  </div>
+                  <div className="flex justify-self-end">
+                    {!isModuleMode ? (
                       <MercosulPlateMockup
                         plate={plate}
                         blurPlates={blurPlates}
                         size={boardPanoramic ? 'cardCompact' : 'cardGrid'}
                       />
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </div>
                 {isModuleMode &&
                 (typeof card.benchSlot === 'number' ||
@@ -6564,6 +6570,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const modalStageStatus = resolveCardStageStatus(selectedCard);
         const modalListName = resolveCardStageLabel(selectedCard);
         const modalStatusConfig = getStatusConfig(modalListName, modalStageStatus);
+        const modalFromPatio = isModuleMode && isLabModuleFromPatio(selectedCard.desc);
+        const modalHasLabUndelivered =
+          !isModuleMode &&
+          labServiceLinksDraft.some((l) => {
+            const st =
+              labOrdersLookup[l.laboratoryOrderId]?.status ??
+              labLinkedStatusByOrderId[l.laboratoryOrderId];
+            return st !== 'CANCELLED';
+          });
+        const modalLabReady =
+          !isModuleMode &&
+          labServiceLinksDraft.some((l) => {
+            const st =
+              labOrdersLookup[l.laboratoryOrderId]?.status ??
+              labLinkedStatusByOrderId[l.laboratoryOrderId];
+            return st === 'PRONTO_PRA_RETIRADA';
+          });
+        const modalLabModuleReady =
+          modalFromPatio &&
+          (modalStageStatus === 'PRONTO_PRA_RETIRADA' ||
+            modalListName.toLowerCase().includes('pronto pra retirada'));
+        const modalShowOriginIcon = modalHasLabUndelivered || modalFromPatio;
+        const modalOriginReady = modalHasLabUndelivered ? modalLabReady : modalLabModuleReady;
+        const modalOriginKind = modalHasLabUndelivered ? 'laboratorio' : 'patio';
+        const modalOriginIcon = modalShowOriginIcon ? (
+          <PatioBoardOriginIcon kind={modalOriginKind} ready={modalOriginReady} size="modal" />
+        ) : null;
         const modalRingClass = (() => {
           if (!patioVehicleVm.showStageRing) {
             return '';
@@ -7016,22 +7049,31 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           >
                             {selectedCardTitleParts?.vehicle}
                           </h1>
+                          {isModuleMode && modalOriginIcon ? (
+                            <div className="inline-flex shrink-0 items-center justify-center pl-1">
+                              {modalOriginIcon}
+                            </div>
+                          ) : null}
                           {!isModuleMode && isPatioPcModal ? (
-                            <div className="inline-flex shrink-0 origin-right scale-[1.08] items-center justify-center gap-2">
+                            <div className="inline-flex shrink-0 origin-right scale-[1.08] items-center justify-center gap-2.5">
                               <VehicleBrandLogo
                                 brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
                                 size={patioVehicleVm.brandLogoSize}
                               />
-                              <MercosulPlateMockup
-                                plate={selectedCardTitleParts?.plateOrModule || '---'}
-                                blurPlates={blurPlates}
-                                size={patioVehicleVm.plateMockupSize}
-                                selectable
-                              />
+                              <div className="inline-flex items-center gap-3.5">
+                                {modalOriginIcon}
+                                <MercosulPlateMockup
+                                  plate={selectedCardTitleParts?.plateOrModule || '---'}
+                                  blurPlates={blurPlates}
+                                  size={patioVehicleVm.plateMockupSize}
+                                  selectable
+                                />
+                              </div>
                             </div>
                           ) : null}
                           {!isModuleMode && isPatioTabletPortrait ? (
-                            <div className="inline-flex shrink-0 items-center justify-center">
+                            <div className="inline-flex shrink-0 items-center justify-center gap-3.5">
+                              {modalOriginIcon}
                               <MercosulPlateMockup
                                 plate={selectedCardTitleParts?.plateOrModule || '---'}
                                 blurPlates={blurPlates}
@@ -7041,17 +7083,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           ) : null}
                           {!isModuleMode && !isPatioPcModal && !isPatioTabletPortrait ? (
-                            <div className="inline-flex shrink-0 origin-right items-center justify-center gap-2">
+                            <div className="inline-flex shrink-0 origin-right items-center justify-center gap-2.5">
                               <VehicleBrandLogo
                                 brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
                                 size={patioVehicleVm.brandLogoSize}
                               />
-                              <MercosulPlateMockup
-                                plate={selectedCardTitleParts?.plateOrModule || '---'}
-                                blurPlates={blurPlates}
-                                size={patioVehicleVm.plateMockupSize}
-                                selectable
-                              />
+                              <div className="inline-flex items-center gap-3.5">
+                                {modalOriginIcon}
+                                <MercosulPlateMockup
+                                  plate={selectedCardTitleParts?.plateOrModule || '---'}
+                                  blurPlates={blurPlates}
+                                  size={patioVehicleVm.plateMockupSize}
+                                  selectable
+                                />
+                              </div>
                             </div>
                           ) : null}
                         </div>
