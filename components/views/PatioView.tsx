@@ -3631,7 +3631,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
 
     if (!newLabProductKind) {
-      alert("Selecione o tipo de produto ou marque a opção para digitar o nome manualmente.");
+      alert("Selecione o item ou marque a opção para digitar o nome manualmente.");
       return;
     }
     if (newLabProductKind === OTHER_MODULE_KIND_ID && !newLabProductOther.trim()) {
@@ -3706,7 +3706,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
     const kind = newLabProductKind || loadLastLabProductKind();
     if (!kind) {
-      alert('Selecione o tipo de produto antes do envio rápido.');
+      alert('Selecione o item antes do envio rápido.');
       return;
     }
     if (!newLabProductKind) setNewLabProductKind(kind as ModuleKind);
