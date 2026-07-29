@@ -7333,7 +7333,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             >
                               <div className={`${c.row} w-full`}>
                                 <p
-                                  className={`min-w-0 flex-1 truncate text-[12px] font-bold uppercase leading-tight tracking-wide ${
+                                  className={`min-w-0 flex-1 truncate text-[15px] font-bold uppercase leading-tight tracking-wide ${
                                     isExternalRepairStatus(modalStageStatus)
                                       ? '!text-white'
                                       : '!text-black dark:!text-black'
@@ -7342,7 +7342,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   {modalListName}
                                 </p>
                                 <ChevronDown
-                                  className={`${c.chevron} shrink-0 opacity-90 ${
+                                  className={`h-4 w-4 shrink-0 opacity-90 ${
                                     isExternalRepairStatus(modalStageStatus)
                                       ? 'text-white'
                                       : 'text-black dark:text-black'
