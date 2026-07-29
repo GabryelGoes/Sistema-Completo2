@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Wrench, Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Zap } from 'lucide-react';
+import { Wrench, Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Zap, Check, Pencil } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
 import { uiOsModalCardSectionTitle, uiOsModalSectionIconWrap } from '../ui/appTypography';
@@ -87,12 +87,17 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
 }) => {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [manualProductName, setManualProductName] = useState(false);
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [quickServices, setQuickServices] = useState<LabQuickService[]>(() => getLabQuickServices());
   const [quickSendModalOpen, setQuickSendModalOpen] = useState(false);
   const isOpen = !collapsible || expanded;
   const listProductKindOptions = productKindOptions.filter((opt) => opt.value !== otherProductKindId);
   const linkedCount = labServiceLinksDraft.length;
   const busy = creatingLabService || labServiceLinksSaving || quickSendingServiceId != null;
+
+  const selectedItemLabel = manualProductName
+    ? newLabProductOther.trim() || 'Item não está na lista'
+    : listProductKindOptions.find((opt) => opt.value === newLabProductKind)?.label ?? '';
 
   const reloadQuickServices = useCallback(() => {
     setQuickServices(getLabQuickServices());
@@ -116,21 +121,28 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
     }
   }, [quickSendingServiceId]);
 
-  const toggleManualProductName = (checked: boolean) => {
-    setManualProductName(checked);
-    if (checked) {
-      onLabProductKindChange(otherProductKindId);
-    } else {
-      onLabProductKindChange('');
-      onLabProductOtherChange('');
-    }
-  };
-
   useEffect(() => {
+    if (newLabProductKind === otherProductKindId) {
+      setManualProductName(true);
+      return;
+    }
     if (!newLabProductKind && !newLabProductOther.trim()) {
       setManualProductName(false);
     }
-  }, [newLabProductKind, newLabProductOther]);
+  }, [newLabProductKind, newLabProductOther, otherProductKindId]);
+
+  const handleSelectListedItem = (value: string) => {
+    setManualProductName(false);
+    onLabProductKindChange(value);
+    onLabProductOtherChange('');
+    setItemPickerOpen(false);
+  };
+
+  const handleSelectItemNotInList = () => {
+    setManualProductName(true);
+    onLabProductKindChange(otherProductKindId);
+    setItemPickerOpen(false);
+  };
 
   const handleSelectQuickService = (preset: LabQuickService) => {
     if (!onQuickSendService || busy) return;
@@ -182,58 +194,38 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
 
         {isOpen ? (
         <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
-          {/* 1. Item a enviar (antes: tipo de produto) */}
+          {/* 1. Item a enviar — lista em janelinha */}
           <div className="space-y-2">
-            <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-zinc-200/80 bg-white/90 px-3 py-2.5 dark:border-white/[0.1] dark:bg-zinc-950/50">
-              <input
-                type="checkbox"
-                checked={manualProductName}
-                onChange={(e) => toggleManualProductName(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-[#007AFF] focus:ring-[#007AFF]/40"
-              />
-              <span className="text-[13px] leading-snug text-zinc-700 dark:text-zinc-200">
-                <span className="font-semibold">Item não está na lista</span>
-                <span className="block text-[12px] font-normal text-zinc-500 dark:text-zinc-400">
-                  Marque para digitar o nome do item manualmente.
-                </span>
-              </span>
+            <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              Item a enviar
             </label>
+            <button
+              type="button"
+              onClick={() => setItemPickerOpen(true)}
+              disabled={busy}
+              className={`${inputClass} !flex !h-11 w-full !cursor-pointer items-center justify-between gap-2 !py-0 text-left text-[13px] disabled:opacity-55`}
+            >
+              <span
+                className={`min-w-0 flex-1 truncate ${
+                  selectedItemLabel
+                    ? 'font-medium text-zinc-900 dark:text-zinc-100'
+                    : 'text-zinc-400 dark:text-zinc-500'
+                }`}
+              >
+                {selectedItemLabel || 'Selecione o item'}
+              </span>
+              <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
+            </button>
 
             {manualProductName ? (
-              <div>
-                <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Item a enviar
-                </label>
-                <input
-                  value={newLabProductOther}
-                  onChange={(e) => onLabProductOtherChange(e.target.value)}
-                  placeholder="Ex.: bomba de direção, atuador, válvula solenoide…"
-                  className={`${inputClass} !h-11 !py-0 text-[13px]`}
-                />
-              </div>
-            ) : (
-              <div>
-                <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Item a enviar
-                </label>
-                <select
-                  value={newLabProductKind}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    onLabProductKindChange(next);
-                    if (next !== otherProductKindId) onLabProductOtherChange('');
-                  }}
-                  className={`${inputClass} !h-11 !py-0 text-[13px]`}
-                >
-                  <option value="">Selecione o item</option>
-                  {listProductKindOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+              <input
+                value={newLabProductOther}
+                onChange={(e) => onLabProductOtherChange(e.target.value)}
+                placeholder="Digite o nome do item…"
+                className={`${inputClass} !h-11 !py-0 text-[13px]`}
+                autoFocus
+              />
+            ) : null}
           </div>
 
           {/* 2. Serviço (orçamento / manual) + Enviar */}
