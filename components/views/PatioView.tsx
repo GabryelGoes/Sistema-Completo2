@@ -9791,7 +9791,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {isBudgetOpen && selectedCard && patioPortalsVisible && (
         <ModalPortal>
         <div
-          className={`budget-modal-light-chrome fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden ${budgetModalPaperShell} ${modalBackdropAnimClass(budgetModalExiting)}${!isPatioPcModal ? ' budget-modal--compact' : ''}`}
+          className={`budget-modal-light-chrome fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col ${!isPatioPcModal ? 'budget-modal--compact overflow-y-hidden' : 'overflow-hidden'} ${budgetModalPaperShell} ${modalBackdropAnimClass(budgetModalExiting)}`}
           style={{ colorScheme: 'light' }}
         >
             <div className={`relative z-[1] flex min-h-0 flex-1 flex-col ${budgetModalExiting ? 'animate-modal-sheet-out pointer-events-none' : ''}`}>
