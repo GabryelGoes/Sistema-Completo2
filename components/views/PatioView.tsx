@@ -6876,6 +6876,31 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               : 'flex flex-wrap items-center gap-2'
                           }
                         >
+                          {isPatioTabletPortrait && !isModuleMode ? (
+                            <div className="flex min-h-10 w-full min-w-0 items-center gap-2 pr-[calc(5.75rem+env(safe-area-inset-right,0px))]">
+                              {selectedCard.garantiaTag ? (
+                                <span className="inline-flex max-w-full items-center gap-2 rounded-full border-2 border-red-500/50 bg-red-500/15 px-4 py-2 text-sm font-bold uppercase tracking-wide text-red-600 dark:bg-red-500/20 dark:text-red-400">
+                                  Garantia
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveGarantia();
+                                    }}
+                                    disabled={removingGarantiaId === selectedCard.id}
+                                    className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500/30 text-red-700 transition-colors hover:bg-red-500/50 disabled:opacity-50 dark:text-red-300"
+                                    title="Remover etiqueta Garantia"
+                                  >
+                                    {removingGarantiaId === selectedCard.id ? (
+                                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <X className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : (
                           <div className="flex flex-wrap items-center gap-2">
                           {!patioVehicleVm.hideOsBadge &&
                           (serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null ? (
@@ -6883,7 +6908,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               OS #{(serviceOrderDetail?.os_number ?? selectedCard.osNumber)}
                             </span>
                           ) : null}
-                          {!(isPatioTabletPortrait && !isModuleMode) ? (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -6900,7 +6924,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               aria-hidden
                             />
                           </button>
-                          ) : null}
                           {selectedCard.garantiaTag && (
                             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 border-2 border-red-500/50">
                               Garantia
@@ -6916,6 +6939,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </span>
                           )}
                           </div>
+                          )}
                         </div>
                         {!isModuleMode &&
                         isPatioPcModal &&
@@ -7303,31 +7327,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 handleOpenMoveModal(selectedCard, e);
                               }}
                               title="Alterar etapa"
-                              className={`patio-vm-card patio-vm-meta-card group relative order-6 col-start-2 w-full cursor-pointer overflow-hidden rounded-[16px] border-2 text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.14)] transition-all duration-200 hover:brightness-110 active:scale-[0.99] ${
+                              aria-label={`Alterar etapa: ${modalListName}`}
+                              className={`patio-vm-card patio-vm-meta-card group relative order-6 col-start-2 flex w-full min-h-[3rem] cursor-pointer items-center overflow-hidden rounded-[16px] border-2 text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.14)] transition-all duration-200 hover:brightness-110 active:scale-[0.99] ${
                                 isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'
                               } ${modalStatusConfig.style}`}
                             >
-                              <div className={c.row}>
-                                <div className="min-w-0 flex-1">
-                                  <p
-                                    className={`${c.titleText} ${
-                                      isExternalRepairStatus(modalStageStatus)
-                                        ? '!text-white/80'
-                                        : '!text-black/65 dark:!text-black/65'
-                                    }`}
-                                  >
-                                    Etapa
-                                  </p>
-                                  <p
-                                    className={`${c.bodyText} uppercase tracking-wide ${
-                                      isExternalRepairStatus(modalStageStatus)
-                                        ? '!text-white'
-                                        : '!text-black dark:!text-black'
-                                    }`}
-                                  >
-                                    {modalListName}
-                                  </p>
-                                </div>
+                              <div className={`${c.row} w-full`}>
+                                <p
+                                  className={`min-w-0 flex-1 truncate text-[12px] font-bold uppercase leading-tight tracking-wide ${
+                                    isExternalRepairStatus(modalStageStatus)
+                                      ? '!text-white'
+                                      : '!text-black dark:!text-black'
+                                  }`}
+                                >
+                                  {modalListName}
+                                </p>
                                 <ChevronDown
                                   className={`${c.chevron} shrink-0 opacity-90 ${
                                     isExternalRepairStatus(modalStageStatus)
