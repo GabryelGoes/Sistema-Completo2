@@ -5551,7 +5551,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   group relative flex h-auto min-h-0 w-full flex-col overflow-hidden
                   border bg-white/70 backdrop-blur-2xl dark:bg-zinc-900/40
                   ${patioBoardGlassCardShadow}
-                  hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
+                  ${originTint ? '' : 'hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]'}
                   active:scale-[0.99]
                   transition-[border-color,transform,box-shadow] duration-200 ease-out
                   ${trelloDrag ? 'cursor-grab select-none active:cursor-grabbing' : 'cursor-pointer'}
