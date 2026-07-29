@@ -5503,15 +5503,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 : 'amber';
           const cardRingClass = isGarantia
             ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40'
-            : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]';
-          const originGlowClass =
-            originTint === 'green'
-              ? 'shadow-[0_0_22px_-4px_rgba(34,197,94,0.55),0_10px_28px_-12px_rgba(34,197,94,0.4)]'
+            : originTint === 'green'
+              ? 'border-2 border-green-500/75 dark:border-green-400/70'
               : originTint === 'violet'
-                ? 'shadow-[0_0_22px_-4px_rgba(139,92,246,0.55),0_10px_28px_-12px_rgba(139,92,246,0.4)]'
+                ? 'border-2 border-violet-500/75 dark:border-violet-400/70'
                 : originTint === 'amber'
-                  ? 'shadow-[0_0_22px_-4px_rgba(245,158,11,0.55),0_10px_28px_-12px_rgba(245,158,11,0.4)]'
-                  : '';
+                  ? 'border-2 border-amber-500/75 dark:border-amber-400/70'
+                  : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]';
 
           return (
             <div
@@ -5552,7 +5550,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 className={`
                   group relative flex h-auto min-h-0 w-full flex-col overflow-hidden
                   border bg-white/70 backdrop-blur-2xl dark:bg-zinc-900/40
-                  ${showOriginCue ? originGlowClass : patioBoardGlassCardShadow}
+                  ${patioBoardGlassCardShadow}
                   hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
                   active:scale-[0.99]
                   transition-[border-color,transform,box-shadow] duration-200 ease-out
@@ -5565,7 +5563,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ${cardRingClass}
                 `}
               >
-              {/* Filtro suave: violeta (pátio→lab) / âmbar (lab←pátio) / verde (pronto) */}
+              {/* Filtro só por dentro do card + borda colorida acima */}
               {originTint ? (
                 <div
                   className={`pointer-events-none absolute inset-0 z-[1] rounded-[inherit] ${
@@ -6150,18 +6148,40 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         ) : null}
                         <div className="mt-3 flex flex-col gap-3 text-zinc-700 dark:text-zinc-300 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-6 lg:gap-y-2">
                          {!isModuleMode && (
-                           <div className="flex shrink-0 items-center gap-2">
+                           <div className="flex shrink-0 items-center gap-2.5">
                               <VehicleBrandLogo
                                 brand={selectedHistoryCard?.vehicleBrand}
                                 size="modal"
                               />
-                              <MercosulPlateMockup
-                                plate={historyCardTitleParts?.plateOrModule || '---'}
-                                blurPlates={blurPlates}
-                                size="modal"
-                              />
+                              <div className="inline-flex items-center gap-3.5">
+                                {Array.isArray(selectedHistoryCard.labServiceLinks) &&
+                                selectedHistoryCard.labServiceLinks.some((l) => {
+                                  const st = labLinkedStatusByOrderId[l.laboratoryOrderId];
+                                  return st !== 'CANCELLED';
+                                }) ? (
+                                  <PatioBoardOriginIcon
+                                    kind="laboratorio"
+                                    ready={selectedHistoryCard.labServiceLinks.some(
+                                      (l) =>
+                                        labLinkedStatusByOrderId[l.laboratoryOrderId] ===
+                                        'PRONTO_PRA_RETIRADA'
+                                    )}
+                                    size="modal"
+                                  />
+                                ) : null}
+                                <MercosulPlateMockup
+                                  plate={historyCardTitleParts?.plateOrModule || '---'}
+                                  blurPlates={blurPlates}
+                                  size="modal"
+                                />
+                              </div>
                            </div>
                          )}
+                         {isModuleMode && isLabModuleFromPatio(selectedHistoryCard.desc) ? (
+                           <div className="flex shrink-0 items-center">
+                             <PatioBoardOriginIcon kind="patio" size="modal" />
+                           </div>
+                         ) : null}
                          <div
                            className={`${vehicleModalCustomerNameBox} flex min-w-0 flex-1 items-center gap-2 px-4 py-2.5 lg:max-w-xl lg:flex-1`}
                          >
