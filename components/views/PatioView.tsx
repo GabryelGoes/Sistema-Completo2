@@ -1114,8 +1114,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   
   // Bancada do laboratório (painel visual dos 24 compartimentos)
   const [benchPanelOpen, setBenchPanelOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    return window.localStorage.getItem('lab-bench-panel-open') !== '0';
+    if (typeof window === 'undefined') return false;
+    // Fechada por padrão; só abre ao clicar no botão (ou atalho da fila).
+    return window.localStorage.getItem('lab-bench-panel-open') === '1';
   });
   const [benchQueueModalOpen, setBenchQueueModalOpen] = useState(false);
   /** Módulos enviados para conserto externo (fora do quadro/bancada). */

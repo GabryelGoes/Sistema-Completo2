@@ -1232,7 +1232,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             />
           </IosAccentIconSquircle>
           <h1 className="min-w-0 truncate text-[22px] font-semibold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
-            {receptionMode === 'module' ? 'Cadastro de produto' : 'Recepção'}
+            {receptionMode === 'module' ? 'Cadastro de Produtos' : 'Cadastro de Veículos'}
           </h1>
         </div>
 
