@@ -279,12 +279,15 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
           <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
         </div>
         <div className="relative min-w-0">
-          <p className={uiOsModalCardSectionTitle}>Serviços no laboratório</p>
-          <IosNotificationBadge
-            count={linkedCount}
-            className="-right-3 -top-2"
-            ariaLabel={`${linkedCount} peça${linkedCount === 1 ? '' : 's'} no laboratório`}
-          />
+          <p className={uiOsModalCardSectionTitle}>Serviços Laboratório</p>
+          {/* No PC o badge fica só na barra de abas; aqui só tablet/mobile (collapsible). */}
+          {collapsible ? (
+            <IosNotificationBadge
+              count={linkedCount}
+              className="-right-4 -top-2"
+              ariaLabel={`${linkedCount} peça${linkedCount === 1 ? '' : 's'} no laboratório`}
+            />
+          ) : null}
         </div>
       </div>
       {collapsible ? (

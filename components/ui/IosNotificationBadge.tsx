@@ -9,6 +9,7 @@ type IosNotificationBadgeProps = {
 
 /**
  * Bolinha vermelha estilo notificação iOS (canto superior direito do alvo).
+ * ~15% menor que o tamanho “padrão” de 18px.
  */
 export const IosNotificationBadge: React.FC<IosNotificationBadgeProps> = ({
   count,
@@ -19,7 +20,7 @@ export const IosNotificationBadge: React.FC<IosNotificationBadgeProps> = ({
   const label = count > 99 ? '99+' : String(count);
   return (
     <span
-      className={`pointer-events-none absolute -right-1.5 -top-1.5 z-[2] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#FF3B30] px-[5px] text-[11px] font-bold leading-none text-white shadow-[0_1px_3px_rgba(0,0,0,0.28)] ring-2 ring-white dark:ring-zinc-900 ${className}`}
+      className={`pointer-events-none absolute z-[2] flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-[#FF3B30] px-[4px] text-[9.5px] font-bold leading-none text-white shadow-[0_1px_3px_rgba(0,0,0,0.28)] ring-2 ring-white dark:ring-zinc-900 ${className}`}
       aria-label={ariaLabel ?? `${count} notificaç${count === 1 ? 'ão' : 'ões'}`}
       role="status"
     >

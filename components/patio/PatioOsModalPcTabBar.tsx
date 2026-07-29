@@ -7,7 +7,7 @@ const ALL_TABS: { id: PatioOsModalPcTab; label: string }[] = [
   { id: 'dados', label: 'Dados' },
   { id: 'arquivos', label: 'Arquivos' },
   { id: 'conserto_externo', label: 'Conserto externo' },
-  { id: 'laboratorio', label: 'Serviços no laboratório' },
+  { id: 'laboratorio', label: 'Serviços Laboratório' },
 ];
 
 export type PatioOsModalPcTabBarProps = {
@@ -49,11 +49,11 @@ export const PatioOsModalPcTabBar: React.FC<PatioOsModalPcTabBarProps> = ({
                 : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
             }`}
           >
-            <span className="relative inline-block pr-0.5">
+            <span className="relative inline-block pr-1">
               {tab.label}
               <IosNotificationBadge
                 count={badgeCount}
-                className="-right-3 -top-2.5"
+                className="-right-4 -top-2.5"
                 ariaLabel={
                   tab.id === 'laboratorio'
                     ? `${badgeCount} peça${badgeCount === 1 ? '' : 's'} no laboratório`
