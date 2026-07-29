@@ -138,6 +138,15 @@ import {
 } from '../ui/appTypography';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { usePatioBoardLiveSync } from '../../hooks/usePatioBoardLiveSync';
+import {
+  modalBackdropAnimClass,
+  modalSheetAnimClass,
+  modalWpAppAnimClass,
+  useAnimatedModalClose,
+  useModalExitPresence,
+  useModalExitValue,
+  withModalExitOverlayClass,
+} from '../../hooks/useModalExitAnimation';
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from '../../utils/budgetPrintWithDetail';
 import { printLabModuleFicha } from '../../utils/labModuleFichaPrint';
 import { PATIO_CARD_TITLE_SEP, parsePatioCardTitle } from '../../utils/patioCardTitle';
@@ -1705,20 +1714,72 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const selectedCardTitleParts = selectedCard ? parsePatioCardTitle(selectedCard.name) : null;
   const historyCardTitleParts = selectedHistoryCard ? parsePatioCardTitle(selectedHistoryCard.name) : null;
-  const cardInTransitionTitleParts = cardInTransition ? parsePatioCardTitle(cardInTransition.name) : null;
   const serviceTechClosingTitleParts = serviceTechClosing ? parsePatioCardTitle(serviceTechClosing.name) : null;
 
-  const closePatioPrimaryOverlays = useCallback(() => {
+  const flushPatioPrimaryOverlays = useCallback(() => {
     setPreviewImages(null);
     setSelectedCard(null);
     setSelectedHistoryCard(null);
+    setHistoryServiceOrderDetail(null);
+    setHistorySavedBudgets([]);
     setViewingBudget(null);
     setIsBudgetOpen(false);
     setIsVehicleEditOpen(false);
     setIsDeleteVehicleOpen(false);
+    setIsDadosFichaExpanded(false);
+    setUnarchiveError(null);
   }, []);
 
   const patioPrimaryOverlayOpen = !!(selectedCard || selectedHistoryCard);
+  const {
+    exiting: primaryModalExiting,
+    requestClose: closePatioPrimaryOverlays,
+    closeImmediate: closePatioPrimaryOverlaysImmediate,
+  } = useAnimatedModalClose(patioPrimaryOverlayOpen, flushPatioPrimaryOverlays);
+
+  const {
+    exiting: budgetModalExiting,
+    requestClose: requestCloseBudgetModal,
+  } = useAnimatedModalClose(isBudgetOpen && patioPortalsVisible, closeBudgetModal);
+
+  const {
+    exiting: viewingBudgetExiting,
+    requestClose: requestCloseViewingBudget,
+  } = useAnimatedModalClose(!!viewingBudget && patioPortalsVisible, () => setViewingBudget(null));
+
+  const historyHubPresence = useModalExitPresence(isHistoryOpen && patioPortalsVisible);
+  const remindersPresence = useModalExitPresence(isRemindersOpen && patioPortalsVisible);
+  const {
+    displayed: moveCardDisplayed,
+    exiting: moveModalExiting,
+  } = useModalExitValue(patioPortalsVisible ? cardInTransition : null);
+  const cardInTransitionTitleParts = moveCardDisplayed
+    ? parsePatioCardTitle(moveCardDisplayed.name)
+    : null;
+  const {
+    displayed: assignCardDisplayed,
+    exiting: assignModalExiting,
+  } = useModalExitValue(patioPortalsVisible ? cardForMemberAssignment : null);
+  const checklistModalOpen = !!(
+    activeChecklistCardId &&
+    activeChecklistTemplateId &&
+    patioPortalsVisible
+  );
+  const {
+    exiting: checklistModalExiting,
+    requestClose: requestCloseChecklistModal,
+  } = useAnimatedModalClose(checklistModalOpen, () => {
+    setActiveChecklistCardId(null);
+    setActiveChecklistTemplateId(null);
+  });
+  const dadosFichaModalOpen = !!(
+    isDadosFichaExpanded &&
+    !isPatioPcModal &&
+    selectedCard &&
+    patioPortalsVisible
+  );
+  const dadosFichaPresence = useModalExitPresence(dadosFichaModalOpen);
+
   const patioPrimaryOverlayShown = patioPrimaryOverlayOpen && patioPortalsVisible;
   /** Sincroniza com o painel de chat: sombra extra só em modo claro sobre este modal. */
   useEffect(() => {
@@ -1732,7 +1793,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [patioPrimaryOverlayShown, isModuleMode]);
   useBrowserBackLayer(patioPrimaryOverlayShown, closePatioPrimaryOverlays);
   /** Pilha acima do modal do veículo: gesto voltar fecha só o orçamento e mantém a ficha aberta. */
-  useBrowserBackLayer(isBudgetOpen && patioPortalsVisible, closeBudgetModal);
+  useBrowserBackLayer(isBudgetOpen && patioPortalsVisible, requestCloseBudgetModal);
   useBrowserBackLayer(isPatioHeaderToolsOpen && patioPortalsVisible, () => setIsPatioHeaderToolsOpen(false));
   useBrowserBackLayer(isRemindersOpen && patioPortalsVisible, () => setIsRemindersOpen(false));
 
@@ -2002,6 +2063,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [vehicleEditModel, setVehicleEditModel] = useState('');
   const [vehicleEditPlate, setVehicleEditPlate] = useState('');
   const [savingVehicleEdit, setSavingVehicleEdit] = useState(false);
+  const vehicleEditPresence = useModalExitPresence(
+    isVehicleEditOpen && !!selectedCard && patioPortalsVisible
+  );
 
   /** Busca por placa no Pátio (cards ativos) + consulta PlacaFipe se não houver OS local. */
   const [patioPlateSearchInput, setPatioPlateSearchInput] = useState('');
@@ -3023,7 +3087,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     try {
       await deleteServiceOrderWithPassword(selectedCard.id, deleteVehiclePassword.trim());
       setCards((prev) => prev.filter((c) => c.id !== selectedCard.id));
-      setSelectedCard(null);
+      closePatioPrimaryOverlaysImmediate();
       setIsDeleteVehicleOpen(false);
       setDeleteVehiclePassword('');
       setDeleteVehiclePasswordReadonly(true);
@@ -3068,11 +3132,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     } catch {
       setChecklistState((prev) => ({ ...prev, [templateItemId]: currentState }));
     }
-  };
-
-  const closeChecklistModal = () => {
-    setActiveChecklistCardId(null);
-    setActiveChecklistTemplateId(null);
   };
 
   const handleSendComment = async () => {
@@ -4075,13 +4134,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const updated = await updateServiceOrderBudget(selectedCard.id, editingBudget.id, payload, actorOptions);
         setSavedBudgets(prev => prev.map(b => b.id === editingBudget.id ? updated : b));
         setConferenceBudgetId(editingBudget.id);
-        closeBudgetModal();
+        requestCloseBudgetModal();
         window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
       } else {
         const budget = await createServiceOrderBudget(selectedCard.id, payload, actorOptions);
         setSavedBudgets(prev => [budget, ...prev]);
         setConferenceBudgetId(budget.id);
-        closeBudgetModal();
+        requestCloseBudgetModal();
         window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
       }
     } catch (err: any) {
@@ -5850,11 +5909,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       </div>
 
       {/* --- MODAL DE HISTÓRICO (BUSCA) — portal em body para ficar acima da TabBar --- */}
-      {isHistoryOpen && patioPortalsVisible && (
+      {historyHubPresence.mounted && (
         <ModalPortal>
-          <div className={patioHistoryModalOverlayClass}>
+          <div className={withModalExitOverlayClass(patioHistoryModalOverlayClass, historyHubPresence.exiting)}>
             <div
-              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} animate-modal-wp-app`}
+              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${modalWpAppAnimClass(historyHubPresence.exiting)}`}
             >
               <button
                 type="button"
@@ -5954,9 +6013,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* --- DETALHES DO CARD ARQUIVADO — portal em body para ficar acima da TabBar --- */}
       {selectedHistoryCard && patioPortalsVisible && (
          <ModalPortal>
-         <div className={patioHistoryModalOverlayClass}>
+         <div className={withModalExitOverlayClass(patioHistoryModalOverlayClass, primaryModalExiting)}>
             <div
-              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${isPatioPcModal ? 'animate-modal-wp-app' : 'animate-in zoom-in-95 duration-200'}`}
+              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${
+                isPatioPcModal
+                  ? modalWpAppAnimClass(primaryModalExiting)
+                  : modalSheetAnimClass(primaryModalExiting)
+              }`}
             >
                <div className={`shrink-0 border-b border-zinc-200/60 dark:border-white/[0.07] ${isPatioPcModal ? 'px-10 py-4 xl:px-14' : 'px-4 py-3 sm:px-6'}`}>
                   <div className="flex flex-wrap items-center justify-end gap-2">
@@ -5985,10 +6048,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setUnarchiveError(null);
-                      setSelectedHistoryCard(null);
-                      setHistoryServiceOrderDetail(null);
-                      setHistorySavedBudgets([]);
+                      closePatioPrimaryOverlays();
                     }}
                     className={patioVehicleVm.closeBtn}
                     aria-label="Fechar"
@@ -6703,8 +6763,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
           ) : null;
         return (
         <ModalPortal>
-        <div className={patioVehicleModalOverlayClass}>
-           <div className={`${patioVehicleVm.shell} animate-modal-wp-app ${modalRingClass}`}>
+        <div className={withModalExitOverlayClass(patioVehicleModalOverlayClass, primaryModalExiting)}>
+           <div className={`${patioVehicleVm.shell} ${modalWpAppAnimClass(primaryModalExiting)} ${modalRingClass}`}>
               
               <div className={`absolute z-20 flex items-center gap-2 ${
                 isPatioPcModal
@@ -6736,7 +6796,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 )}
                 <button
                   type="button"
-                  onClick={() => setSelectedCard(null)}
+                  onClick={() => closePatioPrimaryOverlays()}
                   className={patioVehicleVm.closeBtn}
                   aria-label="Fechar"
                 >
@@ -7204,12 +7264,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </div>
 
                         {/* Dados da ficha — PC: expande no cabeçalho; tablet/mobile: modal (não tela cheia) */}
-                        {serviceOrderDetail && isDadosFichaExpanded && (
+                        {serviceOrderDetail && (isPatioPcModal ? isDadosFichaExpanded : dadosFichaPresence.mounted) && (
                         <div
                           className={
                             isPatioPcModal
                               ? 'mt-2 w-full'
-                              : 'fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-[16px] animate-in fade-in duration-200 sm:p-5'
+                              : `fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-[16px] sm:p-5 ${modalBackdropAnimClass(dadosFichaPresence.exiting)}`
                           }
                           onClick={
                             isPatioPcModal
@@ -7225,7 +7285,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         className={
                           isPatioPcModal
                             ? undefined
-                            : `relative flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[min(36rem,100%)] min-h-0 flex-col overflow-hidden ${iosVehicleModalShell} animate-in zoom-in-95 duration-200`
+                            : `relative flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[min(36rem,100%)] min-h-0 flex-col overflow-hidden ${iosVehicleModalShell} ${modalSheetAnimClass(dadosFichaPresence.exiting)}`
                         }
                         onClick={
                           isPatioPcModal
@@ -9032,11 +9092,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       })()}
 
       {/* --- MODAL DE LEMBRETES (PÁTIO / LABORATÓRIO) — portal em body + z acima da TabBar (igual orçamento) --- */}
-      {isRemindersOpen && patioPortalsVisible && (
+      {remindersPresence.mounted && (
         <ModalPortal>
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
+        <div className={`fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 ${modalBackdropAnimClass(remindersPresence.exiting)}`}>
           <div
-            className="relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-xl min-h-0 flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_24px_64px_-18px_rgba(0,0,0,0.14),0_10px_32px_-12px_rgba(0,0,0,0.08),0_1px_0_0_rgba(255,255,255,0.9)_inset] animate-in zoom-in-95 duration-200 dark:border-white/[0.08] dark:bg-zinc-900 dark:shadow-[0_20px_56px_-14px_rgba(0,0,0,0.55)] sm:rounded-[2.25rem]"
+            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-xl min-h-0 flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_24px_64px_-18px_rgba(0,0,0,0.14),0_10px_32px_-12px_rgba(0,0,0,0.08),0_1px_0_0_rgba(255,255,255,0.9)_inset] dark:border-white/[0.08] dark:bg-zinc-900 dark:shadow-[0_20px_56px_-14px_rgba(0,0,0,0.55)] sm:rounded-[2.25rem] ${modalSheetAnimClass(remindersPresence.exiting)}`}
           >
             <button
               type="button"
@@ -9403,10 +9463,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* MODAL EDITAR NOME DO VEÍCULO / PLACA — tipografia do nome nos inputs inalterada pelo usuário */}
-      {isVehicleEditOpen && selectedCard && patioPortalsVisible && (
+      {vehicleEditPresence.mounted && selectedCard && (
         <ModalPortal>
-        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
-          <div className={`relative flex max-h-[90vh] w-full max-w-md flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
+        <div className={`${iosModalOverlay} p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6 ${modalBackdropAnimClass(vehicleEditPresence.exiting)}`}>
+          <div className={`relative flex max-h-[90vh] w-full max-w-md flex-col ${iosModalShell} ${modalSheetAnimClass(vehicleEditPresence.exiting)}`}>
             <div className="border-b border-zinc-200/60 px-5 py-5 dark:border-white/[0.07] sm:px-6">
               <h3 className="flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
                 <Pencil className="h-5 w-5 text-[#007AFF]" />
@@ -9505,8 +9565,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* MODAL VISUALIZAR ORÇAMENTO — tema claro + selo de verificação */}
       {viewingBudget && (selectedCard || selectedHistoryCard) && patioPortalsVisible && (
         <ModalPortal>
-        <div className={budgetReadModalBackdropClass}>
-          <div className={budgetReadModalShellClass} style={{ colorScheme: 'light' }}>
+        <div
+          className={
+            viewingBudgetExiting
+              ? budgetReadModalBackdropClass.replace('animate-modal-backdrop', 'animate-modal-backdrop-out pointer-events-none')
+              : budgetReadModalBackdropClass
+          }
+        >
+          <div
+            className={
+              viewingBudgetExiting
+                ? budgetReadModalShellClass.replace('animate-modal-sheet', 'animate-modal-sheet-out pointer-events-none')
+                : budgetReadModalShellClass
+            }
+            style={{ colorScheme: 'light' }}
+          >
             <div className={budgetReadModalHeaderClass}>
               <div className="min-w-0 flex-1 pr-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -9537,7 +9610,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setViewingBudget(null)}
+                onClick={() => requestCloseViewingBudget()}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 transition-colors hover:bg-sky-100 hover:text-slate-900"
                 aria-label="Fechar"
               >
@@ -9604,7 +9677,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setViewingBudget(null)}
+                  onClick={() => requestCloseViewingBudget()}
                   disabled={!!deletingBudgetId || !!verifyingBudgetId}
                   className={budgetReadFooterPrimaryClass}
                 >
@@ -9631,11 +9704,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {isBudgetOpen && selectedCard && patioPortalsVisible && (
         <ModalPortal>
         <div
-          className={`budget-modal-light-chrome fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden animate-in fade-in duration-200 ${budgetModalPaperShell}`}
+          className={`budget-modal-light-chrome fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden ${budgetModalPaperShell} ${modalBackdropAnimClass(budgetModalExiting)}`}
           style={{ colorScheme: 'light' }}
         >
-            <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
-            <button type="button" onClick={closeBudgetModal} className="absolute right-4 top-[max(0.75rem,env(safe-area-inset-top))] z-20 flex h-10 w-10 items-center justify-center rounded-full bg-sky-900/10 text-sky-900 transition-colors hover:bg-sky-200/90 hover:text-sky-950" aria-label="Fechar orçamento">
+            <div className={`relative z-[1] flex min-h-0 flex-1 flex-col ${budgetModalExiting ? 'animate-modal-sheet-out pointer-events-none' : ''}`}>
+            <button type="button" onClick={requestCloseBudgetModal} className="absolute right-4 top-[max(0.75rem,env(safe-area-inset-top))] z-20 flex h-10 w-10 items-center justify-center rounded-full bg-sky-900/10 text-sky-900 transition-colors hover:bg-sky-200/90 hover:text-sky-950" aria-label="Fechar orçamento">
               <X className="h-5 w-5" />
             </button>
 
@@ -10060,11 +10133,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       ) : null}
 
       {/* MODAL DE SELEÇÃO DE ETAPA (MOVE) — portal em body para ficar acima da TabBar */}
-      {cardInTransition && patioPortalsVisible && (
+      {moveCardDisplayed && (
         <ModalPortal>
-        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}>
+        <div className={`${iosModalOverlay} p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 ${modalBackdropAnimClass(moveModalExiting)}`}>
           <div
-            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosVehicleModalShell} animate-in zoom-in-95 duration-200`}
+            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosVehicleModalShell} ${modalSheetAnimClass(moveModalExiting)}`}
           >
             <button
               type="button"
@@ -10110,7 +10183,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   Atualizando etapa…
                 </p>
               )}
-              {isExternalRepairStatus(cardInTransition.idList) ? (
+              {isExternalRepairStatus(moveCardDisplayed.idList) ? (
                 <div
                   ref={(el) => {
                     moveModalCurrentStageRef.current = el;
@@ -10129,7 +10202,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div className="space-y-2.5">
                 {lists.map((list) => {
                   const config = getStatusConfig(list.name, list.id);
-                  const isCurrent = !isExternalRepairStatus(cardInTransition.idList) && list.id === cardInTransition.idList;
+                  const isCurrent = !isExternalRepairStatus(moveCardDisplayed.idList) && list.id === moveCardDisplayed.idList;
                   return (
                     <button
                       key={list.id}
@@ -10170,14 +10243,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 })}
               </div>
               {isModuleMode &&
-              cardInTransition &&
-              !isExternalRepairStatus(cardInTransition.idList) &&
+              moveCardDisplayed &&
+              !isExternalRepairStatus(moveCardDisplayed.idList) &&
               can('canEditFicha') ? (
                 <div className="mt-4 border-t border-zinc-200/70 pt-4 dark:border-white/[0.08]">
                   <p className={iosLabel}>Conserto em terceiros</p>
                   <button
                     type="button"
-                    onClick={() => void handleSendToExternalRepair(cardInTransition.id)}
+                    onClick={() => void handleSendToExternalRepair(moveCardDisplayed.id)}
                     disabled={isMoving}
                     className={`group flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[16px] border-2 border-transparent px-4 py-3.5 text-left transition-all duration-200 sm:min-h-[56px] sm:px-5 ${EXTERNAL_REPAIR_STAGE.style} shadow-[0_2px_12px_-2px_rgba(0,0,0,0.12)] hover:brightness-110 active:scale-[0.99] disabled:opacity-55`}
                   >
@@ -10209,11 +10282,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* MODAL DE SELEÇÃO DE MECÂNICO — portal em body para ficar acima da TabBar */}
-      {cardForMemberAssignment && patioPortalsVisible && (
+      {assignCardDisplayed && (
         <ModalPortal>
-        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
+        <div className={`${iosModalOverlay} p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6 ${modalBackdropAnimClass(assignModalExiting)}`}>
           <div
-            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell} ${modalSheetAnimClass(assignModalExiting)}`}
           >
             <button
               type="button"
@@ -10313,8 +10386,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* MODAL DE CHECKLIST (templates criados pelo admin) — portal em body */}
       {activeChecklistCard && activeChecklistTemplate && patioPortalsVisible && (
          <ModalPortal>
-         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
-           <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-lg flex-col ${iosVehicleModalShell} animate-in zoom-in-95 duration-200`}>
+         <div className={`${iosModalOverlay} p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6 ${modalBackdropAnimClass(checklistModalExiting)}`}>
+           <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-lg flex-col ${iosVehicleModalShell} ${modalSheetAnimClass(checklistModalExiting)}`}>
              
              {/* Header Checklist */}
              <div className="relative shrink-0 border-b border-zinc-200/60 px-5 pb-4 pt-6 dark:border-white/[0.07] sm:px-7 sm:pt-7">
@@ -10330,7 +10403,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
                   <button 
                     type="button"
-                    onClick={closeChecklistModal} 
+                    onClick={requestCloseChecklistModal} 
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15"
                   >
                     <X className="h-5 w-5" />
@@ -10408,7 +10481,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
              <div className="shrink-0 border-t border-zinc-200/60 bg-white px-4 py-3 text-center dark:border-white/[0.07] dark:bg-zinc-950/40 sm:px-5">
                <button 
                  type="button"
-                 onClick={closeChecklistModal}
+                 onClick={requestCloseChecklistModal}
                  className="w-full rounded-xl border border-zinc-200/90 bg-zinc-900 py-3.5 text-[15px] font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 dark:border-white/[0.12] dark:bg-white/12 dark:text-white dark:hover:bg-white/18"
                >
                  Fechar checklist

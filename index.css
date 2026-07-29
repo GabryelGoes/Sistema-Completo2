@@ -189,6 +189,52 @@ body {
   animation: modal-sheet-in 0.42s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
+@keyframes modal-backdrop-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-sheet-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.92) translateY(20px);
+  }
+}
+
+@keyframes modal-wp-app-out {
+  from {
+    opacity: 1;
+    transform: perspective(1200px) translateY(0) scale(1) rotateX(0deg);
+    filter: saturate(1) blur(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: perspective(1200px) translateY(28px) scale(0.88) rotateX(8deg);
+    filter: saturate(0.85) blur(1.5px);
+  }
+}
+
+.animate-modal-backdrop-out {
+  animation: modal-backdrop-out 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+.animate-modal-sheet-out {
+  animation: modal-sheet-out 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
 @keyframes modal-wp-app-in {
   from {
     opacity: 0;
@@ -209,9 +255,23 @@ body {
   will-change: transform, opacity, filter;
 }
 
+.animate-modal-wp-app-out {
+  transform-origin: center 86%;
+  animation: modal-wp-app-out 0.34s cubic-bezier(0.4, 0, 0.2, 1) both;
+  will-change: transform, opacity, filter;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-modal-wp-app {
     animation: modal-sheet-in 0.2s ease-out both;
+    filter: none;
+  }
+
+  .animate-modal-wp-app-out,
+  .animate-modal-sheet-out,
+  .animate-modal-backdrop-out {
+    animation: modal-backdrop-out 0.14s ease-out forwards;
     filter: none;
   }
 }

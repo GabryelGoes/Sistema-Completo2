@@ -12,6 +12,13 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vehicle-modal__s
   animation: patio-vm-desktop-in 0.24s ease-out;
 }
 
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vehicle-modal__shell.animate-modal-wp-app-out,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vehicle-modal__shell.animate-modal-wp-app-out,
+html[data-device='desktop'] .patio-vehicle-modal--desktop.animate-modal-backdrop-out .patio-vehicle-modal__shell,
+html[data-device='tablet'] .patio-vehicle-modal--desktop.animate-modal-backdrop-out .patio-vehicle-modal__shell {
+  animation: patio-vm-desktop-out 0.28s ease-in forwards;
+}
+
 @keyframes patio-vm-desktop-in {
   from {
     opacity: 0;
@@ -20,6 +27,17 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vehicle-modal__s
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes patio-vm-desktop-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
   }
 }
 
