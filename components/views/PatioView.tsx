@@ -2154,6 +2154,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   /** Evita corridas: várias chamadas em paralelo (Realtime + poll 15s + carga inicial) podiam aplicar respostas fora de ordem e “sumir” cards. */
   const patioBoardFetchChainRef = useRef(Promise.resolve());
+  /** Já carregou o quadro pelo menos uma vez nesta montagem (keep-alive): revisita usa refresh silencioso. */
+  const hasLoadedBoardOnceRef = useRef(false);
 
   const fetchDataImpl = async (isBackground = false) => {
     if (!isBackground) {
@@ -2190,18 +2192,48 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const card = orderToCard(row, nameMap, orderType);
         byId.set(card.id, card);
       }
-      setCards(
-        [...byId.values()].sort(
-          (a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime()
+      const nextBoardCards = [...byId.values()].sort(
+        (a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime()
+      );
+      const nextExternalCards = externalRepairOrders
+        .map((o) =>
+          orderToCard({ ...o, status: EXTERNAL_REPAIR_STATUS } as ServiceOrderListItem, nameMap, orderType)
         )
-      );
-      setExternalRepairCards(
-        externalRepairOrders
-          .map((o) => orderToCard({ ...o, status: EXTERNAL_REPAIR_STATUS } as ServiceOrderListItem, nameMap, orderType))
-          .sort((a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime())
-      );
+        .sort((a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime());
+      setCards(nextBoardCards);
+      setExternalRepairCards(nextExternalCards);
       setAllMembers([]);
       setError(null);
+
+      // Mantém o modal aberto alinhado ao quadro (etapa/status) sem fechar/reabrir.
+      const openId = selectedCardRef.current?.id;
+      if (openId) {
+        const fresh =
+          nextBoardCards.find((c) => c.id === openId) ??
+          nextExternalCards.find((c) => c.id === openId) ??
+          null;
+        if (fresh) {
+          setSelectedCard((prev) => {
+            if (!prev || prev.id !== openId) return prev;
+            if (
+              prev.idList === fresh.idList &&
+              prev.garantiaTag === fresh.garantiaTag &&
+              prev.dateLastActivity === fresh.dateLastActivity &&
+              prev.benchSlot === fresh.benchSlot &&
+              prev.benchQueuedAt === fresh.benchQueuedAt
+            ) {
+              return prev;
+            }
+            return fresh;
+          });
+          setServiceOrderDetail((prev) => {
+            if (!prev || prev.id !== openId) return prev;
+            if (String(prev.status) === String(fresh.idList)) return prev;
+            return { ...prev, status: fresh.idList as ServiceOrderStatus };
+          });
+        }
+      }
+      hasLoadedBoardOnceRef.current = true;
     } catch (err: any) {
       if (!isBackground) setError(err?.message ?? 'Erro ao carregar ordens.');
       else console.error('Erro na sincronização:', err);
@@ -2353,9 +2385,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     };
   }, []);
 
+  // Realtime do quadro enquanto a view está montada (keep-alive), não só com a aba focada.
   usePatioBoardLiveSync({
     orderType,
-    enabled: isAppTabActive,
+    enabled: true,
     onBoardRefresh: () => fetchDataRef.current(true),
     onRemindersRefresh: () => fetchRemindersRef.current(),
   });
@@ -2595,12 +2628,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [selectedCard?.id]);
 
   /**
-   * Carga inicial ao focar a aba + refresh periódico (15s) como no comportamento original,
-   * além do Supabase Realtime em `usePatioBoardLiveSync`.
+   * Primeira visita: carga com loading. Revisitas (keep-alive): refresh silencioso
+   * para não “recarregar a página” toda vez que volta na aba.
    */
   useEffect(() => {
     if (!isAppTabActive) return;
-    fetchDataRef.current(false);
+    const softRefresh = hasLoadedBoardOnceRef.current;
+    fetchDataRef.current(softRefresh);
     const intervalId = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       fetchDataRef.current(true);
@@ -2929,6 +2963,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const sel = selectedCardRef.current;
       if (sel?.id === card.id) {
         setSelectedCard(updatedCard);
+        setServiceOrderDetail((prev) =>
+          prev?.id === card.id
+            ? { ...prev, status: newListId as ServiceOrderStatus, updated_at: new Date().toISOString() }
+            : prev
+        );
       }
     } catch (err: any) {
       console.error('Failed to move', err);
