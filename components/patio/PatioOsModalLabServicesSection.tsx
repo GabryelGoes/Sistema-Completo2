@@ -4,6 +4,7 @@ import { Wrench, Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
 import { uiOsModalCardSectionTitle, uiOsModalSectionIconWrap } from '../ui/appTypography';
+import { IosNotificationBadge } from '../ui/IosNotificationBadge';
 import { ModalPortal } from '../ui/ModalPortal';
 import { iosModalClose, iosModalShell } from '../ui/iosModalStyles';
 import {
@@ -277,12 +278,14 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
         <div className={uiOsModalSectionIconWrap}>
           <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
         </div>
-        <p className={uiOsModalCardSectionTitle}>Serviços no laboratório</p>
-        {collapsible && !isOpen && linkedCount > 0 ? (
-          <span className="inline-flex shrink-0 items-center rounded-full bg-[#007AFF]/12 px-2 py-0.5 text-[11px] font-semibold text-[#007AFF] dark:bg-[#007AFF]/20 dark:text-[#7ab8ff]">
-            {linkedCount}
-          </span>
-        ) : null}
+        <div className="relative min-w-0">
+          <p className={uiOsModalCardSectionTitle}>Serviços no laboratório</p>
+          <IosNotificationBadge
+            count={linkedCount}
+            className="-right-3 -top-2"
+            ariaLabel={`${linkedCount} peça${linkedCount === 1 ? '' : 's'} no laboratório`}
+          />
+        </div>
       </div>
       {collapsible ? (
         <ChevronDown

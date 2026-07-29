@@ -7909,6 +7909,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       active={pcOsModalTab}
                       onChange={setPcOsModalTab}
                       hiddenTabs={isModuleMode ? ['laboratorio'] : ['conserto_externo']}
+                      tabBadges={{ laboratorio: labServiceLinksDraft.length }}
                     />
                   ) : null}
 
