@@ -22,7 +22,7 @@ import { ptBR } from 'date-fns/locale';
 import { DeleteServiceOrderModal } from '../DeleteServiceOrderModal';
 import { ReportServiceOrderDetailModal } from '../ReportServiceOrderDetailModal';
 import { FinalizedVehicleServicesReportBlock } from '../reports/FinalizedVehicleServicesReportBlock';
-import { getServiceOrders, getTechnicianServicesReport, type ServiceOrderListItem, type TechnicianServiceReportItem } from '../../services/apiService';
+import { getServiceOrders, getTechnicianServicesReport, deleteTechnicianServiceReportLine, type ServiceOrderListItem, type TechnicianServiceReportItem } from '../../services/apiService';
 import { getStageConfig, getStageStyle, CANCELLED_STATUS } from '../../constants/serviceOrderStages';
 import {
   type ReportPeriodMode,
@@ -156,6 +156,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [detailOrder, setDetailOrder] = useState<ServiceOrderListItem | null>(null);
   const [hiddenOrderIds, setHiddenOrderIds] = useState<Set<string>>(() => loadHiddenOrderIds());
+  const [deletingServiceLineId, setDeletingServiceLineId] = useState<string | null>(null);
 
   const range = useMemo(
     () => getPeriodRange(periodMode, referenceDate, settings.weekStartsOn),
@@ -322,6 +323,26 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
       setDetailOrder({ id: serviceOrderId } as ServiceOrderListItem);
     },
     [visibleOrders]
+  );
+
+  const handleDeleteTechnicianService = useCallback(
+    async (service: Pick<TechnicianServiceReportItem, 'lineId' | 'description'>) => {
+      const label = service.description?.trim() || 'este serviço';
+      const ok = window.confirm(
+        `Excluir “${label}” do relatório de serviços por técnico?\n\nIsso remove o registro do fechamento. O orçamento da OS não é alterado.`
+      );
+      if (!ok) return;
+      setDeletingServiceLineId(service.lineId);
+      try {
+        await deleteTechnicianServiceReportLine(service.lineId);
+        setTechServicesRaw((prev) => prev.filter((row) => row.lineId !== service.lineId));
+      } catch (e) {
+        alert(e instanceof Error ? e.message : 'Não foi possível excluir o serviço do relatório.');
+      } finally {
+        setDeletingServiceLineId(null);
+      }
+    },
+    []
   );
 
   const handleConfirmHideFromReports = useCallback(() => {
@@ -809,6 +830,9 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               groups={servicosTecnico}
               blurPlates={blurPlates}
               onOpenOrder={openOrderById}
+              canDelete={canDeleteOrders}
+              deletingLineId={deletingServiceLineId}
+              onDeleteService={handleDeleteTechnicianService}
             />
           </div>
         ) : activeSection === 'veiculos_entregues' ? (
@@ -830,6 +854,9 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
               groups={veiculosEntregues}
               blurPlates={blurPlates}
               onOpenOrder={openOrderById}
+              canDelete={canDeleteOrders}
+              deletingLineId={deletingServiceLineId}
+              onDeleteService={handleDeleteTechnicianService}
             />
           </div>
         ) : activeSection === 'garantia' ? (
@@ -1155,10 +1182,16 @@ function TechnicianServicesReportBlock({
   groups,
   blurPlates,
   onOpenOrder,
+  canDelete = false,
+  deletingLineId = null,
+  onDeleteService,
 }: {
   groups: TechnicianServicesReportGroup[];
   blurPlates: boolean;
   onOpenOrder: (serviceOrderId: string) => void;
+  canDelete?: boolean;
+  deletingLineId?: string | null;
+  onDeleteService?: (service: Pick<TechnicianServiceReportItem, 'lineId' | 'description'>) => void;
 }) {
   if (groups.length === 0) {
     return <p className="py-12 text-center text-[14px] text-zinc-500">Nenhum serviço registrado no período.</p>;
@@ -1192,7 +1225,9 @@ function TechnicianServicesReportBlock({
                 </tr>
               </thead>
               <tbody>
-                {group.services.map((service) => (
+                {group.services.map((service) => {
+                  const isDeleting = deletingLineId === service.lineId;
+                  return (
                   <tr
                     key={service.lineId}
                     className="border-b border-zinc-100/80 transition hover:bg-zinc-50/80 dark:border-white/[0.04] dark:hover:bg-white/[0.03]"
@@ -1211,17 +1246,33 @@ function TechnicianServicesReportBlock({
                       {formatReportDeliveryDate(service.archivedAt)}
                     </td>
                     <td className="px-3 py-2.5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => onOpenOrder(service.serviceOrderId)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200/90 bg-sky-500/10 px-2.5 py-1.5 text-[12px] font-semibold text-sky-900 transition hover:bg-sky-500/20 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:bg-sky-500/20"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        Abrir OS
-                      </button>
+                      <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onOpenOrder(service.serviceOrderId)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200/90 bg-sky-500/10 px-2.5 py-1.5 text-[12px] font-semibold text-sky-900 transition hover:bg-sky-500/20 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:bg-sky-500/20"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Abrir OS
+                        </button>
+                        {canDelete && onDeleteService ? (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteService(service)}
+                            disabled={isDeleting || deletingLineId != null}
+                            title="Excluir do relatório"
+                            aria-label={`Excluir serviço ${service.description || ''} do relatório`}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200/90 bg-rose-500/10 px-2.5 py-1.5 text-[12px] font-semibold text-rose-800 transition hover:bg-rose-500/20 disabled:opacity-50 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-100 dark:hover:bg-rose-500/20"
+                          >
+                            <Trash2 className={`h-3.5 w-3.5 ${isDeleting ? 'animate-pulse' : ''}`} />
+                            Excluir
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
