@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Wrench, Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Zap, Check, Pencil } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
@@ -144,10 +145,131 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
     setItemPickerOpen(false);
   };
 
+  useEffect(() => {
+    if (!itemPickerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      setItemPickerOpen(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [itemPickerOpen]);
+
   const handleSelectQuickService = (preset: LabQuickService) => {
     if (!onQuickSendService || busy) return;
     onQuickSendService(preset);
   };
+
+  const itemPickerOverlay =
+    itemPickerOpen && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            className="fixed inset-0 z-[350] flex items-end justify-center bg-black/50 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[12px] sm:items-center sm:p-6"
+            onClick={() => setItemPickerOpen(false)}
+            role="presentation"
+            data-lab-item-picker=""
+          >
+            <div
+              className={`relative mb-1 flex max-h-[min(70dvh,32rem)] w-full max-w-sm min-h-[16rem] flex-col overflow-hidden rounded-[1.5rem] border border-zinc-200/90 bg-white shadow-[0_24px_64px_-18px_rgba(0,0,0,0.35)] dark:border-white/[0.1] dark:bg-zinc-900 sm:mb-0 sm:rounded-[1.75rem]`}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="lab-item-picker-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setItemPickerOpen(false)}
+                className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 transition-colors hover:bg-zinc-200 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15"
+                aria-label="Fechar lista de itens"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <div className="shrink-0 border-b border-zinc-200/70 px-5 pb-3.5 pt-5 dark:border-white/[0.07]">
+                <h2
+                  id="lab-item-picker-title"
+                  className="pr-10 text-[18px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white"
+                >
+                  Item a enviar
+                </h2>
+                <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+                  Escolha na lista ou informe um item que não está cadastrado.
+                </p>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-3 py-3 dark:bg-black/25 [-webkit-overflow-scrolling:touch]">
+                <ul className="space-y-1.5 pb-1">
+                  {listProductKindOptions.map((opt) => {
+                    const selected = !manualProductName && newLabProductKind === opt.value;
+                    return (
+                      <li key={opt.value}>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectListedItem(opt.value)}
+                          className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition active:scale-[0.99] ${
+                            selected
+                              ? 'border-[#007AFF]/45 bg-[#007AFF]/10 shadow-sm dark:border-[#007AFF]/40 dark:bg-[#007AFF]/18'
+                              : 'border-zinc-200/80 bg-white hover:border-zinc-300 dark:border-white/[0.1] dark:bg-zinc-950/70 dark:hover:border-white/[0.16]'
+                          }`}
+                        >
+                          <span
+                            className={`min-w-0 flex-1 text-[15px] font-semibold leading-snug ${
+                              selected ? 'text-[#007AFF] dark:text-[#7ab8ff]' : 'text-zinc-900 dark:text-zinc-100'
+                            }`}
+                          >
+                            {opt.label}
+                          </span>
+                          {selected ? (
+                            <Check className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.5} />
+                          ) : (
+                            <ChevronRight className="h-5 w-5 shrink-0 text-zinc-300 dark:text-zinc-600" aria-hidden />
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+
+                  <li className="pt-1.5">
+                    <button
+                      type="button"
+                      onClick={handleSelectItemNotInList}
+                      className={`flex w-full items-center gap-3 rounded-xl border border-dashed px-3.5 py-3 text-left transition active:scale-[0.99] ${
+                        manualProductName
+                          ? 'border-[#007AFF]/50 bg-[#007AFF]/10 dark:border-[#007AFF]/40 dark:bg-[#007AFF]/18'
+                          : 'border-zinc-300/90 bg-white/90 hover:border-zinc-400 dark:border-white/[0.14] dark:bg-zinc-950/50 dark:hover:border-white/[0.22]'
+                      }`}
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600 dark:bg-white/[0.08] dark:text-zinc-300">
+                        <Pencil className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className={`block text-[15px] font-semibold leading-snug ${
+                            manualProductName ? 'text-[#007AFF] dark:text-[#7ab8ff]' : 'text-zinc-900 dark:text-zinc-100'
+                          }`}
+                        >
+                          Item não está na lista
+                        </span>
+                        <span className="mt-0.5 block text-[12px] text-zinc-500 dark:text-zinc-400">
+                          Digitar o nome manualmente
+                        </span>
+                      </span>
+                      {manualProductName ? (
+                        <Check className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.5} />
+                      ) : (
+                        <ChevronRight className="h-5 w-5 shrink-0 text-zinc-300 dark:text-zinc-600" aria-hidden />
+                      )}
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
 
   const headerInner = (
     <>
@@ -201,9 +323,13 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
             </label>
             <button
               type="button"
-              onClick={() => setItemPickerOpen(true)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setItemPickerOpen(true);
+              }}
               disabled={busy}
-              className={`${inputClass} !flex !h-11 w-full !cursor-pointer items-center justify-between gap-2 !py-0 text-left text-[13px] disabled:opacity-55`}
+              className={`${inputClass} relative z-[1] !flex !h-11 w-full !cursor-pointer items-center justify-between gap-2 !py-0 text-left text-[13px] disabled:opacity-55`}
             >
               <span
                 className={`min-w-0 flex-1 truncate ${
@@ -384,10 +510,12 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
       </div>
     </div>
 
+    {itemPickerOverlay}
+
     {quickSendModalOpen && onQuickSendService ? (
-      <ModalPortal>
+      <ModalPortal manageBackLayer={false}>
         <div
-          className="fixed inset-0 z-[220] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6"
+          className="fixed inset-0 z-[350] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6"
           onClick={() => !busy && setQuickSendModalOpen(false)}
           role="presentation"
         >
