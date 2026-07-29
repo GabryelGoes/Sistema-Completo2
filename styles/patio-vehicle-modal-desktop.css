@@ -154,7 +154,7 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-aside-col {
   overflow-y: auto;
 }
 
-/* Modal veículo — tablet vertical (~653×1045): faixa meta 2×2 */
+/* Modal veículo — tablet vertical (~653×1045): faixa meta 2 cols × 3 rows */
 html[data-device='tablet'] .patio-vm-header-meta--tablet,
 .patio-vm-header-meta--tablet {
   align-items: stretch;

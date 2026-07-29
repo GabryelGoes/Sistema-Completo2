@@ -143,7 +143,7 @@ const COMPACT_DESKTOP: PatioVehicleModalCompact = {
   fieldRow: 'ml-auto flex shrink-0 items-center gap-1',
 };
 
-/** Tablet vertical (~653×1045): meta compacta em 2×2, tipografia calibrada. */
+/** Tablet vertical (~653×1045): meta compacta em 2×3, tipografia calibrada. */
 const COMPACT_TABLET_PORTRAIT: PatioVehicleModalCompact = {
   grid: 'gap-2',
   row: 'patio-vm-meta-inner relative flex min-h-[3rem] items-center gap-2 px-2.5 py-2',

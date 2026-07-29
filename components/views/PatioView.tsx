@@ -6883,6 +6883,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               OS #{(serviceOrderDetail?.os_number ?? selectedCard.osNumber)}
                             </span>
                           ) : null}
+                          {!(isPatioTabletPortrait && !isModuleMode) ? (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -6899,6 +6900,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               aria-hidden
                             />
                           </button>
+                          ) : null}
                           {selectedCard.garantiaTag && (
                             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 border-2 border-red-500/50">
                               Garantia
@@ -7261,6 +7263,82 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           </button>
                           )}
+                          {isPatioTabletPortrait && !isModuleMode && diagnosticAuthSheetContext ? (
+                            <button
+                              type="button"
+                              onClick={() => setDiagnosticAuthSheetOpen(true)}
+                              title="Ver autorização de diagnóstico"
+                              className={`${vi} patio-vm-card patio-vm-meta-card group relative order-5 col-start-1 w-full cursor-pointer overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 hover:border-[#007AFF]/28 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]`}
+                            >
+                              <div
+                                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
+                                aria-hidden
+                              />
+                              <div
+                                className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
+                                aria-hidden
+                              />
+                              <div className={c.row}>
+                                <div className={c.iconSquircle}>
+                                  <FileText className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className={c.titleText}>Diagnóstico</p>
+                                  <p className={c.bodyText}>Ver autorização</p>
+                                </div>
+                                <ChevronRight
+                                  strokeWidth={2.25}
+                                  className={`${c.chevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]`}
+                                  aria-hidden
+                                />
+                              </div>
+                            </button>
+                          ) : null}
+                          {isPatioTabletPortrait && !isModuleMode ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleOpenMoveModal(selectedCard, e);
+                              }}
+                              title="Alterar etapa"
+                              className={`patio-vm-card patio-vm-meta-card group relative order-6 col-start-2 w-full cursor-pointer overflow-hidden rounded-[16px] border-2 text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.14)] transition-all duration-200 hover:brightness-110 active:scale-[0.99] ${
+                                isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'
+                              } ${modalStatusConfig.style}`}
+                            >
+                              <div className={c.row}>
+                                <div className="min-w-0 flex-1">
+                                  <p
+                                    className={`${c.titleText} ${
+                                      isExternalRepairStatus(modalStageStatus)
+                                        ? '!text-white/80'
+                                        : '!text-black/65 dark:!text-black/65'
+                                    }`}
+                                  >
+                                    Etapa
+                                  </p>
+                                  <p
+                                    className={`${c.bodyText} uppercase tracking-wide ${
+                                      isExternalRepairStatus(modalStageStatus)
+                                        ? '!text-white'
+                                        : '!text-black dark:!text-black'
+                                    }`}
+                                  >
+                                    {modalListName}
+                                  </p>
+                                </div>
+                                <ChevronDown
+                                  className={`${c.chevron} shrink-0 opacity-90 ${
+                                    isExternalRepairStatus(modalStageStatus)
+                                      ? 'text-white'
+                                      : 'text-black dark:text-black'
+                                  }`}
+                                  aria-hidden
+                                />
+                              </div>
+                            </button>
+                          ) : null}
                         </div>
 
                         {/* Dados da ficha — PC: expande no cabeçalho; tablet/mobile: modal (não tela cheia) */}
@@ -8869,7 +8947,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
 
                       <div className={patioVehicleVm.asideCol}>
-                        {!isModuleMode && selectedCard && !selectedHistoryCard && diagnosticAuthSheetContext ? (
+                        {!isModuleMode && selectedCard && !selectedHistoryCard && diagnosticAuthSheetContext && !isPatioTabletPortrait ? (
                           <div className="min-w-0">
                             <h3 className={isPatioPcModal ? patioVehicleVm.sectionTitle : `${uiSectionTitleRow} lg:mb-2`}>
                               <FileText className="h-3.5 w-3.5 shrink-0" />
