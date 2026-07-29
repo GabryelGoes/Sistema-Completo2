@@ -105,10 +105,15 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
     return () => window.removeEventListener(LAB_QUICK_SERVICES_CHANGED_EVENT, onChange);
   }, [reloadQuickServices]);
 
+  const quickSendingPrevRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (quickSendingServiceId == null) return;
-    // Fecha o modal após o envio rápido concluir.
-    setQuickSendModalOpen(false);
+    const prev = quickSendingPrevRef.current;
+    quickSendingPrevRef.current = quickSendingServiceId;
+    // Fecha o modal só quando o envio rápido termina (loading → idle).
+    if (prev != null && quickSendingServiceId == null) {
+      setQuickSendModalOpen(false);
+    }
   }, [quickSendingServiceId]);
 
   const toggleManualProductName = (checked: boolean) => {
