@@ -5482,25 +5482,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
           const linkedLabServices = !isModuleMode && Array.isArray(card.labServiceLinks) ? card.labServiceLinks : [];
           const hasLabUndelivered = linkedLabServices.some((l) => {
             const st = labLinkedStatusByOrderId[l.laboratoryOrderId];
-            // Enquanto não estiver CANCELLED (entregue/arquivado), mantém aro visível.
+            // Enquanto não estiver CANCELLED (entregue/arquivado), mantém ícone + filtro.
             return st !== "CANCELLED";
           });
           const hasLabReady = linkedLabServices.some(
             (l) => labLinkedStatusByOrderId[l.laboratoryOrderId] === "PRONTO_PRA_RETIRADA"
           );
-          const showLabOuterRing = isGarantia && hasLabUndelivered;
-          const labOuterRingClass = hasLabReady
-            ? 'ring-4 ring-green-500 dark:ring-green-400'
-            : 'ring-4 ring-violet-500 dark:ring-violet-400';
           const cardRingClass = isGarantia
             ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40'
             : fromPatio
               ? 'ring-2 ring-amber-500 ring-offset-0 border-amber-500/50 dark:ring-amber-400 dark:border-amber-400/50'
-            : hasLabUndelivered
-              ? hasLabReady
-                ? 'ring-4 ring-inset ring-green-500 ring-offset-0 border-green-500/65 dark:ring-green-400 dark:border-green-400/65'
-                : 'ring-4 ring-inset ring-violet-500 ring-offset-0 border-violet-400/60 dark:ring-violet-400 dark:border-violet-400/60'
               : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]';
+          const labCardGlowClass = hasLabUndelivered
+            ? hasLabReady
+              ? 'shadow-[0_0_22px_-4px_rgba(34,197,94,0.55),0_10px_28px_-12px_rgba(34,197,94,0.4)]'
+              : 'shadow-[0_0_22px_-4px_rgba(139,92,246,0.55),0_10px_28px_-12px_rgba(139,92,246,0.4)]'
+            : '';
 
           return (
             <div
@@ -5531,9 +5528,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
               }`}
             >
               <div
-                className={`w-full ${showLabOuterRing ? `${cardRadiusClass} p-1 ${labOuterRingClass}` : ''}`}
-              >
-              <div
                 onClick={() => {
                   if (patioTrelloSkipClickRef.current) {
                     patioTrelloSkipClickRef.current = false;
@@ -5544,10 +5538,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 className={`
                   group relative flex h-auto min-h-0 w-full flex-col overflow-hidden
                   border bg-white/70 backdrop-blur-2xl dark:bg-zinc-900/40
-                  ${patioBoardGlassCardShadow}
+                  ${hasLabUndelivered ? labCardGlowClass : patioBoardGlassCardShadow}
                   hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
                   active:scale-[0.99]
-                  transition-[border-color,transform] duration-200 ease-out
+                  transition-[border-color,transform,box-shadow] duration-200 ease-out
                   ${trelloDrag ? 'cursor-grab select-none active:cursor-grabbing' : 'cursor-pointer'}
                   ${
                     boardPanoramic
@@ -5557,6 +5551,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ${cardRingClass}
                 `}
               >
+              {/* Filtro suave: violeta (no lab) / verde (pronto para retirada) */}
+              {hasLabUndelivered ? (
+                <div
+                  className={`pointer-events-none absolute inset-0 z-[1] rounded-[inherit] ${
+                    hasLabReady
+                      ? 'bg-green-500/[0.14] dark:bg-green-400/[0.16]'
+                      : 'bg-violet-500/[0.14] dark:bg-violet-400/[0.16]'
+                  }`}
+                  aria-hidden
+                />
+              ) : null}
+
               {/* Overlay de Loading (Geral para Card) */}
               {(isMoving && (cardInTransition?.id === card.id || stageChangingCardId === card.id)) || (isAssigning && cardForMemberAssignment?.id === card.id) || (archivingId === card.id) || (removingGarantiaId === card.id) ? (
                 <div className="absolute inset-0 z-30 flex items-center justify-center overflow-hidden rounded-[inherit] bg-white/95 dark:bg-zinc-950/90">
@@ -5685,7 +5691,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </button>
                   </div>
                   {!isModuleMode ? (
-                    <div className="shrink-0">
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {hasLabUndelivered ? (
+                        <img
+                          src="/icons/laboratorio-ios.png"
+                          alt=""
+                          title={
+                            hasLabReady
+                              ? 'Peça pronta para retirada no laboratório'
+                              : 'Peça em andamento no laboratório'
+                          }
+                          className={`shrink-0 rounded-[9px] object-cover shadow-sm ring-1 ring-black/10 dark:ring-white/15 ${
+                            boardPanoramic
+                              ? 'h-8 w-8 portrait:h-7 portrait:w-7'
+                              : 'h-9 w-9 portrait:h-8 portrait:w-8'
+                          }`}
+                          aria-label={
+                            hasLabReady
+                              ? 'Peça pronta para retirada no laboratório'
+                              : 'Peça em andamento no laboratório'
+                          }
+                        />
+                      ) : null}
                       <MercosulPlateMockup
                         plate={plate}
                         blurPlates={blurPlates}
@@ -5790,7 +5817,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </button>
               </div>
 
-              </div>
               </div>
               </div>
             </div>
