@@ -35,6 +35,7 @@ import { clearHomeHubOpenGuard, openHomeHubSafely } from '../../utils/homeHubOpe
 import { ModalPortal } from '../ui/ModalPortal';
 import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
 import { desktopHomeHubCard } from '../ui/desktopCardStyles';
+import { useModalExitPresence } from '../../hooks/useModalExitAnimation';
 
 /** Portal no body: evita TabBar (z-40) cobrir o hub dentro do `main` (z-10). */
 function SettingsHubShell({ children }: { children: React.ReactNode }) {
@@ -293,6 +294,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   }, [closeAllSettingsChildModals, onSettingsHubOpenChange]);
 
   const isHomeSettingsHubOpen = settingsHubOpenProp;
+  const settingsHubPresence = useModalExitPresence(isHomeSettingsHubOpen);
 
   useEffect(() => {
     if (!settingsHubOpenerRef) return;
@@ -311,7 +313,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
   }, [settingsHubCloserRef, setSettingsHubOpen]);
 
   useEffect(() => () => clearHomeHubOpenGuard(), []);
+  useEffect(
+    () => () => {
+      if (launchTimerRef.current) clearTimeout(launchTimerRef.current);
+    },
+    []
+  );
   const [isHeaderProfileMenuOpen, setIsHeaderProfileMenuOpen] = useState(false);
+  const [launchingQuickId, setLaunchingQuickId] = useState<QuickTileId | null>(null);
+  const launchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const headerProfileTriggerRef = useRef<HTMLButtonElement>(null);
   const headerProfileMenuRef = useRef<HTMLDivElement>(null);
   const [headerProfileMenuStyle, setHeaderProfileMenuStyle] = useState<React.CSSProperties>({});
@@ -500,7 +510,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   }, [isHeaderProfileMenuOpen, updateHeaderProfileMenuPosition]);
 
   /** Oculta TabBar como um modal; sem portal no body (evita cobrir modais renderizados no root). */
-  useRegisterModalOpen(isHomeSettingsHubOpen);
+  useRegisterModalOpen(settingsHubPresence.mounted);
 
   /** Evita fechar a tela de configurações ou fundo enquanto um modal filho está aberto. */
   const childModalStackActive = useMemo(
@@ -894,8 +904,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
         session?.appId === app.id &&
         !session.moved;
       if (shouldOpen) {
-        // Guarda no pointerup (antes do click sintético) e só então monta o hub/modal
-        openHomeHubSafely(() => app.onOpen());
+        if (launchTimerRef.current) clearTimeout(launchTimerRef.current);
+        setLaunchingQuickId(app.id);
+        // Micro-animação de “lançamento” antes de abrir o módulo / hub
+        launchTimerRef.current = setTimeout(() => {
+          launchTimerRef.current = null;
+          setLaunchingQuickId(null);
+          openHomeHubSafely(() => app.onOpen());
+        }, 180);
       }
       if (!longPressTriggeredRef.current) {
         endQuickDrag();
@@ -1113,15 +1129,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 onPointerUp={() => endQuickDrag()}
                 className={`relative isolate z-0 grid gap-3 ${quickGridColsClass} ${isQuickEditMode ? 'touch-none select-none' : 'touch-pan-y'}`}
               >
-                {orderedOperationalApps.map((app) => {
+                {orderedOperationalApps.map((app, tileIndex) => {
                   const isWide = (quickLayout.sizes[app.id] ?? 'normal') === 'wide';
                   const isDragging = draggingQuickId === app.id;
+                  const isLaunching = launchingQuickId === app.id;
                   return (
                     <button
                       key={app.id}
                       data-quick-app-id={app.id}
                       type="button"
-                      style={{ touchAction: isQuickEditMode ? 'none' : 'pan-y' }}
+                      style={{
+                        touchAction: isQuickEditMode ? 'none' : 'pan-y',
+                        animationDelay: `${Math.min(tileIndex, 8) * 45}ms`,
+                      }}
                       onPointerDown={(event) => handleQuickCardPointerDown(app.id, event)}
                       onPointerUp={() => handleQuickCardPointerUp(app)}
                       onPointerCancel={handleQuickCardPointerCancel}
@@ -1130,11 +1150,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         event.preventDefault();
                         setIsQuickEditMode(true);
                       }}
-                      className={`group relative flex w-full flex-col items-center gap-3 p-3 sm:p-4 text-center select-none ${hubCardClass} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 ${desktopShell ? 'hover:shadow-md' : 'hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)]'} transition-all duration-300 active:scale-[0.99] ${
+                      className={`group relative flex w-full flex-col items-center gap-3 p-3 sm:p-4 text-center select-none animate-home-tile-in ${hubCardClass} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 ${desktopShell ? 'hover:shadow-md' : 'hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)]'} transition-all duration-300 active:scale-[0.99] ${
                         isWide ? 'col-span-2' : ''
                       } ${isQuickEditMode ? 'animate-[pulse_2.8s_ease-in-out_infinite]' : ''} ${
                         isDragging ? 'scale-[1.02] border-[#007AFF]/35 shadow-[0_18px_48px_-18px_rgba(0,122,255,0.38)]' : ''
-                      } ${isQuickEditMode ? 'touch-none select-none' : ''} ${isDragging ? 'opacity-30' : ''}`}
+                      } ${isQuickEditMode ? 'touch-none select-none' : ''} ${isDragging ? 'opacity-30' : ''} ${
+                        isLaunching ? 'animate-home-tile-launch z-[1]' : ''
+                      }`}
                     >
                       {isQuickEditMode && (
                         <span
@@ -1205,11 +1227,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </section>
       </main>
 
-      {isHomeSettingsHubOpen ? (
+      {settingsHubPresence.mounted ? (
         <SettingsHubShell>
           <div
             data-home-hub-overlay=""
-            className={`${desktopShell ? desktopShellViewportOverlayClass(true) : 'fixed inset-0 z-[110]'} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black`}
+            className={`${desktopShell ? desktopShellViewportOverlayClass(true) : 'fixed inset-0 z-[110]'} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black ${
+              settingsHubPresence.exiting ? 'animate-home-hub-out' : 'animate-home-hub-in'
+            }`}
             role="dialog"
             aria-modal="true"
             aria-label="Configurações"
