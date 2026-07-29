@@ -9791,15 +9791,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {isBudgetOpen && selectedCard && patioPortalsVisible && (
         <ModalPortal>
         <div
-          className={`budget-modal-light-chrome fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden ${budgetModalPaperShell} ${modalBackdropAnimClass(budgetModalExiting)}`}
+          className={`budget-modal-light-chrome fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden ${budgetModalPaperShell} ${modalBackdropAnimClass(budgetModalExiting)}${!isPatioPcModal ? ' budget-modal--compact' : ''}`}
           style={{ colorScheme: 'light' }}
         >
             <div className={`relative z-[1] flex min-h-0 flex-1 flex-col ${budgetModalExiting ? 'animate-modal-sheet-out pointer-events-none' : ''}`}>
-            <button type="button" onClick={requestCloseBudgetModal} className="absolute right-4 top-[max(0.75rem,env(safe-area-inset-top))] z-20 flex h-10 w-10 items-center justify-center rounded-full bg-sky-900/10 text-sky-900 transition-colors hover:bg-sky-200/90 hover:text-sky-950" aria-label="Fechar orçamento">
+            <button type="button" onClick={requestCloseBudgetModal} className="absolute right-3 top-[max(0.5rem,env(safe-area-inset-top))] z-20 flex h-9 w-9 items-center justify-center rounded-full bg-sky-900/10 text-sky-900 transition-colors hover:bg-sky-200/90 hover:text-sky-950 sm:right-4 sm:h-10 sm:w-10" aria-label="Fechar orçamento">
               <X className="h-5 w-5" />
             </button>
 
-            <div className="shrink-0 border-b border-zinc-200/80 bg-zinc-200 px-6 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-8 sm:pt-8">
+            <div className={`budget-modal-compact-header shrink-0 border-b border-zinc-200/80 bg-zinc-200 px-6 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-8 sm:pt-8`}>
               <div className="flex items-start gap-3 pr-10">
                 <IosAccentIconSquircle variant="modal" strokeWidth={2.2} lightChrome>
                   <img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />
@@ -9808,10 +9808,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700/90">
                     Orçamento
                   </p>
-                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-slate-900 sm:text-[26px]">
+                  <h2 className={`font-semibold leading-tight tracking-tight text-slate-900 ${!isPatioPcModal ? 'text-[18px]' : 'text-[22px] sm:text-[26px]'}`}>
                     {editingBudget ? 'Editar orçamento' : 'Novo orçamento'}
                   </h2>
-                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-sky-900/75">
+                  <p className={`mt-1 flex flex-wrap items-center gap-1.5 text-sky-900/75 ${!isPatioPcModal ? 'text-[12px]' : 'text-[13px]'}`}>
                     <Sparkles className="h-3.5 w-3.5 shrink-0 text-sky-500" strokeWidth={2} />
                     <span className="min-w-0 break-words">
                       {(selectedCard.vehicleBrand ?? '').trim() ? (
@@ -9844,8 +9844,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 text-slate-800 custom-scrollbar sm:px-8 ${budgetModalCanvasBg}`}>
-                  <div className="space-y-5">
+            <div className={`budget-modal-compact-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 text-slate-800 custom-scrollbar sm:px-8 ${budgetModalCanvasBg}`}>
+                  <div className={`budget-modal-compact-stack ${!isPatioPcModal ? 'space-y-3' : 'space-y-5'}`}>
                     <div>
                       <p className={budgetModalFieldLabel}>Descrição do diagnóstico</p>
                       <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
@@ -10149,12 +10149,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
             </div>
 
-            <div className={`shrink-0 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-8 ${budgetModalPaperFooter}`}>
+            <div className={`budget-modal-compact-footer shrink-0 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-8 sm:pt-4 ${budgetModalPaperFooter}`}>
               <button
                 type="button"
                 onClick={handleCreateBudget}
                 disabled={sendingBudget}
-                className={`${budgetModalCreateBudgetButton} flex w-full items-center justify-center gap-2 px-6 py-3.5`}
+                className={`${budgetModalCreateBudgetButton} flex w-full items-center justify-center gap-2 px-5 ${!isPatioPcModal ? 'py-3 text-[14px]' : 'px-6 py-3.5'}`}
               >
                 {sendingBudget ? <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.2} /> : <CheckCircle2 className="h-5 w-5" strokeWidth={2} />}
                 {sendingBudget ? 'Salvando…' : editingBudget ? 'Salvar alterações' : 'Criar orçamento'}

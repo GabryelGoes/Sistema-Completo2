@@ -96,6 +96,85 @@ body {
   background: #aeaeb2;
 }
 
+/**
+ * Novo/Editar orçamento em mobile e tablet: densifica tipografia e espaçamento
+ * (equivalente a um zoom out suave para caber mais na tela).
+ */
+/**
+ * Modal Novo/Editar orçamento — zoom out em mobile/tablet.
+ * Amplia o box antes do zoom para continuar preenchendo a tela (sem bordas vazias).
+ */
+.budget-modal--compact {
+  zoom: 0.82;
+  width: calc(100% / 0.82) !important;
+  height: calc(100dvh / 0.82) !important;
+  max-height: calc(100dvh / 0.82) !important;
+  inset: 0 auto auto 0;
+}
+
+@supports not (zoom: 1) {
+  .budget-modal--compact {
+    width: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    inset: 0;
+  }
+
+  .budget-modal--compact > .relative {
+    transform: scale(0.82);
+    transform-origin: top left;
+    width: calc(100% / 0.82);
+    height: calc(100% / 0.82);
+  }
+}
+
+.budget-modal--compact .budget-modal-compact-header {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-bottom: 0.75rem;
+}
+
+.budget-modal--compact .budget-modal-compact-scroll {
+  padding-left: 0.85rem;
+  padding-right: 0.85rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.budget-modal--compact .budget-modal-compact-stack {
+  gap: 0.75rem;
+}
+
+.budget-modal--compact .budget-modal-compact-stack > * + * {
+  margin-top: 0.75rem !important;
+}
+
+.budget-modal--compact .budget-modal-compact-footer {
+  padding-left: 0.85rem;
+  padding-right: 0.85rem;
+}
+
+/* Campos e cartões um pouco mais densos no modo compacto */
+.budget-modal--compact textarea,
+.budget-modal--compact input[type='text'],
+.budget-modal--compact input:not([type]),
+.budget-modal--compact input[type='number'],
+.budget-modal--compact input[type='search'] {
+  font-size: 13.5px !important;
+  padding-top: 0.65rem !important;
+  padding-bottom: 0.65rem !important;
+  padding-left: 0.85rem !important;
+  padding-right: 0.85rem !important;
+}
+
+.budget-modal--compact textarea.min-h-\[120px\] {
+  min-height: 5.5rem !important;
+}
+
+.budget-modal--compact textarea.min-h-\[88px\] {
+  min-height: 4.25rem !important;
+}
+
 /** Rolagem horizontal discreta (quadro estilo Trello / colunas no Pátio). */
 .patio-board-hscroll {
   scrollbar-width: thin;
