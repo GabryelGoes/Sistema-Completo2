@@ -181,7 +181,7 @@ import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServices
 import { BudgetReadModalBody } from '../budget/BudgetReadModalBody';
 import { BudgetVerificationPanel } from '../budget/BudgetVerificationPanel';
 import { BudgetVerifiedSeal } from '../budget/BudgetVerifiedSeal';
-import { BudgetLineReorderButtons } from '../budget/BudgetLineReorderButtons';
+import { BudgetLinePositionControl } from '../budget/BudgetLinePositionControl';
 import { BudgetPartSuggestionDropdown } from '../budget/BudgetPartSuggestionDropdown';
 import { WorkshopPartQuickViewModal } from '../budget/WorkshopPartQuickViewModal';
 import {
@@ -1416,6 +1416,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const partSuggestionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusedServiceInputRef = useRef<HTMLDivElement>(null);
   const focusedPartInputRef = useRef<HTMLDivElement>(null);
+  const budgetServicesAddRef = useRef<HTMLButtonElement>(null);
+  const budgetPartsAddRef = useRef<HTMLButtonElement>(null);
+  const scrollBudgetServicesAddRef = useRef(false);
+  const scrollBudgetPartsAddRef = useRef(false);
   const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const [partSuggestionBoxPosition, setPartSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   // Card em transição de COLUNA (Status)
@@ -3906,10 +3910,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [isModuleMode, serviceOrderDetail, selectedCard, cardDetails, lists]);
 
   const addServiceRow = () => {
+    scrollBudgetServicesAddRef.current = true;
     setBudgetServices([...budgetServices, { id: Date.now().toString(), description: '', laborHours: null }]);
   };
 
   const addPartRow = () => {
+    scrollBudgetPartsAddRef.current = true;
     setBudgetParts([...budgetParts, { id: Date.now().toString(), description: '', quantity: '1' }]);
   };
 
@@ -3921,19 +3927,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setBudgetParts(budgetParts.filter(i => i.id !== id));
   };
 
-  const moveServiceRow = (id: string, direction: -1 | 1) => {
+  const moveServiceRowToIndex = (id: string, toIndex: number) => {
     setBudgetServices((prev) => {
       const from = prev.findIndex((item) => item.id === id);
       if (from < 0) return prev;
-      return moveItemInList(prev, from, from + direction);
+      return moveItemInList(prev, from, toIndex);
     });
   };
 
-  const movePartRow = (id: string, direction: -1 | 1) => {
+  const movePartRowToIndex = (id: string, toIndex: number) => {
     setBudgetParts((prev) => {
       const from = prev.findIndex((item) => item.id === id);
       if (from < 0) return prev;
-      return moveItemInList(prev, from, from + direction);
+      return moveItemInList(prev, from, toIndex);
     });
   };
 
@@ -3981,6 +3987,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const addServiceFromList = (svc: WorkshopService) => {
+    scrollBudgetServicesAddRef.current = true;
     setBudgetServices((prev) => [
       ...prev,
       { id: Date.now().toString(), description: svc.name, laborHours: svc.labor_hours ?? null },
@@ -4037,6 +4044,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
       window.removeEventListener('scroll', update, true);
     };
   }, [suggestionsForPartId, budgetParts]);
+
+  useEffect(() => {
+    if (!scrollBudgetServicesAddRef.current) return;
+    scrollBudgetServicesAddRef.current = false;
+    const timer = window.setTimeout(() => {
+      budgetServicesAddRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [budgetServices.length]);
+
+  useEffect(() => {
+    if (!scrollBudgetPartsAddRef.current) return;
+    scrollBudgetPartsAddRef.current = false;
+    const timer = window.setTimeout(() => {
+      budgetPartsAddRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [budgetParts.length]);
 
   const keepServiceSuggestionsOpen = () => {
     if (suggestionCloseTimerRef.current) {
@@ -9861,26 +9886,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     <div>
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <p className={`${budgetModalFieldLabel} mb-0`}>Serviços</p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {workshopServices.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setIsServiceListOpen(true)}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200/80 bg-white px-3 py-2 text-[13px] font-semibold text-slate-800 shadow-sm transition-colors hover:border-sky-300 hover:bg-sky-50"
-                            >
-                              Inserir da lista
-                              <ChevronDown className="h-4 w-4 opacity-80" />
-                            </button>
-                          )}
+                        {workshopServices.length > 0 && (
                           <button
                             type="button"
-                            onClick={addServiceRow}
-                            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-sky-800/80 transition-colors hover:text-sky-950"
+                            onClick={() => setIsServiceListOpen(true)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200/80 bg-white px-3 py-2 text-[13px] font-semibold text-slate-800 shadow-sm transition-colors hover:border-sky-300 hover:bg-sky-50"
                           >
-                            <Plus className="h-4 w-4" strokeWidth={2.2} />
-                            Adicionar
+                            Inserir da lista
+                            <ChevronDown className="h-4 w-4 opacity-80" />
                           </button>
-                        </div>
+                        )}
                       </div>
                       <div className={`${budgetModalPaperInset} p-3.5 sm:p-4`}>
                       <div className="space-y-2.5">
@@ -9889,11 +9904,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           return (
                             <div key={item.id} className="relative">
                               <div className="flex items-start gap-2 sm:gap-3">
-                                <BudgetLineReorderButtons
-                                  onMoveUp={() => moveServiceRow(item.id, -1)}
-                                  onMoveDown={() => moveServiceRow(item.id, 1)}
-                                  disableUp={serviceIndex === 0}
-                                  disableDown={serviceIndex === budgetServices.length - 1}
+                                <BudgetLinePositionControl
+                                  position={serviceIndex + 1}
+                                  total={budgetServices.length}
+                                  onMoveTo={(toIndex) => moveServiceRowToIndex(item.id, toIndex)}
                                   ariaLabelPrefix="Serviço"
                                 />
                                 <div
@@ -9931,6 +9945,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           );
                         })}
+                        <button
+                          ref={budgetServicesAddRef}
+                          type="button"
+                          onClick={addServiceRow}
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-sky-300/90 bg-sky-50/50 px-3 py-2.5 text-[13px] font-semibold text-sky-800/90 transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-950"
+                        >
+                          <Plus className="h-4 w-4" strokeWidth={2.2} />
+                          Adicionar
+                        </button>
                       </div>
                       </div>
                     </div>
@@ -10026,16 +10049,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     })()}
 
                     <div>
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <div className="mb-2">
                         <p className={`${budgetModalFieldLabel} mb-0`}>Peças</p>
-                        <button
-                          type="button"
-                          onClick={addPartRow}
-                          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-sky-800/80 transition-colors hover:text-sky-950"
-                        >
-                          <Plus className="h-4 w-4" strokeWidth={2.2} />
-                          Adicionar
-                        </button>
                       </div>
                       <div className="space-y-2.5">
                         {budgetParts.map((item, partIndex) => {
@@ -10044,47 +10059,48 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <div
                               key={item.id}
                               ref={isFocusedPart ? focusedPartInputRef : undefined}
-                              className={`${budgetModalPaperInset} flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center`}
+                              className={`${budgetModalPaperInset} flex flex-col gap-2.5 p-3.5 sm:flex-row sm:items-center sm:gap-3`}
                             >
-                              <BudgetLineReorderButtons
-                                onMoveUp={() => movePartRow(item.id, -1)}
-                                onMoveDown={() => movePartRow(item.id, 1)}
-                                disableUp={partIndex === 0}
-                                disableDown={partIndex === budgetParts.length - 1}
-                                ariaLabelPrefix="Peça"
-                              />
-                              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                                {item.fromStock ? <BudgetPartStockBadge className="self-start" /> : null}
-                                <input
-                                  type="text"
-                                  placeholder="Nome da peça…"
-                                  className={`${budgetModalInput} min-w-0 w-full shadow-none`}
-                                  value={item.description}
-                                  onChange={(e) => updatePartDescription(item.id, e.target.value)}
-                                  onFocus={() => handlePartInputFocus(item.id)}
-                                  onBlur={handlePartInputBlur}
+                              <div className="flex min-w-0 flex-1 items-start gap-2 sm:items-center">
+                                <BudgetLinePositionControl
+                                  position={partIndex + 1}
+                                  total={budgetParts.length}
+                                  onMoveTo={(toIndex) => movePartRowToIndex(item.id, toIndex)}
+                                  ariaLabelPrefix="Peça"
                                 />
+                                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                                  {item.fromStock ? <BudgetPartStockBadge className="self-start" /> : null}
+                                  <input
+                                    type="text"
+                                    placeholder="Nome da peça…"
+                                    className={`${budgetModalInput} min-w-0 w-full shadow-none`}
+                                    value={item.description}
+                                    onChange={(e) => updatePartDescription(item.id, e.target.value)}
+                                    onFocus={() => handlePartInputFocus(item.id)}
+                                    onBlur={handlePartInputBlur}
+                                  />
+                                </div>
                               </div>
-                                <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-start">
-                                <div className="flex items-center overflow-hidden rounded-xl border border-sky-200/80 bg-white">
+                              <div className="flex shrink-0 items-center justify-end gap-2 pl-12 sm:justify-start sm:pl-0">
+                                <div className="flex items-center overflow-hidden rounded-lg border border-sky-200/80 bg-white">
                                   <button
                                     type="button"
                                     onClick={() => updatePartQuantity(item.id, -1)}
-                                    className="flex h-10 w-10 items-center justify-center text-sky-800/80 transition-colors hover:bg-sky-100"
+                                    className="flex h-8 w-7 items-center justify-center text-sky-800/80 transition-colors hover:bg-sky-100"
                                     aria-label="Diminuir quantidade"
                                   >
-                                    <Minus className="h-4 w-4" />
+                                    <Minus className="h-3.5 w-3.5" />
                                   </button>
-                                  <span className="w-10 text-center text-[14px] font-semibold tabular-nums text-slate-900">
+                                  <span className="min-w-[1.5rem] px-0.5 text-center text-[12px] font-semibold tabular-nums text-slate-900">
                                     {item.quantity}
                                   </span>
                                   <button
                                     type="button"
                                     onClick={() => updatePartQuantity(item.id, 1)}
-                                    className="flex h-10 w-10 items-center justify-center text-sky-800/80 transition-colors hover:bg-sky-100"
+                                    className="flex h-8 w-7 items-center justify-center text-sky-800/80 transition-colors hover:bg-sky-100"
                                     aria-label="Aumentar quantidade"
                                   >
-                                    <Plus className="h-4 w-4" />
+                                    <Plus className="h-3.5 w-3.5" />
                                   </button>
                                 </div>
                                 <button
@@ -10099,6 +10115,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           );
                         })}
+                        <button
+                          ref={budgetPartsAddRef}
+                          type="button"
+                          onClick={addPartRow}
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-sky-300/90 bg-sky-50/50 px-3 py-2.5 text-[13px] font-semibold text-sky-800/90 transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-950"
+                        >
+                          <Plus className="h-4 w-4" strokeWidth={2.2} />
+                          Adicionar
+                        </button>
                       </div>
                     </div>
 
