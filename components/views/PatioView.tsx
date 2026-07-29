@@ -9731,7 +9731,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   className="inline-flex items-center gap-2 rounded-xl border border-red-300/80 bg-red-50 px-5 py-2.5 text-sm font-medium text-red-800 transition-colors hover:bg-red-100 disabled:opacity-50"
                 >
                   {deletingBudgetId ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  {deletingBudgetId ? 'Excluindo…' : 'Excluir orçamento'}
+                  {deletingBudgetId ? 'Excluindo…' : 'Excluir'}
                 </button>
               ) : (
                 <span />
@@ -9769,15 +9769,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   disabled={!!deletingBudgetId || !!verifyingBudgetId || !can('canEditBudgets') || !selectedCard}
                   className={budgetReadFooterBtnClass}
                 >
-                  <Pencil className="h-4 w-4" /> Editar orçamento
-                </button>
-                <button
-                  type="button"
-                  onClick={() => requestCloseViewingBudget()}
-                  disabled={!!deletingBudgetId || !!verifyingBudgetId}
-                  className={budgetReadFooterPrimaryClass}
-                >
-                  Fechar
+                  <Pencil className="h-4 w-4" /> Editar
                 </button>
               </div>
             </div>
