@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Wrench, Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Zap } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
