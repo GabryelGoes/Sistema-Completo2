@@ -9122,6 +9122,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                         </div>
 
+                        {isPatioPcModal ? (
+                         <>
                          <div>
                             <p className={`${iosLabel} mb-3`}>Alterar status</p>
                             <button 
@@ -9173,6 +9175,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                </div>
                              )}
                          </div>
+                         </>
+                        ) : null}
 
                       </div>
                   </div>
