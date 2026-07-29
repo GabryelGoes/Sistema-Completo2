@@ -183,6 +183,7 @@ import { BudgetVerificationPanel } from '../budget/BudgetVerificationPanel';
 import { BudgetVerifiedSeal } from '../budget/BudgetVerifiedSeal';
 import { BudgetLinePositionControl } from '../budget/BudgetLinePositionControl';
 import { BudgetPartSuggestionDropdown } from '../budget/BudgetPartSuggestionDropdown';
+import { BudgetServiceSuggestionDropdown } from '../budget/BudgetServiceSuggestionDropdown';
 import { WorkshopPartQuickViewModal } from '../budget/WorkshopPartQuickViewModal';
 import {
   budgetReadFooterBtnClass,
@@ -3998,13 +3999,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const getServiceSuggestions = (description: string) => {
     const q = normalizeText(description.trim());
     if (!q) return [];
-    return workshopServices.filter(s => normalizeText(s.name).includes(q)).slice(0, 6);
+    return workshopServices.filter(s => normalizeText(s.name).includes(q)).slice(0, 12);
   };
 
   const getPartSuggestions = (description: string) => {
     const q = normalizeText(description.trim());
     if (!q) return [];
-    return workshopParts.filter(p => normalizeText(p.name).includes(q)).slice(0, 6);
+    return workshopParts.filter(p => normalizeText(p.name).includes(q)).slice(0, 12);
   };
 
   const budgetPartQuickViewCatalogNumber = useMemo(() => {
@@ -4024,7 +4025,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
     };
     update();
     window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
   }, [suggestionsForServiceId, budgetServices]);
 
   useEffect(() => {
@@ -9997,56 +10002,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
                     )}
 
-                    {/* Modal: sugestões ao digitar (embaixo do campo) */}
-                    {suggestionBoxPosition && suggestionsForServiceId && (() => {
-                      const suggestions = budgetServices.find(i => i.id === suggestionsForServiceId)
-                        ? getServiceSuggestions(budgetServices.find(i => i.id === suggestionsForServiceId)!.description)
-                        : [];
-                      if (suggestions.length === 0) return null;
-                      return (
-                        <>
-                          <div className="fixed inset-0 z-[215] bg-transparent" onClick={() => setSuggestionsForServiceId(null)} aria-hidden />
-                          <div
-                            className="fixed z-[216] max-h-[200px] overflow-y-auto overflow-hidden rounded-[14px] border border-sky-200/80 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(14,116,144,0.2)]"
-                            style={{
-                              top: suggestionBoxPosition.top,
-                              left: suggestionBoxPosition.left,
-                              width: suggestionBoxPosition.width,
-                            }}
-                            onPointerDown={(e) => {
-                              e.preventDefault();
-                              keepServiceSuggestionsOpen();
-                            }}
-                            onMouseDown={(e) => e.preventDefault()}
-                            role="listbox"
-                            aria-label="Sugestões de serviços"
-                          >
-                            {suggestions.map((s) => (
-                              <button
-                                key={s.id}
-                                type="button"
-                                role="option"
-                                onPointerDown={(e) => {
-                                  e.preventDefault();
-                                  if (suggestionsForServiceId) applySuggestion(suggestionsForServiceId, s);
-                                }}
-                                onClick={() => {
-                                  if (suggestionsForServiceId) applySuggestion(suggestionsForServiceId, s);
-                                }}
-                                className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-[14px] text-slate-800 transition-colors hover:bg-sky-50 active:bg-sky-100"
-                              >
-                                <span className="min-w-0 flex-1">{s.name}</span>
-                                {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
-                                  <span className="shrink-0 text-[12px] font-semibold tabular-nums text-sky-700/80">
-                                    {formatLaborLabel(Number(s.labor_hours))}
-                                  </span>
-                                ) : null}
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      );
-                    })()}
+                    {/* Sugestões ao digitar serviço */}
+                    <BudgetServiceSuggestionDropdown
+                      open={!!suggestionsForServiceId}
+                      position={suggestionBoxPosition}
+                      suggestions={
+                        suggestionsForServiceId
+                          ? getServiceSuggestions(
+                              budgetServices.find((i) => i.id === suggestionsForServiceId)?.description ?? ''
+                            )
+                          : []
+                      }
+                      onClose={() => setSuggestionsForServiceId(null)}
+                      onKeepOpen={keepServiceSuggestionsOpen}
+                      onSelect={(svc) => {
+                        if (suggestionsForServiceId) applySuggestion(suggestionsForServiceId, svc);
+                      }}
+                    />
 
                     <div>
                       <div className="mb-2">

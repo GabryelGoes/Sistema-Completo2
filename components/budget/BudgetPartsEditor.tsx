@@ -109,7 +109,7 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
   const getPartSuggestions = (description: string) => {
     const q = normalizeText(description.trim());
     if (!q) return [];
-    return workshopParts.filter((p) => normalizeText(p.name).includes(q)).slice(0, 6);
+    return workshopParts.filter((p) => normalizeText(p.name).includes(q)).slice(0, 12);
   };
 
   const applyPartSuggestion = (partId: string, part: WorkshopPart) => {
