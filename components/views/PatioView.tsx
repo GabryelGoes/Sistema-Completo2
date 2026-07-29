@@ -2411,6 +2411,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [selectedCard?.id, selectedCard?.mileageKm, selectedCard?.deliveryDate, selectedCard?.vehicleObservations]);
 
+  /** Etapa do modal acompanha o card (Realtime/quadro) mesmo se o detail estiver defasado. */
+  useEffect(() => {
+    if (!selectedCard?.id || !serviceOrderDetail?.id) return;
+    if (selectedCard.id !== serviceOrderDetail.id) return;
+    if (String(serviceOrderDetail.status) === String(selectedCard.idList)) return;
+    setServiceOrderDetail((prev) =>
+      prev?.id === selectedCard.id
+        ? { ...prev, status: selectedCard.idList as ServiceOrderStatus }
+        : prev
+    );
+  }, [selectedCard?.id, selectedCard?.idList, serviceOrderDetail?.id, serviceOrderDetail?.status]);
+
   useEffect(() => {
     if (selectedCard || !selectedHistoryCard) return;
     if (!isEditingVehicleObservationsRef.current) {
