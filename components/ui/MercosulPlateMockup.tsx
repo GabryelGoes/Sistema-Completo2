@@ -26,7 +26,7 @@ export function MercosulPlateMockup(props: {
     : isCardGrid
       ? 'w-[128px] sm:w-[138px]'
       : isModalTablet
-        ? 'w-[141px]'
+        ? 'w-[156px]'
         : isModal
           ? 'w-[188px] sm:w-[210px]'
           : 'w-[160px] sm:w-[172px]';
@@ -35,17 +35,19 @@ export function MercosulPlateMockup(props: {
     ? 'text-[5.5px] tracking-[0.18em]'
     : isCardGrid
       ? 'text-[7px] tracking-[0.2em] sm:text-[7.5px]'
-      : 'text-[8px] tracking-[0.22em] sm:text-[9px]';
+      : isModalTablet
+        ? 'text-[8.5px] tracking-[0.2em]'
+        : 'text-[8px] tracking-[0.22em] sm:text-[9px]';
 
-  const flagW = isCompact ? 11 : isCardGrid ? 13 : 15;
-  const flagH = isCompact ? 8 : isCardGrid ? 9 : 10;
+  const flagW = isCompact ? 11 : isCardGrid ? 13 : isModalTablet ? 14 : 15;
+  const flagH = isCompact ? 8 : isCardGrid ? 9 : isModalTablet ? 9 : 10;
 
   const plateText = isCompact
     ? 'text-[19px] tracking-[0.08em]'
     : isCardGrid
       ? 'text-[24px] tracking-[0.1em] sm:text-[26px]'
       : isModalTablet
-        ? 'text-[22px] tracking-[0.1em]'
+        ? 'text-[26px] tracking-[0.1em]'
         : isModal
           ? 'text-[30px] tracking-[0.1em] sm:text-[34px]'
           : 'text-[30px] tracking-[0.1em] sm:text-[34px]';
