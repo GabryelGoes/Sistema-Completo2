@@ -43,11 +43,13 @@ export function withModalExitOverlayClass(baseClass: string, exiting: boolean): 
 
 /**
  * Fecha com animação: o caller mantém o estado aberto até `onFlush` rodar após a saída.
+ * Durante a saída `isActive` continua true — só cancela se reabrir (false → true).
  */
 export function useAnimatedModalClose(isActive: boolean, onFlush: () => void) {
   const [exiting, setExiting] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onFlushRef = useRef(onFlush);
+  const wasActiveRef = useRef(isActive);
   onFlushRef.current = onFlush;
 
   const clearTimer = useCallback(() => {
@@ -58,11 +60,14 @@ export function useAnimatedModalClose(isActive: boolean, onFlush: () => void) {
   }, []);
 
   useEffect(() => {
-    if (isActive && exiting) {
+    const wasActive = wasActiveRef.current;
+    wasActiveRef.current = isActive;
+    // Reabriu enquanto saía: cancela o flush pendente.
+    if (isActive && !wasActive) {
       clearTimer();
       setExiting(false);
     }
-  }, [isActive, exiting, clearTimer]);
+  }, [isActive, clearTimer]);
 
   useEffect(() => () => clearTimer(), [clearTimer]);
 
