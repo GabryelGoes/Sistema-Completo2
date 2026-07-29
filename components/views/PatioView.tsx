@@ -186,7 +186,6 @@ import { BudgetPartSuggestionDropdown } from '../budget/BudgetPartSuggestionDrop
 import { WorkshopPartQuickViewModal } from '../budget/WorkshopPartQuickViewModal';
 import {
   budgetReadFooterBtnClass,
-  budgetReadFooterPrimaryClass,
   budgetReadModalBackdropClass,
   budgetReadModalFooterClass,
   budgetReadModalHeaderClass,
