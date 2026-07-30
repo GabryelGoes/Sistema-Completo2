@@ -49,6 +49,8 @@ export type BudgetHubPatioStyleCardProps = {
   compact?: boolean;
   /** Escala reduzida para colunas do modo por etapa. */
   trelloScale?: boolean;
+  /** Escala reduzida nas grades em tablet/mobile (não PC). */
+  mobileScale?: boolean;
   onOpen: () => void;
 };
 
@@ -65,9 +67,15 @@ export function BudgetHubPatioStyleCard({
   desktopShell,
   compact,
   trelloScale,
+  mobileScale,
   onOpen,
 }: BudgetHubPatioStyleCardProps) {
-  const dense = Boolean(trelloScale || compact);
+  const dense = Boolean(trelloScale || compact || mobileScale);
+  const cardZoom = trelloScale
+    ? BUDGET_HUB_TRELLO_CARD_ZOOM
+    : mobileScale
+      ? BUDGET_HUB_MOBILE_GRID_CARD_ZOOM
+      : undefined;
   const isLab = row.orderType === 'module';
   const flow = budgetOrderFlow(row.orderType);
   const stage = getStageConfig(row.orderStatus, flow);
@@ -275,8 +283,8 @@ export function BudgetHubPatioStyleCard({
     <div
       className="h-auto w-full self-start"
       style={
-        trelloScale
-          ? ({ zoom: BUDGET_HUB_TRELLO_CARD_ZOOM } as React.CSSProperties & { zoom?: number })
+        cardZoom != null
+          ? ({ zoom: cardZoom } as React.CSSProperties & { zoom?: number })
           : undefined
       }
     >
