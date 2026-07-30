@@ -53,7 +53,7 @@ export function BudgetsHubScopeToggle({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(tab.id)}
-            className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-[0.06em] transition ${
+            className={`rounded-md px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] transition ${
               active
                 ? tab.id === 'laboratory'
                   ? 'bg-violet-600 text-white shadow-sm'
@@ -141,10 +141,16 @@ export function BudgetsHubViewSwitcher({
   mode,
   onModeChange,
   desktopShell,
+  startSlot,
+  endSlot,
 }: {
   mode: BudgetsHubViewMode;
   onModeChange: (m: BudgetsHubViewMode) => void;
   desktopShell?: boolean;
+  /** Conteúdo à esquerda dos atalhos (ex.: toggle Pátio/Lab). */
+  startSlot?: React.ReactNode;
+  /** Conteúdo à direita do "?" (ex.: botão atualizar). */
+  endSlot?: React.ReactNode;
 }) {
   const activeMeta = BUDGETS_HUB_VIEW_MODES.find((m) => m.id === mode);
   const [helpOpen, setHelpOpen] = React.useState(false);
@@ -167,9 +173,10 @@ export function BudgetsHubViewSwitcher({
   }, [helpOpen]);
 
   return (
-    <div className={desktopShell ? 'mb-4' : 'mb-3'}>
+    <div className={desktopShell ? '' : ''}>
       <div className="flex items-center gap-2">
-        <div className="budgets-hub-no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+        {startSlot ? <div className="shrink-0 self-center">{startSlot}</div> : null}
+        <div className="budgets-hub-no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto [-webkit-overflow-scrolling:touch]">
           {BUDGETS_HUB_VIEW_MODES.map((m) => {
             const active = mode === m.id;
             return (
@@ -178,7 +185,7 @@ export function BudgetsHubViewSwitcher({
                 type="button"
                 onClick={() => onModeChange(m.id)}
                 title={m.description}
-                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.06em] transition-all ${
+                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-bold uppercase tracking-[0.06em] transition-all ${
                   active
                     ? 'border-zinc-800 bg-zinc-900 text-white shadow-md dark:border-zinc-200 dark:bg-white dark:text-zinc-900'
                     : 'border-zinc-200/90 bg-white/90 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-800'
@@ -192,13 +199,13 @@ export function BudgetsHubViewSwitcher({
           })}
         </div>
         {activeMeta ? (
-          <div ref={helpRef} className="relative shrink-0">
+          <div ref={helpRef} className="relative shrink-0 self-center">
             <button
               type="button"
               onClick={() => setHelpOpen((o) => !o)}
               aria-label="O que é esta visualização?"
               aria-expanded={helpOpen}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-[#007AFF] text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#0058c7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-1"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#007AFF] text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#0058c7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-1"
             >
               ?
             </button>
@@ -214,6 +221,7 @@ export function BudgetsHubViewSwitcher({
             ) : null}
           </div>
         ) : null}
+        {endSlot ? <div className="shrink-0 self-center">{endSlot}</div> : null}
       </div>
     </div>
   );

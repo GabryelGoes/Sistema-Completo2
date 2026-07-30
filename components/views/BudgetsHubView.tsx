@@ -301,8 +301,8 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
       }`}
     >
       <header className={`budgets-hub-page-header shrink-0 border-b px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl lg:px-6 ${headerTheme} ${isLabScope ? 'border-violet-500/20 dark:border-violet-400/15' : 'border-amber-500/20 dark:border-amber-400/15'}`}>
-        <div className={`mx-auto flex w-full ${mainMaxW} items-start gap-3 lg:mx-0`}>
-          <div className="app-view-page-chrome ml-[6.5%] flex min-w-0 flex-1 items-start gap-3 pt-0.5 lg:ml-0">
+        <div className={`mx-auto w-full ${mainMaxW} space-y-3 lg:mx-0`}>
+          <div className="app-view-page-chrome ml-[6.5%] flex min-w-0 items-start gap-3 pt-0.5 lg:ml-0">
             <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
               <img src="/icons/orcamentos-ios.png" alt="" className="h-full w-full object-cover" />
             </IosAccentIconSquircle>
@@ -319,15 +319,24 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => void load({ silent: true })}
-            disabled={refreshing || loading}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-white text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            aria-label="Atualizar"
-          >
-            <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
+
+          <BudgetsHubViewSwitcher
+            mode={viewMode}
+            onModeChange={handleViewModeChange}
+            desktopShell={desktopShell}
+            startSlot={<BudgetsHubScopeToggle scope={hubScope} onChange={handleHubScopeChange} />}
+            endSlot={
+              <button
+                type="button"
+                onClick={() => void load({ silent: true })}
+                disabled={refreshing || loading}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-white text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                aria-label="Atualizar"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+            }
+          />
         </div>
       </header>
 
@@ -340,15 +349,9 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
       >
         <div
           className={`mx-auto flex w-full min-h-0 ${mainMaxW} flex-col lg:mx-0 ${
-            isTrelloMode ? 'h-full flex-1 gap-2' : 'gap-3'
+            isTrelloMode ? 'h-full flex-1' : ''
           }`}
         >
-          <div className="mb-1 flex shrink-0 justify-end">
-            <BudgetsHubScopeToggle scope={hubScope} onChange={handleHubScopeChange} />
-          </div>
-          <div className="shrink-0">
-            <BudgetsHubViewSwitcher mode={viewMode} onModeChange={handleViewModeChange} desktopShell={desktopShell} />
-          </div>
           <div className={isTrelloMode ? 'min-h-0 flex-1' : undefined}>{renderContent()}</div>
         </div>
       </main>
