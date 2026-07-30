@@ -343,16 +343,12 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
       <main
         className={`flex min-h-0 flex-1 flex-col ${
           isTrelloMode
-            ? 'overflow-hidden px-4 pb-[max(5.5rem,env(safe-area-inset-bottom)+3rem)] pt-3 lg:px-6 lg:pb-8'
+            ? 'overflow-hidden px-4 pb-3 pt-3 lg:px-6'
             : `${mainPad} budgets-hub-no-scrollbar overflow-y-auto overflow-x-hidden`
         }`}
       >
-        <div
-          className={`mx-auto flex w-full min-h-0 ${mainMaxW} flex-col lg:mx-0 ${
-            isTrelloMode ? 'h-full min-h-0 flex-1' : ''
-          }`}
-        >
-          <div className={isTrelloMode ? 'relative min-h-0 flex-1' : undefined}>{renderContent()}</div>
+        <div className={`mx-auto w-full min-w-0 ${mainMaxW} lg:mx-0`}>
+          {renderContent()}
         </div>
       </main>
     </div>

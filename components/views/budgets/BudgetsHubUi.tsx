@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
   Clock,
@@ -305,14 +305,48 @@ export function BudgetHubStageBoard({
 }) {
   const colMin = desktopShell ? 'min-w-[20rem] w-[20rem]' : 'min-w-[16.5rem] w-[16.5rem]';
   const dragRef = useDragScroll<HTMLDivElement>();
+  const boardWrapRef = useRef<HTMLDivElement | null>(null);
+  const [boardHeight, setBoardHeight] = useState<number>(0);
   const columnShell = getPatioBoardColumnShellClass(Boolean(desktopShell));
   const headerTop = getPatioBoardColumnHeaderTopClass(Boolean(desktopShell));
 
+  useLayoutEffect(() => {
+    const el = boardWrapRef.current;
+    if (!el || typeof window === 'undefined') return;
+
+    const measure = () => {
+      const top = el.getBoundingClientRect().top;
+      const bottomGap = desktopShell
+        ? 16
+        : Math.max(88, (window.visualViewport?.offsetTop ?? 0) + 72);
+      const vh = window.visualViewport?.height ?? window.innerHeight;
+      const next = Math.max(220, Math.floor(vh - top - bottomGap));
+      setBoardHeight((prev) => (prev === next ? prev : next));
+    };
+
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => measure()) : null;
+    ro?.observe(el);
+    window.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('scroll', measure);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('scroll', measure);
+    };
+  }, [desktopShell]);
+
   return (
-    <div className="relative h-full min-h-0 w-full flex-1">
+    <div
+      ref={boardWrapRef}
+      className="w-full min-w-0"
+      style={boardHeight > 0 ? { height: boardHeight } : { minHeight: '40vh' }}
+    >
       <div
         ref={dragRef}
-        className="budgets-hub-no-scrollbar absolute inset-0 flex cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 [-webkit-overflow-scrolling:touch]"
+        className="budgets-hub-no-scrollbar flex h-full min-h-0 cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 [-webkit-overflow-scrolling:touch]"
       >
         {columns.map((col) => (
           <div
