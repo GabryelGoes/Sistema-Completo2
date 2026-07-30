@@ -10,9 +10,9 @@ import { usePatioBudgetsHubLiveSync } from '../../hooks/usePatioBudgetsHubLiveSy
 import { useDesktopShellLayout } from '../ui/DesktopShellContext';
 import {
   BUDGETS_HUB_VIEW_MODES,
-  buildBudgetItemsForView,
   buildStageKanbanColumns,
   buildVehicleGroups,
+  buildVehicleGroupsForView,
   filterBudgetsByHubScope,
   readStoredBudgetsHubScope,
   readStoredBudgetsHubView,
@@ -203,7 +203,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   }, [pulseByBudgetId]);
 
   const allGroups = useMemo(() => buildVehicleGroups(scopedItems), [scopedItems]);
-  const itemsForView = useMemo(() => buildBudgetItemsForView(scopedItems, viewMode), [scopedItems, viewMode]);
+  const groupsForView = useMemo(() => buildVehicleGroupsForView(scopedItems, viewMode), [scopedItems, viewMode]);
 
   const kanbanColumns = useMemo(() => buildStageKanbanColumns(allGroups), [allGroups]);
 
@@ -256,7 +256,6 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
       return (
         <BudgetHubStageBoard
           columns={kanbanColumns}
-          allItems={scopedItems}
           pendingBudgetHighlightIds={pendingBudgetHighlightIds}
           pulseByBudgetId={pulseByBudgetId}
           onOpenBudget={openBudgetFromHub}
@@ -266,7 +265,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
       );
     }
 
-    if (itemsForView.length === 0) {
+    if (groupsForView.length === 0) {
       return (
         <BudgetsHubEmptyState
           message="Nada nesta visualização"
@@ -277,8 +276,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
 
     return (
       <BudgetHubCardsGrid
-        items={itemsForView}
-        allItems={scopedItems}
+        groups={groupsForView}
         pulseByBudgetId={pulseByBudgetId}
         pendingBudgetHighlightIds={pendingBudgetHighlightIds}
         onOpenBudget={openBudgetFromHub}

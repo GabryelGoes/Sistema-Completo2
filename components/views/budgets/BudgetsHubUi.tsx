@@ -15,7 +15,7 @@ import {
   getPatioBoardColumnHeaderTopClass,
   getPatioBoardColumnShellClass,
 } from '../../../utils/patioBoardGlassCard';
-import type { BudgetsHubScope, BudgetsHubViewMode, StageKanbanColumn } from '../../../utils/budgetsHubViews';
+import type { BudgetsHubScope, BudgetsHubViewMode, StageKanbanColumn, VehicleBudgetGroup } from '../../../utils/budgetsHubViews';
 import { BUDGETS_HUB_VIEW_MODES } from '../../../utils/budgetsHubViews';
 import { BudgetHubPatioStyleCard } from './BudgetHubPatioStyleCard';
 
@@ -226,20 +226,9 @@ export function BudgetsHubViewSwitcher({
   );
 }
 
-function siblingsForOrder(
-  allItems: PatioVehicleBudgetAggregateItem[],
-  serviceOrderId: string
-): Pick<PatioVehicleBudgetAggregateItem, 'budgetId' | 'createdAt'>[] {
-  const oid = String(serviceOrderId).trim().toLowerCase();
-  return allItems
-    .filter((x) => String(x.serviceOrderId).trim().toLowerCase() === oid)
-    .map((x) => ({ budgetId: x.budgetId, createdAt: x.createdAt }));
-}
-
-/** Grade de cards de orçamento (estilo Pátio). */
+/** Grade de cards — um card por veículo/OS. */
 export function BudgetHubCardsGrid({
-  items,
-  allItems,
+  groups,
   pulseByBudgetId,
   pendingBudgetHighlightIds,
   onOpenBudget,
@@ -247,9 +236,7 @@ export function BudgetHubCardsGrid({
   desktopShell,
   compact,
 }: {
-  items: PatioVehicleBudgetAggregateItem[];
-  /** Base completa do escopo (para numeração Orç. N por OS). */
-  allItems: PatioVehicleBudgetAggregateItem[];
+  groups: VehicleBudgetGroup[];
   pulseByBudgetId: Record<string, 'created' | 'edited'>;
   pendingBudgetHighlightIds: Set<string>;
   onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
@@ -266,20 +253,21 @@ export function BudgetHubCardsGrid({
           : 'grid-cols-1 sm:grid-cols-2'
       }`}
     >
-      {items.map((row) => {
-        const bid = String(row.budgetId).trim();
+      {groups.map((group) => {
+        const needsAttention = group.items.some((row) =>
+          pendingBudgetHighlightIds.has(String(row.budgetId).trim())
+        );
         return (
           <BudgetHubPatioStyleCard
-            key={row.budgetId}
-            row={row}
-            siblings={siblingsForOrder(allItems, row.serviceOrderId)}
-            pulse={pulseByBudgetId[bid]}
-            needsAttention={pendingBudgetHighlightIds.has(bid)}
+            key={group.orderId}
+            group={group}
+            pulseByBudgetId={pulseByBudgetId}
+            needsAttention={needsAttention}
             blurPlates={blurPlates}
             desktopShell={desktopShell}
             compact={compact}
             mobileScale={mobileScale}
-            onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
+            onOpenBudget={onOpenBudget}
           />
         );
       })}
@@ -293,7 +281,6 @@ export function BudgetHubCardsGrid({
  */
 export function BudgetHubStageBoard({
   columns,
-  allItems,
   pendingBudgetHighlightIds,
   pulseByBudgetId,
   onOpenBudget,
@@ -301,7 +288,6 @@ export function BudgetHubStageBoard({
   desktopShell,
 }: {
   columns: StageKanbanColumn[];
-  allItems: PatioVehicleBudgetAggregateItem[];
   pendingBudgetHighlightIds: Set<string>;
   pulseByBudgetId: Record<string, 'created' | 'edited'>;
   onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
@@ -478,29 +464,31 @@ export function BudgetHubStageBoard({
             <div className={`z-[1] shrink-0 border-b border-zinc-200/80 px-2.5 py-2 ${headerTop} ${col.style}`}>
               <p className="text-[10px] font-bold uppercase tracking-[0.06em]">{col.name}</p>
               <p className="mt-0.5 text-[9px] font-semibold opacity-90">
-                {col.budgetCount} orçamento{col.budgetCount === 1 ? '' : 's'}
+                {col.groups.length} veíc. · {col.budgetCount} orç.
               </p>
             </div>
             <div className="budgets-hub-col-scroll budgets-hub-no-scrollbar min-h-0 flex-1 space-y-1.5 p-1.5">
-              {col.items.length === 0 ? (
+              {col.groups.length === 0 ? (
                 <p className="px-2 py-6 text-center text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Nenhum orçamento nesta etapa
+                  Nenhum veículo nesta etapa
                 </p>
               ) : (
-                col.items.map((row) => {
-                  const bid = String(row.budgetId).trim();
+                col.groups.map((group) => {
+                  const needsAttention = group.items.some((row) =>
+                    pendingBudgetHighlightIds.has(String(row.budgetId).trim())
+                  );
                   return (
                     <BudgetHubPatioStyleCard
-                      key={row.budgetId}
-                      row={row}
-                      siblings={siblingsForOrder(allItems, row.serviceOrderId)}
-                      pulse={pulseByBudgetId[bid]}
-                      needsAttention={pendingBudgetHighlightIds.has(bid)}
+                      key={group.orderId}
+                      group={group}
+                      pulseByBudgetId={pulseByBudgetId}
+                      needsAttention={needsAttention}
                       blurPlates={blurPlates}
                       desktopShell={desktopShell}
                       compact
                       trelloScale
-                      onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
+                      hideStageFooter
+                      onOpenBudget={onOpenBudget}
                     />
                   );
                 })
