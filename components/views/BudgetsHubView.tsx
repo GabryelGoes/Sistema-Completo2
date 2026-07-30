@@ -10,9 +10,9 @@ import { usePatioBudgetsHubLiveSync } from '../../hooks/usePatioBudgetsHubLiveSy
 import { useDesktopShellLayout } from '../ui/DesktopShellContext';
 import {
   BUDGETS_HUB_VIEW_MODES,
+  buildBudgetItemsForView,
   buildStageKanbanColumns,
   buildVehicleGroups,
-  buildVehicleGroupsForView,
   computeBudgetsHubStats,
   filterBudgetsByHubScope,
   readStoredBudgetsHubScope,
@@ -23,8 +23,8 @@ import {
   type BudgetsHubViewMode,
 } from '../../utils/budgetsHubViews';
 import {
+  BudgetHubCardsGrid,
   BudgetHubStageBoard,
-  BudgetHubVehicleGroup,
   BudgetsHubEmptyState,
   BudgetsHubScopeToggle,
   BudgetsHubStatsStrip,
@@ -73,7 +73,6 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<BudgetsHubViewMode>(() => readStoredBudgetsHubView());
   const [hubScope, setHubScope] = useState<BudgetsHubScope>(() => readStoredBudgetsHubScope());
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [pendingBudgetHighlightIds, setPendingBudgetHighlightIds] = useState<Set<string>>(() => new Set());
   const [pulseByBudgetId, setPulseByBudgetId] = useState<Record<string, 'created' | 'edited'>>({});
   const prevSigByBudgetRef = useRef<Map<string, string>>(new Map());
@@ -207,20 +206,11 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
 
   const stats = useMemo(() => computeBudgetsHubStats(scopedItems), [scopedItems]);
   const allGroups = useMemo(() => buildVehicleGroups(scopedItems), [scopedItems]);
-  const groupsForView = useMemo(() => buildVehicleGroupsForView(scopedItems, viewMode), [scopedItems, viewMode]);
+  const itemsForView = useMemo(() => buildBudgetItemsForView(scopedItems, viewMode), [scopedItems, viewMode]);
 
   const kanbanColumns = useMemo(() => buildStageKanbanColumns(allGroups), [allGroups]);
 
   const activeViewMeta = BUDGETS_HUB_VIEW_MODES.find((m) => m.id === viewMode);
-
-  const toggleExpand = (orderId: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(orderId)) next.delete(orderId);
-      else next.add(orderId);
-      return next;
-    });
-  };
 
   const openBudgetFromHub = (serviceOrderId: string, budgetId: string) => {
     const bid = String(budgetId).trim();
@@ -237,20 +227,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     onOpenBudgetInPatio(serviceOrderId, budgetId);
   };
 
-  const plateDisplay = (plate: string | null) => {
-    const p = (plate ?? '').trim();
-    if (!p) return '—';
-    if (blurPlates) {
-      return (
-        <span className="blur-plate" aria-hidden>
-          {p}
-        </span>
-      );
-    }
-    return p.toUpperCase();
-  };
-
-  const mainMaxW = desktopShell ? 'max-w-none' : 'max-w-3xl';
+  const mainMaxW = desktopShell ? 'max-w-none' : 'max-w-5xl';
   const mainPad = desktopShell ? 'px-6 py-5 pb-8' : 'px-4 py-5 pb-[max(5.5rem,env(safe-area-inset-bottom)+3rem)]';
 
   const renderContent = () => {
@@ -281,19 +258,17 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
       return (
         <BudgetHubStageBoard
           columns={kanbanColumns}
-          plateDisplay={plateDisplay}
+          allItems={scopedItems}
           pendingBudgetHighlightIds={pendingBudgetHighlightIds}
           pulseByBudgetId={pulseByBudgetId}
           onOpenBudget={openBudgetFromHub}
-          expanded={expanded}
-          onToggleExpand={toggleExpand}
+          blurPlates={blurPlates}
           desktopShell={desktopShell}
         />
       );
     }
 
-    const groupsToShow = viewMode === 'by_stage' ? [] : groupsForView;
-    if (groupsToShow.length === 0) {
+    if (itemsForView.length === 0) {
       return (
         <BudgetsHubEmptyState
           message="Nada nesta visualização"
@@ -303,26 +278,15 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     }
 
     return (
-      <div className="space-y-4">
-        {groupsToShow.map((group) => {
-          const vehicleNeedsAttention = group.items.some((row) =>
-            pendingBudgetHighlightIds.has(String(row.budgetId).trim())
-          );
-          return (
-            <BudgetHubVehicleGroup
-              key={group.orderId}
-              group={group}
-              expanded={expanded.has(group.orderId)}
-              onToggle={() => toggleExpand(group.orderId)}
-              plateDisplay={plateDisplay}
-              vehicleNeedsAttention={vehicleNeedsAttention}
-              pulseByBudgetId={pulseByBudgetId}
-              onOpenBudget={openBudgetFromHub}
-              desktopShell={desktopShell}
-            />
-          );
-        })}
-      </div>
+      <BudgetHubCardsGrid
+        items={itemsForView}
+        allItems={scopedItems}
+        pulseByBudgetId={pulseByBudgetId}
+        pendingBudgetHighlightIds={pendingBudgetHighlightIds}
+        onOpenBudget={openBudgetFromHub}
+        blurPlates={blurPlates}
+        desktopShell={desktopShell}
+      />
     );
   };
 

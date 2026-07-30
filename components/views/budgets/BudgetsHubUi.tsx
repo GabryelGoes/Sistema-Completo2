@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   CheckCircle2,
-  ChevronRight,
   Clock,
   Columns3,
   FileText,
@@ -10,17 +9,17 @@ import {
   Sparkles,
   Wrench,
 } from 'lucide-react';
-import {
-  budgetChronologicalNumber,
-  type PatioVehicleBudgetAggregateItem,
-} from '../../../services/apiService';
-import { BudgetVerifiedSeal } from '../../budget/BudgetVerifiedSeal';
-import { getStageConfig, getStageStyle } from '../../../constants/serviceOrderStages';
+import type { PatioVehicleBudgetAggregateItem } from '../../../services/apiService';
 import { useDragScroll } from '../../../hooks/useDragScroll';
-import { iosLabel, iosPageGlass, iosPageGlassOrcamentosVehicleCard } from '../../ui/iosModalStyles';
-import { desktopOnmotorCard, desktopStatChip } from '../../ui/desktopCardStyles';
-import type { BudgetsHubScope, BudgetsHubViewMode, StageKanbanColumn, VehicleBudgetGroup } from '../../../utils/budgetsHubViews';
-import { BUDGETS_HUB_VIEW_MODES, budgetOrderFlow } from '../../../utils/budgetsHubViews';
+import { iosPageGlass } from '../../ui/iosModalStyles';
+import { desktopStatChip } from '../../ui/desktopCardStyles';
+import {
+  getPatioBoardColumnHeaderTopClass,
+  getPatioBoardColumnShellClass,
+} from '../../../utils/patioBoardGlassCard';
+import type { BudgetsHubScope, BudgetsHubViewMode, StageKanbanColumn } from '../../../utils/budgetsHubViews';
+import { BUDGETS_HUB_VIEW_MODES } from '../../../utils/budgetsHubViews';
+import { BudgetHubPatioStyleCard } from './BudgetHubPatioStyleCard';
 
 /** Toggle compacto Pátio / Laboratório (ao lado dos chips de estatísticas). */
 export function BudgetsHubScopeToggle({
@@ -276,441 +275,119 @@ export function BudgetsHubStatsStrip({
   );
 }
 
-type BudgetRowProps = {
-  row: PatioVehicleBudgetAggregateItem;
-  budgetNum: number;
-  pulse?: 'created' | 'edited';
-  onOpen: () => void;
-  compact?: boolean;
-  /** Linha enxuta sempre visível no card (selo + prévia), sem expandir. */
-  summary?: boolean;
-};
-
-export function BudgetHubBudgetRow({ row, budgetNum, pulse, onOpen, compact, summary }: BudgetRowProps) {
-  const preview = row.diagnosisPreview.trim() || row.cardName?.trim() || 'Sem descrição de diagnóstico';
-
-  if (summary) {
-    return (
-      <li>
-        <button
-          type="button"
-          onClick={onOpen}
-          className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-zinc-50/90 dark:hover:bg-white/[0.04]"
-        >
-          <span className={`${iosLabel} mb-0 shrink-0 text-[9px]`}>Orç. {budgetNum}</span>
-          {row.isVerified ? (
-            <BudgetVerifiedSeal
-              verifiedAt={row.verifiedAt}
-              verifiedByName={row.verifiedByName}
-              size="sm"
-            />
-          ) : (
-            <span className="shrink-0 rounded-full border border-amber-300/70 bg-amber-50 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-              Pendente
-            </span>
-          )}
-          {pulse === 'created' ? (
-            <span className="shrink-0 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300">
-              Novo
-            </span>
-          ) : null}
-          {pulse === 'edited' ? (
-            <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 dark:text-amber-200">
-              Editado
-            </span>
-          ) : null}
-          <span className="min-w-0 flex-1 truncate text-[12px] leading-tight text-zinc-800 dark:text-zinc-200">
-            {preview}
-          </span>
-          <span className="shrink-0 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-            {formatBudgetWhen(row.updatedAt)}
-          </span>
-        </button>
-      </li>
-    );
-  }
-
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onOpen}
-        className={`flex w-full flex-col gap-2 text-left transition-colors hover:bg-zinc-50/90 dark:hover:bg-white/[0.04] ${
-          compact ? 'px-3 py-3' : 'px-4 py-4 sm:px-5'
-        }`}
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <BudgetOrderOriginBadge orderType={row.orderType} />
-          <span className={`${iosLabel} mb-0 text-[10px]`}>Orçamento {budgetNum}</span>
-          {pulse === 'created' ? (
-            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
-              Novo
-            </span>
-          ) : null}
-          {pulse === 'edited' ? (
-            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">
-              Editado
-            </span>
-          ) : null}
-          {row.isVerified ? (
-            <BudgetVerifiedSeal
-              verifiedAt={row.verifiedAt}
-              verifiedByName={row.verifiedByName}
-              size={compact ? 'sm' : 'md'}
-            />
-          ) : (
-            <span
-              className={`rounded-full bg-amber-500/10 font-semibold text-amber-800/90 dark:bg-amber-500/15 dark:text-amber-200/90 ${
-                compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[11px]'
-              }`}
-            >
-              Aguardando verificação
-            </span>
-          )}
-          {row.hasApprovedItems ? (
-            <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-800 dark:bg-sky-500/20 dark:text-sky-200">
-              {row.approvedItemsCount} aprovado{row.approvedItemsCount === 1 ? '' : 's'}
-            </span>
-          ) : null}
-          <span className="ml-auto text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
-            {formatBudgetWhen(row.updatedAt)}
-          </span>
-        </div>
-        <p className={`line-clamp-2 leading-snug text-zinc-900 dark:text-zinc-100 ${compact ? 'text-[13px]' : 'text-[15px]'}`}>
-          {preview}
-        </p>
-        <p className="text-[12px] text-zinc-500 dark:text-zinc-500">
-          {row.servicesCount} serviço{row.servicesCount === 1 ? '' : 's'} · {row.partsCount} peça
-          {row.partsCount === 1 ? '' : 's'}
-        </p>
-      </button>
-    </li>
-  );
+function siblingsForOrder(
+  allItems: PatioVehicleBudgetAggregateItem[],
+  serviceOrderId: string
+): Pick<PatioVehicleBudgetAggregateItem, 'budgetId' | 'createdAt'>[] {
+  const oid = String(serviceOrderId).trim().toLowerCase();
+  return allItems
+    .filter((x) => String(x.serviceOrderId).trim().toLowerCase() === oid)
+    .map((x) => ({ budgetId: x.budgetId, createdAt: x.createdAt }));
 }
 
-type VehicleGroupProps = {
-  group: VehicleBudgetGroup;
-  expanded: boolean;
-  onToggle: () => void;
-  plateDisplay: (plate: string | null) => React.ReactNode;
-  vehicleNeedsAttention: boolean;
-  pulseByBudgetId: Record<string, 'created' | 'edited'>;
-  onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
-  defaultOpen?: boolean;
-  desktopShell?: boolean;
-  /** Modo enxuto (visualização "por etapa"): card minimizado com poucas infos. */
-  compact?: boolean;
-};
-
-export function BudgetHubVehicleGroup({
-  group,
-  expanded,
-  onToggle,
-  plateDisplay,
-  vehicleNeedsAttention,
+/** Grade de cards de orçamento (estilo Pátio). */
+export function BudgetHubCardsGrid({
+  items,
+  allItems,
   pulseByBudgetId,
+  pendingBudgetHighlightIds,
   onOpenBudget,
-  defaultOpen,
+  blurPlates,
   desktopShell,
   compact,
-}: VehicleGroupProps) {
-  const { head, items } = group;
-  const flow = budgetOrderFlow(head.orderType);
-  const stage = getStageConfig(head.orderStatus, flow);
-  const isLab = head.orderType === 'module';
-  // No modo compacto o clique sempre alterna (não força aberto).
-  const open = compact ? expanded : (defaultOpen ?? expanded);
-  const cardShell = desktopShell ? desktopOnmotorCard : iosPageGlassOrcamentosVehicleCard;
-  const chrono = items.map((x) => ({ id: x.budgetId, createdAt: x.createdAt }));
-
-  if (compact) {
-    return (
-      <section
-        className={`${cardShell} overflow-hidden transition-[box-shadow,background-color,border-color] duration-300 ${
-          vehicleNeedsAttention
-            ? '!border-2 !border-red-400/65 !bg-red-50/88 dark:!border-red-400/50 dark:!bg-red-950/[0.34]'
-            : ''
-        }`}
-      >
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={open}
-          className={`flex w-full items-center gap-2.5 px-3 py-[1.4rem] text-left transition-colors ${
-            vehicleNeedsAttention
-              ? 'hover:!bg-red-50/92 dark:hover:!bg-red-950/40'
-              : 'hover:bg-zinc-50/80 dark:hover:bg-white/[0.04]'
-          }`}
-        >
-          <div
-            className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ${
-              vehicleNeedsAttention
-                ? '!bg-red-100/88 ring-red-300/50 dark:!bg-red-500/12'
-                : isLab
-                  ? 'bg-violet-500/10 ring-violet-400/35'
-                  : 'bg-[#007AFF]/10 ring-[#007AFF]/25'
-            }`}
-          >
-            <img
-              src={isLab ? '/icons/laboratorio-ios.png' : '/icons/patio-ios.png'}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate text-[15px] font-bold tracking-tight text-zinc-900 dark:text-white">
-                {[head.vehicleBrand, head.vehicleModel].filter(Boolean).join(' ') || (isLab ? 'Módulo' : 'Veículo')}
-              </span>
-              <span className="ml-auto flex h-5 min-w-[1.4rem] shrink-0 items-center justify-center rounded-full bg-zinc-200/90 px-1.5 text-[11px] font-bold text-zinc-700 dark:bg-white/[0.12] dark:text-zinc-200">
-                {items.length}
-              </span>
-            </div>
-            <p
-              className={`truncate text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 ${
-                isLab ? '' : 'font-mono tracking-wide'
-              }`}
-            >
-              {budgetOrderTitle(head, plateDisplay)}
-            </p>
-          </div>
-          <ChevronRight className={`h-[18px] w-[18px] shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-90' : ''}`} />
-        </button>
-        <ul className="border-t border-zinc-200/60 divide-y divide-zinc-200/60 dark:border-white/[0.06] dark:divide-white/[0.06]">
-          {items.map((row) => (
-            <BudgetHubBudgetRow
-              key={row.budgetId}
-              row={row}
-              budgetNum={budgetChronologicalNumber(chrono, row.budgetId)}
-              pulse={pulseByBudgetId[String(row.budgetId).trim()]}
-              onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
-              compact={open}
-              summary={!open}
-            />
-          ))}
-        </ul>
-      </section>
-    );
-  }
-
-  return (
-    <section
-      className={`${cardShell} overflow-hidden transition-[box-shadow,background-color,border-color] duration-300 ${
-        vehicleNeedsAttention
-          ? '!border-2 !border-red-400/65 !bg-red-50/88 !shadow-[0_12px_36px_-10px_rgba(239,68,68,0.16)] dark:!border-red-400/50 dark:!bg-red-950/[0.34]'
-          : ''
-      }`}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className={`flex w-full items-start gap-3 border-b px-4 py-4 text-left transition-colors sm:px-5 ${
-          vehicleNeedsAttention
-            ? 'border-red-200/75 hover:!bg-red-50/92 dark:border-red-500/22'
-            : 'border-zinc-200/70 hover:bg-zinc-50/80 dark:border-white/[0.06] dark:hover:bg-white/[0.04]'
-        }`}
-      >
-        <div
-          className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl ring-1 ${
-            vehicleNeedsAttention
-              ? '!bg-red-100/88 ring-red-300/50 dark:!bg-red-500/12'
-              : isLab
-                ? 'bg-violet-500/10 ring-violet-400/35'
-                : 'bg-[#007AFF]/10 ring-[#007AFF]/25'
-          }`}
-        >
-          <img
-            src={isLab ? '/icons/laboratorio-ios.png' : '/icons/patio-ios.png'}
-            alt=""
-            className="h-full w-full object-cover"
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <BudgetOrderOriginBadge orderType={head.orderType} />
-            <span
-              className={`font-bold tracking-wide text-zinc-900 dark:text-white ${
-                isLab ? 'text-[14px]' : 'font-mono text-[14px]'
-              }`}
-            >
-              {budgetOrderTitle(head, plateDisplay)}
-            </span>
-            {head.osNumber != null ? (
-              <span className="rounded-full bg-zinc-200/90 px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:bg-white/[0.1] dark:text-zinc-300">
-                OS #{head.osNumber}
-              </span>
-            ) : null}
-            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getStageStyle(head.orderStatus, flow)}`}>
-              {stage?.name ?? head.orderStatus}
-            </span>
-          </div>
-          <p className="mt-1 truncate text-[15px] font-semibold text-zinc-900 dark:text-white">
-            {[head.vehicleBrand, head.vehicleModel].filter(Boolean).join(' ') || 'Veículo'}
-          </p>
-          {head.customerName ? (
-            <p className="mt-0.5 truncate text-[13px] text-zinc-600 dark:text-zinc-400">{head.customerName}</p>
-          ) : null}
-          <p className="mt-2 text-[12px] font-medium text-zinc-500">
-            {items.length} orçamento{items.length === 1 ? '' : 's'}
-          </p>
-        </div>
-        <ChevronRight className={`mt-1 h-5 w-5 shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-90' : ''}`} />
-      </button>
-      <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
-        {items.map((row) => (
-          <BudgetHubBudgetRow
-            key={row.budgetId}
-            row={row}
-            budgetNum={budgetChronologicalNumber(chrono, row.budgetId)}
-            pulse={pulseByBudgetId[String(row.budgetId).trim()]}
-            onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
-            summary={!open}
-          />
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-export function BudgetHubFlatBudgetList({
-  items,
-  pulseByBudgetId,
-  onOpenBudget,
-  desktopShell,
 }: {
   items: PatioVehicleBudgetAggregateItem[];
+  /** Base completa do escopo (para numeração Orç. N por OS). */
+  allItems: PatioVehicleBudgetAggregateItem[];
   pulseByBudgetId: Record<string, 'created' | 'edited'>;
+  pendingBudgetHighlightIds: Set<string>;
   onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
+  blurPlates?: boolean;
   desktopShell?: boolean;
+  compact?: boolean;
 }) {
-  const chronoByOrder = new Map<string, { id: string; createdAt: string }[]>();
-  for (const row of items) {
-    const oid = row.serviceOrderId;
-    const list = chronoByOrder.get(oid) ?? [];
-    list.push({ id: row.budgetId, createdAt: row.createdAt });
-    chronoByOrder.set(oid, list);
-  }
-
-  const shell = desktopShell ? desktopOnmotorCard : iosPageGlass;
-
   return (
-    <div className={`${shell} overflow-hidden`}>
-      <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
-        {items.map((row) => {
-          const chrono = chronoByOrder.get(row.serviceOrderId) ?? [];
-          const flow = budgetOrderFlow(row.orderType);
-          const stage = getStageConfig(row.orderStatus, flow);
-          return (
-            <li key={row.budgetId}>
-              <button
-                type="button"
-                onClick={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
-                className="flex w-full flex-col gap-2 px-4 py-4 text-left transition-colors hover:bg-zinc-50/90 sm:px-5 dark:hover:bg-white/[0.04]"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <BudgetOrderOriginBadge orderType={row.orderType} compact />
-                  <span
-                    className={`font-bold text-zinc-900 dark:text-white ${
-                      row.orderType === 'module' ? 'text-[13px]' : 'font-mono text-[13px]'
-                    }`}
-                  >
-                    {budgetOrderTitle(row)}
-                  </span>
-                  {row.osNumber != null ? (
-                    <span className="text-[11px] font-semibold text-zinc-500">OS #{row.osNumber}</span>
-                  ) : null}
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getStageStyle(row.orderStatus, flow)}`}>
-                    {stage?.name ?? row.orderStatus}
-                  </span>
-                  <span className={`${iosLabel} mb-0 text-[10px]`}>
-                    Orç. {budgetChronologicalNumber(chrono, row.budgetId)}
-                  </span>
-                  {pulseByBudgetId[String(row.budgetId).trim()] === 'created' ? (
-                    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                      Novo
-                    </span>
-                  ) : null}
-                  {pulseByBudgetId[String(row.budgetId).trim()] === 'edited' ? (
-                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
-                      Editado
-                    </span>
-                  ) : null}
-                </div>
-                <p className="line-clamp-2 text-[15px] leading-snug text-zinc-900 dark:text-zinc-100">
-                  {row.diagnosisPreview.trim() || row.cardName?.trim() || 'Sem descrição'}
-                </p>
-                <p className="text-[12px] text-zinc-500">
-                  {row.servicesCount} serv. · {row.partsCount} peças
-                  {row.hasApprovedItems ? ` · ${row.approvedItemsCount} aprovado(s)` : ''}
-                </p>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+    <div
+      className={`grid gap-3 ${
+        desktopShell
+          ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+          : 'grid-cols-1 sm:grid-cols-2'
+      }`}
+    >
+      {items.map((row) => {
+        const bid = String(row.budgetId).trim();
+        return (
+          <BudgetHubPatioStyleCard
+            key={row.budgetId}
+            row={row}
+            siblings={siblingsForOrder(allItems, row.serviceOrderId)}
+            pulse={pulseByBudgetId[bid]}
+            needsAttention={pendingBudgetHighlightIds.has(bid)}
+            blurPlates={blurPlates}
+            desktopShell={desktopShell}
+            compact={compact}
+            onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
+          />
+        );
+      })}
     </div>
   );
 }
 
 export function BudgetHubStageBoard({
   columns,
-  plateDisplay,
+  allItems,
   pendingBudgetHighlightIds,
   pulseByBudgetId,
   onOpenBudget,
-  expanded,
-  onToggleExpand,
+  blurPlates,
   desktopShell,
 }: {
   columns: StageKanbanColumn[];
-  plateDisplay: (plate: string | null) => React.ReactNode;
+  allItems: PatioVehicleBudgetAggregateItem[];
   pendingBudgetHighlightIds: Set<string>;
   pulseByBudgetId: Record<string, 'created' | 'edited'>;
   onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
-  expanded: Set<string>;
-  onToggleExpand: (orderId: string) => void;
+  blurPlates?: boolean;
   desktopShell?: boolean;
 }) {
   const colMin = desktopShell ? 'min-w-[20rem] w-[20rem]' : 'min-w-[16.5rem] w-[16.5rem]';
   const dragRef = useDragScroll<HTMLDivElement>();
+  const columnShell = getPatioBoardColumnShellClass(Boolean(desktopShell));
+  const headerTop = getPatioBoardColumnHeaderTopClass(Boolean(desktopShell));
 
   return (
     <div
       ref={dragRef}
-      className="-mx-1 flex cursor-grab gap-3 overflow-x-auto pb-2 px-1 [scrollbar-width:thin] lg:mx-0"
+      className="-mx-1 flex cursor-grab gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:thin] lg:mx-0"
     >
       {columns.map((col) => (
-        <div
-          key={col.status}
-          className={`${colMin} flex shrink-0 flex-col rounded-xl border border-zinc-200/90 bg-zinc-100/90 dark:border-white/[0.08] dark:bg-zinc-900/40`}
-        >
-          <div className={`sticky top-0 z-[1] rounded-t-xl border-b border-zinc-200/80 px-3 py-2.5 ${col.style}`}>
+        <div key={col.status} className={`${colMin} flex shrink-0 flex-col ${columnShell}`}>
+          <div className={`sticky top-0 z-[1] border-b border-zinc-200/80 px-3 py-2.5 ${headerTop} ${col.style}`}>
             <p className="text-[11px] font-bold uppercase tracking-[0.06em]">{col.name}</p>
             <p className="mt-0.5 text-[10px] font-semibold opacity-90">
-              {col.groups.length} veíc. · {col.budgetCount} orç.
+              {col.budgetCount} orçamento{col.budgetCount === 1 ? '' : 's'}
             </p>
           </div>
           <div className="flex max-h-[min(70vh,720px)] flex-col gap-2 overflow-y-auto p-2 [scrollbar-width:thin]">
-            {col.groups.length === 0 ? (
-              <p className="px-2 py-6 text-center text-[12px] text-zinc-500 dark:text-zinc-400">Nenhum veículo nesta etapa</p>
+            {col.items.length === 0 ? (
+              <p className="px-2 py-6 text-center text-[12px] text-zinc-500 dark:text-zinc-400">
+                Nenhum orçamento nesta etapa
+              </p>
             ) : (
-              col.groups.map((group) => {
-                const vehicleNeedsAttention = group.items.some((row) =>
-                  pendingBudgetHighlightIds.has(String(row.budgetId).trim())
-                );
+              col.items.map((row) => {
+                const bid = String(row.budgetId).trim();
                 return (
-                  <BudgetHubVehicleGroup
-                    key={group.orderId}
-                    group={group}
-                    expanded={expanded.has(group.orderId)}
-                    onToggle={() => onToggleExpand(group.orderId)}
-                    plateDisplay={plateDisplay}
-                    vehicleNeedsAttention={vehicleNeedsAttention}
-                    pulseByBudgetId={pulseByBudgetId}
-                    onOpenBudget={onOpenBudget}
-                    compact
+                  <BudgetHubPatioStyleCard
+                    key={row.budgetId}
+                    row={row}
+                    siblings={siblingsForOrder(allItems, row.serviceOrderId)}
+                    pulse={pulseByBudgetId[bid]}
+                    needsAttention={pendingBudgetHighlightIds.has(bid)}
+                    blurPlates={blurPlates}
                     desktopShell={desktopShell}
+                    compact
+                    onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
                   />
                 );
               })

@@ -65,7 +65,7 @@ export const BUDGETS_HUB_VIEW_MODES: {
     id: 'vehicles',
     label: 'Por veículo',
     shortLabel: 'Veículos',
-    description: 'Agrupa todos os orçamentos de cada veículo no pátio',
+    description: 'Cards de orçamento organizados por ordem de serviço (veículo ou módulo)',
   },
   {
     id: 'recent',
@@ -257,6 +257,44 @@ export function buildVehicleGroupsForView(
   return sortGroupsForView(groups, mode);
 }
 
+/**
+ * Lista plana de orçamentos para o hub em cards (estilo Pátio).
+ * Mantém os mesmos filtros/ordenação dos modos de visualização.
+ */
+export function buildBudgetItemsForView(
+  items: PatioVehicleBudgetAggregateItem[],
+  mode: BudgetsHubViewMode
+): PatioVehicleBudgetAggregateItem[] {
+  if (mode === 'by_stage') {
+    return sortBudgetItemsForView(items, 'activity');
+  }
+
+  if (mode === 'vehicles') {
+    const groups = buildVehicleGroups(items);
+    return groups.flatMap((g) =>
+      [...g.items].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      )
+    );
+  }
+
+  if (mode === 'activity') {
+    return sortBudgetItemsForView(items, 'activity');
+  }
+
+  if (mode === 'in_service') {
+    return sortBudgetItemsForView(
+      items.filter((i) => i.orderStatus === 'EM_SERVICO'),
+      'activity'
+    );
+  }
+
+  return sortBudgetItemsForView(
+    items.filter((i) => budgetMatchesViewFilter(i, mode)),
+    mode
+  );
+}
+
 export type BudgetsHubStats = {
   totalBudgets: number;
   totalVehicles: number;
@@ -293,6 +331,8 @@ export type StageKanbanColumn = {
   name: string;
   style: string;
   groups: VehicleBudgetGroup[];
+  /** Orçamentos individuais na coluna (um card por orçamento). */
+  items: PatioVehicleBudgetAggregateItem[];
   budgetCount: number;
 };
 
@@ -308,27 +348,36 @@ export function buildStageKanbanColumns(allGroups: VehicleBudgetGroup[]): StageK
     list.sort((a, b) => b.latestActivityMs - a.latestActivityMs);
   }
 
+  const flattenItems = (groups: VehicleBudgetGroup[]) =>
+    groups.flatMap((g) =>
+      [...g.items].sort((a, b) => budgetActivityMs(b) - budgetActivityMs(a))
+    );
+
   const columns: StageKanbanColumn[] = [];
   for (const stage of BUDGET_HUB_KANBAN_STAGES) {
     const groups = byStatus.get(stage.id) ?? [];
+    const items = flattenItems(groups);
     columns.push({
       status: stage.id,
       name: stage.name,
       style: stage.style,
       groups,
-      budgetCount: groups.reduce((n, g) => n + g.items.length, 0),
+      items,
+      budgetCount: items.length,
     });
   }
   const known = new Set(BUDGET_HUB_KANBAN_STAGES.map((s) => s.id));
   for (const [status, groups] of byStatus) {
     if (known.has(status as ServiceOrderStatus)) continue;
     const cfg = getStageConfig(status);
+    const items = flattenItems(groups);
     columns.push({
       status: status as ServiceOrderStatus,
       name: cfg?.name ?? status,
       style: cfg?.style ?? 'bg-zinc-500 text-white border-zinc-600',
       groups,
-      budgetCount: groups.reduce((n, g) => n + g.items.length, 0),
+      items,
+      budgetCount: items.length,
     });
   }
   return columns;

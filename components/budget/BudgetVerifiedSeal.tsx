@@ -4,10 +4,10 @@ import { BadgeCheck } from 'lucide-react';
 export type BudgetVerifiedSealProps = {
   verifiedByName?: string | null;
   verifiedAt?: string | null;
-  /** `header` = compacto no topo; `hero` = destaque maior no painel. */
-  variant?: 'header' | 'hero';
-  /** `sm` = listas minimizadas; `md` = padrão. */
-  size?: 'sm' | 'md';
+  /** `header` = compacto no topo; `hero` = destaque maior no painel; `social` = selo verde estilo rede social. */
+  variant?: 'header' | 'hero' | 'social';
+  /** `sm` = listas minimizadas; `md` = padrão. Em `social`, `lg` = ao lado do título. */
+  size?: 'sm' | 'md' | 'lg';
   className?: string;
 };
 
@@ -27,6 +27,45 @@ export const BudgetVerifiedSeal: React.FC<BudgetVerifiedSealProps> = ({
           minute: '2-digit',
         })
       : null;
+
+  const titleHint =
+    verifiedByName?.trim() || when
+      ? `${verifiedByName?.trim() ? `Por ${verifiedByName.trim()}` : 'Verificado'}${when ? ` · ${when}` : ''}`
+      : 'Orçamento verificado';
+
+  /** Selo verde estilo Instagram / redes sociais (check em círculo). */
+  if (variant === 'social') {
+    const dim =
+      size === 'lg' ? 'h-5 w-5' : size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
+    const icon = size === 'lg' ? 'h-3.5 w-3.5' : size === 'sm' ? 'h-2.5 w-2.5' : 'h-3 w-3';
+    return (
+      <span
+        className={`inline-flex shrink-0 items-center justify-center ${className}`}
+        role="status"
+        aria-label="Orçamento verificado"
+        title={titleHint}
+      >
+        <span
+          className={`relative flex ${dim} items-center justify-center rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 text-white shadow-[0_1px_3px_rgba(16,185,129,0.45)] ring-2 ring-white dark:ring-zinc-900`}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className={icon}
+            fill="none"
+            aria-hidden
+          >
+            <path
+              d="M6.5 12.5l3.2 3.2 7.8-7.8"
+              stroke="currentColor"
+              strokeWidth="3.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      </span>
+    );
+  }
 
   if (variant === 'hero') {
     return (
