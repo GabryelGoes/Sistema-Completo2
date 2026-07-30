@@ -21,6 +21,8 @@ import { budgetOrderFlow } from '../../../utils/budgetsHubViews';
 
 /** Zoom dos cards no quadro Trello do hub (~28% menor). */
 export const BUDGET_HUB_TRELLO_CARD_ZOOM = 0.72;
+/** Zoom dos cards nas grades (tablet/mobile), fora do modo por etapa. */
+export const BUDGET_HUB_MOBILE_GRID_CARD_ZOOM = 0.78;
 
 function formatBudgetCreated(iso: string): string {
   try {
