@@ -86,7 +86,7 @@ export function BudgetHubPatioStyleCard({
     : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]';
 
   return (
-    <div className="h-auto w-full self-start">
+    <div className="h-auto w-full self-start" data-no-drag-scroll>
       <button
         type="button"
         onClick={onOpen}
@@ -97,7 +97,7 @@ export function BudgetHubPatioStyleCard({
           hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
           active:scale-[0.99]
           transition-[border-color,transform,box-shadow] duration-200 ease-out
-          cursor-pointer
+          cursor-pointer touch-pan-y
           ${radius}
           ${pad}
           ${ringClass}
@@ -113,7 +113,7 @@ export function BudgetHubPatioStyleCard({
         <div
           className={`relative z-10 flex min-h-0 w-full flex-col ${compact ? 'gap-2' : 'gap-2.5'}`}
           style={
-            desktopShell
+            desktopShell && !compact
               ? ({ zoom: DESKTOP_LANDSCAPE_CARD_ZOOM } as React.CSSProperties & { zoom?: number })
               : undefined
           }

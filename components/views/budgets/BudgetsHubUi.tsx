@@ -309,44 +309,52 @@ export function BudgetHubStageBoard({
   const headerTop = getPatioBoardColumnHeaderTopClass(Boolean(desktopShell));
 
   return (
-    <div
-      ref={dragRef}
-      className="budgets-hub-no-scrollbar flex h-full min-h-0 cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 pb-1 [-webkit-overflow-scrolling:touch]"
-    >
-      {columns.map((col) => (
-        <div key={col.status} className={`${colMin} flex h-full min-h-0 shrink-0 flex-col ${columnShell}`}>
-          <div className={`z-[1] shrink-0 border-b border-zinc-200/80 px-3 py-2.5 ${headerTop} ${col.style}`}>
-            <p className="text-[11px] font-bold uppercase tracking-[0.06em]">{col.name}</p>
-            <p className="mt-0.5 text-[10px] font-semibold opacity-90">
-              {col.budgetCount} orçamento{col.budgetCount === 1 ? '' : 's'}
-            </p>
-          </div>
-          <div className="budgets-hub-no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain p-2 [-webkit-overflow-scrolling:touch]">
-            {col.items.length === 0 ? (
-              <p className="px-2 py-6 text-center text-[12px] text-zinc-500 dark:text-zinc-400">
-                Nenhum orçamento nesta etapa
+    <div className="relative h-full min-h-0 w-full flex-1">
+      <div
+        ref={dragRef}
+        className="budgets-hub-no-scrollbar absolute inset-0 flex cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 [-webkit-overflow-scrolling:touch]"
+      >
+        {columns.map((col) => (
+          <div
+            key={col.status}
+            className={`${colMin} flex h-full min-h-0 shrink-0 flex-col overflow-hidden ${columnShell}`}
+          >
+            <div className={`z-[1] shrink-0 border-b border-zinc-200/80 px-3 py-2.5 ${headerTop} ${col.style}`}>
+              <p className="text-[11px] font-bold uppercase tracking-[0.06em]">{col.name}</p>
+              <p className="mt-0.5 text-[10px] font-semibold opacity-90">
+                {col.budgetCount} orçamento{col.budgetCount === 1 ? '' : 's'}
               </p>
-            ) : (
-              col.items.map((row) => {
-                const bid = String(row.budgetId).trim();
-                return (
-                  <BudgetHubPatioStyleCard
-                    key={row.budgetId}
-                    row={row}
-                    siblings={siblingsForOrder(allItems, row.serviceOrderId)}
-                    pulse={pulseByBudgetId[bid]}
-                    needsAttention={pendingBudgetHighlightIds.has(bid)}
-                    blurPlates={blurPlates}
-                    desktopShell={desktopShell}
-                    compact
-                    onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
-                  />
-                );
-              })
-            )}
+            </div>
+            <div
+              data-no-drag-scroll
+              className="budgets-hub-col-scroll budgets-hub-no-scrollbar min-h-0 flex-1 touch-pan-y space-y-2 overflow-y-auto overflow-x-hidden overscroll-y-contain p-2"
+            >
+              {col.items.length === 0 ? (
+                <p className="px-2 py-6 text-center text-[12px] text-zinc-500 dark:text-zinc-400">
+                  Nenhum orçamento nesta etapa
+                </p>
+              ) : (
+                col.items.map((row) => {
+                  const bid = String(row.budgetId).trim();
+                  return (
+                    <BudgetHubPatioStyleCard
+                      key={row.budgetId}
+                      row={row}
+                      siblings={siblingsForOrder(allItems, row.serviceOrderId)}
+                      pulse={pulseByBudgetId[bid]}
+                      needsAttention={pendingBudgetHighlightIds.has(bid)}
+                      blurPlates={blurPlates}
+                      desktopShell={desktopShell}
+                      compact
+                      onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
+                    />
+                  );
+                })
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

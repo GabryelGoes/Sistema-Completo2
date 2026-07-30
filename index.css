@@ -226,6 +226,16 @@ body:has(.budget-modal--compact) {
   height: 0;
 }
 
+/** Coluna Trello do hub: rolagem vertical dos cards (toque começa no card). */
+.budgets-hub-col-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+.budgets-hub-col-scroll > * {
+  touch-action: pan-y;
+}
+
 /** Rolagem vertical minimalista — modal de veículo (mobile). */
 .patio-vm-scroll--minimal {
   scrollbar-width: thin;
