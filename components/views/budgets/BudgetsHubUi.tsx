@@ -470,6 +470,7 @@ export function BudgetHubStageBoard({
         {columns.map((col) => (
           <div
             key={col.status}
+            data-budgets-hub-col
             className={`${colMin} flex h-full min-h-0 shrink-0 flex-col overflow-hidden ${columnShell}`}
           >
             <div className={`z-[1] shrink-0 border-b border-zinc-200/80 px-2.5 py-2 ${headerTop} ${col.style}`}>
