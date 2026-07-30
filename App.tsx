@@ -793,6 +793,18 @@ export default function App() {
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
             className="budgets-hub-no-scrollbar flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
+          >
+            <LazyTabBoundary label="Orçamentos">
+              <LazyBudgetsHubView
+              blurPlates={cinematographicMode}
+              isHubTabActive={userTab === 'orcamentos'}
+              onOpenBudgetInPatio={handleOpenBudgetFromHub}
+              onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
+              onClearHubBadge={patioBudgetsHub.clearBadge}
+              consumePendingHubBudgetHighlights={patioBudgetsHub.consumePendingHubBudgetHighlights}
+              />
+            </LazyTabBoundary>
+          </KeepAliveTabPanel>
           <KeepAliveTabPanel
             tabId="relatorios"
             activeTab={userTab}
