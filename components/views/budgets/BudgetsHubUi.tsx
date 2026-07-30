@@ -244,7 +244,6 @@ export function BudgetHubCardsGrid({
   desktopShell?: boolean;
   compact?: boolean;
 }) {
-  const mobileScale = !desktopShell;
   return (
     <div
       className={`grid gap-3 ${
@@ -266,7 +265,7 @@ export function BudgetHubCardsGrid({
             blurPlates={blurPlates}
             desktopShell={desktopShell}
             compact={compact}
-            mobileScale={mobileScale}
+            gridScale
             onOpenBudget={onOpenBudget}
           />
         );

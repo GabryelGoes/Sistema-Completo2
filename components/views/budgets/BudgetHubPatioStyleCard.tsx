@@ -24,8 +24,10 @@ import {
 
 /** Zoom dos cards no quadro Trello do hub (~28% menor). */
 export const BUDGET_HUB_TRELLO_CARD_ZOOM = 0.72;
-/** Zoom dos cards nas grades (tablet/mobile), fora do modo por etapa. */
-export const BUDGET_HUB_MOBILE_GRID_CARD_ZOOM = 0.78;
+/** Zoom dos cards nas grades dos atalhos (exceto por etapa). */
+export const BUDGET_HUB_GRID_CARD_ZOOM = 0.7;
+/** Zoom um pouco menos agressivo no PC. */
+export const BUDGET_HUB_GRID_CARD_ZOOM_PC = 0.82;
 
 function formatBudgetCreated(iso: string): string {
   try {
@@ -51,8 +53,8 @@ export type BudgetHubPatioStyleCardProps = {
   compact?: boolean;
   /** Escala reduzida para colunas do modo por etapa. */
   trelloScale?: boolean;
-  /** Escala reduzida nas grades em tablet/mobile (não PC). */
-  mobileScale?: boolean;
+  /** Escala reduzida nas grades dos atalhos (exceto por etapa). */
+  gridScale?: boolean;
   /** No Trello a etapa já está na coluna — não repetir no card. */
   hideStageFooter?: boolean;
   onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
@@ -70,15 +72,17 @@ export function BudgetHubPatioStyleCard({
   desktopShell,
   compact,
   trelloScale,
-  mobileScale,
+  gridScale,
   hideStageFooter,
   onOpenBudget,
 }: BudgetHubPatioStyleCardProps) {
-  const dense = Boolean(trelloScale || compact || mobileScale);
+  const dense = Boolean(trelloScale || compact || gridScale);
   const cardZoom = trelloScale
     ? BUDGET_HUB_TRELLO_CARD_ZOOM
-    : mobileScale
-      ? BUDGET_HUB_MOBILE_GRID_CARD_ZOOM
+    : gridScale
+      ? desktopShell
+        ? BUDGET_HUB_GRID_CARD_ZOOM_PC
+        : BUDGET_HUB_GRID_CARD_ZOOM
       : undefined;
 
   const head = group.head;
