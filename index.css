@@ -215,6 +215,17 @@ body:has(.budget-modal--compact) {
   background: rgb(255 255 255 / 0.18);
 }
 
+/** Hub Orçamentos: rolagem sem barra visível (página, quadro Trello, chips). */
+.budgets-hub-no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.budgets-hub-no-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 /** Rolagem vertical minimalista — modal de veículo (mobile). */
 .patio-vm-scroll--minimal {
   scrollbar-width: thin;

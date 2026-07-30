@@ -170,7 +170,7 @@ export function BudgetsHubViewSwitcher({
   return (
     <div className={desktopShell ? 'mb-4' : 'mb-3'}>
       <div className="flex items-center gap-2">
-        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
+        <div className="budgets-hub-no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
           {BUDGETS_HUB_VIEW_MODES.map((m) => {
             const active = mode === m.id;
             return (
@@ -258,7 +258,7 @@ export function BudgetsHubStatsStrip({
     </div>
   );
   return (
-    <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
+    <div className="budgets-hub-no-scrollbar mb-4 flex items-center gap-2 overflow-x-auto pb-0.5">
       {chip('Orçamentos', stats.totalBudgets)}
       {chip('OS ativas', stats.totalVehicles)}
       {chip('Pátio', stats.patioBudgets, 'text-[#0058c7] dark:text-[#8cc8ff]')}
@@ -359,17 +359,17 @@ export function BudgetHubStageBoard({
   return (
     <div
       ref={dragRef}
-      className="-mx-1 flex cursor-grab gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:thin] lg:mx-0"
+      className="budgets-hub-no-scrollbar -mx-1 flex cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 pb-2 [-webkit-overflow-scrolling:touch] lg:mx-0"
     >
       {columns.map((col) => (
         <div key={col.status} className={`${colMin} flex shrink-0 flex-col ${columnShell}`}>
-          <div className={`sticky top-0 z-[1] border-b border-zinc-200/80 px-3 py-2.5 ${headerTop} ${col.style}`}>
+          <div className={`sticky top-0 z-[1] shrink-0 border-b border-zinc-200/80 px-3 py-2.5 ${headerTop} ${col.style}`}>
             <p className="text-[11px] font-bold uppercase tracking-[0.06em]">{col.name}</p>
             <p className="mt-0.5 text-[10px] font-semibold opacity-90">
               {col.budgetCount} orçamento{col.budgetCount === 1 ? '' : 's'}
             </p>
           </div>
-          <div className="flex max-h-[min(70vh,720px)] flex-col gap-2 overflow-y-auto p-2 [scrollbar-width:thin]">
+          <div className="flex min-h-[min(12rem,40vh)] flex-1 flex-col gap-2 p-2 sm:min-h-[14rem]">
             {col.items.length === 0 ? (
               <p className="px-2 py-6 text-center text-[12px] text-zinc-500 dark:text-zinc-400">
                 Nenhum orçamento nesta etapa
