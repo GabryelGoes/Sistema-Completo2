@@ -13,7 +13,6 @@ import {
   buildBudgetItemsForView,
   buildStageKanbanColumns,
   buildVehicleGroups,
-  computeBudgetsHubStats,
   filterBudgetsByHubScope,
   readStoredBudgetsHubScope,
   readStoredBudgetsHubView,
@@ -27,7 +26,6 @@ import {
   BudgetHubStageBoard,
   BudgetsHubEmptyState,
   BudgetsHubScopeToggle,
-  BudgetsHubStatsStrip,
   BudgetsHubViewSwitcher,
 } from './budgets/BudgetsHubUi';
 
@@ -204,7 +202,6 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     return () => window.clearTimeout(t);
   }, [pulseByBudgetId]);
 
-  const stats = useMemo(() => computeBudgetsHubStats(scopedItems), [scopedItems]);
   const allGroups = useMemo(() => buildVehicleGroups(scopedItems), [scopedItems]);
   const itemsForView = useMemo(() => buildBudgetItemsForView(scopedItems, viewMode), [scopedItems, viewMode]);
 
@@ -331,18 +328,9 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
 
       <main className={mainPad}>
         <div className={`mx-auto w-full ${mainMaxW} space-y-3 lg:mx-0`}>
-          {!loading && !error && scopedItems.length > 0 ? (
-            <BudgetsHubStatsStrip
-              stats={stats}
-              desktopShell={desktopShell}
-              hubScope={hubScope}
-              onHubScopeChange={handleHubScopeChange}
-            />
-          ) : (
-            <div className="mb-4 flex justify-end">
-              <BudgetsHubScopeToggle scope={hubScope} onChange={handleHubScopeChange} />
-            </div>
-          )}
+          <div className="mb-1 flex justify-end">
+            <BudgetsHubScopeToggle scope={hubScope} onChange={handleHubScopeChange} />
+          </div>
           <BudgetsHubViewSwitcher mode={viewMode} onModeChange={handleViewModeChange} desktopShell={desktopShell} />
           {renderContent()}
         </div>
