@@ -303,17 +303,17 @@ export function BudgetHubStageBoard({
   return (
     <div
       ref={dragRef}
-      className="budgets-hub-no-scrollbar -mx-1 flex cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 pb-2 [-webkit-overflow-scrolling:touch] lg:mx-0"
+      className="budgets-hub-no-scrollbar flex h-full min-h-0 cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 pb-1 [-webkit-overflow-scrolling:touch]"
     >
       {columns.map((col) => (
-        <div key={col.status} className={`${colMin} flex shrink-0 flex-col ${columnShell}`}>
-          <div className={`sticky top-0 z-[1] shrink-0 border-b border-zinc-200/80 px-3 py-2.5 ${headerTop} ${col.style}`}>
+        <div key={col.status} className={`${colMin} flex h-full min-h-0 shrink-0 flex-col ${columnShell}`}>
+          <div className={`z-[1] shrink-0 border-b border-zinc-200/80 px-3 py-2.5 ${headerTop} ${col.style}`}>
             <p className="text-[11px] font-bold uppercase tracking-[0.06em]">{col.name}</p>
             <p className="mt-0.5 text-[10px] font-semibold opacity-90">
               {col.budgetCount} orçamento{col.budgetCount === 1 ? '' : 's'}
             </p>
           </div>
-          <div className="flex min-h-[min(12rem,40vh)] flex-1 flex-col gap-2 p-2 sm:min-h-[14rem]">
+          <div className="budgets-hub-no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain p-2 [-webkit-overflow-scrolling:touch]">
             {col.items.length === 0 ? (
               <p className="px-2 py-6 text-center text-[12px] text-zinc-500 dark:text-zinc-400">
                 Nenhum orçamento nesta etapa

@@ -226,6 +226,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
 
   const mainMaxW = desktopShell ? 'max-w-none' : 'max-w-5xl';
   const mainPad = desktopShell ? 'px-6 py-5 pb-8' : 'px-4 py-5 pb-[max(5.5rem,env(safe-area-inset-bottom)+3rem)]';
+  const isTrelloMode = viewMode === 'by_stage';
 
   const renderContent = () => {
     if (loading) {
@@ -294,7 +295,11 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const scopeAccent = isLabScope ? 'text-violet-800 dark:text-violet-200' : 'text-amber-900 dark:text-amber-200';
 
   return (
-    <div className={`flex min-h-min flex-col bg-light-page dark:bg-black ${desktopShell ? 'min-h-full' : ''}`}>
+    <div
+      className={`flex h-full min-h-0 flex-col bg-light-page dark:bg-black ${
+        isTrelloMode ? 'overflow-hidden' : ''
+      }`}
+    >
       <header className={`budgets-hub-page-header shrink-0 border-b px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl lg:px-6 ${headerTheme} ${isLabScope ? 'border-violet-500/20 dark:border-violet-400/15' : 'border-amber-500/20 dark:border-amber-400/15'}`}>
         <div className={`mx-auto flex w-full ${mainMaxW} items-start gap-3 lg:mx-0`}>
           <div className="app-view-page-chrome ml-[6.5%] flex min-w-0 flex-1 items-start gap-3 pt-0.5 lg:ml-0">
@@ -326,13 +331,25 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
         </div>
       </header>
 
-      <main className={mainPad}>
-        <div className={`mx-auto w-full ${mainMaxW} space-y-3 lg:mx-0`}>
-          <div className="mb-1 flex justify-end">
+      <main
+        className={`${mainPad} flex min-h-0 flex-1 flex-col ${
+          isTrelloMode
+            ? 'overflow-hidden'
+            : 'budgets-hub-no-scrollbar overflow-y-auto overflow-x-hidden'
+        }`}
+      >
+        <div
+          className={`mx-auto flex w-full min-h-0 ${mainMaxW} flex-col lg:mx-0 ${
+            isTrelloMode ? 'h-full flex-1 gap-2' : 'gap-3'
+          }`}
+        >
+          <div className="mb-1 flex shrink-0 justify-end">
             <BudgetsHubScopeToggle scope={hubScope} onChange={handleHubScopeChange} />
           </div>
-          <BudgetsHubViewSwitcher mode={viewMode} onModeChange={handleViewModeChange} desktopShell={desktopShell} />
-          {renderContent()}
+          <div className="shrink-0">
+            <BudgetsHubViewSwitcher mode={viewMode} onModeChange={handleViewModeChange} desktopShell={desktopShell} />
+          </div>
+          <div className={isTrelloMode ? 'min-h-0 flex-1' : undefined}>{renderContent()}</div>
         </div>
       </main>
     </div>

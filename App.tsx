@@ -792,18 +792,20 @@ export default function App() {
             tabId="orcamentos"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="budgets-hub-no-scrollbar flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
+            className="budgets-hub-no-scrollbar flex flex-1 min-h-0 w-full flex-col overflow-hidden"
           >
-            <LazyTabBoundary label="Orçamentos">
-              <LazyBudgetsHubView
-              blurPlates={cinematographicMode}
-              isHubTabActive={userTab === 'orcamentos'}
-              onOpenBudgetInPatio={handleOpenBudgetFromHub}
-              onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
-              onClearHubBadge={patioBudgetsHub.clearBadge}
-              consumePendingHubBudgetHighlights={patioBudgetsHub.consumePendingHubBudgetHighlights}
-              />
-            </LazyTabBoundary>
+            <div className="flex h-full min-h-0 flex-1 flex-col">
+              <LazyTabBoundary label="Orçamentos">
+                <LazyBudgetsHubView
+                blurPlates={cinematographicMode}
+                isHubTabActive={userTab === 'orcamentos'}
+                onOpenBudgetInPatio={handleOpenBudgetFromHub}
+                onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
+                onClearHubBadge={patioBudgetsHub.clearBadge}
+                consumePendingHubBudgetHighlights={patioBudgetsHub.consumePendingHubBudgetHighlights}
+                />
+              </LazyTabBoundary>
+            </div>
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
             tabId="relatorios"
@@ -1101,18 +1103,20 @@ export default function App() {
           tabId="orcamentos"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="budgets-hub-no-scrollbar flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
+          className="budgets-hub-no-scrollbar flex flex-1 min-h-0 w-full flex-col overflow-hidden"
         >
-          <LazyTabBoundary label="Orçamentos">
-            <LazyBudgetsHubView
-            blurPlates={cinematographicMode}
-            isHubTabActive={currentTab === 'orcamentos'}
-            onOpenBudgetInPatio={handleOpenBudgetFromHub}
-            onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
-            onClearHubBadge={patioBudgetsHub.clearBadge}
-            consumePendingHubBudgetHighlights={patioBudgetsHub.consumePendingHubBudgetHighlights}
-            />
-          </LazyTabBoundary>
+          <div className="flex h-full min-h-0 flex-1 flex-col">
+            <LazyTabBoundary label="Orçamentos">
+              <LazyBudgetsHubView
+              blurPlates={cinematographicMode}
+              isHubTabActive={currentTab === 'orcamentos'}
+              onOpenBudgetInPatio={handleOpenBudgetFromHub}
+              onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
+              onClearHubBadge={patioBudgetsHub.clearBadge}
+              consumePendingHubBudgetHighlights={patioBudgetsHub.consumePendingHubBudgetHighlights}
+              />
+            </LazyTabBoundary>
+          </div>
         </KeepAliveTabPanel>
 
         <KeepAliveTabPanel
