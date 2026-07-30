@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { Check, RefreshCw, Sparkles, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Check, CheckCircle2, Package, RefreshCw, Sparkles, Wrench, X } from 'lucide-react';
 import { ModalPortal } from '../ui/ModalPortal';
-import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
-import { iosAccentPrimaryButton, iosLabel, iosModalClose, iosModalInsetCard, iosModalShell } from '../ui/iosModalStyles';
 import type { BudgetPartFields } from '../../utils/budgetPartStock';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import {
@@ -16,7 +14,17 @@ export type BudgetApprovalModalBudget = {
   id: string;
   cardName: string;
   diagnosis: string;
-  services: { description: string; approved?: boolean; labor_hours?: number | null }[];
+  services: {
+    description: string;
+    approved?: boolean;
+    labor_hours?: number | null;
+    outsourced?: boolean;
+    suggested_value?: number | null;
+    lab_preset_id?: string | null;
+    pre_approved?: boolean;
+    source?: string;
+    line_observations?: string;
+  }[];
   parts: BudgetPartFields[];
   observations: string;
 };
@@ -34,6 +42,42 @@ export type BudgetApprovalModalProps = {
   /** Texto de apoio quando `requireAtLeastOneApproved` (substitui o hint padrão). */
   gateHint?: string;
 };
+
+const approvalShell =
+  'relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-full max-w-lg min-h-0 flex-col overflow-hidden rounded-2xl border border-sky-100/95 bg-[#fafcfe] shadow-[0_28px_90px_-32px_rgba(14,116,144,0.38),0_12px_32px_-16px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,1)] animate-modal-sheet';
+
+const approvalInset =
+  'rounded-[16px] border border-sky-200/80 bg-white shadow-[0_6px_22px_-10px_rgba(14,116,144,0.18),0_2px_12px_-4px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,1)]';
+
+function ApprovalToggle({
+  checked,
+  onToggle,
+  ariaLabel,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  ariaLabel: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      onClick={onToggle}
+      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 ${
+        checked
+          ? 'bg-sky-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]'
+          : 'bg-slate-300 shadow-[inset_0_1px_2px_rgba(15,23,42,0.12)]'
+      }`}
+    >
+      <span
+        className="absolute left-0.5 top-1 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200"
+        style={{ transform: checked ? 'translateX(20px)' : 'translateX(0)' }}
+      />
+    </button>
+  );
+}
 
 export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
   open,
@@ -60,10 +104,16 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
     setApprovalParts(budget.parts.map((p) => p.approved === true));
   }, [open, budget?.id]);
 
+  const approvedCount = useMemo(() => {
+    const s = approvalServices.filter(Boolean).length;
+    const p = approvalParts.filter(Boolean).length;
+    return { services: s, parts: p, total: s + p };
+  }, [approvalServices, approvalParts]);
+
   if (!open || !budget) return null;
 
-  const hasAtLeastOneApproved =
-    approvalServices.some(Boolean) || approvalParts.some(Boolean);
+  const hasAtLeastOneApproved = approvedCount.total > 0;
+  const totalItems = budget.services.length + budget.parts.length;
 
   const handleSave = async () => {
     if (requireAtLeastOneApproved && !hasAtLeastOneApproved) {
@@ -117,124 +167,212 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
     }
   };
 
+  const approveAll = () => {
+    setApprovalServices(budget.services.map(() => true));
+    setApprovalParts(budget.parts.map(() => true));
+  };
+
+  const rejectAll = () => {
+    setApprovalServices(budget.services.map(() => false));
+    setApprovalParts(budget.parts.map(() => false));
+  };
+
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-[240] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6 animate-in fade-in duration-200">
-        <div
-          className={`relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-full max-w-lg min-h-0 flex-col overflow-hidden rounded-[2rem] animate-in zoom-in-95 duration-200 shadow-[0_10px_36px_-12px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_44px_-14px_rgba(0,0,0,0.55)] ${iosModalShell}`}
-        >
-          <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+      <div
+        className="fixed inset-0 z-[240] flex items-center justify-center bg-slate-900/55 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-6 animate-modal-backdrop"
+        style={{ colorScheme: 'light' }}
+      >
+        <div className={approvalShell}>
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-sky-900/10 text-sky-900 transition-colors hover:bg-sky-200/90 hover:text-sky-950 sm:right-4 sm:top-4 sm:h-10 sm:w-10"
+            aria-label="Fechar"
+          >
             <X className="h-5 w-5" />
           </button>
-          <div className="shrink-0 border-b border-zinc-200/60 px-5 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+
+          <div className="shrink-0 border-b border-sky-100/90 bg-gradient-to-b from-white to-[#f5fbff] px-5 pb-4 pt-6 sm:px-7 sm:pb-5 sm:pt-7">
             <div className="flex items-start gap-3 pr-10">
-              <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                {headerIcon ?? <Check className="h-5 w-5" />}
-              </IosAccentIconSquircle>
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border border-sky-200/80 bg-gradient-to-b from-sky-50 to-white shadow-sm">
+                {headerIcon ?? <CheckCircle2 className="h-5 w-5 text-sky-600" strokeWidth={2.2} />}
+              </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
-                  Módulo Orçamentos
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700/85">
+                  Orçamento
                 </p>
-                <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white">
+                <h2 className="text-[21px] font-semibold leading-tight tracking-tight text-slate-900 sm:text-[22px]">
                   Aprovar orçamento
                 </h2>
-                <p className="mt-1 flex items-start gap-1.5 text-[13px] leading-snug text-zinc-600 dark:text-zinc-400">
-                  <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                  {gateHint ??
-                    'Ligue = aprovado, desligue = reprovado. O técnico verá ✓ ou ✗ em cada item.'}
+                <p className="mt-1.5 flex items-start gap-1.5 text-[13px] leading-snug text-sky-900/70">
+                  <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-500" strokeWidth={2} />
+                  <span>
+                    {gateHint ??
+                      'Ative para aprovar e desative para reprovar. O técnico verá ✓ ou ✗ em cada item.'}
+                  </span>
                 </p>
               </div>
             </div>
+
+            {totalItems > 0 ? (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/80 bg-white px-3 py-1.5 text-[12px] font-semibold tabular-nums text-sky-900 shadow-sm">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-sky-600" strokeWidth={2.2} />
+                  {approvedCount.total} de {totalItems} aprovado{approvedCount.total === 1 ? '' : 's'}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={approveAll}
+                    className="rounded-lg border border-sky-200/80 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-800 transition-colors hover:bg-sky-100"
+                  >
+                    Aprovar todos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={rejectAll}
+                    className="rounded-lg border border-slate-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+                  >
+                    Reprovar todos
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
-          <div className="flex-1 min-h-0 space-y-6 overflow-y-auto overscroll-contain px-5 py-5 custom-scrollbar sm:px-8">
+
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain bg-[#f8fcfe] px-5 py-5 custom-scrollbar sm:px-7">
             {budget.services.length > 0 ? (
               <section>
-                <h3 className={`${iosLabel} mb-2`}>Serviços</h3>
+                <div className="mb-2.5 flex items-center gap-2">
+                  <Wrench className="h-3.5 w-3.5 text-sky-600" strokeWidth={2.2} aria-hidden />
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-800/80">
+                    Serviços
+                  </h3>
+                  <span className="text-[11px] font-semibold tabular-nums text-sky-700/55">
+                    {approvedCount.services}/{budget.services.length}
+                  </span>
+                </div>
                 <ul className="space-y-2">
-                  {budget.services.map((s, i) => (
-                    <li key={i} className={`flex items-center gap-3 p-3.5 ${iosModalInsetCard}`}>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={approvalServices[i]}
-                        onClick={() =>
-                          setApprovalServices((prev) => {
-                            const next = [...prev];
-                            next[i] = !next[i];
-                            return next;
-                          })
-                        }
-                        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${approvalServices[i] ? 'bg-emerald-500' : 'bg-zinc-400 dark:bg-zinc-600'}`}
+                  {budget.services.map((s, i) => {
+                    const on = approvalServices[i] === true;
+                    return (
+                      <li
+                        key={i}
+                        className={`flex items-center gap-3 p-3.5 transition-colors ${approvalInset} ${
+                          on ? 'border-sky-300/90 bg-sky-50/70' : ''
+                        }`}
                       >
-                        <span
-                          className="absolute left-0.5 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
-                          style={{ transform: approvalServices[i] ? 'translateX(20px)' : 'translateX(0)' }}
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-sky-200/80 bg-white text-[13px] font-semibold tabular-nums text-sky-800">
+                          {i + 1}
+                        </span>
+                        <ApprovalToggle
+                          checked={on}
+                          ariaLabel={`${on ? 'Reprovar' : 'Aprovar'} serviço ${i + 1}`}
+                          onToggle={() =>
+                            setApprovalServices((prev) => {
+                              const next = [...prev];
+                              next[i] = !next[i];
+                              return next;
+                            })
+                          }
                         />
-                      </button>
-                      <div className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">{s.description}</span>
-                        {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
-                          <span className="mt-0.5 block text-[12px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">
-                            {formatLaborLabel(Number(s.labor_hours))}
+                        <div className="min-w-0 flex-1">
+                          <span className="block text-[14px] font-medium leading-snug text-slate-800">
+                            {s.description}
                           </span>
-                        ) : null}
-                      </div>
-                      <span
-                        className={`shrink-0 text-xs font-semibold ${approvalServices[i] ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
-                      >
-                        {approvalServices[i] ? 'Aprovado' : 'Reprovado'}
-                      </span>
-                    </li>
-                  ))}
+                          {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
+                            <span className="mt-0.5 block text-[12px] font-semibold tabular-nums text-sky-700/75">
+                              {formatLaborLabel(Number(s.labor_hours))}
+                            </span>
+                          ) : null}
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                            on
+                              ? 'bg-sky-100 text-sky-800'
+                              : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          {on ? 'Aprovado' : 'Reprovado'}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             ) : null}
+
             {budget.parts.length > 0 ? (
               <section>
-                <h3 className={`${iosLabel} mb-2`}>Peças</h3>
+                <div className="mb-2.5 flex items-center gap-2">
+                  <Package className="h-3.5 w-3.5 text-sky-600" strokeWidth={2.2} aria-hidden />
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-800/80">
+                    Peças
+                  </h3>
+                  <span className="text-[11px] font-semibold tabular-nums text-sky-700/55">
+                    {approvedCount.parts}/{budget.parts.length}
+                  </span>
+                </div>
                 <ul className="space-y-2">
-                  {budget.parts.map((p, i) => (
-                    <li key={i} className={`flex items-center gap-3 p-3.5 ${iosModalInsetCard}`}>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={approvalParts[i]}
-                        onClick={() =>
-                          setApprovalParts((prev) => {
-                            const next = [...prev];
-                            next[i] = !next[i];
-                            return next;
-                          })
-                        }
-                        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${approvalParts[i] ? 'bg-emerald-500' : 'bg-zinc-400 dark:bg-zinc-600'}`}
+                  {budget.parts.map((p, i) => {
+                    const on = approvalParts[i] === true;
+                    return (
+                      <li
+                        key={i}
+                        className={`flex items-center gap-3 p-3.5 transition-colors ${approvalInset} ${
+                          on ? 'border-sky-300/90 bg-sky-50/70' : ''
+                        }`}
                       >
-                        <span
-                          className="absolute left-0.5 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
-                          style={{ transform: approvalParts[i] ? 'translateX(20px)' : 'translateX(0)' }}
-                        />
-                      </button>
-                      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                        <span>
-                          ({p.quantity}x) {p.description}
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-sky-200/80 bg-white text-[13px] font-semibold tabular-nums text-sky-800">
+                          {i + 1}
                         </span>
-                        {p.fromStock ? <BudgetPartStockBadge /> : null}
-                      </span>
-                      <span
-                        className={`shrink-0 text-xs font-semibold ${approvalParts[i] ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
-                      >
-                        {approvalParts[i] ? 'Aprovado' : 'Reprovado'}
-                      </span>
-                    </li>
-                  ))}
+                        <ApprovalToggle
+                          checked={on}
+                          ariaLabel={`${on ? 'Reprovar' : 'Aprovar'} peça ${i + 1}`}
+                          onToggle={() =>
+                            setApprovalParts((prev) => {
+                              const next = [...prev];
+                              next[i] = !next[i];
+                              return next;
+                            })
+                          }
+                        />
+                        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-[14px] font-medium leading-snug text-slate-800">
+                          <span>
+                            <span className="tabular-nums text-sky-800/80">({p.quantity}x)</span>{' '}
+                            {p.description}
+                          </span>
+                          {p.fromStock ? <BudgetPartStockBadge /> : null}
+                        </span>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                            on
+                              ? 'bg-sky-100 text-sky-800'
+                              : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          {on ? 'Aprovado' : 'Reprovado'}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             ) : null}
+
+            {totalItems === 0 ? (
+              <p className="rounded-xl border border-dashed border-sky-200 bg-white px-4 py-8 text-center text-[14px] text-slate-600">
+                Este orçamento não tem serviços nem peças para aprovar.
+              </p>
+            ) : null}
           </div>
-          <div className="flex shrink-0 flex-col gap-3 border-t border-zinc-200/60 px-4 py-4 dark:border-white/[0.07] sm:flex-row sm:px-6">
+
+          <div className="flex shrink-0 flex-col gap-2.5 border-t border-sky-100/90 bg-[#f8fcfe] px-4 py-4 sm:flex-row sm:px-6">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-xl border border-zinc-200/90 py-3 text-[15px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+              className="flex-1 rounded-xl border border-sky-200/90 bg-white py-3 text-[15px] font-semibold text-slate-700 shadow-sm transition-colors hover:border-sky-300 hover:bg-sky-50/80"
             >
               Cancelar
             </button>
@@ -242,7 +380,7 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
               type="button"
               onClick={() => void handleSave()}
               disabled={saving || (requireAtLeastOneApproved && !hasAtLeastOneApproved)}
-              className={`${iosAccentPrimaryButton} flex flex-1 items-center justify-center gap-2 py-3 text-[15px] disabled:opacity-50`}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-sky-600/35 bg-sky-600 py-3 text-[15px] font-semibold text-white shadow-md transition-[transform,background-color,opacity] hover:bg-sky-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
             >
               {saving ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
               {saving
