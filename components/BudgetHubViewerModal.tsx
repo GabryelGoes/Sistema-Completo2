@@ -146,15 +146,6 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
     }
   };
 
-  const diagAuthSheetSrc = useMemo(() => {
-    const p = detail?.diagnostic_authorization_signature_path;
-    if (!p?.trim()) return null;
-    return getVehiclePhotoPublicUrl(p);
-  }, [detail?.diagnostic_authorization_signature_path]);
-
-  const diagAuthSubtitleKm =
-    mileageKm != null && String(mileageKm).trim() !== "" ? `Km ${String(mileageKm).trim()}` : null;
-
   const backdropClass = stacked ? budgetReadModalBackdropStackedClass : budgetReadModalBackdropClass;
 
   return (
