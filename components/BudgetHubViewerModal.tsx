@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Calculator, CheckCircle2, Eye, Printer, RefreshCw, X, ArrowRightCircle } from "lucide-react";
+import { Calculator, CheckCircle2, Printer, RefreshCw, X, ArrowRightCircle } from "lucide-react";
 import { ModalPortal } from "./ui/ModalPortal";
 import {
   budgetChronologicalNumber,
@@ -15,14 +15,11 @@ import {
 } from "../services/apiService";
 import { buildBudgetServiceTechnicianNames } from "../utils/budgetServiceTechnicians";
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from "../utils/budgetPrintWithDetail";
-import { DiagnosticAuthorizationSheetModal } from "./diagnostic/DiagnosticAuthorizationSheetModal";
-import { getVehiclePhotoPublicUrl } from "../utils/vehicleStoragePublicUrl";
 import { BudgetReadModalBody } from "./budget/BudgetReadModalBody";
 import { BudgetVerifiedSeal } from "./budget/BudgetVerifiedSeal";
 import { BudgetApprovalModal } from "./budget/BudgetApprovalModal";
 import {
   budgetReadFooterBtnClass,
-  budgetReadFooterPrimaryClass,
   budgetReadModalBackdropClass,
   budgetReadModalBackdropStackedClass,
   budgetReadModalFooterClass,
@@ -54,7 +51,6 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [approvalOpen, setApprovalOpen] = useState(false);
-  const [diagAuthSheetOpen, setDiagAuthSheetOpen] = useState(false);
   const [markingApproved, setMarkingApproved] = useState(false);
   const [serviceTechLines, setServiceTechLines] = useState<
     Awaited<ReturnType<typeof getServiceOrderServiceTechnicians>>["lines"]
@@ -98,7 +94,6 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
   }, [serviceOrderId, budgetId]);
 
   useEffect(() => {
-    setDiagAuthSheetOpen(false);
     setApprovalOpen(false);
   }, [serviceOrderId, budgetId]);
 
@@ -232,15 +227,6 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
             {!loading && !error && budget ? (
               <div className={budgetReadModalFooterClass}>
                 <div className="flex flex-wrap items-center justify-end gap-3">
-                  {!isModuleMode && diagAuthSheetSrc ? (
-                    <button
-                      type="button"
-                      onClick={() => setDiagAuthSheetOpen(true)}
-                      className={budgetReadFooterBtnClass}
-                    >
-                      <Eye className="h-4 w-4" /> Ver autorização
-                    </button>
-                  ) : null}
                   <button
                     type="button"
                     onClick={() => printBudgetWithDetail(budget, detail, { isModuleMode, mileageKm })}
@@ -276,25 +262,12 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
                       {markingApproved ? "Atualizando…" : "Orçamento aprovado"}
                     </button>
                   ) : null}
-                  <button type="button" onClick={onClose} className={budgetReadFooterPrimaryClass}>
-                    Fechar
-                  </button>
                 </div>
               </div>
             ) : null}
           </div>
         </div>
       </div>
-
-      {diagAuthSheetOpen && diagAuthSheetSrc && detail ? (
-        <DiagnosticAuthorizationSheetModal
-          open
-          onClose={() => setDiagAuthSheetOpen(false)}
-          signatureImageSrc={diagAuthSheetSrc}
-          signedAt={detail.diagnostic_authorization_signed_at ?? null}
-          subtitleExtra={diagAuthSubtitleKm}
-        />
-      ) : null}
 
       <BudgetApprovalModal
         open={approvalOpen}
