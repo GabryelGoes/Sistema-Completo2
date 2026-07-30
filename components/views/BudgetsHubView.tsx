@@ -224,9 +224,9 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     onOpenBudgetInPatio(serviceOrderId, budgetId);
   };
 
-  const mainMaxW = desktopShell ? 'max-w-none' : 'max-w-5xl';
-  const mainPad = desktopShell ? 'px-6 py-5 pb-8' : 'px-4 py-5 pb-[max(5.5rem,env(safe-area-inset-bottom)+3rem)]';
   const isTrelloMode = viewMode === 'by_stage';
+  const mainMaxW = desktopShell || isTrelloMode ? 'max-w-none' : 'max-w-5xl';
+  const mainPad = desktopShell ? 'px-6 py-5 pb-8' : 'px-4 py-5 pb-[max(5.5rem,env(safe-area-inset-bottom)+3rem)]';
 
   const renderContent = () => {
     if (loading) {

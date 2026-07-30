@@ -10,7 +10,6 @@ import {
   Wrench,
 } from 'lucide-react';
 import type { PatioVehicleBudgetAggregateItem } from '../../../services/apiService';
-import { useDragScroll } from '../../../hooks/useDragScroll';
 import { iosPageGlass } from '../../ui/iosModalStyles';
 import {
   getPatioBoardColumnHeaderTopClass,
@@ -286,6 +285,10 @@ export function BudgetHubCardsGrid({
   );
 }
 
+/**
+ * Quadro Trello do hub: rolagem horizontal nativa + vertical por coluna.
+ * Cards menores (zoom) e sem <button> para o toque não travar a rolagem no iOS.
+ */
 export function BudgetHubStageBoard({
   columns,
   allItems,
@@ -303,12 +306,22 @@ export function BudgetHubStageBoard({
   blurPlates?: boolean;
   desktopShell?: boolean;
 }) {
-  const colMin = desktopShell ? 'min-w-[20rem] w-[20rem]' : 'min-w-[16.5rem] w-[16.5rem]';
-  const dragRef = useDragScroll<HTMLDivElement>();
+  const colMin = desktopShell ? 'min-w-[15.5rem] w-[15.5rem]' : 'min-w-[13.25rem] w-[13.25rem]';
+  const boardRef = useRef<HTMLDivElement | null>(null);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardHeight, setBoardHeight] = useState<number>(0);
   const columnShell = getPatioBoardColumnShellClass(Boolean(desktopShell));
   const headerTop = getPatioBoardColumnHeaderTopClass(Boolean(desktopShell));
+  const dragState = useRef<{
+    active: boolean;
+    moved: boolean;
+    startX: number;
+    startY: number;
+    scrollLeft: number;
+    axis: 'none' | 'x' | 'y';
+    colEl: HTMLElement | null;
+    colScrollTop: number;
+  } | null>(null);
 
   useLayoutEffect(() => {
     const el = boardWrapRef.current;
@@ -316,55 +329,129 @@ export function BudgetHubStageBoard({
 
     const measure = () => {
       const top = el.getBoundingClientRect().top;
-      const bottomGap = desktopShell
-        ? 16
-        : Math.max(88, (window.visualViewport?.offsetTop ?? 0) + 72);
+      const bottomGap = desktopShell ? 20 : 96;
       const vh = window.visualViewport?.height ?? window.innerHeight;
-      const next = Math.max(220, Math.floor(vh - top - bottomGap));
+      const next = Math.max(240, Math.floor(vh - top - bottomGap));
       setBoardHeight((prev) => (prev === next ? prev : next));
     };
 
     measure();
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => measure()) : null;
-    ro?.observe(el);
+    ro?.observe(document.documentElement);
     window.addEventListener('resize', measure);
     window.visualViewport?.addEventListener('resize', measure);
-    window.visualViewport?.addEventListener('scroll', measure);
     return () => {
       ro?.disconnect();
       window.removeEventListener('resize', measure);
       window.visualViewport?.removeEventListener('resize', measure);
-      window.visualViewport?.removeEventListener('scroll', measure);
     };
   }, [desktopShell]);
+
+  /** Arraste (mouse/touch) com trava de eixo: X = quadro, Y = coluna. */
+  useLayoutEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      const target = e.target as HTMLElement | null;
+      const colScroll = target?.closest?.('.budgets-hub-col-scroll') as HTMLElement | null;
+      dragState.current = {
+        active: true,
+        moved: false,
+        startX: e.clientX,
+        startY: e.clientY,
+        scrollLeft: board.scrollLeft,
+        axis: 'none',
+        colEl: colScroll,
+        colScrollTop: colScroll?.scrollTop ?? 0,
+      };
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      const st = dragState.current;
+      if (!st?.active) return;
+      const dx = e.clientX - st.startX;
+      const dy = e.clientY - st.startY;
+
+      if (st.axis === 'none') {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        st.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+        st.moved = true;
+        try {
+          board.setPointerCapture(e.pointerId);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      if (st.axis === 'x') {
+        e.preventDefault();
+        board.scrollLeft = st.scrollLeft - dx;
+      } else if (st.axis === 'y' && st.colEl) {
+        e.preventDefault();
+        st.colEl.scrollTop = st.colScrollTop - dy;
+      }
+    };
+
+    const endPointer = (e: PointerEvent) => {
+      const st = dragState.current;
+      if (!st) return;
+      if (st.moved && st.axis !== 'none') {
+        // Evita click acidental no card após arrastar
+        const cancelClick = (ev: MouseEvent) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          window.removeEventListener('click', cancelClick, true);
+        };
+        window.addEventListener('click', cancelClick, true);
+        window.setTimeout(() => window.removeEventListener('click', cancelClick, true), 120);
+      }
+      try {
+        board.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      dragState.current = null;
+    };
+
+    board.addEventListener('pointerdown', onPointerDown, { passive: true });
+    board.addEventListener('pointermove', onPointerMove, { passive: false });
+    board.addEventListener('pointerup', endPointer);
+    board.addEventListener('pointercancel', endPointer);
+
+    return () => {
+      board.removeEventListener('pointerdown', onPointerDown);
+      board.removeEventListener('pointermove', onPointerMove);
+      board.removeEventListener('pointerup', endPointer);
+      board.removeEventListener('pointercancel', endPointer);
+    };
+  }, [boardHeight]);
 
   return (
     <div
       ref={boardWrapRef}
       className="w-full min-w-0"
-      style={boardHeight > 0 ? { height: boardHeight } : { minHeight: '40vh' }}
+      style={boardHeight > 0 ? { height: boardHeight } : { height: '55vh' }}
     >
       <div
-        ref={dragRef}
-        className="budgets-hub-no-scrollbar flex h-full min-h-0 cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 [-webkit-overflow-scrolling:touch]"
+        ref={boardRef}
+        className="budgets-hub-trello-board budgets-hub-no-scrollbar flex h-full min-h-0 gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain px-0.5 [-webkit-overflow-scrolling:touch]"
       >
         {columns.map((col) => (
           <div
             key={col.status}
             className={`${colMin} flex h-full min-h-0 shrink-0 flex-col overflow-hidden ${columnShell}`}
           >
-            <div className={`z-[1] shrink-0 border-b border-zinc-200/80 px-3 py-2.5 ${headerTop} ${col.style}`}>
-              <p className="text-[11px] font-bold uppercase tracking-[0.06em]">{col.name}</p>
-              <p className="mt-0.5 text-[10px] font-semibold opacity-90">
+            <div className={`z-[1] shrink-0 border-b border-zinc-200/80 px-2.5 py-2 ${headerTop} ${col.style}`}>
+              <p className="text-[10px] font-bold uppercase tracking-[0.06em]">{col.name}</p>
+              <p className="mt-0.5 text-[9px] font-semibold opacity-90">
                 {col.budgetCount} orçamento{col.budgetCount === 1 ? '' : 's'}
               </p>
             </div>
-            <div
-              data-no-drag-scroll
-              className="budgets-hub-col-scroll budgets-hub-no-scrollbar min-h-0 flex-1 touch-pan-y space-y-2 overflow-y-auto overflow-x-hidden overscroll-y-contain p-2"
-            >
+            <div className="budgets-hub-col-scroll budgets-hub-no-scrollbar min-h-0 flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden overscroll-y-contain p-1.5 [-webkit-overflow-scrolling:touch]">
               {col.items.length === 0 ? (
-                <p className="px-2 py-6 text-center text-[12px] text-zinc-500 dark:text-zinc-400">
+                <p className="px-2 py-6 text-center text-[11px] text-zinc-500 dark:text-zinc-400">
                   Nenhum orçamento nesta etapa
                 </p>
               ) : (
@@ -380,6 +467,7 @@ export function BudgetHubStageBoard({
                       blurPlates={blurPlates}
                       desktopShell={desktopShell}
                       compact
+                      trelloScale
                       onOpen={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
                     />
                   );
