@@ -398,7 +398,6 @@ export function BudgetHubStageBoard({
       const st = dragState.current;
       if (!st) return;
       if (st.moved && st.axis !== 'none') {
-        // Evita click acidental no card após arrastar
         const cancelClick = (ev: MouseEvent) => {
           ev.preventDefault();
           ev.stopPropagation();
@@ -415,16 +414,46 @@ export function BudgetHubStageBoard({
       dragState.current = null;
     };
 
+    /** PC: hover na coluna + wheel → sobe/desce só aquela coluna. */
+    const onWheel = (e: WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target || !board.contains(target)) return;
+
+      let colScroll = target.closest('.budgets-hub-col-scroll') as HTMLElement | null;
+      if (!colScroll) {
+        const col = target.closest('[data-budgets-hub-col]') as HTMLElement | null;
+        colScroll = col?.querySelector('.budgets-hub-col-scroll') as HTMLElement | null;
+      }
+      if (!colScroll) return;
+
+      const dx = e.deltaX;
+      const dy = e.deltaY;
+      const mostlyHorizontal = Math.abs(dx) > Math.abs(dy);
+
+      if (mostlyHorizontal) {
+        if (dx === 0) return;
+        e.preventDefault();
+        board.scrollLeft += dx;
+        return;
+      }
+
+      if (dy === 0) return;
+      e.preventDefault();
+      colScroll.scrollTop += dy;
+    };
+
     board.addEventListener('pointerdown', onPointerDown, { passive: true });
     board.addEventListener('pointermove', onPointerMove, { passive: false });
     board.addEventListener('pointerup', endPointer);
     board.addEventListener('pointercancel', endPointer);
+    board.addEventListener('wheel', onWheel, { passive: false });
 
     return () => {
       board.removeEventListener('pointerdown', onPointerDown);
       board.removeEventListener('pointermove', onPointerMove);
       board.removeEventListener('pointerup', endPointer);
       board.removeEventListener('pointercancel', endPointer);
+      board.removeEventListener('wheel', onWheel);
     };
   }, [boardHeight]);
 
@@ -449,7 +478,7 @@ export function BudgetHubStageBoard({
                 {col.budgetCount} orçamento{col.budgetCount === 1 ? '' : 's'}
               </p>
             </div>
-            <div className="budgets-hub-col-scroll budgets-hub-no-scrollbar min-h-0 flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden overscroll-y-contain p-1.5 [-webkit-overflow-scrolling:touch]">
+            <div className="budgets-hub-col-scroll budgets-hub-no-scrollbar min-h-0 flex-1 space-y-1.5 p-1.5">
               {col.items.length === 0 ? (
                 <p className="px-2 py-6 text-center text-[11px] text-zinc-500 dark:text-zinc-400">
                   Nenhum orçamento nesta etapa

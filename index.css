@@ -226,10 +226,13 @@ body:has(.budget-modal--compact) {
   height: 0;
 }
 
-/** Coluna Trello do hub: rolagem vertical dos cards. */
+/** Coluna Trello do hub: rolagem vertical dos cards (PC wheel + toque). */
 .budgets-hub-col-scroll {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 /** Quadro Trello: pointer handler controla pan X/Y (evita button/iOS travar). */
@@ -241,6 +244,17 @@ body:has(.budget-modal--compact) {
 }
 .budgets-hub-trello-board:active {
   cursor: grabbing;
+}
+
+/**
+ * No shell desktop, uma regra global força overflow:visible em
+ * .flex-1 + overflow-y-auto — garante que as colunas do hub continuem roláveis.
+ */
+html[data-desktop-shell='true'] .desktop-shell-content .budgets-hub-col-scroll {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  max-height: none;
+  min-height: 0;
 }
 
 /** Rolagem vertical minimalista — modal de veículo (mobile). */
