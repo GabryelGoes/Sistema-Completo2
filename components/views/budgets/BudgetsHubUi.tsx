@@ -12,7 +12,6 @@ import {
 import type { PatioVehicleBudgetAggregateItem } from '../../../services/apiService';
 import { useDragScroll } from '../../../hooks/useDragScroll';
 import { iosPageGlass } from '../../ui/iosModalStyles';
-import { desktopStatChip } from '../../ui/desktopCardStyles';
 import {
   getPatioBoardColumnHeaderTopClass,
   getPatioBoardColumnShellClass,
@@ -216,61 +215,6 @@ export function BudgetsHubViewSwitcher({
           </div>
         ) : null}
       </div>
-    </div>
-  );
-}
-
-export function BudgetsHubStatsStrip({
-  stats,
-  desktopShell,
-  hubScope,
-  onHubScopeChange,
-}: {
-  stats: {
-    totalBudgets: number;
-    totalVehicles: number;
-    patioBudgets: number;
-    laboratoryBudgets: number;
-    recentCount: number;
-    approvedCount: number;
-    inServiceCount: number;
-    awaitingCount: number;
-    unverifiedCount: number;
-  };
-  desktopShell?: boolean;
-  hubScope?: BudgetsHubScope;
-  onHubScopeChange?: (scope: BudgetsHubScope) => void;
-}) {
-  const chip = (label: string, value: number, accent?: string) => (
-    <div
-      className={`flex min-w-[5.5rem] flex-col px-3 py-2 ${
-        desktopShell
-          ? desktopStatChip
-          : 'rounded-xl border border-zinc-200/80 bg-white/80 dark:border-white/[0.08] dark:bg-zinc-950/50'
-      }`}
-    >
-      <span className={`text-[18px] font-bold tabular-nums leading-none ${accent ?? 'text-zinc-900 dark:text-white'}`}>
-        {value}
-      </span>
-      <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400">
-        {label}
-      </span>
-    </div>
-  );
-  return (
-    <div className="budgets-hub-no-scrollbar mb-4 flex items-center gap-2 overflow-x-auto pb-0.5">
-      {chip('Orçamentos', stats.totalBudgets)}
-      {chip('OS ativas', stats.totalVehicles)}
-      {chip('Pátio', stats.patioBudgets, 'text-[#0058c7] dark:text-[#8cc8ff]')}
-      {chip('Laboratório', stats.laboratoryBudgets, 'text-violet-700 dark:text-violet-300')}
-      {chip('Novos', stats.recentCount, 'text-emerald-600 dark:text-emerald-400')}
-      {chip('Aprovados', stats.approvedCount, 'text-sky-700 dark:text-sky-300')}
-      {chip('Em serviço', stats.inServiceCount, 'text-blue-700 dark:text-blue-300')}
-      {chip('Pendentes', stats.awaitingCount, 'text-amber-700 dark:text-amber-300')}
-      {chip('Sem verificação', stats.unverifiedCount, 'text-orange-700 dark:text-orange-300')}
-      {hubScope != null && onHubScopeChange ? (
-        <BudgetsHubScopeToggle scope={hubScope} onChange={onHubScopeChange} />
-      ) : null}
     </div>
   );
 }
