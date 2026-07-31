@@ -94,7 +94,7 @@ export function BudgetHubPatioStyleCard({
   const stage = getStageConfig(head.orderStatus, flow);
   const stageStyle = getStageStyle(head.orderStatus, flow);
   const model =
-    [head.vehicleBrand, head.vehicleModel].filter(Boolean).join(' ').trim() ||
+    (head.vehicleModel ?? '').trim() ||
     (isLab ? (head.moduleIdentification ?? '').trim() || 'Módulo' : 'Veículo');
   const customerLine = firstTwoNames((head.customerName ?? '').trim());
   const hasCustomer = Boolean(customerLine);
@@ -113,7 +113,9 @@ export function BudgetHubPatioStyleCard({
   const anyVerified = items.some((i) => i.isVerified);
   const radius = getPatioBoardCardRadiusClass(Boolean(desktopShell), dense);
   const pad = dense ? 'gap-1.5 px-2.5 py-2.5' : 'gap-3 p-4 sm:p-5';
-  const titleClass = getPatioBoardModelTitleClass(model, dense, true);
+  /** Por etapa: fonte um pouco menor que a grade / Pátio. */
+  const titleClass = getPatioBoardModelTitleClass(model, Boolean(trelloScale), true);
+  const titleScaleClass = trelloScale ? 'origin-top-left scale-[0.86]' : '';
 
   const ringClass = needsAttention
     ? 'border-2 border-red-400/70 ring-2 ring-inset ring-red-400/50 ring-offset-0 dark:border-red-400/55'

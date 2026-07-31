@@ -248,7 +248,7 @@ export function BudgetHubCardsGrid({
     <div
       className={`grid gap-3 ${
         desktopShell
-          ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+          ? 'grid-cols-4'
           : 'grid-cols-1 sm:grid-cols-2'
       }`}
     >
