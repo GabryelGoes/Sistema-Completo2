@@ -227,26 +227,24 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
 
       <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
         {hasEvaluation ? (
-          <div className="space-y-3">
-            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[12px] font-semibold uppercase tracking-wide text-emerald-800/90 dark:text-emerald-300/90">
-                    Avaliação enviada ao orçamento
+          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+            <div className="flex items-start gap-2.5">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-semibold uppercase tracking-wide text-emerald-800/90 dark:text-emerald-300/90">
+                  Avaliação enviada ao orçamento
+                </p>
+                <p className="mt-1 text-[15px] font-semibold leading-snug text-zinc-900 dark:text-white">
+                  {evaluatedService}
+                </p>
+                {evaluatedAt ? (
+                  <p className="mt-1 text-[12px] text-zinc-600 dark:text-zinc-400">
+                    {formatEvaluatedAt(evaluatedAt)}
+                    {(evaluatedByName ?? evaluatedByDisplayName)
+                      ? ` · ${evaluatedByName ?? evaluatedByDisplayName}`
+                      : null}
                   </p>
-                  <p className="mt-1 text-[15px] font-semibold leading-snug text-zinc-900 dark:text-white">
-                    {evaluatedService}
-                  </p>
-                  {evaluatedAt ? (
-                    <p className="mt-1 text-[12px] text-zinc-600 dark:text-zinc-400">
-                      {formatEvaluatedAt(evaluatedAt)}
-                      {(evaluatedByName ?? evaluatedByDisplayName)
-                        ? ` · ${evaluatedByName ?? evaluatedByDisplayName}`
-                        : null}
-                    </p>
-                  ) : null}
-                </div>
+                ) : null}
               </div>
             </div>
             {onDeleteEvaluation ? (
@@ -254,7 +252,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                 type="button"
                 onClick={() => void handleDelete()}
                 disabled={deleting || saving}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-[13px] font-semibold text-red-700 transition hover:bg-red-500/15 disabled:opacity-55 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-red-500/35 bg-white/70 px-3 py-2.5 text-[13px] font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-55 dark:border-red-400/30 dark:bg-zinc-950/40 dark:text-red-300 dark:hover:bg-red-500/15"
               >
                 {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                 Excluir avaliação e orçamentos vinculados

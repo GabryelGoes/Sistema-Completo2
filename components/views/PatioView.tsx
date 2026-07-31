@@ -94,6 +94,8 @@ import {
 import {
   buildExternalRepairDraft,
   draftToExternalRepairPayload,
+  externalRepairRecordToDraft,
+  hasExternalRepairData,
   EMPTY_EXTERNAL_REPAIR_DRAFT,
   isLabModuleFromPatio,
   type ExternalRepairDraft,
@@ -2611,12 +2613,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
       return;
     }
     if (isExternalRepairEditing) return;
-    setExternalRepairDraft(
-      buildExternalRepairDraft(
-        serviceOrderDetail as ServiceOrderDetail & { external_repair?: ExternalRepair | null },
-        selectedCard?.externalRepair ?? null
-      )
-    );
+    // Leitura: só dados gravados em external_repair (sem fallbacks de produto/pátio).
+    const saved =
+      (serviceOrderDetail as ServiceOrderDetail & { external_repair?: ExternalRepair | null })
+        .external_repair ??
+      selectedCard?.externalRepair ??
+      null;
+    setExternalRepairDraft(externalRepairRecordToDraft(saved));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at, isExternalRepairEditing, selectedCard?.externalRepair]);
 
@@ -3819,20 +3822,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const handleDeleteExternalRepair = async () => {
     if (!selectedCard || !serviceOrderDetail) return;
     if (loadingDetails || serviceOrderDetail.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID) return;
-    const hasData = [
-      externalRepairDraft.vehicleRef,
-      externalRepairDraft.productIdentification,
-      externalRepairDraft.productType,
-      externalRepairDraft.productTypeOther,
-      externalRepairDraft.service,
-      externalRepairDraft.vendor,
-      externalRepairDraft.sentAt,
-      externalRepairDraft.expectedAt,
-      externalRepairDraft.returnedAt,
-      externalRepairDraft.cost,
-      externalRepairDraft.notes,
-    ].some((v) => v.trim() !== '');
-    if (!hasData && !selectedCard.externalRepair && !serviceOrderDetail.external_repair) {
+    const saved =
+      (serviceOrderDetail as ServiceOrderDetail & { external_repair?: ExternalRepair | null })
+        .external_repair ??
+      selectedCard.externalRepair ??
+      null;
+    if (!hasExternalRepairData(saved)) {
+      setExternalRepairDraft(EMPTY_EXTERNAL_REPAIR_DRAFT);
+      setIsExternalRepairEditing(false);
       return;
     }
     if (
@@ -3850,10 +3847,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
         await updateServiceOrderStatus(selectedCard.id, 'AVALIACAO_TECNICA', actorOptions);
       }
       const updated = await getServiceOrderById(selectedCard.id);
-      setServiceOrderDetail(updated);
+      // Garante que o estado local não reutilize fallbacks de produto/pátio.
+      setServiceOrderDetail({
+        ...updated,
+        external_repair: null,
+      } as ServiceOrderDetail);
       setExternalRepairDraft(EMPTY_EXTERNAL_REPAIR_DRAFT);
       setIsExternalRepairEditing(false);
-      const newStatus = updated.status as ServiceOrderStatus;
+      const newStatus = (updated.status ?? 'AVALIACAO_TECNICA') as ServiceOrderStatus;
       const updatedCard = {
         ...selectedCard,
         externalRepair: null,
@@ -3869,6 +3870,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
     } finally {
       setExternalRepairSaving(false);
     }
+  };
+
+  const startExternalRepairEditing = () => {
+    if (!serviceOrderDetail) return;
+    setExternalRepairDraft(
+      buildExternalRepairDraft(
+        serviceOrderDetail as ServiceOrderDetail & {
+          external_repair?: ExternalRepair | null;
+        },
+        selectedCard?.externalRepair ?? null
+      )
+    );
+    setIsExternalRepairEditing(true);
   };
 
   const handleRemoveLabServiceLink = async (linkId: string) => {
@@ -6833,10 +6847,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
               onRemoveLabServiceLink={(linkId) => void handleRemoveLabServiceLink(linkId)}
             />
           ) : null;
-        const renderExternalRepairSection = () =>
-          isModuleMode && serviceOrderDetail ? (
+        const renderExternalRepairSection = () => {
+          if (!isModuleMode || !serviceOrderDetail) return null;
+          const savedExternalRepair =
+            (serviceOrderDetail as ServiceOrderDetail & { external_repair?: ExternalRepair | null })
+              .external_repair ??
+            selectedCard?.externalRepair ??
+            null;
+          const hasSavedExternal = hasExternalRepairData(savedExternalRepair);
+          const canEditExternal = can('canEditFicha');
+          return (
                           <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
-                            <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                            <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                               <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
                                 <div className={uiOsModalSectionIconWrap}>
                                   <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
@@ -6845,55 +6867,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   Conserto externo
                                 </p>
                               </div>
-                              {can('canEditFicha') && !isExternalRepairEditing ? (
-                                <div className="flex shrink-0 items-center gap-1.5">
-                                  {[
-                                    externalRepairDraft.vehicleRef,
-                                    externalRepairDraft.productIdentification,
-                                    externalRepairDraft.productType,
-                                    externalRepairDraft.productTypeOther,
-                                    externalRepairDraft.service,
-                                    externalRepairDraft.vendor,
-                                    externalRepairDraft.sentAt,
-                                    externalRepairDraft.expectedAt,
-                                    externalRepairDraft.returnedAt,
-                                    externalRepairDraft.cost,
-                                    externalRepairDraft.notes,
-                                  ].some((v) => v.trim()) ||
-                                  selectedCard?.externalRepair ||
-                                  serviceOrderDetail.external_repair ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => void handleDeleteExternalRepair()}
-                                      disabled={externalRepairSaving || loadingDetails}
-                                      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-red-700 transition-colors hover:border-red-500/45 hover:bg-red-500/15 disabled:opacity-55 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
-                                    >
-                                      <Trash2 className="h-3 w-3" aria-hidden strokeWidth={2.5} />
-                                      Excluir
-                                    </button>
-                                  ) : null}
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (serviceOrderDetail) {
-                                        setExternalRepairDraft(
-                                          buildExternalRepairDraft(
-                                            serviceOrderDetail as ServiceOrderDetail & {
-                                              external_repair?: ExternalRepair | null;
-                                            },
-                                            selectedCard?.externalRepair ?? null
-                                          )
-                                        );
-                                      }
-                                      setIsExternalRepairEditing(true);
-                                    }}
-                                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
-                                  >
-                                    <Pencil className="h-3 w-3" aria-hidden strokeWidth={2.5} />
-                                    Editar
-                                  </button>
-                                </div>
-                              ) : null}
                             </div>
 
                             {!isExternalRepairStatus(serviceOrderDetail?.status) ? (
@@ -6903,7 +6876,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </p>
                             ) : null}
 
-                            {!isExternalRepairEditing || !can('canEditFicha') ? (
+                            {!isExternalRepairEditing || !canEditExternal ? (
                               <div className="space-y-1 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 text-[14px] text-zinc-700 dark:border-white/[0.06] dark:bg-white/[0.02] dark:text-zinc-300 sm:px-4 sm:py-3.5">
                                 {externalRepairDraft.vehicleRef.trim() ? (
                                   <p><span className="font-semibold">Veículo:</span> {externalRepairDraft.vehicleRef}</p>
@@ -6926,29 +6899,43 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 {externalRepairDraft.sentAt.trim() ? (
                                   <p><span className="font-semibold">Enviado:</span> {externalRepairDraft.sentAt}</p>
                                 ) : null}
-                                {![
-                                  externalRepairDraft.vehicleRef,
-                                  externalRepairDraft.productIdentification,
-                                  externalRepairDraft.productType,
-                                  externalRepairDraft.service,
-                                  externalRepairDraft.vendor,
-                                  externalRepairDraft.sentAt,
-                                ].some((v) => v.trim()) ? (
+                                {!hasSavedExternal ? (
                                   <p className="text-zinc-500 dark:text-zinc-400">Nenhum conserto externo registrado.</p>
                                 ) : null}
-                                {can('canEditFicha') &&
-                                selectedCard &&
-                                !isExternalRepairStatus(serviceOrderDetail?.status) ? (
+                                {canEditExternal ? (
                                   <div className="flex flex-wrap gap-2 border-t border-zinc-200/60 pt-3 dark:border-white/[0.06]">
                                     <button
                                       type="button"
-                                      onClick={() => void handleSendToExternalRepair(selectedCard.id)}
-                                      disabled={loadingDetails}
-                                      className="inline-flex items-center gap-2 rounded-xl bg-purple-700 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-purple-600 disabled:opacity-60"
+                                      onClick={startExternalRepairEditing}
+                                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-3.5 py-2 text-[13px] font-semibold text-[#007AFF] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
                                     >
-                                      <Truck className="h-4 w-4" strokeWidth={2.2} />
-                                      Registrar Envio
+                                      <Pencil className="h-3.5 w-3.5" aria-hidden strokeWidth={2.5} />
+                                      {hasSavedExternal ? 'Editar' : 'Preencher'}
                                     </button>
+                                    {hasSavedExternal ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleDeleteExternalRepair()}
+                                        disabled={externalRepairSaving || loadingDetails}
+                                        className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/35 bg-red-500/10 px-3.5 py-2 text-[13px] font-semibold text-red-700 transition hover:bg-red-500/15 disabled:opacity-55 dark:border-red-400/30 dark:text-red-300 dark:hover:bg-red-500/20"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" aria-hidden strokeWidth={2.5} />
+                                        Excluir
+                                      </button>
+                                    ) : null}
+                                    {selectedCard &&
+                                    hasSavedExternal &&
+                                    !isExternalRepairStatus(serviceOrderDetail?.status) ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleSendToExternalRepair(selectedCard.id)}
+                                        disabled={loadingDetails}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-purple-700 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-purple-600 disabled:opacity-60"
+                                      >
+                                        <Truck className="h-4 w-4" strokeWidth={2.2} />
+                                        Registrar Envio
+                                      </button>
+                                    ) : null}
                                   </div>
                                 ) : null}
                               </div>
@@ -7039,21 +7026,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <span />
                                   )}
                                   <div className="flex flex-wrap items-center gap-2">
-                                    {[
-                                      externalRepairDraft.vehicleRef,
-                                      externalRepairDraft.productIdentification,
-                                      externalRepairDraft.productType,
-                                      externalRepairDraft.productTypeOther,
-                                      externalRepairDraft.service,
-                                      externalRepairDraft.vendor,
-                                      externalRepairDraft.sentAt,
-                                      externalRepairDraft.expectedAt,
-                                      externalRepairDraft.returnedAt,
-                                      externalRepairDraft.cost,
-                                      externalRepairDraft.notes,
-                                    ].some((v) => v.trim()) ||
-                                    selectedCard?.externalRepair ||
-                                    serviceOrderDetail?.external_repair ? (
+                                    {hasSavedExternal ? (
                                       <button
                                         type="button"
                                         onClick={() => void handleDeleteExternalRepair()}
@@ -7068,6 +7041,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         Excluir
                                       </button>
                                     ) : null}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setExternalRepairDraft(externalRepairRecordToDraft(savedExternalRepair));
+                                        setIsExternalRepairEditing(false);
+                                      }}
+                                      disabled={externalRepairSaving}
+                                      className="rounded-xl px-3 py-2.5 text-[13px] font-semibold text-zinc-500 transition hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                                    >
+                                      Cancelar
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => void handleSaveExternalRepair()}
@@ -7090,7 +7074,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                             )}
                           </div>
-          ) : null;
+          );
+        };
+
         return (
         <ModalPortal>
         <div className={withModalExitOverlayClass(patioVehicleModalOverlayClass, primaryModalExiting)}>
