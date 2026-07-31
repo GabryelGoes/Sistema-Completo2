@@ -1151,7 +1151,7 @@ export async function updateServiceOrderExternalRepair(
   id: string,
   data: ExternalRepair | null
 ): Promise<ApiServiceOrder> {
-  const body = data === null ? { externalRepair: null } : { ...data };
+  const body = data === null ? { externalRepair: null, clear: true } : { ...data };
   const response = await fetch(`${API_BASE}/service-orders/${id}/external-repair`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
