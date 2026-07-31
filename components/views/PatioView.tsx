@@ -3812,8 +3812,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
     const next = labServiceLinksDraft.filter((l) => l.id !== linkId);
     await handleSaveLabServiceLinks(next);
-    // Atualiza quadro do laboratório (se aberto em outra aba / próximo refresh).
-    window.dispatchEvent(new CustomEvent("rda-patio-board-refresh"));
     void fetchDataRef.current(true);
   };
 
