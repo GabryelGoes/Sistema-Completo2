@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CalendarDays, ChevronRight, User } from 'lucide-react';
 import {
   budgetChronologicalNumber,
-  type PatioVehicleBudgetAggregateItem,
 } from '../../../services/apiService';
 import { BudgetVerifiedSeal } from '../../budget/BudgetVerifiedSeal';
 import { PatioBoardOriginIcon } from '../../patio/PatioBoardOriginIcon';
@@ -21,6 +20,7 @@ import {
   isBudgetRecentlyCreated,
   type VehicleBudgetGroup,
 } from '../../../utils/budgetsHubViews';
+import { BudgetHubBudgetPickerModal } from './BudgetHubBudgetPickerModal';
 
 /** Zoom dos cards no quadro Trello do hub (~28% menor). */
 export const BUDGET_HUB_TRELLO_CARD_ZOOM = 0.72;
@@ -76,6 +76,7 @@ export function BudgetHubPatioStyleCard({
   hideStageFooter,
   onOpenBudget,
 }: BudgetHubPatioStyleCardProps) {
+  const [pickerOpen, setPickerOpen] = useState(false);
   const dense = Boolean(trelloScale || compact || gridScale);
   const cardZoom = trelloScale
     ? BUDGET_HUB_TRELLO_CARD_ZOOM
@@ -122,7 +123,7 @@ export function BudgetHubPatioStyleCard({
     : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]';
 
   const shellClass = `
-    group relative flex min-h-0 w-full flex-col overflow-hidden border bg-white/70 text-left backdrop-blur-2xl
+    group relative flex min-h-0 w-full cursor-pointer flex-col overflow-hidden border bg-white/70 text-left backdrop-blur-2xl
     dark:bg-zinc-900/40
     ${patioBoardGlassCardShadow}
     hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
@@ -130,6 +131,8 @@ export function BudgetHubPatioStyleCard({
     ${pad}
     ${ringClass}
   `;
+
+  const openPicker = () => setPickerOpen(true);
 
   return (
     <div
@@ -140,7 +143,19 @@ export function BudgetHubPatioStyleCard({
           : undefined
       }
     >
-      <div className={shellClass}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={`Abrir lista de orçamentos de ${model}`}
+        onClick={openPicker}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openPicker();
+          }
+        }}
+        className={shellClass}
+      >
         {needsAttention ? (
           <div
             className="pointer-events-none absolute inset-0 z-[1] rounded-[inherit] bg-red-500/[0.08] dark:bg-red-400/[0.12]"
@@ -259,7 +274,7 @@ export function BudgetHubPatioStyleCard({
             </div>
           </div>
 
-          {/* Lista de orçamentos do veículo — status evidentes */}
+          {/* Lista de orçamentos do veículo — clique abre direto; clique no card abre o seletor */}
           <ul className={`flex flex-col ${dense ? 'gap-1' : 'gap-1.5'}`}>
             {items.map((row) => {
               const bid = String(row.budgetId).trim();
@@ -270,7 +285,10 @@ export function BudgetHubPatioStyleCard({
                 <li key={row.budgetId}>
                   <button
                     type="button"
-                    onClick={() => onOpenBudget(row.serviceOrderId, row.budgetId)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenBudget(row.serviceOrderId, row.budgetId);
+                    }}
                     className={`flex w-full items-center gap-1.5 rounded-xl border text-left transition-colors ${
                       dense ? 'px-2 py-1.5' : 'px-2.5 py-2'
                     } ${
@@ -350,6 +368,15 @@ export function BudgetHubPatioStyleCard({
           ) : null}
         </div>
       </div>
+
+      <BudgetHubBudgetPickerModal
+        open={pickerOpen}
+        group={group}
+        pulseByBudgetId={pulseByBudgetId}
+        blurPlates={blurPlates}
+        onClose={() => setPickerOpen(false)}
+        onOpenBudget={onOpenBudget}
+      />
     </div>
   );
 }
