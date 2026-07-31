@@ -175,18 +175,67 @@ function budgetContentWithoutApprovals(row: {
   services?: unknown;
   parts?: unknown;
 }): string {
-  const stripApproval = (arr: unknown) =>
-    (Array.isArray(arr) ? arr : []).map((item) => {
-      if (!item || typeof item !== "object") return item;
-      const { approved: _approved, ...rest } = item as Record<string, unknown>;
-      return rest;
-    });
+  const asText = (v: unknown): string => (v == null ? "" : String(v));
+  const asOptionalText = (v: unknown): string | null => {
+    const t = asText(v).trim();
+    return t ? t : null;
+  };
+  const asOptionalNumber = (v: unknown): number | null => {
+    if (v == null || v === "") return null;
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const services = (Array.isArray(row.services) ? row.services : []).map((item) => {
+    if (!item || typeof item !== "object") {
+      return {
+        description: "",
+        labor_hours: null,
+        outsourced: false,
+        suggested_value: null,
+        lab_preset_id: null,
+        pre_approved: false,
+        source: null,
+        line_observations: null,
+      };
+    }
+    const s = item as Record<string, unknown>;
+    return {
+      description: asText(s.description).trim(),
+      labor_hours: asOptionalNumber(s.labor_hours),
+      outsourced: s.outsourced === true,
+      suggested_value: asOptionalNumber(s.suggested_value),
+      lab_preset_id: asOptionalText(s.lab_preset_id),
+      pre_approved: s.pre_approved === true,
+      source: asOptionalText(s.source),
+      line_observations: asOptionalText(s.line_observations),
+    };
+  });
+
+  const parts = (Array.isArray(row.parts) ? row.parts : []).map((item) => {
+    if (!item || typeof item !== "object") {
+      return {
+        description: "",
+        quantity: "",
+        fromStock: false,
+        workshopPartId: null,
+      };
+    }
+    const p = item as Record<string, unknown>;
+    return {
+      description: asText(p.description).trim(),
+      quantity: asText(p.quantity).trim(),
+      fromStock: p.fromStock === true,
+      workshopPartId: asOptionalText(p.workshopPartId),
+    };
+  });
+
   return JSON.stringify({
-    card_name: row.card_name ?? null,
-    diagnosis: String(row.diagnosis ?? ""),
-    observations: String(row.observations ?? ""),
-    services: stripApproval(row.services),
-    parts: stripApproval(row.parts),
+    card_name: asOptionalText(row.card_name),
+    diagnosis: asText(row.diagnosis),
+    observations: asText(row.observations),
+    services,
+    parts,
   });
 }
 

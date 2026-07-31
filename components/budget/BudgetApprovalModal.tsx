@@ -128,29 +128,16 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
     }
     setSaving(true);
     try {
+      // Só altera `approved` — não reescreve campos opcionais (evita invalidar verificação
+      // por diferença null vs ausente na assinatura de conteúdo).
       const services = budget.services.map((s, i) => ({
-        description: s.description,
+        ...s,
         approved: approvalServices[i] ?? false,
-        labor_hours: s.labor_hours ?? null,
-        outsourced: s.outsourced,
-        suggested_value: s.suggested_value ?? null,
-        lab_preset_id: s.lab_preset_id ?? null,
-        pre_approved: s.pre_approved,
-        source: s.source,
-        line_observations: s.line_observations,
       }));
-      const parts = budget.parts.map((p, i) => {
-        const row: BudgetPartFields = {
-          description: p.description,
-          quantity: p.quantity,
-          approved: approvalParts[i] ?? false,
-        };
-        if (p.fromStock) {
-          row.fromStock = true;
-          if (p.workshopPartId) row.workshopPartId = p.workshopPartId;
-        }
-        return row;
-      });
+      const parts = budget.parts.map((p, i) => ({
+        ...p,
+        approved: approvalParts[i] ?? false,
+      }));
       const updated = await updateServiceOrderBudget(
         serviceOrderId,
         budget.id,
