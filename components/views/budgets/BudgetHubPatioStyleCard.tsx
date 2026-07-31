@@ -154,7 +154,7 @@ export function BudgetHubPatioStyleCard({
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-1.5">
                   <h3
-                    className={`font-vehicle ${titleClass} min-w-0 font-bold uppercase leading-[0.9] tracking-tight text-zinc-900 break-words dark:text-white ${vehicleCardTitleShadow}`}
+                    className={`font-vehicle ${titleClass} ${titleScaleClass} min-w-0 font-bold uppercase leading-[0.9] tracking-tight text-zinc-900 break-words dark:text-white ${vehicleCardTitleShadow}`}
                   >
                     {model}
                   </h3>
