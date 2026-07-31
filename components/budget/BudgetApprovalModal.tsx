@@ -43,11 +43,13 @@ export type BudgetApprovalModalProps = {
   gateHint?: string;
 };
 
-/** Shell azul claro + variantes dark; largo no PC para textos não quebrarem. */
+/** Shell azul claro + variantes dark; largo no PC para textos não quebrarem.
+ * Altura/scroll: classes `.budget-approval-modal-shell` / `-scroll` em index.css
+ * (max-h com espaços em arbitrary Tailwind não era gerado → modal não rolava). */
 const approvalShell =
-  'relative flex max-h-[calc((100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem) / 0.9)] w-full min-h-0 max-w-[min(96vw,42rem)] flex-col overflow-hidden rounded-2xl border border-sky-100/95 bg-[#fafcfe] shadow-[0_28px_90px_-32px_rgba(14,116,144,0.38),0_12px_32px_-16px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,1)] animate-modal-sheet ' +
+  'budget-approval-modal-shell relative w-full max-w-[min(96vw,42rem)] overflow-hidden rounded-2xl border border-sky-100/95 bg-[#fafcfe] shadow-[0_28px_90px_-32px_rgba(14,116,144,0.38),0_12px_32px_-16px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,1)] animate-modal-sheet ' +
   'dark:border-sky-500/20 dark:bg-zinc-950 dark:shadow-[0_28px_90px_-28px_rgba(0,0,0,0.7),0_12px_32px_-16px_rgba(14,116,144,0.18),inset_0_1px_0_rgba(255,255,255,0.06)] ' +
-  'sm:max-w-[min(94vw,52rem)] lg:max-h-[min(calc(90dvh / 0.9),56rem)] lg:max-w-[min(92vw,68rem)] xl:max-w-[min(90vw,76rem)]';
+  'sm:max-w-[min(94vw,52rem)] lg:max-w-[min(92vw,68rem)] xl:max-w-[min(90vw,76rem)]';
 
 const approvalInset =
   'rounded-[16px] border border-sky-200/80 bg-white shadow-[0_6px_22px_-10px_rgba(14,116,144,0.18),0_2px_12px_-4px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,1)] ' +
@@ -183,9 +185,8 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-[240] flex items-center justify-center bg-slate-900/55 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-5 lg:p-8 animate-modal-backdrop dark:bg-black/65">
-        {/* Zoom out ~10% — mais informação cabe sem parecer “inchado”. */}
-        <div className={`${approvalShell} origin-center scale-[0.9]`}>
+      <div className="fixed inset-0 z-[240] flex items-center justify-center overflow-hidden bg-slate-900/55 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-5 lg:p-8 animate-modal-backdrop dark:bg-black/65">
+        <div className={approvalShell}>
           <button
             type="button"
             onClick={onClose}
@@ -243,7 +244,7 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
             ) : null}
           </div>
 
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain bg-[#f8fcfe] px-5 py-5 custom-scrollbar sm:px-7 lg:px-9 dark:bg-zinc-950/90">
+          <div className="budget-approval-modal-scroll space-y-5 bg-[#f8fcfe] px-5 py-5 custom-scrollbar sm:px-7 lg:px-9 dark:bg-zinc-950/90">
             {budget.services.length > 0 ? (
               <section>
                 <div className="mb-2.5 flex items-center gap-2">
