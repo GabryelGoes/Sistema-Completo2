@@ -1484,6 +1484,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [reminderSubmitting, setReminderSubmitting] = useState(false);
   const [reminderSaveError, setReminderSaveError] = useState<string | null>(null);
   const [newReminder, setNewReminder] = useState('');
+  const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
+  const [editingReminderText, setEditingReminderText] = useState('');
+  const [reminderEditSaving, setReminderEditSaving] = useState(false);
+  const [reminderEditError, setReminderEditError] = useState<string | null>(null);
   const remindersStorageKey = orderType === 'module' ? 'patio-reminders-module' : 'patio-reminders-vehicle';
   const isModuleMode = orderType === 'module';
   const flowKind: ServiceOrderFlowKind = isModuleMode ? 'module' : 'vehicle';
@@ -9371,6 +9375,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
               type="button"
               onClick={() => {
                 setReminderSaveError(null);
+                setReminderEditError(null);
+                setEditingReminderId(null);
+                setEditingReminderText('');
                 setIsRemindersOpen(false);
               }}
               className={`${iosModalClose} bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15`}
@@ -9493,15 +9500,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               ) : (
                 <ul className="space-y-3">
-                  {reminders.map((r) => (
+                  {reminders.map((r) => {
+                    const isEditing = editingReminderId === r.id;
+                    return (
                     <li
                       key={r.id}
                       className={`flex items-start gap-3 rounded-2xl border border-zinc-200/90 bg-white p-3.5 shadow-[0_6px_22px_-8px_rgba(0,0,0,0.09),0_2px_10px_-4px_rgba(0,0,0,0.05)] transition-opacity dark:border-white/[0.08] dark:bg-zinc-900/70 dark:shadow-[0_10px_32px_-12px_rgba(0,0,0,0.45)] ${
-                        r.done ? 'opacity-70' : ''
+                        r.done && !isEditing ? 'opacity-70' : ''
                       }`}
                     >
                       <button
                         type="button"
+                        disabled={isEditing || reminderEditSaving}
                         onClick={async () => {
                           try {
                             await updateWorkshopReminderRemote(r.id, {
@@ -9518,7 +9528,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             // ignore
                           }
                         }}
-                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] transition-colors ${
+                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] transition-colors disabled:opacity-50 ${
                           r.done
                             ? 'border-[#007AFF] bg-[#007AFF] text-white shadow-[0_4px_14px_-4px_rgba(0,122,255,0.45)]'
                             : 'border-zinc-300 bg-white text-transparent shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06)] hover:border-[#007AFF]/55 dark:border-zinc-600 dark:bg-zinc-900 dark:hover:border-[#64B5FF]/60'
@@ -9528,30 +9538,120 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         {r.done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                       </button>
                       <div className="min-w-0 flex-1 overflow-hidden">
-                        <p
-                          className={`whitespace-normal break-words text-[15px] leading-relaxed text-zinc-900 [overflow-wrap:anywhere] dark:text-zinc-100 ${
-                            r.done ? 'line-through decoration-zinc-400 dark:decoration-zinc-500' : ''
-                          }`}
-                        >
-                          {r.text}
-                        </p>
-                        <p className="mt-1.5 flex flex-wrap gap-x-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
-                          <span className="font-medium text-zinc-600 dark:text-zinc-300">
-                            {r.createdBy || (isModuleMode ? 'Laboratório' : 'Pátio')}
-                          </span>
-                          <span className="text-zinc-400 dark:text-zinc-600">·</span>
-                          <span>
-                            {new Date(r.createdAt).toLocaleString('pt-BR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                        </p>
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            {reminderEditError ? (
+                              <p className="text-[12px] font-medium text-red-600 dark:text-red-400" role="alert">
+                                {reminderEditError}
+                              </p>
+                            ) : null}
+                            <textarea
+                              value={editingReminderText}
+                              onChange={(e) => {
+                                setEditingReminderText(e.target.value);
+                                if (reminderEditError) setReminderEditError(null);
+                              }}
+                              rows={3}
+                              disabled={reminderEditSaving}
+                              className="w-full resize-y rounded-xl border border-zinc-200/95 bg-white px-3 py-2.5 text-[15px] leading-relaxed text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-[#007AFF]/55 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 disabled:opacity-60 dark:border-white/[0.1] dark:bg-zinc-950/60 dark:text-white"
+                              autoFocus
+                            />
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={!editingReminderText.trim() || reminderEditSaving}
+                                onClick={async () => {
+                                  const trimmed = editingReminderText.trim();
+                                  if (!trimmed || reminderEditSaving) return;
+                                  setReminderEditSaving(true);
+                                  setReminderEditError(null);
+                                  try {
+                                    await updateWorkshopReminderRemote(r.id, {
+                                      scope: remindersScopeApi,
+                                      text: trimmed,
+                                    });
+                                    window.dispatchEvent(
+                                      new CustomEvent('workshop-reminders-updated', {
+                                        detail: { scope: isModuleMode ? 'laboratorio' : 'patio' },
+                                      })
+                                    );
+                                    setEditingReminderId(null);
+                                    setEditingReminderText('');
+                                    await fetchReminders();
+                                  } catch (err) {
+                                    setReminderEditError(
+                                      err instanceof Error ? err.message : 'Não foi possível salvar a edição.'
+                                    );
+                                  } finally {
+                                    setReminderEditSaving(false);
+                                  }
+                                }}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#007AFF] px-3 text-[13px] font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#0A84FF]"
+                              >
+                                {reminderEditSaving ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
+                                ) : (
+                                  <Save className="h-4 w-4" strokeWidth={2.2} />
+                                )}
+                                Salvar
+                              </button>
+                              <button
+                                type="button"
+                                disabled={reminderEditSaving}
+                                onClick={() => {
+                                  setEditingReminderId(null);
+                                  setEditingReminderText('');
+                                  setReminderEditError(null);
+                                }}
+                                className="inline-flex h-9 items-center rounded-xl border border-zinc-200/90 bg-white px-3 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p
+                              className={`whitespace-normal break-words text-[15px] leading-relaxed text-zinc-900 [overflow-wrap:anywhere] dark:text-zinc-100 ${
+                                r.done ? 'line-through decoration-zinc-400 dark:decoration-zinc-500' : ''
+                              }`}
+                            >
+                              {r.text}
+                            </p>
+                            <p className="mt-1.5 flex flex-wrap gap-x-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                              <span className="font-medium text-zinc-600 dark:text-zinc-300">
+                                {r.createdBy || (isModuleMode ? 'Laboratório' : 'Pátio')}
+                              </span>
+                              <span className="text-zinc-400 dark:text-zinc-600">·</span>
+                              <span>
+                                {new Date(r.createdAt).toLocaleString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </p>
+                          </>
+                        )}
                       </div>
+                      {!isEditing ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingReminderId(r.id);
+                            setEditingReminderText(r.text);
+                            setReminderEditError(null);
+                          }}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-zinc-50 text-zinc-600 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06)] transition-all hover:border-[#007AFF]/40 hover:bg-[#007AFF]/10 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-300 dark:hover:border-[#64B5FF]/40 dark:hover:bg-[#0A84FF]/15 dark:hover:text-[#64B5FF]"
+                          aria-label="Editar lembrete"
+                        >
+                          <Pencil className="h-4 w-4" strokeWidth={2.1} />
+                        </button>
+                      ) : null}
                       <button
                         type="button"
+                        disabled={isEditing || reminderEditSaving}
                         onClick={async () => {
                           try {
                             await deleteWorkshopReminderRemote(r.id, remindersScopeApi);
@@ -9560,18 +9660,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 detail: { scope: isModuleMode ? 'laboratorio' : 'patio' },
                               })
                             );
+                            if (editingReminderId === r.id) {
+                              setEditingReminderId(null);
+                              setEditingReminderText('');
+                              setReminderEditError(null);
+                            }
                             await fetchReminders();
                           } catch {
                             // ignore
                           }
                         }}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-200/90 bg-red-50/95 text-red-600 shadow-[0_2px_10px_-4px_rgba(239,68,68,0.2)] transition-all hover:border-red-300 hover:bg-red-100 hover:text-red-700 active:scale-95 dark:border-red-500/35 dark:bg-red-950/50 dark:text-red-400 dark:shadow-[0_4px_14px_-6px_rgba(239,68,68,0.15)] dark:hover:border-red-400/50 dark:hover:bg-red-950/70 dark:hover:text-red-300"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-200/90 bg-red-50/95 text-red-600 shadow-[0_2px_10px_-4px_rgba(239,68,68,0.2)] transition-all hover:border-red-300 hover:bg-red-100 hover:text-red-700 active:scale-95 disabled:opacity-50 dark:border-red-500/35 dark:bg-red-950/50 dark:text-red-400 dark:shadow-[0_4px_14px_-6px_rgba(239,68,68,0.15)] dark:hover:border-red-400/50 dark:hover:bg-red-950/70 dark:hover:text-red-300"
                         aria-label="Excluir lembrete"
                       >
                         <Trash2 className="h-4 w-4" strokeWidth={2.1} />
                       </button>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               )}
             </div>
