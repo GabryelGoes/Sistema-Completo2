@@ -897,6 +897,7 @@ export default function App() {
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
               onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
               onActiveCardsCountChange={setPatioActiveCount}
+              onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
               canApproveBudgetItems={canApproveBudgetItemsApp}
@@ -922,6 +923,7 @@ export default function App() {
               openServiceOrderSection={null}
               onOpenServiceOrderHandled={handleLaboratoryOrderHandled}
               onActiveCardsCountChange={setLaboratorioActiveCount}
+              onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
               />
@@ -1218,6 +1220,7 @@ export default function App() {
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
             onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
             onActiveCardsCountChange={setPatioActiveCount}
+            onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
             canVerifyBudgets={canVerifyBudgetsApp}
             canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
@@ -1241,6 +1244,7 @@ export default function App() {
             isAppTabActive={currentTab === 'laboratorio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
             onActiveCardsCountChange={setLaboratorioActiveCount}
+            onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
             openServiceOrderId={laboratorioPendingOrderId}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={handleLaboratoryOrderHandled}

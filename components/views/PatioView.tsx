@@ -362,6 +362,8 @@ interface PatioViewProps {
   onOpenLaboratoryOrder?: (serviceOrderId: string) => void;
   /** Atualiza contagem de veículos/módulos ativos (ex.: barra superior no modo PC). */
   onActiveCardsCountChange?: (count: number) => void;
+  /** Fecha a página e volta ao Início (botão X no cabeçalho mobile/tablet). */
+  onClosePage?: () => void;
 }
 
 function boardListsFromStages(stages: ReturnType<typeof getServiceOrderStages>): BoardList[] {
@@ -1090,6 +1092,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   suppressVehiclePortals = false,
   onOpenLaboratoryOrder,
   onActiveCardsCountChange,
+  onClosePage,
 }) => {
   /** Admin: sem patioPermissions = tudo permitido. Usuário do sistema: só o que for explicitamente true. */
   const can = (key: keyof NonNullable<PatioViewProps['patioPermissions']>) =>
@@ -4828,6 +4831,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
         aria-busy="true"
         aria-label="Carregando"
       >
+        {onClosePage && !desktopShell ? (
+          <button
+            type="button"
+            onClick={onClosePage}
+            className="absolute left-3 top-[max(0.65rem,env(safe-area-inset-top))] z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200/75 bg-white/85 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:bg-zinc-900/90 sm:left-4 sm:h-10 sm:w-10"
+            aria-label="Fechar"
+            title="Fechar"
+          >
+            <X className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.25} />
+          </button>
+        ) : null}
         <div
           className="flex h-[4.5rem] w-[4.5rem] items-center justify-center overflow-hidden rounded-[1.15rem] border border-zinc-200/90 bg-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-white/[0.1] dark:bg-zinc-900/60 dark:shadow-none"
           aria-hidden
@@ -5260,8 +5274,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </div>
           ) : (
             <div className={`flex w-full flex-col ${patioHeaderActionsCentered ? 'gap-3.5' : 'gap-3.5 sm:gap-4'}`}>
-              {/* pl reserva espaço para o X fixo do OverlayPageNavBar */}
-              <div className="app-view-page-chrome flex min-w-0 items-center gap-3 pl-[3.25rem] sm:gap-3.5 sm:pl-14">
+              <div
+                className={`app-view-page-chrome flex min-w-0 items-center gap-3 sm:gap-3.5 ${
+                  onClosePage ? '' : 'pl-[3.25rem] sm:pl-14'
+                }`}
+              >
+                {onClosePage ? (
+                  <button
+                    type="button"
+                    onClick={onClosePage}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/75 bg-white/85 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:bg-zinc-900/90 sm:h-10 sm:w-10"
+                    aria-label="Fechar"
+                    title="Fechar"
+                  >
+                    <X className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.25} />
+                  </button>
+                ) : null}
                 <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
                   <img
                     src={isModuleMode ? '/icons/laboratorio-ios.png' : '/icons/patio-ios.png'}
