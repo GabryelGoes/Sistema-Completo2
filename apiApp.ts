@@ -7818,6 +7818,19 @@ export function createApiApp() {
       const isAdminActor = actor !== "technician";
 
       const updatePayload: any = {};
+      /** Links normalizados quando o body manda `labServiceLinks` (para cascatear exclusão das OS lab removidas). */
+      let normalizedLabServiceLinks:
+        | {
+            id: string;
+            serviceLabel: string;
+            serviceDetails: string | null;
+            source: "budget" | "manual";
+            sourceBudgetId: string | null;
+            sourceBudgetItemIndex: number | null;
+            laboratoryOrderId: string;
+            createdAt: string;
+          }[]
+        | null = null;
       if (vehicleModel !== undefined) {
         updatePayload.vehicle_model = typeof vehicleModel === "string" ? vehicleModel.trim() : "";
       }
@@ -8022,6 +8035,7 @@ export function createApiApp() {
             createdAt,
           });
         }
+        normalizedLabServiceLinks = normalized;
         updatePayload.lab_service_links = normalized;
       }
 
@@ -8051,7 +8065,9 @@ export function createApiApp() {
 
       const { data: previous } = await supabaseAdmin
         .from("service_orders")
-        .select("status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, order_type, bench_slot, external_repair, customers(name)")
+        .select(
+          "status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, order_type, bench_slot, external_repair, lab_service_links, customers(name)"
+        )
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -8148,6 +8164,50 @@ export function createApiApp() {
       if (error) {
         console.error("[API] Erro ao atualizar service_order:", error);
         return res.status(500).json({ error: error.message });
+      }
+
+      // Remover vínculo no Pátio → arquivar também a OS/card criada no Laboratório.
+      if (
+        normalizedLabServiceLinks &&
+        previous &&
+        String((previous as { order_type?: string | null }).order_type ?? "vehicle") !== "module"
+      ) {
+        const prevLinksRaw = (previous as { lab_service_links?: unknown }).lab_service_links;
+        const prevLabIds = new Set(
+          (Array.isArray(prevLinksRaw) ? prevLinksRaw : [])
+            .map((item) => {
+              if (!item || typeof item !== "object") return "";
+              const oid = (item as { laboratoryOrderId?: unknown }).laboratoryOrderId;
+              return typeof oid === "string" ? oid.trim() : "";
+            })
+            .filter(Boolean)
+        );
+        const nextLabIds = new Set(normalizedLabServiceLinks.map((l) => l.laboratoryOrderId));
+        const removedLabIds = [...prevLabIds].filter((labId) => !nextLabIds.has(labId));
+        if (removedLabIds.length > 0) {
+          const archivedAt = new Date().toISOString();
+          const { error: cascadeErr } = await supabaseAdmin
+            .from("service_orders")
+            .update({
+              status: CANCELLED_STATUS,
+              bench_slot: null,
+              bench_slot_at: null,
+              bench_queued_at: null,
+              updated_at: archivedAt,
+            })
+            .in("id", removedLabIds)
+            .eq("workshop_id", WORKSHOP_ID)
+            .eq("order_type", "module")
+            .neq("status", CANCELLED_STATUS);
+          if (cascadeErr) {
+            console.error(
+              "[API] Falha ao arquivar OS do laboratório ao remover vínculo do pátio:",
+              cascadeErr
+            );
+          } else {
+            await processIntakeBenchQueue();
+          }
+        }
       }
 
       if (effectiveOrderType === "module") {

@@ -3800,8 +3800,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
   );
 
   const handleRemoveLabServiceLink = async (linkId: string) => {
+    const link = labServiceLinksDraft.find((l) => l.id === linkId);
+    if (!link) return;
+    const label = link.serviceLabel?.trim() || "este serviço";
+    if (
+      !window.confirm(
+        `Remover "${label}" e excluir também a OS/card correspondente no laboratório?\n\nEssa ação arquiva a ordem do laboratório. Não será preciso excluir nos dois lugares.`
+      )
+    ) {
+      return;
+    }
     const next = labServiceLinksDraft.filter((l) => l.id !== linkId);
     await handleSaveLabServiceLinks(next);
+    // Atualiza quadro do laboratório (se aberto em outra aba / próximo refresh).
+    window.dispatchEvent(new CustomEvent("rda-patio-board-refresh"));
+    void fetchDataRef.current(true);
   };
 
   // --- Budget Functions ---

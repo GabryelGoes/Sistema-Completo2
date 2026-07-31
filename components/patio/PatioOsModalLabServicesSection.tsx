@@ -501,6 +501,8 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                         type="button"
                         onClick={() => onRemoveLabServiceLink(link.id)}
                         disabled={labServiceLinksSaving}
+                        title="Remover vínculo e excluir OS do laboratório"
+                        aria-label={`Excluir serviço ${link.serviceLabel} e a OS do laboratório`}
                         className="inline-flex items-center gap-1 rounded-lg border border-red-300/70 bg-red-50 px-2.5 py-1.5 text-[12px] font-semibold text-red-700 dark:border-red-500/35 dark:bg-red-500/10 dark:text-red-300 disabled:opacity-60"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
