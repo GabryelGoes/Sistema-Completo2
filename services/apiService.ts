@@ -2418,6 +2418,20 @@ export async function saveServiceOrderLabEvaluation(
   return response.json();
 }
 
+/** Remove a avaliação técnica e os orçamentos criados automaticamente por ela (serviços rápidos). */
+export async function deleteServiceOrderLabEvaluation(
+  serviceOrderId: string
+): Promise<ServiceOrderDetail> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/lab-evaluation`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir avaliação (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function getTechnicianServicesReport(): Promise<{ items: TechnicianServiceReportItem[] }> {
   const response = await fetch(`${API_BASE}/reports/technician-services`);
   if (!response.ok) {

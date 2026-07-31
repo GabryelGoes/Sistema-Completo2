@@ -53,6 +53,7 @@ export type LabEvaluationSectionProps = {
   evaluatedByName: string | null | undefined;
   evaluatedByDisplayName: string;
   onSubmitEvaluation: (payload: LabEvaluationSubmitPayload) => Promise<void>;
+  onDeleteEvaluation?: () => Promise<void>;
 };
 
 function formatEvaluatedAt(iso: string | null | undefined): string {
@@ -86,6 +87,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
   evaluatedByName,
   evaluatedByDisplayName,
   onSubmitEvaluation,
+  onDeleteEvaluation,
 }) => {
   const [quickServices, setQuickServices] = useState<LabQuickService[]>(() => getLabQuickServices());
   const [serviceDrafts, setServiceDrafts] = useState<LabEvaluationServiceDraft[]>([]);
@@ -94,6 +96,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
   const [observations, setObservations] = useState('');
   const [workshopParts, setWorkshopParts] = useState<WorkshopPart[]>([]);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reloadQuickServices = useCallback(() => {
@@ -185,6 +188,30 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
     }
   };
 
+  const handleDelete = async () => {
+    if (!onDeleteEvaluation) return;
+    if (
+      !window.confirm(
+        'Excluir esta avaliação técnica?\n\nOs orçamentos criados automaticamente a partir dela (serviços rápidos) também serão excluídos. Você poderá registrar uma nova avaliação.'
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    setError(null);
+    try {
+      await onDeleteEvaluation();
+      setServiceDrafts([]);
+      setParts([]);
+      setObservations('');
+      setOtherService('');
+    } catch (e) {
+      setError((e as Error)?.message ?? 'Não foi possível excluir a avaliação.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const partsInset = 'rounded-xl border border-zinc-200/80 bg-white/90 dark:border-white/[0.1] dark:bg-zinc-950/50';
 
   return (
@@ -200,26 +227,39 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
 
       <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
         {hasEvaluation ? (
-          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-            <div className="flex items-start gap-2.5">
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <div className="min-w-0">
-                <p className="text-[12px] font-semibold uppercase tracking-wide text-emerald-800/90 dark:text-emerald-300/90">
-                  Avaliação enviada ao orçamento
-                </p>
-                <p className="mt-1 text-[15px] font-semibold leading-snug text-zinc-900 dark:text-white">
-                  {evaluatedService}
-                </p>
-                {evaluatedAt ? (
-                  <p className="mt-1 text-[12px] text-zinc-600 dark:text-zinc-400">
-                    {formatEvaluatedAt(evaluatedAt)}
-                    {(evaluatedByName ?? evaluatedByDisplayName)
-                      ? ` · ${evaluatedByName ?? evaluatedByDisplayName}`
-                      : null}
+          <div className="space-y-3">
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-semibold uppercase tracking-wide text-emerald-800/90 dark:text-emerald-300/90">
+                    Avaliação enviada ao orçamento
                   </p>
-                ) : null}
+                  <p className="mt-1 text-[15px] font-semibold leading-snug text-zinc-900 dark:text-white">
+                    {evaluatedService}
+                  </p>
+                  {evaluatedAt ? (
+                    <p className="mt-1 text-[12px] text-zinc-600 dark:text-zinc-400">
+                      {formatEvaluatedAt(evaluatedAt)}
+                      {(evaluatedByName ?? evaluatedByDisplayName)
+                        ? ` · ${evaluatedByName ?? evaluatedByDisplayName}`
+                        : null}
+                    </p>
+                  ) : null}
+                </div>
               </div>
             </div>
+            {onDeleteEvaluation ? (
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={deleting || saving}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-[13px] font-semibold text-red-700 transition hover:bg-red-500/15 disabled:opacity-55 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Excluir avaliação e orçamentos vinculados
+              </button>
+            ) : null}
           </div>
         ) : (
           <>

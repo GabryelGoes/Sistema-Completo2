@@ -4916,6 +4916,131 @@ export function createApiApp() {
     }
   });
 
+  // Excluir avaliação técnica do laboratório e orçamentos gerados automaticamente (serviços rápidos / avaliação).
+  app.delete("/api/service-orders/:id/lab-evaluation", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+
+      const { id: serviceOrderId } = req.params;
+
+      const { data: so, error: fetchErr } = await supabaseAdmin
+        .from("service_orders")
+        .select(
+          "id, order_type, status, lab_evaluated_service, lab_evaluated_at, lab_evaluation_budget_id"
+        )
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+
+      if (fetchErr || !so) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if (String(so.order_type ?? "vehicle") !== "module") {
+        return res.status(400).json({ error: "Avaliação técnica disponível apenas para OS de laboratório." });
+      }
+
+      const hasEval =
+        String(so.lab_evaluated_at ?? "").trim() || String(so.lab_evaluated_service ?? "").trim();
+      if (!hasEval) {
+        return res.status(400).json({ error: "Esta OS não possui avaliação técnica registrada." });
+      }
+
+      const budgetIdsToDelete = new Set<string>();
+      const linkedBudgetId = so.lab_evaluation_budget_id
+        ? String(so.lab_evaluation_budget_id).trim()
+        : "";
+      if (linkedBudgetId) budgetIdsToDelete.add(linkedBudgetId);
+
+      const { data: soBudgets, error: budgetsErr } = await supabaseAdmin
+        .from("budgets")
+        .select("id, services")
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID);
+
+      if (budgetsErr) {
+        console.error("[API] DELETE lab-evaluation list budgets:", budgetsErr);
+        return res.status(500).json({ error: budgetsErr.message });
+      }
+
+      for (const row of soBudgets ?? []) {
+        const id = row?.id ? String(row.id) : "";
+        if (!id) continue;
+        const services = Array.isArray(row.services) ? row.services : [];
+        const fromLabEval = services.some(
+          (svc: unknown) =>
+            svc &&
+            typeof svc === "object" &&
+            String((svc as { source?: unknown }).source ?? "") === "lab_evaluation"
+        );
+        if (fromLabEval) budgetIdsToDelete.add(id);
+      }
+
+      // Limpa o vínculo antes de excluir o orçamento (FK ON DELETE SET NULL, mas evita corrida).
+      const clearPayload: Record<string, unknown> = {
+        lab_evaluated_service: null,
+        lab_evaluated_at: null,
+        lab_evaluated_by_name: null,
+        lab_evaluation_budget_id: null,
+        status: "AVALIACAO_TECNICA",
+        updated_at: new Date().toISOString(),
+      };
+
+      let { data, error } = await supabaseAdmin
+        .from("service_orders")
+        .update(clearPayload)
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("*, customers(*)")
+        .single();
+
+      if (error) {
+        const msg = error.message ?? "";
+        if (/lab_evaluated_|lab_evaluation_budget/i.test(msg) && /does not exist|column/i.test(msg)) {
+          delete clearPayload.lab_evaluation_budget_id;
+          const retry = await supabaseAdmin
+            .from("service_orders")
+            .update(clearPayload)
+            .eq("id", serviceOrderId)
+            .eq("workshop_id", WORKSHOP_ID)
+            .select("*, customers(*)")
+            .single();
+          data = retry.data;
+          error = retry.error;
+        }
+        if (error) {
+          console.error("[API] DELETE lab-evaluation update SO:", error);
+          return res.status(500).json({ error: error.message });
+        }
+      }
+
+      for (const budgetId of budgetIdsToDelete) {
+        const { error: delErr } = await supabaseAdmin
+          .from("budgets")
+          .delete()
+          .eq("id", budgetId)
+          .eq("service_order_id", serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID);
+        if (delErr) {
+          console.error("[API] DELETE lab-evaluation budget:", budgetId, delErr);
+          return res.status(500).json({
+            error: `Avaliação removida, mas falhou ao excluir orçamento vinculado: ${delErr.message}`,
+          });
+        }
+      }
+
+      return res.json({
+        ...(data ?? {}),
+        deleted_budget_ids: Array.from(budgetIdsToDelete),
+      });
+    } catch (err: unknown) {
+      console.error("[API] DELETE lab-evaluation:", err);
+      const msg = err instanceof Error ? err.message : "Erro";
+      return res.status(500).json({ error: msg });
+    }
+  });
+
   // Relatório: serviços executados por técnico (fechamento no Pátio)
   app.get("/api/reports/technician-services", async (_req, res) => {
     try {
