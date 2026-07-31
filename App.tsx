@@ -37,7 +37,6 @@ import { applyAccentToRoot, DEFAULT_ACCENT } from './utils/appAppearance';
 import { setLabProductKinds } from './utils/moduleMetadata';
 import { setLabQuickServices } from './utils/labQuickServices';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
-import { OverlayPageNavBar } from './components/ui/OverlayPageNavBar';
 import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
 import { DesktopEscapeCloseBridge } from './components/ui/DesktopEscapeCloseBridge';
 import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame';
