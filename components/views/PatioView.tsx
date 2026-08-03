@@ -10853,7 +10853,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <ModalPortal>
         <div className={`${iosModalOverlay} p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6 ${modalBackdropAnimClass(assignModalExiting)}`}>
           <div
-            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell} ${modalSheetAnimClass(assignModalExiting)}`}
+            className={`relative flex w-full min-h-0 flex-col overflow-hidden ${iosModalShell} ${modalSheetAnimClass(assignModalExiting)} ${
+              isSmartphone
+                ? 'max-h-[min(78vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2.5rem))] max-w-[22rem] origin-center scale-[0.92]'
+                : 'max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] max-w-md'
+            }`}
           >
             <button
               type="button"
@@ -10865,7 +10869,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <X className="h-5 w-5" />
             </button>
 
-            <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+            <div className={`shrink-0 border-b border-zinc-200/60 dark:border-white/[0.07] ${isSmartphone ? 'px-5 pb-4 pt-6' : 'px-6 pb-5 pt-7 sm:px-8 sm:pt-8'}`}>
               <div className="flex items-start gap-3 pr-10">
                 <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
                   <img src="/icons/usuarios-ios.png" alt="" className="h-full w-full object-cover" />
@@ -10874,10 +10878,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                     Equipe
                   </p>
-                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">
+                  <h2
+                    className={`font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white ${
+                      isSmartphone ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'
+                    }`}
+                  >
                     Selecionar técnico
                   </h2>
-                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                  <p className={`mt-1 flex flex-wrap items-center gap-1.5 text-zinc-500 dark:text-zinc-400 ${isSmartphone ? 'text-[12px]' : 'text-[13px]'}`}>
                     <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
                     {isModuleMode
                       ? 'Responsável pelo módulo — escolha quem acompanha esta OS.'
@@ -10887,19 +10895,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
+            <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar ${isSmartphone ? 'px-4 py-3.5' : 'px-6 py-5 sm:px-8'}`}>
               <p className={iosLabel}>Atribuição</p>
-              <div className="space-y-2.5">
+              <div className={isSmartphone ? 'space-y-2' : 'space-y-2.5'}>
                 <button
                   type="button"
                   onClick={() => handleAssignTechnician(null)}
                   disabled={isAssigning}
-                  className={`${iosModalInsetCard} group flex w-full items-center justify-between gap-3 border-2 border-dashed border-zinc-300/90 p-4 text-left transition-all hover:bg-black/[0.03] active:scale-[0.99] disabled:opacity-50 dark:border-white/[0.12] dark:hover:bg-white/[0.04]`}
+                  className={`${iosModalInsetCard} group flex w-full items-center justify-between gap-3 border-2 border-dashed border-zinc-300/90 text-left transition-all hover:bg-black/[0.03] active:scale-[0.99] disabled:opacity-50 dark:border-white/[0.12] dark:hover:bg-white/[0.04] ${
+                    isSmartphone ? 'p-3' : 'p-4'
+                  }`}
                 >
-                  <span className="text-[15px] font-semibold tracking-tight text-zinc-700 dark:text-zinc-200">
+                  <span className={`font-semibold tracking-tight text-zinc-700 dark:text-zinc-200 ${isSmartphone ? 'text-[13px]' : 'text-[15px]'}`}>
                     Nenhum / Remover técnico
                   </span>
-                  <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5 dark:text-zinc-500" />
+                  <ChevronRight className={`${isSmartphone ? 'h-4 w-4' : 'h-5 w-5'} shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5 dark:text-zinc-500`} />
                 </button>
                 {TECHNICIANS.map((tech) => (
                   <button
@@ -10907,9 +10917,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     type="button"
                     onClick={() => handleAssignTechnician(tech)}
                     disabled={isAssigning}
-                    className={`group flex w-full items-center gap-3 rounded-[16px] border-2 p-3.5 text-left shadow-[0_2px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200 hover:brightness-[1.06] active:scale-[0.99] disabled:opacity-50 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] ${tech.style}`}
+                    className={`group flex w-full items-center gap-3 rounded-[16px] border-2 text-left shadow-[0_2px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200 hover:brightness-[1.06] active:scale-[0.99] disabled:opacity-50 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] ${tech.style} ${
+                      isSmartphone ? 'p-3' : 'p-3.5'
+                    }`}
                   >
-                    <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/25 bg-black/15 shadow-inner">
+                    <div className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/25 bg-black/15 shadow-inner ${isSmartphone ? 'h-9 w-9' : 'h-11 w-11'}`}>
                       {tech.photo_url ? (
                         <img
                           src={tech.photo_url}
@@ -10917,13 +10929,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
                         />
                       ) : (
-                        <MechanicIcon className="relative z-[1] h-5 w-5 opacity-95" />
+                        <MechanicIcon className={`relative z-[1] opacity-95 ${isSmartphone ? 'h-4 w-4' : 'h-5 w-5'}`} />
                       )}
                     </div>
-                    <span className="min-w-0 flex-1 text-[15px] font-semibold leading-snug tracking-tight">
+                    <span className={`min-w-0 flex-1 font-semibold leading-snug tracking-tight ${isSmartphone ? 'text-[13px]' : 'text-[15px]'}`}>
                       {tech.name}
                     </span>
-                    <ChevronRight className="h-5 w-5 shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5" />
+                    <ChevronRight className={`${isSmartphone ? 'h-4 w-4' : 'h-5 w-5'} shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5`} />
                   </button>
                 ))}
               </div>
@@ -10935,12 +10947,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
             </div>
 
-            <div className="shrink-0 border-t border-zinc-200/60 px-4 py-3 dark:border-white/[0.07] sm:px-6">
+            <div className={`shrink-0 border-t border-zinc-200/60 dark:border-white/[0.07] ${isSmartphone ? 'px-3 py-2.5' : 'px-4 py-3 sm:px-6'}`}>
               <button
                 type="button"
                 onClick={() => setCardForMemberAssignment(null)}
                 disabled={isAssigning}
-                className="w-full rounded-xl py-3.5 text-[15px] font-semibold text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                className={`w-full rounded-xl font-semibold text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white ${
+                  isSmartphone ? 'py-3 text-[14px]' : 'py-3.5 text-[15px]'
+                }`}
               >
                 Cancelar
               </button>
