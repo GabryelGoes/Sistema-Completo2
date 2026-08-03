@@ -112,7 +112,7 @@ import {
   isAttachmentDocumentFile,
 } from '../../utils/imageUpload';
 import { ModalPortal } from '../ui/ModalPortal';
-import { useBrowserBackLayer } from '../ui/BackNavigationContext';
+import { useBrowserBackLayer, markProgrammaticHistoryBack } from '../ui/BackNavigationContext';
 import {
   iosModalClose,
   iosModalInsetCard,
@@ -6163,7 +6163,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
             >
               <button
                 type="button"
-                onClick={() => setIsHistoryOpen(false)}
+                onClick={() => {
+                  markProgrammaticHistoryBack();
+                  setIsHistoryOpen(false);
+                }}
                 className={patioHistoryVm.closeBtn}
                 aria-label="Fechar"
               >

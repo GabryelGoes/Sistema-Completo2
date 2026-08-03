@@ -15,8 +15,21 @@ type BackNavigationValue = {
 
 export const BackNavigationContext = createContext<BackNavigationValue | null>(null);
 
+type RdaHistoryWindow = Window & {
+  __rdaModalBackHandledAt?: number;
+  /** Ignora o próximo popstate do App (fechar modal via X / cleanup da pilha). */
+  __rdaIgnoreAppPopstate?: boolean;
+};
+
+/** Marca que o próximo popstate é interno (fechar overlay) — o App não deve ir à Home. */
+export function markProgrammaticHistoryBack() {
+  const w = window as RdaHistoryWindow;
+  w.__rdaModalBackHandledAt = Date.now();
+  w.__rdaIgnoreAppPopstate = true;
+}
+
 function touchModalBackHandledFlag() {
-  const w = window as Window & { __rdaModalBackHandledAt?: number };
+  const w = window as RdaHistoryWindow;
   w.__rdaModalBackHandledAt = Date.now();
 }
 
@@ -32,6 +45,7 @@ export function BackNavigationProvider({ children }: { children: React.ReactNode
     const onPopState = () => {
       if (suppressPopstateRef.current) {
         suppressPopstateRef.current = false;
+        // Mantém __rdaIgnoreAppPopstate para o listener do App (pode rodar depois).
         touchModalBackHandledFlag();
         return;
       }
@@ -40,7 +54,7 @@ export function BackNavigationProvider({ children }: { children: React.ReactNode
         try {
           fn();
         } catch (_) {}
-        touchModalBackHandledFlag();
+        markProgrammaticHistoryBack();
       }
     };
     window.addEventListener('popstate', onPopState);
@@ -60,7 +74,7 @@ export function BackNavigationProvider({ children }: { children: React.ReactNode
         // Marca ANTES do history.back(): o App também escuta popstate e, se
         // rodar primeiro, não deve tratar isso como “voltar à Home”.
         suppressPopstateRef.current = true;
-        touchModalBackHandledFlag();
+        markProgrammaticHistoryBack();
         window.history.back();
       }
     };
@@ -68,6 +82,7 @@ export function BackNavigationProvider({ children }: { children: React.ReactNode
 
   const tryCloseTopLayer = useCallback(() => {
     if (stackRef.current.length === 0) return false;
+    markProgrammaticHistoryBack();
     window.history.back();
     return true;
   }, []);

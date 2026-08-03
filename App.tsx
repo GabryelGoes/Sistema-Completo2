@@ -631,9 +631,22 @@ export default function App() {
 
   useEffect(() => {
     if (!authSession) return;
-    const handlePopState = () => {
-      const w = window as Window & { __rdaModalBackHandledAt?: number };
-      if (w.__rdaModalBackHandledAt && Date.now() - w.__rdaModalBackHandledAt < 400) {
+    const handlePopState = (event: PopStateEvent) => {
+      const w = window as Window & {
+        __rdaModalBackHandledAt?: number;
+        __rdaIgnoreAppPopstate?: boolean;
+      };
+      // Fechar modal (X / cleanup da pilha): nunca tratar como “voltar à Home”.
+      if (w.__rdaIgnoreAppPopstate) {
+        w.__rdaIgnoreAppPopstate = false;
+        return;
+      }
+      if (w.__rdaModalBackHandledAt && Date.now() - w.__rdaModalBackHandledAt < 1200) {
+        return;
+      }
+      const state = event.state as { rdaMobileNav?: boolean; rdaAppLayer?: number; tab?: string } | null;
+      // Voltou para o estado da aba atual (ex.: fechou histórico) — permanece no Pátio/Lab.
+      if (state?.rdaMobileNav && state.tab === activeAppTab) {
         return;
       }
       if (activeAppTab === 'reception') {
