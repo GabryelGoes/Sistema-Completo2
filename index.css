@@ -97,6 +97,23 @@ body {
 }
 
 /**
+ * Modal de leitura de orçamento — zoom out só no corpo (diagnóstico/serviços/peças),
+ * sem afetar cabeçalho nem botões inferiores (Excluir, Imprimir, etc.).
+ */
+html[data-device='smartphone'] .budget-read-body--zoom-out {
+  --budget-read-body-scale: 0.88;
+  zoom: var(--budget-read-body-scale);
+}
+
+@supports not (zoom: 1) {
+  html[data-device='smartphone'] .budget-read-body--zoom-out {
+    transform: scale(var(--budget-read-body-scale));
+    transform-origin: top left;
+    width: calc(100% / var(--budget-read-body-scale));
+  }
+}
+
+/**
  * Modal Novo/Editar orçamento — zoom out 88% em mobile/tablet.
  * Amplia o box com 100vw/dvh (não %) e solta overflow lateral para não cortar a direita.
  */
