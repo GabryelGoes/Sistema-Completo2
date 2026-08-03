@@ -191,6 +191,7 @@ import { BudgetServiceSuggestionDropdown } from '../budget/BudgetServiceSuggesti
 import { WorkshopPartQuickViewModal } from '../budget/WorkshopPartQuickViewModal';
 import {
   budgetReadFooterBtnClass,
+  budgetReadFooterDangerClass,
   budgetReadModalBackdropClass,
   budgetReadModalFooterClass,
   budgetReadModalHeaderClass,
@@ -1811,6 +1812,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     };
   }, [patioPrimaryOverlayShown, isModuleMode]);
   useBrowserBackLayer(patioPrimaryOverlayShown, closePatioPrimaryOverlays);
+  useBrowserBackLayer(isHistoryOpen && patioPortalsVisible, () => setIsHistoryOpen(false));
   /** Pilha acima do modal do veículo: gesto voltar fecha só o orçamento e mantém a ficha aberta. */
   useBrowserBackLayer(isBudgetOpen && patioPortalsVisible, requestCloseBudgetModal);
   useBrowserBackLayer(isPatioHeaderToolsOpen && patioPortalsVisible, () => setIsPatioHeaderToolsOpen(false));
@@ -7199,9 +7201,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               : 'flex flex-wrap items-center gap-2'
                           }
                         >
-                          {isPatioTabletLikeModal && !isModuleMode ? (
-                            <div className="flex min-h-10 w-full min-w-0 items-center gap-2 pr-[calc(5.75rem+env(safe-area-inset-right,0px))]">
-                              {selectedCard.garantiaTag ? (
+                          {isPatioTabletLikeModal ? (
+                            <div
+                              className={`flex min-h-10 w-full min-w-0 items-center gap-2 ${
+                                isModuleMode
+                                  ? 'pr-[calc(9.75rem+env(safe-area-inset-right,0px))]'
+                                  : 'pr-[calc(5.75rem+env(safe-area-inset-right,0px))]'
+                              }`}
+                            >
+                              {isModuleMode &&
+                              (serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null ? (
+                                <span className="inline-flex items-center rounded-lg border border-zinc-300/60 bg-zinc-200/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:border-zinc-600/60 dark:bg-zinc-700/80 dark:text-zinc-300">
+                                  OS #{serviceOrderDetail?.os_number ?? selectedCard.osNumber}
+                                </span>
+                              ) : null}
+                              {!isModuleMode && selectedCard.garantiaTag ? (
                                 <span className="inline-flex max-w-full items-center gap-2 rounded-full border-2 border-red-500/50 bg-red-500/15 px-4 py-2 text-sm font-bold uppercase tracking-wide text-red-600 dark:bg-red-500/20 dark:text-red-400">
                                   Garantia
                                   <button
@@ -7675,7 +7689,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                             </button>
                           ) : null}
-                          {isPatioTabletLikeModal && !isModuleMode ? (
+                          {isPatioTabletLikeModal ? (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -7685,7 +7699,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               }}
                               title="Alterar etapa"
                               aria-label={`Alterar etapa: ${modalListName}`}
-                              className={`patio-vm-card patio-vm-meta-card group relative order-6 col-start-2 flex w-full min-h-[3rem] cursor-pointer items-center overflow-hidden rounded-[16px] border-2 text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.14)] transition-all duration-200 hover:brightness-110 active:scale-[0.99] ${
+                              className={`patio-vm-card patio-vm-meta-card group relative flex w-full min-h-[3rem] cursor-pointer items-center overflow-hidden rounded-[16px] border-2 text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.14)] transition-all duration-200 hover:brightness-110 active:scale-[0.99] ${
+                                isModuleMode ? 'order-5 col-start-2' : 'order-6 col-start-2'
+                              } ${
                                 isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'
                               } ${modalStatusConfig.style}`}
                             >
@@ -10199,15 +10215,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   type="button"
                   onClick={handleDeleteBudget}
                   disabled={!!deletingBudgetId || !!verifyingBudgetId}
-                  className="inline-flex items-center gap-2 rounded-xl border border-red-300/80 bg-red-50 px-5 py-2.5 text-sm font-medium text-red-800 transition-colors hover:bg-red-100 disabled:opacity-50"
+                  className={budgetReadFooterDangerClass}
                 >
-                  {deletingBudgetId ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  {deletingBudgetId ? <RefreshCw className="h-3.5 w-3.5 animate-spin sm:h-4 sm:w-4" /> : <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                   {deletingBudgetId ? 'Excluindo…' : 'Excluir'}
                 </button>
               ) : (
                 <span />
               )}
-              <div className="flex flex-wrap items-center justify-end gap-3">
+              <div className="flex min-w-0 flex-nowrap items-center justify-end gap-1 sm:gap-3">
                 <button
                   type="button"
                   onClick={() =>
@@ -10219,7 +10235,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   disabled={!!deletingBudgetId || !!verifyingBudgetId}
                   className={budgetReadFooterBtnClass}
                 >
-                  <Printer className="h-4 w-4" /> Imprimir
+                  <Printer className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Imprimir
                 </button>
                 <button
                   type="button"
@@ -10232,7 +10248,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   disabled={!!deletingBudgetId || !!verifyingBudgetId}
                   className={budgetReadFooterBtnClass}
                 >
-                  <Printer className="h-4 w-4" /> Via mecânico
+                  <Printer className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Via mecânico
                 </button>
                 <button
                   type="button"
@@ -10240,7 +10256,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   disabled={!!deletingBudgetId || !!verifyingBudgetId || !can('canEditBudgets') || !selectedCard}
                   className={budgetReadFooterBtnClass}
                 >
-                  <Pencil className="h-4 w-4" /> Editar
+                  <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Editar
                 </button>
               </div>
             </div>

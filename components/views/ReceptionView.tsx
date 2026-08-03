@@ -1205,18 +1205,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     <div
       className={`${
         useShellPageScroll
-          ? 'w-full min-h-0 flex-1'
-          : 'h-full min-h-0 w-full overflow-y-auto overscroll-none touch-pan-y'
+          ? 'w-full min-h-0 flex-1 overflow-x-hidden'
+          : 'h-full min-h-0 w-full overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y'
       } bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90`}
     >
     <div
-      className={`w-full max-w-none mx-auto animate-in fade-in duration-500 ${
+      className={`w-full max-w-full mx-auto animate-in fade-in duration-500 ${
         hidePageChrome
           ? 'px-0 sm:px-1 pb-4 pt-0'
           : 'px-3 sm:px-4 md:px-6 pb-24 md:pb-28 pt-3 md:pt-6'
       }${
         isSmartphone && !hidePageChrome
-          ? ' origin-top scale-[0.92] [width:calc(100%/0.92)] -translate-x-[calc((100%/0.92-100%)/2)]'
+          ? ' origin-top scale-[0.92]'
           : ''
       }`}
     >

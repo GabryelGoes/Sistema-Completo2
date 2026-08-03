@@ -217,29 +217,29 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
 
             {!loading && !error && budget ? (
               <div className={budgetReadModalFooterClass}>
-                <div className="flex flex-wrap items-center justify-end gap-3">
+                <div className="flex min-w-0 flex-nowrap items-center justify-end gap-1 sm:gap-3">
                   <button
                     type="button"
                     onClick={() => printBudgetWithDetail(budget, detail, { isModuleMode, mileageKm })}
                     className={budgetReadFooterBtnClass}
                   >
-                    <Printer className="h-4 w-4" /> Imprimir
+                    <Printer className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Imprimir
                   </button>
                   <button
                     type="button"
                     onClick={() => printBudgetMechanicWithDetail(budget, detail, { isModuleMode, mileageKm })}
                     className={budgetReadFooterBtnClass}
                   >
-                    <Printer className="h-4 w-4" /> Via mecânico
+                    <Printer className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Via mecânico
                   </button>
                   {canApproveBudgetItems &&
                   (budget.services.length > 0 || budget.parts.length > 0) ? (
                     <button
                       type="button"
                       onClick={() => setApprovalOpen(true)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-brand-yellow/50 bg-brand-yellow/10 px-5 py-2.5 text-sm font-medium text-zinc-900 shadow-sm transition-colors hover:bg-brand-yellow/20"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-brand-yellow/50 bg-brand-yellow/10 px-2 py-1.5 text-[11px] font-medium leading-none text-zinc-900 shadow-sm transition-colors hover:bg-brand-yellow/20 sm:gap-2 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-sm"
                     >
-                      <CheckCircle2 className="h-4 w-4" /> Aprovar itens
+                      <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Aprovar itens
                     </button>
                   ) : null}
                   {canMarkOrderBudgetApproved ? (
@@ -247,9 +247,9 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
                       type="button"
                       onClick={() => void handleMarkOrderBudgetApproved()}
                       disabled={markingApproved}
-                      className="inline-flex items-center gap-2 rounded-xl border border-orange-500/50 bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-600 disabled:opacity-55"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-orange-500/50 bg-orange-500 px-2 py-1.5 text-[11px] font-semibold leading-none text-white shadow-sm transition-colors hover:bg-orange-600 disabled:opacity-55 sm:gap-2 sm:rounded-xl sm:px-5 sm:py-2.5 sm:text-sm"
                     >
-                      <ArrowRightCircle className="h-4 w-4" />
+                      <ArrowRightCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       {markingApproved ? "Atualizando…" : "Orçamento aprovado"}
                     </button>
                   ) : null}
