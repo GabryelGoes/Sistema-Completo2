@@ -224,7 +224,7 @@ export function getPatioVehicleModalLayout(
       customerMetaLabel: 'Dados da ficha',
       technicianMetaLabel: 'Técnico',
       deliveryDateMetaLabel: 'ENTREGA',
-      hideOsBadge: true,
+      hideOsBadge: false,
       showStageRing: false,
       isMetaPcLike: true,
       compact: COMPACT_TABLET_PORTRAIT,

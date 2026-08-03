@@ -7217,8 +7217,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               ) : null}
                             </div>
                           ) : (
-                          <div className="flex flex-wrap items-center gap-2">
-                          {!patioVehicleVm.hideOsBadge &&
+                          <div
+                            className={`flex flex-wrap items-center gap-2${
+                              !isPatioPcModal
+                                ? isModuleMode
+                                  ? ' pr-[calc(9.75rem+env(safe-area-inset-right,0px))]'
+                                  : ' pr-[calc(5.75rem+env(safe-area-inset-right,0px))]'
+                                : ''
+                            }`}
+                          >
+                          {(isModuleMode || !patioVehicleVm.hideOsBadge) &&
                           (serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null ? (
                             <span className={`inline-flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wider bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-600/60 ${isPatioPcModal ? 'rounded-md' : 'rounded-lg'}`}>
                               OS #{(serviceOrderDetail?.os_number ?? selectedCard.osNumber)}
