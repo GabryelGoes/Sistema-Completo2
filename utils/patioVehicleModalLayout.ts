@@ -45,7 +45,7 @@ export type PatioVehicleModalLayout = {
   brandSubtitle: string;
   stagePill: string;
   brandLogoSize: 'modal' | 'modalTablet' | 'modalPc';
-  plateMockupSize: 'modal' | 'modalTablet' | 'modalPc';
+  plateMockupSize: 'modal' | 'modalTablet' | 'modalMobile' | 'modalPc';
   body: string;
   mainCol: string;
   asideCol: string;
@@ -232,6 +232,7 @@ export function getPatioVehicleModalLayout(
   }
 
   if (!isPc) {
+    // Celular: mesmo layout do tablet (meta 2×N, tipografia, cards), com placa menor.
     return {
       mode: 'mobile',
       overlay:
@@ -240,22 +241,22 @@ export function getPatioVehicleModalLayout(
         'relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] pb-[env(safe-area-inset-bottom)] shadow-none dark:bg-zinc-950',
       scroll:
         'patio-vm-scroll patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none',
-      // Celular: cabeçalho (nome, placa, logo, etapa) com zoom out ~18% vs layout anterior.
       header:
-        'border-b border-zinc-200/50 px-5 pb-5 pt-[max(1.1rem,env(safe-area-inset-top))] dark:border-white/[0.06] sm:px-6 sm:pb-6',
+        'border-b border-zinc-200/50 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] dark:border-white/[0.06]',
       headerInner: 'mb-4 flex flex-col gap-2.5',
       headerTitlePad: '',
-      headerMeta: 'flex flex-col gap-2',
+      headerMeta:
+        'patio-vm-header-meta patio-vm-header-meta--tablet mt-2 grid w-full min-w-0 grid-cols-2 gap-2',
       title:
-        'font-vehicle min-w-0 flex-1 truncate text-[2.35rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white',
-      titlePlateRow: 'mt-0.5 flex min-w-0 items-center gap-2',
+        'font-vehicle min-w-0 flex-1 truncate text-[2.53rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white',
+      titlePlateRow: 'mt-1 flex min-w-0 items-center gap-2.5',
       brandSubtitle: 'text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',
-      stagePill: `${STAGE_PILL_BASE} rounded-[14px] px-3 py-2 text-[12px] tracking-[0.1em]`,
+      stagePill: `${STAGE_PILL_BASE} rounded-[16px] px-3.5 py-2.5 text-[13px] tracking-[0.12em]`,
       brandLogoSize: 'modalTablet',
-      plateMockupSize: 'modalTablet',
-      body: 'grid grid-cols-1 gap-6 px-5 pb-6 pt-3 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] lg:gap-7 lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(232px,288px)]',
-      mainCol: 'min-w-0 space-y-6',
-      asideCol: 'min-w-0 space-y-8',
+      plateMockupSize: 'modalMobile',
+      body: 'grid grid-cols-1 gap-4 px-4 pb-5 pt-3',
+      mainCol: 'min-w-0 space-y-4',
+      asideCol: 'min-w-0 space-y-5',
       insetCard: iosVehicleModalInsetCard,
       input: iosVehicleModalInput,
       closeBtn:
@@ -264,14 +265,14 @@ export function getPatioVehicleModalLayout(
       openHintLabel: 'Toque para abrir',
       sectionTitle: '',
       commentsList:
-        'patio-vm-scroll--minimal max-h-[min(420px,52vh)] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-4 dark:bg-black/25 sm:p-5 sm:space-y-5 lg:max-h-[min(220px,32vh)] lg:space-y-3 lg:p-3',
+        'patio-vm-scroll--minimal max-h-[min(380px,48vh)] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-3.5 dark:bg-black/25 sm:space-y-4',
       customerMetaLabel: 'Dados da ficha',
-      technicianMetaLabel: 'Técnico responsável',
+      technicianMetaLabel: 'Técnico',
       deliveryDateMetaLabel: 'ENTREGA',
       hideOsBadge: false,
       showStageRing: false,
-      isMetaPcLike: false,
-      compact: COMPACT_MOBILE,
+      isMetaPcLike: true,
+      compact: COMPACT_TABLET_PORTRAIT,
     };
   }
 

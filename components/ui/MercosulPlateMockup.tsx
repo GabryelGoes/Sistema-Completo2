@@ -1,7 +1,13 @@
 import React from 'react';
 import { BrazilFlagIcon } from './BrazilFlagIcon';
 
-export type MercosulPlateMockupSize = 'card' | 'cardCompact' | 'cardGrid' | 'modal' | 'modalTablet';
+export type MercosulPlateMockupSize =
+  | 'card'
+  | 'cardCompact'
+  | 'cardGrid'
+  | 'modal'
+  | 'modalTablet'
+  | 'modalMobile';
 
 /**
  * Miniatura da placa Mercosul (proporção ~400×130 mm).
@@ -20,37 +26,44 @@ export function MercosulPlateMockup(props: {
   const isCardGrid = size === 'cardGrid';
   const isModal = size === 'modal';
   const isModalTablet = size === 'modalTablet';
+  const isModalMobile = size === 'modalMobile';
 
   const w = isCompact
     ? 'w-[112px]'
     : isCardGrid
       ? 'w-[128px] sm:w-[138px]'
-      : isModalTablet
-        ? 'w-[156px]'
-        : isModal
-          ? 'w-[188px] sm:w-[210px]'
-          : 'w-[160px] sm:w-[172px]';
+      : isModalMobile
+        ? 'w-[118px]'
+        : isModalTablet
+          ? 'w-[156px]'
+          : isModal
+            ? 'w-[188px] sm:w-[210px]'
+            : 'w-[160px] sm:w-[172px]';
 
   const bandText = isCompact
     ? 'text-[5.5px] tracking-[0.18em]'
     : isCardGrid
       ? 'text-[7px] tracking-[0.2em] sm:text-[7.5px]'
-      : isModalTablet
-        ? 'text-[8.5px] tracking-[0.2em]'
-        : 'text-[8px] tracking-[0.22em] sm:text-[9px]';
+      : isModalMobile
+        ? 'text-[7px] tracking-[0.18em]'
+        : isModalTablet
+          ? 'text-[8.5px] tracking-[0.2em]'
+          : 'text-[8px] tracking-[0.22em] sm:text-[9px]';
 
-  const flagW = isCompact ? 11 : isCardGrid ? 13 : isModalTablet ? 14 : 15;
-  const flagH = isCompact ? 8 : isCardGrid ? 9 : isModalTablet ? 9 : 10;
+  const flagW = isCompact ? 11 : isCardGrid ? 13 : isModalMobile ? 11 : isModalTablet ? 14 : 15;
+  const flagH = isCompact ? 8 : isCardGrid ? 9 : isModalMobile ? 8 : isModalTablet ? 9 : 10;
 
   const plateText = isCompact
     ? 'text-[19px] tracking-[0.08em]'
     : isCardGrid
       ? 'text-[24px] tracking-[0.1em] sm:text-[26px]'
-      : isModalTablet
-        ? 'text-[26px] tracking-[0.1em]'
-        : isModal
-          ? 'text-[30px] tracking-[0.1em] sm:text-[34px]'
-          : 'text-[30px] tracking-[0.1em] sm:text-[34px]';
+      : isModalMobile
+        ? 'text-[19px] tracking-[0.08em]'
+        : isModalTablet
+          ? 'text-[26px] tracking-[0.1em]'
+          : isModal
+            ? 'text-[30px] tracking-[0.1em] sm:text-[34px]'
+            : 'text-[30px] tracking-[0.1em] sm:text-[34px]';
 
   const mockup = (
     <div
@@ -62,7 +75,7 @@ export function MercosulPlateMockup(props: {
 
       <div
         className={`relative z-[1] flex min-h-0 items-center justify-between bg-[#003399] ${
-          isCompact ? 'px-1.5' : 'px-2 sm:px-2.5'
+          isCompact || isModalMobile ? 'px-1.5' : 'px-2 sm:px-2.5'
         }`}
       >
         <span className={`font-semibold uppercase leading-none text-white ${bandText}`}>BRASIL</span>
@@ -75,7 +88,7 @@ export function MercosulPlateMockup(props: {
 
       <div
         className={`relative z-[1] flex min-h-0 items-center justify-center bg-gradient-to-b from-white to-[#f3f3f3] ${
-          isCompact ? 'px-0.5' : 'px-1'
+          isCompact || isModalMobile ? 'px-0.5' : 'px-1'
         }`}
       >
         <span
