@@ -6153,7 +6153,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <ModalPortal>
           <div className={withModalExitOverlayClass(patioHistoryModalOverlayClass, historyHubPresence.exiting)}>
             <div
-              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${modalWpAppAnimClass(historyHubPresence.exiting)}`}
+              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${modalWpAppAnimClass(historyHubPresence.exiting)}${
+                isSmartphone
+                  ? ' !h-auto max-h-[min(78vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2.5rem))] max-w-[24rem] origin-center scale-[0.92]'
+                  : ''
+              }`}
             >
               <button
                 type="button"
@@ -7542,13 +7546,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               aria-hidden
                             />
                             <div className={c.splitRow}>
-                              <div className={`flex min-w-0 shrink items-center gap-1.5${isPatioPcModal ? ' max-w-[5.25rem]' : isPatioTabletLikeModal ? ' max-w-[5.75rem]' : ''}`}>
+                              <div
+                                className={`flex shrink-0 items-center gap-1${
+                                  isPatioPcModal
+                                    ? ' max-w-[5.25rem] min-w-0'
+                                    : patioVehicleVm.mode === 'mobile'
+                                      ? ''
+                                      : isPatioTabletLikeModal
+                                        ? ' max-w-[5.75rem] min-w-0'
+                                        : ' min-w-0'
+                                }`}
+                              >
                                 <div className={c.iconSquircle}>
                                   <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
                                 </div>
-                                <p className={c.titleText}>
-                                  {patioVehicleVm.deliveryDateMetaLabel}
-                                </p>
+                                {patioVehicleVm.mode === 'mobile' ? (
+                                  <span className="sr-only">{patioVehicleVm.deliveryDateMetaLabel}</span>
+                                ) : (
+                                  <p className={c.titleText}>
+                                    {patioVehicleVm.deliveryDateMetaLabel}
+                                  </p>
+                                )}
                               </div>
                               <div className={`${c.fieldRow} flex-nowrap`}>
                                 <input
@@ -7671,9 +7689,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'
                               } ${modalStatusConfig.style}`}
                             >
-                              <div className={`${c.row} w-full`}>
+                              <div className={`${c.row} w-full gap-1`}>
                                 <p
-                                  className={`min-w-0 flex-1 truncate text-[15px] font-bold uppercase leading-tight tracking-wide ${
+                                  className={`min-w-0 flex-1 uppercase leading-tight ${
+                                    patioVehicleVm.mode === 'mobile'
+                                      ? 'line-clamp-2 text-[10.5px] font-bold tracking-[0.04em]'
+                                      : 'truncate text-[15px] font-bold tracking-wide'
+                                  } ${
                                     isExternalRepairStatus(modalStageStatus)
                                       ? '!text-white'
                                       : '!text-black dark:!text-black'
@@ -7682,7 +7704,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   {modalListName}
                                 </p>
                                 <ChevronDown
-                                  className={`h-4 w-4 shrink-0 opacity-90 ${
+                                  className={`shrink-0 opacity-90 ${
+                                    patioVehicleVm.mode === 'mobile' ? 'h-3.5 w-3.5' : 'h-4 w-4'
+                                  } ${
                                     isExternalRepairStatus(modalStageStatus)
                                       ? 'text-white'
                                       : 'text-black dark:text-black'
@@ -9533,7 +9557,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <ModalPortal>
         <div className={`fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 ${modalBackdropAnimClass(remindersPresence.exiting)}`}>
           <div
-            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-xl min-h-0 flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_24px_64px_-18px_rgba(0,0,0,0.14),0_10px_32px_-12px_rgba(0,0,0,0.08),0_1px_0_0_rgba(255,255,255,0.9)_inset] dark:border-white/[0.08] dark:bg-zinc-900 dark:shadow-[0_20px_56px_-14px_rgba(0,0,0,0.55)] sm:rounded-[2.25rem] ${modalSheetAnimClass(remindersPresence.exiting)}`}
+            className={`relative flex w-full min-h-0 flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_24px_64px_-18px_rgba(0,0,0,0.14),0_10px_32px_-12px_rgba(0,0,0,0.08),0_1px_0_0_rgba(255,255,255,0.9)_inset] dark:border-white/[0.08] dark:bg-zinc-900 dark:shadow-[0_20px_56px_-14px_rgba(0,0,0,0.55)] sm:rounded-[2.25rem] ${modalSheetAnimClass(remindersPresence.exiting)} ${
+              isSmartphone
+                ? 'max-h-[min(78vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2.5rem))] max-w-[22rem] origin-center scale-[0.92]'
+                : 'max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] max-w-xl'
+            }`}
           >
             <button
               type="button"
@@ -10633,9 +10661,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* MODAL DE SELEÇÃO DE ETAPA (MOVE) — portal em body para ficar acima da TabBar */}
       {moveCardDisplayed && (
         <ModalPortal>
-        <div className={`${iosModalOverlay} p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 ${modalBackdropAnimClass(moveModalExiting)}`}>
+        <div
+          className={`${iosModalOverlay} ${
+            isSmartphone
+              ? 'items-end p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))] sm:items-center'
+              : 'p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6'
+          } ${modalBackdropAnimClass(moveModalExiting)}`}
+        >
           <div
-            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosVehicleModalShell} ${modalSheetAnimClass(moveModalExiting)}`}
+            className={`relative flex w-full min-h-0 flex-col overflow-hidden ${iosVehicleModalShell} ${modalSheetAnimClass(moveModalExiting)} ${
+              isSmartphone
+                ? 'max-h-[min(68dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-5rem))] max-w-sm rounded-[1.5rem]'
+                : 'max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] max-w-md'
+            }`}
           >
             <button
               type="button"
@@ -10656,7 +10694,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                     {isModuleMode ? 'Laboratório' : 'Pátio'}
                   </p>
-                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">
+                  <h2
+                    className={`font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white ${
+                      isSmartphone ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'
+                    }`}
+                  >
                     Alterar etapa
                   </h2>
                   <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
@@ -10673,7 +10715,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-6 py-5 dark:bg-black/25 custom-scrollbar sm:px-8">
+            <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] dark:bg-black/25 custom-scrollbar ${isSmartphone ? 'px-4 py-3.5' : 'px-6 py-5 sm:px-8'}`}>
               <p className={iosLabel}>Etapas</p>
               {isMoving && (
                 <p className="mb-3 flex items-center gap-2 text-[13px] font-medium text-[#007AFF] dark:text-[#64B5FF]">
@@ -10686,18 +10728,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ref={(el) => {
                     moveModalCurrentStageRef.current = el;
                   }}
-                  className={`mb-3 flex min-h-[54px] items-center justify-between gap-3 rounded-[16px] border-2 px-4 py-3.5 sm:min-h-[56px] sm:px-5 ${EXTERNAL_REPAIR_STAGE.style}`}
+                  className={`mb-3 flex items-center justify-between gap-3 rounded-[16px] border-2 px-4 py-3 ${
+                    isSmartphone ? 'min-h-[44px]' : 'min-h-[54px] sm:min-h-[56px] sm:px-5 sm:py-3.5'
+                  } ${EXTERNAL_REPAIR_STAGE.style}`}
                 >
-                  <span className="text-[16px] font-semibold uppercase leading-snug tracking-wide !text-white sm:text-[17px]">
+                  <span
+                    className={`font-semibold uppercase leading-snug tracking-wide !text-white ${
+                      isSmartphone ? 'text-[13px]' : 'text-[16px] sm:text-[17px]'
+                    }`}
+                  >
                     {EXTERNAL_REPAIR_STAGE.name}
                   </span>
                   <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/90">
-                    <Check className="h-5 w-5 shrink-0" strokeWidth={2.5} />
+                    <Check className={`${isSmartphone ? 'h-4 w-4' : 'h-5 w-5'} shrink-0`} strokeWidth={2.5} />
                     Atual
                   </span>
                 </div>
               ) : null}
-              <div className="space-y-2.5">
+              <div className={isSmartphone ? 'space-y-2' : 'space-y-2.5'}>
                 {lists.map((list) => {
                   const config = getStatusConfig(list.name, list.id);
                   const isCurrent = !isExternalRepairStatus(moveCardDisplayed.idList) && list.id === moveCardDisplayed.idList;
@@ -10715,7 +10763,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       onClick={() => handleMoveCard(list.id)}
                       disabled={isCurrent || isMoving}
                       className={`
-                        group flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[16px] border-2 px-4 py-3.5 text-left transition-all duration-200 sm:min-h-[56px] sm:px-5
+                        group flex w-full items-center justify-between gap-3 rounded-[16px] border-2 text-left transition-all duration-200
+                        ${isSmartphone ? 'min-h-[44px] px-3.5 py-2.5' : 'min-h-[54px] px-4 py-3.5 sm:min-h-[56px] sm:px-5'}
                         ${
                           isCurrent
                             ? `${iosModalInsetCard} cursor-not-allowed border-zinc-200/80 opacity-75 shadow-none dark:border-white/[0.08]`
@@ -10723,17 +10772,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         }
                       `}
                     >
-                      <span className="text-[16px] font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black sm:text-[17px]">
+                      <span
+                        className={`font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black ${
+                          isSmartphone ? 'text-[13px]' : 'text-[16px] sm:text-[17px]'
+                        }`}
+                      >
                         {list.name}
                       </span>
                       {isCurrent ? (
                         <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                          <Check className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} />
+                          <Check className={`${isSmartphone ? 'h-4 w-4' : 'h-5 w-5'} shrink-0 text-[#007AFF] dark:text-[#64B5FF]`} strokeWidth={2.5} />
                           Atual
                         </span>
                       ) : (
                         <ChevronRight
-                          className={`h-5 w-5 shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5 ${isMoving ? 'opacity-30' : ''}`}
+                          className={`${isSmartphone ? 'h-4 w-4' : 'h-5 w-5'} shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5 ${isMoving ? 'opacity-30' : ''}`}
                         />
                       )}
                     </button>

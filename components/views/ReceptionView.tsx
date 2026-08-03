@@ -10,6 +10,7 @@ import {
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { IosModalHeader } from '../ui/IosModalHeader';
 import { useDesktopShellLayout } from '../ui/DesktopShellContext';
+import { useDeviceTypeContext } from '../ui/DeviceTypeContext';
 import { Customer, ProcessingStatus } from '../../types';
 import { Input, TextArea } from '../ui/Input';
 import { ProcessingOverlay } from '../ProcessingOverlay';
@@ -182,6 +183,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   hidePageChrome = false,
 }) => {
   const desktopShell = useDesktopShellLayout();
+  const { isSmartphone } = useDeviceTypeContext();
   const useShellPageScroll = hidePageChrome || desktopShell;
 
   const [receptionMode, setReceptionMode] = useState<ServiceOrderType>(() => {
@@ -1212,6 +1214,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         hidePageChrome
           ? 'px-0 sm:px-1 pb-4 pt-0'
           : 'px-3 sm:px-4 md:px-6 pb-24 md:pb-28 pt-3 md:pt-6'
+      }${
+        isSmartphone && !hidePageChrome
+          ? ' origin-top scale-[0.92] [width:calc(100%/0.92)] -translate-x-[calc((100%/0.92-100%)/2)]'
+          : ''
       }`}
     >
 

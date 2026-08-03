@@ -181,6 +181,16 @@ const COMPACT_TABLET_PORTRAIT: PatioVehicleModalCompact = {
   fieldRow: 'ml-auto flex shrink-0 items-center gap-1',
 };
 
+/** Celular: base do tablet com data de entrega mais estreita (libera o ícone). */
+const COMPACT_MOBILE_TABLET_LIKE: PatioVehicleModalCompact = {
+  ...COMPACT_TABLET_PORTRAIT,
+  splitRow:
+    'patio-vm-meta-inner relative flex min-h-[3rem] w-full min-w-0 flex-row flex-nowrap items-center gap-1 px-2 py-2',
+  dateInput:
+    'patio-vm-meta-input patio-vm-meta-input--date h-8 w-[5.25rem] min-w-0 shrink-0 rounded-md border border-zinc-300/90 bg-zinc-50 px-1 py-1 text-[11px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-white',
+  fieldRow: 'ml-auto flex min-w-0 shrink items-center gap-0.5',
+};
+
 const STAGE_PILL_BASE =
   'inline-flex items-center gap-1.5 font-black uppercase shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0a0a0a]';
 
@@ -272,7 +282,7 @@ export function getPatioVehicleModalLayout(
       hideOsBadge: false,
       showStageRing: false,
       isMetaPcLike: true,
-      compact: COMPACT_TABLET_PORTRAIT,
+      compact: COMPACT_MOBILE_TABLET_LIKE,
     };
   }
 
