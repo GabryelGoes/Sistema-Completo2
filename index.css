@@ -285,6 +285,19 @@ html[data-desktop-shell='true'] .desktop-shell-content .budgets-hub-col-scroll {
   background: rgb(255 255 255 / 0.24);
 }
 
+/** Data de entrega compacta no meta do modal (celular). */
+.patio-vm-meta-input--date {
+  min-width: 0;
+  box-sizing: border-box;
+}
+.patio-vm-meta-input--date::-webkit-calendar-picker-indicator {
+  margin: 0;
+  padding: 0;
+  width: 0.85rem;
+  height: 0.85rem;
+  cursor: pointer;
+}
+
 .font-vehicle {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
