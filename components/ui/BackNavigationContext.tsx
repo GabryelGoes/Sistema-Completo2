@@ -57,7 +57,10 @@ export function BackNavigationProvider({ children }: { children: React.ReactNode
       const wasLast = idx === stack.length - 1;
       stack.splice(idx, 1);
       if (wasLast) {
+        // Marca ANTES do history.back(): o App também escuta popstate e, se
+        // rodar primeiro, não deve tratar isso como “voltar à Home”.
         suppressPopstateRef.current = true;
+        touchModalBackHandledFlag();
         window.history.back();
       }
     };

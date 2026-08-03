@@ -6150,7 +6150,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* --- MODAL DE HISTÓRICO (BUSCA) — portal em body para ficar acima da TabBar --- */}
       {historyHubPresence.mounted && (
-        <ModalPortal>
+        <ModalPortal manageBackLayer={false}>
           <div className={withModalExitOverlayClass(patioHistoryModalOverlayClass, historyHubPresence.exiting)}>
             <div
               className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${modalWpAppAnimClass(historyHubPresence.exiting)}${
@@ -9554,7 +9554,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* --- MODAL DE LEMBRETES (PÁTIO / LABORATÓRIO) — portal em body + z acima da TabBar (igual orçamento) --- */}
       {remindersPresence.mounted && (
-        <ModalPortal>
+        <ModalPortal manageBackLayer={false}>
         <div className={`fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 ${modalBackdropAnimClass(remindersPresence.exiting)}`}>
           <div
             className={`relative flex w-full min-h-0 flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_24px_64px_-18px_rgba(0,0,0,0.14),0_10px_32px_-12px_rgba(0,0,0,0.08),0_1px_0_0_rgba(255,255,255,0.9)_inset] dark:border-white/[0.08] dark:bg-zinc-900 dark:shadow-[0_20px_56px_-14px_rgba(0,0,0,0.55)] sm:rounded-[2.25rem] ${modalSheetAnimClass(remindersPresence.exiting)} ${

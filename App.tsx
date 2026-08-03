@@ -633,7 +633,7 @@ export default function App() {
     if (!authSession) return;
     const handlePopState = () => {
       const w = window as Window & { __rdaModalBackHandledAt?: number };
-      if (w.__rdaModalBackHandledAt && Date.now() - w.__rdaModalBackHandledAt < 120) {
+      if (w.__rdaModalBackHandledAt && Date.now() - w.__rdaModalBackHandledAt < 400) {
         return;
       }
       if (activeAppTab === 'reception') {
