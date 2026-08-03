@@ -5225,9 +5225,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <div className="absolute bottom-1/4 left-0 h-[220px] w-[320px] -translate-x-1/3 rounded-full bg-[#007AFF]/[0.04] blur-[80px] dark:bg-[#007AFF]/[0.06]" />
       </div>
 
-      <div className="relative z-0 mx-auto max-w-[100rem] overflow-visible px-3 pt-2 sm:px-5 md:px-6 md:pt-3">
+      <div className="relative z-0 mx-auto max-w-[100rem] overflow-visible px-3 pt-0 sm:px-5 md:px-6 md:pt-1 lg:pt-2">
         {/* Cabeçalho mobile/tablet: título + contagem + busca + ações; PC shell mantém badge compacto */}
-        <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-6 pb-0.5 sm:mb-8' : 'mb-5 sm:mb-7'}`}>
+        <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-5 pb-0.5 sm:mb-6 lg:mb-8' : 'mb-3 sm:mb-4 md:mb-5 lg:mb-7'}`}>
           {desktopShell ? (
             <div
               className={`w-full gap-y-4 md:gap-x-3 ${
