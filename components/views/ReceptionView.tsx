@@ -1213,10 +1213,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       className={`w-full max-w-full mx-auto animate-in fade-in duration-500 ${
         hidePageChrome
           ? 'px-0 sm:px-1 pb-4 pt-0'
-          : 'px-3 sm:px-4 md:px-6 pb-24 md:pb-28 pt-3 md:pt-6'
+          : isSmartphone
+            ? 'px-1.5 pb-24 pt-2'
+            : 'px-3 sm:px-4 md:px-6 pb-24 md:pb-28 pt-3 md:pt-6'
       }${
         isSmartphone && !hidePageChrome
-          ? ' origin-top scale-[0.92]'
+          ? ' origin-top scale-[0.92] [width:calc(100%/0.92)] max-w-none -translate-x-[calc((100%/0.92-100%)/2)]'
           : ''
       }`}
     >
@@ -1270,7 +1272,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         >
           {/* Bloco único da ficha */}
           <div className={`${receptionSectionShell} w-full rounded-[calc(2rem-2px)] sm:rounded-[calc(2.25rem-2px)]`}>
-            <div className="p-4 sm:p-5 lg:p-6">
+            <div className="px-2.5 py-3 sm:p-5 lg:p-6">
           <div className={`mb-4 flex justify-end ${receptionPortraitVertical ? 'hidden' : ''}`}>
             <button
               type="button"
