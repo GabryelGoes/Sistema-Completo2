@@ -1812,7 +1812,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     };
   }, [patioPrimaryOverlayShown, isModuleMode]);
   useBrowserBackLayer(patioPrimaryOverlayShown, closePatioPrimaryOverlays);
-  useBrowserBackLayer(isHistoryOpen && patioPortalsVisible, () => setIsHistoryOpen(false));
+  useBrowserBackLayer(isHistoryOpen && patioPortalsVisible, () => {
+    markProgrammaticHistoryBack();
+    setIsHistoryOpen(false);
+  });
   /** Pilha acima do modal do veículo: gesto voltar fecha só o orçamento e mantém a ficha aberta. */
   useBrowserBackLayer(isBudgetOpen && patioPortalsVisible, requestCloseBudgetModal);
   useBrowserBackLayer(isPatioHeaderToolsOpen && patioPortalsVisible, () => setIsPatioHeaderToolsOpen(false));
@@ -2883,6 +2886,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setSelectedHistoryCard(null);
       setHistoryServiceOrderDetail(null);
       setHistorySavedBudgets([]);
+      markProgrammaticHistoryBack();
       setIsHistoryOpen(false);
       if (onUseCustomerData) onUseCustomerData(customerData);
     } catch (e: any) {
