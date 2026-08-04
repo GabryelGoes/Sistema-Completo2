@@ -439,7 +439,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         name: initialData.name ?? prev.name,
         phone: initialData.phone ?? prev.phone,
         email: initialData.email ?? prev.email,
-        cpf: initialData.cpf ?? prev.cpf,
+        cpf: formatCpfCnpj(initialData.cpf ?? prev.cpf),
         cep: initialData.cep ?? prev.cep,
         address: initialData.address ?? prev.address,
         city: initialData.city ?? prev.city ?? '',
