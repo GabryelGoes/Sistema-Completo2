@@ -45,6 +45,12 @@ import { Lightbox } from '../Lightbox';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { useTabletPhonePortraitFullscreen } from '../../hooks/useTabletPhonePortraitFullscreen';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
+import {
+  cpfCnpjLabel,
+  formatCpfCnpj,
+  getCpfCnpjStatus,
+  onlyDigits,
+} from '../../utils/cpfCnpj';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { markdownComponentsApp } from '../ui/markdownUi';
@@ -151,7 +157,7 @@ function receptionFormFromApiCustomer(c: ApiCustomer, prev: Customer): Customer 
     name: c.name ?? '',
     phone: c.phone ?? '',
     email: (c.email ?? '').trim(),
-    cpf: (c.cpf ?? '').trim(),
+    cpf: formatCpfCnpj((c.cpf ?? '').trim()),
     cep: (c.cep ?? '').trim(),
     address: (c.address ?? '').trim(),
     city: (c.city ?? '').trim(),
@@ -403,6 +409,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     return km ? `Km ${km}` : null;
   }, [customer.mileageKm]);
 
+  const customerDocStatus = useMemo(() => getCpfCnpjStatus(customer.cpf), [customer.cpf]);
+  const customerDocHint =
+    customerDocStatus === 'incomplete'
+      ? 'Digite o CPF (11 dígitos) ou CNPJ (14 dígitos).'
+      : customerDocStatus === 'invalid'
+        ? 'Documento inválido — confira os dígitos.'
+        : customerDocStatus === 'cpf'
+          ? 'CPF válido'
+          : customerDocStatus === 'cnpj'
+            ? 'CNPJ válido'
+            : null;
+
   // Efeito para carregar dados iniciais vindos do Pátio ou Histórico (todos editáveis, inclusive placa)
   useEffect(() => {
     if (initialData) {
@@ -536,7 +554,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setCustomer(prev => ({ ...prev, [name]: value }));
+    if (name === 'cpf') {
+      setCustomer((prev) => ({ ...prev, cpf: formatCpfCnpj(value) }));
+      return;
+    }
+    if (name === 'mileageKm') {
+      setCustomer((prev) => ({ ...prev, mileageKm: onlyDigits(value).slice(0, 7) }));
+      return;
+    }
+    setCustomer((prev) => ({ ...prev, [name]: value }));
   };
 
   const removeIntakePhoto = useCallback((id: string) => {
@@ -779,6 +805,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         });
         return;
       }
+      const kmTrim = (customer.mileageKm ?? '').trim();
+      if (!kmTrim) {
+        setStatus({
+          step: 'error',
+          message: 'Preencha a quilometragem (Km).',
+        });
+        return;
+      }
       if (!diagAuthSignatureBlob) {
         setStatus({
           step: 'error',
@@ -787,6 +821,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         });
         return;
       }
+    }
+
+    const docStatus = getCpfCnpjStatus(customer.cpf);
+    if (docStatus === 'incomplete' || docStatus === 'invalid') {
+      setStatus({
+        step: 'error',
+        message:
+          docStatus === 'incomplete'
+            ? 'CPF ou CNPJ incompleto. Informe os dígitos ou deixe o campo em branco.'
+            : 'CPF ou CNPJ inválido. Verifique os dígitos informados.',
+      });
+      return;
     }
 
     try {
@@ -1109,7 +1155,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     const c = detail.customers;
     const customerData: Customer = {
       name: c?.name ?? '',
-      cpf: c?.cpf ?? '',
+      cpf: formatCpfCnpj(c?.cpf ?? ''),
       phone: c?.phone ?? '',
       email: c?.email ?? undefined,
       cep: c?.cep ?? '',
@@ -1382,7 +1428,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                     </span>
                                     <span className="text-xs text-zinc-500 dark:text-zinc-400">
                                       {c.phone}
-                                      {c.cpf ? ` · CPF ${c.cpf}` : ''}
+                                      {c.cpf ? ` · ${cpfCnpjLabel(c.cpf)} ${c.cpf}` : ''}
                                     </span>
                                   </button>
                                 </li>
@@ -1405,14 +1451,39 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   icon={<Smartphone className="w-4 h-4" />}
                   required
                 />
-                <Input
-                  label="CPF"
-                  name="cpf"
-                  placeholder="000.000.000-00"
-                  value={customer.cpf}
-                  onChange={handleInputChange}
-                  icon={<ShieldCheck className="w-4 h-4" />}
-                />
+                <div className="min-w-0">
+                  <Input
+                    label="CPF / CNPJ"
+                    name="cpf"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="CPF ou CNPJ"
+                    value={customer.cpf}
+                    onChange={handleInputChange}
+                    icon={<ShieldCheck className="w-4 h-4" />}
+                    inputClassName={
+                      customerDocStatus === 'invalid'
+                        ? 'border-red-400 focus:border-red-500 focus:ring-red-400/40'
+                        : customerDocStatus === 'cpf' || customerDocStatus === 'cnpj'
+                          ? 'border-emerald-400/80 focus:border-emerald-500 focus:ring-emerald-400/30'
+                          : undefined
+                    }
+                  />
+                  {customerDocHint ? (
+                    <p
+                      className={`mt-1 px-1 text-[11px] font-medium ${
+                        customerDocStatus === 'invalid'
+                          ? 'text-red-600 dark:text-red-400'
+                          : customerDocStatus === 'cpf' || customerDocStatus === 'cnpj'
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-zinc-500 dark:text-zinc-400'
+                      }`}
+                      role={customerDocStatus === 'invalid' ? 'alert' : undefined}
+                    >
+                      {customerDocHint}
+                    </p>
+                  ) : null}
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
@@ -1545,10 +1616,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <Input
                         label="Km"
                         name="mileageKm"
+                        inputMode="numeric"
                         placeholder="Ex: 45000"
                         value={customer.mileageKm ?? ''}
                         onChange={handleInputChange}
                         icon={<Hash className="w-4 h-4" />}
+                        required
                       />
                     </div>
                   </div>
