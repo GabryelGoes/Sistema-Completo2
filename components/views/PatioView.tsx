@@ -577,13 +577,20 @@ function BudgetServiceDescriptionTextarea({
   onChange,
   onFocus,
   onBlur,
+  onEnterAdd,
   inputClassName,
+  autoFocus,
+  dataBudgetServiceId,
 }: {
   value: string;
   onChange: (v: string) => void;
   onFocus: () => void;
   onBlur: () => void;
+  /** Enter (sem Shift) adiciona um novo serviço. Shift+Enter quebra linha. */
+  onEnterAdd?: () => void;
   inputClassName: string;
+  autoFocus?: boolean;
+  dataBudgetServiceId?: string;
 }) {
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const syncHeight = useCallback(() => {
@@ -598,11 +605,17 @@ function BudgetServiceDescriptionTextarea({
     syncHeight();
   }, [value, syncHeight]);
 
+  useLayoutEffect(() => {
+    if (!autoFocus) return;
+    taRef.current?.focus();
+  }, [autoFocus]);
+
   return (
     <textarea
       ref={taRef}
       rows={1}
       spellCheck={false}
+      data-budget-service-id={dataBudgetServiceId}
       placeholder="Digite ou escolha um serviço…"
       className={`${inputClassName} shadow-none block min-h-[52px] w-full min-w-0 resize-none overflow-hidden break-words leading-snug [overflow-wrap:anywhere] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:bg-transparent`}
       value={value}
@@ -612,6 +625,12 @@ function BudgetServiceDescriptionTextarea({
       }}
       onFocus={onFocus}
       onBlur={onBlur}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+        if (!onEnterAdd) return;
+        e.preventDefault();
+        onEnterAdd();
+      }}
     />
   );
 }
@@ -1430,6 +1449,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const budgetPartsAddRef = useRef<HTMLButtonElement>(null);
   const scrollBudgetServicesAddRef = useRef(false);
   const scrollBudgetPartsAddRef = useRef(false);
+  const pendingFocusServiceIdRef = useRef<string | null>(null);
+  const pendingFocusPartIdRef = useRef<string | null>(null);
+  const [focusServiceId, setFocusServiceId] = useState<string | null>(null);
+  const [focusPartId, setFocusPartId] = useState<string | null>(null);
   const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const [partSuggestionBoxPosition, setPartSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   // Card em transição de COLUNA (Status)
@@ -4074,13 +4097,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [isModuleMode, serviceOrderDetail, selectedCard, cardDetails, lists]);
 
   const addServiceRow = () => {
+    const newId = Date.now().toString();
     scrollBudgetServicesAddRef.current = true;
-    setBudgetServices([...budgetServices, { id: Date.now().toString(), description: '', laborHours: null }]);
+    pendingFocusServiceIdRef.current = newId;
+    setSuggestionsForServiceId(null);
+    setBudgetServices((prev) => [...prev, { id: newId, description: '', laborHours: null }]);
   };
 
   const addPartRow = () => {
+    const newId = Date.now().toString();
     scrollBudgetPartsAddRef.current = true;
-    setBudgetParts([...budgetParts, { id: Date.now().toString(), description: '', quantity: '1' }]);
+    pendingFocusPartIdRef.current = newId;
+    setSuggestionsForPartId(null);
+    setBudgetParts((prev) => [...prev, { id: newId, description: '', quantity: '1' }]);
   };
 
   const removeServiceRow = (id: string) => {
@@ -4216,6 +4245,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useEffect(() => {
     if (!scrollBudgetServicesAddRef.current) return;
     scrollBudgetServicesAddRef.current = false;
+    const focusId = pendingFocusServiceIdRef.current;
+    pendingFocusServiceIdRef.current = null;
+    if (focusId) setFocusServiceId(focusId);
     const timer = window.setTimeout(() => {
       budgetServicesAddRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 50);
@@ -4225,11 +4257,34 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useEffect(() => {
     if (!scrollBudgetPartsAddRef.current) return;
     scrollBudgetPartsAddRef.current = false;
+    const focusId = pendingFocusPartIdRef.current;
+    pendingFocusPartIdRef.current = null;
+    if (focusId) setFocusPartId(focusId);
     const timer = window.setTimeout(() => {
       budgetPartsAddRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 50);
     return () => window.clearTimeout(timer);
   }, [budgetParts.length]);
+
+  useEffect(() => {
+    if (!focusServiceId) return;
+    const timer = window.setTimeout(() => setFocusServiceId(null), 400);
+    return () => window.clearTimeout(timer);
+  }, [focusServiceId]);
+
+  useLayoutEffect(() => {
+    if (!focusPartId) return;
+    const el = document.querySelector(
+      `[data-budget-part-id="${focusPartId}"]`
+    ) as HTMLInputElement | null;
+    el?.focus();
+  }, [focusPartId]);
+
+  useEffect(() => {
+    if (!focusPartId) return;
+    const timer = window.setTimeout(() => setFocusPartId(null), 400);
+    return () => window.clearTimeout(timer);
+  }, [focusPartId]);
 
   const keepServiceSuggestionsOpen = () => {
     if (suggestionCloseTimerRef.current) {
@@ -10395,6 +10450,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     onChange={(v) => updateServiceDescription(item.id, v)}
                                     onFocus={() => handleServiceInputFocus(item.id)}
                                     onBlur={handleServiceInputBlur}
+                                    onEnterAdd={addServiceRow}
+                                    autoFocus={focusServiceId === item.id}
+                                    dataBudgetServiceId={item.id}
                                     inputClassName={budgetModalInput}
                                   />
                                   {item.laborHours != null && Number.isFinite(Number(item.laborHours)) ? (
@@ -10512,9 +10570,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     placeholder="Nome da peça…"
                                     className={`${budgetModalInput} min-w-0 w-full shadow-none`}
                                     value={item.description}
+                                    data-budget-part-id={item.id}
+                                    autoFocus={focusPartId === item.id}
                                     onChange={(e) => updatePartDescription(item.id, e.target.value)}
                                     onFocus={() => handlePartInputFocus(item.id)}
                                     onBlur={handlePartInputBlur}
+                                    onKeyDown={(e) => {
+                                      if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+                                      e.preventDefault();
+                                      addPartRow();
+                                    }}
                                   />
                                 </div>
                               </div>
