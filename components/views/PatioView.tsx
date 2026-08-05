@@ -8320,8 +8320,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     <PatioOsModalPcTabBar
                       active={pcOsModalTab}
                       onChange={setPcOsModalTab}
-                      hiddenTabs={isModuleMode ? ['laboratorio'] : ['conserto_externo']}
-                      tabBadges={{ laboratorio: labServiceLinksDraft.length }}
+                      hiddenTabs={isModuleMode ? ['laboratorio', 'conserto_externo'] : ['conserto_externo']}
+                      tabBadges={{
+                        laboratorio: labServiceLinksDraft.length,
+                        orcamentos: savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length,
+                      }}
                     />
                   ) : null}
 
