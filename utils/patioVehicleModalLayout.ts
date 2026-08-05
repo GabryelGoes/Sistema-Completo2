@@ -307,7 +307,7 @@ export function getPatioVehicleModalLayout(
       'patio-vm-header-meta patio-vm-header-meta--pc mt-2 grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4',
     title:
       'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white xl:text-[2.35rem]',
-    titlePlateRow: 'mt-1 flex min-w-0 items-end gap-3',
+    titlePlateRow: 'mt-1 flex min-w-0 items-center gap-3',
     brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',
     stagePill: `${STAGE_PILL_BASE} rounded-[16px] px-4 py-2 text-[15px] tracking-widest`,
     brandLogoSize: 'modalPc',

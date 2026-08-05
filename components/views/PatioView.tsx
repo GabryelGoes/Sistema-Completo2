@@ -7378,7 +7378,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           ) : null}
                           {!isModuleMode && isPatioPcModal ? (
-                            <div className="inline-flex shrink-0 origin-right scale-[0.92] items-center justify-center gap-2">
+                            <div className="inline-flex shrink-0 items-center justify-center gap-2.5">
                               <VehicleBrandLogo
                                 brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
                                 size={patioVehicleVm.brandLogoSize}

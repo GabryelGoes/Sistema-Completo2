@@ -39,7 +39,7 @@ export function MercosulPlateMockup(props: {
         : isModalTablet
           ? 'w-[156px]'
           : isModalPc
-            ? 'w-[148px] xl:w-[160px]'
+            ? 'w-[152px] xl:w-[166px]'
             : isModal
               ? 'w-[188px] sm:w-[210px]'
               : 'w-[160px] sm:w-[172px]';
@@ -88,7 +88,7 @@ export function MercosulPlateMockup(props: {
         : isModalTablet
           ? 'text-[26px] tracking-[0.1em]'
           : isModalPc
-            ? 'text-[23px] tracking-[0.1em] xl:text-[25px]'
+            ? 'text-[26px] tracking-[0.1em] xl:text-[28px]'
             : isModal
               ? 'text-[30px] tracking-[0.1em] sm:text-[34px]'
               : 'text-[30px] tracking-[0.1em] sm:text-[34px]';
