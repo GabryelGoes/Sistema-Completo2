@@ -313,7 +313,7 @@ export function getPatioVehicleModalLayout(
     brandLogoSize: 'modalPc',
     plateMockupSize: 'modalPc',
     body:
-      'patio-vm-desktop-body mx-auto grid w-full max-w-[1680px] grid-cols-1 gap-5 px-6 pb-6 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] lg:items-start lg:gap-6 xl:px-8',
+      'patio-vm-desktop-body mx-auto grid w-full max-w-[1680px] grid-cols-1 gap-5 px-6 pb-6 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,440px)] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(380px,460px)] xl:px-8',
     mainCol: 'patio-vm-main-col min-w-0 space-y-5',
     asideCol:
       'patio-vm-aside-col min-w-0 space-y-5 border-t border-zinc-300/70 bg-[#F2F2F7]/80 pt-5 dark:border-white/[0.08] dark:bg-zinc-950/40 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0',

@@ -1,10 +1,11 @@
 import React from 'react';
 import { IosNotificationBadge } from '../ui/IosNotificationBadge';
 
-export type PatioOsModalPcTab = 'dados' | 'arquivos' | 'conserto_externo' | 'laboratorio';
+export type PatioOsModalPcTab = 'dados' | 'orcamentos' | 'arquivos' | 'conserto_externo' | 'laboratorio';
 
 const ALL_TABS: { id: PatioOsModalPcTab; label: string }[] = [
   { id: 'dados', label: 'Dados' },
+  { id: 'orcamentos', label: 'Orçamentos' },
   { id: 'arquivos', label: 'Arquivos' },
   { id: 'conserto_externo', label: 'Conserto externo' },
   { id: 'laboratorio', label: 'Serviços Laboratório' },
