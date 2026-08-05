@@ -13,7 +13,8 @@ const BASE_PX: Record<VehicleBrandLogoSize, { h: number; w: number }> = {
   cardPc: { h: 38.4, w: 48 },
   modal: { h: 36, w: 44 },
   modalTablet: { h: 27, w: 33 },
-  modalPc: { h: 57.6, w: 70.4 },
+  /** PC — menor que o tamanho anterior (zoom out no cabeçalho do modal). */
+  modalPc: { h: 42, w: 52 },
 };
 
 interface VehicleBrandLogoProps {

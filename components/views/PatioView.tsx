@@ -7374,12 +7374,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           ) : null}
                           {!isModuleMode && isPatioPcModal ? (
-                            <div className="inline-flex shrink-0 origin-right scale-[1.08] items-center justify-center gap-2.5">
+                            <div className="inline-flex shrink-0 origin-right scale-[0.92] items-center justify-center gap-2">
                               <VehicleBrandLogo
                                 brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
                                 size={patioVehicleVm.brandLogoSize}
                               />
-                              <div className="inline-flex items-center gap-3.5">
+                              <div className="inline-flex items-center gap-2.5">
                                 {modalOriginIcon}
                                 <MercosulPlateMockup
                                   plate={selectedCardTitleParts?.plateOrModule || '---'}

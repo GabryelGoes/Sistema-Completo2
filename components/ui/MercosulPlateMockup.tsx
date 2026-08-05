@@ -6,6 +6,7 @@ export type MercosulPlateMockupSize =
   | 'cardCompact'
   | 'cardGrid'
   | 'modal'
+  | 'modalPc'
   | 'modalTablet'
   | 'modalMobile';
 
@@ -25,6 +26,7 @@ export function MercosulPlateMockup(props: {
   const isCompact = size === 'cardCompact';
   const isCardGrid = size === 'cardGrid';
   const isModal = size === 'modal';
+  const isModalPc = size === 'modalPc';
   const isModalTablet = size === 'modalTablet';
   const isModalMobile = size === 'modalMobile';
 
@@ -36,9 +38,11 @@ export function MercosulPlateMockup(props: {
         ? 'w-[118px]'
         : isModalTablet
           ? 'w-[156px]'
-          : isModal
-            ? 'w-[188px] sm:w-[210px]'
-            : 'w-[160px] sm:w-[172px]';
+          : isModalPc
+            ? 'w-[148px] xl:w-[160px]'
+            : isModal
+              ? 'w-[188px] sm:w-[210px]'
+              : 'w-[160px] sm:w-[172px]';
 
   const bandText = isCompact
     ? 'text-[5.5px] tracking-[0.18em]'
@@ -48,10 +52,32 @@ export function MercosulPlateMockup(props: {
         ? 'text-[7px] tracking-[0.18em]'
         : isModalTablet
           ? 'text-[8.5px] tracking-[0.2em]'
-          : 'text-[8px] tracking-[0.22em] sm:text-[9px]';
+          : isModalPc
+            ? 'text-[7.5px] tracking-[0.2em] xl:text-[8px]'
+            : 'text-[8px] tracking-[0.22em] sm:text-[9px]';
 
-  const flagW = isCompact ? 11 : isCardGrid ? 13 : isModalMobile ? 11 : isModalTablet ? 14 : 15;
-  const flagH = isCompact ? 8 : isCardGrid ? 9 : isModalMobile ? 8 : isModalTablet ? 9 : 10;
+  const flagW = isCompact
+    ? 11
+    : isCardGrid
+      ? 13
+      : isModalMobile
+        ? 11
+        : isModalTablet
+          ? 14
+          : isModalPc
+            ? 12
+            : 15;
+  const flagH = isCompact
+    ? 8
+    : isCardGrid
+      ? 9
+      : isModalMobile
+        ? 8
+        : isModalTablet
+          ? 9
+          : isModalPc
+            ? 8
+            : 10;
 
   const plateText = isCompact
     ? 'text-[19px] tracking-[0.08em]'
@@ -61,9 +87,11 @@ export function MercosulPlateMockup(props: {
         ? 'text-[19px] tracking-[0.08em]'
         : isModalTablet
           ? 'text-[26px] tracking-[0.1em]'
-          : isModal
-            ? 'text-[30px] tracking-[0.1em] sm:text-[34px]'
-            : 'text-[30px] tracking-[0.1em] sm:text-[34px]';
+          : isModalPc
+            ? 'text-[23px] tracking-[0.1em] xl:text-[25px]'
+            : isModal
+              ? 'text-[30px] tracking-[0.1em] sm:text-[34px]'
+              : 'text-[30px] tracking-[0.1em] sm:text-[34px]';
 
   const mockup = (
     <div

@@ -311,7 +311,7 @@ export function getPatioVehicleModalLayout(
     brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',
     stagePill: `${STAGE_PILL_BASE} rounded-[16px] px-4 py-2 text-[15px] tracking-widest`,
     brandLogoSize: 'modalPc',
-    plateMockupSize: 'modal',
+    plateMockupSize: 'modalPc',
     body:
       'patio-vm-desktop-body mx-auto grid w-full max-w-[1680px] grid-cols-1 gap-5 px-6 pb-6 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] lg:items-start lg:gap-6 xl:px-8',
     mainCol: 'patio-vm-main-col min-w-0 space-y-5',
