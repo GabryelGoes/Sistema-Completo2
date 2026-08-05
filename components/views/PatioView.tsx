@@ -6397,11 +6397,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         ) : null}
                         <div className="mt-3 flex flex-col gap-3 text-zinc-700 dark:text-zinc-300 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-6 lg:gap-y-2">
                          {!isModuleMode && (
-                           <div
-                             className={`flex shrink-0 items-center gap-2.5 ${
-                               isPatioPcModal ? 'origin-left scale-[0.92]' : ''
-                             }`}
-                           >
+                           <div className="flex shrink-0 items-center gap-2.5">
                               <VehicleBrandLogo
                                 brand={selectedHistoryCard?.vehicleBrand}
                                 size={isPatioPcModal ? patioVehicleVm.brandLogoSize : 'modal'}
