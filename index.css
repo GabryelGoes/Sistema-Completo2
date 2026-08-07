@@ -96,6 +96,25 @@ body {
   background: #aeaeb2;
 }
 
+/** Rolagem discreta — modal de leitura de orçamento (Orçamento 1, etc.). */
+.budget-read-modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(14 116 144 / 0.22) transparent;
+}
+.budget-read-modal-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.budget-read-modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.budget-read-modal-scroll::-webkit-scrollbar-thumb {
+  background: rgb(14 116 144 / 0.2);
+  border-radius: 9999px;
+}
+.budget-read-modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(14 116 144 / 0.34);
+}
+
 /**
  * Modal de leitura de orçamento — zoom out só no corpo (diagnóstico/serviços/peças),
  * sem afetar cabeçalho nem botões inferiores (Excluir, Imprimir, etc.).

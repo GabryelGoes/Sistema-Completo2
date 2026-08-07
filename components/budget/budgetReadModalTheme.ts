@@ -8,7 +8,7 @@ export const budgetReadModalBackdropStackedClass =
   'fixed inset-0 z-[295] flex items-center justify-center bg-slate-900/55 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] backdrop-blur-sm animate-modal-backdrop';
 
 export const budgetReadModalShellClass =
-  'relative flex min-h-0 w-full max-w-2xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] flex-col overflow-hidden rounded-2xl border border-sky-100/95 bg-[#fafcfe] shadow-[0_28px_90px_-32px_rgba(14,116,144,0.38),0_12px_32px_-16px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,1)] animate-modal-sheet';
+  'relative flex min-h-0 w-full max-w-3xl max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] flex-col overflow-hidden rounded-2xl border border-sky-100/95 bg-[#fafcfe] shadow-[0_28px_90px_-32px_rgba(14,116,144,0.38),0_12px_32px_-16px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,1)] animate-modal-sheet lg:max-w-4xl';
 
 export const budgetReadModalHeaderClass =
   'relative z-10 flex shrink-0 items-start justify-between gap-3 border-b border-sky-100/90 bg-gradient-to-b from-white to-[#f5fbff] px-6 py-4';
@@ -17,7 +17,7 @@ export const budgetReadModalFooterClass =
   'relative z-10 flex shrink-0 flex-nowrap items-center justify-between gap-1.5 border-t border-sky-100/90 bg-[#f8fcfe] px-3 py-3 sm:gap-3 sm:px-6 sm:py-4';
 
 export const budgetReadModalScrollClass =
-  'relative z-10 min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]';
+  'budget-read-modal-scroll relative z-10 min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]';
 
 export const budgetReadSectionTitleClass =
   'mb-2 text-xs font-semibold uppercase tracking-wider text-sky-800/80';
