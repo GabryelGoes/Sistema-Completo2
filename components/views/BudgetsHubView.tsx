@@ -13,7 +13,6 @@ import {
   buildStageKanbanColumns,
   buildVehicleGroups,
   buildVehicleGroupsForView,
-  computeBudgetsHubStats,
   filterBudgetsByHubScope,
   readStoredBudgetsHubScope,
   readStoredBudgetsHubView,
@@ -23,11 +22,10 @@ import {
   type BudgetsHubViewMode,
 } from '../../utils/budgetsHubViews';
 import {
+  BudgetHubCardsGrid,
   BudgetHubStageBoard,
-  BudgetHubVehicleGroup,
   BudgetsHubEmptyState,
   BudgetsHubScopeToggle,
-  BudgetsHubStatsStrip,
   BudgetsHubViewSwitcher,
 } from './budgets/BudgetsHubUi';
 
@@ -73,7 +71,6 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<BudgetsHubViewMode>(() => readStoredBudgetsHubView());
   const [hubScope, setHubScope] = useState<BudgetsHubScope>(() => readStoredBudgetsHubScope());
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [pendingBudgetHighlightIds, setPendingBudgetHighlightIds] = useState<Set<string>>(() => new Set());
   const [pulseByBudgetId, setPulseByBudgetId] = useState<Record<string, 'created' | 'edited'>>({});
   const prevSigByBudgetRef = useRef<Map<string, string>>(new Map());
@@ -205,22 +202,12 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     return () => window.clearTimeout(t);
   }, [pulseByBudgetId]);
 
-  const stats = useMemo(() => computeBudgetsHubStats(scopedItems), [scopedItems]);
   const allGroups = useMemo(() => buildVehicleGroups(scopedItems), [scopedItems]);
   const groupsForView = useMemo(() => buildVehicleGroupsForView(scopedItems, viewMode), [scopedItems, viewMode]);
 
   const kanbanColumns = useMemo(() => buildStageKanbanColumns(allGroups), [allGroups]);
 
   const activeViewMeta = BUDGETS_HUB_VIEW_MODES.find((m) => m.id === viewMode);
-
-  const toggleExpand = (orderId: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(orderId)) next.delete(orderId);
-      else next.add(orderId);
-      return next;
-    });
-  };
 
   const openBudgetFromHub = (serviceOrderId: string, budgetId: string) => {
     const bid = String(budgetId).trim();
@@ -237,20 +224,8 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     onOpenBudgetInPatio(serviceOrderId, budgetId);
   };
 
-  const plateDisplay = (plate: string | null) => {
-    const p = (plate ?? '').trim();
-    if (!p) return '—';
-    if (blurPlates) {
-      return (
-        <span className="blur-plate" aria-hidden>
-          {p}
-        </span>
-      );
-    }
-    return p.toUpperCase();
-  };
-
-  const mainMaxW = desktopShell ? 'max-w-none' : 'max-w-3xl';
+  const isTrelloMode = viewMode === 'by_stage';
+  const mainMaxW = desktopShell || isTrelloMode ? 'max-w-none' : 'max-w-5xl';
   const mainPad = desktopShell ? 'px-6 py-5 pb-8' : 'px-4 py-5 pb-[max(5.5rem,env(safe-area-inset-bottom)+3rem)]';
 
   const renderContent = () => {
@@ -281,19 +256,16 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
       return (
         <BudgetHubStageBoard
           columns={kanbanColumns}
-          plateDisplay={plateDisplay}
           pendingBudgetHighlightIds={pendingBudgetHighlightIds}
           pulseByBudgetId={pulseByBudgetId}
           onOpenBudget={openBudgetFromHub}
-          expanded={expanded}
-          onToggleExpand={toggleExpand}
+          blurPlates={blurPlates}
           desktopShell={desktopShell}
         />
       );
     }
 
-    const groupsToShow = viewMode === 'by_stage' ? [] : groupsForView;
-    if (groupsToShow.length === 0) {
+    if (groupsForView.length === 0) {
       return (
         <BudgetsHubEmptyState
           message="Nada nesta visualização"
@@ -303,26 +275,14 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     }
 
     return (
-      <div className="space-y-4">
-        {groupsToShow.map((group) => {
-          const vehicleNeedsAttention = group.items.some((row) =>
-            pendingBudgetHighlightIds.has(String(row.budgetId).trim())
-          );
-          return (
-            <BudgetHubVehicleGroup
-              key={group.orderId}
-              group={group}
-              expanded={expanded.has(group.orderId)}
-              onToggle={() => toggleExpand(group.orderId)}
-              plateDisplay={plateDisplay}
-              vehicleNeedsAttention={vehicleNeedsAttention}
-              pulseByBudgetId={pulseByBudgetId}
-              onOpenBudget={openBudgetFromHub}
-              desktopShell={desktopShell}
-            />
-          );
-        })}
-      </div>
+      <BudgetHubCardsGrid
+        groups={groupsForView}
+        pulseByBudgetId={pulseByBudgetId}
+        pendingBudgetHighlightIds={pendingBudgetHighlightIds}
+        onOpenBudget={openBudgetFromHub}
+        blurPlates={blurPlates}
+        desktopShell={desktopShell}
+      />
     );
   };
 
@@ -333,10 +293,14 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const scopeAccent = isLabScope ? 'text-violet-800 dark:text-violet-200' : 'text-amber-900 dark:text-amber-200';
 
   return (
-    <div className={`flex min-h-min flex-col bg-light-page dark:bg-black ${desktopShell ? 'min-h-full' : ''}`}>
+    <div
+      className={`flex h-full min-h-0 flex-col bg-light-page dark:bg-black ${
+        isTrelloMode ? 'overflow-hidden' : ''
+      }`}
+    >
       <header className={`budgets-hub-page-header shrink-0 border-b px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl lg:px-6 ${headerTheme} ${isLabScope ? 'border-violet-500/20 dark:border-violet-400/15' : 'border-amber-500/20 dark:border-amber-400/15'}`}>
-        <div className={`mx-auto flex w-full ${mainMaxW} items-start gap-3 lg:mx-0`}>
-          <div className="app-view-page-chrome ml-[6.5%] flex min-w-0 flex-1 items-start gap-3 pt-0.5 lg:ml-0">
+        <div className={`mx-auto w-full ${mainMaxW} space-y-3 lg:mx-0`}>
+          <div className="app-view-page-chrome ml-[6.5%] flex min-w-0 items-start gap-3 pt-0.5 lg:ml-0">
             <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
               <img src="/icons/orcamentos-ios.png" alt="" className="h-full w-full object-cover" />
             </IosAccentIconSquircle>
@@ -353,33 +317,35 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => void load({ silent: true })}
-            disabled={refreshing || loading}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-white text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            aria-label="Atualizar"
-          >
-            <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
+
+          <BudgetsHubViewSwitcher
+            mode={viewMode}
+            onModeChange={handleViewModeChange}
+            desktopShell={desktopShell}
+            startSlot={<BudgetsHubScopeToggle scope={hubScope} onChange={handleHubScopeChange} />}
+            endSlot={
+              <button
+                type="button"
+                onClick={() => void load({ silent: true })}
+                disabled={refreshing || loading}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-white text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                aria-label="Atualizar"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+            }
+          />
         </div>
       </header>
 
-      <main className={mainPad}>
-        <div className={`mx-auto w-full ${mainMaxW} space-y-3 lg:mx-0`}>
-          {!loading && !error && scopedItems.length > 0 ? (
-            <BudgetsHubStatsStrip
-              stats={stats}
-              desktopShell={desktopShell}
-              hubScope={hubScope}
-              onHubScopeChange={handleHubScopeChange}
-            />
-          ) : (
-            <div className="mb-4 flex justify-end">
-              <BudgetsHubScopeToggle scope={hubScope} onChange={handleHubScopeChange} />
-            </div>
-          )}
-          <BudgetsHubViewSwitcher mode={viewMode} onModeChange={handleViewModeChange} desktopShell={desktopShell} />
+      <main
+        className={`flex min-h-0 flex-1 flex-col ${
+          isTrelloMode
+            ? 'overflow-hidden px-4 pb-3 pt-3 lg:px-6'
+            : `${mainPad} budgets-hub-no-scrollbar overflow-y-auto overflow-x-hidden`
+        }`}
+      >
+        <div className={`mx-auto w-full min-w-0 ${mainMaxW} lg:mx-0`}>
           {renderContent()}
         </div>
       </main>

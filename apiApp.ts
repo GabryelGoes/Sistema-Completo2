@@ -175,18 +175,67 @@ function budgetContentWithoutApprovals(row: {
   services?: unknown;
   parts?: unknown;
 }): string {
-  const stripApproval = (arr: unknown) =>
-    (Array.isArray(arr) ? arr : []).map((item) => {
-      if (!item || typeof item !== "object") return item;
-      const { approved: _approved, ...rest } = item as Record<string, unknown>;
-      return rest;
-    });
+  const asText = (v: unknown): string => (v == null ? "" : String(v));
+  const asOptionalText = (v: unknown): string | null => {
+    const t = asText(v).trim();
+    return t ? t : null;
+  };
+  const asOptionalNumber = (v: unknown): number | null => {
+    if (v == null || v === "") return null;
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const services = (Array.isArray(row.services) ? row.services : []).map((item) => {
+    if (!item || typeof item !== "object") {
+      return {
+        description: "",
+        labor_hours: null,
+        outsourced: false,
+        suggested_value: null,
+        lab_preset_id: null,
+        pre_approved: false,
+        source: null,
+        line_observations: null,
+      };
+    }
+    const s = item as Record<string, unknown>;
+    return {
+      description: asText(s.description).trim(),
+      labor_hours: asOptionalNumber(s.labor_hours),
+      outsourced: s.outsourced === true,
+      suggested_value: asOptionalNumber(s.suggested_value),
+      lab_preset_id: asOptionalText(s.lab_preset_id),
+      pre_approved: s.pre_approved === true,
+      source: asOptionalText(s.source),
+      line_observations: asOptionalText(s.line_observations),
+    };
+  });
+
+  const parts = (Array.isArray(row.parts) ? row.parts : []).map((item) => {
+    if (!item || typeof item !== "object") {
+      return {
+        description: "",
+        quantity: "",
+        fromStock: false,
+        workshopPartId: null,
+      };
+    }
+    const p = item as Record<string, unknown>;
+    return {
+      description: asText(p.description).trim(),
+      quantity: asText(p.quantity).trim(),
+      fromStock: p.fromStock === true,
+      workshopPartId: asOptionalText(p.workshopPartId),
+    };
+  });
+
   return JSON.stringify({
-    card_name: row.card_name ?? null,
-    diagnosis: String(row.diagnosis ?? ""),
-    observations: String(row.observations ?? ""),
-    services: stripApproval(row.services),
-    parts: stripApproval(row.parts),
+    card_name: asOptionalText(row.card_name),
+    diagnosis: asText(row.diagnosis),
+    observations: asText(row.observations),
+    services,
+    parts,
   });
 }
 
@@ -456,6 +505,71 @@ export function createApiApp() {
 
   function assertServiceOrderPhotoPath(serviceOrderId: string, objectPath: string): boolean {
     return objectPath.startsWith(`${serviceOrderPhotoFolderPath(serviceOrderId)}/`);
+  }
+
+  type ServiceOrderPhotoListItem = { url: string; name: string; path: string };
+
+  function labServiceLinksIncludeOrder(links: unknown, laboratoryOrderId: string): boolean {
+    if (!Array.isArray(links) || !laboratoryOrderId) return false;
+    return links.some((row) => {
+      if (!row || typeof row !== "object") return false;
+      const id = (row as { laboratoryOrderId?: unknown }).laboratoryOrderId;
+      return typeof id === "string" && id === laboratoryOrderId;
+    });
+  }
+
+  async function listServiceOrderStoragePhotos(serviceOrderId: string): Promise<ServiceOrderPhotoListItem[]> {
+    if (!supabaseAdmin || !WORKSHOP_ID || !serviceOrderId) return [];
+    const folderPath = serviceOrderPhotoFolderPath(serviceOrderId);
+    const bucket = VEHICLE_PHOTOS_BUCKET;
+    const { data: files, error } = await supabaseAdmin.storage.from(bucket).list(folderPath, { limit: 100 });
+    if (error) {
+      console.error("[API] Erro ao listar fotos:", error);
+      return [];
+    }
+    return (files || [])
+      .filter((f) => f.name && !f.name.endsWith("/"))
+      .filter((f) => !isDiagnosticAuthorizationSignatureFileName(f.name))
+      .map((f) => {
+        const pathInBucket = `${folderPath}/${f.name}`;
+        const {
+          data: { publicUrl },
+        } = supabaseAdmin.storage.from(bucket).getPublicUrl(pathInBucket);
+        return { url: publicUrl, name: f.name, path: pathInBucket };
+      });
+  }
+
+  async function findSourcePatioOrderForLabModule(labOrderId: string): Promise<{
+    id: string;
+    os_number: number | null;
+    customer_id: string | null;
+  } | null> {
+    if (!supabaseAdmin || !WORKSHOP_ID || !labOrderId) return null;
+    const { data: lab, error: labErr } = await supabaseAdmin
+      .from("service_orders")
+      .select("id, customer_id, order_type")
+      .eq("id", labOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .maybeSingle();
+    if (labErr || !lab || String(lab.order_type ?? "") !== "module") return null;
+
+    let query = supabaseAdmin
+      .from("service_orders")
+      .select("id, os_number, customer_id, lab_service_links")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("order_type", "vehicle");
+    if (lab.customer_id) {
+      query = query.eq("customer_id", lab.customer_id);
+    }
+    const { data: rows, error } = await query;
+    if (error) {
+      console.warn("[API] findSourcePatioOrderForLabModule:", error.message);
+      return null;
+    }
+    const match = (rows ?? []).find((row) =>
+      labServiceLinksIncludeOrder((row as { lab_service_links?: unknown }).lab_service_links, labOrderId)
+    ) as { id: string; os_number: number | null; customer_id: string | null } | undefined;
+    return match ?? null;
   }
 
   // CORS: TV (Patio-View), CORS_ALLOWED_ORIGINS e dev — necessário se o front chama API em outro host (VITE_API_BASE).
@@ -4009,32 +4123,163 @@ export function createApiApp() {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
 
-      const folderPath = `${WORKSHOP_ID}/${serviceOrderId}`;
-      const bucket = VEHICLE_PHOTOS_BUCKET;
-      const { data: files, error } = await supabaseAdmin.storage
-        .from(bucket)
-        .list(folderPath, { limit: 100 });
-
-      if (error) {
-        console.error("[API] Erro ao listar fotos:", error);
-        return res.json([]);
-      }
-
-      const photos = (files || [])
-        .filter((f) => f.name && !f.name.endsWith("/"))
-        .filter((f) => !isDiagnosticAuthorizationSignatureFileName(f.name))
-        .map((f) => {
-          const pathInBucket = `${folderPath}/${f.name}`;
-          const { data: { publicUrl } } = supabaseAdmin.storage
-            .from(bucket)
-            .getPublicUrl(pathInBucket);
-          return { url: publicUrl, name: f.name, path: pathInBucket };
-        });
-
-      return res.json(photos);
+      return res.json(await listServiceOrderStoragePhotos(serviceOrderId));
     } catch (err: any) {
       console.error("[API] Erro em GET /api/service-orders/:id/photos:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** OS do pátio que originou este produto do laboratório + anexos dela. */
+  app.get("/api/service-orders/:id/source-patio", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const labOrderId = reqOrderId(req);
+      if (!labOrderId) {
+        return res.status(400).json({ error: "ID da OS inválido." });
+      }
+      const patio = await findSourcePatioOrderForLabModule(labOrderId);
+      if (!patio) {
+        return res.json({ found: false });
+      }
+      const photos = await listServiceOrderStoragePhotos(patio.id);
+      return res.json({
+        found: true,
+        id: patio.id,
+        osNumber: patio.os_number,
+        photos,
+      });
+    } catch (err: any) {
+      console.error("[API] GET /api/service-orders/:id/source-patio:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Copia fotos/documentos da OS do pátio para a OS do laboratório (mesmo bucket, sem reupload). */
+  app.post("/api/service-orders/:id/photos/copy-from", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const destOrderId = reqOrderId(req);
+      const body = parseRequestJsonBody(req);
+      const sourceOrderId = typeof body.sourceOrderId === "string" ? body.sourceOrderId.trim() : "";
+      const rawPaths = Array.isArray(body.paths) ? body.paths : [];
+      const paths = [
+        ...new Set(
+          rawPaths
+            .map((p) => (typeof p === "string" ? p.trim() : ""))
+            .filter((p) => p.length > 0)
+        ),
+      ];
+
+      if (!destOrderId) {
+        return res.status(400).json({ error: "ID da OS de destino inválido." });
+      }
+      if (!sourceOrderId) {
+        return res.status(400).json({ error: "Informe sourceOrderId." });
+      }
+      if (sourceOrderId === destOrderId) {
+        return res.status(400).json({ error: "Origem e destino não podem ser a mesma OS." });
+      }
+      if (paths.length === 0) {
+        return res.status(400).json({ error: "Selecione ao menos um arquivo para copiar." });
+      }
+      if (paths.length > 40) {
+        return res.status(400).json({ error: "Selecione no máximo 40 arquivos por vez." });
+      }
+
+      const { data: destOrder, error: destErr } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type, customer_id")
+        .eq("id", destOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (destErr || !destOrder) {
+        return res.status(404).json({ error: "Ordem de serviço de destino não encontrada." });
+      }
+      if (String(destOrder.order_type ?? "") !== "module") {
+        return res.status(400).json({ error: "O destino precisa ser uma OS do laboratório." });
+      }
+
+      const { data: sourceOrder, error: sourceErr } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type, customer_id, lab_service_links")
+        .eq("id", sourceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (sourceErr || !sourceOrder) {
+        return res.status(404).json({ error: "Ordem de serviço de origem não encontrada." });
+      }
+      if (String(sourceOrder.order_type ?? "vehicle") !== "vehicle") {
+        return res.status(400).json({ error: "A origem precisa ser uma OS do pátio." });
+      }
+
+      const linked = labServiceLinksIncludeOrder(sourceOrder.lab_service_links, destOrderId);
+      if (!linked) {
+        return res.status(403).json({
+          error: "Esta OS do laboratório não está vinculada à OS do pátio informada.",
+        });
+      }
+
+      const bucket = VEHICLE_PHOTOS_BUCKET;
+      const copied: ServiceOrderPhotoListItem[] = [];
+      const failed: { path: string; error: string }[] = [];
+      const stamp = Date.now();
+
+      for (let i = 0; i < paths.length; i += 1) {
+        const sourcePath = paths[i];
+        if (!assertServiceOrderPhotoPath(sourceOrderId, sourcePath)) {
+          failed.push({ path: sourcePath, error: "Arquivo não pertence à OS de origem." });
+          continue;
+        }
+        const originalName = sourcePath.split("/").pop() || "arquivo";
+        if (isDiagnosticAuthorizationSignatureFileName(originalName)) {
+          failed.push({ path: sourcePath, error: "Este arquivo não pode ser copiado." });
+          continue;
+        }
+        const rawName = originalName.replace(/^\d+_/, "") || originalName;
+        const safeName = sanitizeVehiclePhotoFileName(rawName);
+        const destPath = `${serviceOrderPhotoFolderPath(destOrderId)}/${stamp}_${i}_${safeName}`;
+        const { error: copyErr } = await supabaseAdmin.storage.from(bucket).copy(sourcePath, destPath);
+        if (copyErr) {
+          failed.push({ path: sourcePath, error: copyErr.message || "Falha ao copiar arquivo." });
+          continue;
+        }
+        const {
+          data: { publicUrl },
+        } = supabaseAdmin.storage.from(bucket).getPublicUrl(destPath);
+        copied.push({
+          url: publicUrl,
+          name: destPath.split("/").pop() || safeName,
+          path: destPath,
+        });
+      }
+
+      if (copied.length > 0) {
+        await touchServiceOrderUpdatedAt(destOrderId);
+      }
+
+      if (copied.length === 0) {
+        return res.status(400).json({
+          error: failed[0]?.error || "Não foi possível copiar os arquivos selecionados.",
+          failed,
+        });
+      }
+
+      return res.status(201).json({ copied, failed });
+    } catch (err: any) {
+      console.error("[API] POST /api/service-orders/:id/photos/copy-from:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro ao copiar anexos." });
     }
   });
 
@@ -4862,6 +5107,131 @@ export function createApiApp() {
       return res.json({ ...(data ?? {}), lab_evaluation_budget_id: budgetId });
     } catch (err: unknown) {
       console.error("[API] POST lab-evaluation:", err);
+      const msg = err instanceof Error ? err.message : "Erro";
+      return res.status(500).json({ error: msg });
+    }
+  });
+
+  // Excluir avaliação técnica do laboratório e orçamentos gerados automaticamente (serviços rápidos / avaliação).
+  app.delete("/api/service-orders/:id/lab-evaluation", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+
+      const { id: serviceOrderId } = req.params;
+
+      const { data: so, error: fetchErr } = await supabaseAdmin
+        .from("service_orders")
+        .select(
+          "id, order_type, status, lab_evaluated_service, lab_evaluated_at, lab_evaluation_budget_id"
+        )
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+
+      if (fetchErr || !so) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if (String(so.order_type ?? "vehicle") !== "module") {
+        return res.status(400).json({ error: "Avaliação técnica disponível apenas para OS de laboratório." });
+      }
+
+      const hasEval =
+        String(so.lab_evaluated_at ?? "").trim() || String(so.lab_evaluated_service ?? "").trim();
+      if (!hasEval) {
+        return res.status(400).json({ error: "Esta OS não possui avaliação técnica registrada." });
+      }
+
+      const budgetIdsToDelete = new Set<string>();
+      const linkedBudgetId = so.lab_evaluation_budget_id
+        ? String(so.lab_evaluation_budget_id).trim()
+        : "";
+      if (linkedBudgetId) budgetIdsToDelete.add(linkedBudgetId);
+
+      const { data: soBudgets, error: budgetsErr } = await supabaseAdmin
+        .from("budgets")
+        .select("id, services")
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID);
+
+      if (budgetsErr) {
+        console.error("[API] DELETE lab-evaluation list budgets:", budgetsErr);
+        return res.status(500).json({ error: budgetsErr.message });
+      }
+
+      for (const row of soBudgets ?? []) {
+        const id = row?.id ? String(row.id) : "";
+        if (!id) continue;
+        const services = Array.isArray(row.services) ? row.services : [];
+        const fromLabEval = services.some(
+          (svc: unknown) =>
+            svc &&
+            typeof svc === "object" &&
+            String((svc as { source?: unknown }).source ?? "") === "lab_evaluation"
+        );
+        if (fromLabEval) budgetIdsToDelete.add(id);
+      }
+
+      // Limpa o vínculo antes de excluir o orçamento (FK ON DELETE SET NULL, mas evita corrida).
+      const clearPayload: Record<string, unknown> = {
+        lab_evaluated_service: null,
+        lab_evaluated_at: null,
+        lab_evaluated_by_name: null,
+        lab_evaluation_budget_id: null,
+        status: "AVALIACAO_TECNICA",
+        updated_at: new Date().toISOString(),
+      };
+
+      let { data, error } = await supabaseAdmin
+        .from("service_orders")
+        .update(clearPayload)
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("*, customers(*)")
+        .single();
+
+      if (error) {
+        const msg = error.message ?? "";
+        if (/lab_evaluated_|lab_evaluation_budget/i.test(msg) && /does not exist|column/i.test(msg)) {
+          delete clearPayload.lab_evaluation_budget_id;
+          const retry = await supabaseAdmin
+            .from("service_orders")
+            .update(clearPayload)
+            .eq("id", serviceOrderId)
+            .eq("workshop_id", WORKSHOP_ID)
+            .select("*, customers(*)")
+            .single();
+          data = retry.data;
+          error = retry.error;
+        }
+        if (error) {
+          console.error("[API] DELETE lab-evaluation update SO:", error);
+          return res.status(500).json({ error: error.message });
+        }
+      }
+
+      for (const budgetId of budgetIdsToDelete) {
+        const { error: delErr } = await supabaseAdmin
+          .from("budgets")
+          .delete()
+          .eq("id", budgetId)
+          .eq("service_order_id", serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID);
+        if (delErr) {
+          console.error("[API] DELETE lab-evaluation budget:", budgetId, delErr);
+          return res.status(500).json({
+            error: `Avaliação removida, mas falhou ao excluir orçamento vinculado: ${delErr.message}`,
+          });
+        }
+      }
+
+      return res.json({
+        ...(data ?? {}),
+        deleted_budget_ids: Array.from(budgetIdsToDelete),
+      });
+    } catch (err: unknown) {
+      console.error("[API] DELETE lab-evaluation:", err);
       const msg = err instanceof Error ? err.message : "Erro";
       return res.status(500).json({ error: msg });
     }
@@ -7769,6 +8139,19 @@ export function createApiApp() {
       const isAdminActor = actor !== "technician";
 
       const updatePayload: any = {};
+      /** Links normalizados quando o body manda `labServiceLinks` (para cascatear exclusão das OS lab removidas). */
+      let normalizedLabServiceLinks:
+        | {
+            id: string;
+            serviceLabel: string;
+            serviceDetails: string | null;
+            source: "budget" | "manual";
+            sourceBudgetId: string | null;
+            sourceBudgetItemIndex: number | null;
+            laboratoryOrderId: string;
+            createdAt: string;
+          }[]
+        | null = null;
       if (vehicleModel !== undefined) {
         updatePayload.vehicle_model = typeof vehicleModel === "string" ? vehicleModel.trim() : "";
       }
@@ -7973,6 +8356,7 @@ export function createApiApp() {
             createdAt,
           });
         }
+        normalizedLabServiceLinks = normalized;
         updatePayload.lab_service_links = normalized;
       }
 
@@ -8002,7 +8386,9 @@ export function createApiApp() {
 
       const { data: previous } = await supabaseAdmin
         .from("service_orders")
-        .select("status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, order_type, bench_slot, external_repair, customers(name)")
+        .select(
+          "status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, order_type, bench_slot, external_repair, lab_service_links, customers(name)"
+        )
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -8058,11 +8444,16 @@ export function createApiApp() {
         }
       }
 
+      // Fechamento (técnicos por serviço) só na finalização do fluxo ativo.
+      // Desarquivar (CANCELLED → FINALIZADO) não deve exigir isso de novo —
+      // a OS já passou pelo fechamento antes de ser arquivada.
+      const previousStatusForFinalize = String((previous as { status?: string } | null)?.status ?? "");
       if (
         updatePayload.status === "FINALIZADO" &&
         effectiveOrderType === "vehicle" &&
         previous &&
-        String((previous as { status?: string }).status ?? "") !== "FINALIZADO"
+        previousStatusForFinalize !== "FINALIZADO" &&
+        previousStatusForFinalize !== CANCELLED_STATUS
       ) {
         try {
           const techCheck = await assertServiceTechniciansCompleteForFinalize(id);
@@ -8094,6 +8485,50 @@ export function createApiApp() {
       if (error) {
         console.error("[API] Erro ao atualizar service_order:", error);
         return res.status(500).json({ error: error.message });
+      }
+
+      // Remover vínculo no Pátio → arquivar também a OS/card criada no Laboratório.
+      if (
+        normalizedLabServiceLinks &&
+        previous &&
+        String((previous as { order_type?: string | null }).order_type ?? "vehicle") !== "module"
+      ) {
+        const prevLinksRaw = (previous as { lab_service_links?: unknown }).lab_service_links;
+        const prevLabIds = new Set(
+          (Array.isArray(prevLinksRaw) ? prevLinksRaw : [])
+            .map((item) => {
+              if (!item || typeof item !== "object") return "";
+              const oid = (item as { laboratoryOrderId?: unknown }).laboratoryOrderId;
+              return typeof oid === "string" ? oid.trim() : "";
+            })
+            .filter(Boolean)
+        );
+        const nextLabIds = new Set(normalizedLabServiceLinks.map((l) => l.laboratoryOrderId));
+        const removedLabIds = [...prevLabIds].filter((labId) => !nextLabIds.has(labId));
+        if (removedLabIds.length > 0) {
+          const archivedAt = new Date().toISOString();
+          const { error: cascadeErr } = await supabaseAdmin
+            .from("service_orders")
+            .update({
+              status: CANCELLED_STATUS,
+              bench_slot: null,
+              bench_slot_at: null,
+              bench_queued_at: null,
+              updated_at: archivedAt,
+            })
+            .in("id", removedLabIds)
+            .eq("workshop_id", WORKSHOP_ID)
+            .eq("order_type", "module")
+            .neq("status", CANCELLED_STATUS);
+          if (cascadeErr) {
+            console.error(
+              "[API] Falha ao arquivar OS do laboratório ao remover vínculo do pátio:",
+              cascadeErr
+            );
+          } else {
+            await processIntakeBenchQueue();
+          }
+        }
       }
 
       if (effectiveOrderType === "module") {

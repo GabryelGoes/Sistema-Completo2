@@ -53,6 +53,7 @@ export type LabEvaluationSectionProps = {
   evaluatedByName: string | null | undefined;
   evaluatedByDisplayName: string;
   onSubmitEvaluation: (payload: LabEvaluationSubmitPayload) => Promise<void>;
+  onDeleteEvaluation?: () => Promise<void>;
 };
 
 function formatEvaluatedAt(iso: string | null | undefined): string {
@@ -86,6 +87,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
   evaluatedByName,
   evaluatedByDisplayName,
   onSubmitEvaluation,
+  onDeleteEvaluation,
 }) => {
   const [quickServices, setQuickServices] = useState<LabQuickService[]>(() => getLabQuickServices());
   const [serviceDrafts, setServiceDrafts] = useState<LabEvaluationServiceDraft[]>([]);
@@ -94,6 +96,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
   const [observations, setObservations] = useState('');
   const [workshopParts, setWorkshopParts] = useState<WorkshopPart[]>([]);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reloadQuickServices = useCallback(() => {
@@ -185,6 +188,30 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
     }
   };
 
+  const handleDelete = async () => {
+    if (!onDeleteEvaluation) return;
+    if (
+      !window.confirm(
+        'Excluir esta avaliação técnica?\n\nOs orçamentos criados automaticamente a partir dela (serviços rápidos) também serão excluídos. Você poderá registrar uma nova avaliação.'
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    setError(null);
+    try {
+      await onDeleteEvaluation();
+      setServiceDrafts([]);
+      setParts([]);
+      setObservations('');
+      setOtherService('');
+    } catch (e) {
+      setError((e as Error)?.message ?? 'Não foi possível excluir a avaliação.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const partsInset = 'rounded-xl border border-zinc-200/80 bg-white/90 dark:border-white/[0.1] dark:bg-zinc-950/50';
 
   return (
@@ -203,7 +230,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
           <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
             <div className="flex items-start gap-2.5">
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-[12px] font-semibold uppercase tracking-wide text-emerald-800/90 dark:text-emerald-300/90">
                   Avaliação enviada ao orçamento
                 </p>
@@ -220,6 +247,17 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                 ) : null}
               </div>
             </div>
+            {onDeleteEvaluation ? (
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={deleting || saving}
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-red-500/35 bg-white/70 px-3 py-2.5 text-[13px] font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-55 dark:border-red-400/30 dark:bg-zinc-950/40 dark:text-red-300 dark:hover:bg-red-500/15"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Excluir avaliação e orçamentos vinculados
+              </button>
+            ) : null}
           </div>
         ) : (
           <>

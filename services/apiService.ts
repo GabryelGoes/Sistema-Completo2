@@ -844,8 +844,6 @@ export async function createServiceOrder(params: {
   orderType?: ServiceOrderType;
   /** Laboratório: etapa inicial no quadro (padrão: aguardando avaliação). */
   status?: ServiceOrderStatus;
-  /** Só veículo: categoria escolhida na recepção */
-  vehicleCategory?: string | null;
   vehicleBrand?: string | null;
   vehicleColor?: string | null;
   vehicleYear?: string | null;
@@ -859,9 +857,6 @@ export async function createServiceOrder(params: {
     aiAnalysis: params.aiAnalysis ?? null,
     orderType,
   };
-  if (orderType === "vehicle" && params.vehicleCategory !== undefined) {
-    body.vehicleCategory = params.vehicleCategory?.trim() || null;
-  }
   if (orderType === "vehicle") {
     body.plate = (params.plate || '').toUpperCase();
     body.mileageKm = params.mileageKm ?? null;
@@ -901,7 +896,6 @@ export async function createServiceOrder(params: {
 export async function saveReceptionIntake(
   customer: Customer,
   orderType: ServiceOrderType = "vehicle",
-  vehicleCategory?: string | null,
   moduleInitialStatus?: ServiceOrderStatus
 ) {
   const createdCustomer = await createCustomer(customer);
@@ -921,7 +915,6 @@ export async function saveReceptionIntake(
     issueDescription: customer.issueDescription,
     aiAnalysis: customer.aiAnalysis,
     orderType,
-    vehicleCategory: orderType === "vehicle" ? vehicleCategory ?? null : null,
     vehicleBrand: orderType === "vehicle" ? customer.vehicleBrand?.trim() || null : undefined,
     vehicleColor: orderType === "vehicle" ? customer.vehicleColor?.trim() || null : undefined,
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
@@ -941,7 +934,6 @@ export async function saveReceptionIntakeForExistingCustomer(
   customerId: string,
   customer: Customer,
   orderType: ServiceOrderType = "vehicle",
-  vehicleCategory?: string | null,
   moduleInitialStatus?: ServiceOrderStatus
 ) {
   const createdServiceOrder = await createServiceOrder({
@@ -959,7 +951,6 @@ export async function saveReceptionIntakeForExistingCustomer(
     issueDescription: customer.issueDescription,
     aiAnalysis: customer.aiAnalysis,
     orderType,
-    vehicleCategory: orderType === "vehicle" ? vehicleCategory ?? null : null,
     vehicleBrand: orderType === "vehicle" ? customer.vehicleBrand?.trim() || null : undefined,
     vehicleColor: orderType === "vehicle" ? customer.vehicleColor?.trim() || null : undefined,
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
@@ -1160,7 +1151,7 @@ export async function updateServiceOrderExternalRepair(
   id: string,
   data: ExternalRepair | null
 ): Promise<ApiServiceOrder> {
-  const body = data === null ? { externalRepair: null } : { ...data };
+  const body = data === null ? { externalRepair: null, clear: true } : { ...data };
   const response = await fetch(`${API_BASE}/service-orders/${id}/external-repair`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -1389,7 +1380,6 @@ export async function updateServiceOrderType(
   return response.json();
 }
 
-/** Atualiza a categoria do veículo (Compacto, Médio/SUV, Pick-Up, Premium). Só modo veículo. */
 /** Grava caminho da imagem da assinatura (Storage) e data/hora no servidor. */
 export async function updateServiceOrderDiagnosticAuthorization(
   id: string,
@@ -1408,32 +1398,6 @@ export async function updateServiceOrderDiagnosticAuthorization(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao registrar autorização de diagnóstico (${response.status})`);
-  }
-  return response.json();
-}
-
-export async function updateServiceOrderVehicleCategory(
-  id: string,
-  vehicleCategory: string | null,
-  options?: ServiceOrderUpdateActor
-): Promise<ApiServiceOrder> {
-  const body = mergeActorIntoBody(
-    {
-      vehicleCategory:
-        vehicleCategory == null || String(vehicleCategory).trim() === ""
-          ? null
-          : String(vehicleCategory).trim(),
-    },
-    options
-  );
-  const response = await fetch(`${API_BASE}/service-orders/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Falha ao atualizar categoria (${response.status})`);
   }
   return response.json();
 }
@@ -1735,6 +1699,48 @@ export async function deleteServiceOrderPhoto(serviceOrderId: string, path: stri
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao excluir anexo (${response.status})`);
   }
+}
+
+export type LabSourcePatioOrder =
+  | { found: false }
+  | { found: true; id: string; osNumber: number | null; photos: ServiceOrderPhoto[] };
+
+export async function getLabOrderSourcePatio(labOrderId: string): Promise<LabSourcePatioOrder> {
+  const response = await fetch(`${API_BASE}/service-orders/${labOrderId}/source-patio`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao localizar a OS do pátio (${response.status})`);
+  }
+  const data = (await response.json()) as LabSourcePatioOrder;
+  if (!data || data.found !== true) return { found: false };
+  const photos = Array.isArray(data.photos)
+    ? data.photos.filter((p) => p && typeof p.name === "string" && !/AUTORIZACAO_DIAGNOSTICO/i.test(p.name))
+    : [];
+  return { found: true, id: data.id, osNumber: data.osNumber ?? null, photos };
+}
+
+export async function copyServiceOrderPhotosFrom(
+  destOrderId: string,
+  sourceOrderId: string,
+  paths: string[]
+): Promise<{ copied: ServiceOrderPhoto[]; failed: { path: string; error: string }[] }> {
+  const response = await fetch(`${API_BASE}/service-orders/${destOrderId}/photos/copy-from`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sourceOrderId, paths }),
+  });
+  const data = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    copied?: ServiceOrderPhoto[];
+    failed?: { path: string; error: string }[];
+  };
+  if (!response.ok) {
+    throw new Error(data.error || `Falha ao copiar anexos (${response.status})`);
+  }
+  return {
+    copied: Array.isArray(data.copied) ? data.copied : [],
+    failed: Array.isArray(data.failed) ? data.failed : [],
+  };
 }
 
 /** Substitui o arquivo no Storage (mesmo path) após rotação no cliente. */
@@ -2450,6 +2456,20 @@ export async function saveServiceOrderLabEvaluation(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao registrar avaliação (${response.status})`);
+  }
+  return response.json();
+}
+
+/** Remove a avaliação técnica e os orçamentos criados automaticamente por ela (serviços rápidos). */
+export async function deleteServiceOrderLabEvaluation(
+  serviceOrderId: string
+): Promise<ServiceOrderDetail> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/lab-evaluation`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir avaliação (${response.status})`);
   }
   return response.json();
 }

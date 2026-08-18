@@ -29,6 +29,44 @@ export const EMPTY_EXTERNAL_REPAIR_DRAFT: ExternalRepairDraft = {
   notes: '',
 };
 
+/** Converte só o JSON salvo de conserto externo (sem fallbacks do produto). */
+export function externalRepairRecordToDraft(
+  er: ExternalRepair | null | undefined
+): ExternalRepairDraft {
+  if (!er || typeof er !== 'object') return { ...EMPTY_EXTERNAL_REPAIR_DRAFT };
+  return {
+    vehicleRef: String(er.vehicleRef ?? '').trim(),
+    productIdentification: String(er.productIdentification ?? '').trim(),
+    productType: String(er.productType ?? '').trim(),
+    productTypeOther: String(er.productTypeOther ?? '').trim(),
+    service: String(er.service ?? '').trim(),
+    vendor: String(er.vendor ?? '').trim(),
+    sentAt: String(er.sentAt ?? '').trim(),
+    expectedAt: String(er.expectedAt ?? '').trim(),
+    returnedAt: String(er.returnedAt ?? '').trim(),
+    cost: String(er.cost ?? '').trim(),
+    notes: String(er.notes ?? '').trim(),
+  };
+}
+
+/** Há dados gravados em `external_repair` (não conta fallbacks de produto/pátio). */
+export function hasExternalRepairData(er: ExternalRepair | null | undefined): boolean {
+  const d = externalRepairRecordToDraft(er);
+  return [
+    d.vehicleRef,
+    d.productIdentification,
+    d.productType,
+    d.productTypeOther,
+    d.service,
+    d.vendor,
+    d.sentAt,
+    d.expectedAt,
+    d.returnedAt,
+    d.cost,
+    d.notes,
+  ].some((v) => v.trim() !== '');
+}
+
 /** OS de módulo criada pelo encaminhamento pátio → laboratório. */
 export function isLabModuleFromPatio(issueDescription: string | null | undefined): boolean {
   const s = String(issueDescription ?? '')

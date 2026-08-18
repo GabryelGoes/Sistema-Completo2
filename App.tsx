@@ -37,7 +37,6 @@ import { applyAccentToRoot, DEFAULT_ACCENT } from './utils/appAppearance';
 import { setLabProductKinds } from './utils/moduleMetadata';
 import { setLabQuickServices } from './utils/labQuickServices';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
-import { OverlayPageNavBar } from './components/ui/OverlayPageNavBar';
 import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
 import { DesktopEscapeCloseBridge } from './components/ui/DesktopEscapeCloseBridge';
 import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame';
@@ -632,9 +631,22 @@ export default function App() {
 
   useEffect(() => {
     if (!authSession) return;
-    const handlePopState = () => {
-      const w = window as Window & { __rdaModalBackHandledAt?: number };
-      if (w.__rdaModalBackHandledAt && Date.now() - w.__rdaModalBackHandledAt < 120) {
+    const handlePopState = (event: PopStateEvent) => {
+      const w = window as Window & {
+        __rdaModalBackHandledAt?: number;
+        __rdaIgnoreAppPopstate?: boolean;
+      };
+      // Fechar modal (X / cleanup da pilha): nunca tratar como “voltar à Home”.
+      if (w.__rdaIgnoreAppPopstate) {
+        w.__rdaIgnoreAppPopstate = false;
+        return;
+      }
+      if (w.__rdaModalBackHandledAt && Date.now() - w.__rdaModalBackHandledAt < 1200) {
+        return;
+      }
+      const state = event.state as { rdaMobileNav?: boolean; rdaAppLayer?: number; tab?: string } | null;
+      // Voltou para o estado da aba atual (ex.: fechou histórico) — permanece no Pátio/Lab.
+      if (state?.rdaMobileNav && state.tab === activeAppTab) {
         return;
       }
       if (activeAppTab === 'reception') {
@@ -733,7 +745,14 @@ export default function App() {
             <HomeView
               desktopShell={isDesktopShell}
               settingsHubOpen={settingsHubOpen}
-              onSettingsHubOpenChange={setSettingsHubOpen}
+              onSettingsHubOpenChange={(open) => {
+                setSettingsHubOpen(open);
+                if (open) {
+                  // Só o hub — não manter Tema/Preferências aberto por cima
+                  setIsSettingsOpen(false);
+                  setIsUserChangePasswordsOpen(false);
+                }
+              }}
               settingsHubOpenerRef={homeSettingsHubOpenerRef}
               settingsHubCloserRef={homeSettingsHubCloserRef}
               onOpenPartsStock={() => setIsPartsModalOpen(true)}
@@ -776,7 +795,7 @@ export default function App() {
               systemUserPermissions={authSession.permissions}
               onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
-              globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
+              globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
               patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
               onOpenVehicleAccompaniment={openVehicleAccompaniment}
             />
@@ -785,18 +804,20 @@ export default function App() {
             tabId="orcamentos"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
+            className="budgets-hub-no-scrollbar flex flex-1 min-h-0 w-full flex-col overflow-hidden"
           >
-            <LazyTabBoundary label="Orçamentos">
-              <LazyBudgetsHubView
-              blurPlates={cinematographicMode}
-              isHubTabActive={userTab === 'orcamentos'}
-              onOpenBudgetInPatio={handleOpenBudgetFromHub}
-              onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
-              onClearHubBadge={patioBudgetsHub.clearBadge}
-              consumePendingHubBudgetHighlights={patioBudgetsHub.consumePendingHubBudgetHighlights}
-              />
-            </LazyTabBoundary>
+            <div className="flex h-full min-h-0 flex-1 flex-col">
+              <LazyTabBoundary label="Orçamentos">
+                <LazyBudgetsHubView
+                blurPlates={cinematographicMode}
+                isHubTabActive={userTab === 'orcamentos'}
+                onOpenBudgetInPatio={handleOpenBudgetFromHub}
+                onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
+                onClearHubBadge={patioBudgetsHub.clearBadge}
+                consumePendingHubBudgetHighlights={patioBudgetsHub.consumePendingHubBudgetHighlights}
+                />
+              </LazyTabBoundary>
+            </div>
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
             tabId="relatorios"
@@ -876,7 +897,7 @@ export default function App() {
             tabId="patio"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+            className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
           >
             <LazyTabBoundary label="Pátio">
               <LazyPatioView
@@ -888,6 +909,7 @@ export default function App() {
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
               onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
               onActiveCardsCountChange={setPatioActiveCount}
+              onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
               canApproveBudgetItems={canApproveBudgetItemsApp}
@@ -898,7 +920,7 @@ export default function App() {
             tabId="laboratorio"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+            className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
           >
             <LazyTabBoundary label="Laboratório">
               <LazyPatioView
@@ -913,6 +935,7 @@ export default function App() {
               openServiceOrderSection={null}
               onOpenServiceOrderHandled={handleLaboratoryOrderHandled}
               onActiveCardsCountChange={setLaboratorioActiveCount}
+              onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
               />
@@ -1050,7 +1073,14 @@ export default function App() {
           <HomeView
             desktopShell={isDesktopShell}
             settingsHubOpen={settingsHubOpen}
-            onSettingsHubOpenChange={setSettingsHubOpen}
+            onSettingsHubOpenChange={(open) => {
+              setSettingsHubOpen(open);
+              if (open) {
+                // Só o hub — não manter Tema/Preferências aberto por cima
+                setIsSettingsOpen(false);
+                setIsUserChangePasswordsOpen(false);
+              }
+            }}
             settingsHubOpenerRef={homeSettingsHubOpenerRef}
             settingsHubCloserRef={homeSettingsHubCloserRef}
             onOpenPartsStock={() => setIsPartsModalOpen(true)}
@@ -1077,7 +1107,7 @@ export default function App() {
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
             onOpenSettings={() => setIsSettingsOpen(true)}
-            globalOverlayModalOpen={settingsHubOpen || isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
+            globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
             patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
             onOpenVehicleAccompaniment={openVehicleAccompaniment}
           />
@@ -1087,18 +1117,20 @@ export default function App() {
           tabId="orcamentos"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
+          className="budgets-hub-no-scrollbar flex flex-1 min-h-0 w-full flex-col overflow-hidden"
         >
-          <LazyTabBoundary label="Orçamentos">
-            <LazyBudgetsHubView
-            blurPlates={cinematographicMode}
-            isHubTabActive={currentTab === 'orcamentos'}
-            onOpenBudgetInPatio={handleOpenBudgetFromHub}
-            onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
-            onClearHubBadge={patioBudgetsHub.clearBadge}
-            consumePendingHubBudgetHighlights={patioBudgetsHub.consumePendingHubBudgetHighlights}
-            />
-          </LazyTabBoundary>
+          <div className="flex h-full min-h-0 flex-1 flex-col">
+            <LazyTabBoundary label="Orçamentos">
+              <LazyBudgetsHubView
+              blurPlates={cinematographicMode}
+              isHubTabActive={currentTab === 'orcamentos'}
+              onOpenBudgetInPatio={handleOpenBudgetFromHub}
+              onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
+              onClearHubBadge={patioBudgetsHub.clearBadge}
+              consumePendingHubBudgetHighlights={patioBudgetsHub.consumePendingHubBudgetHighlights}
+              />
+            </LazyTabBoundary>
+          </div>
         </KeepAliveTabPanel>
 
         <KeepAliveTabPanel
@@ -1188,7 +1220,7 @@ export default function App() {
           tabId="patio"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+          className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
         >
           <LazyTabBoundary label="Pátio">
             <LazyPatioView
@@ -1200,6 +1232,7 @@ export default function App() {
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
             onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
             onActiveCardsCountChange={setPatioActiveCount}
+            onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
             canVerifyBudgets={canVerifyBudgetsApp}
             canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
@@ -1211,7 +1244,7 @@ export default function App() {
           tabId="laboratorio"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 pt-8"
+          className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
         >
           <LazyTabBoundary label="Laboratório">
             <LazyPatioView
@@ -1223,6 +1256,7 @@ export default function App() {
             isAppTabActive={currentTab === 'laboratorio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
             onActiveCardsCountChange={setLaboratorioActiveCount}
+            onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
             openServiceOrderId={laboratorioPendingOrderId}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={handleLaboratoryOrderHandled}

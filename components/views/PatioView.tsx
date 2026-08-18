@@ -19,7 +19,6 @@ import {
   updateServiceOrderDeliveryDate,
   updateServiceOrderVehicleObservations,
   updateServiceOrderVehicle,
-  updateServiceOrderVehicleCategory,
   updateServiceOrderReferenceLinks,
   updateServiceOrderLabServiceLinks,
   updateServiceOrderBenchSlot,
@@ -29,6 +28,9 @@ import {
   renameServiceOrderPhoto,
   rotateServiceOrderPhoto,
   deleteServiceOrderPhoto,
+  copyServiceOrderPhotosFrom,
+  getLabOrderSourcePatio,
+  type ServiceOrderPhoto,
   getServiceOrderBudgets,
   createServiceOrder,
   createServiceOrderBudget,
@@ -57,6 +59,7 @@ import {
   budgetLastActivityMs,
   budgetChronologicalNumber,
   saveServiceOrderLabEvaluation,
+  deleteServiceOrderLabEvaluation,
   getServiceOrderServiceTechnicians,
   ServiceOrderListItem,
   type WorkshopService,
@@ -94,6 +97,8 @@ import {
 import {
   buildExternalRepairDraft,
   draftToExternalRepairPayload,
+  externalRepairRecordToDraft,
+  hasExternalRepairData,
   EMPTY_EXTERNAL_REPAIR_DRAFT,
   isLabModuleFromPatio,
   type ExternalRepairDraft,
@@ -110,7 +115,7 @@ import {
   isAttachmentDocumentFile,
 } from '../../utils/imageUpload';
 import { ModalPortal } from '../ui/ModalPortal';
-import { useBrowserBackLayer } from '../ui/BackNavigationContext';
+import { useBrowserBackLayer, markProgrammaticHistoryBack } from '../ui/BackNavigationContext';
 import {
   iosModalClose,
   iosModalInsetCard,
@@ -139,6 +144,15 @@ import {
 } from '../ui/appTypography';
 import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { usePatioBoardLiveSync } from '../../hooks/usePatioBoardLiveSync';
+import {
+  modalBackdropAnimClass,
+  modalSheetAnimClass,
+  modalWpAppAnimClass,
+  useAnimatedModalClose,
+  useModalExitPresence,
+  useModalExitValue,
+  withModalExitOverlayClass,
+} from '../../hooks/useModalExitAnimation';
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from '../../utils/budgetPrintWithDetail';
 import { printLabModuleFicha } from '../../utils/labModuleFichaPrint';
 import { PATIO_CARD_TITLE_SEP, parsePatioCardTitle } from '../../utils/patioCardTitle';
@@ -170,15 +184,21 @@ import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
 import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
 import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsModalPcTabBar';
 import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServicesSection';
+import {
+  PatioOriginAttachmentsPicker,
+  PatioOriginAttachmentsSection,
+} from '../patio/PatioOriginAttachmentsPicker';
+import { PatioBoardOriginIcon } from '../patio/PatioBoardOriginIcon';
 import { BudgetReadModalBody } from '../budget/BudgetReadModalBody';
 import { BudgetVerificationPanel } from '../budget/BudgetVerificationPanel';
 import { BudgetVerifiedSeal } from '../budget/BudgetVerifiedSeal';
-import { BudgetLineReorderButtons } from '../budget/BudgetLineReorderButtons';
+import { BudgetLinePositionControl } from '../budget/BudgetLinePositionControl';
 import { BudgetPartSuggestionDropdown } from '../budget/BudgetPartSuggestionDropdown';
+import { BudgetServiceSuggestionDropdown } from '../budget/BudgetServiceSuggestionDropdown';
 import { WorkshopPartQuickViewModal } from '../budget/WorkshopPartQuickViewModal';
 import {
   budgetReadFooterBtnClass,
-  budgetReadFooterPrimaryClass,
+  budgetReadFooterDangerClass,
   budgetReadModalBackdropClass,
   budgetReadModalFooterClass,
   budgetReadModalHeaderClass,
@@ -353,6 +373,8 @@ interface PatioViewProps {
   onOpenLaboratoryOrder?: (serviceOrderId: string) => void;
   /** Atualiza contagem de veículos/módulos ativos (ex.: barra superior no modo PC). */
   onActiveCardsCountChange?: (count: number) => void;
+  /** Fecha a página e volta ao Início (botão X no cabeçalho mobile/tablet). */
+  onClosePage?: () => void;
 }
 
 function boardListsFromStages(stages: ReturnType<typeof getServiceOrderStages>): BoardList[] {
@@ -387,25 +409,6 @@ function stripLegacyVehicleCategoryFromComplaint(text: string | null | undefined
   return text;
 }
 
-/** Lê categoria legada só do texto da queixa (OS antigas). */
-function parseLegacyVehicleCategoryFromIssue(issue: string | null | undefined): string | null {
-  if (!issue) return null;
-  const line = issue.split("\n")[0]?.trim() ?? "";
-  const prefix = "Categoria do veículo:";
-  if (!line.startsWith(prefix)) return null;
-  const cat = line.slice(prefix.length).trim();
-  return cat || null;
-}
-
-function resolveVehicleCategoryLabel(
-  dbCategory: string | null | undefined,
-  issue: string | null | undefined
-): string | null {
-  const c = (dbCategory ?? "").trim();
-  if (c) return c;
-  return parseLegacyVehicleCategoryFromIssue(issue);
-}
-
 /** Mesmo critério da Recepção — comparação de placa Mercosul / antiga. */
 function normalizePatioPlate(raw: string): string {
   return String(raw ?? '')
@@ -413,9 +416,6 @@ function normalizePatioPlate(raw: string): string {
     .toUpperCase()
     .slice(0, 8);
 }
-
-/** Mesmas opções da Recepção — categoria do veículo. */
-const VEHICLE_CATEGORIES_MODAL = ['Compacto', 'Médio/SUV', 'Pick-Up', 'Premium'] as const;
 
 function buildTechnicianNameMap(technicians: SystemUserTechnician[]): Record<string, string> {
   const map: Record<string, string> = {};
@@ -484,10 +484,7 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     name,
     osNumber: o.os_number ?? null,
     desc: stripLegacyVehicleCategoryFromComplaint(o.issue_description || ''),
-    vehicleCategory:
-      orderType === "vehicle"
-        ? resolveVehicleCategoryLabel(o.vehicle_category ?? null, o.issue_description ?? null)
-        : null,
+    vehicleCategory: null,
     vehicleBrand: o.vehicle_brand ?? null,
     idList: o.status,
     url: '',
@@ -587,13 +584,20 @@ function BudgetServiceDescriptionTextarea({
   onChange,
   onFocus,
   onBlur,
+  onEnterAdd,
   inputClassName,
+  autoFocus,
+  dataBudgetServiceId,
 }: {
   value: string;
   onChange: (v: string) => void;
   onFocus: () => void;
   onBlur: () => void;
+  /** Enter (sem Shift) adiciona um novo serviço. Shift+Enter quebra linha. */
+  onEnterAdd?: () => void;
   inputClassName: string;
+  autoFocus?: boolean;
+  dataBudgetServiceId?: string;
 }) {
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const syncHeight = useCallback(() => {
@@ -608,11 +612,17 @@ function BudgetServiceDescriptionTextarea({
     syncHeight();
   }, [value, syncHeight]);
 
+  useLayoutEffect(() => {
+    if (!autoFocus) return;
+    taRef.current?.focus();
+  }, [autoFocus]);
+
   return (
     <textarea
       ref={taRef}
       rows={1}
       spellCheck={false}
+      data-budget-service-id={dataBudgetServiceId}
       placeholder="Digite ou escolha um serviço…"
       className={`${inputClassName} shadow-none block min-h-[52px] w-full min-w-0 resize-none overflow-hidden break-words leading-snug [overflow-wrap:anywhere] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:bg-transparent`}
       value={value}
@@ -622,6 +632,12 @@ function BudgetServiceDescriptionTextarea({
       }}
       onFocus={onFocus}
       onBlur={onBlur}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+        if (!onEnterAdd) return;
+        e.preventDefault();
+        onEnterAdd();
+      }}
     />
   );
 }
@@ -1106,6 +1122,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   suppressVehiclePortals = false,
   onOpenLaboratoryOrder,
   onActiveCardsCountChange,
+  onClosePage,
 }) => {
   /** Admin: sem patioPermissions = tudo permitido. Usuário do sistema: só o que for explicitamente true. */
   const can = (key: keyof NonNullable<PatioViewProps['patioPermissions']>) =>
@@ -1130,8 +1147,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   
   // Bancada do laboratório (painel visual dos 24 compartimentos)
   const [benchPanelOpen, setBenchPanelOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    return window.localStorage.getItem('lab-bench-panel-open') !== '0';
+    if (typeof window === 'undefined') return false;
+    // Fechada por padrão; só abre ao clicar no botão (ou atalho da fila).
+    return window.localStorage.getItem('lab-bench-panel-open') === '1';
   });
   const [benchQueueModalOpen, setBenchQueueModalOpen] = useState(false);
   /** Módulos enviados para conserto externo (fora do quadro/bancada). */
@@ -1147,6 +1165,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [referenceLinksDraft, setReferenceLinksDraft] = useState<VehicleReferenceLink[]>([]);
   const [pendingReferenceLink, setPendingReferenceLink] = useState<{ label: string; url: string } | null>(null);
   const [referenceLinksSaving, setReferenceLinksSaving] = useState(false);
+  const [isAnexosAddMenuOpen, setIsAnexosAddMenuOpen] = useState(false);
+  const [anexosAddMenuPos, setAnexosAddMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const anexosAddMenuRef = useRef<HTMLDivElement>(null);
+  const anexosAddMenuPanelRef = useRef<HTMLDivElement>(null);
   /** Conserto externo (laboratório): rascunho do formulário no modal. */
   const [externalRepairDraft, setExternalRepairDraft] = useState<ExternalRepairDraft>(EMPTY_EXTERNAL_REPAIR_DRAFT);
   const [externalRepairSaving, setExternalRepairSaving] = useState(false);
@@ -1168,6 +1190,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [labOrdersLookup, setLabOrdersLookup] = useState<Record<string, ServiceOrderDetail>>({});
   const [labLinkedStatusByOrderId, setLabLinkedStatusByOrderId] = useState<Record<string, string>>({});
   const [labLinkedStatusRefreshTick, setLabLinkedStatusRefreshTick] = useState(0);
+  const [selectedPatioOriginAttachmentPaths, setSelectedPatioOriginAttachmentPaths] = useState<string[]>([]);
+  const [copyingPatioOriginAttachments, setCopyingPatioOriginAttachments] = useState(false);
+  const [labSourcePatio, setLabSourcePatio] = useState<{
+    id: string;
+    osNumber: number | null;
+    photos: ServiceOrderPhoto[];
+  } | null>(null);
+  const [labSourcePatioPickerOpen, setLabSourcePatioPickerOpen] = useState(false);
+  const [labSourcePatioSelectedPaths, setLabSourcePatioSelectedPaths] = useState<string[]>([]);
   /** Seção "Dados da ficha" no modal: começa minimizada. */
   const [isDadosFichaExpanded, setIsDadosFichaExpanded] = useState(false);
   /** Evita repor `editFichaForm` a cada `serviceOrderDetail` vindo do Realtime (apaga digitação). */
@@ -1178,8 +1209,73 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setIsDadosFichaExpanded(false);
       setIsExternalRepairEditing(false);
       setPcOsModalTab('dados');
+      setIsAnexosAddMenuOpen(false);
+      setSelectedPatioOriginAttachmentPaths([]);
+      setLabSourcePatioPickerOpen(false);
+      setLabSourcePatioSelectedPaths([]);
+      setLabSourcePatio(null);
     }
   }, [selectedCard?.id]);
+
+  const patioOriginAttachments = useMemo(
+    () =>
+      (cardDetails?.attachments ?? [])
+        .map((att) => ({
+          path: att.id,
+          name: att.name,
+          url: att.url,
+        }))
+        .filter((item) => item.path && !/^\d+$/.test(item.path)),
+    [cardDetails?.attachments]
+  );
+
+  useEffect(() => {
+    if (!isAnexosAddMenuOpen) return;
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (
+        target &&
+        (anexosAddMenuRef.current?.contains(target) || anexosAddMenuPanelRef.current?.contains(target))
+      ) {
+        return;
+      }
+      setIsAnexosAddMenuOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsAnexosAddMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isAnexosAddMenuOpen]);
+
+  useLayoutEffect(() => {
+    if (!isAnexosAddMenuOpen) {
+      setAnexosAddMenuPos(null);
+      return;
+    }
+    const updatePos = () => {
+      const el = anexosAddMenuRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setAnexosAddMenuPos({
+        top: Math.min(rect.bottom + 6, window.innerHeight - 12),
+        right: Math.max(8, window.innerWidth - rect.right),
+      });
+    };
+    updatePos();
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, true);
+    return () => {
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos, true);
+    };
+  }, [isAnexosAddMenuOpen]);
 
   useEffect(() => {
     if (!selectedCard?.id || orderType === 'module') return;
@@ -1381,10 +1477,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const partSuggestionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusedServiceInputRef = useRef<HTMLDivElement>(null);
   const focusedPartInputRef = useRef<HTMLDivElement>(null);
+  const budgetServicesAddRef = useRef<HTMLButtonElement>(null);
+  const budgetPartsAddRef = useRef<HTMLButtonElement>(null);
+  const scrollBudgetServicesAddRef = useRef(false);
+  const scrollBudgetPartsAddRef = useRef(false);
+  const pendingFocusServiceIdRef = useRef<string | null>(null);
+  const pendingFocusPartIdRef = useRef<string | null>(null);
+  const [focusServiceId, setFocusServiceId] = useState<string | null>(null);
+  const [focusPartId, setFocusPartId] = useState<string | null>(null);
   const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const [partSuggestionBoxPosition, setPartSuggestionBoxPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   // Card em transição de COLUNA (Status)
   const [cardInTransition, setCardInTransition] = useState<BoardCard | null>(null);
+  const moveModalCurrentStageRef = useRef<HTMLElement | null>(null);
   /** Abre fechamento de técnicos por serviço antes de ir para FINALIZADO. */
   const [serviceTechClosing, setServiceTechClosing] = useState<BoardCard | null>(null);
   /** Veículo aguardando aprovação de itens antes de ir para Orçamento aprovado. */
@@ -1396,8 +1501,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [isMoving, setIsMoving] = useState(false);
   /** Overlay de “a mover etapa” no cartão (modal ou arrastar no modo Trello). */
   const [stageChangingCardId, setStageChangingCardId] = useState<string | null>(null);
-  const [isVehicleCategoryModalOpen, setIsVehicleCategoryModalOpen] = useState(false);
-  const [savingVehicleCategory, setSavingVehicleCategory] = useState(false);
 
   // Card em transição de MEMBRO (Mecânico)
   const [cardForMemberAssignment, setCardForMemberAssignment] = useState<BoardCard | null>(null);
@@ -1414,6 +1517,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // Estado para arquivamento (Entregue)
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [removingGarantiaId, setRemovingGarantiaId] = useState<string | null>(null);
+  const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
+  const [unarchiveError, setUnarchiveError] = useState<string | null>(null);
 
   // Estados para HISTÓRICO (Search & Use)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -1441,9 +1546,37 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [reminderSubmitting, setReminderSubmitting] = useState(false);
   const [reminderSaveError, setReminderSaveError] = useState<string | null>(null);
   const [newReminder, setNewReminder] = useState('');
+  const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
+  const [editingReminderText, setEditingReminderText] = useState('');
+  const [reminderEditSaving, setReminderEditSaving] = useState(false);
+  const [reminderEditError, setReminderEditError] = useState<string | null>(null);
   const remindersStorageKey = orderType === 'module' ? 'patio-reminders-module' : 'patio-reminders-vehicle';
   const isModuleMode = orderType === 'module';
   const flowKind: ServiceOrderFlowKind = isModuleMode ? 'module' : 'vehicle';
+
+  useEffect(() => {
+    if (!isModuleMode || !selectedCard?.id) {
+      setLabSourcePatio(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const origin = await getLabOrderSourcePatio(selectedCard.id);
+        if (cancelled) return;
+        setLabSourcePatio(
+          origin.found
+            ? { id: origin.id, osNumber: origin.osNumber, photos: origin.photos }
+            : null
+        );
+      } catch {
+        if (!cancelled) setLabSourcePatio(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isModuleMode, selectedCard?.id]);
 
   useEffect(() => {
     const orderId = selectedCard?.id ?? selectedHistoryCard?.id;
@@ -1524,6 +1657,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Modal de veículo em layout PC: duas colunas (shell OnMotor ou viewport ≥1024px). */
   /** Com a bancada em tela cheia, o modal da OS abre como card flutuante (layout não-PC) por cima dela. */
   const isPatioPcModal = (desktopShell || (isDesktop && viewportWidth >= 1024)) && !benchFullscreenOpen;
+  /** Retrato: encolhe o quadro inteiro (como o zoom do modo “5 colunas”) sem depender do toggle panorâmico. */
+  const [isPortraitOrientation, setIsPortraitOrientation] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(orientation: portrait)').matches : false
+  );
+  /**
+   * Modal do veículo em tablet vertical — ajustes de layout só neste modo
+   * (não smartphone, não PC/shell desktop).
+   */
+  const isPatioTabletPortrait =
+    !desktopShell &&
+    !isSmartphone &&
+    !isPatioPcModal &&
+    isPortraitOrientation &&
+    isTablet;
 
   const handleJumpToCustomerNameEdit = useCallback(() => {
     if (isPatioPcModal) {
@@ -1531,12 +1678,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setFocusCustomerNameAfterExpand(true);
       return;
     }
+    // Tablet / mobile: abre modal de dados da ficha, sem focar/selecionar o nome
+    setFocusCustomerNameAfterExpand(false);
     setIsDadosFichaExpanded(true);
-    setFocusCustomerNameAfterExpand(true);
-    customerDataSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [isPatioPcModal]);
 
-  const patioVehicleVm = useMemo(() => getPatioVehicleModalLayout(isPatioPcModal), [isPatioPcModal]);
+  const patioVehicleVm = useMemo(
+    () => getPatioVehicleModalLayout(isPatioPcModal, isPatioTabletPortrait),
+    [isPatioPcModal, isPatioTabletPortrait]
+  );
+  /** Celular e tablet vertical compartilham o layout compacto do modal de veículo. */
+  const isPatioTabletLikeModal =
+    !isPatioPcModal && (isPatioTabletPortrait || patioVehicleVm.mode === 'mobile');
+  const isPatioVmMetaPcLike = patioVehicleVm.isMetaPcLike;
   const patioVmInsetCard = patioVehicleVm.insetCard;
   const patioVmInputClass = patioVehicleVm.input;
   const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isPatioPcModal), [isPatioPcModal]);
@@ -1555,15 +1709,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
     return patioHistoryVm.overlay;
   }, [desktopShell, patioHistoryVm.overlay]);
-  /** Retrato: encolhe o quadro inteiro (como o zoom do modo “5 colunas”) sem depender do toggle panorâmico. */
-  const [isPortraitOrientation, setIsPortraitOrientation] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(orientation: portrait)').matches : false
-  );
   /** Zoom dos cards no quadro: PC ou tablet em paisagem (não smartphone). */
   const isDesktopLandscape =
     !isSmartphone && !isPortraitOrientation && (isDesktop || isTablet);
   /** Layout de PC (desktop ≥1024 ou shell OnMotor) — distinto de tablet. */
   const isPcLayout = desktopShell || (isDesktop && viewportWidth >= 1024);
+  /**
+   * Cabeçalho compacto com ações numa linha centralizada (tablet).
+   * Respeita smartphone forçado nas Configurações (não usa só a largura da tela).
+   */
+  const patioHeaderActionsCentered =
+    !desktopShell && !isSmartphone && (isTablet || viewportWidth >= 768);
   /** Cabeçalho do laboratório em uma única linha (apenas PC): botões da bancada embutidos. */
   const headerActionsOneLine = isModuleMode && isPcLayout;
   /** Tamanho dos botões de ação do cabeçalho — menores quando tudo fica numa linha (PC laboratório). */
@@ -1657,21 +1813,72 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const selectedCardTitleParts = selectedCard ? parsePatioCardTitle(selectedCard.name) : null;
   const historyCardTitleParts = selectedHistoryCard ? parsePatioCardTitle(selectedHistoryCard.name) : null;
-  const cardInTransitionTitleParts = cardInTransition ? parsePatioCardTitle(cardInTransition.name) : null;
   const serviceTechClosingTitleParts = serviceTechClosing ? parsePatioCardTitle(serviceTechClosing.name) : null;
 
-  const closePatioPrimaryOverlays = useCallback(() => {
+  const flushPatioPrimaryOverlays = useCallback(() => {
     setPreviewImages(null);
     setSelectedCard(null);
     setSelectedHistoryCard(null);
+    setHistoryServiceOrderDetail(null);
+    setHistorySavedBudgets([]);
     setViewingBudget(null);
     setIsBudgetOpen(false);
     setIsVehicleEditOpen(false);
     setIsDeleteVehicleOpen(false);
-    setIsVehicleCategoryModalOpen(false);
+    setIsDadosFichaExpanded(false);
+    setUnarchiveError(null);
   }, []);
 
   const patioPrimaryOverlayOpen = !!(selectedCard || selectedHistoryCard);
+  const {
+    exiting: primaryModalExiting,
+    requestClose: closePatioPrimaryOverlays,
+    closeImmediate: closePatioPrimaryOverlaysImmediate,
+  } = useAnimatedModalClose(patioPrimaryOverlayOpen, flushPatioPrimaryOverlays);
+
+  const {
+    exiting: budgetModalExiting,
+    requestClose: requestCloseBudgetModal,
+  } = useAnimatedModalClose(isBudgetOpen && patioPortalsVisible, closeBudgetModal);
+
+  const {
+    exiting: viewingBudgetExiting,
+    requestClose: requestCloseViewingBudget,
+  } = useAnimatedModalClose(!!viewingBudget && patioPortalsVisible, () => setViewingBudget(null));
+
+  const historyHubPresence = useModalExitPresence(isHistoryOpen && patioPortalsVisible);
+  const remindersPresence = useModalExitPresence(isRemindersOpen && patioPortalsVisible);
+  const {
+    displayed: moveCardDisplayed,
+    exiting: moveModalExiting,
+  } = useModalExitValue(patioPortalsVisible ? cardInTransition : null);
+  const cardInTransitionTitleParts = moveCardDisplayed
+    ? parsePatioCardTitle(moveCardDisplayed.name)
+    : null;
+  const {
+    displayed: assignCardDisplayed,
+    exiting: assignModalExiting,
+  } = useModalExitValue(patioPortalsVisible ? cardForMemberAssignment : null);
+  const checklistModalOpen = !!(
+    activeChecklistCardId &&
+    activeChecklistTemplateId &&
+    patioPortalsVisible
+  );
+  const {
+    exiting: checklistModalExiting,
+    requestClose: requestCloseChecklistModal,
+  } = useAnimatedModalClose(checklistModalOpen, () => {
+    setActiveChecklistCardId(null);
+    setActiveChecklistTemplateId(null);
+  });
+  const dadosFichaModalOpen = !!(
+    isDadosFichaExpanded &&
+    !isPatioPcModal &&
+    selectedCard &&
+    patioPortalsVisible
+  );
+  const dadosFichaPresence = useModalExitPresence(dadosFichaModalOpen);
+
   const patioPrimaryOverlayShown = patioPrimaryOverlayOpen && patioPortalsVisible;
   /** Sincroniza com o painel de chat: sombra extra só em modo claro sobre este modal. */
   useEffect(() => {
@@ -1684,8 +1891,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     };
   }, [patioPrimaryOverlayShown, isModuleMode]);
   useBrowserBackLayer(patioPrimaryOverlayShown, closePatioPrimaryOverlays);
+  useBrowserBackLayer(isHistoryOpen && patioPortalsVisible, () => {
+    markProgrammaticHistoryBack();
+    setIsHistoryOpen(false);
+  });
   /** Pilha acima do modal do veículo: gesto voltar fecha só o orçamento e mantém a ficha aberta. */
-  useBrowserBackLayer(isBudgetOpen && patioPortalsVisible, closeBudgetModal);
+  useBrowserBackLayer(isBudgetOpen && patioPortalsVisible, requestCloseBudgetModal);
   useBrowserBackLayer(isPatioHeaderToolsOpen && patioPortalsVisible, () => setIsPatioHeaderToolsOpen(false));
   useBrowserBackLayer(isRemindersOpen && patioPortalsVisible, () => setIsRemindersOpen(false));
 
@@ -1955,6 +2166,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [vehicleEditModel, setVehicleEditModel] = useState('');
   const [vehicleEditPlate, setVehicleEditPlate] = useState('');
   const [savingVehicleEdit, setSavingVehicleEdit] = useState(false);
+  const vehicleEditPresence = useModalExitPresence(
+    isVehicleEditOpen && !!selectedCard && patioPortalsVisible
+  );
 
   /** Busca por placa no Pátio (cards ativos) + consulta PlacaFipe se não houver OS local. */
   const [patioPlateSearchInput, setPatioPlateSearchInput] = useState('');
@@ -2037,6 +2251,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   /** Evita corridas: várias chamadas em paralelo (Realtime + poll 15s + carga inicial) podiam aplicar respostas fora de ordem e “sumir” cards. */
   const patioBoardFetchChainRef = useRef(Promise.resolve());
+  /** Já carregou o quadro pelo menos uma vez nesta montagem (keep-alive): revisita usa refresh silencioso. */
+  const hasLoadedBoardOnceRef = useRef(false);
 
   const fetchDataImpl = async (isBackground = false) => {
     if (!isBackground) {
@@ -2073,18 +2289,48 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const card = orderToCard(row, nameMap, orderType);
         byId.set(card.id, card);
       }
-      setCards(
-        [...byId.values()].sort(
-          (a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime()
+      const nextBoardCards = [...byId.values()].sort(
+        (a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime()
+      );
+      const nextExternalCards = externalRepairOrders
+        .map((o) =>
+          orderToCard({ ...o, status: EXTERNAL_REPAIR_STATUS } as ServiceOrderListItem, nameMap, orderType)
         )
-      );
-      setExternalRepairCards(
-        externalRepairOrders
-          .map((o) => orderToCard({ ...o, status: EXTERNAL_REPAIR_STATUS } as ServiceOrderListItem, nameMap, orderType))
-          .sort((a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime())
-      );
+        .sort((a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime());
+      setCards(nextBoardCards);
+      setExternalRepairCards(nextExternalCards);
       setAllMembers([]);
       setError(null);
+
+      // Mantém o modal aberto alinhado ao quadro (etapa/status) sem fechar/reabrir.
+      const openId = selectedCardRef.current?.id;
+      if (openId) {
+        const fresh =
+          nextBoardCards.find((c) => c.id === openId) ??
+          nextExternalCards.find((c) => c.id === openId) ??
+          null;
+        if (fresh) {
+          setSelectedCard((prev) => {
+            if (!prev || prev.id !== openId) return prev;
+            if (
+              prev.idList === fresh.idList &&
+              prev.garantiaTag === fresh.garantiaTag &&
+              prev.dateLastActivity === fresh.dateLastActivity &&
+              prev.benchSlot === fresh.benchSlot &&
+              prev.benchQueuedAt === fresh.benchQueuedAt
+            ) {
+              return prev;
+            }
+            return fresh;
+          });
+          setServiceOrderDetail((prev) => {
+            if (!prev || prev.id !== openId) return prev;
+            if (String(prev.status) === String(fresh.idList)) return prev;
+            return { ...prev, status: fresh.idList as ServiceOrderStatus };
+          });
+        }
+      }
+      hasLoadedBoardOnceRef.current = true;
     } catch (err: any) {
       if (!isBackground) setError(err?.message ?? 'Erro ao carregar ordens.');
       else console.error('Erro na sincronização:', err);
@@ -2236,9 +2482,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     };
   }, []);
 
+  // Realtime do quadro enquanto a view está montada (keep-alive), não só com a aba focada.
   usePatioBoardLiveSync({
     orderType,
-    enabled: isAppTabActive,
+    enabled: true,
     onBoardRefresh: () => fetchDataRef.current(true),
     onRemindersRefresh: () => fetchRemindersRef.current(),
   });
@@ -2260,6 +2507,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
       }
     }
   }, [selectedCard?.id, selectedCard?.mileageKm, selectedCard?.deliveryDate, selectedCard?.vehicleObservations]);
+
+  /** Etapa do modal acompanha o card (Realtime/quadro) mesmo se o detail estiver defasado. */
+  useEffect(() => {
+    if (!selectedCard?.id || !serviceOrderDetail?.id) return;
+    if (selectedCard.id !== serviceOrderDetail.id) return;
+    if (String(serviceOrderDetail.status) === String(selectedCard.idList)) return;
+    setServiceOrderDetail((prev) =>
+      prev?.id === selectedCard.id
+        ? { ...prev, status: selectedCard.idList as ServiceOrderStatus }
+        : prev
+    );
+  }, [selectedCard?.id, selectedCard?.idList, serviceOrderDetail?.id, serviceOrderDetail?.status]);
 
   useEffect(() => {
     if (selectedCard || !selectedHistoryCard) return;
@@ -2323,6 +2582,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       onOpenServiceOrderHandled?.();
     };
     if (openServiceOrderSection === 'comments' || openServiceOrderSection === 'budgets') {
+      if (openServiceOrderSection === 'budgets') setPcOsModalTab('orcamentos');
       if (!loadingDetails) setTimeout(scrollToSection, 150);
     } else {
       setTimeout(scrollToSection, 300);
@@ -2441,12 +2701,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
       return;
     }
     if (isExternalRepairEditing) return;
-    setExternalRepairDraft(
-      buildExternalRepairDraft(
-        serviceOrderDetail as ServiceOrderDetail & { external_repair?: ExternalRepair | null },
-        selectedCard?.externalRepair ?? null
-      )
-    );
+    // Leitura: só dados gravados em external_repair (sem fallbacks de produto/pátio).
+    const saved =
+      (serviceOrderDetail as ServiceOrderDetail & { external_repair?: ExternalRepair | null })
+        .external_repair ??
+      selectedCard?.externalRepair ??
+      null;
+    setExternalRepairDraft(externalRepairRecordToDraft(saved));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at, isExternalRepairEditing, selectedCard?.externalRepair]);
 
@@ -2466,10 +2727,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setLabServiceLinksDraft(fromDetail);
   }, [serviceOrderDetail?.id, serviceOrderDetail?.updated_at, selectedCard?.labServiceLinks]);
 
-  useEffect(() => {
-    if (!selectedCardRef.current) setIsVehicleCategoryModalOpen(false);
-  }, [selectedCard?.id]);
-
   /** Atualiza os detalhes da OS no modal (serviceOrderDetail) sem fechar o modal nem mostrar loading. */
   const refreshModalDetails = React.useCallback(async () => {
     if (!selectedCard) return;
@@ -2482,12 +2739,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [selectedCard?.id]);
 
   /**
-   * Carga inicial ao focar a aba + refresh periódico (15s) como no comportamento original,
-   * além do Supabase Realtime em `usePatioBoardLiveSync`.
+   * Primeira visita: carga com loading. Revisitas (keep-alive): refresh silencioso
+   * para não “recarregar a página” toda vez que volta na aba.
    */
   useEffect(() => {
     if (!isAppTabActive) return;
-    fetchDataRef.current(false);
+    const softRefresh = hasLoadedBoardOnceRef.current;
+    fetchDataRef.current(softRefresh);
     const intervalId = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       fetchDataRef.current(true);
@@ -2624,6 +2882,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const handleOpenHistoryCardDetails = (card: TrelloCard) => {
     setSelectedHistoryCard(card);
+    setUnarchiveError(null);
     setVehicleObservationsEditValue('');
     setLastSavedVehicleObservations('');
     setIsEditingVehicleObservations(false);
@@ -2707,6 +2966,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setSelectedHistoryCard(null);
       setHistoryServiceOrderDetail(null);
       setHistorySavedBudgets([]);
+      markProgrammaticHistoryBack();
       setIsHistoryOpen(false);
       if (onUseCustomerData) onUseCustomerData(customerData);
     } catch (e: any) {
@@ -2718,6 +2978,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
     e?.stopPropagation();
     setCardInTransition(card);
   };
+
+  useLayoutEffect(() => {
+    if (!cardInTransition || !patioPortalsVisible) return;
+    const scrollCurrentStageIntoView = () => {
+      const el = moveModalCurrentStageRef.current;
+      if (!el) return;
+      el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+    };
+    const raf1 = window.requestAnimationFrame(() => {
+      scrollCurrentStageIntoView();
+      window.requestAnimationFrame(scrollCurrentStageIntoView);
+    });
+    const t = window.setTimeout(scrollCurrentStageIntoView, 80);
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.clearTimeout(t);
+    };
+  }, [cardInTransition?.id, cardInTransition?.idList, patioPortalsVisible]);
 
   const beginBudgetApprovalGateForCard = async (card: BoardCard) => {
     if (!canApproveBudgetItemsEffective) {
@@ -2797,6 +3075,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const sel = selectedCardRef.current;
       if (sel?.id === card.id) {
         setSelectedCard(updatedCard);
+        setServiceOrderDetail((prev) =>
+          prev?.id === card.id
+            ? { ...prev, status: newListId as ServiceOrderStatus, updated_at: new Date().toISOString() }
+            : prev
+        );
       }
     } catch (err: any) {
       console.error('Failed to move', err);
@@ -2812,24 +3095,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!cardInTransition || !newListId) return;
     await performStageChangeForCard(cardInTransition, newListId);
     setCardInTransition(null);
-  };
-
-  const handleSelectVehicleCategory = async (category: string) => {
-    if (!selectedCard) return;
-    setSavingVehicleCategory(true);
-    try {
-      await updateServiceOrderVehicleCategory(selectedCard.id, category, actorOptions);
-      const next = { ...selectedCard, vehicleCategory: category };
-      setSelectedCard(next);
-      setCards((prev) => prev.map((c) => (c.id === selectedCard.id ? next : c)));
-      setServiceOrderDetail((prev) => (prev ? { ...prev, vehicle_category: category } : null));
-      setIsVehicleCategoryModalOpen(false);
-      await refreshModalDetails();
-    } catch (err: any) {
-      alert(err?.message ?? "Erro ao salvar categoria.");
-    } finally {
-      setSavingVehicleCategory(false);
-    }
   };
 
   const handleRemoveGarantia = async () => {
@@ -2979,7 +3244,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     try {
       await deleteServiceOrderWithPassword(selectedCard.id, deleteVehiclePassword.trim());
       setCards((prev) => prev.filter((c) => c.id !== selectedCard.id));
-      setSelectedCard(null);
+      closePatioPrimaryOverlaysImmediate();
       setIsDeleteVehicleOpen(false);
       setDeleteVehiclePassword('');
       setDeleteVehiclePasswordReadonly(true);
@@ -3024,11 +3289,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     } catch {
       setChecklistState((prev) => ({ ...prev, [templateItemId]: currentState }));
     }
-  };
-
-  const closeChecklistModal = () => {
-    setActiveChecklistCardId(null);
-    setActiveChecklistTemplateId(null);
   };
 
   const handleSendComment = async () => {
@@ -3235,6 +3495,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   useEffect(() => {
+    if (!isPatioPcModal) return;
     if (!isDadosFichaExpanded || !focusCustomerNameAfterExpand || !can('canEditFicha')) return;
     const id = window.setTimeout(() => {
       customerNameInputRef.current?.focus();
@@ -3242,7 +3503,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setFocusCustomerNameAfterExpand(false);
     }, 80);
     return () => window.clearTimeout(id);
-  }, [isDadosFichaExpanded, focusCustomerNameAfterExpand, can]);
+  }, [isPatioPcModal, isDadosFichaExpanded, focusCustomerNameAfterExpand, can]);
 
   const persistReferenceLinks = async (links: VehicleReferenceLink[]) => {
     if (!selectedCard || !serviceOrderDetail) return;
@@ -3512,6 +3773,41 @@ export const PatioView: React.FC<PatioViewProps> = ({
     [actorOptions, selectedCard]
   );
 
+  const copyPatioAttachmentsToLabOrder = async (
+    laboratoryOrderId: string,
+    paths: string[],
+    sourceOrderId?: string
+  ): Promise<boolean> => {
+    const fromId = sourceOrderId || selectedCard?.id;
+    if (!fromId || paths.length === 0) return false;
+    setCopyingPatioOriginAttachments(true);
+    try {
+      const result = await copyServiceOrderPhotosFrom(laboratoryOrderId, fromId, paths);
+      if (result.copied.length === 0) {
+        alert('Não foi possível copiar os arquivos selecionados.');
+        return false;
+      }
+      if (result.failed.length > 0) {
+        alert(
+          `${result.copied.length} arquivo${result.copied.length === 1 ? '' : 's'} copiado${result.copied.length === 1 ? '' : 's'}. ${result.failed.length} falharam.`
+        );
+      }
+      if (isModuleMode && selectedCard?.id === laboratoryOrderId) {
+        const photos = await getServiceOrderPhotos(selectedCard.id);
+        setCardDetails((prev) => ({
+          actions: prev?.actions ?? [],
+          attachments: mapPhotosToAttachments(photos),
+        }));
+      }
+      return true;
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Não foi possível copiar os anexos para o laboratório.');
+      return false;
+    } finally {
+      setCopyingPatioOriginAttachments(false);
+    }
+  };
+
   const handleCreateLabServiceFromVehicle = async (overrideServiceLabel?: string) => {
     if (!selectedCard || !serviceOrderDetail?.customers?.id) return;
     if (serviceOrderDetail.customers.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID) return;
@@ -3528,7 +3824,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
 
     if (!newLabProductKind) {
-      alert("Selecione o tipo de produto ou marque a opção para digitar o nome manualmente.");
+      alert("Selecione o item ou marque a opção para digitar o nome manualmente.");
       return;
     }
     if (newLabProductKind === OTHER_MODULE_KIND_ID && !newLabProductOther.trim()) {
@@ -3582,6 +3878,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
         },
       ];
       await handleSaveLabServiceLinks(next);
+      if (selectedPatioOriginAttachmentPaths.length > 0) {
+        await copyPatioAttachmentsToLabOrder(
+          created.id,
+          selectedPatioOriginAttachmentPaths,
+          selectedCard.id
+        );
+      }
       setNewLabManualLabel("");
       setNewLabBudgetRef("");
       setNewLabServiceDetails("");
@@ -3603,7 +3906,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
     const kind = newLabProductKind || loadLastLabProductKind();
     if (!kind) {
-      alert('Selecione o tipo de produto antes do envio rápido.');
+      alert('Selecione o item antes do envio rápido.');
       return;
     }
     if (!newLabProductKind) setNewLabProductKind(kind as ModuleKind);
@@ -3634,9 +3937,99 @@ export const PatioView: React.FC<PatioViewProps> = ({
     [selectedCard, commentAuthorName]
   );
 
+  const handleLabEvaluationDelete = useCallback(async () => {
+    if (!selectedCard) return;
+    const updated = await deleteServiceOrderLabEvaluation(selectedCard.id);
+    setServiceOrderDetail(updated);
+    const newStatus = updated.status as ServiceOrderStatus;
+    setSelectedCard((prev) => (prev ? { ...prev, idList: newStatus } : prev));
+    setCards((prev) =>
+      prev.map((c) => (c.id === selectedCard.id ? { ...c, idList: newStatus } : c))
+    );
+    window.dispatchEvent(new CustomEvent('rda-patio-budgets-changed'));
+    void fetchDataRef.current(true);
+  }, [selectedCard]);
+
+  const handleDeleteExternalRepair = async () => {
+    if (!selectedCard || !serviceOrderDetail) return;
+    if (loadingDetails || serviceOrderDetail.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID) return;
+    const saved =
+      (serviceOrderDetail as ServiceOrderDetail & { external_repair?: ExternalRepair | null })
+        .external_repair ??
+      selectedCard.externalRepair ??
+      null;
+    if (!hasExternalRepairData(saved)) {
+      setExternalRepairDraft(EMPTY_EXTERNAL_REPAIR_DRAFT);
+      setIsExternalRepairEditing(false);
+      return;
+    }
+    if (
+      !window.confirm(
+        'Excluir os dados de conserto externo deste produto?\n\nEssa ação remove fornecedor, serviço e demais informações registradas nesta seção.'
+      )
+    ) {
+      return;
+    }
+    setExternalRepairSaving(true);
+    try {
+      await updateServiceOrderExternalRepair(selectedCard.id, null);
+      const wasExternal = isExternalRepairStatus(serviceOrderDetail.status ?? selectedCard.idList);
+      if (wasExternal) {
+        await updateServiceOrderStatus(selectedCard.id, 'AVALIACAO_TECNICA', actorOptions);
+      }
+      const updated = await getServiceOrderById(selectedCard.id);
+      // Garante que o estado local não reutilize fallbacks de produto/pátio.
+      setServiceOrderDetail({
+        ...updated,
+        external_repair: null,
+      } as ServiceOrderDetail);
+      setExternalRepairDraft(EMPTY_EXTERNAL_REPAIR_DRAFT);
+      setIsExternalRepairEditing(false);
+      const newStatus = (updated.status ?? 'AVALIACAO_TECNICA') as ServiceOrderStatus;
+      const updatedCard = {
+        ...selectedCard,
+        externalRepair: null,
+        idList: newStatus,
+        dateLastActivity: updated.updated_at,
+      };
+      setSelectedCard(updatedCard);
+      setCards((prev) => prev.map((c) => (c.id === selectedCard.id ? updatedCard : c)));
+      setExternalRepairCards((prev) => prev.filter((c) => c.id !== selectedCard.id));
+      void fetchDataRef.current(true);
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao excluir conserto externo.');
+    } finally {
+      setExternalRepairSaving(false);
+    }
+  };
+
+  const startExternalRepairEditing = () => {
+    if (!serviceOrderDetail) return;
+    setExternalRepairDraft(
+      buildExternalRepairDraft(
+        serviceOrderDetail as ServiceOrderDetail & {
+          external_repair?: ExternalRepair | null;
+        },
+        selectedCard?.externalRepair ?? null
+      )
+    );
+    setIsExternalRepairEditing(true);
+  };
+
   const handleRemoveLabServiceLink = async (linkId: string) => {
+    const link = labServiceLinksDraft.find((l) => l.id === linkId);
+    if (!link) return;
+    const label = link.serviceLabel?.trim() || "este serviço";
+    if (
+      !window.confirm(
+        `Remover "${label}" e excluir também a OS/card correspondente no laboratório?\n\nEssa ação arquiva a ordem do laboratório. Não será preciso excluir nos dois lugares.`
+      )
+    ) {
+      return;
+    }
     const next = labServiceLinksDraft.filter((l) => l.id !== linkId);
     await handleSaveLabServiceLinks(next);
+    void fetchDataRef.current(true);
   };
 
   // --- Budget Functions ---
@@ -3803,11 +4196,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [isModuleMode, serviceOrderDetail, selectedCard, cardDetails, lists]);
 
   const addServiceRow = () => {
-    setBudgetServices([...budgetServices, { id: Date.now().toString(), description: '', laborHours: null }]);
+    const newId = Date.now().toString();
+    scrollBudgetServicesAddRef.current = true;
+    pendingFocusServiceIdRef.current = newId;
+    setSuggestionsForServiceId(null);
+    setBudgetServices((prev) => [...prev, { id: newId, description: '', laborHours: null }]);
   };
 
   const addPartRow = () => {
-    setBudgetParts([...budgetParts, { id: Date.now().toString(), description: '', quantity: '1' }]);
+    const newId = Date.now().toString();
+    scrollBudgetPartsAddRef.current = true;
+    pendingFocusPartIdRef.current = newId;
+    setSuggestionsForPartId(null);
+    setBudgetParts((prev) => [...prev, { id: newId, description: '', quantity: '1' }]);
   };
 
   const removeServiceRow = (id: string) => {
@@ -3818,19 +4219,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setBudgetParts(budgetParts.filter(i => i.id !== id));
   };
 
-  const moveServiceRow = (id: string, direction: -1 | 1) => {
+  const moveServiceRowToIndex = (id: string, toIndex: number) => {
     setBudgetServices((prev) => {
       const from = prev.findIndex((item) => item.id === id);
       if (from < 0) return prev;
-      return moveItemInList(prev, from, from + direction);
+      return moveItemInList(prev, from, toIndex);
     });
   };
 
-  const movePartRow = (id: string, direction: -1 | 1) => {
+  const movePartRowToIndex = (id: string, toIndex: number) => {
     setBudgetParts((prev) => {
       const from = prev.findIndex((item) => item.id === id);
       if (from < 0) return prev;
-      return moveItemInList(prev, from, from + direction);
+      return moveItemInList(prev, from, toIndex);
     });
   };
 
@@ -3878,6 +4279,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const addServiceFromList = (svc: WorkshopService) => {
+    scrollBudgetServicesAddRef.current = true;
     setBudgetServices((prev) => [
       ...prev,
       { id: Date.now().toString(), description: svc.name, laborHours: svc.labor_hours ?? null },
@@ -3888,13 +4290,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const getServiceSuggestions = (description: string) => {
     const q = normalizeText(description.trim());
     if (!q) return [];
-    return workshopServices.filter(s => normalizeText(s.name).includes(q)).slice(0, 6);
+    return workshopServices.filter(s => normalizeText(s.name).includes(q)).slice(0, 12);
   };
 
   const getPartSuggestions = (description: string) => {
     const q = normalizeText(description.trim());
     if (!q) return [];
-    return workshopParts.filter(p => normalizeText(p.name).includes(q)).slice(0, 6);
+    return workshopParts.filter(p => normalizeText(p.name).includes(q)).slice(0, 12);
   };
 
   const budgetPartQuickViewCatalogNumber = useMemo(() => {
@@ -3914,7 +4316,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
     };
     update();
     window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
   }, [suggestionsForServiceId, budgetServices]);
 
   useEffect(() => {
@@ -3934,6 +4340,50 @@ export const PatioView: React.FC<PatioViewProps> = ({
       window.removeEventListener('scroll', update, true);
     };
   }, [suggestionsForPartId, budgetParts]);
+
+  useEffect(() => {
+    if (!scrollBudgetServicesAddRef.current) return;
+    scrollBudgetServicesAddRef.current = false;
+    const focusId = pendingFocusServiceIdRef.current;
+    pendingFocusServiceIdRef.current = null;
+    if (focusId) setFocusServiceId(focusId);
+    const timer = window.setTimeout(() => {
+      budgetServicesAddRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [budgetServices.length]);
+
+  useEffect(() => {
+    if (!scrollBudgetPartsAddRef.current) return;
+    scrollBudgetPartsAddRef.current = false;
+    const focusId = pendingFocusPartIdRef.current;
+    pendingFocusPartIdRef.current = null;
+    if (focusId) setFocusPartId(focusId);
+    const timer = window.setTimeout(() => {
+      budgetPartsAddRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [budgetParts.length]);
+
+  useEffect(() => {
+    if (!focusServiceId) return;
+    const timer = window.setTimeout(() => setFocusServiceId(null), 400);
+    return () => window.clearTimeout(timer);
+  }, [focusServiceId]);
+
+  useLayoutEffect(() => {
+    if (!focusPartId) return;
+    const el = document.querySelector(
+      `[data-budget-part-id="${focusPartId}"]`
+    ) as HTMLInputElement | null;
+    el?.focus();
+  }, [focusPartId]);
+
+  useEffect(() => {
+    if (!focusPartId) return;
+    const timer = window.setTimeout(() => setFocusPartId(null), 400);
+    return () => window.clearTimeout(timer);
+  }, [focusPartId]);
 
   const keepServiceSuggestionsOpen = () => {
     if (suggestionCloseTimerRef.current) {
@@ -4030,13 +4480,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const updated = await updateServiceOrderBudget(selectedCard.id, editingBudget.id, payload, actorOptions);
         setSavedBudgets(prev => prev.map(b => b.id === editingBudget.id ? updated : b));
         setConferenceBudgetId(editingBudget.id);
-        closeBudgetModal();
+        requestCloseBudgetModal();
         window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
       } else {
         const budget = await createServiceOrderBudget(selectedCard.id, payload, actorOptions);
         setSavedBudgets(prev => [budget, ...prev]);
         setConferenceBudgetId(budget.id);
-        closeBudgetModal();
+        requestCloseBudgetModal();
         window.dispatchEvent(new CustomEvent("rda-patio-budgets-changed"));
       }
     } catch (err: any) {
@@ -4059,6 +4509,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const handleUnarchive = async (card: BoardCard) => {
+    if (unarchivingId) return;
+    setUnarchiveError(null);
+    setUnarchivingId(card.id);
     try {
       await updateServiceOrderStatus(
         card.id,
@@ -4066,11 +4519,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
         actorOptions
       );
       setSelectedHistoryCard(null);
+      setHistoryServiceOrderDetail(null);
+      setHistorySavedBudgets([]);
       setArchivedCards((prev) => prev.filter((c) => c.id !== card.id));
-      fetchData(true);
-      if (historySearchPlate.trim()) handleSearchHistory(historySearchPlate);
+      setRecentArchivedCards((prev) => prev.filter((c) => c.id !== card.id));
+      await fetchData(true);
+      if (historySearchPlate.trim()) {
+        void handleSearchHistory(historySearchPlate);
+      }
     } catch (e: any) {
-      alert(e?.message ?? "Erro ao desarquivar.");
+      setUnarchiveError(e?.message ?? 'Erro ao desarquivar.');
+    } finally {
+      setUnarchivingId(null);
     }
   };
 
@@ -4617,6 +5077,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
         aria-busy="true"
         aria-label="Carregando"
       >
+        {onClosePage && !desktopShell ? (
+          <button
+            type="button"
+            onClick={onClosePage}
+            className="absolute left-3 top-[max(0.65rem,env(safe-area-inset-top))] z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200/75 bg-white/85 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:bg-zinc-900/90 sm:left-4 sm:h-10 sm:w-10"
+            aria-label="Fechar"
+            title="Fechar"
+          >
+            <X className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.25} />
+          </button>
+        ) : null}
         <div
           className="flex h-[4.5rem] w-[4.5rem] items-center justify-center overflow-hidden rounded-[1.15rem] border border-zinc-200/90 bg-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-white/[0.1] dark:bg-zinc-900/60 dark:shadow-none"
           aria-hidden
@@ -4671,6 +5142,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
       : 'veículos';
   const activeBoardCountContext = isModuleMode ? 'no laboratório' : 'no pátio';
 
+  const patioCompactActionBtn = patioHeaderActionsCentered
+    ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-zinc-200/90 bg-white px-3 py-2 text-[13px] font-semibold text-zinc-800 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.98] dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-100 dark:hover:bg-zinc-900'
+    : 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[13px] font-semibold text-zinc-800 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.98] dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:px-3.5';
+  const patioCompactCreateBtn = isModuleMode
+    ? patioHeaderActionsCentered
+      ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#6d28d9]/80 bg-[#A855F7] px-4 py-2 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(168,85,247,0.55)] transition-all hover:brightness-110 active:scale-[0.98]'
+      : 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#6d28d9]/80 bg-[#A855F7] px-3.5 py-2.5 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(168,85,247,0.55)] transition-all hover:brightness-110 active:scale-[0.98] sm:px-4'
+    : patioHeaderActionsCentered
+      ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#0058c7]/70 bg-[#007AFF] px-4 py-2 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(0,122,255,0.5)] transition-all hover:brightness-110 active:scale-[0.98]'
+      : 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#0058c7]/70 bg-[#007AFF] px-3.5 py-2.5 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(0,122,255,0.5)] transition-all hover:brightness-110 active:scale-[0.98] sm:px-4';
+
   const patioActiveCountBadge = (
     <span
       className="patio-active-count-badge inline-flex items-center gap-2 rounded-full border border-zinc-200/80 bg-white/90 px-3.5 py-1.5 text-[13px] font-semibold text-zinc-800 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.08)] tabular-nums dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-100 dark:shadow-none"
@@ -4680,11 +5162,218 @@ export const PatioView: React.FC<PatioViewProps> = ({
       <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-[#007AFF]/12 px-1.5 text-[12px] font-bold leading-none text-[#007AFF] dark:bg-[#0A84FF]/20 dark:text-[#7ab8ff]">
         {activeBoardCount}
       </span>
-      <span className="whitespace-nowrap">
-        {activeBoardCountUnit} {activeBoardCountContext}
-      </span>
+      <span className="whitespace-nowrap">{activeBoardCountUnit}</span>
     </span>
   );
+
+  /** Contagem discreta ao lado do título no tablet (ex.: “17 veículos”). */
+  const patioTabletCountChip = (
+    <span
+      className="inline-flex shrink-0 items-center rounded-md border border-[#007AFF]/35 bg-[#007AFF]/[0.07] px-2 py-0.5 text-[12px] font-semibold tabular-nums tracking-tight text-[#007AFF] dark:border-[#64B5FF]/40 dark:bg-[#0A84FF]/15 dark:text-[#8cc8ff]"
+      aria-live="polite"
+      aria-label={`${activeBoardCount} ${activeBoardCountUnit} ${activeBoardCountContext}`}
+    >
+      {activeBoardCount} {activeBoardCountUnit}
+    </span>
+  );
+
+  const patioHeaderToolsMenu =
+    isPatioHeaderToolsOpen && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={patioHeaderToolsPopoverRef}
+            role="menu"
+            style={patioToolsPopoverStyle}
+            className="max-h-[min(70vh,calc(100dvh-5rem))] overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200/90 bg-white py-2 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
+          >
+            {isModuleMode && (
+              <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Bancada</p>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                  onClick={() => {
+                    setBenchFullscreenOpen(true);
+                    setIsPatioHeaderToolsOpen(false);
+                  }}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet-200/80 bg-violet-50 dark:border-violet-500/30 dark:bg-violet-950/40">
+                    <LayoutGrid className="h-5 w-5 text-[#A855F7] dark:text-violet-300" strokeWidth={2.2} aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-semibold leading-snug">Visualizar bancada (tela cheia)</span>
+                    <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                      Abre o balcão ocupando toda a tela do laboratório
+                    </span>
+                  </span>
+                </button>
+              </div>
+            )}
+            <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Tamanho dos cartões</p>
+              <button
+                type="button"
+                role="menuitem"
+                aria-pressed={boardPanoramic}
+                className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
+                  boardPanoramic ? 'text-[#007AFF] dark:text-[#64B5FF]' : 'text-zinc-800 dark:text-zinc-100'
+                }`}
+                onClick={() => {
+                  setBoardPanoramic((prev) => {
+                    const next = !prev;
+                    try {
+                      localStorage.setItem(boardPanoramicStorageKey, next ? '1' : '0');
+                    } catch (_) {}
+                    return next;
+                  });
+                  setIsPatioHeaderToolsOpen(false);
+                }}
+              >
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
+                    boardPanoramic
+                      ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
+                      : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
+                  }`}
+                >
+                  {boardPanoramic ? (
+                    <ZoomIn className="h-5 w-5 drop-shadow-sm" strokeWidth={2.2} aria-hidden />
+                  ) : (
+                    <ZoomOut className="h-5 w-5 drop-shadow-sm" strokeWidth={2.2} aria-hidden />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-semibold leading-snug">
+                    {boardPanoramic ? 'Ampliar cartões' : 'Encolher cartões'}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                    {boardPanoramic
+                      ? 'Voltar ao tamanho padrão da grade'
+                      : 'Modo compacto: 3 colunas em retrato; em paisagem larga, até 5 por fileira'}
+                  </span>
+                </span>
+              </button>
+            </div>
+            <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Visualização do quadro</p>
+              <div className="flex flex-col gap-1">
+                {(
+                  [
+                    { mode: 'standard' as const, icon: LayoutGrid, title: 'Padrão', desc: 'Grade na ordem das etapas do fluxo' },
+                    { mode: 'trello' as const, icon: Columns3, title: 'Estilo Trello', desc: 'Colunas por etapa — arraste o cartão para mudar a fase' },
+                    { mode: 'by_mechanic' as const, icon: Users, title: 'Por mecânico', desc: 'Colunas por técnico atribuído' },
+                    { mode: 'recent_first' as const, icon: SortDesc, title: 'Recentes primeiro', desc: 'Mesma grade, OS alteradas recentemente no topo' },
+                  ] as const
+                ).map(({ mode, icon: Icon, title, desc }) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="menuitem"
+                    className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
+                      boardLayoutMode === mode ? 'text-[#007AFF] dark:text-[#64B5FF]' : 'text-zinc-800 dark:text-zinc-100'
+                    }`}
+                    onClick={() => {
+                      setBoardLayoutModePersist(mode);
+                      setIsPatioHeaderToolsOpen(false);
+                    }}
+                  >
+                    <span
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
+                        boardLayoutMode === mode
+                          ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
+                          : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5 drop-shadow-sm" strokeWidth={2.1} aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold leading-snug">{title}</span>
+                      <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">{desc}</span>
+                    </span>
+                    {boardLayoutMode === mode ? (
+                      <Check className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} aria-hidden />
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {!isModuleMode ? (
+              <div className="border-b border-zinc-100 px-3 py-2 dark:border-white/[0.07]">
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Buscar placa</p>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                  onClick={() => {
+                    setPatioPlateSearchMessage(null);
+                    setPatioPlateSearchInPatioCards([]);
+                    setPatioPlateSearchApiInfo(null);
+                    setIsPatioPlateSearchModalOpen(true);
+                    setIsPatioHeaderToolsOpen(false);
+                  }}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
+                    <Search className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-semibold leading-snug">Consulta completa por placa</span>
+                    <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                      Inclui dados PlacaFipe se o veículo não estiver no pátio
+                    </span>
+                  </span>
+                </button>
+              </div>
+            ) : (
+              <div className="border-b border-zinc-100 px-3 py-2 dark:border-white/[0.07]">
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Atualizar lista</p>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                  onClick={() => {
+                    void fetchData(false);
+                    setIsPatioHeaderToolsOpen(false);
+                  }}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
+                    <RefreshCw className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-semibold leading-snug">Recarregar laboratório</span>
+                    <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                      Buscar novamente os módulos na oficina
+                    </span>
+                  </span>
+                </button>
+              </div>
+            )}
+            <div className="px-3 pt-2">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Histórico</p>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                onClick={() => {
+                  setIsHistoryOpen(true);
+                  setIsPatioHeaderToolsOpen(false);
+                }}
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
+                  <History className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-semibold leading-snug">OS arquivadas</span>
+                  <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                    Consultar entregas e veículos já finalizados
+                  </span>
+                </span>
+              </button>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
 
   return (
     <div className="relative min-h-full w-full animate-in pb-32 fade-in duration-500">
@@ -4694,393 +5383,258 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <div className="absolute bottom-1/4 left-0 h-[220px] w-[320px] -translate-x-1/3 rounded-full bg-[#007AFF]/[0.04] blur-[80px] dark:bg-[#007AFF]/[0.06]" />
       </div>
 
-      <div className="relative z-0 mx-auto max-w-[100rem] overflow-visible px-3 pt-2 sm:px-5 md:px-6 md:pt-3">
-        {/* Cabeçalho — mesmo padrão Recepção/Agenda: sem painel vidro em volta; ícone = tile da Home (Pátio / Laboratório) */}
-        <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-6 pb-0.5 sm:mb-8' : 'mb-6 sm:mb-8'}`}>
-          <div className={`w-full gap-y-4 md:gap-x-3 ${headerActionsOneLine ? 'flex flex-nowrap items-center md:justify-between' : 'grid grid-cols-1 items-center md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'}`}>
-            {desktopShell ? (
+      <div className="relative z-0 mx-auto max-w-[100rem] overflow-visible px-3 pt-0 sm:px-5 md:px-6 md:pt-1 lg:pt-2">
+        {/* Cabeçalho mobile/tablet: título + contagem + busca + ações; PC shell mantém badge compacto */}
+        <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-5 pb-0.5 sm:mb-6 lg:mb-8' : 'mb-3 sm:mb-4 md:mb-5 lg:mb-7'}`}>
+          {desktopShell ? (
+            <div
+              className={`w-full gap-y-4 md:gap-x-3 ${
+                headerActionsOneLine
+                  ? 'flex flex-nowrap items-center md:justify-between'
+                  : 'grid grid-cols-1 items-center md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'
+              }`}
+            >
               <div className="flex min-w-0 items-center md:justify-self-start">{patioActiveCountBadge}</div>
-            ) : (
-              <div className="app-view-page-chrome flex min-w-0 items-center gap-3 sm:gap-4 md:justify-self-start">
-                {isModuleMode ? (
-                  <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-                    <img src="/icons/laboratorio-ios.png" alt="" className="h-full w-full object-cover" />
-                  </IosAccentIconSquircle>
-                ) : (
-                  <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
-                    <img src="/icons/patio-ios.png" alt="" className="h-full w-full object-cover" />
-                  </IosAccentIconSquircle>
-                )}
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
-                      {isModuleMode ? 'Laboratório' : 'Pátio'}
-                    </h1>
-                    {patioActiveCountBadge}
+              <div className={`flex justify-center md:justify-self-center md:px-2 ${headerActionsOneLine ? 'hidden' : ''}`}>
+                <button
+                  type="button"
+                  onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                  className={patioCompactCreateBtn}
+                >
+                  <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
+                  <span>{isModuleMode ? 'Criar módulo' : 'Criar OS'}</span>
+                </button>
+              </div>
+              <div
+                className={
+                  headerActionsOneLine
+                    ? 'min-w-0 flex-1 overflow-x-auto overflow-y-visible pb-1.5 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]'
+                    : 'flex w-full min-w-0 flex-wrap items-center justify-end gap-2 overflow-visible md:w-auto md:justify-self-end'
+                }
+              >
+                <div
+                  className={
+                    headerActionsOneLine
+                      ? 'flex w-max min-w-full flex-nowrap items-center justify-end gap-1.5 py-1'
+                      : 'contents'
+                  }
+                >
+                  {headerActionsOneLine && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setBenchQueueModalOpen(true)}
+                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border border-violet-200/90 bg-violet-50/90 font-semibold text-violet-900 shadow-sm transition-all hover:bg-violet-100/90 active:scale-[0.98] dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100 ${headerPillSize}`}
+                      >
+                        <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
+                        <span className="tracking-tight">Fila da bancada</span>
+                        {benchQueueCount > 0 ? (
+                          <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
+                            {benchQueueCount}
+                          </span>
+                        ) : null}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExternalRepairModalOpen(true)}
+                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border border-purple-200/90 bg-purple-50/90 font-semibold text-purple-900 shadow-sm transition-all hover:bg-purple-100/90 active:scale-[0.98] dark:border-purple-500/35 dark:bg-purple-950/40 dark:text-purple-100 ${headerPillSize}`}
+                      >
+                        <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
+                        <span className="tracking-tight">Conserto externo</span>
+                        {externalRepairCards.length > 0 ? (
+                          <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
+                            {externalRepairCards.length}
+                          </span>
+                        ) : null}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleBenchPanelToggle}
+                        aria-expanded={benchPanelOpen}
+                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-white/80 font-semibold text-zinc-700 shadow-sm transition-all hover:border-[#A855F7]/40 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 ${headerPillSize}`}
+                      >
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
+                          strokeWidth={2.2}
+                          aria-hidden
+                        />
+                        <span className="tracking-tight">Bancada do laboratório</span>
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReminderSaveError(null);
+                      setIsRemindersOpen(true);
+                    }}
+                    className={`${patioCompactActionBtn} ${headerActionsOneLine ? headerPillSize : ''}`}
+                  >
+                    {remindersBadgeCount > 0 && (
+                      <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
+                        {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
+                      </span>
+                    )}
+                    <ReminderIcon className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                    <span>Lembretes</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsHistoryOpen(true)}
+                    className={`${patioCompactActionBtn} ${headerActionsOneLine ? headerPillSize : ''}`}
+                    title={
+                      isModuleMode
+                        ? 'Consultar histórico de módulos arquivados'
+                        : 'Consultar histórico de veículos arquivados'
+                    }
+                  >
+                    <History className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                    <span>Histórico</span>
+                  </button>
+                  <div className="shrink-0">
+                    <button
+                      type="button"
+                      ref={patioHeaderToolsTriggerRef}
+                      onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
+                      aria-expanded={isPatioHeaderToolsOpen}
+                      aria-haspopup="menu"
+                      aria-label="Mais opções"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
+                    >
+                      <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+                    </button>
+                    {patioHeaderToolsMenu}
                   </div>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                    {isModuleMode ? 'Módulos ativos no quadro' : 'Veículos ativos no quadro'}
-                  </p>
+                  {headerActionsOneLine ? (
+                    <button
+                      type="button"
+                      onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                      className={patioCompactCreateBtn}
+                    >
+                      <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
+                      <span>Criar módulo</span>
+                    </button>
+                  ) : null}
                 </div>
               </div>
-            )}
-
-            <div className={`flex justify-center portrait:hidden md:justify-self-center md:px-2 ${headerActionsOneLine ? 'hidden' : ''}`}>
-              <button
-                type="button"
-                onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
-                className={`relative inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-bold tracking-tight text-white ring-0 ring-offset-0 transition-all duration-200 hover:brightness-110 active:translate-y-0.5 active:shadow-[0_2px_0_0_rgba(0,0,0,0.15)] dark:text-white dark:ring-1 dark:ring-white/20 dark:ring-offset-1 dark:ring-offset-zinc-900 dark:hover:brightness-110 sm:min-h-[40px] sm:px-5 sm:py-2.5 sm:text-[14px] ${
-                  isModuleMode
-                    ? 'border border-[#6d28d9] bg-[#A855F7] shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_8px_28px_-6px_rgba(168,85,247,0.5),0_4px_16px_-4px_rgba(0,0,0,0.15)] hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_10px_32px_-4px_rgba(168,85,247,0.55)] dark:border-violet-300/45 dark:bg-[#A855F7] dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_8px_32px_-6px_rgba(167,139,250,0.48),0_4px_20px_-6px_rgba(0,0,0,0.45)]'
-                    : 'border border-[#0058c7] bg-[#007AFF] shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_8px_28px_-6px_rgba(0,122,255,0.45),0_4px_16px_-4px_rgba(0,0,0,0.15)] hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_10px_32px_-4px_rgba(0,122,255,0.5)] dark:border-[#0A84FF]/80 dark:bg-[#0A84FF] dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_8px_32px_-6px_rgba(10,132,255,0.4),0_4px_20px_-6px_rgba(0,0,0,0.45)]'
+            </div>
+          ) : (
+            <div className={`flex w-full flex-col ${patioHeaderActionsCentered ? 'gap-3.5' : 'gap-3.5 sm:gap-4'}`}>
+              <div
+                className={`app-view-page-chrome flex min-w-0 items-center gap-3 sm:gap-3.5 ${
+                  onClosePage ? '' : 'pl-[3.25rem] sm:pl-14'
                 }`}
               >
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white">
-                  <Plus className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden />
-                </span>
-                <span>{isModuleMode ? 'Criar módulo' : 'Criar veículo'}</span>
-              </button>
-            </div>
-
-            <div
-              className={
-                headerActionsOneLine
-                  ? 'min-w-0 flex-1 overflow-x-auto overflow-y-visible pb-1.5 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]'
-                  : 'flex w-full min-w-0 flex-wrap items-center justify-center gap-2 overflow-visible portrait:justify-end md:w-auto md:justify-self-end md:justify-end'
-              }
-            >
-            <div
-              className={
-                headerActionsOneLine
-                  ? 'flex w-max min-w-full flex-nowrap items-center justify-end gap-1.5 py-1'
-                  : 'contents'
-              }
-            >
-            {headerActionsOneLine && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setBenchQueueModalOpen(true)}
-                  className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-violet-200/90 bg-violet-50/90 font-semibold text-violet-900 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-violet-400/60 hover:bg-violet-100/90 active:scale-[0.98] dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:border-violet-400/50 ${headerPillSize}`}
-                >
-                  <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                  <span className="tracking-tight">Fila da bancada</span>
-                  {benchQueueCount > 0 ? (
-                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
-                      {benchQueueCount}
-                    </span>
-                  ) : null}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setExternalRepairModalOpen(true)}
-                  className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-purple-200/90 bg-purple-50/90 font-semibold text-purple-900 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-purple-400/60 hover:bg-purple-100/90 active:scale-[0.98] dark:border-purple-500/35 dark:bg-purple-950/40 dark:text-purple-100 dark:hover:border-purple-400/50 ${headerPillSize}`}
-                >
-                  <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                  <span className="tracking-tight">Conserto externo</span>
-                  {externalRepairCards.length > 0 ? (
-                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
-                      {externalRepairCards.length}
-                    </span>
-                  ) : null}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleBenchPanelToggle}
-                  aria-expanded={benchPanelOpen}
-                  className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/80 font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#A855F7]/40 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white ${headerPillSize}`}
-                >
-                  <ChevronDown
-                    className={`h-4 w-4 shrink-0 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
-                    strokeWidth={2.2}
-                    aria-hidden
+                {onClosePage ? (
+                  <button
+                    type="button"
+                    onClick={onClosePage}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/75 bg-white/85 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:bg-zinc-900/90 sm:h-10 sm:w-10"
+                    aria-label="Fechar"
+                    title="Fechar"
+                  >
+                    <X className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.25} />
+                  </button>
+                ) : null}
+                <IosAccentIconSquircle variant="page" strokeWidth={2.2}>
+                  <img
+                    src={isModuleMode ? '/icons/laboratorio-ios.png' : '/icons/patio-ios.png'}
+                    alt=""
+                    className="h-full w-full object-cover"
                   />
-                  <span className="tracking-tight">Bancada do laboratório</span>
-                  {benchQueueCount > 0 ? (
-                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      {benchQueueCount}
-                    </span>
-                  ) : unassignedBenchCount > 0 ? (
-                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      {unassignedBenchCount}
-                    </span>
-                  ) : null}
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setReminderSaveError(null);
-                setIsRemindersOpen(true);
-              }}
-              className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/80 font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white ${headerPillSize}`}
-            >
-              {remindersBadgeCount > 0 && (
-                <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1.5 text-[11px] font-bold leading-none text-white shadow-sm dark:border-zinc-900">
-                  {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
-                </span>
-              )}
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/15 text-[#007AFF]">
-                <ReminderIcon className="h-3.5 w-3.5" strokeWidth={2} />
-              </span>
-              <span className="tracking-tight">Lembretes</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsHistoryOpen(true)}
-              className={`relative inline-flex shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/80 font-semibold text-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/30 hover:text-zinc-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:shadow-[0_8px_24px_rgba(0,0,0,0.5)] dark:hover:border-white/20 dark:hover:text-white ${headerPillSize}`}
-              title={
-                isModuleMode
-                  ? 'Consultar histórico de módulos arquivados'
-                  : 'Consultar histórico de veículos arquivados'
-              }
-            >
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#007AFF]/15 text-[#007AFF]">
-                <History className="h-3.5 w-3.5" strokeWidth={2} />
-              </span>
-              <span className="tracking-tight">
-                {isModuleMode ? 'Histórico de módulos' : 'Histórico de veículos'}
-              </span>
-            </button>
-            <div className="shrink-0">
-              <button
-                type="button"
-                ref={patioHeaderToolsTriggerRef}
-                onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
-                aria-expanded={isPatioHeaderToolsOpen}
-                aria-haspopup="menu"
-                aria-label="Mais opções: visualização do quadro, tamanho dos cartões, busca e histórico"
-                className={`flex shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-600 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/45 dark:text-zinc-300 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] dark:hover:text-[#64B5FF] ${headerActionsOneLine ? 'h-10 w-10' : 'h-12 w-12'}`}
-              >
-                <MoreHorizontal className={headerActionsOneLine ? 'h-5 w-5' : 'h-6 w-6'} strokeWidth={2.2} aria-hidden />
-              </button>
-              {isPatioHeaderToolsOpen && typeof document !== 'undefined'
-                ? createPortal(
-                <div
-                  ref={patioHeaderToolsPopoverRef}
-                  role="menu"
-                  style={patioToolsPopoverStyle}
-                  className="max-h-[min(70vh,calc(100dvh-5rem))] overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200/90 bg-white py-2 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
-                >
-                  {isModuleMode && (
-                    <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
-                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Bancada</p>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
-                        onClick={() => {
-                          setBenchFullscreenOpen(true);
-                          setIsPatioHeaderToolsOpen(false);
-                        }}
+                </IosAccentIconSquircle>
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-nowrap items-center gap-x-2.5">
+                    <h1 className="shrink-0 text-[24px] font-semibold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
+                      {isModuleMode ? 'Laboratório' : 'Pátio'}
+                    </h1>
+                    {patioHeaderActionsCentered || viewportWidth >= 768 ? (
+                      patioTabletCountChip
+                    ) : (
+                      <p
+                        className="min-w-0 truncate text-[13px] font-medium leading-none tabular-nums text-zinc-500 dark:text-zinc-400 sm:text-[14px]"
+                        aria-live="polite"
                       >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet-200/80 bg-violet-50 dark:border-violet-500/30 dark:bg-violet-950/40">
-                          <LayoutGrid className="h-5 w-5 text-[#A855F7] dark:text-violet-300" strokeWidth={2.2} aria-hidden />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[14px] font-semibold leading-snug">Visualizar bancada (tela cheia)</span>
-                          <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                            Abre o balcão ocupando toda a tela do laboratório
-                          </span>
-                        </span>
-                      </button>
-                    </div>
-                  )}
-                  <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
-                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Tamanho dos cartões</p>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      aria-pressed={boardPanoramic}
-                      className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
-                        boardPanoramic ? 'text-[#007AFF] dark:text-[#64B5FF]' : 'text-zinc-800 dark:text-zinc-100'
-                      }`}
-                      onClick={() => {
-                        setBoardPanoramic((prev) => {
-                          const next = !prev;
-                          try {
-                            localStorage.setItem(boardPanoramicStorageKey, next ? '1' : '0');
-                          } catch (_) {}
-                          return next;
-                        });
-                        setIsPatioHeaderToolsOpen(false);
-                      }}
-                    >
-                      <span
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
-                          boardPanoramic
-                            ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
-                            : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
-                        }`}
-                      >
-                        {boardPanoramic ? (
-                          <ZoomIn className="h-5 w-5 drop-shadow-sm" strokeWidth={2.2} aria-hidden />
-                        ) : (
-                          <ZoomOut className="h-5 w-5 drop-shadow-sm" strokeWidth={2.2} aria-hidden />
-                        )}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[14px] font-semibold leading-snug">
-                          {boardPanoramic ? 'Ampliar cartões' : 'Encolher cartões'}
-                        </span>
-                        <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                          {boardPanoramic
-                            ? 'Voltar ao tamanho padrão da grade'
-                            : 'Modo compacto: 3 colunas em retrato; em paisagem larga, até 5 por fileira'}
-                        </span>
-                      </span>
-                    </button>
+                        {activeBoardCount} {activeBoardCountUnit} {activeBoardCountContext}
+                      </p>
+                    )}
                   </div>
-                  <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
-                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Visualização do quadro</p>
-                    <div className="flex flex-col gap-1">
-                      {(
-                        [
-                          { mode: 'standard' as const, icon: LayoutGrid, title: 'Padrão', desc: 'Grade na ordem das etapas do fluxo' },
-                          { mode: 'trello' as const, icon: Columns3, title: 'Estilo Trello', desc: 'Colunas por etapa — arraste o cartão para mudar a fase' },
-                          { mode: 'by_mechanic' as const, icon: Users, title: 'Por mecânico', desc: 'Colunas por técnico atribuído' },
-                          { mode: 'recent_first' as const, icon: SortDesc, title: 'Recentes primeiro', desc: 'Mesma grade, OS alteradas recentemente no topo' },
-                        ] as const
-                      ).map(({ mode, icon: Icon, title, desc }) => (
-                        <button
-                          key={mode}
-                          type="button"
-                          role="menuitem"
-                          className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
-                            boardLayoutMode === mode ? 'text-[#007AFF] dark:text-[#64B5FF]' : 'text-zinc-800 dark:text-zinc-100'
-                          }`}
-                          onClick={() => {
-                            setBoardLayoutModePersist(mode);
-                            setIsPatioHeaderToolsOpen(false);
-                          }}
-                        >
-                          <span
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
-                              boardLayoutMode === mode
-                                ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
-                                : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
-                            }`}
-                          >
-                            <Icon className="h-5 w-5 drop-shadow-sm" strokeWidth={2.1} aria-hidden />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-[14px] font-semibold leading-snug">{title}</span>
-                            <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">{desc}</span>
-                          </span>
-                          {boardLayoutMode === mode ? (
-                            <Check className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} aria-hidden />
-                          ) : null}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {!isModuleMode ? (
-                    <div className="border-b border-zinc-100 px-3 py-2 dark:border-white/[0.07]">
-                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Buscar placa</p>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
-                        onClick={() => {
-                          setPatioPlateSearchMessage(null);
-                          setPatioPlateSearchInPatioCards([]);
-                          setPatioPlateSearchApiInfo(null);
-                          setIsPatioPlateSearchModalOpen(true);
-                          setIsPatioHeaderToolsOpen(false);
-                        }}
-                      >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
-                          <Search className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[14px] font-semibold leading-snug">Buscar no pátio</span>
-                          <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                            Localizar veículo pela placa na lista atual
-                          </span>
-                        </span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="border-b border-zinc-100 px-3 py-2 dark:border-white/[0.07]">
-                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Atualizar lista</p>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
-                        onClick={() => {
-                          void fetchData(false);
-                          setIsPatioHeaderToolsOpen(false);
-                        }}
-                      >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
-                          <RefreshCw className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[14px] font-semibold leading-snug">Recarregar laboratório</span>
-                          <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                            Buscar novamente os módulos na oficina
-                          </span>
-                        </span>
-                      </button>
-                    </div>
-                  )}
-                  <div className="px-3 pt-2">
-                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Histórico</p>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
-                      onClick={() => {
-                        setIsHistoryOpen(true);
-                        setIsPatioHeaderToolsOpen(false);
-                      }}
-                    >
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
-                        <History className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[14px] font-semibold leading-snug">OS arquivadas</span>
-                        <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                          Consultar entregas e veículos já finalizados
-                        </span>
-                      </span>
-                    </button>
-                  </div>
-                </div>,
-                document.body
-              )
-                : null}
-            </div>
-            <div className="flex shrink-0 items-center">
-              {isAppTabActive ? (
-                <NotificationCenter
-                  theme="light"
-                  forTechnician={actorOptions?.actor === 'technician'}
-                  technicianSlug={actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug : undefined}
-                />
-              ) : null}
-            </div>
-            <div className={`shrink-0 ${headerActionsOneLine ? 'self-center' : 'hidden portrait:block'}`}>
-              <button
-                type="button"
-                onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
-                className={`relative inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-bold tracking-tight text-white ring-0 ring-offset-0 transition-all duration-200 hover:brightness-110 active:translate-y-px active:shadow-[0_2px_0_0_rgba(0,0,0,0.15)] dark:text-white dark:ring-1 dark:ring-white/20 dark:ring-offset-1 dark:ring-offset-zinc-900 dark:hover:brightness-110 sm:min-h-[40px] sm:px-5 sm:py-2.5 sm:text-[14px] ${
-                  isModuleMode
-                    ? 'border border-[#6d28d9] bg-[#A855F7] shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_8px_28px_-6px_rgba(168,85,247,0.5),0_4px_16px_-4px_rgba(0,0,0,0.15)] hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_10px_32px_-4px_rgba(168,85,247,0.55)] dark:border-violet-300/45 dark:bg-[#A855F7] dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_8px_32px_-6px_rgba(167,139,250,0.48),0_4px_20px_-6px_rgba(0,0,0,0.45)]'
-                    : 'border border-[#0058c7] bg-[#007AFF] shadow-[0_3px_0_0_rgba(0,0,0,0.12),0_8px_28px_-6px_rgba(0,122,255,0.45),0_4px_16px_-4px_rgba(0,0,0,0.15)] hover:shadow-[0_2px_0_0_rgba(0,0,0,0.1),0_10px_32px_-4px_rgba(0,122,255,0.5)] dark:border-[#0A84FF]/80 dark:bg-[#0A84FF] dark:shadow-[0_3px_0_0_rgba(0,0,0,0.35),0_8px_32px_-6px_rgba(10,132,255,0.4),0_4px_20px_-6px_rgba(0,0,0,0.45)]'
+                </div>
+              </div>
+
+              {/* Lembretes, Histórico, Criar OS, ⋯ e Notificações — sempre na mesma linha */}
+              <div
+                className={`flex w-full flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:gap-2.5 ${
+                  patioHeaderActionsCentered || viewportWidth >= 768 ? 'justify-center' : ''
                 }`}
               >
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white">
-                  <Plus className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden />
-                </span>
-                <span>{isModuleMode ? 'Cadastrar produto' : 'Criar veículo'}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReminderSaveError(null);
+                    setIsRemindersOpen(true);
+                  }}
+                  className={patioCompactActionBtn}
+                >
+                  {remindersBadgeCount > 0 && (
+                    <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
+                      {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
+                    </span>
+                  )}
+                  <ReminderIcon className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                  <span>Lembretes</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryOpen(true)}
+                  className={patioCompactActionBtn}
+                  title={
+                    isModuleMode
+                      ? 'Consultar histórico de módulos arquivados'
+                      : 'Consultar histórico de veículos arquivados'
+                  }
+                >
+                  <History className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                  <span>Histórico</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                  className={patioCompactCreateBtn}
+                >
+                  <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
+                  <span>{isModuleMode ? 'Criar módulo' : 'Criar OS'}</span>
+                </button>
+                <div className="shrink-0">
+                  <button
+                    type="button"
+                    ref={patioHeaderToolsTriggerRef}
+                    onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
+                    aria-expanded={isPatioHeaderToolsOpen}
+                    aria-haspopup="menu"
+                    aria-label="Mais opções"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
+                  >
+                    <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+                  </button>
+                  {patioHeaderToolsMenu}
+                </div>
+                {isAppTabActive ? (
+                  <div className="flex shrink-0 items-center [&_button]:!h-10 [&_button]:!w-10 [&_button]:!rounded-lg [&_button]:!shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)]">
+                    <NotificationCenter
+                      theme="light"
+                      forTechnician={actorOptions?.actor === 'technician'}
+                      technicianSlug={
+                        actorOptions?.actor === 'technician'
+                          ? actorOptions?.actorTechnicianSlug
+                          : undefined
+                      }
+                    />
+                  </div>
+                ) : null}
+              </div>
             </div>
-            </div>
-          </div>
-          </div>
+          )}
         </header>
       </div>
 
@@ -5168,7 +5722,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
           return ia - ib;
         };
         const sortedCardsList =
-          boardLayoutMode === 'recent_first' ? [...cards].sort(byRecentGlobal) : [...cards].sort(byStage);
+          boardLayoutMode === 'recent_first'
+            ? [...cards].sort(byRecentGlobal)
+            : [...cards].sort(byStage);
         const stageColumnsSorted = [...boardStages].sort((a, b) => a.pos - b.pos);
         const techIdsKnown = new Set(TECHNICIANS.map((t) => t.id));
         const showMechanicOtherCol = cards.some((c) => {
@@ -5203,7 +5759,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const gridClassName = `relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
           boardPanoramic
             ? 'grid-cols-2 gap-2.5 portrait:grid-cols-3 portrait:gap-2 sm:gap-3 md:portrait:grid-cols-3 md:landscape:grid-cols-5 md:gap-3 lg:gap-3.5 2xl:gap-4'
-            : 'grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 landscape:lg:grid-cols-4'
+            : 'grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5 landscape:lg:grid-cols-4'
         }`;
         const zoomOuterClass =
           'origin-top will-change-[zoom] motion-safe:transition-[zoom] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]';
@@ -5268,25 +5824,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
           const linkedLabServices = !isModuleMode && Array.isArray(card.labServiceLinks) ? card.labServiceLinks : [];
           const hasLabUndelivered = linkedLabServices.some((l) => {
             const st = labLinkedStatusByOrderId[l.laboratoryOrderId];
-            // Enquanto não estiver CANCELLED (entregue/arquivado), mantém aro visível.
+            // Enquanto não estiver CANCELLED (entregue/arquivado), mantém ícone + filtro.
             return st !== "CANCELLED";
           });
           const hasLabReady = linkedLabServices.some(
             (l) => labLinkedStatusByOrderId[l.laboratoryOrderId] === "PRONTO_PRA_RETIRADA"
           );
-          const showLabOuterRing = isGarantia && hasLabUndelivered;
-          const labOuterRingClass = hasLabReady
-            ? 'ring-4 ring-green-500 dark:ring-green-400'
-            : 'ring-4 ring-violet-500 dark:ring-violet-400';
+          const labModuleReady =
+            fromPatio &&
+            (card.idList === 'PRONTO_PRA_RETIRADA' || listNameLower.includes('pronto pra retirada'));
+          const showOriginCue = hasLabUndelivered || fromPatio;
+          const originReady = hasLabUndelivered ? hasLabReady : labModuleReady;
+          const originTint: 'violet' | 'amber' | 'green' | null = !showOriginCue
+            ? null
+            : originReady
+              ? 'green'
+              : hasLabUndelivered
+                ? 'violet'
+                : 'amber';
           const cardRingClass = isGarantia
             ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40'
-            : fromPatio
-              ? 'ring-2 ring-amber-500 ring-offset-0 border-amber-500/50 dark:ring-amber-400 dark:border-amber-400/50'
-            : hasLabUndelivered
-              ? hasLabReady
-                ? 'ring-4 ring-inset ring-green-500 ring-offset-0 border-green-500/65 dark:ring-green-400 dark:border-green-400/65'
-                : 'ring-4 ring-inset ring-violet-500 ring-offset-0 border-violet-400/60 dark:ring-violet-400 dark:border-violet-400/60'
-              : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]';
+            : originTint === 'green'
+              ? 'border-2 border-green-500/75 dark:border-green-400/70'
+              : originTint === 'violet'
+                ? 'border-2 border-violet-500/75 dark:border-violet-400/70'
+                : originTint === 'amber'
+                  ? 'border-2 border-amber-500/75 dark:border-amber-400/70'
+                  : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]';
 
           return (
             <div
@@ -5317,9 +5881,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
               }`}
             >
               <div
-                className={`w-full ${showLabOuterRing ? `${cardRadiusClass} p-1 ${labOuterRingClass}` : ''}`}
-              >
-              <div
                 onClick={() => {
                   if (patioTrelloSkipClickRef.current) {
                     patioTrelloSkipClickRef.current = false;
@@ -5331,9 +5892,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   group relative flex h-auto min-h-0 w-full flex-col overflow-hidden
                   border bg-white/70 backdrop-blur-2xl dark:bg-zinc-900/40
                   ${patioBoardGlassCardShadow}
-                  hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
+                  ${originTint ? '' : 'hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]'}
                   active:scale-[0.99]
-                  transition-[border-color,transform] duration-200 ease-out
+                  transition-[border-color,transform,box-shadow] duration-200 ease-out
                   ${trelloDrag ? 'cursor-grab select-none active:cursor-grabbing' : 'cursor-pointer'}
                   ${
                     boardPanoramic
@@ -5343,6 +5904,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ${cardRingClass}
                 `}
               >
+              {/* Filtro só por dentro do card + borda colorida acima */}
+              {originTint ? (
+                <div
+                  className={`pointer-events-none absolute inset-0 z-[1] rounded-[inherit] ${
+                    originTint === 'green'
+                      ? 'bg-green-500/[0.14] dark:bg-green-400/[0.16]'
+                      : originTint === 'violet'
+                        ? 'bg-violet-600/[0.22] dark:bg-violet-400/[0.16]'
+                        : 'bg-amber-500/[0.18] dark:bg-amber-400/[0.16]'
+                  }`}
+                  aria-hidden
+                />
+              ) : null}
+
               {/* Overlay de Loading (Geral para Card) */}
               {(isMoving && (cardInTransition?.id === card.id || stageChangingCardId === card.id)) || (isAssigning && cardForMemberAssignment?.id === card.id) || (archivingId === card.id) || (removingGarantiaId === card.id) ? (
                 <div className="absolute inset-0 z-30 flex items-center justify-center overflow-hidden rounded-[inherit] bg-white/95 dark:bg-zinc-950/90">
@@ -5395,82 +5970,100 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ) : null}
                 </div>
 
-                {/* Cliente + placa na mesma linha (placa fixa à direita, nome truncado) */}
-                {customerName && (
+                {/* Cliente */}
+                {customerName ? (
                   <div
-                    className={`mb-0 flex max-w-full items-center justify-between gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] portrait:rounded-xl portrait:gap-1.5 portrait:border-zinc-200/55 ${
+                    className={`mb-0 flex max-w-full items-center gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] portrait:rounded-xl portrait:border-zinc-200/55 ${
                       boardPanoramic
-                        ? 'px-2 py-[calc(0.25rem*1.6146)] portrait:px-1.5 portrait:py-1'
-                        : 'px-3 py-1.5 portrait:px-2 portrait:py-1'
+                        ? 'min-h-[2.35rem] px-2.5 py-2 portrait:min-h-[2.1rem] portrait:px-2 portrait:py-1.5'
+                        : 'min-h-[2.6rem] px-3 py-2.5 portrait:min-h-[2.35rem] portrait:px-2.5 portrait:py-2'
                     }`}
                   >
-                    <div className="min-w-0 flex flex-1 items-center gap-2">
-                      <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
-                      <span
-                        className={`min-w-0 flex-1 truncate font-semibold text-zinc-700 dark:text-zinc-200 tracking-tight ${
-                          boardPanoramic
-                            ? 'text-[1.049rem] portrait:text-[0.8392rem]'
-                            : 'text-[1.199rem] portrait:text-[0.9592rem]'
-                        }`}
-                      >
-                        {firstTwoNames(customerName)}
-                      </span>
-                    </div>
-                    {!isModuleMode && (
-                      <div className="shrink-0">
-                        <MercosulPlateMockup
-                          plate={plate}
-                          blurPlates={blurPlates}
-                          size={boardPanoramic ? 'cardCompact' : 'cardGrid'}
-                        />
-                      </div>
-                    )}
+                    <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
+                    <span
+                      className={`min-w-0 flex-1 truncate font-semibold tracking-tight text-zinc-700 dark:text-zinc-200 ${
+                        boardPanoramic
+                          ? 'text-[1.049rem] portrait:text-[0.8392rem]'
+                          : 'text-[1.199rem] portrait:text-[0.9592rem]'
+                      }`}
+                    >
+                      {firstTwoNames(customerName)}
+                    </span>
                   </div>
-                )}
+                ) : null}
 
-                {/* Técnico — afastado do bloco cliente/placa */}
+                {/* Técnico + ícone de origem (centro) + placa */}
                 <div
-                  className={`flex min-w-0 items-start gap-2 sm:gap-3 ${boardPanoramic ? 'mt-2.5' : 'mt-3.5'}`}
+                  className={`grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 ${
+                    customerName
+                      ? boardPanoramic
+                        ? 'mt-1.5'
+                        : 'mt-2'
+                      : boardPanoramic
+                        ? 'mt-0.5'
+                        : 'mt-1'
+                  }`}
                 >
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 justify-self-start">
                     <button
                       type="button"
                       disabled={!canAssignMember}
                       onClick={(e) => { e.stopPropagation(); canAssignMember && setCardForMemberAssignment(card); }}
                       className={`
-                        inline-flex items-center justify-start gap-1.5 px-3 ${boardPanoramic ? 'py-[calc(0.375rem*1.6146)]' : 'py-1.5'} rounded-2xl border transition-all max-w-full
+                        inline-flex max-w-full items-center justify-start gap-1.5 rounded-2xl border px-2.5 transition-all
+                        ${boardPanoramic ? 'py-1.5' : 'py-1.5'}
                         ${canAssignMember
-                          ? 'border-light-border dark:border-white/10 bg-light-card dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-200 cursor-pointer hover:bg-zinc-200/90 dark:hover:bg-white/[0.1] active:scale-[0.97]'
-                          : 'border-zinc-200/60 dark:border-white/5 bg-light-card/80 dark:bg-white/[0.04] text-zinc-500 cursor-default'}
+                          ? 'cursor-pointer border-light-border bg-light-card text-zinc-700 hover:bg-zinc-200/90 active:scale-[0.97] dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
+                          : 'cursor-default border-zinc-200/60 bg-light-card/80 text-zinc-500 dark:border-white/5 dark:bg-white/[0.04]'}
                       `}
                     >
                       {hasMechanic ? (
                         <div
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-md portrait:h-[1.6rem] portrait:w-[1.6rem] portrait:rounded-lg ${getMechanicButtonStyle(mechanic!, member?.id)}`}
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl shadow-md portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg ${getMechanicButtonStyle(mechanic!, member?.id)}`}
                         >
                           <Wrench
-                            className="h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:h-[0.8rem] portrait:w-[0.8rem]"
+                            className="h-3.5 w-3.5 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:h-[0.75rem] portrait:w-[0.75rem]"
                             strokeWidth={2.35}
                             aria-hidden
                           />
                         </div>
                       ) : canAssignMember ? (
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12 portrait:h-[1.6rem] portrait:w-[1.6rem] portrait:rounded-lg">
-                          <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff] portrait:h-[0.8rem] portrait:w-[0.8rem]" strokeWidth={2.35} aria-hidden />
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12 portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
+                          <Wrench className="h-3.5 w-3.5 text-[#007AFF] dark:text-[#7ab8ff] portrait:h-[0.75rem] portrait:w-[0.75rem]" strokeWidth={2.35} aria-hidden />
                         </div>
                       ) : (
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-zinc-100/80 dark:border-white/10 dark:bg-white/[0.06] portrait:h-[1.6rem] portrait:w-[1.6rem] portrait:rounded-lg">
-                          <Wrench className="h-4 w-4 text-zinc-400 dark:text-zinc-500 portrait:h-[0.8rem] portrait:w-[0.8rem]" strokeWidth={2.35} aria-hidden />
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-zinc-100/80 dark:border-white/10 dark:bg-white/[0.06] portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
+                          <Wrench className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 portrait:h-[0.75rem] portrait:w-[0.75rem]" strokeWidth={2.35} aria-hidden />
                         </div>
                       )}
                       <span
-                        className={`font-bold truncate ${
-                          boardPanoramic ? 'text-[1.049rem] portrait:text-[0.8392rem]' : 'text-[1.199rem] portrait:text-[0.9592rem]'
+                        className={`truncate font-bold ${
+                          boardPanoramic ? 'text-[0.95rem] portrait:text-[0.78rem]' : 'text-[1.05rem] portrait:text-[0.88rem]'
                         } ${!hasMechanic && canAssignMember ? 'text-brand-yellow' : ''}`}
                       >
                         {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : 'Sem técnico')}
                       </span>
                     </button>
+                  </div>
+                  <div className="flex justify-self-center">
+                    {showOriginCue ? (
+                      <PatioBoardOriginIcon
+                        kind={hasLabUndelivered ? 'laboratorio' : 'patio'}
+                        ready={originReady}
+                        size={boardPanoramic ? 'cardCompact' : 'card'}
+                      />
+                    ) : (
+                      <span className="inline-block w-0" aria-hidden />
+                    )}
+                  </div>
+                  <div className="flex justify-self-end">
+                    {!isModuleMode ? (
+                      <MercosulPlateMockup
+                        plate={plate}
+                        blurPlates={blurPlates}
+                        size={boardPanoramic ? 'cardCompact' : 'cardGrid'}
+                      />
+                    ) : null}
                   </div>
                 </div>
                 {isModuleMode &&
@@ -5569,7 +6162,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </button>
               </div>
 
-              </div>
               </div>
               </div>
             </div>
@@ -5717,15 +6309,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
       </div>
 
       {/* --- MODAL DE HISTÓRICO (BUSCA) — portal em body para ficar acima da TabBar --- */}
-      {isHistoryOpen && patioPortalsVisible && (
-        <ModalPortal>
-          <div className={patioHistoryModalOverlayClass}>
+      {historyHubPresence.mounted && (
+        <ModalPortal manageBackLayer={false}>
+          <div className={withModalExitOverlayClass(patioHistoryModalOverlayClass, historyHubPresence.exiting)}>
             <div
-              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} animate-modal-wp-app`}
+              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${modalWpAppAnimClass(historyHubPresence.exiting)}${
+                isSmartphone
+                  ? ' !h-auto max-h-[min(78vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2.5rem))] max-w-[24rem] origin-center scale-[0.92]'
+                  : ''
+              }`}
             >
               <button
                 type="button"
-                onClick={() => setIsHistoryOpen(false)}
+                onClick={() => {
+                  markProgrammaticHistoryBack();
+                  setIsHistoryOpen(false);
+                }}
                 className={patioHistoryVm.closeBtn}
                 aria-label="Fechar"
               >
@@ -5821,24 +6420,34 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* --- DETALHES DO CARD ARQUIVADO — portal em body para ficar acima da TabBar --- */}
       {selectedHistoryCard && patioPortalsVisible && (
          <ModalPortal>
-         <div className={patioHistoryModalOverlayClass}>
+         <div className={withModalExitOverlayClass(patioHistoryModalOverlayClass, primaryModalExiting)}>
             <div
-              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${isPatioPcModal ? 'animate-modal-wp-app' : 'animate-in zoom-in-95 duration-200'}`}
+              className={`${patioHistoryVm.shell} ${archivedHistoryModalShell} ${
+                isPatioPcModal
+                  ? modalWpAppAnimClass(primaryModalExiting)
+                  : modalSheetAnimClass(primaryModalExiting)
+              }`}
             >
                <div className={`shrink-0 border-b border-zinc-200/60 dark:border-white/[0.07] ${isPatioPcModal ? 'px-10 py-4 xl:px-14' : 'px-4 py-3 sm:px-6'}`}>
                   <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => handleUnarchive(selectedHistoryCard)}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-5 py-2.5 text-[15px] font-semibold text-white shadow-md transition-transform hover:opacity-95 active:scale-[0.98] dark:bg-white/12 dark:text-white"
+                    disabled={unarchivingId === selectedHistoryCard.id}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-5 py-2.5 text-[15px] font-semibold text-white shadow-md transition-transform hover:opacity-95 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-55 dark:bg-white/12 dark:text-white"
                   >
-                    <ArchiveRestore className="h-4 w-4" />
-                    Desarquivar
+                    {unarchivingId === selectedHistoryCard.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <ArchiveRestore className="h-4 w-4" />
+                    )}
+                    {unarchivingId === selectedHistoryCard.id ? 'Desarquivando…' : 'Desarquivar'}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleUseRegistration(selectedHistoryCard)}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-[#007AFF] px-5 py-2.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform hover:opacity-95 active:scale-[0.98]"
+                    disabled={unarchivingId === selectedHistoryCard.id}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-[#007AFF] px-5 py-2.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform hover:opacity-95 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-55"
                   >
                     <Copy className="h-4 w-4" />
                     Usar cadastro
@@ -5846,9 +6455,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedHistoryCard(null);
-                      setHistoryServiceOrderDetail(null);
-                      setHistorySavedBudgets([]);
+                      closePatioPrimaryOverlays();
                     }}
                     className={patioVehicleVm.closeBtn}
                     aria-label="Fechar"
@@ -5856,6 +6463,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     <X className="h-5 w-5" />
                   </button>
                   </div>
+                  {unarchiveError ? (
+                    <div
+                      role="alert"
+                      className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-[13px] font-medium text-rose-800 dark:border-rose-500/35 dark:bg-rose-950/40 dark:text-rose-100"
+                    >
+                      {unarchiveError}
+                    </div>
+                  ) : null}
                </div>
 
                <div className="min-h-0 flex-1 overflow-y-auto overscroll-none custom-scrollbar">
@@ -5881,18 +6496,40 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         ) : null}
                         <div className="mt-3 flex flex-col gap-3 text-zinc-700 dark:text-zinc-300 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-6 lg:gap-y-2">
                          {!isModuleMode && (
-                           <div className="flex shrink-0 items-center gap-2">
+                           <div className="flex shrink-0 items-center gap-2.5">
                               <VehicleBrandLogo
                                 brand={selectedHistoryCard?.vehicleBrand}
-                                size="modal"
+                                size={isPatioPcModal ? patioVehicleVm.brandLogoSize : 'modal'}
                               />
-                              <MercosulPlateMockup
-                                plate={historyCardTitleParts?.plateOrModule || '---'}
-                                blurPlates={blurPlates}
-                                size="modal"
-                              />
+                              <div className={`inline-flex items-center ${isPatioPcModal ? 'gap-2.5' : 'gap-3.5'}`}>
+                                {Array.isArray(selectedHistoryCard.labServiceLinks) &&
+                                selectedHistoryCard.labServiceLinks.some((l) => {
+                                  const st = labLinkedStatusByOrderId[l.laboratoryOrderId];
+                                  return st !== 'CANCELLED';
+                                }) ? (
+                                  <PatioBoardOriginIcon
+                                    kind="laboratorio"
+                                    ready={selectedHistoryCard.labServiceLinks.some(
+                                      (l) =>
+                                        labLinkedStatusByOrderId[l.laboratoryOrderId] ===
+                                        'PRONTO_PRA_RETIRADA'
+                                    )}
+                                    size="modal"
+                                  />
+                                ) : null}
+                                <MercosulPlateMockup
+                                  plate={historyCardTitleParts?.plateOrModule || '---'}
+                                  blurPlates={blurPlates}
+                                  size={isPatioPcModal ? patioVehicleVm.plateMockupSize : 'modal'}
+                                />
+                              </div>
                            </div>
                          )}
+                         {isModuleMode && isLabModuleFromPatio(selectedHistoryCard.desc) ? (
+                           <div className="flex shrink-0 items-center">
+                             <PatioBoardOriginIcon kind="patio" size="modal" />
+                           </div>
+                         ) : null}
                          <div
                            className={`${vehicleModalCustomerNameBox} flex min-w-0 flex-1 items-center gap-2 px-4 py-2.5 lg:max-w-xl lg:flex-1`}
                          >
@@ -6172,10 +6809,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                        const showImgThumb = !isPdf && isImage;
                                        const cardClass = `group block w-full overflow-hidden ${iosModalInsetCard} transition-all hover:border-[#007AFF]/35`;
                                        return isPdf ? (
-                                         <button
+                                         <a
                                            key={att.id}
-                                           type="button"
-                                           onClick={() => setPreviewPdf(att.url)}
+                                           href={att.url}
+                                           target="_blank"
+                                           rel="noopener noreferrer"
                                            className={cardClass}
                                          >
                                            <div className="relative flex h-24 items-center justify-center overflow-hidden bg-zinc-100/80 dark:bg-white/[0.04]">
@@ -6190,7 +6828,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                            <div className="border-t border-zinc-200/60 p-2 dark:border-white/[0.06] text-left">
                                               <p className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-200">{attachmentDisplayName(att.name)}</p>
                                            </div>
-                                         </button>
+                                         </a>
                                        ) : (
                                         <a
                                           key={att.id}
@@ -6300,16 +6938,42 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const modalStageStatus = resolveCardStageStatus(selectedCard);
         const modalListName = resolveCardStageLabel(selectedCard);
         const modalStatusConfig = getStatusConfig(modalListName, modalStageStatus);
-        const modalRingClass = selectedCard.garantiaTag
-          ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-[#F2F2F7] dark:ring-offset-[#0a0a0a] border-2 border-red-500/30'
-          : `${modalStatusConfig.ringClass} border border-zinc-300/70 dark:border-white/[0.08]`;
-        const headerVehicleCategoryLabel =
-          !isModuleMode
-            ? resolveVehicleCategoryLabel(
-                serviceOrderDetail?.vehicle_category ?? null,
-                serviceOrderDetail?.issue_description ?? null
-              ) ?? selectedCard.vehicleCategory ?? null
-            : null;
+        const modalFromPatio = isModuleMode && isLabModuleFromPatio(selectedCard.desc);
+        const modalHasLabUndelivered =
+          !isModuleMode &&
+          labServiceLinksDraft.some((l) => {
+            const st =
+              labOrdersLookup[l.laboratoryOrderId]?.status ??
+              labLinkedStatusByOrderId[l.laboratoryOrderId];
+            return st !== 'CANCELLED';
+          });
+        const modalLabReady =
+          !isModuleMode &&
+          labServiceLinksDraft.some((l) => {
+            const st =
+              labOrdersLookup[l.laboratoryOrderId]?.status ??
+              labLinkedStatusByOrderId[l.laboratoryOrderId];
+            return st === 'PRONTO_PRA_RETIRADA';
+          });
+        const modalLabModuleReady =
+          modalFromPatio &&
+          (modalStageStatus === 'PRONTO_PRA_RETIRADA' ||
+            modalListName.toLowerCase().includes('pronto pra retirada'));
+        const modalShowOriginIcon = modalHasLabUndelivered || modalFromPatio;
+        const modalOriginReady = modalHasLabUndelivered ? modalLabReady : modalLabModuleReady;
+        const modalOriginKind = modalHasLabUndelivered ? 'laboratorio' : 'patio';
+        const modalOriginIcon = modalShowOriginIcon ? (
+          <PatioBoardOriginIcon kind={modalOriginKind} ready={modalOriginReady} size="modal" />
+        ) : null;
+        const modalRingClass = (() => {
+          if (!patioVehicleVm.showStageRing) {
+            return '';
+          }
+          if (selectedCard.garantiaTag) {
+            return 'ring-2 ring-red-500 ring-offset-2 ring-offset-[#F2F2F7] dark:ring-offset-[#0a0a0a] border-2 border-red-500/30';
+          }
+          return `${modalStatusConfig.ringClass} border border-zinc-300/70 dark:border-white/[0.08]`;
+        })();
         const vi = patioVehicleVm.insetCard;
         const vin = patioVehicleVm.input;
         const c = patioVehicleVm.compact;
@@ -6351,12 +7015,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
               getStageStyleClass={(status) => getStageStyle(status, 'module')}
               onOpenLaboratoryOrder={onOpenLaboratoryOrder}
               onRemoveLabServiceLink={(linkId) => void handleRemoveLabServiceLink(linkId)}
+              patioAttachments={patioOriginAttachments}
+              selectedPatioAttachmentPaths={selectedPatioOriginAttachmentPaths}
+              onSelectedPatioAttachmentPathsChange={setSelectedPatioOriginAttachmentPaths}
+              onCopyPatioAttachmentsToLab={(laboratoryOrderId, paths) =>
+                copyPatioAttachmentsToLabOrder(laboratoryOrderId, paths, selectedCard?.id)
+              }
+              copyingPatioAttachments={copyingPatioOriginAttachments}
             />
           ) : null;
-        const renderExternalRepairSection = () =>
-          isModuleMode && serviceOrderDetail ? (
+        const renderExternalRepairSection = () => {
+          if (!isModuleMode || !serviceOrderDetail) return null;
+          const savedExternalRepair =
+            (serviceOrderDetail as ServiceOrderDetail & { external_repair?: ExternalRepair | null })
+              .external_repair ??
+            selectedCard?.externalRepair ??
+            null;
+          const hasSavedExternal = hasExternalRepairData(savedExternalRepair);
+          const canEditExternal = can('canEditFicha');
+          return (
                           <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
-                            <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                            <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                               <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
                                 <div className={uiOsModalSectionIconWrap}>
                                   <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
@@ -6365,28 +7044,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   Conserto externo
                                 </p>
                               </div>
-                              {can('canEditFicha') && !isExternalRepairEditing ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (serviceOrderDetail) {
-                                      setExternalRepairDraft(
-                                        buildExternalRepairDraft(
-                                          serviceOrderDetail as ServiceOrderDetail & {
-                                            external_repair?: ExternalRepair | null;
-                                          },
-                                          selectedCard?.externalRepair ?? null
-                                        )
-                                      );
-                                    }
-                                    setIsExternalRepairEditing(true);
-                                  }}
-                                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
-                                >
-                                  <Pencil className="h-3 w-3" aria-hidden strokeWidth={2.5} />
-                                  Editar
-                                </button>
-                              ) : null}
                             </div>
 
                             {!isExternalRepairStatus(serviceOrderDetail?.status) ? (
@@ -6396,7 +7053,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </p>
                             ) : null}
 
-                            {!isExternalRepairEditing || !can('canEditFicha') ? (
+                            {!isExternalRepairEditing || !canEditExternal ? (
                               <div className="space-y-1 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 text-[14px] text-zinc-700 dark:border-white/[0.06] dark:bg-white/[0.02] dark:text-zinc-300 sm:px-4 sm:py-3.5">
                                 {externalRepairDraft.vehicleRef.trim() ? (
                                   <p><span className="font-semibold">Veículo:</span> {externalRepairDraft.vehicleRef}</p>
@@ -6419,29 +7076,43 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 {externalRepairDraft.sentAt.trim() ? (
                                   <p><span className="font-semibold">Enviado:</span> {externalRepairDraft.sentAt}</p>
                                 ) : null}
-                                {![
-                                  externalRepairDraft.vehicleRef,
-                                  externalRepairDraft.productIdentification,
-                                  externalRepairDraft.productType,
-                                  externalRepairDraft.service,
-                                  externalRepairDraft.vendor,
-                                  externalRepairDraft.sentAt,
-                                ].some((v) => v.trim()) ? (
+                                {!hasSavedExternal ? (
                                   <p className="text-zinc-500 dark:text-zinc-400">Nenhum conserto externo registrado.</p>
                                 ) : null}
-                                {can('canEditFicha') &&
-                                selectedCard &&
-                                !isExternalRepairStatus(serviceOrderDetail?.status) ? (
+                                {canEditExternal ? (
                                   <div className="flex flex-wrap gap-2 border-t border-zinc-200/60 pt-3 dark:border-white/[0.06]">
                                     <button
                                       type="button"
-                                      onClick={() => void handleSendToExternalRepair(selectedCard.id)}
-                                      disabled={loadingDetails}
-                                      className="inline-flex items-center gap-2 rounded-xl bg-purple-700 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-purple-600 disabled:opacity-60"
+                                      onClick={startExternalRepairEditing}
+                                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-3.5 py-2 text-[13px] font-semibold text-[#007AFF] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
                                     >
-                                      <Truck className="h-4 w-4" strokeWidth={2.2} />
-                                      Registrar Envio
+                                      <Pencil className="h-3.5 w-3.5" aria-hidden strokeWidth={2.5} />
+                                      {hasSavedExternal ? 'Editar' : 'Preencher'}
                                     </button>
+                                    {hasSavedExternal ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleDeleteExternalRepair()}
+                                        disabled={externalRepairSaving || loadingDetails}
+                                        className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/35 bg-red-500/10 px-3.5 py-2 text-[13px] font-semibold text-red-700 transition hover:bg-red-500/15 disabled:opacity-55 dark:border-red-400/30 dark:text-red-300 dark:hover:bg-red-500/20"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" aria-hidden strokeWidth={2.5} />
+                                        Excluir
+                                      </button>
+                                    ) : null}
+                                    {selectedCard &&
+                                    hasSavedExternal &&
+                                    !isExternalRepairStatus(serviceOrderDetail?.status) ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleSendToExternalRepair(selectedCard.id)}
+                                        disabled={loadingDetails}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-purple-700 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-purple-600 disabled:opacity-60"
+                                      >
+                                        <Truck className="h-4 w-4" strokeWidth={2.2} />
+                                        Registrar Envio
+                                      </button>
+                                    ) : null}
                                   </div>
                                 ) : null}
                               </div>
@@ -6531,34 +7202,70 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   ) : (
                                     <span />
                                   )}
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleSaveExternalRepair()}
-                                    disabled={
-                                      externalRepairSaving ||
-                                      loadingDetails ||
-                                      serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
-                                    }
-                                    className={`${iosPrimaryButton} inline-flex items-center gap-2 px-6 py-2.5`}
-                                  >
-                                    {externalRepairSaving ? (
-                                      <RefreshCw className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Save className="h-4 w-4" />
-                                    )}
-                                    Salvar
-                                  </button>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {hasSavedExternal ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleDeleteExternalRepair()}
+                                        disabled={
+                                          externalRepairSaving ||
+                                          loadingDetails ||
+                                          serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
+                                        }
+                                        className="inline-flex items-center gap-2 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-2.5 text-[13px] font-semibold text-red-700 transition hover:bg-red-500/15 disabled:opacity-55 dark:border-red-400/30 dark:text-red-300 dark:hover:bg-red-500/20"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                        Excluir
+                                      </button>
+                                    ) : null}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setExternalRepairDraft(externalRepairRecordToDraft(savedExternalRepair));
+                                        setIsExternalRepairEditing(false);
+                                      }}
+                                      disabled={externalRepairSaving}
+                                      className="rounded-xl px-3 py-2.5 text-[13px] font-semibold text-zinc-500 transition hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                                    >
+                                      Cancelar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleSaveExternalRepair()}
+                                      disabled={
+                                        externalRepairSaving ||
+                                        loadingDetails ||
+                                        serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
+                                      }
+                                      className={`${iosPrimaryButton} inline-flex items-center gap-2 px-6 py-2.5`}
+                                    >
+                                      {externalRepairSaving ? (
+                                        <RefreshCw className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Save className="h-4 w-4" />
+                                      )}
+                                      Salvar
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             )}
                           </div>
-          ) : null;
+          );
+        };
+
         return (
         <ModalPortal>
-        <div className={patioVehicleModalOverlayClass}>
-           <div className={`${patioVehicleVm.shell} animate-modal-wp-app ${modalRingClass}`}>
+        <div className={withModalExitOverlayClass(patioVehicleModalOverlayClass, primaryModalExiting)}>
+           <div className={`${patioVehicleVm.shell} ${modalWpAppAnimClass(primaryModalExiting)} ${modalRingClass}`}>
               
-              <div className={`absolute z-20 flex items-center gap-2 ${isPatioPcModal ? 'top-4 right-5 xl:right-6' : 'top-4 right-4'}`}>
+              <div className={`absolute z-20 flex items-center gap-2 ${
+                isPatioPcModal
+                  ? 'top-4 right-5 xl:right-6'
+                  : patioVehicleVm.mode === 'mobile' || patioVehicleVm.mode === 'tabletPortrait'
+                    ? 'top-[max(0.75rem,env(safe-area-inset-top))] right-[max(0.75rem,env(safe-area-inset-right))]'
+                    : 'top-4 right-4'
+              }`}>
                 {isModuleMode && serviceOrderDetail && !loadingDetails ? (
                   <button
                     type="button"
@@ -6582,7 +7289,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 )}
                 <button
                   type="button"
-                  onClick={() => setSelectedCard(null)}
+                  onClick={() => closePatioPrimaryOverlays()}
                   className={patioVehicleVm.closeBtn}
                   aria-label="Fechar"
                 >
@@ -6591,7 +7298,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
 
               {can('canDeleteCards') && isDeleteVehicleOpen && (
-                <div className={`absolute inset-0 z-30 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm ${isPatioPcModal ? 'rounded-none' : 'rounded-[1.5rem] sm:rounded-[1.625rem]'}`}>
+                <div className={`absolute inset-0 z-30 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm ${isPatioPcModal || patioVehicleVm.mode === 'mobile' || patioVehicleVm.mode === 'tabletPortrait' ? 'rounded-none' : 'rounded-[1.5rem] sm:rounded-[1.625rem]'}`}>
                   <div className={`${vi} w-full max-w-sm p-6 shadow-xl`}>
                     <h3 className="mb-2 flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
                       <Trash2 className="h-5 w-5 text-red-500" />
@@ -6658,16 +7365,63 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <div
                           className={
                             isPatioPcModal && !isModuleMode
-                              ? 'flex flex-wrap items-start justify-between gap-3'
+                              ? 'flex min-h-10 flex-wrap items-center gap-2 pr-24 xl:pr-28'
                               : 'flex flex-wrap items-center gap-2'
                           }
                         >
-                          <div className="flex flex-wrap items-center gap-2">
-                          {(serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null && (
+                          {isPatioTabletLikeModal ? (
+                            <div
+                              className={`flex min-h-10 w-full min-w-0 items-center gap-2 ${
+                                isModuleMode
+                                  ? 'pr-[calc(9.75rem+env(safe-area-inset-right,0px))]'
+                                  : 'pr-[calc(5.75rem+env(safe-area-inset-right,0px))]'
+                              }`}
+                            >
+                              {isModuleMode &&
+                              (serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null ? (
+                                <span className="inline-flex items-center rounded-lg border border-zinc-300/60 bg-zinc-200/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:border-zinc-600/60 dark:bg-zinc-700/80 dark:text-zinc-300">
+                                  OS #{serviceOrderDetail?.os_number ?? selectedCard.osNumber}
+                                </span>
+                              ) : null}
+                              {!isModuleMode && selectedCard.garantiaTag ? (
+                                <span className="inline-flex max-w-full items-center gap-2 rounded-full border-2 border-red-500/50 bg-red-500/15 px-4 py-2 text-sm font-bold uppercase tracking-wide text-red-600 dark:bg-red-500/20 dark:text-red-400">
+                                  Garantia
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveGarantia();
+                                    }}
+                                    disabled={removingGarantiaId === selectedCard.id}
+                                    className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500/30 text-red-700 transition-colors hover:bg-red-500/50 disabled:opacity-50 dark:text-red-300"
+                                    title="Remover etiqueta Garantia"
+                                  >
+                                    {removingGarantiaId === selectedCard.id ? (
+                                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <X className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : (
+                          <div
+                            className={`flex flex-wrap items-center gap-2${
+                              !isPatioPcModal
+                                ? isModuleMode
+                                  ? ' pr-[calc(9.75rem+env(safe-area-inset-right,0px))]'
+                                  : ' pr-[calc(5.75rem+env(safe-area-inset-right,0px))]'
+                                : ''
+                            }`}
+                          >
+                          {(isModuleMode || !patioVehicleVm.hideOsBadge) &&
+                          (serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null ? (
                             <span className={`inline-flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wider bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-600/60 ${isPatioPcModal ? 'rounded-md' : 'rounded-lg'}`}>
                               OS #{(serviceOrderDetail?.os_number ?? selectedCard.osNumber)}
                             </span>
-                          )}
+                          ) : null}
+                          {!isPatioPcModal ? (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -6676,7 +7430,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               handleOpenMoveModal(selectedCard, e);
                             }}
                             title="Alterar etapa"
-                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[15px] sm:text-base font-black uppercase tracking-widest shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 portrait:scale-[0.78] portrait:origin-left dark:focus-visible:ring-offset-[#0a0a0a] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'} ${modalStatusConfig.style}`}
+                            className={`${patioVehicleVm.stagePill} ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'} ${modalStatusConfig.style}`}
                           >
                             {modalListName}
                             <ChevronDown
@@ -6684,6 +7438,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               aria-hidden
                             />
                           </button>
+                          ) : null}
                           {selectedCard.garantiaTag && (
                             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 border-2 border-red-500/50">
                               Garantia
@@ -6699,73 +7454,126 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </span>
                           )}
                           </div>
+                          )}
                         </div>
                         {!isModuleMode &&
+                        !isPatioPcModal &&
                         (serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand)?.trim() ? (
                           <p className={patioVehicleVm.brandSubtitle}>
                             {(serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand || '').trim()}
                           </p>
                         ) : null}
-                        <div className={`${isPatioPcModal ? 'mt-1' : 'mt-0.5'} flex min-w-0 items-end gap-3`}>
+                        <div className={`${patioVehicleVm.titlePlateRow}`}>
+                          {!isModuleMode && isPatioTabletLikeModal ? (
+                            <VehicleBrandLogo
+                              brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
+                              size={patioVehicleVm.brandLogoSize}
+                            />
+                          ) : null}
                           <h1
                             className={`${patioVehicleVm.title} min-w-0 flex-1 ${vehicleModalTitleShadow}`}
                             title={selectedCardTitleParts?.vehicle}
                           >
                             {selectedCardTitleParts?.vehicle}
                           </h1>
+                          {isModuleMode && modalOriginIcon ? (
+                            <div className="inline-flex shrink-0 items-center justify-center pl-1">
+                              {modalOriginIcon}
+                            </div>
+                          ) : null}
                           {!isModuleMode && isPatioPcModal ? (
-                            <div className="inline-flex shrink-0 origin-right scale-[1.08] items-center justify-center gap-2">
+                            <div className="inline-flex shrink-0 items-center justify-center gap-2.5">
                               <VehicleBrandLogo
                                 brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
-                                size="modalPc"
+                                size={patioVehicleVm.brandLogoSize}
                               />
+                              <div className="inline-flex items-center gap-2.5">
+                                {modalOriginIcon}
+                                <MercosulPlateMockup
+                                  plate={selectedCardTitleParts?.plateOrModule || '---'}
+                                  blurPlates={blurPlates}
+                                  size={patioVehicleVm.plateMockupSize}
+                                  selectable
+                                />
+                              </div>
+                            </div>
+                          ) : null}
+                          {!isModuleMode && isPatioTabletLikeModal ? (
+                            <div className="inline-flex shrink-0 items-center justify-center gap-3.5">
+                              {modalOriginIcon}
                               <MercosulPlateMockup
                                 plate={selectedCardTitleParts?.plateOrModule || '---'}
                                 blurPlates={blurPlates}
-                                size="modal"
+                                size={patioVehicleVm.plateMockupSize}
                                 selectable
                               />
                             </div>
                           ) : null}
-                          {!isModuleMode && !isPatioPcModal ? (
-                            <div className="inline-flex shrink-0 origin-right scale-[1.2] portrait:scale-[0.936] items-center justify-center gap-2">
+                          {!isModuleMode && !isPatioPcModal && !isPatioTabletLikeModal ? (
+                            <div className="inline-flex shrink-0 origin-right items-center justify-center gap-2.5">
                               <VehicleBrandLogo
                                 brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
-                                size="modal"
+                                size={patioVehicleVm.brandLogoSize}
                               />
-                              <MercosulPlateMockup
-                                plate={selectedCardTitleParts?.plateOrModule || '---'}
-                                blurPlates={blurPlates}
-                                size="modal"
-                                selectable
-                              />
+                              <div className="inline-flex items-center gap-3.5">
+                                {modalOriginIcon}
+                                <MercosulPlateMockup
+                                  plate={selectedCardTitleParts?.plateOrModule || '---'}
+                                  blurPlates={blurPlates}
+                                  size={patioVehicleVm.plateMockupSize}
+                                  selectable
+                                />
+                              </div>
                             </div>
                           ) : null}
                         </div>
                         {!isModuleMode &&
-                        ((serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor)?.trim() ||
-                          (serviceOrderDetail?.vehicle_year ?? selectedCard.vehicleYear ?? '').trim()) ? (
-                          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
-                            {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor)?.trim() ? (
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
-                                {isPatioPcModal ? 'Cor: ' : 'Cor · '}
-                                {(serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor || '').trim()}
-                              </p>
-                            ) : null}
-                            {(serviceOrderDetail?.vehicle_year ?? selectedCard.vehicleYear ?? '').trim() ? (
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
-                                Ano: {(serviceOrderDetail?.vehicle_year ?? selectedCard.vehicleYear ?? '').trim()}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : null}
+                        (() => {
+                          const brandText = (
+                            serviceOrderDetail?.vehicle_brand ||
+                            selectedCard.vehicleBrand ||
+                            ''
+                          ).trim();
+                          const yearText = (
+                            serviceOrderDetail?.vehicle_year ??
+                            selectedCard.vehicleYear ??
+                            ''
+                          ).trim();
+                          const colorText = (
+                            serviceOrderDetail?.vehicle_color ||
+                            selectedCard.vehicleColor ||
+                            ''
+                          ).trim();
+                          const metaLineClass =
+                            'text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400';
+
+                          if (isPatioPcModal) {
+                            if (!brandText && !colorText && !yearText) return null;
+                            return (
+                              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                                {brandText ? <p className={metaLineClass}>{brandText}</p> : null}
+                                {colorText ? <p className={metaLineClass}>Cor: {colorText}</p> : null}
+                                {yearText ? <p className={metaLineClass}>Ano: {yearText}</p> : null}
+                              </div>
+                            );
+                          }
+
+                          if (!brandText && !yearText && !colorText) return null;
+                          return (
+                            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                              {brandText ? <p className={metaLineClass}>{brandText}</p> : null}
+                              {yearText ? <p className={metaLineClass}>Ano: {yearText}</p> : null}
+                              {colorText ? <p className={metaLineClass}>Cor · {colorText}</p> : null}
+                            </div>
+                          );
+                        })()}
                         </div>
                         {/* Cliente | Km | Data de entrega | Técnico */}
                         <div className={`${patioVehicleVm.headerMeta} ${c.grid}`}>
                           <button
                             type="button"
                             onClick={handleJumpToCustomerNameEdit}
-                            disabled={!isPatioPcModal && !can('canEditFicha')}
+                            disabled={false}
                             title={
                               isPatioPcModal
                                 ? can('canEditFicha')
@@ -6773,12 +7581,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     ? 'Fechar dados da ficha'
                                     : 'Abrir dados da ficha'
                                   : 'Ver dados da ficha'
-                                : can('canEditFicha')
-                                  ? 'Editar nome do cliente em Dados da ficha'
-                                  : 'Dados do cliente'
+                                : 'Abrir dados da ficha'
                             }
-                            aria-expanded={isPatioPcModal ? isDadosFichaExpanded : undefined}
-                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isPatioPcModal ? 'patio-vm-meta-card cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${isPatioPcModal && isDadosFichaExpanded ? 'border-[#007AFF]/40 ring-1 ring-[#007AFF]/15' : ''} ${!isPatioPcModal && !isModuleMode && can('canEditMileage') ? '' : !isPatioPcModal ? 'sm:col-span-2' : ''}`}
+                            aria-expanded={
+                              isPatioPcModal ? isDadosFichaExpanded : undefined
+                            }
+                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${
+                              isPatioVmMetaPcLike || !isPatioPcModal
+                                ? 'patio-vm-meta-card cursor-pointer'
+                                : 'active:scale-[0.99]'
+                            } hover:border-[#007AFF]/28 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-zinc-300/70 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12] dark:disabled:hover:border-white/[0.07] ${
+                              isPatioPcModal && isDadosFichaExpanded
+                                ? 'border-[#007AFF]/40 ring-1 ring-[#007AFF]/15'
+                                : ''
+                            } ${
+                              isPatioTabletLikeModal
+                                ? 'order-1'
+                                : !isPatioPcModal && !isModuleMode && can('canEditMileage')
+                                  ? ''
+                                  : !isPatioPcModal
+                                    ? 'sm:col-span-2'
+                                    : ''
+                            }`}
                           >
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -6793,21 +7617,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <User className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className={c.titleText}>Cliente</p>
+                                <p className={c.titleText}>
+                                  {patioVehicleVm.customerMetaLabel}
+                                </p>
                                 <p className={c.bodyText}>{selectedCardTitleParts?.customer || '—'}</p>
                               </div>
-                              {(isPatioPcModal || can('canEditFicha')) && (
-                                <ChevronRight
+                              <ChevronRight
                                   strokeWidth={2.25}
-                                  className={`${c.chevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff] ${isPatioPcModal && isDadosFichaExpanded ? 'rotate-90' : ''}`}
+                                  className={`${c.chevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff] ${
+                                    isPatioPcModal && isDadosFichaExpanded
+                                      ? 'rotate-90'
+                                      : ''
+                                  }`}
                                   aria-hidden
                                 />
-                              )}
                             </div>
                           </button>
                           {isModuleMode ? (
                             <div
-                              className={`${vi} ${isPatioPcModal ? 'patio-vm-meta-card' : ''} relative w-full overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}
+                              className={`${vi} ${isPatioVmMetaPcLike ? 'patio-vm-meta-card' : ''} relative w-full overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]${
+                                isPatioTabletLikeModal ? ' order-3 col-span-2' : ''
+                              }`}
                             >
                               <div
                                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(124,58,237,0.08),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.06),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(124,58,237,0.14),transparent_55%)]"
@@ -6831,7 +7661,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           ) : null}
                           {!isModuleMode && can('canEditMileage') && (
-                            <div className={`${vi} ${isPatioPcModal ? 'patio-vm-meta-card' : ''} relative overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}>
+                            <div
+                              className={`${vi} ${isPatioVmMetaPcLike ? 'patio-vm-meta-card' : ''} relative overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]${
+                                isPatioTabletLikeModal ? ' order-3' : ''
+                              }`}
+                            >
                               <div
                                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
                                 aria-hidden
@@ -6853,8 +7687,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     inputMode="numeric"
                                     value={mileageEditValue}
                                     onChange={(e) => setMileageEditValue(e.target.value)}
-                                    placeholder={isPatioPcModal ? '45000' : 'Ex: 45000'}
-                                    className={`${c.numericInput}${isPatioPcModal ? '' : ' sm:max-w-none portrait:w-[51%] portrait:flex-none'}`}
+                                    placeholder={isPatioVmMetaPcLike ? '45000' : 'Ex: 45000'}
+                                    className={`${c.numericInput}${isPatioVmMetaPcLike ? '' : ' sm:max-w-none portrait:w-[51%] portrait:flex-none'}`}
                                   />
                                   <button
                                     type="button"
@@ -6869,9 +7703,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     }`}
                                   >
                                     {savingMileage ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
-                                    {!isPatioPcModal ? ' Salvar' : null}
+                                    {!isPatioVmMetaPcLike ? ' Salvar' : null}
                                   </button>
-                                  {mileageSavedMessage && !isPatioPcModal ? (
+                                  {mileageSavedMessage && !isPatioVmMetaPcLike ? (
                                     <span className={`${c.salvo} animate-in fade-in`}>Salvo!</span>
                                   ) : null}
                                 </div>
@@ -6880,7 +7714,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           )}
                           {can('canEditDeliveryDate') && (
                           <div
-                            className={`${vi} ${isPatioPcModal ? 'patio-vm-meta-card' : ''} relative min-w-0 w-full overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]`}
+                            className={`${vi} ${isPatioVmMetaPcLike ? 'patio-vm-meta-card' : ''} relative min-w-0 w-full overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]${
+                              isPatioTabletLikeModal ? ' order-4' : ''
+                            }`}
                           >
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -6891,13 +7727,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               aria-hidden
                             />
                             <div className={c.splitRow}>
-                              <div className={`flex min-w-0 shrink items-center gap-1.5${isPatioPcModal ? ' max-w-[5.25rem]' : ''}`}>
+                              <div
+                                className={`flex shrink-0 items-center gap-1${
+                                  isPatioPcModal
+                                    ? ' max-w-[5.25rem] min-w-0'
+                                    : patioVehicleVm.mode === 'mobile'
+                                      ? ''
+                                      : isPatioTabletLikeModal
+                                        ? ' max-w-[5.75rem] min-w-0'
+                                        : ' min-w-0'
+                                }`}
+                              >
                                 <div className={c.iconSquircle}>
                                   <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
                                 </div>
-                                <p className={c.titleText}>
-                                  {isPatioPcModal ? 'Entrega' : 'Data de entrega'}
-                                </p>
+                                {patioVehicleVm.mode === 'mobile' ? (
+                                  <span className="sr-only">{patioVehicleVm.deliveryDateMetaLabel}</span>
+                                ) : (
+                                  <p className={c.titleText}>
+                                    {patioVehicleVm.deliveryDateMetaLabel}
+                                  </p>
+                                )}
                               </div>
                               <div className={`${c.fieldRow} flex-nowrap`}>
                                 <input
@@ -6921,9 +7771,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   }`}
                                 >
                                   {savingDeliveryDate ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
-                                  {!isPatioPcModal ? ' Salvar' : null}
+                                  {!isPatioVmMetaPcLike ? ' Salvar' : null}
                                 </button>
-                                {deliveryDateSavedMessage && !isPatioPcModal ? (
+                                {deliveryDateSavedMessage && !isPatioVmMetaPcLike ? (
                                   <span className={`${c.salvo} shrink-0`}>Salvo!</span>
                                 ) : null}
                               </div>
@@ -6934,7 +7784,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <button
                             type="button"
                             onClick={() => setCardForMemberAssignment(selectedCard)}
-                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isPatioPcModal ? 'patio-vm-meta-card cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]`}
+                            className={`${vi} patio-vm-card group relative w-full overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 ${isPatioVmMetaPcLike ? 'patio-vm-meta-card cursor-pointer' : 'active:scale-[0.99]'} hover:border-[#007AFF]/28 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]${
+                              isPatioTabletLikeModal ? ' order-2' : ''
+                            }`}
                           >
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -6951,7 +7803,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <Wrench className={c.mechanicWrench} strokeWidth={2.35} aria-hidden />
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className={c.titleText}>{isPatioPcModal ? 'Técnico' : 'Técnico responsável'}</p>
+                                    <p className={c.titleText}>{patioVehicleVm.technicianMetaLabel}</p>
                                     <p className={c.bodyText}>
                                       {capitalizeFirst(selectedCard.members[0].fullName)}
                                     </p>
@@ -6964,7 +7816,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <Wrench className={c.iconGlyph} strokeWidth={2.35} aria-hidden />
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className={c.titleText}>{isPatioPcModal ? 'Técnico' : 'Técnico responsável'}</p>
+                                    <p className={c.titleText}>{patioVehicleVm.technicianMetaLabel}</p>
                                     <p className={c.assignHint}>{patioVehicleVm.assignHintLabel}</p>
                                   </div>
                                   <ChevronRight strokeWidth={2.25} className={`${c.chevron} text-zinc-400 transition-colors group-hover:text-[#007AFF]/70 dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]`} aria-hidden />
@@ -6973,118 +7825,172 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           </button>
                           )}
+                          {isPatioTabletLikeModal && !isModuleMode && diagnosticAuthSheetContext ? (
+                            <button
+                              type="button"
+                              onClick={() => setDiagnosticAuthSheetOpen(true)}
+                              title="Ver autorização de diagnóstico"
+                              className={`${vi} patio-vm-card patio-vm-meta-card group relative order-5 col-start-1 w-full cursor-pointer overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 hover:border-[#007AFF]/28 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]`}
+                            >
+                              <div
+                                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
+                                aria-hidden
+                              />
+                              <div
+                                className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
+                                aria-hidden
+                              />
+                              <div className={c.row}>
+                                <div className={c.iconSquircle}>
+                                  <FileText className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className={c.titleText}>Diagnóstico</p>
+                                  <p className={c.bodyText}>Ver autorização</p>
+                                </div>
+                                <ChevronRight
+                                  strokeWidth={2.25}
+                                  className={`${c.chevron} text-[#007AFF]/55 transition-transform duration-200 group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff]`}
+                                  aria-hidden
+                                />
+                              </div>
+                            </button>
+                          ) : null}
+                          {isPatioTabletLikeModal ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleOpenMoveModal(selectedCard, e);
+                              }}
+                              title="Alterar etapa"
+                              aria-label={`Alterar etapa: ${modalListName}`}
+                              className={`patio-vm-card patio-vm-meta-card group relative flex w-full min-h-[3rem] cursor-pointer items-center overflow-hidden rounded-[16px] border-2 text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.14)] transition-all duration-200 hover:brightness-110 active:scale-[0.99] ${
+                                isModuleMode ? 'order-5 col-start-2' : 'order-6 col-start-2'
+                              } ${
+                                isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'
+                              } ${modalStatusConfig.style}`}
+                            >
+                              <div className={`${c.row} w-full gap-1`}>
+                                <p
+                                  className={`min-w-0 flex-1 uppercase leading-tight ${
+                                    patioVehicleVm.mode === 'mobile'
+                                      ? 'line-clamp-2 text-[10.5px] font-bold tracking-[0.04em]'
+                                      : 'truncate text-[15px] font-bold tracking-wide'
+                                  } ${
+                                    isExternalRepairStatus(modalStageStatus)
+                                      ? '!text-white'
+                                      : '!text-black dark:!text-black'
+                                  }`}
+                                >
+                                  {modalListName}
+                                </p>
+                                <ChevronDown
+                                  className={`shrink-0 opacity-90 ${
+                                    patioVehicleVm.mode === 'mobile' ? 'h-3.5 w-3.5' : 'h-4 w-4'
+                                  } ${
+                                    isExternalRepairStatus(modalStageStatus)
+                                      ? 'text-white'
+                                      : 'text-black dark:text-black'
+                                  }`}
+                                  aria-hidden
+                                />
+                              </div>
+                            </button>
+                          ) : null}
                         </div>
 
-                        {/* Dados da ficha — no PC abre pelo card Cliente; no mobile mantém cabeçalho colapsável */}
-                        {serviceOrderDetail &&
-                        ((!isPatioPcModal && showPcOsTab('dados')) || (isPatioPcModal && isDadosFichaExpanded)) && (
-                        <div ref={customerDataSectionRef} className="mt-2 w-full">
-                      <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
-                        {!isPatioPcModal ? (
-                        <div className="relative border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-zinc-950/25">
+                        {/* Dados da ficha — PC: expande no cabeçalho; tablet/mobile: modal (não tela cheia) */}
+                        {serviceOrderDetail && (isPatioPcModal ? isDadosFichaExpanded : dadosFichaPresence.mounted) && (
+                        <div
+                          className={
+                            isPatioPcModal
+                              ? 'mt-2 w-full'
+                              : `fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-[16px] sm:p-5 ${modalBackdropAnimClass(dadosFichaPresence.exiting)}`
+                          }
+                          onClick={
+                            isPatioPcModal
+                              ? undefined
+                              : () => setIsDadosFichaExpanded(false)
+                          }
+                        >
+                      <div
+                        ref={customerDataSectionRef}
+                        role={isPatioPcModal ? undefined : 'dialog'}
+                        aria-modal={isPatioPcModal ? undefined : true}
+                        aria-label={isPatioPcModal ? undefined : 'Dados da ficha'}
+                        className={
+                          isPatioPcModal
+                            ? undefined
+                            : `relative flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-[min(36rem,100%)] min-h-0 flex-col overflow-hidden ${iosVehicleModalShell} ${modalSheetAnimClass(dadosFichaPresence.exiting)}`
+                        }
+                        onClick={
+                          isPatioPcModal
+                            ? undefined
+                            : (e) => e.stopPropagation()
+                        }
+                      >
+                      {!isPatioPcModal ? (
+                        <div className="relative shrink-0 overflow-hidden border-b border-zinc-200/70 bg-white/90 dark:border-white/[0.08] dark:bg-zinc-950/40">
                           <div
-                            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.18),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.14),transparent_52%)]"
+                            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.10),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.10),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.16),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.12),transparent_52%)]"
                             aria-hidden
                           />
-                          <div
-                            className="pointer-events-none absolute -right-12 top-1/2 h-28 w-28 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#007AFF]/18 to-transparent opacity-70 blur-2xl dark:from-[#007AFF]/26"
-                            aria-hidden
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setIsDadosFichaExpanded((v) => !v)}
-                            className="group relative flex min-h-0 w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-zinc-50/90 active:bg-zinc-100/85 dark:hover:bg-white/[0.06] dark:active:bg-white/[0.09] sm:gap-3 sm:px-4 sm:py-3"
-                          >
-                            <div className="pointer-events-none absolute inset-y-2 left-2.5 w-[2px] rounded-full bg-gradient-to-b from-[#007AFF] via-brand-yellow to-[#007AFF]/75 shadow-[0_0_10px_rgba(0,122,255,0.28)] dark:shadow-[0_0_14px_rgba(0,122,255,0.38)] sm:left-3 sm:inset-y-2.5" aria-hidden />
-                            <div className="min-w-0 flex-1 pl-4 sm:pl-5">
-                              <p className={uiOsModalCardSectionTitle}>
-                                Dados da ficha
-                              </p>
-                              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                {isModuleMode ? (
-                                  <>
-                                    <span className="inline-flex max-w-full items-center rounded-lg border border-zinc-200/95 bg-white/90 px-2 py-0.5 text-[11px] font-bold tabular-nums tracking-tight text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_2px_8px_-4px_rgba(0,0,0,0.12)] dark:border-white/[0.12] dark:bg-white/[0.07] dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                                      <span className="mr-1.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500">
-                                        Ref.
-                                      </span>
-                                      <span className="truncate font-mono">
-                                        {(serviceOrderDetail.module_identification || '—').trim()}
-                                      </span>
-                                    </span>
-                                    {(serviceOrderDetail.vehicle_model ?? '').trim() ? (
-                                      <span className="inline-flex max-w-[min(100%,18rem)] items-center rounded-lg border border-zinc-200/90 bg-gradient-to-b from-zinc-50 to-zinc-100/90 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-tight text-zinc-900 shadow-sm dark:border-white/[0.1] dark:from-white/[0.09] dark:to-white/[0.04] dark:text-white">
-                                        {(serviceOrderDetail.vehicle_model ?? '').trim().toUpperCase()}
-                                      </span>
-                                    ) : null}
-                                    {serviceOrderDetail.module_kind ? (
-                                      <span className="inline-flex max-w-[min(100%,14rem)] items-center rounded-lg border border-violet-300/80 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100">
-                                        <span className="truncate">
-                                          {labProductDisplayLabel(
-                                            serviceOrderDetail.module_kind,
-                                            serviceOrderDetail.module_product_other
-                                          )}
-                                        </span>
-                                      </span>
-                                    ) : null}
-                                    {serviceOrderDetail.module_vehicle_kind ? (
-                                      <span className="inline-flex items-center rounded-lg border border-violet-300/80 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100">
-                                        {moduleVehicleKindLabel(serviceOrderDetail.module_vehicle_kind)}
-                                      </span>
-                                    ) : null}
-                                    {typeof serviceOrderDetail.bench_slot === 'number' ? (
-                                      <span className="inline-flex items-center rounded-lg border border-amber-300/80 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:border-amber-500/35 dark:bg-amber-950/40 dark:text-amber-100">
-                                        Bancada · Cx. {serviceOrderDetail.bench_slot}
-                                      </span>
-                                    ) : serviceOrderDetail.bench_queued_at ? (
-                                      <span className="inline-flex items-center rounded-lg border border-violet-400/80 bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-950 dark:border-violet-500/40 dark:bg-violet-950/50 dark:text-violet-100">
-                                        Na fila da bancada
-                                      </span>
-                                    ) : statusUsesBench(serviceOrderDetail.status) ? (
-                                      <span className="inline-flex items-center rounded-lg border border-amber-400/80 bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/50 dark:text-amber-100">
-                                        Sem compartimento
-                                      </span>
-                                    ) : null}
-                                    {serviceOrderDetail.created_at ? (
-                                      <span
-                                        className="inline-flex items-center rounded-lg border border-zinc-200/90 bg-zinc-50/95 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-zinc-700 dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-zinc-200"
-                                        title="Data e hora em que a OS foi criada"
-                                      >
-                                        <span className="mr-1.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500">
-                                          Criado
-                                        </span>
-                                        {formatServiceOrderCreatedAt(serviceOrderDetail.created_at)}
-                                      </span>
-                                    ) : null}
-                                  </>
-                                ) : (
-                                  <>
-                                    {(serviceOrderDetail.vehicle_model ?? '').trim() ? (
-                                      <span className="inline-flex max-w-[min(100%,16rem)] items-center rounded-lg border border-zinc-200/95 bg-white px-2 py-0.5 text-[11px] font-semibold uppercase leading-tight tracking-tight text-zinc-900 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-white">
-                                        {(serviceOrderDetail.vehicle_model ?? '').trim().toUpperCase()}
-                                      </span>
-                                    ) : null}
-                                    {(serviceOrderDetail.vehicle_color ?? '').trim() ? (
-                                      <span className="inline-flex items-center rounded-lg border border-zinc-200/80 bg-zinc-50/95 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-zinc-700 normal-case dark:border-white/[0.08] dark:bg-white/[0.05] dark:text-zinc-300">
-                                        {(serviceOrderDetail.vehicle_color ?? '').trim().toLowerCase()}
-                                      </span>
-                                    ) : null}
-                                  </>
-                                )}
-                                <span className="inline-flex max-w-[min(100%,20rem)] items-center gap-1 rounded-lg border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2 py-0.5 text-[11px] font-semibold uppercase text-[#004999] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:shadow-none">
-                                  <User className="h-3 w-3 shrink-0 opacity-80" aria-hidden strokeWidth={2.5} />
-                                  <span className="truncate">{firstTwoNames(serviceOrderDetail.customers?.name?.trim() || 'Cliente').toUpperCase()}</span>
-                                </span>
+                          <div className="relative flex items-start justify-between gap-3 px-4 py-3.5 sm:px-5 sm:py-4">
+                            <div className="flex min-w-0 flex-1 items-start gap-3">
+                              <div className={`${uiOsModalSectionIconWrap} mt-0.5`}>
+                                <FileText className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className={uiOsModalCardSectionTitle}>Dados da ficha</p>
+                                <p className="mt-1 truncate text-[13px] font-medium leading-snug text-zinc-600 dark:text-zinc-300">
+                                  {firstTwoNames(
+                                    serviceOrderDetail.customers?.name?.trim() ||
+                                      selectedCardTitleParts?.customer ||
+                                      'Cliente'
+                                  )}
+                                </p>
+                                {!isModuleMode &&
+                                ((serviceOrderDetail.vehicle_model ?? selectedCardTitleParts?.vehicle ?? '').trim() ||
+                                  (serviceOrderDetail.plate ?? selectedCardTitleParts?.plateOrModule ?? '').trim()) ? (
+                                  <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-400 dark:text-zinc-500">
+                                    {[
+                                      (serviceOrderDetail.vehicle_model ?? selectedCardTitleParts?.vehicle ?? '')
+                                        .trim()
+                                        .toUpperCase(),
+                                      (serviceOrderDetail.plate ?? selectedCardTitleParts?.plateOrModule ?? '')
+                                        .trim()
+                                        .toUpperCase(),
+                                    ]
+                                      .filter(Boolean)
+                                      .join(' · ')}
+                                  </p>
+                                ) : null}
                               </div>
                             </div>
-                            <ChevronRight
-                              strokeWidth={2.25}
-                              className={`relative z-[1] h-3.5 w-3.5 shrink-0 text-[#007AFF]/55 transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] group-hover:text-[#007AFF]/85 dark:text-[#7ab8ff]/70 dark:group-hover:text-[#7ab8ff] ${isDadosFichaExpanded ? 'rotate-90' : ''}`}
-                              aria-hidden
-                            />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => setIsDadosFichaExpanded(false)}
+                              className={`${patioVehicleVm.closeBtn} -mr-0.5 -mt-0.5`}
+                              aria-label="Fechar dados da ficha"
+                            >
+                              <X className="h-5 w-5" />
+                            </button>
+                          </div>
+                          <div
+                            className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#007AFF]/35 to-transparent dark:via-[#7ab8ff]/30"
+                            aria-hidden
+                          />
                         </div>
-                        ) : null}
-                        {isDadosFichaExpanded && (
+                      ) : null}
+                      <div
+                        className={
+                          isPatioPcModal
+                            ? `${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`
+                            : 'patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none'
+                        }
+                      >
                         <div className="flex flex-col gap-6 bg-zinc-50/90 p-5 dark:bg-white/[0.02] sm:p-6">
                           {can('canEditFicha') ? (
                             <>
@@ -7136,17 +8042,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <div className="space-y-3">
                                 <div className="ml-0.5 flex flex-wrap items-center justify-between gap-2">
                                   <p className={iosLabel}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
-                                  {!isModuleMode && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setIsVehicleCategoryModalOpen(true)}
-                                      className="inline-flex items-center gap-1 rounded-lg border border-[#007AFF]/30 bg-[#007AFF]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#007AFF] transition-colors hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
-                                      title="Alterar categoria do veículo"
-                                    >
-                                      {headerVehicleCategoryLabel || 'Categoria'}
-                                      <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                    </button>
-                                  )}
                                 </div>
                                 <div className={`${vi} space-y-4 p-4 sm:p-5`}>
                                   {!isModuleMode && (
@@ -7315,17 +8210,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <div className="space-y-3">
                                 <div className="ml-0.5 flex flex-wrap items-center justify-between gap-2">
                                   <p className={iosLabel}>{isModuleMode ? 'Módulo' : 'Veículo'}</p>
-                                  {!isModuleMode && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setIsVehicleCategoryModalOpen(true)}
-                                      className="inline-flex items-center gap-1 rounded-lg border border-[#007AFF]/30 bg-[#007AFF]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#007AFF] transition-colors hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
-                                      title="Alterar categoria do veículo"
-                                    >
-                                      {headerVehicleCategoryLabel || 'Categoria'}
-                                      <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                    </button>
-                                  )}
                                 </div>
                                 <div className={`${vi} divide-y divide-zinc-200/60 overflow-hidden p-0 dark:divide-white/[0.06]`}>
                                   {!isModuleMode && serviceOrderDetail.vehicle_brand?.trim() ? (
@@ -7530,7 +8414,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           )}
                         </div>
-                        )}
+                      </div>
                       </div>
                     </div>
                   )}
@@ -7541,7 +8425,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     <PatioOsModalPcTabBar
                       active={pcOsModalTab}
                       onChange={setPcOsModalTab}
-                      hiddenTabs={isModuleMode ? ['laboratorio'] : ['conserto_externo']}
+                      hiddenTabs={isModuleMode ? ['laboratorio', 'conserto_externo'] : ['conserto_externo']}
+                      tabBadges={{
+                        laboratorio: labServiceLinksDraft.length,
+                        orcamentos: savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length,
+                      }}
                     />
                   ) : null}
 
@@ -7650,6 +8538,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             evaluatedByName={serviceOrderDetail.lab_evaluated_by_name}
                             evaluatedByDisplayName={commentAuthorName}
                             onSubmitEvaluation={handleLabEvaluationSubmit}
+                            onDeleteEvaluation={can('canEditFicha') ? handleLabEvaluationDelete : undefined}
                           />
                         ) : null}
 
@@ -7731,7 +8620,51 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                         ) : null}
 
+                        {isPatioPcModal &&
+                        !isModuleMode &&
+                        selectedCard &&
+                        !selectedHistoryCard &&
+                        diagnosticAuthSheetContext ? (
+                          <div className="min-w-0">
+                            <h3 className={patioVehicleVm.sectionTitle}>
+                              <FileText className="h-3.5 w-3.5 shrink-0" />
+                              Autorização de diagnóstico
+                            </h3>
+                            <button
+                              type="button"
+                              onClick={() => setDiagnosticAuthSheetOpen(true)}
+                              className="group relative w-full overflow-hidden rounded-xl border border-zinc-200/85 bg-gradient-to-br from-white via-white to-zinc-50/95 text-left shadow-[0_4px_22px_-10px_rgba(0,122,255,0.22),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:border-[#007AFF]/40 hover:shadow-[0_10px_32px_-12px_rgba(0,122,255,0.32)] active:scale-[0.99] dark:border-white/[0.1] dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 dark:shadow-[0_6px_28px_-14px_rgba(0,0,0,0.55)] dark:hover:border-[#007AFF]/35"
+                            >
+                              <span className="flex items-center gap-3.5 px-4 py-3.5">
+                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#007AFF]/14 to-sky-500/10 text-[#007AFF] ring-1 ring-[#007AFF]/18 dark:from-[#007AFF]/28 dark:to-sky-500/14 dark:text-[#7ab8ff] dark:ring-[#007AFF]/22">
+                                  <FileText className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-[14px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">
+                                    Ver autorização de diagnóstico
+                                  </span>
+                                  <span className="mt-1 block text-[11px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
+                                    Documento assinado pelo cliente
+                                  </span>
+                                </span>
+                                <ChevronRight
+                                  className="h-5 w-5 shrink-0 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#007AFF] dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]"
+                                  strokeWidth={2.25}
+                                  aria-hidden
+                                />
+                              </span>
+                            </button>
+                          </div>
+                        ) : null}
+
+                        </>
+                        ) : null}
+
+                        {(!isPatioPcModal || pcOsModalTab === 'orcamentos') ? (
+                        <>
+                        {!isPatioPcModal ? (
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
+                        ) : null}
 
                          {/* Orçamentos: cabeçalho iOS; lista com aro em gradiente nos itens */}
                          {can('canEditBudgets') && (
@@ -7747,16 +8680,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 aria-hidden
                               />
 
-                              <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
-                                <div className={uiOsModalSectionIconWrap}>
-                                  <Calculator className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                              <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                                  <div className={uiOsModalSectionIconWrap}>
+                                    <Calculator className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                  </div>
+                                  <p className={uiOsModalCardSectionTitle}>
+                                    Orçamentos
+                                  </p>
                                 </div>
-                                <p className={uiOsModalCardSectionTitle}>
-                                  Orçamentos
-                                </p>
+                                {!isPatioPcModal ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openBudgetModal()}
+                                    className="inline-flex shrink-0 items-center rounded-md bg-[#4FA8FF] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:bg-[#3397F8] active:scale-[0.98] dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+                                  >
+                                    + Criar orçamento
+                                  </button>
+                                ) : null}
                               </div>
 
                               <div className="relative space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+                                {isPatioPcModal ? (
                                 <button
                                   type="button"
                                   onClick={() => openBudgetModal()}
@@ -7767,8 +8712,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <Calculator className="h-5 w-5 shrink-0 text-white transition-transform group-hover:scale-110 dark:text-[#007AFF]" strokeWidth={2.25} />
                                   </span>
                                 </button>
+                                ) : null}
 
-                                <div className="max-h-[380px] space-y-2.5 overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50">
+                                <div
+                                  className={`max-h-[380px] overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50 ${
+                                    isPatioTabletLikeModal
+                                      ? 'grid grid-cols-2 gap-2.5 p-3'
+                                      : 'space-y-2.5 p-2.5'
+                                  }`}
+                                >
                               {savedBudgets
                                 .filter((b) => b.serviceOrderId === selectedCard.id)
                                 .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
@@ -7782,48 +8734,52 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   const dateStr = new Date(budgetLastActivityMs(budget)).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                                   const numero = budgetChronologicalNumber(sameOs, budget.id);
                                   const budgetVerified = isBudgetVerified(budget);
+                                  const ringRadius = isPatioTabletLikeModal ? 'rounded-[14px]' : 'rounded-[18px]';
+                                  const innerRadius = isPatioTabletLikeModal ? 'rounded-[12px]' : 'rounded-[16px]';
                                   return (
                                     <div
                                       key={budget.id}
-                                      className="rounded-[18px] bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_6px_16px_-8px_rgba(0,122,255,0.33)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.32)]"
+                                      className={`min-w-0 overflow-hidden bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_6px_16px_-8px_rgba(0,122,255,0.33)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.32)] ${ringRadius}`}
                                     >
                                     <button
                                       type="button"
                                       onClick={() => openBudgetForView(budget)}
-                                      className="group relative w-full overflow-hidden rounded-[16px] border border-white/85 bg-white/95 p-3.5 text-left shadow-[0_6px_16px_-8px_rgba(0,0,0,0.22)] ring-1 ring-transparent transition-all duration-200 hover:-translate-y-[1px] hover:border-white hover:shadow-[0_10px_22px_-8px_rgba(0,122,255,0.33)] hover:ring-[#007AFF]/20 active:translate-y-0 dark:border-white/[0.08] dark:bg-zinc-950/85 dark:shadow-[0_8px_20px_-10px_rgba(0,0,0,0.6)] dark:hover:border-[#93c5fd]/35 dark:hover:shadow-[0_12px_26px_-10px_rgba(59,130,246,0.28)] dark:hover:ring-[#7ab8ff]/20"
+                                      className={`group relative w-full border border-white/85 bg-white/95 text-left shadow-[0_6px_16px_-8px_rgba(0,0,0,0.22)] ring-1 ring-transparent transition-[border-color,box-shadow,ring-color] duration-200 hover:border-white hover:shadow-[0_10px_22px_-8px_rgba(0,122,255,0.33)] hover:ring-[#007AFF]/20 dark:border-white/[0.08] dark:bg-zinc-950/85 dark:shadow-[0_8px_20px_-10px_rgba(0,0,0,0.6)] dark:hover:border-[#93c5fd]/35 dark:hover:shadow-[0_12px_26px_-10px_rgba(59,130,246,0.28)] dark:hover:ring-[#7ab8ff]/20 ${innerRadius} ${
+                                        isPatioTabletLikeModal ? 'p-2.5' : 'p-3.5'
+                                      }`}
                                     >
-                                      <div className="mb-2.5 flex items-center justify-between gap-2">
-                                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-100">
+                                      <div className={`mb-2 flex items-center justify-between gap-1.5${isPatioTabletLikeModal ? ' mb-1.5' : ' mb-2.5'}`}>
+                                        <span className={`font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-100 ${isPatioTabletLikeModal ? 'text-[10px]' : 'text-xs'}`}>
                                           Orçamento {numero}
                                         </span>
                                         {budgetVerified ? (
-                                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700 dark:bg-emerald-500/18 dark:text-emerald-300">
+                                          <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/12 font-bold uppercase tracking-[0.08em] text-emerald-700 dark:bg-emerald-500/18 dark:text-emerald-300 ${isPatioTabletLikeModal ? 'px-1.5 py-0.5 text-[8px]' : 'px-2 py-0.5 text-[10px]'}`}>
                                             Verificado
                                           </span>
                                         ) : (
-                                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-amber-800 dark:bg-amber-500/18 dark:text-amber-200">
+                                          <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/12 font-bold uppercase tracking-[0.08em] text-amber-800 dark:bg-amber-500/18 dark:text-amber-200 ${isPatioTabletLikeModal ? 'px-1.5 py-0.5 text-[8px]' : 'px-2 py-0.5 text-[10px]'}`}>
                                             Aguardando
                                           </span>
                                         )}
                                       </div>
-                                      <p className="mb-2 line-clamp-2 text-[13px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
+                                      <p className={`mb-2 line-clamp-2 font-semibold leading-snug text-zinc-900 dark:text-zinc-100 ${isPatioTabletLikeModal ? 'mb-1.5 text-[11px]' : 'text-[13px]'}`}>
                                         {preview}
                                       </p>
-                                      <div className="mb-2 flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
+                                      <div className={`mb-2 flex items-center gap-2 text-zinc-600 dark:text-zinc-400 ${isPatioTabletLikeModal ? 'mb-1.5 text-[10px]' : 'text-[11px]'}`}>
                                         <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
                                         <span>·</span>
                                         <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
                                       </div>
-                                      <div className="flex items-center justify-between gap-2 border-t border-zinc-200/80 pt-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:border-white/[0.08] dark:text-zinc-400">
-                                        <span>{dateStr}</span>
-                                        <span className="text-[#007AFF] dark:text-[#93c5fd]">{patioVehicleVm.openHintLabel}</span>
+                                      <div className={`flex items-center justify-between gap-1 border-t border-zinc-200/80 font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:border-white/[0.08] dark:text-zinc-400 ${isPatioTabletLikeModal ? 'pt-1.5 text-[8px]' : 'pt-2 text-[10px]'}`}>
+                                        <span className="min-w-0 truncate">{dateStr}</span>
+                                        <span className="shrink-0 text-[#007AFF] dark:text-[#93c5fd]">{patioVehicleVm.openHintLabel}</span>
                                       </div>
                                     </button>
                                     </div>
                                   );
                                 })}
                               {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
-                                <div className="rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-5 text-center dark:border-white/[0.12] dark:bg-white/[0.04]">
+                                <div className={`rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-5 text-center dark:border-white/[0.12] dark:bg-white/[0.04]${isPatioTabletLikeModal ? ' col-span-2' : ''}`}>
                                   <Calculator className="mx-auto mb-2 h-9 w-9 text-[#007AFF]/75 dark:text-[#7ab8ff]" />
                                   <p className="mt-0.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nenhum orçamento</p>
                                   <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">Crie um orçamento pelo botão acima</p>
@@ -7894,9 +8850,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          </div>
                          )}
 
+                        {!isPatioPcModal ? (
+                        <>
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
-
-                        {!isPatioPcModal && renderExternalRepairSection()}
+                        {renderExternalRepairSection()}
+                        </>
+                        ) : null}
 
                         </>
                         ) : null}
@@ -7905,19 +8864,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <>
                          {/* Anexos (fotos) + Documentos (arquivos) */}
                          <div className={`${vi} flex flex-col overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.1),0_2px_10px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_34px_-12px_rgba(0,0,0,0.45)]`}>
-                            <div className="border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div className="min-w-0">
-                                  <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+                            <div className="relative border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
+                            <div className="flex items-center justify-between gap-2 sm:gap-3">
+                                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
                                     <div className={uiOsModalSectionIconWrap}>
                                       <Paperclip className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
                                     </div>
                                     <p className={uiOsModalCardSectionTitle}>
                                       Anexos
                                     </p>
-                                  </div>
                                 </div>
-                                <div className="grid grid-cols-3 gap-2 sm:gap-2 sm:justify-items-end sm:shrink-0">
+                                <div className="relative shrink-0" ref={anexosAddMenuRef}>
                                     <input
                                         type="file"
                                         ref={cameraInputRef}
@@ -7944,52 +8901,141 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     />
                                     <button
                                         type="button"
-                                        onClick={() => cameraInputRef.current?.click()}
+                                        onClick={() => setIsAnexosAddMenuOpen((open) => !open)}
                                         disabled={isUploading}
-                                        className="flex items-center justify-center w-12 h-12 sm:w-10 sm:h-10 rounded-xl sm:rounded-lg bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Abrir câmera"
-                                        aria-label="Abrir câmera"
+                                        aria-expanded={isAnexosAddMenuOpen}
+                                        aria-haspopup="menu"
+                                        className="inline-flex shrink-0 items-center rounded-md bg-[#4FA8FF] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:bg-[#3397F8] active:scale-[0.98] disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
                                     >
-                                        <Camera className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
+                                      + Adicionar
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => galleryInputRef.current?.click()}
-                                        disabled={isUploading}
-                                        className="flex items-center justify-center w-12 h-12 sm:w-10 sm:h-10 rounded-xl sm:rounded-lg bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Abrir galeria"
-                                        aria-label="Abrir galeria"
-                                    >
-                                        <ImageIcon className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => filesInputRef.current?.click()}
-                                        disabled={isUploading}
-                                        className="flex items-center justify-center w-12 h-12 sm:w-10 sm:h-10 rounded-xl sm:rounded-lg bg-white/90 dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/10 shadow-sm active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-white/[0.12] transition-all duration-200"
-                                        title="Abrir arquivos"
-                                        aria-label="Abrir arquivos"
-                                    >
-                                        <FolderOpen className="w-6 h-6 sm:w-5 sm:h-5 shrink-0" strokeWidth={2} />
-                                    </button>
+                                    {isAnexosAddMenuOpen &&
+                                    anexosAddMenuPos &&
+                                    typeof document !== 'undefined'
+                                      ? createPortal(
+                                          <div
+                                            ref={anexosAddMenuPanelRef}
+                                            role="menu"
+                                            style={{
+                                              position: 'fixed',
+                                              top: anexosAddMenuPos.top,
+                                              right: anexosAddMenuPos.right,
+                                              zIndex: 400,
+                                            }}
+                                            className="min-w-[11.5rem] overflow-hidden rounded-xl border border-zinc-200/90 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.35)] animate-in fade-in zoom-in-95 duration-150 dark:border-white/[0.1] dark:bg-zinc-900 dark:shadow-[0_20px_56px_-14px_rgba(0,0,0,0.7)]"
+                                          >
+                                            <button
+                                              type="button"
+                                              role="menuitem"
+                                              disabled={isUploading}
+                                              onClick={() => {
+                                                setIsAnexosAddMenuOpen(false);
+                                                cameraInputRef.current?.click();
+                                              }}
+                                              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                            >
+                                              <Camera className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                              Câmera
+                                            </button>
+                                            <button
+                                              type="button"
+                                              role="menuitem"
+                                              disabled={isUploading}
+                                              onClick={() => {
+                                                setIsAnexosAddMenuOpen(false);
+                                                galleryInputRef.current?.click();
+                                              }}
+                                              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                            >
+                                              <ImageIcon className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                              Galeria
+                                            </button>
+                                            <button
+                                              type="button"
+                                              role="menuitem"
+                                              disabled={isUploading}
+                                              onClick={() => {
+                                                setIsAnexosAddMenuOpen(false);
+                                                filesInputRef.current?.click();
+                                              }}
+                                              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                            >
+                                              <FolderOpen className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                              Arquivos
+                                            </button>
+                                            {isModuleMode && labSourcePatio ? (
+                                              <button
+                                                type="button"
+                                                role="menuitem"
+                                                disabled={copyingPatioOriginAttachments}
+                                                onClick={() => {
+                                                  setIsAnexosAddMenuOpen(false);
+                                                  void (async () => {
+                                                    try {
+                                                      const origin = await getLabOrderSourcePatio(selectedCard.id);
+                                                      if (!origin.found) {
+                                                        alert('Esta OS do laboratório não está vinculada a uma OS do pátio.');
+                                                        return;
+                                                      }
+                                                      setLabSourcePatio({
+                                                        id: origin.id,
+                                                        osNumber: origin.osNumber,
+                                                        photos: origin.photos,
+                                                      });
+                                                      if (origin.photos.length === 0) {
+                                                        alert('A OS do pátio ainda não tem fotos ou documentos para copiar.');
+                                                        return;
+                                                      }
+                                                      setLabSourcePatioSelectedPaths([]);
+                                                      setLabSourcePatioPickerOpen(true);
+                                                    } catch (err: unknown) {
+                                                      alert(
+                                                        err instanceof Error
+                                                          ? err.message
+                                                          : 'Não foi possível carregar os anexos da OS do pátio.'
+                                                      );
+                                                    }
+                                                  })();
+                                                }}
+                                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                              >
+                                                <Copy className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                                Da OS do pátio
+                                                {labSourcePatio.osNumber != null ? ` #${labSourcePatio.osNumber}` : ''}
+                                              </button>
+                                            ) : null}
+                                            {can('canEditFicha') ? (
+                                              <button
+                                                type="button"
+                                                role="menuitem"
+                                                disabled={pendingReferenceLink != null}
+                                                onClick={() => {
+                                                  setIsAnexosAddMenuOpen(false);
+                                                  setPendingReferenceLink({ label: '', url: '' });
+                                                }}
+                                                className="flex w-full items-center gap-2.5 border-t border-zinc-100 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.08] dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                              >
+                                                <Link2 className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                                Links
+                                              </button>
+                                            ) : null}
+                                          </div>,
+                                          document.body
+                                        )
+                                      : null}
                                 </div>
                             </div>
                             </div>
 
-                            {serviceOrderDetail && (referenceLinksDraft.length > 0 || pendingReferenceLink || can('canEditFicha')) && (
-                              <div className="order-1 px-3 py-2 sm:px-4 sm:py-2.5">
+                            {serviceOrderDetail && (referenceLinksDraft.length > 0 || pendingReferenceLink) ? (
+                              <div className={`order-1 px-4 sm:px-5 ${isPatioPcModal ? 'py-3 sm:py-3.5' : 'pb-3 pt-5 sm:pb-3.5 sm:pt-6'}`}>
                                 <div
-                                  className={`${vi} overflow-hidden p-2.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:p-3`}
+                                  className={`${vi} overflow-hidden px-4 py-3.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:px-5 sm:py-4`}
                                 >
-                                  <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                                    <Link2 className="h-3.5 w-3.5" />
-                                    Links úteis
+                                  <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                                    Links
                                   </h3>
-                                  {referenceLinksDraft.length === 0 && !pendingReferenceLink ? (
-                                    <p className="mb-2 text-[14px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                                      Nenhum link anexado.
-                                    </p>
-                                  ) : referenceLinksDraft.length > 0 ? (
+                                  {referenceLinksDraft.length > 0 ? (
                                     <ul className="space-y-2">
                                       {referenceLinksDraft.map((link) => {
                                         const href = link.url.trim().match(/^https?:\/\//i)
@@ -8071,8 +9117,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           className={vin}
                                         />
                                       </div>
-                                      {pendingReferenceLink.url.trim() ? (
-                                        <div className="flex justify-end">
+                                      <div className="flex flex-wrap justify-end gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => setPendingReferenceLink(null)}
+                                          className="inline-flex items-center rounded-xl border border-zinc-200/90 px-3 py-2 text-[13px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+                                        >
+                                          Cancelar
+                                        </button>
+                                        {pendingReferenceLink.url.trim() ? (
                                           <button
                                             type="button"
                                             onClick={() => void handleSaveReferenceLinks()}
@@ -8088,30 +9141,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             ) : (
                                               <Save className="h-4 w-4" />
                                             )}
-                                            Salvar links
+                                            Salvar link
                                           </button>
-                                        </div>
-                                      ) : null}
-                                    </div>
-                                  ) : null}
-                                  {can('canEditFicha') ? (
-                                    <div className={`${referenceLinksDraft.length > 0 || pendingReferenceLink ? 'mt-3' : ''}`}>
-                                      <button
-                                        type="button"
-                                        onClick={() => setPendingReferenceLink({ label: '', url: '' })}
-                                        disabled={pendingReferenceLink != null}
-                                        className="inline-flex items-center gap-1 rounded-xl border border-zinc-200/90 px-3 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-45 dark:border-white/[0.12] dark:hover:bg-white/[0.06]"
-                                      >
-                                        <Plus className="h-3.5 w-3.5" />
-                                        Adicionar link
-                                      </button>
+                                        ) : null}
+                                      </div>
                                     </div>
                                   ) : null}
                                 </div>
                               </div>
-                            )}
+                            ) : null}
 
-                            <div className="order-2 space-y-3 pb-8 sm:pb-10">
+                            <div className={`order-2 space-y-3 px-4 sm:px-5 ${isPatioPcModal ? 'pb-8 sm:pb-10' : 'pb-8 pt-5 sm:pb-10 sm:pt-6'}`}>
                                {isUploading && (
                                   <div className="flex justify-center p-4">
                                      <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
@@ -8128,10 +9168,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <div className="flex flex-col gap-8">
                                         {images.length > 0 && (
                                           <div className="order-2">
-                                            <div className="mb-2 flex min-w-0 items-center gap-2 pl-1.5 sm:gap-2.5 sm:pl-2">
-                                              <div className={uiOsModalSectionIconWrap}>
-                                                <ImageIcon className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
-                                              </div>
+                                            <div className="mb-2 flex min-w-0 items-center">
                                               <p className={uiOsModalCardSectionTitle}>
                                                 Fotos
                                               </p>
@@ -8378,9 +9415,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               <button
                                                 type="button"
                                                 className="mt-2 w-full rounded-xl border border-zinc-200/80 bg-zinc-50 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-200 dark:hover:bg-white/[0.08]"
-                                                onClick={() =>
-                                                  setVehicleModalPhotoVisibleCount((n) => n + VEHICLE_MODAL_PHOTOS_BATCH)
-                                                }
+                                                onClick={() => setVehicleModalPhotoVisibleCount(images.length)}
                                               >
                                                 Mostrar mais ({hiddenPhotoCount}{' '}
                                                 {hiddenPhotoCount === 1 ? 'foto' : 'fotos'})
@@ -8390,10 +9425,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         )}
                                         {others.length > 0 && (
                                           <div className="order-1">
-                                            <div className="mb-2 flex min-w-0 items-center gap-2 pl-1.5 sm:gap-2.5 sm:pl-2">
-                                              <div className={uiOsModalSectionIconWrap}>
-                                                <FileText className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
-                                              </div>
+                                            <div className="mb-2 flex min-w-0 items-center">
                                               <p className={uiOsModalCardSectionTitle}>
                                                 Documentos
                                               </p>
@@ -8492,12 +9524,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                           href={att.url}
                                                           target="_blank"
                                                           rel="noopener noreferrer"
-                                                          onClick={(e) => {
-                                                            if (isPdf) {
-                                                              e.preventDefault();
-                                                              setPreviewPdf(att.url);
-                                                            }
-                                                          }}
                                                           className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors min-w-0 flex-1"
                                                         >
                                                           {isLoadingThis ? (
@@ -8574,38 +9600,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
 
                       <div className={patioVehicleVm.asideCol}>
-                        {!isModuleMode && selectedCard && !selectedHistoryCard && diagnosticAuthSheetContext ? (
-                          <div className="min-w-0">
-                            <h3 className={isPatioPcModal ? patioVehicleVm.sectionTitle : `${uiSectionTitleRow} lg:mb-2`}>
-                              <FileText className="h-3.5 w-3.5 shrink-0" />
-                              Autorização de diagnóstico
-                            </h3>
-                            <button
-                              type="button"
-                              onClick={() => setDiagnosticAuthSheetOpen(true)}
-                              className="group relative w-full overflow-hidden rounded-xl border border-zinc-200/85 bg-gradient-to-br from-white via-white to-zinc-50/95 text-left shadow-[0_4px_22px_-10px_rgba(0,122,255,0.22),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:border-[#007AFF]/40 hover:shadow-[0_10px_32px_-12px_rgba(0,122,255,0.32)] active:scale-[0.99] dark:border-white/[0.1] dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 dark:shadow-[0_6px_28px_-14px_rgba(0,0,0,0.55)] dark:hover:border-[#007AFF]/35"
-                            >
-                              <span className="flex items-center gap-3.5 px-4 py-3.5">
-                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#007AFF]/14 to-sky-500/10 text-[#007AFF] ring-1 ring-[#007AFF]/18 dark:from-[#007AFF]/28 dark:to-sky-500/14 dark:text-[#7ab8ff] dark:ring-[#007AFF]/22">
-                                  <FileText className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+                        {isPatioPcModal ? (
+                         <div>
+                            <p className={`${iosLabel} mb-3`}>Alterar status</p>
+                            <button 
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleOpenMoveModal(selectedCard, e);
+                                }}
+                                className={`group flex w-full items-center justify-between rounded-xl border-2 p-4 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'} ${modalStatusConfig.style}`}
+                              >
+                                <span className={`text-[16px] font-bold uppercase leading-snug sm:text-[17px] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'}`}>
+                                  {modalListName}
                                 </span>
-                                <span className="min-w-0 flex-1">
-                                  <span className="block text-[14px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">
-                                    Ver autorização de diagnóstico
-                                  </span>
-                                  <span className="mt-1 block text-[11px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
-                                    Documento assinado pelo cliente
-                                  </span>
-                                </span>
-                                <ChevronRight
-                                  className="h-5 w-5 shrink-0 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#007AFF] dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]"
-                                  strokeWidth={2.25}
-                                  aria-hidden
+                                <ChevronDown
+                                  className={`h-5 w-5 opacity-90 ${isExternalRepairStatus(modalStageStatus) ? 'text-white' : 'text-black dark:text-black'}`}
                                 />
-                              </span>
                             </button>
-                          </div>
+                         </div>
                         ) : null}
+
                         <div ref={commentsSectionRef}>
                            <h3 className={isPatioPcModal ? patioVehicleVm.sectionTitle : `${uiSectionTitleRow} lg:mb-2`}>
                              <MessageSquare className="h-3.5 w-3.5 shrink-0" />
@@ -8735,26 +9751,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                         </div>
 
-                         <div>
-                            <p className={`${iosLabel} mb-3`}>Alterar status</p>
-                            <button 
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleOpenMoveModal(selectedCard, e);
-                                }}
-                                className={`group flex w-full items-center justify-between rounded-xl border-2 p-4 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'} ${modalStatusConfig.style}`}
-                              >
-                                <span className={`text-[16px] font-bold uppercase leading-snug sm:text-[17px] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'}`}>
-                                  {modalListName}
-                                </span>
-                                <ChevronDown
-                                  className={`h-5 w-5 opacity-90 ${isExternalRepairStatus(modalStageStatus) ? 'text-white' : 'text-black dark:text-black'}`}
-                                />
-                            </button>
-                         </div>
-
+                        {isPatioPcModal ? (
+                         <>
                          <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
 
                          <div>
@@ -8786,6 +9784,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                </div>
                              )}
                          </div>
+                         </>
+                        ) : null}
 
                       </div>
                   </div>
@@ -8796,17 +9796,98 @@ export const PatioView: React.FC<PatioViewProps> = ({
       );
       })()}
 
-      {/* --- MODAL DE LEMBRETES (PÁTIO / LABORATÓRIO) — portal em body + z acima da TabBar (igual orçamento) --- */}
-      {isRemindersOpen && patioPortalsVisible && (
-        <ModalPortal>
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200">
+      {labSourcePatioPickerOpen && isModuleMode && selectedCard && labSourcePatio ? (
+        <ModalPortal manageBackLayer={false}>
           <div
-            className="relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-xl min-h-0 flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_24px_64px_-18px_rgba(0,0,0,0.14),0_10px_32px_-12px_rgba(0,0,0,0.08),0_1px_0_0_rgba(255,255,255,0.9)_inset] animate-in zoom-in-95 duration-200 dark:border-white/[0.08] dark:bg-zinc-900 dark:shadow-[0_20px_56px_-14px_rgba(0,0,0,0.55)] sm:rounded-[2.25rem]"
+            className="fixed inset-0 z-[350] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6"
+            onClick={() => !copyingPatioOriginAttachments && setLabSourcePatioPickerOpen(false)}
+            role="presentation"
+          >
+            <div
+              className={`relative flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-lg min-h-0 flex-col overflow-hidden ${iosModalShell}`}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="lab-source-patio-attach-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setLabSourcePatioPickerOpen(false)}
+                className={iosModalClose}
+                aria-label="Fechar anexos da OS do pátio"
+                disabled={copyingPatioOriginAttachments}
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="shrink-0 border-b border-zinc-200/70 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+                <h2
+                  id="lab-source-patio-attach-title"
+                  className="pr-10 text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white"
+                >
+                  Anexar da OS do pátio
+                  {labSourcePatio.osNumber != null ? ` #${labSourcePatio.osNumber}` : ''}
+                </h2>
+                <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
+                  Selecione fotos ou documentos da OS do veículo para copiar para este produto.
+                </p>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-4 py-4 dark:bg-black/25 custom-scrollbar sm:px-6">
+                <PatioOriginAttachmentsSection hint="Os arquivos continuam na OS do pátio; uma cópia é criada nesta OS do laboratório.">
+                  <PatioOriginAttachmentsPicker
+                    attachments={labSourcePatio.photos.map((p) => ({
+                      path: p.path,
+                      name: p.name,
+                      url: p.url,
+                    }))}
+                    selectedPaths={labSourcePatioSelectedPaths}
+                    onChange={setLabSourcePatioSelectedPaths}
+                    disabled={copyingPatioOriginAttachments}
+                  />
+                </PatioOriginAttachmentsSection>
+              </div>
+              <div className="shrink-0 border-t border-zinc-200/70 bg-white px-4 py-3 dark:border-white/[0.07] dark:bg-zinc-900 sm:px-6">
+                <button
+                  type="button"
+                  disabled={copyingPatioOriginAttachments || labSourcePatioSelectedPaths.length === 0}
+                  onClick={async () => {
+                    const ok = await copyPatioAttachmentsToLabOrder(
+                      selectedCard.id,
+                      labSourcePatioSelectedPaths,
+                      labSourcePatio.id
+                    );
+                    if (!ok) return;
+                    setLabSourcePatioPickerOpen(false);
+                    setLabSourcePatioSelectedPaths([]);
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#007AFF] px-3 py-2.5 text-[14px] font-semibold text-white disabled:opacity-55"
+                >
+                  {copyingPatioOriginAttachments ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                  Copiar {labSourcePatioSelectedPaths.length > 0 ? `${labSourcePatioSelectedPaths.length} ` : ''}anexo{labSourcePatioSelectedPaths.length === 1 ? '' : 's'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      ) : null}
+
+      {/* --- MODAL DE LEMBRETES (PÁTIO / LABORATÓRIO) — portal em body + z acima da TabBar (igual orçamento) --- */}
+      {remindersPresence.mounted && (
+        <ModalPortal manageBackLayer={false}>
+        <div className={`fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 ${modalBackdropAnimClass(remindersPresence.exiting)}`}>
+          <div
+            className={`relative flex w-full min-h-0 flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_24px_64px_-18px_rgba(0,0,0,0.14),0_10px_32px_-12px_rgba(0,0,0,0.08),0_1px_0_0_rgba(255,255,255,0.9)_inset] dark:border-white/[0.08] dark:bg-zinc-900 dark:shadow-[0_20px_56px_-14px_rgba(0,0,0,0.55)] sm:rounded-[2.25rem] ${modalSheetAnimClass(remindersPresence.exiting)} ${
+              isSmartphone
+                ? 'max-h-[min(78vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2.5rem))] max-w-[22rem] origin-center scale-[0.92]'
+                : 'max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] max-w-xl'
+            }`}
           >
             <button
               type="button"
               onClick={() => {
                 setReminderSaveError(null);
+                setReminderEditError(null);
+                setEditingReminderId(null);
+                setEditingReminderText('');
                 setIsRemindersOpen(false);
               }}
               className={`${iosModalClose} bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15`}
@@ -8929,15 +10010,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               ) : (
                 <ul className="space-y-3">
-                  {reminders.map((r) => (
+                  {reminders.map((r) => {
+                    const isEditing = editingReminderId === r.id;
+                    return (
                     <li
                       key={r.id}
                       className={`flex items-start gap-3 rounded-2xl border border-zinc-200/90 bg-white p-3.5 shadow-[0_6px_22px_-8px_rgba(0,0,0,0.09),0_2px_10px_-4px_rgba(0,0,0,0.05)] transition-opacity dark:border-white/[0.08] dark:bg-zinc-900/70 dark:shadow-[0_10px_32px_-12px_rgba(0,0,0,0.45)] ${
-                        r.done ? 'opacity-70' : ''
+                        r.done && !isEditing ? 'opacity-70' : ''
                       }`}
                     >
                       <button
                         type="button"
+                        disabled={isEditing || reminderEditSaving}
                         onClick={async () => {
                           try {
                             await updateWorkshopReminderRemote(r.id, {
@@ -8954,7 +10038,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             // ignore
                           }
                         }}
-                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] transition-colors ${
+                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] transition-colors disabled:opacity-50 ${
                           r.done
                             ? 'border-[#007AFF] bg-[#007AFF] text-white shadow-[0_4px_14px_-4px_rgba(0,122,255,0.45)]'
                             : 'border-zinc-300 bg-white text-transparent shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06)] hover:border-[#007AFF]/55 dark:border-zinc-600 dark:bg-zinc-900 dark:hover:border-[#64B5FF]/60'
@@ -8964,30 +10048,120 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         {r.done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                       </button>
                       <div className="min-w-0 flex-1 overflow-hidden">
-                        <p
-                          className={`whitespace-normal break-words text-[15px] leading-relaxed text-zinc-900 [overflow-wrap:anywhere] dark:text-zinc-100 ${
-                            r.done ? 'line-through decoration-zinc-400 dark:decoration-zinc-500' : ''
-                          }`}
-                        >
-                          {r.text}
-                        </p>
-                        <p className="mt-1.5 flex flex-wrap gap-x-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
-                          <span className="font-medium text-zinc-600 dark:text-zinc-300">
-                            {r.createdBy || (isModuleMode ? 'Laboratório' : 'Pátio')}
-                          </span>
-                          <span className="text-zinc-400 dark:text-zinc-600">·</span>
-                          <span>
-                            {new Date(r.createdAt).toLocaleString('pt-BR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                        </p>
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            {reminderEditError ? (
+                              <p className="text-[12px] font-medium text-red-600 dark:text-red-400" role="alert">
+                                {reminderEditError}
+                              </p>
+                            ) : null}
+                            <textarea
+                              value={editingReminderText}
+                              onChange={(e) => {
+                                setEditingReminderText(e.target.value);
+                                if (reminderEditError) setReminderEditError(null);
+                              }}
+                              rows={3}
+                              disabled={reminderEditSaving}
+                              className="w-full resize-y rounded-xl border border-zinc-200/95 bg-white px-3 py-2.5 text-[15px] leading-relaxed text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-[#007AFF]/55 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 disabled:opacity-60 dark:border-white/[0.1] dark:bg-zinc-950/60 dark:text-white"
+                              autoFocus
+                            />
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={!editingReminderText.trim() || reminderEditSaving}
+                                onClick={async () => {
+                                  const trimmed = editingReminderText.trim();
+                                  if (!trimmed || reminderEditSaving) return;
+                                  setReminderEditSaving(true);
+                                  setReminderEditError(null);
+                                  try {
+                                    await updateWorkshopReminderRemote(r.id, {
+                                      scope: remindersScopeApi,
+                                      text: trimmed,
+                                    });
+                                    window.dispatchEvent(
+                                      new CustomEvent('workshop-reminders-updated', {
+                                        detail: { scope: isModuleMode ? 'laboratorio' : 'patio' },
+                                      })
+                                    );
+                                    setEditingReminderId(null);
+                                    setEditingReminderText('');
+                                    await fetchReminders();
+                                  } catch (err) {
+                                    setReminderEditError(
+                                      err instanceof Error ? err.message : 'Não foi possível salvar a edição.'
+                                    );
+                                  } finally {
+                                    setReminderEditSaving(false);
+                                  }
+                                }}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#007AFF] px-3 text-[13px] font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#0A84FF]"
+                              >
+                                {reminderEditSaving ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
+                                ) : (
+                                  <Save className="h-4 w-4" strokeWidth={2.2} />
+                                )}
+                                Salvar
+                              </button>
+                              <button
+                                type="button"
+                                disabled={reminderEditSaving}
+                                onClick={() => {
+                                  setEditingReminderId(null);
+                                  setEditingReminderText('');
+                                  setReminderEditError(null);
+                                }}
+                                className="inline-flex h-9 items-center rounded-xl border border-zinc-200/90 bg-white px-3 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p
+                              className={`whitespace-normal break-words text-[15px] leading-relaxed text-zinc-900 [overflow-wrap:anywhere] dark:text-zinc-100 ${
+                                r.done ? 'line-through decoration-zinc-400 dark:decoration-zinc-500' : ''
+                              }`}
+                            >
+                              {r.text}
+                            </p>
+                            <p className="mt-1.5 flex flex-wrap gap-x-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                              <span className="font-medium text-zinc-600 dark:text-zinc-300">
+                                {r.createdBy || (isModuleMode ? 'Laboratório' : 'Pátio')}
+                              </span>
+                              <span className="text-zinc-400 dark:text-zinc-600">·</span>
+                              <span>
+                                {new Date(r.createdAt).toLocaleString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </p>
+                          </>
+                        )}
                       </div>
+                      {!isEditing ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingReminderId(r.id);
+                            setEditingReminderText(r.text);
+                            setReminderEditError(null);
+                          }}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-zinc-50 text-zinc-600 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06)] transition-all hover:border-[#007AFF]/40 hover:bg-[#007AFF]/10 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-300 dark:hover:border-[#64B5FF]/40 dark:hover:bg-[#0A84FF]/15 dark:hover:text-[#64B5FF]"
+                          aria-label="Editar lembrete"
+                        >
+                          <Pencil className="h-4 w-4" strokeWidth={2.1} />
+                        </button>
+                      ) : null}
                       <button
                         type="button"
+                        disabled={isEditing || reminderEditSaving}
                         onClick={async () => {
                           try {
                             await deleteWorkshopReminderRemote(r.id, remindersScopeApi);
@@ -8996,18 +10170,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 detail: { scope: isModuleMode ? 'laboratorio' : 'patio' },
                               })
                             );
+                            if (editingReminderId === r.id) {
+                              setEditingReminderId(null);
+                              setEditingReminderText('');
+                              setReminderEditError(null);
+                            }
                             await fetchReminders();
                           } catch {
                             // ignore
                           }
                         }}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-200/90 bg-red-50/95 text-red-600 shadow-[0_2px_10px_-4px_rgba(239,68,68,0.2)] transition-all hover:border-red-300 hover:bg-red-100 hover:text-red-700 active:scale-95 dark:border-red-500/35 dark:bg-red-950/50 dark:text-red-400 dark:shadow-[0_4px_14px_-6px_rgba(239,68,68,0.15)] dark:hover:border-red-400/50 dark:hover:bg-red-950/70 dark:hover:text-red-300"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-200/90 bg-red-50/95 text-red-600 shadow-[0_2px_10px_-4px_rgba(239,68,68,0.2)] transition-all hover:border-red-300 hover:bg-red-100 hover:text-red-700 active:scale-95 disabled:opacity-50 dark:border-red-500/35 dark:bg-red-950/50 dark:text-red-400 dark:shadow-[0_4px_14px_-6px_rgba(239,68,68,0.15)] dark:hover:border-red-400/50 dark:hover:bg-red-950/70 dark:hover:text-red-300"
                         aria-label="Excluir lembrete"
                       >
                         <Trash2 className="h-4 w-4" strokeWidth={2.1} />
                       </button>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               )}
             </div>
@@ -9168,10 +10348,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
       )}
 
       {/* MODAL EDITAR NOME DO VEÍCULO / PLACA — tipografia do nome nos inputs inalterada pelo usuário */}
-      {isVehicleEditOpen && selectedCard && patioPortalsVisible && (
+      {vehicleEditPresence.mounted && selectedCard && (
         <ModalPortal>
-        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
-          <div className={`relative flex max-h-[90vh] w-full max-w-md flex-col ${iosModalShell} animate-in zoom-in-95 duration-200`}>
+        <div className={`${iosModalOverlay} p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6 ${modalBackdropAnimClass(vehicleEditPresence.exiting)}`}>
+          <div className={`relative flex max-h-[90vh] w-full max-w-md flex-col ${iosModalShell} ${modalSheetAnimClass(vehicleEditPresence.exiting)}`}>
             <div className="border-b border-zinc-200/60 px-5 py-5 dark:border-white/[0.07] sm:px-6">
               <h3 className="flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
                 <Pencil className="h-5 w-5 text-[#007AFF]" />
@@ -9270,8 +10450,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* MODAL VISUALIZAR ORÇAMENTO — tema claro + selo de verificação */}
       {viewingBudget && (selectedCard || selectedHistoryCard) && patioPortalsVisible && (
         <ModalPortal>
-        <div className={budgetReadModalBackdropClass}>
-          <div className={budgetReadModalShellClass} style={{ colorScheme: 'light' }}>
+        <div
+          className={
+            viewingBudgetExiting
+              ? budgetReadModalBackdropClass.replace('animate-modal-backdrop', 'animate-modal-backdrop-out pointer-events-none')
+              : budgetReadModalBackdropClass
+          }
+        >
+          <div
+            className={
+              viewingBudgetExiting
+                ? budgetReadModalShellClass.replace('animate-modal-sheet', 'animate-modal-sheet-out pointer-events-none')
+                : budgetReadModalShellClass
+            }
+            style={{ colorScheme: 'light' }}
+          >
             <div className={budgetReadModalHeaderClass}>
               <div className="min-w-0 flex-1 pr-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -9302,7 +10495,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setViewingBudget(null)}
+                onClick={() => requestCloseViewingBudget()}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 transition-colors hover:bg-sky-100 hover:text-slate-900"
                 aria-label="Fechar"
               >
@@ -9324,15 +10517,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   type="button"
                   onClick={handleDeleteBudget}
                   disabled={!!deletingBudgetId || !!verifyingBudgetId}
-                  className="inline-flex items-center gap-2 rounded-xl border border-red-300/80 bg-red-50 px-5 py-2.5 text-sm font-medium text-red-800 transition-colors hover:bg-red-100 disabled:opacity-50"
+                  className={budgetReadFooterDangerClass}
                 >
-                  {deletingBudgetId ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  {deletingBudgetId ? 'Excluindo…' : 'Excluir orçamento'}
+                  {deletingBudgetId ? <RefreshCw className="h-3.5 w-3.5 animate-spin sm:h-4 sm:w-4" /> : <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                  {deletingBudgetId ? 'Excluindo…' : 'Excluir'}
                 </button>
               ) : (
                 <span />
               )}
-              <div className="flex flex-wrap items-center justify-end gap-3">
+              <div className="flex min-w-0 flex-nowrap items-center justify-end gap-1 sm:gap-3">
                 <button
                   type="button"
                   onClick={() =>
@@ -9344,7 +10537,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   disabled={!!deletingBudgetId || !!verifyingBudgetId}
                   className={budgetReadFooterBtnClass}
                 >
-                  <Printer className="h-4 w-4" /> Imprimir
+                  <Printer className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Imprimir
                 </button>
                 <button
                   type="button"
@@ -9357,7 +10550,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   disabled={!!deletingBudgetId || !!verifyingBudgetId}
                   className={budgetReadFooterBtnClass}
                 >
-                  <Printer className="h-4 w-4" /> Via mecânico
+                  <Printer className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Via mecânico
                 </button>
                 <button
                   type="button"
@@ -9365,15 +10558,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   disabled={!!deletingBudgetId || !!verifyingBudgetId || !can('canEditBudgets') || !selectedCard}
                   className={budgetReadFooterBtnClass}
                 >
-                  <Pencil className="h-4 w-4" /> Editar orçamento
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewingBudget(null)}
-                  disabled={!!deletingBudgetId || !!verifyingBudgetId}
-                  className={budgetReadFooterPrimaryClass}
-                >
-                  Fechar
+                  <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Editar
                 </button>
               </div>
             </div>
@@ -9396,15 +10581,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {isBudgetOpen && selectedCard && patioPortalsVisible && (
         <ModalPortal>
         <div
-          className={`budget-modal-light-chrome fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden animate-in fade-in duration-200 ${budgetModalPaperShell}`}
+          className={`budget-modal-light-chrome fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col ${!isPatioPcModal ? 'budget-modal--compact overflow-y-hidden' : 'overflow-hidden'} ${budgetModalPaperShell} ${modalBackdropAnimClass(budgetModalExiting)}`}
           style={{ colorScheme: 'light' }}
         >
-            <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
-            <button type="button" onClick={closeBudgetModal} className="absolute right-4 top-[max(0.75rem,env(safe-area-inset-top))] z-20 flex h-10 w-10 items-center justify-center rounded-full bg-sky-900/10 text-sky-900 transition-colors hover:bg-sky-200/90 hover:text-sky-950" aria-label="Fechar orçamento">
+            <div className={`relative z-[1] flex min-h-0 flex-1 flex-col ${budgetModalExiting ? 'animate-modal-sheet-out pointer-events-none' : ''}`}>
+            <button type="button" onClick={requestCloseBudgetModal} className="absolute right-3 top-[max(0.5rem,env(safe-area-inset-top))] z-20 flex h-9 w-9 items-center justify-center rounded-full bg-sky-900/10 text-sky-900 transition-colors hover:bg-sky-200/90 hover:text-sky-950 sm:right-4 sm:h-10 sm:w-10" aria-label="Fechar orçamento">
               <X className="h-5 w-5" />
             </button>
 
-            <div className="shrink-0 border-b border-zinc-200/80 bg-zinc-200 px-6 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-8 sm:pt-8">
+            <div className={`budget-modal-compact-header shrink-0 border-b border-zinc-200/80 bg-zinc-200 px-6 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-8 sm:pt-8`}>
               <div className="flex items-start gap-3 pr-10">
                 <IosAccentIconSquircle variant="modal" strokeWidth={2.2} lightChrome>
                   <img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />
@@ -9413,10 +10598,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700/90">
                     Orçamento
                   </p>
-                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-slate-900 sm:text-[26px]">
+                  <h2 className={`font-semibold leading-tight tracking-tight text-slate-900 ${!isPatioPcModal ? 'text-[18px]' : 'text-[22px] sm:text-[26px]'}`}>
                     {editingBudget ? 'Editar orçamento' : 'Novo orçamento'}
                   </h2>
-                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-sky-900/75">
+                  <p className={`mt-1 flex flex-wrap items-center gap-1.5 text-sky-900/75 ${!isPatioPcModal ? 'text-[12px]' : 'text-[13px]'}`}>
                     <Sparkles className="h-3.5 w-3.5 shrink-0 text-sky-500" strokeWidth={2} />
                     <span className="min-w-0 break-words">
                       {(selectedCard.vehicleBrand ?? '').trim() ? (
@@ -9449,8 +10634,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 text-slate-800 custom-scrollbar sm:px-8 ${budgetModalCanvasBg}`}>
-                  <div className="space-y-5">
+            <div className={`budget-modal-compact-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 text-slate-800 custom-scrollbar sm:px-8 ${budgetModalCanvasBg}`}>
+                  <div className={`budget-modal-compact-stack ${!isPatioPcModal ? 'space-y-3' : 'space-y-5'}`}>
                     <div>
                       <p className={budgetModalFieldLabel}>Descrição do diagnóstico</p>
                       <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
@@ -9466,26 +10651,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     <div>
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <p className={`${budgetModalFieldLabel} mb-0`}>Serviços</p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {workshopServices.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setIsServiceListOpen(true)}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200/80 bg-white px-3 py-2 text-[13px] font-semibold text-slate-800 shadow-sm transition-colors hover:border-sky-300 hover:bg-sky-50"
-                            >
-                              Inserir da lista
-                              <ChevronDown className="h-4 w-4 opacity-80" />
-                            </button>
-                          )}
+                        {workshopServices.length > 0 && (
                           <button
                             type="button"
-                            onClick={addServiceRow}
-                            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-sky-800/80 transition-colors hover:text-sky-950"
+                            onClick={() => setIsServiceListOpen(true)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200/80 bg-white px-3 py-2 text-[13px] font-semibold text-slate-800 shadow-sm transition-colors hover:border-sky-300 hover:bg-sky-50"
                           >
-                            <Plus className="h-4 w-4" strokeWidth={2.2} />
-                            Adicionar
+                            Inserir da lista
+                            <ChevronDown className="h-4 w-4 opacity-80" />
                           </button>
-                        </div>
+                        )}
                       </div>
                       <div className={`${budgetModalPaperInset} p-3.5 sm:p-4`}>
                       <div className="space-y-2.5">
@@ -9494,11 +10669,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           return (
                             <div key={item.id} className="relative">
                               <div className="flex items-start gap-2 sm:gap-3">
-                                <BudgetLineReorderButtons
-                                  onMoveUp={() => moveServiceRow(item.id, -1)}
-                                  onMoveDown={() => moveServiceRow(item.id, 1)}
-                                  disableUp={serviceIndex === 0}
-                                  disableDown={serviceIndex === budgetServices.length - 1}
+                                <BudgetLinePositionControl
+                                  position={serviceIndex + 1}
+                                  total={budgetServices.length}
+                                  onMoveTo={(toIndex) => moveServiceRowToIndex(item.id, toIndex)}
                                   ariaLabelPrefix="Serviço"
                                 />
                                 <div
@@ -9516,6 +10690,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     onChange={(v) => updateServiceDescription(item.id, v)}
                                     onFocus={() => handleServiceInputFocus(item.id)}
                                     onBlur={handleServiceInputBlur}
+                                    onEnterAdd={addServiceRow}
+                                    autoFocus={focusServiceId === item.id}
+                                    dataBudgetServiceId={item.id}
                                     inputClassName={budgetModalInput}
                                   />
                                   {item.laborHours != null && Number.isFinite(Number(item.laborHours)) ? (
@@ -9536,6 +10713,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           );
                         })}
+                        <button
+                          ref={budgetServicesAddRef}
+                          type="button"
+                          onClick={addServiceRow}
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-sky-300/90 bg-sky-50/50 px-3 py-2.5 text-[13px] font-semibold text-sky-800/90 transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-950"
+                        >
+                          <Plus className="h-4 w-4" strokeWidth={2.2} />
+                          Adicionar
+                        </button>
                       </div>
                       </div>
                     </div>
@@ -9579,68 +10765,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
                     )}
 
-                    {/* Modal: sugestões ao digitar (embaixo do campo) */}
-                    {suggestionBoxPosition && suggestionsForServiceId && (() => {
-                      const suggestions = budgetServices.find(i => i.id === suggestionsForServiceId)
-                        ? getServiceSuggestions(budgetServices.find(i => i.id === suggestionsForServiceId)!.description)
-                        : [];
-                      if (suggestions.length === 0) return null;
-                      return (
-                        <>
-                          <div className="fixed inset-0 z-[215] bg-transparent" onClick={() => setSuggestionsForServiceId(null)} aria-hidden />
-                          <div
-                            className="fixed z-[216] max-h-[200px] overflow-y-auto overflow-hidden rounded-[14px] border border-sky-200/80 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(14,116,144,0.2)]"
-                            style={{
-                              top: suggestionBoxPosition.top,
-                              left: suggestionBoxPosition.left,
-                              width: suggestionBoxPosition.width,
-                            }}
-                            onPointerDown={(e) => {
-                              e.preventDefault();
-                              keepServiceSuggestionsOpen();
-                            }}
-                            onMouseDown={(e) => e.preventDefault()}
-                            role="listbox"
-                            aria-label="Sugestões de serviços"
-                          >
-                            {suggestions.map((s) => (
-                              <button
-                                key={s.id}
-                                type="button"
-                                role="option"
-                                onPointerDown={(e) => {
-                                  e.preventDefault();
-                                  if (suggestionsForServiceId) applySuggestion(suggestionsForServiceId, s);
-                                }}
-                                onClick={() => {
-                                  if (suggestionsForServiceId) applySuggestion(suggestionsForServiceId, s);
-                                }}
-                                className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-[14px] text-slate-800 transition-colors hover:bg-sky-50 active:bg-sky-100"
-                              >
-                                <span className="min-w-0 flex-1">{s.name}</span>
-                                {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
-                                  <span className="shrink-0 text-[12px] font-semibold tabular-nums text-sky-700/80">
-                                    {formatLaborLabel(Number(s.labor_hours))}
-                                  </span>
-                                ) : null}
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      );
-                    })()}
+                    {/* Sugestões ao digitar serviço */}
+                    <BudgetServiceSuggestionDropdown
+                      open={!!suggestionsForServiceId}
+                      position={suggestionBoxPosition}
+                      suggestions={
+                        suggestionsForServiceId
+                          ? getServiceSuggestions(
+                              budgetServices.find((i) => i.id === suggestionsForServiceId)?.description ?? ''
+                            )
+                          : []
+                      }
+                      onClose={() => setSuggestionsForServiceId(null)}
+                      onKeepOpen={keepServiceSuggestionsOpen}
+                      onSelect={(svc) => {
+                        if (suggestionsForServiceId) applySuggestion(suggestionsForServiceId, svc);
+                      }}
+                    />
 
                     <div>
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <div className="mb-2">
                         <p className={`${budgetModalFieldLabel} mb-0`}>Peças</p>
-                        <button
-                          type="button"
-                          onClick={addPartRow}
-                          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-sky-800/80 transition-colors hover:text-sky-950"
-                        >
-                          <Plus className="h-4 w-4" strokeWidth={2.2} />
-                          Adicionar
-                        </button>
                       </div>
                       <div className="space-y-2.5">
                         {budgetParts.map((item, partIndex) => {
@@ -9649,47 +10794,55 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <div
                               key={item.id}
                               ref={isFocusedPart ? focusedPartInputRef : undefined}
-                              className={`${budgetModalPaperInset} flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center`}
+                              className={`${budgetModalPaperInset} flex flex-col gap-2.5 p-3.5 sm:flex-row sm:items-center sm:gap-3`}
                             >
-                              <BudgetLineReorderButtons
-                                onMoveUp={() => movePartRow(item.id, -1)}
-                                onMoveDown={() => movePartRow(item.id, 1)}
-                                disableUp={partIndex === 0}
-                                disableDown={partIndex === budgetParts.length - 1}
-                                ariaLabelPrefix="Peça"
-                              />
-                              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                                {item.fromStock ? <BudgetPartStockBadge className="self-start" /> : null}
-                                <input
-                                  type="text"
-                                  placeholder="Nome da peça…"
-                                  className={`${budgetModalInput} min-w-0 w-full shadow-none`}
-                                  value={item.description}
-                                  onChange={(e) => updatePartDescription(item.id, e.target.value)}
-                                  onFocus={() => handlePartInputFocus(item.id)}
-                                  onBlur={handlePartInputBlur}
+                              <div className="flex min-w-0 flex-1 items-start gap-2 sm:items-center">
+                                <BudgetLinePositionControl
+                                  position={partIndex + 1}
+                                  total={budgetParts.length}
+                                  onMoveTo={(toIndex) => movePartRowToIndex(item.id, toIndex)}
+                                  ariaLabelPrefix="Peça"
                                 />
+                                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                                  {item.fromStock ? <BudgetPartStockBadge className="self-start" /> : null}
+                                  <input
+                                    type="text"
+                                    placeholder="Nome da peça…"
+                                    className={`${budgetModalInput} min-w-0 w-full shadow-none`}
+                                    value={item.description}
+                                    data-budget-part-id={item.id}
+                                    autoFocus={focusPartId === item.id}
+                                    onChange={(e) => updatePartDescription(item.id, e.target.value)}
+                                    onFocus={() => handlePartInputFocus(item.id)}
+                                    onBlur={handlePartInputBlur}
+                                    onKeyDown={(e) => {
+                                      if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+                                      e.preventDefault();
+                                      addPartRow();
+                                    }}
+                                  />
+                                </div>
                               </div>
-                                <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-start">
-                                <div className="flex items-center overflow-hidden rounded-xl border border-sky-200/80 bg-white">
+                              <div className="flex shrink-0 items-center justify-end gap-2 pl-12 sm:justify-start sm:pl-0">
+                                <div className="flex items-center overflow-hidden rounded-lg border border-sky-200/80 bg-white">
                                   <button
                                     type="button"
                                     onClick={() => updatePartQuantity(item.id, -1)}
-                                    className="flex h-10 w-10 items-center justify-center text-sky-800/80 transition-colors hover:bg-sky-100"
+                                    className="flex h-8 w-7 items-center justify-center text-sky-800/80 transition-colors hover:bg-sky-100"
                                     aria-label="Diminuir quantidade"
                                   >
-                                    <Minus className="h-4 w-4" />
+                                    <Minus className="h-3.5 w-3.5" />
                                   </button>
-                                  <span className="w-10 text-center text-[14px] font-semibold tabular-nums text-slate-900">
+                                  <span className="min-w-[1.5rem] px-0.5 text-center text-[12px] font-semibold tabular-nums text-slate-900">
                                     {item.quantity}
                                   </span>
                                   <button
                                     type="button"
                                     onClick={() => updatePartQuantity(item.id, 1)}
-                                    className="flex h-10 w-10 items-center justify-center text-sky-800/80 transition-colors hover:bg-sky-100"
+                                    className="flex h-8 w-7 items-center justify-center text-sky-800/80 transition-colors hover:bg-sky-100"
                                     aria-label="Aumentar quantidade"
                                   >
-                                    <Plus className="h-4 w-4" />
+                                    <Plus className="h-3.5 w-3.5" />
                                   </button>
                                 </div>
                                 <button
@@ -9704,6 +10857,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           );
                         })}
+                        <button
+                          ref={budgetPartsAddRef}
+                          type="button"
+                          onClick={addPartRow}
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-sky-300/90 bg-sky-50/50 px-3 py-2.5 text-[13px] font-semibold text-sky-800/90 transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-950"
+                        >
+                          <Plus className="h-4 w-4" strokeWidth={2.2} />
+                          Adicionar
+                        </button>
                       </div>
                     </div>
 
@@ -9754,12 +10916,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
             </div>
 
-            <div className={`shrink-0 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-8 ${budgetModalPaperFooter}`}>
+            <div className={`budget-modal-compact-footer shrink-0 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-8 sm:pt-4 ${budgetModalPaperFooter}`}>
               <button
                 type="button"
                 onClick={handleCreateBudget}
                 disabled={sendingBudget}
-                className={`${budgetModalCreateBudgetButton} flex w-full items-center justify-center gap-2 px-6 py-3.5`}
+                className={`${budgetModalCreateBudgetButton} flex w-full items-center justify-center gap-2 px-5 ${!isPatioPcModal ? 'py-3 text-[14px]' : 'px-6 py-3.5'}`}
               >
                 {sendingBudget ? <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.2} /> : <CheckCircle2 className="h-5 w-5" strokeWidth={2} />}
                 {sendingBudget ? 'Salvando…' : editingBudget ? 'Salvar alterações' : 'Criar orçamento'}
@@ -9825,11 +10987,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
       ) : null}
 
       {/* MODAL DE SELEÇÃO DE ETAPA (MOVE) — portal em body para ficar acima da TabBar */}
-      {cardInTransition && patioPortalsVisible && (
+      {moveCardDisplayed && (
         <ModalPortal>
-        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}>
+        <div
+          className={`${iosModalOverlay} ${
+            isSmartphone
+              ? 'items-end p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))] sm:items-center'
+              : 'p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6'
+          } ${modalBackdropAnimClass(moveModalExiting)}`}
+        >
           <div
-            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosVehicleModalShell} animate-in zoom-in-95 duration-200`}
+            className={`relative flex w-full min-h-0 flex-col overflow-hidden ${iosVehicleModalShell} ${modalSheetAnimClass(moveModalExiting)} ${
+              isSmartphone
+                ? 'max-h-[min(68dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-5rem))] max-w-sm rounded-[1.5rem]'
+                : 'max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] max-w-md'
+            }`}
           >
             <button
               type="button"
@@ -9850,7 +11022,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                     {isModuleMode ? 'Laboratório' : 'Pátio'}
                   </p>
-                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">
+                  <h2
+                    className={`font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white ${
+                      isSmartphone ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'
+                    }`}
+                  >
                     Alterar etapa
                   </h2>
                   <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
@@ -9867,7 +11043,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-6 py-5 dark:bg-black/25 custom-scrollbar sm:px-8">
+            <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] dark:bg-black/25 custom-scrollbar ${isSmartphone ? 'px-4 py-3.5' : 'px-6 py-5 sm:px-8'}`}>
               <p className={iosLabel}>Etapas</p>
               {isMoving && (
                 <p className="mb-3 flex items-center gap-2 text-[13px] font-medium text-[#007AFF] dark:text-[#64B5FF]">
@@ -9875,31 +11051,48 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   Atualizando etapa…
                 </p>
               )}
-              {isExternalRepairStatus(cardInTransition.idList) ? (
+              {isExternalRepairStatus(moveCardDisplayed.idList) ? (
                 <div
-                  className={`mb-3 flex min-h-[54px] items-center justify-between gap-3 rounded-[16px] border-2 px-4 py-3.5 sm:min-h-[56px] sm:px-5 ${EXTERNAL_REPAIR_STAGE.style}`}
+                  ref={(el) => {
+                    moveModalCurrentStageRef.current = el;
+                  }}
+                  className={`mb-3 flex items-center justify-between gap-3 rounded-[16px] border-2 px-4 py-3 ${
+                    isSmartphone ? 'min-h-[44px]' : 'min-h-[54px] sm:min-h-[56px] sm:px-5 sm:py-3.5'
+                  } ${EXTERNAL_REPAIR_STAGE.style}`}
                 >
-                  <span className="text-[16px] font-semibold uppercase leading-snug tracking-wide !text-white sm:text-[17px]">
+                  <span
+                    className={`font-semibold uppercase leading-snug tracking-wide !text-white ${
+                      isSmartphone ? 'text-[13px]' : 'text-[16px] sm:text-[17px]'
+                    }`}
+                  >
                     {EXTERNAL_REPAIR_STAGE.name}
                   </span>
                   <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/90">
-                    <Check className="h-5 w-5 shrink-0" strokeWidth={2.5} />
+                    <Check className={`${isSmartphone ? 'h-4 w-4' : 'h-5 w-5'} shrink-0`} strokeWidth={2.5} />
                     Atual
                   </span>
                 </div>
               ) : null}
-              <div className="space-y-2.5">
+              <div className={isSmartphone ? 'space-y-2' : 'space-y-2.5'}>
                 {lists.map((list) => {
                   const config = getStatusConfig(list.name, list.id);
-                  const isCurrent = !isExternalRepairStatus(cardInTransition.idList) && list.id === cardInTransition.idList;
+                  const isCurrent = !isExternalRepairStatus(moveCardDisplayed.idList) && list.id === moveCardDisplayed.idList;
                   return (
                     <button
                       key={list.id}
                       type="button"
+                      ref={
+                        isCurrent
+                          ? (el) => {
+                              moveModalCurrentStageRef.current = el;
+                            }
+                          : undefined
+                      }
                       onClick={() => handleMoveCard(list.id)}
                       disabled={isCurrent || isMoving}
                       className={`
-                        group flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[16px] border-2 px-4 py-3.5 text-left transition-all duration-200 sm:min-h-[56px] sm:px-5
+                        group flex w-full items-center justify-between gap-3 rounded-[16px] border-2 text-left transition-all duration-200
+                        ${isSmartphone ? 'min-h-[44px] px-3.5 py-2.5' : 'min-h-[54px] px-4 py-3.5 sm:min-h-[56px] sm:px-5'}
                         ${
                           isCurrent
                             ? `${iosModalInsetCard} cursor-not-allowed border-zinc-200/80 opacity-75 shadow-none dark:border-white/[0.08]`
@@ -9907,17 +11100,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         }
                       `}
                     >
-                      <span className="text-[16px] font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black sm:text-[17px]">
+                      <span
+                        className={`font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black ${
+                          isSmartphone ? 'text-[13px]' : 'text-[16px] sm:text-[17px]'
+                        }`}
+                      >
                         {list.name}
                       </span>
                       {isCurrent ? (
                         <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                          <Check className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} />
+                          <Check className={`${isSmartphone ? 'h-4 w-4' : 'h-5 w-5'} shrink-0 text-[#007AFF] dark:text-[#64B5FF]`} strokeWidth={2.5} />
                           Atual
                         </span>
                       ) : (
                         <ChevronRight
-                          className={`h-5 w-5 shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5 ${isMoving ? 'opacity-30' : ''}`}
+                          className={`${isSmartphone ? 'h-4 w-4' : 'h-5 w-5'} shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5 ${isMoving ? 'opacity-30' : ''}`}
                         />
                       )}
                     </button>
@@ -9925,14 +11122,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 })}
               </div>
               {isModuleMode &&
-              cardInTransition &&
-              !isExternalRepairStatus(cardInTransition.idList) &&
+              moveCardDisplayed &&
+              !isExternalRepairStatus(moveCardDisplayed.idList) &&
               can('canEditFicha') ? (
                 <div className="mt-4 border-t border-zinc-200/70 pt-4 dark:border-white/[0.08]">
                   <p className={iosLabel}>Conserto em terceiros</p>
                   <button
                     type="button"
-                    onClick={() => void handleSendToExternalRepair(cardInTransition.id)}
+                    onClick={() => void handleSendToExternalRepair(moveCardDisplayed.id)}
                     disabled={isMoving}
                     className={`group flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[16px] border-2 border-transparent px-4 py-3.5 text-left transition-all duration-200 sm:min-h-[56px] sm:px-5 ${EXTERNAL_REPAIR_STAGE.style} shadow-[0_2px_12px_-2px_rgba(0,0,0,0.12)] hover:brightness-110 active:scale-[0.99] disabled:opacity-55`}
                   >
@@ -9963,126 +11160,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </ModalPortal>
       )}
 
-      {/* MODAL CATEGORIA DO VEÍCULO — mesmo padrão do modal de etapas */}
-      {isVehicleCategoryModalOpen &&
-        selectedCard &&
-        !isModuleMode &&
-        patioPortalsVisible &&
-        (() => {
-          const currentCat =
-            resolveVehicleCategoryLabel(
-              serviceOrderDetail?.vehicle_category ?? null,
-              serviceOrderDetail?.issue_description ?? null
-            ) ?? selectedCard.vehicleCategory ?? null;
-          return (
-            <ModalPortal>
-            <div
-              className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}
-            >
-              <div
-                className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setIsVehicleCategoryModalOpen(false)}
-                  className={iosModalClose}
-                  aria-label="Fechar"
-                  disabled={savingVehicleCategory}
-                >
-                  <X className="h-5 w-5" />
-                </button>
-
-                <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
-                  <div className="flex items-start gap-3 pr-10">
-                    <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                      {patioOrLabModuleIcon}
-                    </IosAccentIconSquircle>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
-                        Pátio
-                      </p>
-                      <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">
-                        Categoria do veículo
-                      </h2>
-                      <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                        <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                        <span
-                          className={`font-vehicle min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200 ${vehicleModalSubtitleNameShadow}`}
-                        >
-                          {selectedCardTitleParts?.vehicle}
-                        </span>
-                        <span className="text-zinc-400 dark:text-zinc-500">—</span>
-                        <span>Toque na categoria desejada.</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
-                  <p className={iosLabel}>Categorias</p>
-                  {savingVehicleCategory && (
-                    <p className="mb-3 flex items-center gap-2 text-[13px] font-medium text-[#007AFF] dark:text-[#64B5FF]">
-                      <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
-                      Salvando…
-                    </p>
-                  )}
-                  <div className="space-y-2.5">
-                    {VEHICLE_CATEGORIES_MODAL.map((cat) => {
-                      const isCurrent = currentCat === cat;
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => handleSelectVehicleCategory(cat)}
-                          disabled={isCurrent || savingVehicleCategory}
-                          className={`
-                        group flex min-h-[52px] w-full items-center justify-between gap-3 rounded-[16px] border-2 px-4 py-3.5 text-left transition-all duration-200 sm:px-5
-                        ${
-                          isCurrent
-                            ? `${iosModalInsetCard} cursor-not-allowed border-zinc-200/80 opacity-75 shadow-none dark:border-white/[0.08]`
-                            : 'border-transparent bg-zinc-100/90 text-zinc-900 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.12)] hover:brightness-110 active:scale-[0.99] disabled:opacity-55 dark:bg-zinc-800/90 dark:text-zinc-100 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.35)]'
-                        }
-                      `}
-                        >
-                          <span className="text-[15px] font-semibold uppercase tracking-wide">{cat}</span>
-                          {isCurrent ? (
-                            <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                              <Check className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} />
-                              Atual
-                            </span>
-                          ) : (
-                            <ChevronRight
-                              className={`h-5 w-5 shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5 ${savingVehicleCategory ? 'opacity-30' : ''}`}
-                            />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="shrink-0 border-t border-zinc-200/60 px-4 py-3 dark:border-white/[0.07] sm:px-6">
-                  <button
-                    type="button"
-                    onClick={() => setIsVehicleCategoryModalOpen(false)}
-                    disabled={savingVehicleCategory}
-                    className="w-full rounded-xl py-3.5 text-[15px] font-semibold text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            </div>
-            </ModalPortal>
-          );
-        })()}
-
       {/* MODAL DE SELEÇÃO DE MECÂNICO — portal em body para ficar acima da TabBar */}
-      {cardForMemberAssignment && patioPortalsVisible && (
+      {assignCardDisplayed && (
         <ModalPortal>
-        <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
+        <div className={`${iosModalOverlay} p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6 ${modalBackdropAnimClass(assignModalExiting)}`}>
           <div
-            className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+            className={`relative flex w-full min-h-0 flex-col overflow-hidden ${iosModalShell} ${modalSheetAnimClass(assignModalExiting)} ${
+              isSmartphone
+                ? 'max-h-[min(78vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2.5rem))] max-w-[22rem] origin-center scale-[0.92]'
+                : 'max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] max-w-md'
+            }`}
           >
             <button
               type="button"
@@ -10094,7 +11181,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <X className="h-5 w-5" />
             </button>
 
-            <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+            <div className={`shrink-0 border-b border-zinc-200/60 dark:border-white/[0.07] ${isSmartphone ? 'px-5 pb-4 pt-6' : 'px-6 pb-5 pt-7 sm:px-8 sm:pt-8'}`}>
               <div className="flex items-start gap-3 pr-10">
                 <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
                   <img src="/icons/usuarios-ios.png" alt="" className="h-full w-full object-cover" />
@@ -10103,10 +11190,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                     Equipe
                   </p>
-                  <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">
+                  <h2
+                    className={`font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white ${
+                      isSmartphone ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'
+                    }`}
+                  >
                     Selecionar técnico
                   </h2>
-                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                  <p className={`mt-1 flex flex-wrap items-center gap-1.5 text-zinc-500 dark:text-zinc-400 ${isSmartphone ? 'text-[12px]' : 'text-[13px]'}`}>
                     <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
                     {isModuleMode
                       ? 'Responsável pelo módulo — escolha quem acompanha esta OS.'
@@ -10116,19 +11207,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 custom-scrollbar sm:px-8">
+            <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar ${isSmartphone ? 'px-4 py-3.5' : 'px-6 py-5 sm:px-8'}`}>
               <p className={iosLabel}>Atribuição</p>
-              <div className="space-y-2.5">
+              <div className={isSmartphone ? 'space-y-2' : 'space-y-2.5'}>
                 <button
                   type="button"
                   onClick={() => handleAssignTechnician(null)}
                   disabled={isAssigning}
-                  className={`${iosModalInsetCard} group flex w-full items-center justify-between gap-3 border-2 border-dashed border-zinc-300/90 p-4 text-left transition-all hover:bg-black/[0.03] active:scale-[0.99] disabled:opacity-50 dark:border-white/[0.12] dark:hover:bg-white/[0.04]`}
+                  className={`${iosModalInsetCard} group flex w-full items-center justify-between gap-3 border-2 border-dashed border-zinc-300/90 text-left transition-all hover:bg-black/[0.03] active:scale-[0.99] disabled:opacity-50 dark:border-white/[0.12] dark:hover:bg-white/[0.04] ${
+                    isSmartphone ? 'p-3' : 'p-4'
+                  }`}
                 >
-                  <span className="text-[15px] font-semibold tracking-tight text-zinc-700 dark:text-zinc-200">
+                  <span className={`font-semibold tracking-tight text-zinc-700 dark:text-zinc-200 ${isSmartphone ? 'text-[13px]' : 'text-[15px]'}`}>
                     Nenhum / Remover técnico
                   </span>
-                  <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5 dark:text-zinc-500" />
+                  <ChevronRight className={`${isSmartphone ? 'h-4 w-4' : 'h-5 w-5'} shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5 dark:text-zinc-500`} />
                 </button>
                 {TECHNICIANS.map((tech) => (
                   <button
@@ -10136,9 +11229,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     type="button"
                     onClick={() => handleAssignTechnician(tech)}
                     disabled={isAssigning}
-                    className={`group flex w-full items-center gap-3 rounded-[16px] border-2 p-3.5 text-left shadow-[0_2px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200 hover:brightness-[1.06] active:scale-[0.99] disabled:opacity-50 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] ${tech.style}`}
+                    className={`group flex w-full items-center gap-3 rounded-[16px] border-2 text-left shadow-[0_2px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200 hover:brightness-[1.06] active:scale-[0.99] disabled:opacity-50 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] ${tech.style} ${
+                      isSmartphone ? 'p-3' : 'p-3.5'
+                    }`}
                   >
-                    <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/25 bg-black/15 shadow-inner">
+                    <div className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/25 bg-black/15 shadow-inner ${isSmartphone ? 'h-9 w-9' : 'h-11 w-11'}`}>
                       {tech.photo_url ? (
                         <img
                           src={tech.photo_url}
@@ -10146,13 +11241,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
                         />
                       ) : (
-                        <MechanicIcon className="relative z-[1] h-5 w-5 opacity-95" />
+                        <MechanicIcon className={`relative z-[1] opacity-95 ${isSmartphone ? 'h-4 w-4' : 'h-5 w-5'}`} />
                       )}
                     </div>
-                    <span className="min-w-0 flex-1 text-[15px] font-semibold leading-snug tracking-tight">
+                    <span className={`min-w-0 flex-1 font-semibold leading-snug tracking-tight ${isSmartphone ? 'text-[13px]' : 'text-[15px]'}`}>
                       {tech.name}
                     </span>
-                    <ChevronRight className="h-5 w-5 shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5" />
+                    <ChevronRight className={`${isSmartphone ? 'h-4 w-4' : 'h-5 w-5'} shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5`} />
                   </button>
                 ))}
               </div>
@@ -10164,12 +11259,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
             </div>
 
-            <div className="shrink-0 border-t border-zinc-200/60 px-4 py-3 dark:border-white/[0.07] sm:px-6">
+            <div className={`shrink-0 border-t border-zinc-200/60 dark:border-white/[0.07] ${isSmartphone ? 'px-3 py-2.5' : 'px-4 py-3 sm:px-6'}`}>
               <button
                 type="button"
                 onClick={() => setCardForMemberAssignment(null)}
                 disabled={isAssigning}
-                className="w-full rounded-xl py-3.5 text-[15px] font-semibold text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                className={`w-full rounded-xl font-semibold text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white ${
+                  isSmartphone ? 'py-3 text-[14px]' : 'py-3.5 text-[15px]'
+                }`}
               >
                 Cancelar
               </button>
@@ -10182,8 +11279,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* MODAL DE CHECKLIST (templates criados pelo admin) — portal em body */}
       {activeChecklistCard && activeChecklistTemplate && patioPortalsVisible && (
          <ModalPortal>
-         <div className={`${iosModalOverlay} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6`}>
-           <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-lg flex-col ${iosVehicleModalShell} animate-in zoom-in-95 duration-200`}>
+         <div className={`${iosModalOverlay} p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6 ${modalBackdropAnimClass(checklistModalExiting)}`}>
+           <div className={`relative flex max-h-[min(90vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full max-w-lg flex-col ${iosVehicleModalShell} ${modalSheetAnimClass(checklistModalExiting)}`}>
              
              {/* Header Checklist */}
              <div className="relative shrink-0 border-b border-zinc-200/60 px-5 pb-4 pt-6 dark:border-white/[0.07] sm:px-7 sm:pt-7">
@@ -10199,7 +11296,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
                   <button 
                     type="button"
-                    onClick={closeChecklistModal} 
+                    onClick={requestCloseChecklistModal} 
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15"
                   >
                     <X className="h-5 w-5" />
@@ -10277,7 +11374,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
              <div className="shrink-0 border-t border-zinc-200/60 bg-white px-4 py-3 text-center dark:border-white/[0.07] dark:bg-zinc-950/40 sm:px-5">
                <button 
                  type="button"
-                 onClick={closeChecklistModal}
+                 onClick={requestCloseChecklistModal}
                  className="w-full rounded-xl border border-zinc-200/90 bg-zinc-900 py-3.5 text-[15px] font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 dark:border-white/[0.12] dark:bg-white/12 dark:text-white dark:hover:bg-white/18"
                >
                  Fechar checklist

@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { isDesktopPcLayout } from '../utils/deviceType';
-import { useDeviceType } from './useDeviceType';
+import { useDeviceTypeOptional } from '../components/ui/DeviceTypeContext';
 
 /** Largura mínima para o shell estilo OnMotor (sidebar + top bar). */
 export const DESKTOP_SHELL_MIN_WIDTH = 1024;
@@ -8,9 +8,10 @@ export const DESKTOP_SHELL_MIN_WIDTH = 1024;
 /**
  * Modo PC com layout OnMotor: sidebar, top bar, fundo cinza, cards com borda amarela.
  * Apenas em dispositivo classificado como PC (não tablet em paisagem nem smartphone).
+ * Usa o mesmo DeviceTypeProvider das Configurações (respeita override manual).
  */
 export function useDesktopShell(): boolean {
-  const { deviceType, viewportWidth } = useDeviceType();
+  const { deviceType, viewportWidth } = useDeviceTypeOptional();
   const enabled = useMemo(
     () => isDesktopPcLayout(deviceType, viewportWidth, DESKTOP_SHELL_MIN_WIDTH),
     [deviceType, viewportWidth]
