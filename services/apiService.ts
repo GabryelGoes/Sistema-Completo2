@@ -1701,6 +1701,48 @@ export async function deleteServiceOrderPhoto(serviceOrderId: string, path: stri
   }
 }
 
+export type LabSourcePatioOrder =
+  | { found: false }
+  | { found: true; id: string; osNumber: number | null; photos: ServiceOrderPhoto[] };
+
+export async function getLabOrderSourcePatio(labOrderId: string): Promise<LabSourcePatioOrder> {
+  const response = await fetch(`${API_BASE}/service-orders/${labOrderId}/source-patio`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao localizar a OS do pátio (${response.status})`);
+  }
+  const data = (await response.json()) as LabSourcePatioOrder;
+  if (!data || data.found !== true) return { found: false };
+  const photos = Array.isArray(data.photos)
+    ? data.photos.filter((p) => p && typeof p.name === "string" && !/AUTORIZACAO_DIAGNOSTICO/i.test(p.name))
+    : [];
+  return { found: true, id: data.id, osNumber: data.osNumber ?? null, photos };
+}
+
+export async function copyServiceOrderPhotosFrom(
+  destOrderId: string,
+  sourceOrderId: string,
+  paths: string[]
+): Promise<{ copied: ServiceOrderPhoto[]; failed: { path: string; error: string }[] }> {
+  const response = await fetch(`${API_BASE}/service-orders/${destOrderId}/photos/copy-from`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sourceOrderId, paths }),
+  });
+  const data = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    copied?: ServiceOrderPhoto[];
+    failed?: { path: string; error: string }[];
+  };
+  if (!response.ok) {
+    throw new Error(data.error || `Falha ao copiar anexos (${response.status})`);
+  }
+  return {
+    copied: Array.isArray(data.copied) ? data.copied : [],
+    failed: Array.isArray(data.failed) ? data.failed : [],
+  };
+}
+
 /** Substitui o arquivo no Storage (mesmo path) após rotação no cliente. */
 export async function rotateServiceOrderPhoto(
   serviceOrderId: string,

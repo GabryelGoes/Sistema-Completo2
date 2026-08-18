@@ -507,6 +507,71 @@ export function createApiApp() {
     return objectPath.startsWith(`${serviceOrderPhotoFolderPath(serviceOrderId)}/`);
   }
 
+  type ServiceOrderPhotoListItem = { url: string; name: string; path: string };
+
+  function labServiceLinksIncludeOrder(links: unknown, laboratoryOrderId: string): boolean {
+    if (!Array.isArray(links) || !laboratoryOrderId) return false;
+    return links.some((row) => {
+      if (!row || typeof row !== "object") return false;
+      const id = (row as { laboratoryOrderId?: unknown }).laboratoryOrderId;
+      return typeof id === "string" && id === laboratoryOrderId;
+    });
+  }
+
+  async function listServiceOrderStoragePhotos(serviceOrderId: string): Promise<ServiceOrderPhotoListItem[]> {
+    if (!supabaseAdmin || !WORKSHOP_ID || !serviceOrderId) return [];
+    const folderPath = serviceOrderPhotoFolderPath(serviceOrderId);
+    const bucket = VEHICLE_PHOTOS_BUCKET;
+    const { data: files, error } = await supabaseAdmin.storage.from(bucket).list(folderPath, { limit: 100 });
+    if (error) {
+      console.error("[API] Erro ao listar fotos:", error);
+      return [];
+    }
+    return (files || [])
+      .filter((f) => f.name && !f.name.endsWith("/"))
+      .filter((f) => !isDiagnosticAuthorizationSignatureFileName(f.name))
+      .map((f) => {
+        const pathInBucket = `${folderPath}/${f.name}`;
+        const {
+          data: { publicUrl },
+        } = supabaseAdmin.storage.from(bucket).getPublicUrl(pathInBucket);
+        return { url: publicUrl, name: f.name, path: pathInBucket };
+      });
+  }
+
+  async function findSourcePatioOrderForLabModule(labOrderId: string): Promise<{
+    id: string;
+    os_number: number | null;
+    customer_id: string | null;
+  } | null> {
+    if (!supabaseAdmin || !WORKSHOP_ID || !labOrderId) return null;
+    const { data: lab, error: labErr } = await supabaseAdmin
+      .from("service_orders")
+      .select("id, customer_id, order_type")
+      .eq("id", labOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .maybeSingle();
+    if (labErr || !lab || String(lab.order_type ?? "") !== "module") return null;
+
+    let query = supabaseAdmin
+      .from("service_orders")
+      .select("id, os_number, customer_id, lab_service_links")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("order_type", "vehicle");
+    if (lab.customer_id) {
+      query = query.eq("customer_id", lab.customer_id);
+    }
+    const { data: rows, error } = await query;
+    if (error) {
+      console.warn("[API] findSourcePatioOrderForLabModule:", error.message);
+      return null;
+    }
+    const match = (rows ?? []).find((row) =>
+      labServiceLinksIncludeOrder((row as { lab_service_links?: unknown }).lab_service_links, labOrderId)
+    ) as { id: string; os_number: number | null; customer_id: string | null } | undefined;
+    return match ?? null;
+  }
+
   // CORS: TV (Patio-View), CORS_ALLOWED_ORIGINS e dev — necessário se o front chama API em outro host (VITE_API_BASE).
   app.use((req, res, next) => {
     const origin = req.headers.origin;
@@ -4058,32 +4123,163 @@ export function createApiApp() {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
 
-      const folderPath = `${WORKSHOP_ID}/${serviceOrderId}`;
-      const bucket = VEHICLE_PHOTOS_BUCKET;
-      const { data: files, error } = await supabaseAdmin.storage
-        .from(bucket)
-        .list(folderPath, { limit: 100 });
-
-      if (error) {
-        console.error("[API] Erro ao listar fotos:", error);
-        return res.json([]);
-      }
-
-      const photos = (files || [])
-        .filter((f) => f.name && !f.name.endsWith("/"))
-        .filter((f) => !isDiagnosticAuthorizationSignatureFileName(f.name))
-        .map((f) => {
-          const pathInBucket = `${folderPath}/${f.name}`;
-          const { data: { publicUrl } } = supabaseAdmin.storage
-            .from(bucket)
-            .getPublicUrl(pathInBucket);
-          return { url: publicUrl, name: f.name, path: pathInBucket };
-        });
-
-      return res.json(photos);
+      return res.json(await listServiceOrderStoragePhotos(serviceOrderId));
     } catch (err: any) {
       console.error("[API] Erro em GET /api/service-orders/:id/photos:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** OS do pátio que originou este produto do laboratório + anexos dela. */
+  app.get("/api/service-orders/:id/source-patio", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const labOrderId = reqOrderId(req);
+      if (!labOrderId) {
+        return res.status(400).json({ error: "ID da OS inválido." });
+      }
+      const patio = await findSourcePatioOrderForLabModule(labOrderId);
+      if (!patio) {
+        return res.json({ found: false });
+      }
+      const photos = await listServiceOrderStoragePhotos(patio.id);
+      return res.json({
+        found: true,
+        id: patio.id,
+        osNumber: patio.os_number,
+        photos,
+      });
+    } catch (err: any) {
+      console.error("[API] GET /api/service-orders/:id/source-patio:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Copia fotos/documentos da OS do pátio para a OS do laboratório (mesmo bucket, sem reupload). */
+  app.post("/api/service-orders/:id/photos/copy-from", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const destOrderId = reqOrderId(req);
+      const body = parseRequestJsonBody(req);
+      const sourceOrderId = typeof body.sourceOrderId === "string" ? body.sourceOrderId.trim() : "";
+      const rawPaths = Array.isArray(body.paths) ? body.paths : [];
+      const paths = [
+        ...new Set(
+          rawPaths
+            .map((p) => (typeof p === "string" ? p.trim() : ""))
+            .filter((p) => p.length > 0)
+        ),
+      ];
+
+      if (!destOrderId) {
+        return res.status(400).json({ error: "ID da OS de destino inválido." });
+      }
+      if (!sourceOrderId) {
+        return res.status(400).json({ error: "Informe sourceOrderId." });
+      }
+      if (sourceOrderId === destOrderId) {
+        return res.status(400).json({ error: "Origem e destino não podem ser a mesma OS." });
+      }
+      if (paths.length === 0) {
+        return res.status(400).json({ error: "Selecione ao menos um arquivo para copiar." });
+      }
+      if (paths.length > 40) {
+        return res.status(400).json({ error: "Selecione no máximo 40 arquivos por vez." });
+      }
+
+      const { data: destOrder, error: destErr } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type, customer_id")
+        .eq("id", destOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (destErr || !destOrder) {
+        return res.status(404).json({ error: "Ordem de serviço de destino não encontrada." });
+      }
+      if (String(destOrder.order_type ?? "") !== "module") {
+        return res.status(400).json({ error: "O destino precisa ser uma OS do laboratório." });
+      }
+
+      const { data: sourceOrder, error: sourceErr } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type, customer_id, lab_service_links")
+        .eq("id", sourceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (sourceErr || !sourceOrder) {
+        return res.status(404).json({ error: "Ordem de serviço de origem não encontrada." });
+      }
+      if (String(sourceOrder.order_type ?? "vehicle") !== "vehicle") {
+        return res.status(400).json({ error: "A origem precisa ser uma OS do pátio." });
+      }
+
+      const linked = labServiceLinksIncludeOrder(sourceOrder.lab_service_links, destOrderId);
+      if (!linked) {
+        return res.status(403).json({
+          error: "Esta OS do laboratório não está vinculada à OS do pátio informada.",
+        });
+      }
+
+      const bucket = VEHICLE_PHOTOS_BUCKET;
+      const copied: ServiceOrderPhotoListItem[] = [];
+      const failed: { path: string; error: string }[] = [];
+      const stamp = Date.now();
+
+      for (let i = 0; i < paths.length; i += 1) {
+        const sourcePath = paths[i];
+        if (!assertServiceOrderPhotoPath(sourceOrderId, sourcePath)) {
+          failed.push({ path: sourcePath, error: "Arquivo não pertence à OS de origem." });
+          continue;
+        }
+        const originalName = sourcePath.split("/").pop() || "arquivo";
+        if (isDiagnosticAuthorizationSignatureFileName(originalName)) {
+          failed.push({ path: sourcePath, error: "Este arquivo não pode ser copiado." });
+          continue;
+        }
+        const rawName = originalName.replace(/^\d+_/, "") || originalName;
+        const safeName = sanitizeVehiclePhotoFileName(rawName);
+        const destPath = `${serviceOrderPhotoFolderPath(destOrderId)}/${stamp}_${i}_${safeName}`;
+        const { error: copyErr } = await supabaseAdmin.storage.from(bucket).copy(sourcePath, destPath);
+        if (copyErr) {
+          failed.push({ path: sourcePath, error: copyErr.message || "Falha ao copiar arquivo." });
+          continue;
+        }
+        const {
+          data: { publicUrl },
+        } = supabaseAdmin.storage.from(bucket).getPublicUrl(destPath);
+        copied.push({
+          url: publicUrl,
+          name: destPath.split("/").pop() || safeName,
+          path: destPath,
+        });
+      }
+
+      if (copied.length > 0) {
+        await touchServiceOrderUpdatedAt(destOrderId);
+      }
+
+      if (copied.length === 0) {
+        return res.status(400).json({
+          error: failed[0]?.error || "Não foi possível copiar os arquivos selecionados.",
+          failed,
+        });
+      }
+
+      return res.status(201).json({ copied, failed });
+    } catch (err: any) {
+      console.error("[API] POST /api/service-orders/:id/photos/copy-from:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro ao copiar anexos." });
     }
   });
 

@@ -28,6 +28,9 @@ import {
   renameServiceOrderPhoto,
   rotateServiceOrderPhoto,
   deleteServiceOrderPhoto,
+  copyServiceOrderPhotosFrom,
+  getLabOrderSourcePatio,
+  type ServiceOrderPhoto,
   getServiceOrderBudgets,
   createServiceOrder,
   createServiceOrderBudget,
@@ -181,6 +184,10 @@ import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
 import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
 import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsModalPcTabBar';
 import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServicesSection';
+import {
+  PatioOriginAttachmentsPicker,
+  PatioOriginAttachmentsSection,
+} from '../patio/PatioOriginAttachmentsPicker';
 import { PatioBoardOriginIcon } from '../patio/PatioBoardOriginIcon';
 import { BudgetReadModalBody } from '../budget/BudgetReadModalBody';
 import { BudgetVerificationPanel } from '../budget/BudgetVerificationPanel';
@@ -1183,6 +1190,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [labOrdersLookup, setLabOrdersLookup] = useState<Record<string, ServiceOrderDetail>>({});
   const [labLinkedStatusByOrderId, setLabLinkedStatusByOrderId] = useState<Record<string, string>>({});
   const [labLinkedStatusRefreshTick, setLabLinkedStatusRefreshTick] = useState(0);
+  const [selectedPatioOriginAttachmentPaths, setSelectedPatioOriginAttachmentPaths] = useState<string[]>([]);
+  const [copyingPatioOriginAttachments, setCopyingPatioOriginAttachments] = useState(false);
+  const [labSourcePatio, setLabSourcePatio] = useState<{
+    id: string;
+    osNumber: number | null;
+    photos: ServiceOrderPhoto[];
+  } | null>(null);
+  const [labSourcePatioPickerOpen, setLabSourcePatioPickerOpen] = useState(false);
+  const [labSourcePatioSelectedPaths, setLabSourcePatioSelectedPaths] = useState<string[]>([]);
   /** Seção "Dados da ficha" no modal: começa minimizada. */
   const [isDadosFichaExpanded, setIsDadosFichaExpanded] = useState(false);
   /** Evita repor `editFichaForm` a cada `serviceOrderDetail` vindo do Realtime (apaga digitação). */
@@ -1194,8 +1210,48 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setIsExternalRepairEditing(false);
       setPcOsModalTab('dados');
       setIsAnexosAddMenuOpen(false);
+      setSelectedPatioOriginAttachmentPaths([]);
+      setLabSourcePatioPickerOpen(false);
+      setLabSourcePatioSelectedPaths([]);
+      setLabSourcePatio(null);
     }
   }, [selectedCard?.id]);
+
+  const patioOriginAttachments = useMemo(
+    () =>
+      (cardDetails?.attachments ?? [])
+        .map((att) => ({
+          path: att.id,
+          name: att.name,
+          url: att.url,
+        }))
+        .filter((item) => item.path && !/^\d+$/.test(item.path)),
+    [cardDetails?.attachments]
+  );
+
+  useEffect(() => {
+    if (!isModuleMode || !selectedCard?.id) {
+      setLabSourcePatio(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const origin = await getLabOrderSourcePatio(selectedCard.id);
+        if (cancelled) return;
+        setLabSourcePatio(
+          origin.found
+            ? { id: origin.id, osNumber: origin.osNumber, photos: origin.photos }
+            : null
+        );
+      } catch {
+        if (!cancelled) setLabSourcePatio(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isModuleMode, selectedCard?.id]);
 
   useEffect(() => {
     if (!isAnexosAddMenuOpen) return;
@@ -3717,6 +3773,41 @@ export const PatioView: React.FC<PatioViewProps> = ({
     [actorOptions, selectedCard]
   );
 
+  const copyPatioAttachmentsToLabOrder = async (
+    laboratoryOrderId: string,
+    paths: string[],
+    sourceOrderId?: string
+  ): Promise<boolean> => {
+    const fromId = sourceOrderId || selectedCard?.id;
+    if (!fromId || paths.length === 0) return false;
+    setCopyingPatioOriginAttachments(true);
+    try {
+      const result = await copyServiceOrderPhotosFrom(laboratoryOrderId, fromId, paths);
+      if (result.copied.length === 0) {
+        alert('Não foi possível copiar os arquivos selecionados.');
+        return false;
+      }
+      if (result.failed.length > 0) {
+        alert(
+          `${result.copied.length} arquivo${result.copied.length === 1 ? '' : 's'} copiado${result.copied.length === 1 ? '' : 's'}. ${result.failed.length} falharam.`
+        );
+      }
+      if (isModuleMode && selectedCard?.id === laboratoryOrderId) {
+        const photos = await getServiceOrderPhotos(selectedCard.id);
+        setCardDetails((prev) => ({
+          actions: prev?.actions ?? [],
+          attachments: mapPhotosToAttachments(photos),
+        }));
+      }
+      return true;
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Não foi possível copiar os anexos para o laboratório.');
+      return false;
+    } finally {
+      setCopyingPatioOriginAttachments(false);
+    }
+  };
+
   const handleCreateLabServiceFromVehicle = async (overrideServiceLabel?: string) => {
     if (!selectedCard || !serviceOrderDetail?.customers?.id) return;
     if (serviceOrderDetail.customers.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID) return;
@@ -3787,6 +3878,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
         },
       ];
       await handleSaveLabServiceLinks(next);
+      if (selectedPatioOriginAttachmentPaths.length > 0) {
+        await copyPatioAttachmentsToLabOrder(
+          created.id,
+          selectedPatioOriginAttachmentPaths,
+          selectedCard.id
+        );
+      }
       setNewLabManualLabel("");
       setNewLabBudgetRef("");
       setNewLabServiceDetails("");
@@ -6917,6 +7015,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
               getStageStyleClass={(status) => getStageStyle(status, 'module')}
               onOpenLaboratoryOrder={onOpenLaboratoryOrder}
               onRemoveLabServiceLink={(linkId) => void handleRemoveLabServiceLink(linkId)}
+              patioAttachments={patioOriginAttachments}
+              selectedPatioAttachmentPaths={selectedPatioOriginAttachmentPaths}
+              onSelectedPatioAttachmentPathsChange={setSelectedPatioOriginAttachmentPaths}
+              onCopyPatioAttachmentsToLab={(laboratoryOrderId, paths) =>
+                copyPatioAttachmentsToLabOrder(laboratoryOrderId, paths, selectedCard?.id)
+              }
+              copyingPatioAttachments={copyingPatioOriginAttachments}
             />
           ) : null;
         const renderExternalRepairSection = () => {
@@ -8858,6 +8963,47 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               <FolderOpen className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
                                               Arquivos
                                             </button>
+                                            {isModuleMode && labSourcePatio ? (
+                                              <button
+                                                type="button"
+                                                role="menuitem"
+                                                disabled={copyingPatioOriginAttachments}
+                                                onClick={() => {
+                                                  setIsAnexosAddMenuOpen(false);
+                                                  void (async () => {
+                                                    try {
+                                                      const origin = await getLabOrderSourcePatio(selectedCard.id);
+                                                      if (!origin.found) {
+                                                        alert('Esta OS do laboratório não está vinculada a uma OS do pátio.');
+                                                        return;
+                                                      }
+                                                      setLabSourcePatio({
+                                                        id: origin.id,
+                                                        osNumber: origin.osNumber,
+                                                        photos: origin.photos,
+                                                      });
+                                                      if (origin.photos.length === 0) {
+                                                        alert('A OS do pátio ainda não tem fotos ou documentos para copiar.');
+                                                        return;
+                                                      }
+                                                      setLabSourcePatioSelectedPaths([]);
+                                                      setLabSourcePatioPickerOpen(true);
+                                                    } catch (err: unknown) {
+                                                      alert(
+                                                        err instanceof Error
+                                                          ? err.message
+                                                          : 'Não foi possível carregar os anexos da OS do pátio.'
+                                                      );
+                                                    }
+                                                  })();
+                                                }}
+                                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                              >
+                                                <Copy className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
+                                                Da OS do pátio
+                                                {labSourcePatio.osNumber != null ? ` #${labSourcePatio.osNumber}` : ''}
+                                              </button>
+                                            ) : null}
                                             {can('canEditFicha') ? (
                                               <button
                                                 type="button"
@@ -9649,6 +9795,80 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </ModalPortal>
       );
       })()}
+
+      {labSourcePatioPickerOpen && isModuleMode && selectedCard && labSourcePatio ? (
+        <ModalPortal manageBackLayer={false}>
+          <div
+            className="fixed inset-0 z-[350] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6"
+            onClick={() => !copyingPatioOriginAttachments && setLabSourcePatioPickerOpen(false)}
+            role="presentation"
+          >
+            <div
+              className={`relative flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-lg min-h-0 flex-col overflow-hidden ${iosModalShell}`}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="lab-source-patio-attach-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setLabSourcePatioPickerOpen(false)}
+                className={iosModalClose}
+                aria-label="Fechar anexos da OS do pátio"
+                disabled={copyingPatioOriginAttachments}
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="shrink-0 border-b border-zinc-200/70 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+                <h2
+                  id="lab-source-patio-attach-title"
+                  className="pr-10 text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white"
+                >
+                  Anexar da OS do pátio
+                  {labSourcePatio.osNumber != null ? ` #${labSourcePatio.osNumber}` : ''}
+                </h2>
+                <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
+                  Selecione fotos ou documentos da OS do veículo para copiar para este produto.
+                </p>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-4 py-4 dark:bg-black/25 custom-scrollbar sm:px-6">
+                <PatioOriginAttachmentsSection hint="Os arquivos continuam na OS do pátio; uma cópia é criada nesta OS do laboratório.">
+                  <PatioOriginAttachmentsPicker
+                    attachments={labSourcePatio.photos.map((p) => ({
+                      path: p.path,
+                      name: p.name,
+                      url: p.url,
+                    }))}
+                    selectedPaths={labSourcePatioSelectedPaths}
+                    onChange={setLabSourcePatioSelectedPaths}
+                    disabled={copyingPatioOriginAttachments}
+                  />
+                </PatioOriginAttachmentsSection>
+              </div>
+              <div className="shrink-0 border-t border-zinc-200/70 bg-white px-4 py-3 dark:border-white/[0.07] dark:bg-zinc-900 sm:px-6">
+                <button
+                  type="button"
+                  disabled={copyingPatioOriginAttachments || labSourcePatioSelectedPaths.length === 0}
+                  onClick={async () => {
+                    const ok = await copyPatioAttachmentsToLabOrder(
+                      selectedCard.id,
+                      labSourcePatioSelectedPaths,
+                      labSourcePatio.id
+                    );
+                    if (!ok) return;
+                    setLabSourcePatioPickerOpen(false);
+                    setLabSourcePatioSelectedPaths([]);
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#007AFF] px-3 py-2.5 text-[14px] font-semibold text-white disabled:opacity-55"
+                >
+                  {copyingPatioOriginAttachments ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                  Copiar {labSourcePatioSelectedPaths.length > 0 ? `${labSourcePatioSelectedPaths.length} ` : ''}anexo{labSourcePatioSelectedPaths.length === 1 ? '' : 's'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      ) : null}
 
       {/* --- MODAL DE LEMBRETES (PÁTIO / LABORATÓRIO) — portal em body + z acima da TabBar (igual orçamento) --- */}
       {remindersPresence.mounted && (

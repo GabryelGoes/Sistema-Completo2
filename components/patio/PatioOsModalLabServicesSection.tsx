@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Wrench, Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Zap, Check, Pencil } from 'lucide-react';
+import { Wrench, Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Zap, Check, Pencil, Paperclip } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
+import {
+  PatioOriginAttachmentsPicker,
+  PatioOriginAttachmentsSection,
+  type PatioOriginAttachmentItem,
+} from './PatioOriginAttachmentsPicker';
 import { uiOsModalCardSectionTitle, uiOsModalSectionIconWrap } from '../ui/appTypography';
 import { IosNotificationBadge } from '../ui/IosNotificationBadge';
 import { ModalPortal } from '../ui/ModalPortal';
@@ -49,6 +54,13 @@ export type PatioOsModalLabServicesSectionProps = {
   /** Envio rápido com rótulo de um preset configurado. */
   onQuickSendService?: (preset: LabQuickService) => void;
   quickSendingServiceId?: string | null;
+  /** Anexos da OS do pátio para copiar à OS do laboratório. */
+  patioAttachments?: PatioOriginAttachmentItem[];
+  selectedPatioAttachmentPaths?: string[];
+  onSelectedPatioAttachmentPathsChange?: (paths: string[]) => void;
+  /** Copia anexos selecionados para uma OS do laboratório já enviada. */
+  onCopyPatioAttachmentsToLab?: (laboratoryOrderId: string, paths: string[]) => Promise<boolean | void> | boolean | void;
+  copyingPatioAttachments?: boolean;
   /** Em tablet/mobile: cabeçalho clicável, conteúdo recolhido por padrão. */
   collapsible?: boolean;
   defaultExpanded?: boolean;
@@ -84,6 +96,11 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   onRemoveLabServiceLink,
   onQuickSendService,
   quickSendingServiceId = null,
+  patioAttachments = [],
+  selectedPatioAttachmentPaths = [],
+  onSelectedPatioAttachmentPathsChange,
+  onCopyPatioAttachmentsToLab,
+  copyingPatioAttachments = false,
   collapsible = false,
   defaultExpanded = false,
 }) => {
@@ -92,6 +109,8 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [quickServices, setQuickServices] = useState<LabQuickService[]>(() => getLabQuickServices());
   const [quickSendModalOpen, setQuickSendModalOpen] = useState(false);
+  const [attachToLabOrderId, setAttachToLabOrderId] = useState<string | null>(null);
+  const [attachToLabPaths, setAttachToLabPaths] = useState<string[]>([]);
   const isOpen = !collapsible || expanded;
   const listProductKindOptions = productKindOptions.filter((opt) => opt.value !== otherProductKindId);
   const linkedCount = labServiceLinksDraft.length;
@@ -360,7 +379,21 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
             ) : null}
           </div>
 
-          {/* 2. Serviço (orçamento / manual) + Enviar */}
+          {/* 2. Anexos da OS do pátio */}
+          {onSelectedPatioAttachmentPathsChange && patioAttachments.length > 0 ? (
+            <PatioOriginAttachmentsSection
+              hint="Opcional. Selecione antes de enviar: as cópias vão para a OS do laboratório."
+            >
+              <PatioOriginAttachmentsPicker
+                attachments={patioAttachments}
+                selectedPaths={selectedPatioAttachmentPaths}
+                onChange={onSelectedPatioAttachmentPathsChange}
+                disabled={busy}
+              />
+            </PatioOriginAttachmentsSection>
+          ) : null}
+
+          {/* 3. Serviço (orçamento / manual) + Enviar */}
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
             <select
               value={newLabServiceMode}
@@ -402,7 +435,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
             </button>
           </div>
 
-          {/* 3. Detalhes */}
+          {/* 4. Detalhes */}
           <div>
             <label
               htmlFor="new-lab-service-details"
@@ -484,12 +517,27 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                         {link.laboratoryOrderId.slice(0, 8)}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span
                         className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${statusStyle}`}
                       >
                         {statusLabel}
                       </span>
+                      {onCopyPatioAttachmentsToLab && patioAttachments.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAttachToLabOrderId(link.laboratoryOrderId);
+                            setAttachToLabPaths([]);
+                          }}
+                          disabled={busy || copyingPatioAttachments}
+                          title="Anexar fotos ou documentos desta OS do pátio"
+                          className="inline-flex items-center gap-1 rounded-lg border border-zinc-200/90 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 dark:border-white/[0.12] dark:bg-zinc-950/70 dark:text-zinc-200 disabled:opacity-60"
+                        >
+                          <Paperclip className="h-3.5 w-3.5" />
+                          Anexar da OS
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => onOpenLaboratoryOrder?.(link.laboratoryOrderId)}
@@ -595,6 +643,70 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                   })}
                 </ul>
               )}
+            </div>
+          </div>
+        </div>
+      </ModalPortal>
+    ) : null}
+
+    {attachToLabOrderId && onCopyPatioAttachmentsToLab ? (
+      <ModalPortal manageBackLayer={false}>
+        <div
+          className="fixed inset-0 z-[350] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6"
+          onClick={() => !copyingPatioAttachments && setAttachToLabOrderId(null)}
+          role="presentation"
+        >
+          <div
+            className={`relative flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-lg min-h-0 flex-col overflow-hidden ${iosModalShell}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lab-attach-patio-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setAttachToLabOrderId(null)}
+              className={iosModalClose}
+              aria-label="Fechar anexos da OS do pátio"
+              disabled={copyingPatioAttachments}
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="shrink-0 border-b border-zinc-200/70 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+              <h2
+                id="lab-attach-patio-title"
+                className="pr-10 text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white"
+              >
+                Anexar da OS do pátio
+              </h2>
+              <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
+                Selecione fotos ou documentos desta OS para copiar ao produto no laboratório.
+              </p>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-4 py-4 dark:bg-black/25 custom-scrollbar sm:px-6">
+              <PatioOriginAttachmentsPicker
+                attachments={patioAttachments}
+                selectedPaths={attachToLabPaths}
+                onChange={setAttachToLabPaths}
+                disabled={copyingPatioAttachments}
+              />
+            </div>
+            <div className="shrink-0 border-t border-zinc-200/70 bg-white px-4 py-3 dark:border-white/[0.07] dark:bg-zinc-900 sm:px-6">
+              <button
+                type="button"
+                disabled={copyingPatioAttachments || attachToLabPaths.length === 0}
+                onClick={async () => {
+                  const ok = await onCopyPatioAttachmentsToLab(attachToLabOrderId, attachToLabPaths);
+                  if (ok !== false) {
+                    setAttachToLabOrderId(null);
+                    setAttachToLabPaths([]);
+                  }
+                }}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#007AFF] px-3 py-2.5 text-[14px] font-semibold text-white disabled:opacity-55"
+              >
+                {copyingPatioAttachments ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                Copiar {attachToLabPaths.length > 0 ? `${attachToLabPaths.length} ` : ''}anexo{attachToLabPaths.length === 1 ? '' : 's'}
+              </button>
             </div>
           </div>
         </div>
