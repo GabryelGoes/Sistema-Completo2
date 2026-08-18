@@ -1230,30 +1230,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   );
 
   useEffect(() => {
-    if (!isModuleMode || !selectedCard?.id) {
-      setLabSourcePatio(null);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const origin = await getLabOrderSourcePatio(selectedCard.id);
-        if (cancelled) return;
-        setLabSourcePatio(
-          origin.found
-            ? { id: origin.id, osNumber: origin.osNumber, photos: origin.photos }
-            : null
-        );
-      } catch {
-        if (!cancelled) setLabSourcePatio(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isModuleMode, selectedCard?.id]);
-
-  useEffect(() => {
     if (!isAnexosAddMenuOpen) return;
     const onPointerDown = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node | null;
@@ -1577,6 +1553,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const remindersStorageKey = orderType === 'module' ? 'patio-reminders-module' : 'patio-reminders-vehicle';
   const isModuleMode = orderType === 'module';
   const flowKind: ServiceOrderFlowKind = isModuleMode ? 'module' : 'vehicle';
+
+  useEffect(() => {
+    if (!isModuleMode || !selectedCard?.id) {
+      setLabSourcePatio(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const origin = await getLabOrderSourcePatio(selectedCard.id);
+        if (cancelled) return;
+        setLabSourcePatio(
+          origin.found
+            ? { id: origin.id, osNumber: origin.osNumber, photos: origin.photos }
+            : null
+        );
+      } catch {
+        if (!cancelled) setLabSourcePatio(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isModuleMode, selectedCard?.id]);
 
   useEffect(() => {
     const orderId = selectedCard?.id ?? selectedHistoryCard?.id;
