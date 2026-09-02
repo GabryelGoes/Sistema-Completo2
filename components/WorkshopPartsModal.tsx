@@ -79,6 +79,7 @@ import {
   buildPartNumberMap,
   countPartsByCategory,
   countStockAlerts,
+  formatWorkshopPartQty,
   getWorkshopPartStockStatus,
   readWorkshopPartSortMode,
   sortWorkshopPartsForCatalogNumber,
@@ -1505,7 +1506,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                                 : 'text-zinc-700 dark:text-zinc-300'
                           }`}
                         >
-                          <span>{Number(p.stock_qty ?? 0).toFixed(3)}</span>
+                          <span>{formatWorkshopPartQty(p.stock_qty)}</span>
                           <WorkshopPartStockBadge status={stockStatus} className="hidden md:inline-flex" />
                         </span>
                         <button
