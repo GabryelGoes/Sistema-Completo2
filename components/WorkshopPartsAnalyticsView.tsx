@@ -30,6 +30,7 @@ import {
   type WorkshopPartsAnalyticsResponse,
 } from '../services/apiService';
 import { formatBRL, formatCompactBRL } from '../utils/workshopPartsAnalytics';
+import { formatWorkshopPartQty } from '../utils/workshopPartStock';
 
 type PeriodPreset = '7d' | '30d' | '90d' | 'month' | 'year';
 
@@ -554,7 +555,8 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
                         ) : null}
                       </span>
                       <span className="tabular-nums text-amber-800 dark:text-amber-300 font-semibold">
-                        {row.stockQty.toFixed(3)} / mín. {row.minStockQty.toFixed(3)} {row.unitOfMeasure}
+                        {formatWorkshopPartQty(row.stockQty)} / mín. {formatWorkshopPartQty(row.minStockQty)}{' '}
+                        {row.unitOfMeasure}
                       </span>
                     </li>
                   ))}

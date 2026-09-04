@@ -29,6 +29,42 @@ export const UNIT_OF_MEASURE_OPTIONS: { value: string; label: string }[] = [
   { value: 'MM', label: 'Milímetro' },
 ];
 
+/** Unidade do conteúdo da embalagem (litros, ml, kg…). */
+export const CONTENT_UNIT_OPTIONS: { value: string; label: string }[] = [
+  { value: 'L', label: 'Litros (L)' },
+  { value: 'ML', label: 'Mililitros (ml)' },
+  { value: 'KG', label: 'Quilogramas (kg)' },
+  { value: 'G', label: 'Gramas (g)' },
+  { value: 'UN', label: 'Unidades' },
+  { value: 'PC', label: 'Peças' },
+  { value: 'CX', label: 'Caixas' },
+  { value: 'KIT', label: 'Kits' },
+];
+
+export type WorkshopPartStorageSite = 'oficina' | 'deposito';
+
+/** Barracão / empresa onde o produto está guardado. */
+export const STORAGE_SITE_OPTIONS: { value: WorkshopPartStorageSite; label: string; hint: string }[] = [
+  { value: 'oficina', label: 'Oficina principal', hint: 'Barracão da oficina' },
+  { value: 'deposito', label: 'Depósito / Estoque', hint: 'Barracão de estoque' },
+];
+
+export function storageSiteLabel(site: string | null | undefined): string {
+  const found = STORAGE_SITE_OPTIONS.find((o) => o.value === site);
+  return found?.label ?? 'Oficina principal';
+}
+
+export function formatPartContent(
+  qty: number | null | undefined,
+  unit: string | null | undefined
+): string | null {
+  if (qty == null || !Number.isFinite(Number(qty))) return null;
+  const u = String(unit || '').trim();
+  const n = Number(qty);
+  const qtyLabel = Number.isInteger(n) ? String(n) : String(n);
+  return u ? `${qtyLabel} ${u}` : qtyLabel;
+}
+
 /** NCM frequentes (oficina automotiva) — usuário pode digitar outro. */
 export const COMMON_NCM_SUGGESTIONS: { code: string; label: string }[] = [
   { code: '87083099', label: '87083099 — Servo-freio / ABS' },
@@ -48,7 +84,14 @@ export type WorkshopPartFormValues = {
   /** IDs das categorias do estoque vinculadas ao produto. */
   category_ids: string[];
   numeric_code: string;
+  barcode: string;
   location: string;
+  storage_site: WorkshopPartStorageSite;
+  description: string;
+  model: string;
+  content_qty: string;
+  content_unit: string;
+  characteristics: string;
   application_similar: string;
   notes: string;
   ncm_code: string;
@@ -84,7 +127,14 @@ export function emptyPartFormValues(): WorkshopPartFormValues {
     original_code: '',
     category_ids: [],
     numeric_code: '',
+    barcode: '',
     location: '',
+    storage_site: 'oficina',
+    description: '',
+    model: '',
+    content_qty: '',
+    content_unit: '',
+    characteristics: '',
     application_similar: '',
     notes: '',
     ncm_code: '',
@@ -105,13 +155,21 @@ export function emptyPartFormValues(): WorkshopPartFormValues {
 }
 
 export function partToFormValues(part: WorkshopPart): WorkshopPartFormValues {
+  const site = part.storage_site === 'deposito' ? 'deposito' : 'oficina';
   return {
     name: part.name ?? '',
     brand: part.brand ?? '',
     original_code: part.original_code ?? '',
     category_ids: [...(part.category_ids ?? (part.primary_category_id ? [part.primary_category_id] : []))],
     numeric_code: part.numeric_code ?? '',
+    barcode: part.barcode ?? '',
     location: part.location ?? '',
+    storage_site: site,
+    description: part.description ?? '',
+    model: part.model ?? '',
+    content_qty: part.content_qty != null ? String(part.content_qty) : '',
+    content_unit: part.content_unit ?? '',
+    characteristics: part.characteristics ?? '',
     application_similar: part.application_similar ?? '',
     notes: part.notes ?? '',
     ncm_code: part.ncm_code ?? '',
@@ -163,12 +221,20 @@ export function formValuesToApiPayload(values: WorkshopPartFormValues): Record<s
   const maxQtyRaw = values.max_stock_qty.trim();
   const kmRaw = values.km_limit.trim();
   const monthsRaw = values.validity_months.trim();
+  const contentQtyRaw = values.content_qty.trim();
   return {
     name: values.name.trim(),
     brand: values.brand.trim() || null,
     original_code: values.original_code.trim() || null,
     numeric_code: values.numeric_code.trim() || null,
+    barcode: values.barcode.trim() || null,
     location: values.location.trim() || null,
+    storage_site: values.storage_site === 'deposito' ? 'deposito' : 'oficina',
+    description: values.description.trim() || null,
+    model: values.model.trim() || null,
+    content_qty: contentQtyRaw ? parseDecimalInput(contentQtyRaw, 0) : null,
+    content_unit: values.content_unit.trim() || null,
+    characteristics: values.characteristics.trim() || null,
     application_similar: values.application_similar.trim() || null,
     notes: values.notes.trim() || null,
     ncm_code: values.ncm_code.trim() || null,

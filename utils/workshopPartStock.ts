@@ -48,6 +48,17 @@ export function sortWorkshopPartsForDisplay(
   });
 }
 
+/**
+ * Formata quantidade de estoque para exibição.
+ * Inteiros: "2" (não "2.000"). Decimais: até 3 casas, sem zeros à direita ("2,5" → "2.5").
+ */
+export function formatWorkshopPartQty(n: number | null | undefined): string {
+  const v = Number(n ?? 0);
+  if (!Number.isFinite(v)) return '0';
+  if (Number.isInteger(v)) return String(v);
+  return v.toFixed(3).replace(/\.?0+$/, '');
+}
+
 export function getWorkshopPartStockStatus(part: WorkshopPart): WorkshopPartStockStatus {
   const stock = Number(part.stock_qty ?? 0);
   const min = Number(part.min_stock_qty ?? 0);
