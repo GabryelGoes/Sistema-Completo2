@@ -191,7 +191,10 @@ export function formatFinalizePartQuantity(value: number): string {
   return n.toFixed(3).replace(/\.?0+$/, '');
 }
 
-/** Peças aprovadas nos orçamentos, agregadas por descrição. */
+/**
+ * Peças aprovadas vindas do estoque da oficina (para abater na finalização).
+ * Só inclui itens com fromStock e/ou workshopPartId — peças externas do orçamento não entram.
+ */
 export function collectApprovedPartsFromBudgets(
   budgets: BudgetRowForParts[]
 ): FinalizeStockLineInput[] {
@@ -204,22 +207,30 @@ export function collectApprovedPartsFromBudgets(
     const parts = Array.isArray(budget.parts) ? budget.parts : [];
     for (const part of parts) {
       if (part.approved !== true) continue;
+      const workshopPartId =
+        typeof part.workshopPartId === 'string' && part.workshopPartId.trim()
+          ? part.workshopPartId.trim()
+          : null;
+      const fromStock = part.fromStock === true || Boolean(workshopPartId);
+      if (!fromStock) continue;
       const description = String(part.description ?? '').trim();
       if (!description) continue;
-      const key = normalizeBudgetPartName(description);
+      const key = workshopPartId
+        ? `id:${workshopPartId}`
+        : `name:${normalizeBudgetPartName(description)}`;
       const qty = parseFinalizePartQuantity(part.quantity);
       const prev = byKey.get(key);
       if (prev) {
         prev.quantity += qty;
-        if (!prev.workshopPartId && part.workshopPartId) {
-          prev.workshopPartId = part.workshopPartId;
+        if (!prev.workshopPartId && workshopPartId) {
+          prev.workshopPartId = workshopPartId;
         }
       } else {
         byKey.set(key, {
           description,
           quantity: qty,
           budgetId: budget.id ?? null,
-          workshopPartId: part.workshopPartId ?? null,
+          workshopPartId,
         });
       }
     }
@@ -295,16 +306,34 @@ export function mergeFinalizeStockDraftLines(
   return merged;
 }
 
+/**
+ * Agrega quantidades a abater.
+ * Preferência: workshopPartId (chave `id:…`); senão nome normalizado (chave `name:…`).
+ */
 export function aggregateFinalizeStockParts(
   lines: FinalizeStockLineInput[]
 ): Map<string, number> {
   const agg = new Map<string, number>();
   for (const line of lines) {
     const description = (line.description ?? '').trim();
-    if (!description) continue;
-    const key = normalizeBudgetPartName(description);
+    const partId =
+      typeof line.workshopPartId === 'string' && line.workshopPartId.trim()
+        ? line.workshopPartId.trim()
+        : '';
+    if (!description && !partId) continue;
+    const key = partId ? `id:${partId}` : `name:${normalizeBudgetPartName(description)}`;
     const prev = agg.get(key) ?? 0;
     agg.set(key, prev + parseFinalizePartQuantity(line.quantity));
   }
   return agg;
+}
+
+/** Extrai id de peça de uma chave gerada por aggregateFinalizeStockParts. */
+export function finalizeStockAggKeyPartId(key: string): string | null {
+  return key.startsWith('id:') ? key.slice(3) : null;
+}
+
+/** Extrai nome normalizado de uma chave gerada por aggregateFinalizeStockParts. */
+export function finalizeStockAggKeyPartName(key: string): string | null {
+  return key.startsWith('name:') ? key.slice(5) : null;
 }

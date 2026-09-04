@@ -2730,6 +2730,42 @@ export async function getWorkshopPartsAnalytics(
   return response.json();
 }
 
+export type WorkshopPartPendingReservation = {
+  workshopPartId: string | null;
+  partName: string;
+  quantity: number;
+  quantityLabel: string;
+  budgetId: string;
+  budgetCardName: string | null;
+  serviceOrderId: string;
+  plate: string | null;
+  vehicleModel: string | null;
+  osNumber: number | null;
+  status: string | null;
+};
+
+export type WorkshopPartPendingReservationsResponse = {
+  items: WorkshopPartPendingReservation[];
+  reservedQtyByPartId: Record<string, number>;
+};
+
+/** Peças do estoque em orçamentos de veículos ainda sem baixa (antes de Finalizado). */
+export async function getWorkshopPartPendingReservations(): Promise<WorkshopPartPendingReservationsResponse> {
+  const response = await fetch(`${API_BASE}/workshop-parts/pending-reservations`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar reservas do estoque (${response.status})`);
+  }
+  const data = (await response.json()) as WorkshopPartPendingReservationsResponse;
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    reservedQtyByPartId:
+      data.reservedQtyByPartId && typeof data.reservedQtyByPartId === 'object'
+        ? data.reservedQtyByPartId
+        : {},
+  };
+}
+
 export async function getWorkshopParts(): Promise<WorkshopPart[]> {
   const response = await fetch(`${API_BASE}/workshop-parts`);
   if (!response.ok) {
