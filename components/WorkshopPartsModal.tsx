@@ -175,7 +175,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [error, setError] = useState<string | null>(null);
   const [pendingReservations, setPendingReservations] = useState<WorkshopPartPendingReservation[]>([]);
   const [reservedQtyByPartId, setReservedQtyByPartId] = useState<Record<string, number>>({});
-  const [reservationsExpanded, setReservationsExpanded] = useState(true);
+  const [reservationsExpanded, setReservationsExpanded] = useState(false);
 
   const [newName, setNewName] = useState('');
   const [pendingPhotos, setPendingPhotos] = useState<PendingPartPhoto[]>([]);
@@ -295,6 +295,35 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       setReservedQtyByPartId(reservations.reservedQtyByPartId);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar peças.');
+      // TEMP DEMO — não commitar
+      setParts([
+        {
+          id: 'demo-p1',
+          name: 'Sensor ABS dianteiro',
+          unit_price: 120,
+          stock_qty: 5,
+          sort_order: 0,
+          created_at: new Date().toISOString(),
+          unit_of_measure: 'UN',
+          min_stock_qty: 1,
+        },
+      ]);
+      setPendingReservations([
+        {
+          workshopPartId: 'demo-p1',
+          partName: 'Sensor ABS dianteiro',
+          quantity: 2,
+          quantityLabel: '2',
+          budgetId: 'demo-b1',
+          budgetCardName: 'Orçamento técnico',
+          serviceOrderId: 'demo-so1',
+          plate: 'ABC1D23',
+          vehicleModel: 'Gol 1.6',
+          osNumber: 142,
+          status: 'EM_SERVICO',
+        },
+      ]);
+      setReservedQtyByPartId({ 'demo-p1': 2 });
     } finally {
       setLoading(false);
     }
@@ -993,11 +1022,71 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         ) : (
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-auto touch-pan-y px-6 sm:px-8 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable]">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:max-w-xl">
-              Gerencie preço e estoque. Produtos usados em orçamentos <span className="font-medium text-zinc-600 dark:text-zinc-300">permanecem no catálogo</span>;
-              a baixa só acontece ao finalizar o veículo. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Categorias</span> para
-              organizar. Toque no nome do item para <span className="font-medium text-zinc-600 dark:text-zinc-300">ver detalhes</span>.
-            </p>
+            {!loading ? (
+              <div className="min-w-0 w-full sm:max-w-xl overflow-hidden rounded-2xl border border-amber-300/70 bg-amber-50/90 shadow-sm dark:border-amber-500/30 dark:bg-amber-950/35">
+                <button
+                  type="button"
+                  onClick={() => setReservationsExpanded((v) => !v)}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                  aria-expanded={reservationsExpanded}
+                >
+                  <span className="min-w-0 flex items-center gap-2">
+                    <span className="text-[15px] font-semibold text-amber-950 dark:text-amber-100">
+                      Em Orçamentos
+                    </span>
+                    {pendingReservations.length > 0 ? (
+                      <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-amber-950 dark:text-amber-100">
+                        {pendingReservations.length}
+                      </span>
+                    ) : null}
+                  </span>
+                  <ChevronDown
+                    className={`h-5 w-5 shrink-0 text-amber-800 transition-transform dark:text-amber-200 ${
+                      reservationsExpanded ? 'rotate-180' : ''
+                    }`}
+                    aria-hidden
+                  />
+                </button>
+                {reservationsExpanded ? (
+                  pendingReservations.length > 0 ? (
+                    <ul className="max-h-[min(280px,40vh)] space-y-1.5 overflow-y-auto border-t border-amber-200/70 px-3 py-3 dark:border-amber-500/20 custom-scrollbar">
+                      {pendingReservations.map((row) => {
+                        const vehicleBits = [
+                          row.osNumber != null ? `OS #${row.osNumber}` : null,
+                          row.plate,
+                          row.vehicleModel,
+                        ].filter(Boolean);
+                        return (
+                          <li
+                            key={`${row.budgetId}-${row.workshopPartId ?? row.partName}-${row.serviceOrderId}`}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 px-3 py-2.5 text-[13px] dark:bg-black/25"
+                          >
+                            <span className="min-w-0">
+                              <span className="block font-semibold text-zinc-900 dark:text-white">
+                                {row.partName}
+                              </span>
+                              <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
+                                {vehicleBits.length > 0 ? vehicleBits.join(' · ') : 'Veículo'}
+                                {row.budgetCardName ? ` · ${row.budgetCardName}` : ''}
+                              </span>
+                            </span>
+                            <span className="shrink-0 rounded-lg bg-amber-500/15 px-2.5 py-1 text-[13px] font-bold tabular-nums text-amber-950 dark:text-amber-100">
+                              {row.quantityLabel} un.
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="border-t border-amber-200/70 px-4 py-3 text-[13px] text-amber-900/80 dark:border-amber-500/20 dark:text-amber-200/80">
+                      Nenhum produto em orçamento aguardando baixa.
+                    </p>
+                  )
+                ) : null}
+              </div>
+            ) : (
+              <div className="min-w-0 w-full sm:max-w-xl" />
+            )}
             <div className="flex flex-wrap gap-2 justify-end shrink-0">
               <button
                 type="button"
@@ -1031,70 +1120,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               {error}
             </div>
           )}
-
-          {!loading && pendingReservations.length > 0 ? (
-            <div className="mb-4 overflow-hidden rounded-2xl border border-amber-300/70 bg-amber-50/90 shadow-sm dark:border-amber-500/30 dark:bg-amber-950/35">
-              <button
-                type="button"
-                onClick={() => setReservationsExpanded((v) => !v)}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-                aria-expanded={reservationsExpanded}
-              >
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-800 dark:text-amber-200">
-                    <Clock className="h-5 w-5" aria-hidden />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[15px] font-semibold text-amber-950 dark:text-amber-100">
-                      Em orçamentos (sem baixa no estoque)
-                    </span>
-                    <span className="block text-[12px] text-amber-900/80 dark:text-amber-200/80">
-                      {pendingReservations.length === 1
-                        ? '1 item reservado em veículo ainda não finalizado'
-                        : `${pendingReservations.length} itens reservados em veículos ainda não finalizados`}
-                      . A baixa só ocorre ao mover para Finalizado.
-                    </span>
-                  </span>
-                </span>
-                <ChevronDown
-                  className={`h-5 w-5 shrink-0 text-amber-800 transition-transform dark:text-amber-200 ${
-                    reservationsExpanded ? 'rotate-180' : ''
-                  }`}
-                  aria-hidden
-                />
-              </button>
-              {reservationsExpanded ? (
-                <ul className="max-h-[min(280px,40vh)] space-y-1.5 overflow-y-auto border-t border-amber-200/70 px-3 py-3 dark:border-amber-500/20 custom-scrollbar">
-                  {pendingReservations.map((row) => {
-                    const vehicleBits = [
-                      row.osNumber != null ? `OS #${row.osNumber}` : null,
-                      row.plate,
-                      row.vehicleModel,
-                    ].filter(Boolean);
-                    return (
-                      <li
-                        key={`${row.budgetId}-${row.workshopPartId ?? row.partName}-${row.serviceOrderId}`}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 px-3 py-2.5 text-[13px] dark:bg-black/25"
-                      >
-                        <span className="min-w-0">
-                          <span className="block font-semibold text-zinc-900 dark:text-white">
-                            {row.partName}
-                          </span>
-                          <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
-                            {vehicleBits.length > 0 ? vehicleBits.join(' · ') : 'Veículo'}
-                            {row.budgetCardName ? ` · ${row.budgetCardName}` : ''}
-                          </span>
-                        </span>
-                        <span className="shrink-0 rounded-lg bg-amber-500/15 px-2.5 py-1 text-[13px] font-bold tabular-nums text-amber-950 dark:text-amber-100">
-                          {row.quantityLabel} un.
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
-            </div>
-          ) : null}
 
           <div className={workshopPartsListCard}>
             {!loading && parts.length > 0 && (
