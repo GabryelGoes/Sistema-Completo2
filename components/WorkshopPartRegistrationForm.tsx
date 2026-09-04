@@ -26,7 +26,9 @@ export type PartPhotoSlot = {
 };
 import {
   COMMON_NCM_SUGGESTIONS,
+  CONTENT_UNIT_OPTIONS,
   PART_ORIGIN_OPTIONS,
+  STORAGE_SITE_OPTIONS,
   UNIT_OF_MEASURE_OPTIONS,
   emptyPartFormValues,
   emptyPurchaseDraft,
@@ -535,6 +537,16 @@ export function WorkshopPartRegistrationForm({
             />
           </div>
           <div className="space-y-1.5">
+            <FieldLabel>Modelo</FieldLabel>
+            <input
+              type="text"
+              value={values.model}
+              onChange={(e) => patch({ model: e.target.value })}
+              placeholder="Ex.: ABS 8.1, DOT 4"
+              className={inputCls}
+            />
+          </div>
+          <div className="space-y-1.5">
             <FieldLabel>Código original</FieldLabel>
             <input
               type="text"
@@ -553,13 +565,76 @@ export function WorkshopPartRegistrationForm({
             />
           </div>
           <div className="space-y-1.5">
-            <FieldLabel>Localização</FieldLabel>
+            <FieldLabel hint="Barracão onde o produto está guardado">Empresa / barracão</FieldLabel>
+            <select
+              value={values.storage_site}
+              onChange={(e) =>
+                patch({ storage_site: e.target.value === 'deposito' ? 'deposito' : 'oficina' })
+              }
+              className={inputCls}
+            >
+              {STORAGE_SITE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel hint="Prateleira ou posição dentro do barracão">Localização</FieldLabel>
             <input
               type="text"
               value={values.location}
               onChange={(e) => patch({ location: e.target.value })}
               placeholder="Prateleira, corredor…"
               className={inputCls}
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <FieldLabel hint="Quantidade líquida da embalagem (ex.: 500 ml, 1 L)">Conteúdo</FieldLabel>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="0"
+                step="0.001"
+                value={values.content_qty}
+                onChange={(e) => patch({ content_qty: e.target.value })}
+                placeholder="Ex.: 500"
+                className={`${inputCls} flex-1 tabular-nums`}
+              />
+              <select
+                value={values.content_unit}
+                onChange={(e) => patch({ content_unit: e.target.value })}
+                className={`${inputCls} w-36 shrink-0`}
+                aria-label="Unidade do conteúdo"
+              >
+                <option value="">Unidade</option>
+                {CONTENT_UNIT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+            <FieldLabel>Descrição</FieldLabel>
+            <textarea
+              value={values.description}
+              onChange={(e) => patch({ description: e.target.value })}
+              placeholder="Descrição do produto…"
+              className={textareaCls}
+              rows={3}
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+            <FieldLabel>Características</FieldLabel>
+            <textarea
+              value={values.characteristics}
+              onChange={(e) => patch({ characteristics: e.target.value })}
+              placeholder="Características técnicas, material, compatibilidade…"
+              className={textareaCls}
+              rows={3}
             />
           </div>
           <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">

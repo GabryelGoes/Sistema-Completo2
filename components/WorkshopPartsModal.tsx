@@ -54,10 +54,12 @@ import {
   createWorkshopPartPurchase,
   updateWorkshopPartPurchase,
   deleteWorkshopPartPurchase,
+  getWorkshopPartPendingReservations,
   type WorkshopPart,
   type WorkshopPartCategory,
   type WorkshopPartPurchase,
   type WorkshopPartLabContext,
+  type WorkshopPartPendingReservation,
 } from '../services/apiService';
 import { printWorkshopPartSheet } from '../utils/workshopPartPrintSheet';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
@@ -79,6 +81,7 @@ import {
   buildPartNumberMap,
   countPartsByCategory,
   countStockAlerts,
+  formatWorkshopPartQty,
   getWorkshopPartStockStatus,
   readWorkshopPartSortMode,
   sortWorkshopPartsForCatalogNumber,
@@ -86,6 +89,7 @@ import {
   WORKSHOP_PARTS_SORT_STORAGE_KEY,
   type WorkshopPartSortMode,
 } from '../utils/workshopPartStock';
+import { storageSiteLabel } from '../utils/workshopPartFields';
 import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
 
 interface WorkshopPartsModalProps {
@@ -170,6 +174,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [parts, setParts] = useState<WorkshopPart[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingReservations, setPendingReservations] = useState<WorkshopPartPendingReservation[]>([]);
+  const [reservedQtyByPartId, setReservedQtyByPartId] = useState<Record<string, number>>({});
+  const [reservationsExpanded, setReservationsExpanded] = useState(false);
 
   const [newName, setNewName] = useState('');
   const [pendingPhotos, setPendingPhotos] = useState<PendingPartPhoto[]>([]);
@@ -275,12 +282,18 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     setLoading(true);
     setError(null);
     try {
-      const [list, cats] = await Promise.all([
+      const [list, cats, reservations] = await Promise.all([
         getWorkshopParts(),
         getWorkshopPartCategories().catch(() => [] as WorkshopPartCategory[]),
+        getWorkshopPartPendingReservations().catch(() => ({
+          items: [] as WorkshopPartPendingReservation[],
+          reservedQtyByPartId: {} as Record<string, number>,
+        })),
       ]);
       setParts(list);
       setCategories(cats);
+      setPendingReservations(reservations.items);
+      setReservedQtyByPartId(reservations.reservedQtyByPartId);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar peças.');
     } finally {
@@ -769,6 +782,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       const original = normalizePartSearch(p.original_code || '');
       const numeric = normalizePartSearch(p.numeric_code || '');
       const location = normalizePartSearch(p.location || '');
+      const model = normalizePartSearch(p.model || '');
+      const description = normalizePartSearch(p.description || '');
+      const characteristics = normalizePartSearch(p.characteristics || '');
+      const storage = normalizePartSearch(storageSiteLabel(p.storage_site));
       const price = String(p.unit_price ?? '').replace(',', '.');
       const stock = String(p.stock_qty ?? '').replace(',', '.');
       const catNames = (p.category_ids ?? [])
@@ -778,6 +795,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       return (
         name.includes(q) ||
         brand.includes(q) ||
+        model.includes(q) ||
+        description.includes(q) ||
+        characteristics.includes(q) ||
+        storage.includes(q) ||
         original.includes(q) ||
         numeric.includes(q) ||
         location.includes(q) ||
@@ -981,12 +1002,71 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         ) : (
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-auto touch-pan-y px-6 sm:px-8 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable]">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:max-w-xl">
-              Gerencie preço e estoque. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Categorias</span> para
-              organizar o catálogo. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Adicionar produto</span> para
-              cadastrar. Toque no nome do item para <span className="font-medium text-zinc-600 dark:text-zinc-300">ver detalhes</span>; use o
-              ícone de lápis para editar.
-            </p>
+            {!loading ? (
+              <div className="min-w-0 w-full sm:max-w-xl overflow-hidden rounded-2xl border border-amber-300/70 bg-amber-50/90 shadow-sm dark:border-amber-500/30 dark:bg-amber-950/35">
+                <button
+                  type="button"
+                  onClick={() => setReservationsExpanded((v) => !v)}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                  aria-expanded={reservationsExpanded}
+                >
+                  <span className="min-w-0 flex items-center gap-2">
+                    <span className="text-[15px] font-semibold text-amber-950 dark:text-amber-100">
+                      Em Orçamentos
+                    </span>
+                    {pendingReservations.length > 0 ? (
+                      <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-amber-950 dark:text-amber-100">
+                        {pendingReservations.length}
+                      </span>
+                    ) : null}
+                  </span>
+                  <ChevronDown
+                    className={`h-5 w-5 shrink-0 text-amber-800 transition-transform dark:text-amber-200 ${
+                      reservationsExpanded ? 'rotate-180' : ''
+                    }`}
+                    aria-hidden
+                  />
+                </button>
+                {reservationsExpanded ? (
+                  pendingReservations.length > 0 ? (
+                    <ul className="max-h-[min(280px,40vh)] space-y-1.5 overflow-y-auto border-t border-amber-200/70 px-3 py-3 dark:border-amber-500/20 custom-scrollbar">
+                      {pendingReservations.map((row) => {
+                        const vehicleBits = [
+                          row.osNumber != null ? `OS #${row.osNumber}` : null,
+                          row.plate,
+                          row.vehicleModel,
+                        ].filter(Boolean);
+                        return (
+                          <li
+                            key={`${row.budgetId}-${row.workshopPartId ?? row.partName}-${row.serviceOrderId}`}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 px-3 py-2.5 text-[13px] dark:bg-black/25"
+                          >
+                            <span className="min-w-0">
+                              <span className="block font-semibold text-zinc-900 dark:text-white">
+                                {row.partName}
+                              </span>
+                              <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
+                                {vehicleBits.length > 0 ? vehicleBits.join(' · ') : 'Veículo'}
+                                {row.budgetCardName ? ` · ${row.budgetCardName}` : ''}
+                              </span>
+                            </span>
+                            <span className="shrink-0 rounded-lg bg-amber-500/15 px-2.5 py-1 text-[13px] font-bold tabular-nums text-amber-950 dark:text-amber-100">
+                              {row.quantityLabel} un.
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="border-t border-amber-200/70 px-4 py-3 text-[13px] text-amber-900/80 dark:border-amber-500/20 dark:text-amber-200/80">
+                      Nenhum produto em orçamento aguardando baixa.
+                    </p>
+                  )
+                ) : null}
+              </div>
+            ) : (
+              <div className="min-w-0 w-full sm:max-w-xl" />
+            )}
             <div className="flex flex-wrap gap-2 justify-end shrink-0">
               <button
                 type="button"
@@ -1473,12 +1553,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                             </span>
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 truncate">
                               {p.brand?.trim() || '—'}
+                              {p.model?.trim() ? ` · ${p.model.trim()}` : ''}
                             </span>
                             <span className="text-[16px] font-extrabold leading-tight text-zinc-900 dark:text-white truncate">
                               {p.name}
                             </span>
                             <span className="text-[12px] text-zinc-600 dark:text-zinc-400 truncate">
-                              {p.location?.trim() || '—'}
+                              {storageSiteLabel(p.storage_site)}
+                              {p.location?.trim() ? ` · ${p.location.trim()}` : ''}
                             </span>
                             {originalCode ? (
                               <span
@@ -1505,7 +1587,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                                 : 'text-zinc-700 dark:text-zinc-300'
                           }`}
                         >
-                          <span>{Number(p.stock_qty ?? 0).toFixed(3)}</span>
+                          <span>{formatWorkshopPartQty(p.stock_qty)}</span>
+                          {(reservedQtyByPartId[p.id] ?? 0) > 0 ? (
+                            <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                              {formatWorkshopPartQty(reservedQtyByPartId[p.id])} em orçamento
+                            </span>
+                          ) : null}
                           <WorkshopPartStockBadge status={stockStatus} className="hidden md:inline-flex" />
                         </span>
                         <button

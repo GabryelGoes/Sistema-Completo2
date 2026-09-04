@@ -10,8 +10,10 @@ import { WORKSHOP_PART_PHOTOS_MAX } from '../services/apiService';
 import {
   PART_ORIGIN_OPTIONS,
   UNIT_OF_MEASURE_OPTIONS,
+  formatPartContent,
+  storageSiteLabel,
 } from '../utils/workshopPartFields';
-import { getWorkshopPartStockStatus } from '../utils/workshopPartStock';
+import { formatWorkshopPartQty, getWorkshopPartStockStatus } from '../utils/workshopPartStock';
 import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
 import type { PartPhotoSlot } from './WorkshopPartRegistrationForm';
 
@@ -26,7 +28,7 @@ function fmtMoney(n: number): string {
 }
 
 function fmtQty(n: number, unit: string): string {
-  return `${Number(n ?? 0).toFixed(3)} ${unit}`;
+  return `${formatWorkshopPartQty(n)} ${unit}`;
 }
 
 function displayText(v: string | null | undefined): string {
@@ -257,6 +259,7 @@ export function WorkshopPartDetailView({
                 <DetailRow label="Nº no estoque" value={`#${catalogNumber}`} />
               ) : null}
               <DetailRow label="Marca" value={displayText(part.brand)} />
+              <DetailRow label="Modelo" value={displayText(part.model)} />
               <DetailRow
                 label="Produto"
                 value={
@@ -265,7 +268,12 @@ export function WorkshopPartDetailView({
                   </span>
                 }
               />
+              <DetailRow label="Empresa / barracão" value={storageSiteLabel(part.storage_site)} />
               <DetailRow label="Localização" value={displayText(part.location)} />
+              <DetailRow
+                label="Conteúdo"
+                value={displayText(formatPartContent(part.content_qty, part.content_unit))}
+              />
               <DetailRow label="Código original" value={displayText(part.original_code)} />
               <DetailRow label="Código numérico" value={displayText(part.numeric_code)} />
               <DetailRow
@@ -291,8 +299,29 @@ export function WorkshopPartDetailView({
             </div>
           </div>
 
-          {(part.application_similar?.trim() || part.notes?.trim()) ? (
+          {(part.description?.trim() ||
+            part.characteristics?.trim() ||
+            part.application_similar?.trim() ||
+            part.notes?.trim()) ? (
             <div className="grid gap-4 lg:grid-cols-2">
+              {part.description?.trim() ? (
+                <div className={cardCls}>
+                  <h3 className="mb-2 text-[13px] font-bold text-zinc-800 dark:text-zinc-200">Descrição</h3>
+                  <p className="whitespace-pre-wrap text-[14px] text-zinc-800 dark:text-zinc-200">
+                    {part.description}
+                  </p>
+                </div>
+              ) : null}
+              {part.characteristics?.trim() ? (
+                <div className={cardCls}>
+                  <h3 className="mb-2 text-[13px] font-bold text-zinc-800 dark:text-zinc-200">
+                    Características
+                  </h3>
+                  <p className="whitespace-pre-wrap text-[14px] text-zinc-800 dark:text-zinc-200">
+                    {part.characteristics}
+                  </p>
+                </div>
+              ) : null}
               {part.application_similar?.trim() ? (
                 <div className={cardCls}>
                   <h3 className="mb-2 text-[13px] font-bold text-zinc-800 dark:text-zinc-200">

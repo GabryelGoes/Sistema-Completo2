@@ -2664,6 +2664,13 @@ export interface WorkshopPart {
   original_code?: string | null;
   numeric_code?: string | null;
   location?: string | null;
+  /** Barracão: oficina principal ou depósito. */
+  storage_site?: 'oficina' | 'deposito' | null;
+  description?: string | null;
+  model?: string | null;
+  content_qty?: number | null;
+  content_unit?: string | null;
+  characteristics?: string | null;
   application_similar?: string | null;
   notes?: string | null;
   ncm_code?: string | null;
@@ -2692,6 +2699,12 @@ export type WorkshopPartWriteInput = {
   original_code?: string | null;
   numeric_code?: string | null;
   location?: string | null;
+  storage_site?: 'oficina' | 'deposito' | null;
+  description?: string | null;
+  model?: string | null;
+  content_qty?: number | null;
+  content_unit?: string | null;
+  characteristics?: string | null;
   application_similar?: string | null;
   notes?: string | null;
   ncm_code?: string | null;
@@ -2730,6 +2743,42 @@ export async function getWorkshopPartsAnalytics(
   return response.json();
 }
 
+export type WorkshopPartPendingReservation = {
+  workshopPartId: string | null;
+  partName: string;
+  quantity: number;
+  quantityLabel: string;
+  budgetId: string;
+  budgetCardName: string | null;
+  serviceOrderId: string;
+  plate: string | null;
+  vehicleModel: string | null;
+  osNumber: number | null;
+  status: string | null;
+};
+
+export type WorkshopPartPendingReservationsResponse = {
+  items: WorkshopPartPendingReservation[];
+  reservedQtyByPartId: Record<string, number>;
+};
+
+/** Peças do estoque em orçamentos de veículos ainda sem baixa (antes de Finalizado). */
+export async function getWorkshopPartPendingReservations(): Promise<WorkshopPartPendingReservationsResponse> {
+  const response = await fetch(`${API_BASE}/workshop-parts/pending-reservations`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar reservas do estoque (${response.status})`);
+  }
+  const data = (await response.json()) as WorkshopPartPendingReservationsResponse;
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    reservedQtyByPartId:
+      data.reservedQtyByPartId && typeof data.reservedQtyByPartId === 'object'
+        ? data.reservedQtyByPartId
+        : {},
+  };
+}
+
 export async function getWorkshopParts(): Promise<WorkshopPart[]> {
   const response = await fetch(`${API_BASE}/workshop-parts`);
   if (!response.ok) {
@@ -2754,6 +2803,8 @@ function normalizeWorkshopPartRow(row: Record<string, unknown>): WorkshopPart {
     unit_cost: Number(row.unit_cost ?? 0),
     km_limit: row.km_limit != null ? Number(row.km_limit) : null,
     validity_months: row.validity_months != null ? Number(row.validity_months) : null,
+    storage_site: row.storage_site === 'deposito' ? 'deposito' : 'oficina',
+    content_qty: row.content_qty != null && row.content_qty !== '' ? Number(row.content_qty) : null,
     fiscal_extra:
       fiscal && typeof fiscal === 'object' && !Array.isArray(fiscal)
         ? (fiscal as WorkshopPartFiscalExtra)

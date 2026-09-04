@@ -38,7 +38,10 @@ import {
   mergeServiceTechnicianDraftLines,
   parseFinalizePartQuantity,
   validateServiceTechnicianLines,
+  finalizeStockAggKeyPartId,
+  finalizeStockAggKeyPartName,
 } from "./utils/serviceOrderServiceTechnicians.js";
+import { collectPendingStockReservations } from "./utils/workshopPartReservations.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -716,17 +719,26 @@ export function createApiApp() {
       throw new Error(`Falha ao carregar estoque de peças: ${partsError.message}`);
     }
 
+    const byId = new Map<string, { id: string; name: string; stock_qty: number }>();
     const byNormalized = new Map<string, { id: string; name: string; stock_qty: number }>();
     for (const row of (partsRows || []) as Array<{ id: string; name: string; stock_qty: number | null }>) {
-      byNormalized.set(normalizePartName(row.name), {
+      const entry = {
         id: row.id,
         name: row.name,
         stock_qty: Number(row.stock_qty ?? 0),
-      });
+      };
+      byId.set(row.id, entry);
+      byNormalized.set(normalizePartName(row.name), entry);
     }
 
-    for (const [normalizedName, delta] of nonZero) {
-      const part = byNormalized.get(normalizedName);
+    // Chaves novas: id:UUID / name:normalized — e legado: só o nome normalizado.
+    for (const [key, delta] of nonZero) {
+      const partId = finalizeStockAggKeyPartId(key);
+      const partNameKey = finalizeStockAggKeyPartName(key);
+      const part =
+        (partId ? byId.get(partId) : undefined) ??
+        (partNameKey ? byNormalized.get(partNameKey) : undefined) ??
+        byNormalized.get(key);
       if (!part) continue;
       const nextStock = part.stock_qty - delta;
       if (nextStock < 0) {
@@ -740,6 +752,8 @@ export function createApiApp() {
       if (updateErr) {
         throw new Error(`Falha ao atualizar estoque da peça "${part.name}": ${updateErr.message}`);
       }
+      // Mantém o mapa local coerente se o mesmo produto aparecer por id e por nome.
+      part.stock_qty = nextStock;
     }
   }
 
@@ -6600,6 +6614,7 @@ export function createApiApp() {
   const WORKSHOP_PART_SELECT =
     "id, name, brand, unit_price, stock_qty, photo_url, sort_order, created_at, " +
     "original_code, numeric_code, location, application_similar, notes, " +
+    "description, model, content_qty, content_unit, characteristics, storage_site, " +
     "ncm_code, unit_of_measure, min_stock_qty, max_stock_qty, fiscal_origin, " +
     "premium_amount, commission_pct, default_profit_pct, km_limit, validity_months, " +
     "unit_cost, fiscal_extra, primary_category_id";
@@ -6671,12 +6686,32 @@ export function createApiApp() {
       "location",
       "application_similar",
       "notes",
+      "description",
+      "model",
+      "content_unit",
+      "characteristics",
       "ncm_code",
       "unit_of_measure",
       "fiscal_origin",
     ] as const;
     for (const key of textFields) {
       if (body[key] !== undefined) patch[key] = parseOptionalText(body[key]) ?? (key === "unit_of_measure" ? "UN" : key === "fiscal_origin" ? "0" : null);
+    }
+
+    if (body.storage_site !== undefined) {
+      const site = String(body.storage_site ?? "").trim().toLowerCase();
+      if (site === "deposito" || site === "oficina") patch.storage_site = site;
+      else if (site === "") patch.storage_site = "oficina";
+      else errors.push("storage_site inválido (use oficina ou deposito).");
+    }
+
+    if (body.content_qty !== undefined) {
+      if (body.content_qty === null || body.content_qty === "") patch.content_qty = null;
+      else {
+        const n = Number(body.content_qty);
+        if (!Number.isFinite(n) || n < 0) errors.push("content_qty inválido.");
+        else patch.content_qty = n;
+      }
     }
 
     if (body.primary_category_id !== undefined) {
@@ -6704,6 +6739,7 @@ export function createApiApp() {
       if (patch.unit_of_measure === undefined) patch.unit_of_measure = "UN";
       if (patch.fiscal_origin === undefined) patch.fiscal_origin = "0";
       if (patch.fiscal_extra === undefined) patch.fiscal_extra = {};
+      if (patch.storage_site === undefined) patch.storage_site = "oficina";
     }
 
     return { patch, errors };
@@ -6963,6 +6999,73 @@ export function createApiApp() {
       return res.json(analytics);
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop-parts/analytics:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.get("/api/workshop-parts/pending-reservations", async (_req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const { data: serviceOrders, error: soError } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, plate, vehicle_model, os_number, status, finalize_stock_applied_at")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("order_type", "vehicle")
+        .is("finalize_stock_applied_at", null)
+        .neq("status", "CANCELLED");
+
+      if (soError) {
+        // Coluna pode não existir se a migration de finalize ainda não foi aplicada.
+        if (/finalize_stock_applied_at/i.test(soError.message || "")) {
+          return res.json({ items: [], reservedQtyByPartId: {} });
+        }
+        console.error("[API] Erro ao listar OS para reservas de estoque:", soError);
+        return res.status(500).json({ error: soError.message });
+      }
+
+      const orders = (serviceOrders ?? []) as Array<{
+        id: string;
+        plate?: string | null;
+        vehicle_model?: string | null;
+        os_number?: number | null;
+        status?: string | null;
+        finalize_stock_applied_at?: string | null;
+      }>;
+      const orderIds = orders.map((o) => o.id);
+      if (orderIds.length === 0) {
+        return res.json({ items: [], reservedQtyByPartId: {} });
+      }
+
+      const { data: budgets, error: budgetError } = await supabaseAdmin
+        .from("budgets")
+        .select("id, card_name, parts, service_order_id")
+        .eq("workshop_id", WORKSHOP_ID)
+        .in("service_order_id", orderIds);
+
+      if (budgetError) {
+        console.error("[API] Erro ao listar orçamentos para reservas:", budgetError);
+        return res.status(500).json({ error: budgetError.message });
+      }
+
+      const result = collectPendingStockReservations({
+        budgets: (budgets ?? []) as Array<{
+          id: string;
+          card_name?: string | null;
+          parts?: unknown;
+          service_order_id?: string;
+        }>,
+        serviceOrders: orders,
+      });
+
+      return res.json(result);
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/workshop-parts/pending-reservations:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
