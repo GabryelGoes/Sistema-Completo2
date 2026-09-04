@@ -1,8 +1,8 @@
-import { normalizeBudgetPartName } from './budgetPartStock';
+import { normalizeBudgetPartName } from './budgetPartStock.js';
 import {
   formatFinalizePartQuantity,
   parseFinalizePartQuantity,
-} from './serviceOrderServiceTechnicians';
+} from './serviceOrderServiceTechnicians.js';
 
 /** Linha de peça em orçamento (JSON) usada para reservas de estoque. */
 export type BudgetPartForReservation = {
