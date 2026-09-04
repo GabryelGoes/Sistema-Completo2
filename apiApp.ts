@@ -6620,13 +6620,77 @@ export function createApiApp() {
     }));
   }
 
-  const WORKSHOP_PART_SELECT =
+  const WORKSHOP_PART_SELECT_CORE =
+    "id, name, brand, unit_price, stock_qty, photo_url, sort_order, created_at, " +
+    "original_code, numeric_code, location, application_similar, notes, " +
+    "description, model, content_qty, content_unit, characteristics, storage_site, " +
+    "ncm_code, unit_of_measure, min_stock_qty, max_stock_qty, fiscal_origin, " +
+    "premium_amount, commission_pct, default_profit_pct, km_limit, validity_months, " +
+    "unit_cost, fiscal_extra, primary_category_id";
+
+  const WORKSHOP_PART_SELECT_WITH_BARCODE =
     "id, name, brand, unit_price, stock_qty, photo_url, sort_order, created_at, " +
     "original_code, numeric_code, barcode, location, application_similar, notes, " +
     "description, model, content_qty, content_unit, characteristics, storage_site, " +
     "ncm_code, unit_of_measure, min_stock_qty, max_stock_qty, fiscal_origin, " +
     "premium_amount, commission_pct, default_profit_pct, km_limit, validity_months, " +
     "unit_cost, fiscal_extra, primary_category_id";
+
+  /** null = ainda não detectado; true/false após probe ou erro. */
+  let workshopPartsHasBarcodeColumn: boolean | null = null;
+
+  function isMissingDbColumnError(message: string | undefined, column: string): boolean {
+    const m = String(message || "");
+    return (
+      new RegExp(`column[^\\n]*${column}[^\\n]*does not exist`, "i").test(m) ||
+      new RegExp(`${column}[^\\n]*does not exist`, "i").test(m) ||
+      new RegExp(`could not find[^\\n]*column[^\\n]*${column}`, "i").test(m) ||
+      new RegExp(`Could not find the '${column}' column`, "i").test(m)
+    );
+  }
+
+  function workshopPartSelect(): string {
+    return workshopPartsHasBarcodeColumn === false
+      ? WORKSHOP_PART_SELECT_CORE
+      : WORKSHOP_PART_SELECT_WITH_BARCODE;
+  }
+
+  async function ensureWorkshopPartBarcodeCapability(): Promise<boolean> {
+    if (workshopPartsHasBarcodeColumn != null) return workshopPartsHasBarcodeColumn;
+    if (!supabaseAdmin) {
+      workshopPartsHasBarcodeColumn = false;
+      return false;
+    }
+    const { error } = await supabaseAdmin.from("workshop_parts").select("id, barcode").limit(1);
+    if (error && isMissingDbColumnError(error.message, "barcode")) {
+      workshopPartsHasBarcodeColumn = false;
+      console.warn(
+        "[API] Coluna workshop_parts.barcode ausente. " +
+          "Aplique supabase/migrations/20260904150802_workshop_part_stock_movements.sql. " +
+          "Enquanto isso, o estoque funciona sem código de barras (busca por original/numérico)."
+      );
+      return false;
+    }
+    // Outros erros (rede/RLS) não marcam a coluna como ausente — tentamos o SELECT completo.
+    if (!error) workshopPartsHasBarcodeColumn = true;
+    return workshopPartsHasBarcodeColumn !== false;
+  }
+
+  function stripUnsupportedWorkshopPartPatch(patch: Record<string, unknown>): Record<string, unknown> {
+    if (workshopPartsHasBarcodeColumn !== false) return patch;
+    if (!("barcode" in patch)) return patch;
+    const next = { ...patch };
+    delete next.barcode;
+    return next;
+  }
+
+  function markWorkshopPartBarcodeMissingFromError(message: string | undefined): boolean {
+    if (!isMissingDbColumnError(message, "barcode")) return false;
+    workshopPartsHasBarcodeColumn = false;
+    return true;
+  }
+
+  // Compat removida: use workshopPartSelect() / ensureWorkshopPartBarcodeCapability().
 
   function parseOptionalText(v: unknown): string | null {
     if (v === undefined || v === null) return null;
@@ -7120,18 +7184,30 @@ export function createApiApp() {
     if (!supabaseAdmin || !WORKSHOP_ID) return null;
     const code = normalizeBarcodeInput(codeRaw);
     if (!code) return null;
+    await ensureWorkshopPartBarcodeCapability();
 
     const tryExact = async (column: "barcode" | "original_code" | "numeric_code") => {
+      if (column === "barcode" && workshopPartsHasBarcodeColumn === false) return null;
       const { data, error } = await supabaseAdmin
         .from("workshop_parts")
-        .select(WORKSHOP_PART_SELECT)
+        .select(workshopPartSelect())
         .eq("workshop_id", WORKSHOP_ID)
         .eq(column, code)
         .limit(1)
         .maybeSingle();
       if (error) {
-        // Coluna barcode pode ainda não existir se a migration não foi aplicada.
-        if (column === "barcode" && /barcode/i.test(error.message || "")) return null;
+        if (markWorkshopPartBarcodeMissingFromError(error.message)) {
+          if (column === "barcode") return null;
+          const retry = await supabaseAdmin
+            .from("workshop_parts")
+            .select(workshopPartSelect())
+            .eq("workshop_id", WORKSHOP_ID)
+            .eq(column, code)
+            .limit(1)
+            .maybeSingle();
+          if (retry.error) throw new Error(retry.error.message);
+          return (retry.data as Record<string, unknown> | null) ?? null;
+        }
         throw new Error(error.message);
       }
       return (data as Record<string, unknown> | null) ?? null;
@@ -7186,12 +7262,21 @@ export function createApiApp() {
     }
 
     // Fallback sem RPC: baixa + insert na tabela de movimentações.
-    const { data: partRow, error: partErr } = await supabaseAdmin
+    await ensureWorkshopPartBarcodeCapability();
+    let { data: partRow, error: partErr } = await supabaseAdmin
       .from("workshop_parts")
-      .select(WORKSHOP_PART_SELECT)
+      .select(workshopPartSelect())
       .eq("id", opts.partId)
       .eq("workshop_id", WORKSHOP_ID)
       .maybeSingle();
+    if (partErr && markWorkshopPartBarcodeMissingFromError(partErr.message)) {
+      ({ data: partRow, error: partErr } = await supabaseAdmin
+        .from("workshop_parts")
+        .select(workshopPartSelect())
+        .eq("id", opts.partId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle());
+    }
     if (partErr) throw new Error(partErr.message);
     if (!partRow) throw new Error("Produto não encontrado.");
 
@@ -7538,12 +7623,22 @@ export function createApiApp() {
         });
       }
 
-      const { data, error } = await supabaseAdmin
+      await ensureWorkshopPartBarcodeCapability();
+      let { data, error } = await supabaseAdmin
         .from("workshop_parts")
-        .select(WORKSHOP_PART_SELECT)
+        .select(workshopPartSelect())
         .eq("workshop_id", WORKSHOP_ID)
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true });
+
+      if (error && markWorkshopPartBarcodeMissingFromError(error.message)) {
+        ({ data, error } = await supabaseAdmin
+          .from("workshop_parts")
+          .select(workshopPartSelect())
+          .eq("workshop_id", WORKSHOP_ID)
+          .order("sort_order", { ascending: true })
+          .order("name", { ascending: true }));
+      }
 
       if (error) {
         console.error("[API] Erro ao listar peças:", error);
@@ -7587,12 +7682,23 @@ export function createApiApp() {
 
       const { patch, errors } = parseWorkshopPartBody((req.body || {}) as Record<string, unknown>, true);
       if (errors.length) return res.status(400).json({ error: errors[0] });
+      await ensureWorkshopPartBarcodeCapability();
+      const safePatch = stripUnsupportedWorkshopPartPatch(patch);
 
-      const { data, error } = await supabaseAdmin
+      let { data, error } = await supabaseAdmin
         .from("workshop_parts")
-        .insert({ workshop_id: WORKSHOP_ID, sort_order: 0, ...patch })
-        .select(WORKSHOP_PART_SELECT)
+        .insert({ workshop_id: WORKSHOP_ID, sort_order: 0, ...safePatch })
+        .select(workshopPartSelect())
         .single();
+
+      if (error && markWorkshopPartBarcodeMissingFromError(error.message)) {
+        const retryPatch = stripUnsupportedWorkshopPartPatch(safePatch);
+        ({ data, error } = await supabaseAdmin
+          .from("workshop_parts")
+          .insert({ workshop_id: WORKSHOP_ID, sort_order: 0, ...retryPatch })
+          .select(workshopPartSelect())
+          .single());
+      }
 
       if (error) {
         if (error.code === "23505") {
@@ -7625,13 +7731,36 @@ export function createApiApp() {
         return res.status(400).json({ error: "Nenhum campo para atualizar." });
       }
 
-      const { data, error } = await supabaseAdmin
+      await ensureWorkshopPartBarcodeCapability();
+      let safePatch = stripUnsupportedWorkshopPartPatch(patch);
+      if (Object.keys(safePatch).length === 0) {
+        return res.status(400).json({ error: "Nenhum campo para atualizar." });
+      }
+
+      let { data, error } = await supabaseAdmin
         .from("workshop_parts")
-        .update(patch)
+        .update(safePatch)
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
-        .select(WORKSHOP_PART_SELECT)
+        .select(workshopPartSelect())
         .single();
+
+      if (error && markWorkshopPartBarcodeMissingFromError(error.message)) {
+        safePatch = stripUnsupportedWorkshopPartPatch(safePatch);
+        if (Object.keys(safePatch).length === 0) {
+          return res.status(400).json({
+            error:
+              "Coluna barcode ainda não existe no banco. Aplique a migration workshop_part_stock_movements.",
+          });
+        }
+        ({ data, error } = await supabaseAdmin
+          .from("workshop_parts")
+          .update(safePatch)
+          .eq("id", id)
+          .eq("workshop_id", WORKSHOP_ID)
+          .select(workshopPartSelect())
+          .single());
+      }
 
       if (error) {
         if (error.code === "23505") {
@@ -7781,7 +7910,7 @@ export function createApiApp() {
 
       const { data, error } = await supabaseAdmin
         .from("workshop_parts")
-        .select(WORKSHOP_PART_SELECT)
+        .select(workshopPartSelect())
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -7817,7 +7946,7 @@ export function createApiApp() {
       await syncWorkshopPartCoverPhoto(id);
       const { data, error: loadErr } = await supabaseAdmin
         .from("workshop_parts")
-        .select(WORKSHOP_PART_SELECT)
+        .select(workshopPartSelect())
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -8221,7 +8350,7 @@ export function createApiApp() {
       }
       const { data: fullPart, error: fullErr } = await supabaseAdmin
         .from("workshop_parts")
-        .select(WORKSHOP_PART_SELECT)
+        .select(workshopPartSelect())
         .eq("id", partId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
