@@ -2664,6 +2664,13 @@ export interface WorkshopPart {
   original_code?: string | null;
   numeric_code?: string | null;
   location?: string | null;
+  /** Barracão: oficina principal ou depósito. */
+  storage_site?: 'oficina' | 'deposito' | null;
+  description?: string | null;
+  model?: string | null;
+  content_qty?: number | null;
+  content_unit?: string | null;
+  characteristics?: string | null;
   application_similar?: string | null;
   notes?: string | null;
   ncm_code?: string | null;
@@ -2692,6 +2699,12 @@ export type WorkshopPartWriteInput = {
   original_code?: string | null;
   numeric_code?: string | null;
   location?: string | null;
+  storage_site?: 'oficina' | 'deposito' | null;
+  description?: string | null;
+  model?: string | null;
+  content_qty?: number | null;
+  content_unit?: string | null;
+  characteristics?: string | null;
   application_similar?: string | null;
   notes?: string | null;
   ncm_code?: string | null;
@@ -2790,6 +2803,8 @@ function normalizeWorkshopPartRow(row: Record<string, unknown>): WorkshopPart {
     unit_cost: Number(row.unit_cost ?? 0),
     km_limit: row.km_limit != null ? Number(row.km_limit) : null,
     validity_months: row.validity_months != null ? Number(row.validity_months) : null,
+    storage_site: row.storage_site === 'deposito' ? 'deposito' : 'oficina',
+    content_qty: row.content_qty != null && row.content_qty !== '' ? Number(row.content_qty) : null,
     fiscal_extra:
       fiscal && typeof fiscal === 'object' && !Array.isArray(fiscal)
         ? (fiscal as WorkshopPartFiscalExtra)

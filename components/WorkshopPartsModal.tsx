@@ -89,6 +89,7 @@ import {
   WORKSHOP_PARTS_SORT_STORAGE_KEY,
   type WorkshopPartSortMode,
 } from '../utils/workshopPartStock';
+import { storageSiteLabel } from '../utils/workshopPartFields';
 import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
 
 interface WorkshopPartsModalProps {
@@ -781,6 +782,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       const original = normalizePartSearch(p.original_code || '');
       const numeric = normalizePartSearch(p.numeric_code || '');
       const location = normalizePartSearch(p.location || '');
+      const model = normalizePartSearch(p.model || '');
+      const description = normalizePartSearch(p.description || '');
+      const characteristics = normalizePartSearch(p.characteristics || '');
+      const storage = normalizePartSearch(storageSiteLabel(p.storage_site));
       const price = String(p.unit_price ?? '').replace(',', '.');
       const stock = String(p.stock_qty ?? '').replace(',', '.');
       const catNames = (p.category_ids ?? [])
@@ -790,6 +795,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       return (
         name.includes(q) ||
         brand.includes(q) ||
+        model.includes(q) ||
+        description.includes(q) ||
+        characteristics.includes(q) ||
+        storage.includes(q) ||
         original.includes(q) ||
         numeric.includes(q) ||
         location.includes(q) ||
@@ -1544,12 +1553,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                             </span>
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 truncate">
                               {p.brand?.trim() || '—'}
+                              {p.model?.trim() ? ` · ${p.model.trim()}` : ''}
                             </span>
                             <span className="text-[16px] font-extrabold leading-tight text-zinc-900 dark:text-white truncate">
                               {p.name}
                             </span>
                             <span className="text-[12px] text-zinc-600 dark:text-zinc-400 truncate">
-                              {p.location?.trim() || '—'}
+                              {storageSiteLabel(p.storage_site)}
+                              {p.location?.trim() ? ` · ${p.location.trim()}` : ''}
                             </span>
                             {originalCode ? (
                               <span

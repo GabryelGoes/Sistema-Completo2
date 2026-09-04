@@ -6,6 +6,8 @@ import type {
 import {
   PART_ORIGIN_OPTIONS,
   UNIT_OF_MEASURE_OPTIONS,
+  formatPartContent,
+  storageSiteLabel,
 } from './workshopPartFields';
 import { formatWorkshopPartQty, getWorkshopPartStockStatus } from './workshopPartStock';
 import { printHtmlDocument } from './printHtml';
@@ -152,6 +154,14 @@ export function printWorkshopPartSheet(opts: {
     ? `<section class="section"><h2 class="sec-title">Aplicação e similares</h2><div class="block">${esc(part.application_similar)}</div></section>`
     : '';
 
+  const descriptionHtml = part.description?.trim()
+    ? `<section class="section"><h2 class="sec-title">Descrição</h2><div class="block">${esc(part.description)}</div></section>`
+    : '';
+
+  const characteristicsHtml = part.characteristics?.trim()
+    ? `<section class="section"><h2 class="sec-title">Características</h2><div class="block">${esc(part.characteristics)}</div></section>`
+    : '';
+
   const notesHtml = part.notes?.trim()
     ? `<section class="section"><h2 class="sec-title">Observações</h2><div class="block">${esc(part.notes)}</div></section>`
     : '';
@@ -292,7 +302,10 @@ export function printWorkshopPartSheet(opts: {
     <div class="grid">
       ${catalogNumber != null ? fieldHtml('Nº no estoque', esc(`#${catalogNumber}`)) : ''}
       ${fieldHtml('Marca', esc(displayText(part.brand)))}
+      ${fieldHtml('Modelo', esc(displayText(part.model)))}
+      ${fieldHtml('Empresa / barracão', esc(storageSiteLabel(part.storage_site)))}
       ${fieldHtml('Localização', esc(displayText(part.location)))}
+      ${fieldHtml('Conteúdo', esc(displayText(formatPartContent(part.content_qty, part.content_unit))))}
       ${fieldHtml('Código original', esc(displayText(part.original_code)))}
       ${fieldHtml('Código numérico', esc(displayText(part.numeric_code)))}
       ${fieldHtml('Categorias', categoriesHtml)}
@@ -301,6 +314,8 @@ export function printWorkshopPartSheet(opts: {
     </div>
   </section>
 
+  ${descriptionHtml}
+  ${characteristicsHtml}
   ${applicationHtml}
   ${notesHtml}
 

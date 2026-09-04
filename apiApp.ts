@@ -6614,6 +6614,7 @@ export function createApiApp() {
   const WORKSHOP_PART_SELECT =
     "id, name, brand, unit_price, stock_qty, photo_url, sort_order, created_at, " +
     "original_code, numeric_code, location, application_similar, notes, " +
+    "description, model, content_qty, content_unit, characteristics, storage_site, " +
     "ncm_code, unit_of_measure, min_stock_qty, max_stock_qty, fiscal_origin, " +
     "premium_amount, commission_pct, default_profit_pct, km_limit, validity_months, " +
     "unit_cost, fiscal_extra, primary_category_id";
@@ -6685,12 +6686,32 @@ export function createApiApp() {
       "location",
       "application_similar",
       "notes",
+      "description",
+      "model",
+      "content_unit",
+      "characteristics",
       "ncm_code",
       "unit_of_measure",
       "fiscal_origin",
     ] as const;
     for (const key of textFields) {
       if (body[key] !== undefined) patch[key] = parseOptionalText(body[key]) ?? (key === "unit_of_measure" ? "UN" : key === "fiscal_origin" ? "0" : null);
+    }
+
+    if (body.storage_site !== undefined) {
+      const site = String(body.storage_site ?? "").trim().toLowerCase();
+      if (site === "deposito" || site === "oficina") patch.storage_site = site;
+      else if (site === "") patch.storage_site = "oficina";
+      else errors.push("storage_site inválido (use oficina ou deposito).");
+    }
+
+    if (body.content_qty !== undefined) {
+      if (body.content_qty === null || body.content_qty === "") patch.content_qty = null;
+      else {
+        const n = Number(body.content_qty);
+        if (!Number.isFinite(n) || n < 0) errors.push("content_qty inválido.");
+        else patch.content_qty = n;
+      }
     }
 
     if (body.primary_category_id !== undefined) {
@@ -6718,6 +6739,7 @@ export function createApiApp() {
       if (patch.unit_of_measure === undefined) patch.unit_of_measure = "UN";
       if (patch.fiscal_origin === undefined) patch.fiscal_origin = "0";
       if (patch.fiscal_extra === undefined) patch.fiscal_extra = {};
+      if (patch.storage_site === undefined) patch.storage_site = "oficina";
     }
 
     return { patch, errors };
